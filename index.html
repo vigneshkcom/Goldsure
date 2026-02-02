@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Goldsure Smoke Alarm Calculator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body,button,input,label,h4,p,span,li{font-family:'Poppins',sans-serif}</style>
+</head>
+<body class="bg-gray-100 p-6">
+<div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-6" style="background:#f1f4f7">
+
+<form class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div><label class="text-sm text-gray-600">No. of Bedrooms</label><input type="number" id="bedrooms" min="0" class="w-full rounded-md border p-2"></div>
+<div><label class="text-sm text-gray-600">No. of Floors</label><input type="number" id="levels" min="1" class="w-full rounded-md border p-2"></div>
+<div class="sm:col-span-2"><label class="text-sm text-gray-600">No. of interconnecting hallways</label><input type="number" id="hallways" min="0" class="w-full rounded-md border p-2"></div>
+<div class="sm:col-span-2"><label class="text-sm text-gray-600">Add controllers?</label><div class="flex gap-6 mt-1"><label><input type="radio" name="hasController" value="no" checked> No</label><label><input type="radio" name="hasController" value="yes"> Yes</label></div></div>
+<div id="controllerQtyWrap" class="sm:col-span-2 hidden"><label class="text-sm text-gray-600">Number of controllers</label><input type="number" id="controllers" min="1" value="1" class="w-full rounded-md border p-2"><p class="text-xs text-gray-500">$49 per controller</p></div>
+<div class="sm:col-span-2"><button type="button" onclick="calculateQuote()" class="w-full py-3 rounded-md font-semibold" style="background:#000;color:#B08D2E;">Calculate</button></div>
+</form>
+
+<div class="mt-8 bg-white border rounded-lg p-5">
+<h4 class="font-bold mb-4">Helpful documents</h4>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank" class="text-center py-3 rounded-md font-semibold" style="background:#000;color:#B08D2E;">Raptor Alarms Manual</a>
+<a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank" class="text-center py-3 rounded-md font-semibold" style="background:#000;color:#B08D2E;">Smoke Alarm Datasheet</a>
+<a href="https://workdrive.zohopublic.com.au/external/bdbe766b133815f75b9ee90db9fbb39d0b525828fed64b0b889a30437f30ff64" target="_blank" class="text-center py-3 rounded-md font-semibold" style="background:#000;color:#B08D2E;">Installation Instructions</a>
+</div>
+</div>
+
+<div id="result" class="hidden mt-8">
+<h4 class="text-lg font-bold">Total alarms required: <span id="totalAlarmsText" class="text-xl font-extrabold" style="color:#B08D2E;">0</span></h4>
+<ul class="list-disc list-inside text-gray-700 mt-3">
+<li><span id="bedroomAlarms" class="font-bold text-[#B08D2E]">0</span> alarms in bedrooms</li>
+<li><span id="hallwayAlarms" class="font-bold text-[#B08D2E]">0</span> in hallways</li>
+<li><span id="levelAlarms" class="font-bold text-[#B08D2E]">0</span> for extra floors</li>
+<li><span id="controllerCount" class="font-bold text-[#B08D2E]">0</span> controllers</li>
+</ul>
+<div class="mt-5 bg-white border rounded-lg p-4">
+<h5 class="font-semibold mb-2">Price breakdown</h5>
+<div class="text-sm space-y-1">
+<div class="flex justify-between"><span>Booking fee</span><span id="bookingFee">$33.00</span></div>
+<div class="flex justify-between"><span>Alarms (<span id="alarmQtyInline">0</span> × $98)</span><span id="alarmsCost">$0.00</span></div>
+<div id="controllerLine" class="flex justify-between"><span>Controllers (<span id="controllerQtyInline">0</span> × $49)</span><span id="controllersCost">$0.00</span></div>
+<hr>
+<div class="flex justify-between font-bold text-lg"><span>Total</span><span id="grandTotal" style="color:#B08D2E;">$0.00</span></div>
+</div>
+</div>
+<div class="mt-4"><label class="text-sm text-gray-600">Customer name (optional)</label><input type="text" id="customerName" class="w-full rounded-md border p-2 mt-1"></div>
+<div class="grid grid-cols-2 gap-3 mt-4">
+<button onclick="emailQuote()" class="py-3 rounded-md font-semibold bg-black text-[#B08D2E]">Email this quote</button>
+<button onclick="copySmsTemplate()" class="py-3 rounded-md font-semibold bg-black text-[#B08D2E]">Copy SMS template</button>
+</div>
+<p class="text-xs text-gray-500 mt-3">Note: Use this option only for quick estimates where the customer has not provided an address. For confirmed quotes and jobs, use DataForce.</p>
+</div>
+
+<div class="mt-8 bg-white border rounded-lg p-5">
+<h4 class="font-bold mb-2">Queensland Smoke Alarm Legislation</h4>
+<p><strong>Effective 01/01/2027:</strong> All homes must have the following smoke alarms installed:</p>
+<ul class="mt-2 space-y-1 text-sm">
+<li>✓ Photoelectric</li>
+<li>✓ Interconnected</li>
+<li>✓ Installed in each bedroom</li>
+<li>✓ Installed in each connecting hallway to bedrooms</li>
+<li>✓ Installed on each level</li>
+<li>✓ Have a 10-year backup battery</li>
+<li>✓ Less than 10 years old from date of manufacture</li>
+<li>✓ Hard-wired smoke alarms replaced with hard-wired alarms</li>
+<li>✓ Additional battery-powered alarms installed where required</li>
+<li>✓ Comply with AS 3786-2014 or AS 3786-2023</li>
+</ul>
+</div>
+
+<p class="text-center text-xs text-gray-500 mt-6">© Designed by Vignesh. External use prohibited.</p>
+</div>
+
+<script>
+document.querySelectorAll('input[name="hasController"]').forEach(radio=>{radio.addEventListener('change',()=>{document.getElementById('controllerQtyWrap').classList.toggle('hidden',radio.value!=='yes')})})
+function calculateQuote(){
+const bedrooms=parseInt(document.getElementById('bedrooms').value,10)||0
+const hallways=parseInt(document.getElementById('hallways').value,10)||0
+const floors=Math.max(0,(parseInt(document.getElementById('levels').value,10)||1)-1)
+const controllers=document.querySelector('input[name="hasController"]:checked').value==='yes'?parseInt(document.getElementById('controllers').value,10)||1:0
+const alarms=bedrooms+hallways+floors
+const BOOKING_FEE=33
+const alarmCost=alarms*98
+const controllerCost=controllers*49
+const total=BOOKING_FEE+alarmCost+controllerCost
+document.getElementById('totalAlarmsText').textContent=alarms
+document.getElementById('bedroomAlarms').textContent=bedrooms
+document.getElementById('hallwayAlarms').textContent=hallways
+document.getElementById('levelAlarms').textContent=floors
+document.getElementById('controllerCount').textContent=controllers
+document.getElementById('alarmQtyInline').textContent=alarms
+document.getElementById('alarmsCost').textContent='$'+alarmCost.toFixed(2)
+document.getElementById('controllerQtyInline').textContent=controllers
+document.getElementById('controllersCost').textContent='$'+controllerCost.toFixed(2)
+document.getElementById('controllerLine').style.display=controllers>0?'flex':'none'
+document.getElementById('grandTotal').textContent='$'+total.toFixed(2)
+document.getElementById('result').classList.remove('hidden')
+}
+function getGreeting(){const name=document.getElementById('customerName').value.trim();return name?`Hi ${name},`:'Hi,'}
+function emailQuote(){
+const alarms=parseInt(document.getElementById('totalAlarmsText').textContent,10)
+const total=document.getElementById('grandTotal').textContent
+let body=`${getGreeting()}\n\nAs discussed, based on the information you provided, your property requires ${alarms} interconnected smoke alarms to meet QLD smoke alarm legislation.\n\nThis is an estimate based on the information provided.\n\nQuote summary:\nAlarms (${alarms} * $98): $${(alarms*98).toFixed(2)}\nBooking fee: $33.00\nTotal: ${total}\n\nIf you have any questions or would like to proceed, please reply to this email or call us on 07 2145 5155.\n\nRegards,`
+window.location.href=`mailto:?subject=Your Quote to Upgrade Smoke Alarms&body=${encodeURIComponent(body)}`
+}
+function copySmsTemplate(){
+const alarms=parseInt(document.getElementById('totalAlarmsText').textContent,10)
+const total=document.getElementById('grandTotal').textContent
+let sms=`${getGreeting()}\n\nAs discussed, based on the information you provided, your property requires ${alarms} interconnected smoke alarms to meet QLD smoke alarm legislation.\n\nThis is an estimate based on the information provided.\n\nQuote summary:\nAlarms (${alarms} * $98): $${(alarms*98).toFixed(2)}\nBooking fee: $33.00\nTotal: ${total}\n\nIf you have any questions or would like to proceed, please reply to this sms or call us on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`
+navigator.clipboard.writeText(sms)
+}
+</script>
+</body>
+</html>
