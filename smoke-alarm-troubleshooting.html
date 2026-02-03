@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raptor Smoke Alarm Troubleshooting Guide</title>
+    <title>Raptor Smoke Alarm Support Portal</title>
     <style>
         :root {
             --black: #000000;
@@ -14,226 +14,35 @@
             --border-gray: #dddddd;
             --warning-red: #cc0000;
             --success-green: #28a745;
-            --warning-yellow: #ffcc00;
-            --vignesh-bg: #fff9e6;
-            --vignesh-border: #e6b800;
         }
 
-        body { 
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
-            background: var(--light-gray); 
-            color: var(--dark-gray); 
-            margin: 0; 
-            padding: 20px; 
-            font-size: 14px; 
-            line-height: 1.5; 
-        }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--light-gray); color: var(--dark-gray); margin: 0; padding: 20px; font-size: 14px; line-height: 1.5; }
+        .container { max-width: 1100px; margin: auto; background: #ffffff; border: 1px solid var(--border-gray); padding: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-radius: 4px; }
+        header { border-bottom: 2px solid var(--gold); margin-bottom: 25px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 18px; color: var(--black); font-weight: 600; }
+        .version { font-size: 11px; color: var(--medium-gray); text-transform: uppercase; letter-spacing: 1px; }
         
-        .container { 
-            max-width: 1100px; 
-            margin: auto; 
-            background: #ffffff; 
-            border: 1px solid var(--border-gray); 
-            padding: 30px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            border-radius: 4px; 
-        }
+        .section-header { background: var(--black); color: var(--gold); padding: 10px 12px; font-size: 13px; text-transform: uppercase; margin-top: 25px; font-weight: 600; border-radius: 2px; }
+        .diagnostic-flow { background: #f9f9f9; border: 1px solid var(--border-gray); padding: 20px; margin-bottom: 25px; border-radius: 4px; }
         
-        header { 
-            border-bottom: 2px solid var(--gold); 
-            margin-bottom: 20px; 
-            padding-bottom: 15px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-        }
+        .agent-script { background: white; border-left: 4px solid var(--gold); padding: 15px; margin: 15px 0; font-weight: 600; font-style: italic; color: #000; }
+        .agent-logic { background: #eef6ff; border: 1px solid #b6d9ff; padding: 12px; margin: 10px 0; border-radius: 4px; font-size: 13px; color: #004085; }
         
-        h1 { 
-            margin: 0; 
-            font-size: 18px; 
-            color: var(--black); 
-            font-weight: 600; 
-        }
+        .response-box { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+        .response-option { padding: 15px; background: white; border: 1px solid var(--border-gray); border-radius: 4px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+        .response-option:hover { border-color: var(--gold); background: #fffdf5; }
+        .circle { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-weight: bold; background: #f8f8f8; font-size: 12px; }
 
-        .escalation-notice {
-            background: var(--vignesh-bg);
-            border: 1px solid var(--vignesh-border);
-            padding: 12px 20px;
-            border-radius: 6px;
-            margin-bottom: 25px;
-            color: #856404;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-        }
+        .next-steps { display: none; padding-top: 10px; border-top: 1px solid #eee; margin-top: 20px; }
+        .show { display: block; }
+        
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; background: white; }
+        th { background: #f4f4f4; border: 1px solid var(--border-gray); padding: 10px; text-align: left; font-size: 12px; text-transform: uppercase; }
+        td { border: 1px solid var(--border-gray); padding: 12px; font-size: 13px; }
 
-        .escalation-notice strong {
-            color: #000;
-            margin-right: 5px;
-        }
-        
-        .version { 
-            font-size: 11px; 
-            color: var(--medium-gray); 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-        }
-        
-        .section-header { 
-            background: var(--black); 
-            color: var(--gold); 
-            padding: 10px 12px; 
-            font-size: 13px; 
-            text-transform: uppercase; 
-            margin-top: 25px; 
-            font-weight: 600; 
-            border-radius: 2px; 
-        }
-        
-        .diagnostic-flow { 
-            background: #f9f9f9; 
-            border: 1px solid var(--border-gray); 
-            padding: 20px; 
-            margin-bottom: 25px; 
-            border-radius: 4px; 
-        }
-        
-        .agent-script { 
-            background: white; 
-            border-left: 4px solid var(--gold); 
-            padding: 15px; 
-            margin: 15px 0; 
-            font-weight: 600; 
-            font-style: italic; 
-            color: #000; 
-        }
-        
-        .agent-logic { 
-            background: #eef6ff; 
-            border: 1px solid #b6d9ff; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border-radius: 4px; 
-            font-size: 13px; 
-            color: #004085; 
-        }
-        
-        .agent-note {
-            padding: 10px; 
-            background: #fff3cd; 
-            border: 1px solid #ffeeba; 
-            margin-top: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        
-        .response-box { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-            margin: 15px 0; 
-        }
-        
-        .response-option { 
-            padding: 15px; 
-            background: white; 
-            border: 1px solid var(--border-gray); 
-            border-radius: 4px; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            display: flex; 
-            align-items: center; 
-        }
-        
-        .response-option:hover { 
-            border-color: var(--gold); 
-            background: #fffdf5; 
-        }
-        
-        .circle { 
-            width: 24px; 
-            height: 24px; 
-            border-radius: 50%; 
-            border: 1px solid #ccc; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin-right: 12px; 
-            font-weight: bold; 
-            background: #f8f8f8; 
-            font-size: 12px; 
-        }
-
-        .next-steps { 
-            display: none; 
-            padding-top: 10px; 
-            border-top: 1px solid #eee; 
-            margin-top: 20px; 
-        }
-        
-        .show { 
-            display: block; 
-        }
-        
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 15px 0; 
-            background: white; 
-        }
-        
-        th { 
-            background: #f4f4f4; 
-            border: 1px solid var(--border-gray); 
-            padding: 10px; 
-            text-align: left; 
-            font-size: 12px; 
-            text-transform: uppercase; 
-        }
-        
-        td { 
-            border: 1px solid var(--border-gray); 
-            padding: 12px; 
-            font-size: 13px; 
-        }
-
-        .action-btn { 
-            background: var(--black); 
-            color: white; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 3px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            margin: 10px 5px 0 0; 
-        }
-        
-        .status-dot { 
-            height: 14px; 
-            width: 14px; 
-            border-radius: 50%; 
-            display: inline-block; 
-            margin-right: 8px; 
-            vertical-align: middle;
-        }
-        
-        .fast-flash { animation: fastFlash 0.5s infinite; }
-        .slow-flash { animation: slowFlash 1s infinite; }
-        
-        @keyframes fastFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        @keyframes slowFlash { 0%, 80% { opacity: 1; } 81%, 100% { opacity: 0.3; } }
-        
-        .reset-btn {
-            background: var(--black);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 600;
-            display: block;
-            margin: 20px auto 0 auto;
-        }
+        .action-btn { background: var(--black); color: white; border: none; padding: 12px 20px; border-radius: 3px; cursor: pointer; font-weight: 600; margin: 10px 5px 0 0; }
+        .de-escalate-btn { background: var(--success-green); color: white; border: none; padding: 12px 20px; border-radius: 3px; cursor: pointer; font-weight: 600; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     </style>
 </head>
 <body>
@@ -241,88 +50,128 @@
 <div class="container">
     <header>
         <h1>Raptor Smoke Alarm Support Portal</h1>
-        <div class="version">Agent Diagnostic Guide V2.7</div>
+        <div class="version">Agent Diagnostic Guide V2.6</div>
     </header>
 
-    <div class="escalation-notice">
-        <strong>⚠️ WORK IN PROGRESS:</strong> Please check with <strong>Vignesh</strong> before troubleshooting, or escalate to Vignesh for now.
-    </div>
-
     <div class="diagnostic-flow">
-        <div class="section-header">Step 1: Identify the Status</div>
-        <div class="agent-script">"Look at all the alarms. What is the red LED doing?"</div>
+        <div class="section-header">Step 1: Identify Triggering Unit</div>
+        <div class="agent-script">"Could you walk around and check the alarms? Does any unit have a fast-flashing red light right now?"</div>
         
         <div class="response-box">
-            <div class="response-option" onclick="showBranch('slow-flash')">
-                <div class="circle">A</div> 
-                <div>
-                    <strong>Slow Flash (Alarm Memory)</strong><br>
-                    <span style="font-size:12px; color:var(--medium-gray);">
-                        <span class="status-dot slow-flash" style="background:var(--warning-red);"></span> Red LED flashes once every 20 seconds
-                    </span>
-                </div>
+            <div class="response-option" onclick="showBranch('fast-red')">
+                <div class="circle">A</div> <span>YES - Fast-flashing red found</span>
             </div>
-            <div class="response-option" onclick="showBranch('fast-flash')">
-                <div class="circle">B</div> 
-                <div>
-                    <strong>Fast Flash (Active Nuisance)</strong><br>
-                    <span style="font-size:12px; color:var(--medium-gray);">
-                        <span class="status-dot fast-flash" style="background:var(--warning-red);"></span> Rapid red flashing detected
-                    </span>
+            <div class="response-option" onclick="showBranch('no-fast-red')">
+                <div class="circle">B</div> <span>NO - No fast-flashing red</span>
+            </div>
+        </div>
+
+        <div id="branch-fast-red" class="next-steps">
+            <div class="agent-logic"><strong>Logic:</strong> ACTIVE ALARM - Smoke detected.</div>
+            <div class="agent-script">"That unit has detected a nuisance. Please press the center button once to silence it (Hush). Then, use a vacuum or soft brush to clean the perimeter vents."</div>
+            <button class="action-btn" onclick="showSection('step-4-id')">Proceed to Model ID</button>
+        </div>
+
+        <div id="branch-no-fast-red" class="next-steps">
+            <div class="section-header">Step 2: Fault & Memory Check</div>
+            <div class="agent-script">"Is there a red light flashing every 20 seconds, a yellow light, or a red flash with a beep?"</div>
+            <div class="response-box">
+                <div class="response-option" onclick="showBranch('alarm-memory')">
+                    <div class="circle">C</div> <span>Red flash (every 20s)</span>
+                </div>
+                <div class="response-option" onclick="showBranch('fault-found')">
+                    <div class="circle">D</div> <span>Yellow or Red+Beep</span>
+                </div>
+                <div class="response-option" onclick="showBranch('no-fault')">
+                    <div class="circle">D2</div> <span>No Faults/Memory</span>
                 </div>
             </div>
         </div>
 
-        <div id="branch-slow-flash" class="next-steps">
-            <div class="agent-logic"><strong>Logic:</strong> This unit was the "Initiator" that triggered a recent alarm.</div>
-            <div class="agent-script">"This is an alarm memory indicator. To clear it, press and hold the Test/Hush button for 1-2 seconds."</div>
-            <div class="agent-note">
-                <strong>Agent Note:</strong> If the memory clears and the system tests OK, the issue is resolved. <strong>If the memory won't clear or the test fails, ESCALATE TO VIGNESH.</strong>
-            </div>
-            <button class="action-btn" onclick="showSection('matrix')">View Resolution Matrix</button>
+        <div id="branch-alarm-memory" class="next-steps">
+            <div class="agent-logic"><strong>Logic:</strong> ALARM MEMORY - Unit was triggered recently.</div>
+            <div class="agent-script">"This means the unit was recently triggered by a nuisance like steam or dust. To reset the light, we need to perform a test. I also recommend cleaning the vents now to prevent it from happening again."</div>
+            <button class="action-btn" onclick="showSection('step-4-id')">Proceed to Model ID</button>
         </div>
 
-        <div id="branch-fast-flash" class="next-steps">
-            <div class="agent-logic"><strong>Logic:</strong> This unit is currently detecting a nuisance (dust, steam).</div>
-            <div class="agent-script">"That unit has detected a nuisance. Please press the center button once to silence it and vacuum the vents."</div>
-            <div class="agent-note">
-                <strong>Agent Note:</strong> If the unit persists after cleaning, <strong>ESCALATE TO VIGNESH.</strong>
+        <div id="branch-fault-found" class="next-steps">
+            <div class="agent-logic"><strong>Logic:</strong> Red+Beep = Low Battery (Escalate). Yellow 2x = Sensor Fault (Clean).</div>
+        </div>
+
+        <div id="branch-no-fault" class="next-steps">
+            <div class="section-header">Step 3: Cleaning & Power Verification</div>
+            <div class="agent-script">"Is the unit hardwired (AC) or 10-year battery only (DC)?"</div>
+            
+            <div class="response-box" id="step-4-id">
+                <div class="response-option" onclick="showPower('ac')">
+                    <div class="circle">E</div> <span>AC / Hardwired</span>
+                </div>
+                <div class="response-option" onclick="showPower('dc')">
+                    <div class="circle">F</div> <span>10-Year Battery</span>
+                </div>
             </div>
-            <button class="action-btn" onclick="showSection('matrix')">View Resolution Matrix</button>
+
+            <div id="power-ac" class="next-steps">
+                <div class="agent-script">"Understood. On the front of the alarms, do you see a solid, constant Green light, or is that light completely off?"</div>
+                <div class="response-box">
+                    <div class="response-option" onclick="showSection('full-test')">
+                        <div class="circle">E</div> <span>Green light ON (Solid)</span>
+                    </div>
+                    <div class="response-option" onclick="showSection('power-issue')">
+                        <div class="circle">F</div> <span>Green light OFF</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="power-dc" class="next-steps">
+                <div class="agent-logic">Battery unit. Tap button to confirm a green flash (Power OK).</div>
+                <button class="action-btn" onclick="showSection('full-test')">Proceed to Full System Test</button>
+            </div>
+        </div>
+
+        <div id="power-issue" class="next-steps" style="border: 2px solid var(--warning-red); padding: 15px;">
+            <div class="section-header" style="background:var(--warning-red); color:white; margin-top:0;">Power Issue Detected</div>
+            <div class="agent-script">"That usually means the power to the alarms is off. Please check your circuit breaker or fuse box and let me know once power is restored."</div>
+            <div class="agent-logic">
+                1. <strong>Check circuit breaker:</strong> Locate smoke alarm circuit.<br>
+                2. <strong>Reset if tripped:</strong> Flip OFF then back ON.<br>
+                3. <strong>Verify power:</strong> Check for green light on AC units.<br>
+                4. <strong>If no power:</strong> May need electrician if breaker continues to trip.
+            </div>
+        </div>
+
+        <div id="full-test" class="next-steps" style="border: 2px solid #000; padding: 15px;">
+            <div class="section-header" style="margin-top:0;">Full System Test (Radio Link Test)</div>
+            <div class="agent-script">"Press and hold the button for 1 second. This tests the whole network."</div>
+            <div class="agent-logic">
+                1. One unit is held for 1s.<br>
+                2. After a delay, <strong>ALL</strong> other units flash Green and beep 6 times.
+            </div>
+            <button class="de-escalate-btn" onclick="showSection('closing')">System Working? De-escalate Case</button>
+        </div>
+
+        <div id="closing" class="next-steps" style="border: 2px solid var(--success-green); padding: 15px; background: #f0fff4;">
+            <div class="section-header" style="background:var(--success-green); color:white; margin-top:0;">Case De-escalation & Closing</div>
+            <div class="agent-script">
+                "It looks like the system is powered and communicating correctly now. Cleaning the unit should prevent those nuisance alarms. <br><br>
+                We will monitor this for you. If the alarm sounds again without a reason, please call us back immediately so we can look at replacing the unit."
+            </div>
+            <div class="agent-logic"><strong>Internal Note:</strong> Log as 'Nuisance Alarm - Cleaned & Tested'. Do not replace unit unless issue persists.</div>
         </div>
     </div>
 
-    <div id="matrix" class="matrix-section">
-        <div class="section-header">Diagnostic & Resolution Matrix</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Scenario</th>
-                    <th>Diagnostic Questions</th>
-                    <th>Resolution Logic</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>False Alarm / Nuisance</strong></td>
-                    <td>"Is the unit near a bathroom, kitchen, or AC vent?"</td>
-                    <td><strong>Fix:</strong> Clean vents. <strong>If persists:</strong> Escalate to Vignesh.</td>
-                </tr>
-                <tr>
-                    <td><strong>Single Beep (54s)</strong></td>
-                    <td>"Is it exactly 54 seconds between beeps?"</td>
-                    <td><strong>Fix:</strong> Low Battery (Internal). <strong>Action:</strong> Escalate to Vignesh.</td>
-                </tr>
-                <tr>
-                    <td><strong>Double Beep (54s)</strong></td>
-                    <td>"Is it two short beeps together every 54 seconds?"</td>
-                    <td><strong>Fix:</strong> Sensor Fault. <strong>Action:</strong> Escalate to Vignesh.</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <div class="section-header">LED Status Reference</div>
+    <table>
+        <tr><th>Indicator</th><th>Meaning</th><th>Action</th></tr>
+        <tr><td><span class="status-dot" style="background:red"></span> Fast-flashing red</td><td>ACTIVE ALARM - Smoke detected</td><td>Hush / Clean</td></tr>
+        <tr><td><span class="status-dot" style="background:red"></span> Red flash + beep (54s)</td><td>LOW BATTERY</td><td>Escalate</td></tr>
+        <tr><td><span class="status-dot" style="background:red"></span> Red flash (every 20s)</td><td>ALARM MEMORY - Triggered recently</td><td>Test to reset / Clean</td></tr>
+        <tr><td><span class="status-dot" style="background:red"></span> Red flash (every 10s)</td><td>HUSH MODE - Silenced for 10 min</td><td>Information only</td></tr>
+        <tr><td><span class="status-dot" style="background:#ffcc00"></span> Yellow flash (2x)</td><td>SENSOR FAULT</td><td>Clean vents</td></tr>
+        <tr><td><span class="status-dot" style="background:#009900"></span> Solid green</td><td>AC UNIT - Mains power connected</td><td>Normal</td></tr>
+    </table>
 
-    <button class="reset-btn" onclick="location.reload()">Start New Diagnosis</button>
+    <button class="action-btn" style="width:100%; margin-top:20px;" onclick="location.reload()">Start New Diagnosis</button>
 </div>
 
 <script>
@@ -330,14 +179,18 @@
         document.querySelectorAll('.next-steps').forEach(el => el.classList.remove('show'));
         const target = document.getElementById('branch-' + id);
         if(target) target.classList.add('show');
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showPower(type) {
+        document.getElementById('power-ac').classList.remove('show');
+        document.getElementById('power-dc').classList.remove('show');
+        document.getElementById('power-' + type).classList.add('show');
     }
 
     function showSection(id) {
         const el = document.getElementById(id);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        el.classList.add('show');
+        el.scrollIntoView({ behavior: 'smooth' });
     }
 </script>
 
