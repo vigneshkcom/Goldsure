@@ -16,21 +16,21 @@
             --gold: #D4AF37;
             --black: #000;
             --gray: #333;
-            --light-bg: #f4f4f4;
+            --light-gray: #f9f9f9;
         }
 
         * { box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
-            background: var(--light-bg);
+            background: #f4f4f4;
             padding: 30px;
             color: var(--gray);
             margin: 0;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: auto;
             background: #fff;
             border-radius: 20px;
@@ -39,275 +39,251 @@
         }
 
         /* HEADER */
-        .header { text-align: center; margin-bottom: 30px; }
-        .header img { height: 60px; margin-bottom: 14px; }
-        .subtitle { color: #666; margin-top: 6px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .logo { height: 60px; margin-bottom: 15px; }
+        .subtitle { color: #666; font-size: 1.1rem; }
 
-        /* SECTIONS */
+        /* FORM SECTIONS */
         .section-header {
             background: var(--black);
             color: var(--gold);
             padding: 16px 24px;
             border-radius: 12px 12px 0 0;
             font-weight: 700;
-            margin-top: 30px;
+            margin-top: 20px;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
         }
 
         .section {
-            background: #fafafa;
-            padding: 32px;
-            border: 1px solid #eaeaea;
+            background: var(--light-gray);
+            padding: 30px;
+            border: 1px solid #eee;
             border-top: none;
             border-radius: 0 0 12px 12px;
+            margin-bottom: 30px;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
         }
 
-        .field label { font-weight: 600; display: block; margin-bottom: 8px; }
+        .field label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
         .input-wrap { position: relative; }
         .input-wrap input {
             width: 100%;
-            padding: 14px 16px;
+            padding: 14px 15px;
+            border: 1px solid #ccc;
             border-radius: 8px;
-            border: 1px solid #ddd;
-            font-size: 15px;
+            font-size: 16px;
+            outline: none;
+        }
+        .input-wrap input:focus { border-color: var(--gold); }
+        .unit {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 14px;
         }
 
-        /* BUTTONS */
-        .button-container { text-align: center; margin-top: 40px; }
-        .main-button {
+        /* CALCULATION BUTTON */
+        .btn-calc {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            margin: 40px auto;
             background: var(--black);
             color: var(--gold);
             border: none;
-            border-radius: 12px;
-            padding: 18px 40px;
+            padding: 20px;
             font-size: 18px;
             font-weight: 700;
+            border-radius: 12px;
             cursor: pointer;
-            transition: 0.3s;
+            transition: transform 0.2s;
         }
-        .main-button:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-calc:hover { transform: scale(1.02); }
 
-        .download-buttons {
-            display: none;
-            margin-top: 20px;
-            gap: 14px;
-            justify-content: center;
-        }
-
-        .download-btn {
-            border: 2px solid #000;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            background: #fff;
-        }
-
-        /* RESULTS BOX */
-        .results {
-            display: none;
-            margin-top: 40px;
-            border: 2px solid var(--gold);
-            border-radius: 16px;
-            padding: 32px;
+        /* RESULTS AREA */
+        .results-container {
+            display: none; /* Hidden until calculation */
+            border: 3px solid var(--gold);
+            border-radius: 15px;
+            padding: 30px;
             background: #fffdf5;
+            margin-top: 20px;
         }
-        .result-row {
+
+        .result-card {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
+            padding: 15px 0;
             border-bottom: 1px solid #eee;
         }
-        .result-value {
-            font-weight: 700;
-            font-size: 20px;
-            color: #000;
-        }
+        .result-card:last-child { border: none; }
+        .result-label { font-weight: 600; font-size: 18px; }
+        .result-value { font-weight: 800; font-size: 22px; color: #000; }
 
-        /* PDF HIDDEN TEMPLATE - Fix: Use position instead of display:none */
-        #pdfTemplate {
+        .btn-download {
+            background: #fff;
+            border: 2px solid #000;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-top: 20px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-download:hover { background: #000; color: var(--gold); }
+
+        /* PDF TEMPLATE - HIDDEN */
+        #pdfCapture {
             position: absolute;
             left: -9999px;
-            top: 0;
-            width: 794px; /* A4 Width */
+            width: 800px;
+            background: white;
+            padding: 50px;
         }
-        .pdf-page {
-            width: 794px;
-            height: 1122px;
-            padding: 60px;
-            background: #fff;
-            position: relative;
-            box-sizing: border-box;
-        }
-        .pdf-header {
-            border-bottom: 2px solid var(--gold);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        .pdf-header img { height: 50px; }
-        .pdf-footer {
-            position: absolute;
-            bottom: 40px;
-            width: calc(100% - 120px);
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-        }
+        .pdf-header { border-bottom: 2px solid var(--gold); padding-bottom: 20px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <img src="assets/goldsure-logo.jpg" alt="Goldsure Logo" onerror="this.src='https://via.placeholder.com/200x60?text=Goldsure'">
-        <h1>Battery ROI Calculator</h1>
-        <p class="subtitle">See how much you can save by storing your solar energy.</p>
+        <img src="assets/goldsure-logo.jpg" alt="Goldsure" class="logo" onerror="this.src='https://via.placeholder.com/150x50?text=Goldsure'">
+        <h1>Your Battery ROI Calculator</h1>
+        <div class="subtitle">Estimate savings based on your household energy usage.</div>
     </div>
 
-    <div class="section-header">1. System Details</div>
+    <div class="section-header">1. System Specifications</div>
     <div class="section">
         <div class="grid">
             <div class="field">
-                <label>Battery Size (kWh)</label>
-                <div class="input-wrap"><input type="number" id="batterySize" value="10"></div>
+                <label>Battery Capacity</label>
+                <div class="input-wrap">
+                    <input type="number" id="batSize" value="13.5">
+                    <span class="unit">kWh</span>
+                </div>
             </div>
             <div class="field">
-                <label>Fully Installed Cost ($)</label>
-                <div class="input-wrap"><input type="number" id="systemCost" value="12000"></div>
+                <label>Total System Cost</label>
+                <div class="input-wrap">
+                    <input type="number" id="sysCost" value="14500">
+                    <span class="unit">$</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="section-header">2. Energy Rates</div>
+    <div class="section-header">2. Energy Pricing</div>
     <div class="section">
         <div class="grid">
             <div class="field">
-                <label>Electricity Rate (per kWh)</label>
-                <div class="input-wrap"><input type="number" id="elecRate" value="0.35" step="0.01"></div>
+                <label>Electricity Import Rate</label>
+                <div class="input-wrap">
+                    <input type="number" id="gridRate" value="0.38" step="0.01">
+                    <span class="unit">$/kWh</span>
+                </div>
             </div>
             <div class="field">
-                <label>Solar Feed-in Tariff (per kWh)</label>
-                <div class="input-wrap"><input type="number" id="fitRate" value="0.05" step="0.01"></div>
+                <label>Solar Feed-in Tariff (FiT)</label>
+                <div class="input-wrap">
+                    <input type="number" id="fitRate" value="0.07" step="0.01">
+                    <span class="unit">$/kWh</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="button-container">
-        <button class="main-button" onclick="calculateROI()">Calculate Savings</button>
+    <button class="btn-calc" onclick="runCalculation()">Calculate My Savings</button>
+
+    <div class="results-container" id="results">
+        <div class="result-card">
+            <span class="result-label">Estimated Yearly Savings:</span>
+            <span class="result-value" id="valSavings">$0.00</span>
+        </div>
+        <div class="result-card">
+            <span class="result-label">Payback Period:</span>
+            <span class="result-value" id="valPayback">0 Years</span>
+        </div>
         
-        <div class="results" id="resultsBox">
-            <div class="result-row">
-                <span>Annual Savings:</span>
-                <span class="result-value" id="resAnnual">$0</span>
-            </div>
-            <div class="result-row">
-                <span>Payback Period:</span>
-                <span class="result-value" id="resPayback">0 Years</span>
-            </div>
-            <div class="result-row" style="border:none;">
-                <span>10-Year Return:</span>
-                <span class="result-value" id="resROI">0%</span>
-            </div>
-        </div>
-
-        <div class="download-buttons" id="downloadArea">
-            <button class="download-btn" onclick="generatePDF()">
-                <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+        <div style="text-align: center;">
+            <button class="btn-download" onclick="exportPDF()">
+                <i class="fa-solid fa-file-pdf"></i> Download Full PDF Report
             </button>
         </div>
     </div>
 </div>
 
-<div id="pdfTemplate">
-    <div class="pdf-page" id="page1">
-        <div class="pdf-header">
-            <img src="assets/goldsure-logo.jpg" onerror="this.src='https://via.placeholder.com/200x60?text=Goldsure'">
-            <h2 style="margin-top:10px;">Investment Analysis Report</h2>
-        </div>
-        
-        <div style="margin-top:40px;">
-            <h3>Summary of Findings</h3>
-            <p>Based on a <strong><span id="pdf-size"></span>kWh</strong> battery system:</p>
-            
-            <table style="width:100%; border-collapse: collapse; margin-top:20px;">
-                <tr style="background:#f9f9f9;">
-                    <td style="padding:15px; border:1px solid #ddd;">Total Investment</td>
-                    <td style="padding:15px; border:1px solid #ddd; font-weight:700;" id="pdf-cost"></td>
-                </tr>
-                <tr>
-                    <td style="padding:15px; border:1px solid #ddd;">Estimated Annual Savings</td>
-                    <td style="padding:15px; border:1px solid #ddd; font-weight:700;" id="pdf-savings"></td>
-                </tr>
-                <tr style="background:#f9f9f9;">
-                    <td style="padding:15px; border:1px solid #ddd;">Estimated Payback Period</td>
-                    <td style="padding:15px; border:1px solid #ddd; font-weight:700;" id="pdf-period"></td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="pdf-footer">
-            Goldsure Pty Ltd | Report Generated: <span id="pdfDate"></span>
-        </div>
+<div id="pdfCapture">
+    <div class="pdf-header">
+        <h2>Goldsure Battery Analysis</h2>
+        <p>Generated on <span id="pdfDate"></span></p>
+    </div>
+    <div style="padding: 30px;">
+        <h3>Your Results</h3>
+        <p><strong>Battery Size:</strong> <span id="pSize"></span> kWh</p>
+        <p><strong>Total Investment:</strong> $<span id="pCost"></span></p>
+        <hr>
+        <p style="font-size: 20px;"><strong>Annual Savings:</strong> <span id="pSavings"></span></p>
+        <p style="font-size: 20px;"><strong>Payback Period:</strong> <span id="pPeriod"></span></p>
     </div>
 </div>
 
 <script>
-    function calculateROI() {
-        // Get Inputs
-        const size = parseFloat(document.getElementById('batterySize').value);
-        const cost = parseFloat(document.getElementById('systemCost').value);
-        const rate = parseFloat(document.getElementById('elecRate').value);
+    function runCalculation() {
+        // 1. Get Values
+        const size = parseFloat(document.getElementById('batSize').value);
+        const cost = parseFloat(document.getElementById('sysCost').value);
+        const rate = parseFloat(document.getElementById('gridRate').value);
         const fit = parseFloat(document.getElementById('fitRate').value);
 
-        // Logic: Savings = (Rate - FiT) * size * 365 days * efficiency (approx 90%)
-        const dailyCycles = 0.9; 
-        const annualSavings = (rate - fit) * size * 365 * dailyCycles;
+        // 2. Logic: Assuming 1 full cycle per day @ 90% efficiency
+        const dailySavings = size * 0.9 * (rate - fit);
+        const annualSavings = dailySavings * 365;
         const payback = cost / annualSavings;
-        const tenYearROI = ((annualSavings * 10) - cost) / cost * 100;
 
-        // Update UI
-        document.getElementById('resAnnual').innerText = '$' + annualSavings.toLocaleString(undefined, {maximumFractionDigits: 0});
-        document.getElementById('resPayback').innerText = payback.toFixed(1) + ' Years';
-        document.getElementById('resROI').innerText = tenYearROI.toFixed(0) + '%';
+        // 3. Update UI
+        document.getElementById('valSavings').innerText = '$' + annualSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('valPayback').innerText = payback.toFixed(1) + ' Years';
 
-        // Show Results
-        document.getElementById('resultsBox').style.display = 'block';
-        document.getElementById('downloadArea').style.display = 'flex';
+        // 4. Show Result Section
+        document.getElementById('results').style.display = 'block';
 
-        // Prepare PDF Data
-        document.getElementById('pdf-size').innerText = size;
-        document.getElementById('pdf-cost').innerText = '$' + cost.toLocaleString();
-        document.getElementById('pdf-savings').innerText = '$' + annualSavings.toLocaleString(undefined, {maximumFractionDigits: 0});
-        document.getElementById('pdf-period').innerText = payback.toFixed(1) + ' Years';
+        // 5. Update PDF Template
+        document.getElementById('pSize').innerText = size;
+        document.getElementById('pCost').innerText = cost.toLocaleString();
+        document.getElementById('pSavings').innerText = '$' + annualSavings.toLocaleString();
+        document.getElementById('pPeriod').innerText = payback.toFixed(1) + ' Years';
         document.getElementById('pdfDate').innerText = new Date().toLocaleDateString();
     }
 
-    async function generatePDF() {
+    async function exportPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
-        const element = document.getElementById('page1');
+        const content = document.getElementById('pdfCapture');
 
-        try {
-            const canvas = await html2canvas(element, {
-                scale: 2, // High DPI
-                useCORS: true,
-                logging: false
-            });
-
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
-            doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-            doc.save('Goldsure_Battery_Report.pdf');
-        } catch (error) {
-            console.error("PDF Generation Error:", error);
-            alert("Could not generate PDF. Check console for details.");
-        }
+        // Capture the hidden div
+        const canvas = await html2canvas(content, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Add to PDF
+        doc.addImage(imgData, 'PNG', 0, 0, 210, 0); 
+        doc.save('Goldsure_Battery_ROI.pdf');
     }
 </script>
 
