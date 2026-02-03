@@ -1,86 +1,345 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Work in Progress | Goldsure</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raptor Smoke Alarm Troubleshooting Guide</title>
+    <style>
+        :root {
+            --black: #000000;
+            --gold: #D4AF37;
+            --dark-gray: #333333;
+            --medium-gray: #666666;
+            --light-gray: #f5f5f5;
+            --border-gray: #dddddd;
+            --warning-red: #cc0000;
+            --success-green: #28a745;
+            --warning-yellow: #ffcc00;
+            --vignesh-bg: #fff9e6;
+            --vignesh-border: #e6b800;
+        }
 
-<style>
-:root{
-  --gold:#D4AF37;
-  --dark:#1f2933;
-  --muted:#6b7280;
-  --bg:#f1f4f7;
-}
+        body { 
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+            background: var(--light-gray); 
+            color: var(--dark-gray); 
+            margin: 0; 
+            padding: 20px; 
+            font-size: 14px; 
+            line-height: 1.5; 
+        }
+        
+        .container { 
+            max-width: 1100px; 
+            margin: auto; 
+            background: #ffffff; 
+            border: 1px solid var(--border-gray); 
+            padding: 30px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            border-radius: 4px; 
+        }
+        
+        header { 
+            border-bottom: 2px solid var(--gold); 
+            margin-bottom: 20px; 
+            padding-bottom: 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        
+        h1 { 
+            margin: 0; 
+            font-size: 18px; 
+            color: var(--black); 
+            font-weight: 600; 
+        }
 
-body{
-  margin:0;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:var(--bg);
-  font-family:'Segoe UI', Helvetica, Arial, sans-serif;
-  color:var(--dark);
-}
+        .escalation-notice {
+            background: var(--vignesh-bg);
+            border: 1px solid var(--vignesh-border);
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            color: #856404;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
 
-.card{
-  background:#fff;
-  padding:48px 40px;
-  border-radius:14px;
-  max-width:520px;
-  width:100%;
-  text-align:center;
-  box-shadow:0 20px 40px rgba(0,0,0,0.08);
-}
+        .escalation-notice strong {
+            color: #000;
+            margin-right: 5px;
+        }
+        
+        .version { 
+            font-size: 11px; 
+            color: var(--medium-gray); 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        
+        .section-header { 
+            background: var(--black); 
+            color: var(--gold); 
+            padding: 10px 12px; 
+            font-size: 13px; 
+            text-transform: uppercase; 
+            margin-top: 25px; 
+            font-weight: 600; 
+            border-radius: 2px; 
+        }
+        
+        .diagnostic-flow { 
+            background: #f9f9f9; 
+            border: 1px solid var(--border-gray); 
+            padding: 20px; 
+            margin-bottom: 25px; 
+            border-radius: 4px; 
+        }
+        
+        .agent-script { 
+            background: white; 
+            border-left: 4px solid var(--gold); 
+            padding: 15px; 
+            margin: 15px 0; 
+            font-weight: 600; 
+            font-style: italic; 
+            color: #000; 
+        }
+        
+        .agent-logic { 
+            background: #eef6ff; 
+            border: 1px solid #b6d9ff; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+            font-size: 13px; 
+            color: #004085; 
+        }
+        
+        .agent-note {
+            padding: 10px; 
+            background: #fff3cd; 
+            border: 1px solid #ffeeba; 
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .response-box { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin: 15px 0; 
+        }
+        
+        .response-option { 
+            padding: 15px; 
+            background: white; 
+            border: 1px solid var(--border-gray); 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            display: flex; 
+            align-items: center; 
+        }
+        
+        .response-option:hover { 
+            border-color: var(--gold); 
+            background: #fffdf5; 
+        }
+        
+        .circle { 
+            width: 24px; 
+            height: 24px; 
+            border-radius: 50%; 
+            border: 1px solid #ccc; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin-right: 12px; 
+            font-weight: bold; 
+            background: #f8f8f8; 
+            font-size: 12px; 
+        }
 
-.badge{
-  display:inline-block;
-  padding:6px 14px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:600;
-  letter-spacing:0.04em;
-  text-transform:uppercase;
-  background:rgba(212,175,55,0.15);
-  color:var(--gold);
-  margin-bottom:20px;
-}
+        .next-steps { 
+            display: none; 
+            padding-top: 10px; 
+            border-top: 1px solid #eee; 
+            margin-top: 20px; 
+        }
+        
+        .show { 
+            display: block; 
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 15px 0; 
+            background: white; 
+        }
+        
+        th { 
+            background: #f4f4f4; 
+            border: 1px solid var(--border-gray); 
+            padding: 10px; 
+            text-align: left; 
+            font-size: 12px; 
+            text-transform: uppercase; 
+        }
+        
+        td { 
+            border: 1px solid var(--border-gray); 
+            padding: 12px; 
+            font-size: 13px; 
+        }
 
-h1{
-  margin:0 0 12px;
-  font-size:28px;
-  font-weight:700;
-}
-
-p{
-  margin:0;
-  font-size:15px;
-  line-height:1.6;
-  color:var(--muted);
-}
-
-.footer{
-  margin-top:32px;
-  font-size:12px;
-  color:#9ca3af;
-}
-</style>
+        .action-btn { 
+            background: var(--black); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            margin: 10px 5px 0 0; 
+        }
+        
+        .status-dot { 
+            height: 14px; 
+            width: 14px; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 8px; 
+            vertical-align: middle;
+        }
+        
+        .fast-flash { animation: fastFlash 0.5s infinite; }
+        .slow-flash { animation: slowFlash 1s infinite; }
+        
+        @keyframes fastFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes slowFlash { 0%, 80% { opacity: 1; } 81%, 100% { opacity: 0.3; } }
+        
+        .reset-btn {
+            background: var(--black);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 600;
+            display: block;
+            margin: 20px auto 0 auto;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="card">
-    <div class="badge">Work in Progress</div>
-    <h1>Coming Soon</h1>
-    <p>
-      We are currently working on this section to bring you a clear and
-      helpful troubleshooting guide.
-      <br><br>
-      Please check back shortly.
-    </p>
-    <div class="footer">
-      © Goldsure Pty Ltd
+
+<div class="container">
+    <header>
+        <h1>Raptor Smoke Alarm Support Portal</h1>
+        <div class="version">Agent Diagnostic Guide V2.7</div>
+    </header>
+
+    <div class="escalation-notice">
+        <strong>⚠️ WORK IN PROGRESS:</strong> Please check with <strong>Vignesh</strong> before troubleshooting, or escalate to Vignesh for now.
     </div>
-  </div>
+
+    <div class="diagnostic-flow">
+        <div class="section-header">Step 1: Identify the Status</div>
+        <div class="agent-script">"Look at all the alarms. What is the red LED doing?"</div>
+        
+        <div class="response-box">
+            <div class="response-option" onclick="showBranch('slow-flash')">
+                <div class="circle">A</div> 
+                <div>
+                    <strong>Slow Flash (Alarm Memory)</strong><br>
+                    <span style="font-size:12px; color:var(--medium-gray);">
+                        <span class="status-dot slow-flash" style="background:var(--warning-red);"></span> Red LED flashes once every 20 seconds
+                    </span>
+                </div>
+            </div>
+            <div class="response-option" onclick="showBranch('fast-flash')">
+                <div class="circle">B</div> 
+                <div>
+                    <strong>Fast Flash (Active Nuisance)</strong><br>
+                    <span style="font-size:12px; color:var(--medium-gray);">
+                        <span class="status-dot fast-flash" style="background:var(--warning-red);"></span> Rapid red flashing detected
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div id="branch-slow-flash" class="next-steps">
+            <div class="agent-logic"><strong>Logic:</strong> This unit was the "Initiator" that triggered a recent alarm.</div>
+            <div class="agent-script">"This is an alarm memory indicator. To clear it, press and hold the Test/Hush button for 1-2 seconds."</div>
+            <div class="agent-note">
+                <strong>Agent Note:</strong> If the memory clears and the system tests OK, the issue is resolved. <strong>If the memory won't clear or the test fails, ESCALATE TO VIGNESH.</strong>
+            </div>
+            <button class="action-btn" onclick="showSection('matrix')">View Resolution Matrix</button>
+        </div>
+
+        <div id="branch-fast-flash" class="next-steps">
+            <div class="agent-logic"><strong>Logic:</strong> This unit is currently detecting a nuisance (dust, steam).</div>
+            <div class="agent-script">"That unit has detected a nuisance. Please press the center button once to silence it and vacuum the vents."</div>
+            <div class="agent-note">
+                <strong>Agent Note:</strong> If the unit persists after cleaning, <strong>ESCALATE TO VIGNESH.</strong>
+            </div>
+            <button class="action-btn" onclick="showSection('matrix')">View Resolution Matrix</button>
+        </div>
+    </div>
+
+    <div id="matrix" class="matrix-section">
+        <div class="section-header">Diagnostic & Resolution Matrix</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Diagnostic Questions</th>
+                    <th>Resolution Logic</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>False Alarm / Nuisance</strong></td>
+                    <td>"Is the unit near a bathroom, kitchen, or AC vent?"</td>
+                    <td><strong>Fix:</strong> Clean vents. <strong>If persists:</strong> Escalate to Vignesh.</td>
+                </tr>
+                <tr>
+                    <td><strong>Single Beep (54s)</strong></td>
+                    <td>"Is it exactly 54 seconds between beeps?"</td>
+                    <td><strong>Fix:</strong> Low Battery (Internal). <strong>Action:</strong> Escalate to Vignesh.</td>
+                </tr>
+                <tr>
+                    <td><strong>Double Beep (54s)</strong></td>
+                    <td>"Is it two short beeps together every 54 seconds?"</td>
+                    <td><strong>Fix:</strong> Sensor Fault. <strong>Action:</strong> Escalate to Vignesh.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <button class="reset-btn" onclick="location.reload()">Start New Diagnosis</button>
+</div>
+
+<script>
+    function showBranch(id) {
+        document.querySelectorAll('.next-steps').forEach(el => el.classList.remove('show'));
+        const target = document.getElementById('branch-' + id);
+        if(target) target.classList.add('show');
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showSection(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+</script>
+
 </body>
 </html>
