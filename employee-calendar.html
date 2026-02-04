@@ -107,19 +107,37 @@ const employees = ["William Openshaw", "Corey Rossouw"];
 let data = {};
 let currentDate = new Date();
 
+/* ===========================
+   LOAD & PARSE CSV (SAFE)
+   =========================== */
 fetch(CSV_URL)
-  .then(r => r.text())
-  .then(t => {
-    t.trim().split("\n").slice(1).forEach(row => {
-      const [date, w, c] = row.split(",");
-      data[date] = {
-        "William Openshaw": w === "TRUE",
-        "Corey Rossouw": c === "TRUE"
-      };
-    });
+  .then(res => res.text())
+  .then(text => {
+    text
+      .trim()
+      .split(/\r?\n/)        // handles Windows + Unix line endings
+      .slice(1)              // skip header row
+      .forEach(row => {
+        const cols = row.split(",");
+
+        const date = cols[0]?.trim();
+        const william = cols[1]?.trim();
+        const corey = cols[2]?.trim();
+
+        if (!date) return;
+
+        data[date] = {
+          "William Openshaw": william === "TRUE",
+          "Corey Rossouw": corey === "TRUE"
+        };
+      });
+
     render();
   });
 
+/* ===========================
+   RENDER CALENDAR
+   =========================== */
 function render() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -134,23 +152,26 @@ function render() {
   const cal = document.getElementById("calendar");
   cal.innerHTML = "";
 
-  ["SUN","MON","TUE","WED","THU","FRI","SAT"].forEach(d =>
-    cal.innerHTML += `<div class="day-header">${d}</div>`
-  );
+  // Day headers
+  ["SUN","MON","TUE","WED","THU","FRI","SAT"].forEach(d => {
+    cal.innerHTML += `<div class="day-header">${d}</div>`;
+  });
 
+  // Empty cells before first day
   for (let i = 0; i < startDay; i++) {
     cal.innerHTML += `<div class="day empty"></div>`;
   }
 
+  // Actual days
   for (let d = 1; d <= days; d++) {
     const dateStr =
-      `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
     let html = `<div class="day"><div class="date-num">${d}</div>`;
 
-    employees.forEach(e => {
-      if (data[dateStr]?.[e]) {
-        html += `<div class="emp"><span class="dot">●</span>${e}</div>`;
+    employees.forEach(emp => {
+      if (data[dateStr]?.[emp]) {
+        html += `<div class="emp"><span class="dot">●</span>${emp}</div>`;
       }
     });
 
@@ -159,8 +180,11 @@ function render() {
   }
 }
 
-function changeMonth(x) {
-  currentDate.setMonth(currentDate.getMonth() + x);
+/* ===========================
+   MONTH NAVIGATION
+   =========================== */
+function changeMonth(offset) {
+  currentDate.setMonth(currentDate.getMonth() + offset);
   render();
 }
 </script>
