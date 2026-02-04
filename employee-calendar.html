@@ -2,88 +2,86 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Employee Working Calendar</title>
+<title>Goldsure Electrician Calendar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body {
   font-family: Arial, sans-serif;
   background: #f4f6f8;
-  margin: 0;
   padding: 20px;
 }
 
 .container {
   max-width: 1200px;
   margin: auto;
-  background: #ffffff;
+  background: #fff;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 h1 {
-  text-align: center;
-  margin-bottom: 10px;
-}
-
-.sub {
-  text-align: center;
-  color: #666;
-  margin-bottom: 20px;
-  font-size: 13px;
+  margin-bottom: 15px;
 }
 
 .controls {
   display: flex;
   justify-content: center;
   gap: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 button {
-  padding: 8px 16px;
+  padding: 6px 14px;
   border: none;
-  border-radius: 5px;
-  background: #0d6efd;
+  border-radius: 4px;
+  background: #1f2937;
   color: #fff;
   cursor: pointer;
 }
 
-button:hover {
-  background: #0b5ed7;
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #cbd5e1;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+.day-header {
+  background: #1f2937;
+  color: #fff;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: bold;
 }
 
-th, td {
-  border: 1px solid #ddd;
+.day {
+  background: #fff;
+  min-height: 110px;
   padding: 6px;
   font-size: 12px;
-  text-align: center;
+  position: relative;
 }
 
-th {
-  background: #f1f1f1;
-}
-
-.employee {
-  text-align: left;
+.date-num {
   font-weight: bold;
-  white-space: nowrap;
+  margin-bottom: 4px;
 }
 
-.work {
-  color: #198754;
-  font-size: 18px;
+.emp {
+  font-size: 11px;
+  margin-top: 2px;
 }
 
-.weekend {
-  background: #f7f7f7;
+.dot {
+  color: #16a34a;
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+.empty {
+  background: #f1f5f9;
 }
 </style>
 </head>
@@ -92,79 +90,78 @@ th {
 
 <div class="container">
   <h1 id="monthTitle"></h1>
-  <div class="sub">Read-only working calendar</div>
 
   <div class="controls">
     <button onclick="changeMonth(-1)">Previous</button>
     <button onclick="changeMonth(1)">Next</button>
   </div>
 
-  <table id="calendar"></table>
+  <div class="calendar" id="calendar"></div>
 </div>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTT6mkngM998tv-L0UpKK5lfCReTFaqx0xpVJXqmPhqyZUSCbaH5sgpN8Mig11Qk4x2nddh2ayHBwcb/pub?output=csv";
+const CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTT6mkngM998tv-L0UpKK5lfCReTFaqx0xpVJXqmPhqyZUSCbaH5sgpN8Mig11Qk4x2nddh2ayHBwcb/pub?output=csv";
 
-const employees = [
-  "William Openshaw",
-  "Corey Rossouw"
-];
-
-let rawData = {};
+const employees = ["William Openshaw", "Corey Rossouw"];
+let data = {};
 let currentDate = new Date();
 
 fetch(CSV_URL)
-  .then(res => res.text())
-  .then(text => parseCSV(text));
-
-function parseCSV(text) {
-  const rows = text.trim().split("\n").map(r => r.split(","));
-  for (let i = 1; i < rows.length; i++) {
-    const date = rows[i][0];
-    if (!date) continue;
-
-    rawData[date] = {
-      "William Openshaw": rows[i][1] === "TRUE",
-      "Corey Rossouw": rows[i][2] === "TRUE"
-    };
-  }
-  renderCalendar();
-}
-
-function renderCalendar() {
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const daysInMonth = lastDay.getDate();
-
-  document.getElementById("monthTitle").innerText =
-    firstDay.toLocaleString("default", { month: "long", year: "numeric" });
-
-  let html = "<tr><th>Employee</th>";
-  for (let d = 1; d <= daysInMonth; d++) {
-    html += `<th>${d}</th>`;
-  }
-  html += "</tr>";
-
-  employees.forEach(emp => {
-    html += `<tr><td class="employee">${emp}</td>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-      const day = new Date(year, month, d).getDay();
-      const weekendClass = (day === 0 || day === 6) ? "weekend" : "";
-      const working = rawData[dateStr]?.[emp];
-      html += `<td class="${weekendClass}">${working ? "<span class='work'>●</span>" : ""}</td>`;
-    }
-    html += "</tr>";
+  .then(r => r.text())
+  .then(t => {
+    t.trim().split("\n").slice(1).forEach(row => {
+      const [date, w, c] = row.split(",");
+      data[date] = {
+        "William Openshaw": w === "TRUE",
+        "Corey Rossouw": c === "TRUE"
+      };
+    });
+    render();
   });
 
-  document.getElementById("calendar").innerHTML = html;
+function render() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startDay = first.getDay();
+  const days = last.getDate();
+
+  document.getElementById("monthTitle").innerText =
+    first.toLocaleString("default", { month: "long", year: "numeric" });
+
+  const cal = document.getElementById("calendar");
+  cal.innerHTML = "";
+
+  ["SUN","MON","TUE","WED","THU","FRI","SAT"].forEach(d =>
+    cal.innerHTML += `<div class="day-header">${d}</div>`
+  );
+
+  for (let i = 0; i < startDay; i++) {
+    cal.innerHTML += `<div class="day empty"></div>`;
+  }
+
+  for (let d = 1; d <= days; d++) {
+    const dateStr =
+      `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+
+    let html = `<div class="day"><div class="date-num">${d}</div>`;
+
+    employees.forEach(e => {
+      if (data[dateStr]?.[e]) {
+        html += `<div class="emp"><span class="dot">●</span>${e}</div>`;
+      }
+    });
+
+    html += `</div>`;
+    cal.innerHTML += html;
+  }
 }
 
-function changeMonth(offset) {
-  currentDate.setMonth(currentDate.getMonth() + offset);
-  renderCalendar();
+function changeMonth(x) {
+  currentDate.setMonth(currentDate.getMonth() + x);
+  render();
 }
 </script>
 
