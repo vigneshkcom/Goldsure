@@ -80,6 +80,33 @@ button {
   margin-right: 4px;
 }
 
+/* Suburb badges */
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 999px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.badge-goldcoast {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-north {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.badge-south {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
 .empty {
   background: #f1f5f9;
 }
@@ -108,27 +135,29 @@ let data = {};
 let currentDate = new Date();
 
 /* ===========================
-   LOAD & PARSE CSV (SAFE)
+   LOAD & PARSE CSV
    =========================== */
 fetch(CSV_URL)
   .then(res => res.text())
   .then(text => {
     text
       .trim()
-      .split(/\r?\n/)        // handles Windows + Unix line endings
-      .slice(1)              // skip header row
+      .split(/\r?\n/)
+      .slice(1)
       .forEach(row => {
         const cols = row.split(",");
 
         const date = cols[0]?.trim();
         const william = cols[1]?.trim();
-        const corey = cols[2]?.trim();
+        const williamArea = cols[2]?.trim();
+        const corey = cols[3]?.trim();
+        const coreyArea = cols[4]?.trim();
 
         if (!date) return;
 
         data[date] = {
-          "William Openshaw": william === "TRUE",
-          "Corey Rossouw": corey === "TRUE"
+          "William Openshaw": william === "TRUE" ? williamArea : null,
+          "Corey Rossouw": corey === "TRUE" ? coreyArea : null
         };
       });
 
@@ -152,17 +181,14 @@ function render() {
   const cal = document.getElementById("calendar");
   cal.innerHTML = "";
 
-  // Day headers
   ["SUN","MON","TUE","WED","THU","FRI","SAT"].forEach(d => {
     cal.innerHTML += `<div class="day-header">${d}</div>`;
   });
 
-  // Empty cells before first day
   for (let i = 0; i < startDay; i++) {
     cal.innerHTML += `<div class="day empty"></div>`;
   }
 
-  // Actual days
   for (let d = 1; d <= days; d++) {
     const dateStr =
       `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -170,8 +196,19 @@ function render() {
     let html = `<div class="day"><div class="date-num">${d}</div>`;
 
     employees.forEach(emp => {
-      if (data[dateStr]?.[emp]) {
-        html += `<div class="emp"><span class="dot">●</span>${emp}</div>`;
+      const area = data[dateStr]?.[emp];
+      if (area !== null && area !== undefined) {
+        let badgeClass = "";
+        if (area === "Goldcoast") badgeClass = "badge-goldcoast";
+        if (area === "North Brisbane") badgeClass = "badge-north";
+        if (area === "South Brisbane") badgeClass = "badge-south";
+
+        html += `
+          <div class="emp">
+            <span class="dot">●</span>${emp}
+            ${area ? `<span class="badge ${badgeClass}">${area}</span>` : ""}
+          </div>
+        `;
       }
     });
 
