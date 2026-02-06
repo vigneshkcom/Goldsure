@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUX Mini VRF Product Costs by Year Dashboard</title>
+    <!-- Poppins Font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Modern Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #f8fafb;
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .dashboard-container { 
+            background: white;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #0056a6;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        h1 { 
+            font-size: 30px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: #0056a6;
+            text-align: center;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: #0056a6;
+            border-radius: 2px;
+        }
+        
+        /* Main Navigation Layout */
+        .main-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 0;
+            background: transparent;
+        }
+        
+        .year-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .doc-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .nav-btn {
+            padding: 12px 24px;
+            border: none;
+            background: white;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #555;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 100px;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+            border-color: #0056a6;
+            color: #0056a6;
+        }
+        
+        .year-btn.active {
+            background: #0056a6;
+            color: white;
+            border-color: #0056a6;
+            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.15);
+        }
+        
+        .doc-btn {
+            background: #0056a6;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 86, 166, 0.1);
+            border: 1px solid #0056a6;
+            min-width: 140px;
+            text-align: center;
+        }
+        
+        .doc-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.2);
+            background: #004a8f;
+        }
+        
+        .doc-btn:nth-child(2) {
+            background: #009688;
+            border-color: #009688;
+            box-shadow: 0 2px 4px rgba(0, 150, 136, 0.1);
+        }
+        
+        .doc-btn:nth-child(2):hover {
+            background: #008577;
+            box-shadow: 0 4px 8px rgba(0, 150, 136, 0.2);
+        }
+        
+        /* Content Sections */
+        .content-section {
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        /* Tables - Compact Design */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 13px;
+            border: 1px solid #e0e0e0;
+            background: white;
+        }
+        
+        th {
+            background: #f5f7fa;
+            color: #333;
+            padding: 14px 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            border: 1px solid #e0e0e0;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px 10px;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        tr:hover td {
+            background-color: #f0f7ff;
+        }
+        
+        .brand-cell {
+            font-weight: 600;
+            font-size: 13px;
+            color: #0056a6;
+        }
+        
+        .combinations-header {
+            background: #f0f7ff;
+            color: #0056a6;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 16px;
+            text-align: center;
+            border-top: 2px solid #ddd;
+        }
+        
+        .veec-highlight {
+            color: #d32f2f;
+            font-weight: 600;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        
+        .align-left {
+            text-align: left;
+            padding-left: 20px;
+            font-weight: 500;
+        }
+        
+        /* Installation Section */
+        .inst-table td {
+            text-align: left;
+            padding-left: 20px;
+        }
+        
+        .inst-table .price-col {
+            text-align: center;
+            width: 30%;
+            font-weight: 600;
+            color: #009688;
+        }
+        
+        .price-highlight {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0056a6;
+            margin-bottom: 20px;
+            background: #f0f7ff;
+            padding: 15px 20px;
+            border-radius: 6px;
+            display: inline-block;
+            border-left: 4px solid #0056a6;
+        }
+        
+        /* Footer and Actions */
+        .footer-note {
+            font-size: 13px;
+            color: #666;
+            margin-top: 30px;
+            padding: 15px 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 4px solid #999;
+            font-style: normal;
+        }
+        
+        .hidden { 
+            display: none; 
+        }
+        
+        .inst-btn {
+            margin-top: 25px;
+            padding: 14px 30px;
+            border: none;
+            background: #555;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+        
+        .inst-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            background: #444;
+        }
+        
+        .inst-btn.active {
+            background: #0056a6;
+            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.2);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .dashboard-container {
+                padding: 30px;
+                max-width: 100%;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .main-nav {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+            
+            .year-tabs, .doc-buttons {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .dashboard-container {
+                padding: 25px 20px;
+            }
+            
+            h1 {
+                font-size: 26px;
+            }
+            
+            .nav-btn, .doc-btn {
+                padding: 10px 18px;
+                font-size: 13px;
+                min-width: auto;
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 15px 10px;
+            }
+            
+            .dashboard-container {
+                padding: 20px 15px;
+                border-radius: 8px;
+            }
+            
+            h1 {
+                font-size: 22px;
+                margin-bottom: 25px;
+            }
+            
+            h2 {
+                font-size: 18px;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            th, td {
+                padding: 8px 5px;
+            }
+            
+            .nav-btn, .doc-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                min-width: 100px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dashboard-container {
+                padding: 15px 10px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            table {
+                font-size: 10px;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            th, td {
+                padding: 6px 4px;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .dashboard-container {
+                box-shadow: none;
+                padding: 0;
+            }
+            
+            .main-nav, .inst-btn, .doc-buttons {
+                display: none;
+            }
+            
+            table {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <!-- Updated Main Heading -->
+    <h1>AUX Mini VRF Product Costs Dashboard</h1>
+    
+    <!-- Main Navigation with Year Tabs on Left and Doc Buttons on Right -->
+    <div class="main-nav">
+        <div class="year-tabs">
+            <button class="nav-btn year-btn active" id="btn2025" onclick="switchYear('2025')">
+                2025 Costs
+            </button>
+            <button class="nav-btn year-btn" id="btn2026" onclick="switchYear('2026')">
+                2026 Costs
+            </button>
+        </div>
+        
+        <div class="doc-buttons">
+            <a href="https://workdrive.zohopublic.com.au/external/f7bc90c140af4f5c1d92465a8808c499f1e090e585e670bf390fee5254b8be81" target="_blank" class="doc-btn">
+                VRF Mini Brochure
+            </a>
+            <a href="https://workdrive.zohopublic.com.au/external/79fd3eba73ca83ba671d15a33b083a624ed74e4bb673374f1d5b730d54a50697" target="_blank" class="doc-btn">
+                Eco Care Agreement
+            </a>
+        </div>
+    </div>
+
+    <!-- 2025 Section -->
+    <div id="section2025" class="content-section">
+        <h2>2025 Product Costs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Brand</th>
+                    <th>Product Type</th>
+                    <th>Model Number</th>
+                    <th>Capacity (Cooling/Heating)</th>
+                    <th style="width: 50px;">VEEC Value</th>
+                    <th>Container 33</th>
+                    <th>local stock 10+</th>
+                    <th>Local Stock 5-10</th>
+                    <th>Local Stock < 5</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,499</td><td>$1,544</td><td>$1,590</td><td>$1,638</td></tr>
+                <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,899</td><td>$1,956</td><td>$2,015</td><td>$2,075</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$380</td><td>$391</td><td>$403</td><td>$415</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$409</td><td>$421</td><td>$434</td><td>$447</td></tr>
+                <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$450</td><td>$464</td><td>$477</td><td>$492</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$470</td><td>$484</td><td>$499</td><td>$514</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$488</td><td>$503</td><td>$518</td><td>$533</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$519</td><td>$535</td><td>$551</td><td>$567</td></tr>
+                <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td><td>$60</td></tr>
+                <tr><td colspan="9" class="combinations-header">Combinations</td></tr>
+                <tr><td colspan="4" class="align-left"><b>ODU: 18.1/21.5 KW</b></td><td rowspan="4" colspan="5" class="veec-highlight">94 VEECS</td></tr>
+                <tr><td>3 IDU</td><td colspan="3" class="align-left">8+8+2.3= 18.3/22 KW (3 EEV boxes)</td></tr>
+                <tr><td>4 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6*2= 18.8/21.9 KW (4 EEV boxes)</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+2.8*4= 18.3/21.9 KW (5 EEV boxes)</td></tr>
+                <tr><td colspan="4" class="align-left"><b>ODU: 20/24.1 KW</b></td><td rowspan="4" colspan="5" class="veec-highlight">107 VEECS</td></tr>
+                <tr><td>4 IDU</td><td colspan="3" class="align-left">8+5.6+3.6*2= 20.8/24.1 KW</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6+2.8*2= 20.8/24.1KW</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">8+4.5+2.8*3= 20.9/24.7 KW</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 2026 Section -->
+    <div id="section2026" class="content-section hidden">
+        <h2>2026 Product Costs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Brand</th>
+                    <th>Product Type</th>
+                    <th>Model Number</th>
+                    <th>Capacity (Cooling/Heating)</th>
+                    <th style="width: 50px;">VEEC Value</th>
+                    <th>Container 36</th>
+                    <th>local stock 10+</th>
+                    <th>Local Stock 5-10</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,540</td><td>$1,586</td><td>$1,632</td></tr>
+                <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,760</td><td>$1,813</td><td>$1,866</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$363</td><td>$374</td><td>$385</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$385</td><td>$397</td><td>$408</td></tr>
+                <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$418</td><td>$431</td><td>$443</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$440</td><td>$453</td><td>$466</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$462</td><td>$476</td><td>$490</td></tr>
+                <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$495</td><td>$510</td><td>$525</td></tr>
+                <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td></tr>
+                <tr><td></td><td>Y Shape Branch (welding)</td><td>/</td><td>e.g. 3 sets Y Branchs for 4 IDU</td><td>/</td><td>$20</td><td>$21</td><td>$21</td></tr>
+                <tr><td></td><td>3 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$95</td><td>$98</td><td>$101</td></tr>
+                <tr><td></td><td>4 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$100</td><td>$103</td><td>$106</td></tr>
+                <tr><td></td><td>5 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$105</td><td>$108</td><td>$111</td></tr>
+                <tr><td></td><td>6 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$110</td><td>$113</td><td>$117</td></tr>
+                <tr><td colspan="8" class="combinations-header">Combinations</td></tr>
+                <tr><td colspan="4" class="align-left"><b>ODU: 18.1/21.5 KW</b></td><td rowspan="4" colspan="4" class="veec-highlight">94 VEECS</td></tr>
+                <tr><td>3 IDU</td><td colspan="3" class="align-left">8+8+2.3= 18.3/22 KW (3 EEV boxes)</td></tr>
+                <tr><td>4 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6*2= 18.8/21.9 KW (4 EEV boxes)</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+2.8*4= 18.3/21.9 KW (5 EEV boxes)</td></tr>
+                <tr><td colspan="4" class="align-left"><b>ODU: 20/24.1 KW</b></td><td rowspan="4" colspan="4" class="veec-highlight">107 VEECS</td></tr>
+                <tr><td>4 IDU</td><td colspan="3" class="align-left">8+5.6+3.6*2= 20.8/24.1 KW</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6+2.8*2= 20.8/24.1KW</td></tr>
+                <tr><td>5 IDU</td><td colspan="3" class="align-left">8+4.5+2.8*3= 20.9/24.7 KW</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Installation Section -->
+    <div id="sectionInst" class="content-section hidden">
+        <h2>INSTALLATION COSTS</h2>
+        <div class="price-highlight">$900 per IDU (VRF & Multi system)</div>
+        <table class="inst-table">
+            <thead>
+                <tr>
+                    <th>Installation Service / Requirement</th>
+                    <th class="price-col">Cost (AUD)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Extra labour for difficult ODU access</td><td class="price-col">$300</td></tr>
+                <tr><td>Disconnecting existing gas heater (inc. VBA certificate)</td><td class="price-col">$200 per heater</td></tr>
+                <tr><td>Second-storey installation (normal two-storey)</td><td class="price-col">$150 per IDU</td></tr>
+                <tr><td>Installation on metal roof (e.g. Colourbond roof)</td><td class="price-col">$150 per IDU</td></tr>
+                <tr><td>Installation on double brick wall</td><td class="price-col">$150 per IDU</td></tr>
+                <tr><td>Removal and disposal of existing air conditioner</td><td class="price-col">$150 per unit</td></tr>
+                <tr><td>Switchboard work</td><td class="price-col">$200 per mini switchbox</td></tr>
+                <tr><td>Special installation (Extra-long pipe runs, custom covers, etc.)</td><td class="price-col">Price quoted on inspection</td></tr>
+            </tbody>
+        </table>
+        <div class="footer-note">
+            * All prices above are GST exclusive. Special installations by Nex Energy Services.
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <strong>Note:</strong> Prices above are GST and local freight excluded. All amounts are in AUD.
+    </div>
+    
+    <!-- Action Buttons -->
+    <button class="inst-btn" id="btnInst" onclick="switchYear('Inst')">View Installation Costs</button>
+</div>
+
+<script>
+    function switchYear(view) {
+        // Hide all sections
+        document.getElementById('section2025').classList.add('hidden');
+        document.getElementById('section2026').classList.add('hidden');
+        document.getElementById('sectionInst').classList.add('hidden');
+        
+        // Reset all button highlights
+        document.getElementById('btn2025').classList.remove('active');
+        document.getElementById('btn2026').classList.remove('active');
+        document.getElementById('btnInst').classList.remove('active');
+        
+        // Show selected section and highlight corresponding button
+        document.getElementById('section' + view).classList.remove('hidden');
+        
+        if(view === 'Inst') {
+            document.getElementById('btnInst').classList.add('active');
+        } else {
+            document.getElementById('btn' + view).classList.add('active');
+        }
+    }
+</script>
+
+</body>
+</html>
