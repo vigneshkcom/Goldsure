@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Add jsPDF and html2canvas libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
         /* Modern Reset and Base Styles */
         * {
@@ -359,9 +363,9 @@
         }
         
         .calc-total-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
             border-top: 2px solid #0056a6;
             font-weight: 600;
             font-size: 16px;
@@ -479,6 +483,68 @@
         .inst-btn.active {
             background: #0056a6;
             box-shadow: 0 4px 8px rgba(0, 86, 166, 0.2);
+        }
+        
+        /* PDF Download Button */
+        .pdf-btn {
+            margin-top: 20px;
+            padding: 14px 30px;
+            border: none;
+            background: #d32f2f;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(211, 47, 47, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .pdf-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+            background: #b71c1c;
+        }
+        
+        .pdf-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0056a6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         /* Responsive adjustments */
@@ -619,6 +685,12 @@
     </style>
 </head>
 <body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div>Generating PDF Report...</div>
+</div>
 
 <div class="dashboard-container">
     <div class="main-content">
@@ -789,7 +861,8 @@
         <div style="margin-top: 20px;">
             <div style="font-weight: 500; margin-bottom: 10px;">Indoor Units (IDUs)</div>
             <div id="iduList">
-                </div>
+                <!-- IDU rows will be generated here -->
+            </div>
         </div>
         
         <div style="margin-top: 20px;">
@@ -941,24 +1014,23 @@
                 <div id="resultSubtotal" class="neg-expense">-$0</div>
             </div>
             
-           <div class="calc-financial-row">
-    <div>VEEC Proceeds:</div>
-    <div id="resultVeecProceeds" class="pos-revenue">+$0</div>
-</div>
-
-<div class="calc-financial-row">
-    <div>Customer Contribution:</div>
-    <div id="resultCustomerContribution" class="pos-revenue">+$0</div>
-</div>
-
-<div class="calc-financial-row" style="font-weight:600;">
-    <div>Total Revenue:</div>
-    <div id="resultTotalRevenue" class="pos-revenue">+$0</div>
-</div>
+            <div class="calc-financial-row">
+                <div>VEEC Proceeds:</div>
+                <div id="resultVeecProceeds" class="pos-revenue">+$0</div>
+            </div>
+            
+            <div class="calc-financial-row">
+                <div>Customer Contribution:</div>
+                <div id="resultCustomerContribution" class="pos-revenue">+$0</div>
+            </div>
+            
+            <div class="calc-financial-row" style="font-weight:600;">
+                <div>Total Revenue:</div>
+                <div id="resultTotalRevenue" class="pos-revenue">+$0</div>
+            </div>
             
             <div class="calc-total-row" style="border-top: 2px solid #009688;">
                 <div><strong>PROFIT / LOSS:</strong></div>
-
                 <div><strong id="resultFinalTotal" class="neg-expense">-$0</strong></div>
             </div>
             
@@ -968,10 +1040,23 @@
                 <br>* VEEC Registration Fees = VEEC Qty × ($5.00 + $4.35)
             </div>
         </div>
+        
+        <!-- PDF Download Button -->
+        <button class="pdf-btn" onclick="generatePDFReport()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Download PDF Report
+        </button>
     </div>
 </div>
 
 <script>
+    const { jsPDF } = window.jspdf;
     const iduModels = [
         { model: 'ARVWM-H028/NR1DC2', capacity: '2.8/3.4 KW', label: '2.8KW IDU' },
         { model: 'ARVWM-H036/NR1DC2', capacity: '3.6/4.2 KW', label: '3.6KW IDU' },
@@ -983,6 +1068,18 @@
     
     const VEEC_SERVICE_FEE = 5.00;
     const VEEC_REGISTRATION_FEE = 4.35;
+    
+    // Store current calculation data for PDF
+    let currentCalculation = {
+        year: '2026',
+        stockLevel: 'container',
+        oduModel: '',
+        idus: [],
+        branches: {},
+        installation: {},
+        financial: {},
+        results: {}
+    };
     
     function initCalculator() {
         generateIDUList();
@@ -1052,13 +1149,29 @@
         const stock = document.getElementById('calcStock').value;
         const oduModel = document.getElementById('calcODU').value;
         
+        // Update current calculation data
+        currentCalculation.stockLevel = stock;
+        currentCalculation.oduModel = oduModel;
+        currentCalculation.idus = [];
+        
         let totalIDUs = 0;
         let iduCost = 0;
         iduModels.forEach((idu, index) => {
             const qty = parseInt(document.getElementById(`idu${index}`).value) || 0;
             if (qty > 0) {
                 totalIDUs += qty;
-                iduCost += qty * getPriceFromTable('IDU', idu.model, stock);
+                const price = getPriceFromTable('IDU', idu.model, stock);
+                iduCost += qty * price;
+                
+                // Store IDU data for PDF
+                currentCalculation.idus.push({
+                    model: idu.model,
+                    label: idu.label,
+                    capacity: idu.capacity,
+                    quantity: qty,
+                    unitPrice: price,
+                    totalPrice: qty * price
+                });
             }
         });
 
@@ -1068,33 +1181,77 @@
         let yBranchCost = totalIDUs > 1 ? (totalIDUs - 1) * 20 : 0;
         document.getElementById('yBranchesCost').textContent = `$${yBranchCost}`;
 
+        // Store branch data
+        currentCalculation.branches = {
+            yBranches: totalIDUs > 1 ? totalIDUs - 1 : 0,
+            yBranchCost: yBranchCost,
+            branch3: parseInt(document.getElementById('branch3').value) || 0,
+            branch4: parseInt(document.getElementById('branch4').value) || 0,
+            branch5: parseInt(document.getElementById('branch5').value) || 0,
+            branch6: parseInt(document.getElementById('branch6').value) || 0
+        };
+
         let multiBranchCost = 0;
-        multiBranchCost += (parseInt(document.getElementById('branch3').value) || 0) * getPriceFromTable('3 Heads Branch', '/', stock);
-        multiBranchCost += (parseInt(document.getElementById('branch4').value) || 0) * getPriceFromTable('4 Heads Branch', '/', stock);
-        multiBranchCost += (parseInt(document.getElementById('branch5').value) || 0) * getPriceFromTable('5 Heads Branch', '/', stock);
-        multiBranchCost += (parseInt(document.getElementById('branch6').value) || 0) * getPriceFromTable('6 Heads Branch', '/', stock);
+        multiBranchCost += currentCalculation.branches.branch3 * getPriceFromTable('3 Heads Branch', '/', stock);
+        multiBranchCost += currentCalculation.branches.branch4 * getPriceFromTable('4 Heads Branch', '/', stock);
+        multiBranchCost += currentCalculation.branches.branch5 * getPriceFromTable('5 Heads Branch', '/', stock);
+        multiBranchCost += currentCalculation.branches.branch6 * getPriceFromTable('6 Heads Branch', '/', stock);
 
         const equipmentTotal = oduCost + iduCost + eevCost + yBranchCost + multiBranchCost;
 
         const baseInst = totalIDUs * 900;
         let addInst = 0;
-        if (document.getElementById('instDifficult').checked) addInst += 300;
-        if (document.getElementById('instSecondFloor').checked) addInst += totalIDUs * 150;
-        if (document.getElementById('instMetalRoof').checked) addInst += totalIDUs * 150;
-        if (document.getElementById('instDoubleBrick').checked) addInst += totalIDUs * 150;
+        
+        // Store installation data
+        currentCalculation.installation = {
+            baseInstallation: baseInst,
+            difficultAccess: document.getElementById('instDifficult').checked,
+            secondFloor: document.getElementById('instSecondFloor').checked,
+            metalRoof: document.getElementById('instMetalRoof').checked,
+            doubleBrick: document.getElementById('instDoubleBrick').checked
+        };
+        
+        if (currentCalculation.installation.difficultAccess) addInst += 300;
+        if (currentCalculation.installation.secondFloor) addInst += totalIDUs * 150;
+        if (currentCalculation.installation.metalRoof) addInst += totalIDUs * 150;
+        if (currentCalculation.installation.doubleBrick) addInst += totalIDUs * 150;
 
         const veecQty = parseInt(document.getElementById('veecQuantity').value) || 0;
         const veecUnitPrice = parseFloat(document.getElementById('veecPrice').value) || 0;
         const totalVeecFees = veecQty * (VEEC_SERVICE_FEE + VEEC_REGISTRATION_FEE);
         const veecProceeds = veecQty * veecUnitPrice;
         const customerContribution = parseFloat(document.getElementById('customerContribution').value) || 0;
-const totalRevenue = veecProceeds + customerContribution;
+        const totalRevenue = veecProceeds + customerContribution;
         const installationTotal = baseInst + addInst + totalVeecFees;
         const subtotal = equipmentTotal + installationTotal;
+        const finalTotal = totalRevenue - subtotal;
 
+        // Store financial data
+        currentCalculation.financial = {
+            veecQuantity: veecQty,
+            veecUnitPrice: veecUnitPrice,
+            veecProceeds: veecProceeds,
+            customerContribution: customerContribution,
+            veecFees: totalVeecFees
+        };
 
-        const finalTotal = (veecProceeds + customerContribution) - subtotal;
-
+        // Store results data
+        currentCalculation.results = {
+            oduCost: oduCost,
+            iduCost: iduCost,
+            eevCost: eevCost,
+            branchCost: yBranchCost + multiBranchCost,
+            equipmentTotal: equipmentTotal,
+            baseInstallation: baseInst,
+            additionalInstallation: addInst,
+            veecRegistrationFees: totalVeecFees,
+            installationTotal: installationTotal,
+            subtotal: subtotal,
+            veecProceeds: veecProceeds,
+            customerContribution: customerContribution,
+            totalRevenue: totalRevenue,
+            finalTotal: finalTotal
+        };
 
         // UI Updates
         document.getElementById('resultOdu').textContent = `$${oduCost.toLocaleString()}`;
@@ -1113,26 +1270,23 @@ const totalRevenue = veecProceeds + customerContribution;
         document.getElementById('resultVeecRegFees').textContent = `$${totalVeecFees.toFixed(2)}`;
         document.getElementById('resultInstallTotal').textContent = `$${installationTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         
-        // SIGN CHANGES HERE:
         document.getElementById('resultSubtotal').textContent = `-$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         document.getElementById('resultVeecProceeds').textContent = `+$${veecProceeds.toFixed(2)}`;
         document.getElementById('resultCustomerContribution').textContent = `+$${customerContribution.toFixed(2)}`;
-document.getElementById('resultTotalRevenue').textContent =
-    `+$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        document.getElementById('resultTotalRevenue').textContent = `+$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
         const finalEl = document.getElementById('resultFinalTotal');
-const absFinal = Math.abs(finalTotal).toFixed(2);
+        const absFinal = Math.abs(finalTotal).toFixed(2);
 
-if (finalTotal >= 0) {
-    finalEl.textContent = `+$${absFinal}`;
-    finalEl.classList.remove('neg-expense');
-    finalEl.classList.add('pos-revenue');
-} else {
-    finalEl.textContent = `-$${absFinal}`;
-    finalEl.classList.remove('pos-revenue');
-    finalEl.classList.add('neg-expense');
-}
-
+        if (finalTotal >= 0) {
+            finalEl.textContent = `+$${absFinal}`;
+            finalEl.classList.remove('neg-expense');
+            finalEl.classList.add('pos-revenue');
+        } else {
+            finalEl.textContent = `-$${absFinal}`;
+            finalEl.classList.remove('pos-revenue');
+            finalEl.classList.add('neg-expense');
+        }
     }
 
     function switchYear(view) {
@@ -1146,6 +1300,308 @@ if (finalTotal >= 0) {
         document.getElementById('section' + view).classList.remove('hidden');
         if(view === 'Inst') document.getElementById('btnInst').classList.add('active');
         else document.getElementById('btn' + view).classList.add('active');
+    }
+    
+    // PDF Generation Function
+    async function generatePDFReport() {
+        showLoading(true);
+        
+        try {
+            // Create a new PDF document
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let yPos = 20;
+            
+            // Add header
+            doc.setFontSize(20);
+            doc.setTextColor(0, 86, 166); // AUX blue
+            doc.text("AUX Mini VRF System Quote", pageWidth / 2, yPos, { align: 'center' });
+            
+            doc.setFontSize(11);
+            doc.setTextColor(100, 100, 100);
+            yPos += 8;
+            doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth / 2, yPos, { align: 'center' });
+            
+            yPos += 15;
+            
+            // Add configuration section
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Configuration", 20, yPos);
+            yPos += 8;
+            doc.setDrawColor(0, 86, 166);
+            doc.line(20, yPos, pageWidth - 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            doc.setTextColor(80, 80, 80);
+            
+            // Configuration details
+            const stockText = document.getElementById('calcStock').options[document.getElementById('calcStock').selectedIndex].text;
+            const oduText = document.getElementById('calcODU').options[document.getElementById('calcODU').selectedIndex].text;
+            
+            doc.text(`Year: ${currentCalculation.year}`, 20, yPos);
+            doc.text(`Stock Level: ${stockText}`, pageWidth / 2, yPos);
+            yPos += 7;
+            
+            doc.text(`ODU Model: ${oduText}`, 20, yPos);
+            yPos += 10;
+            
+            // IDU details
+            if (currentCalculation.idus.length > 0) {
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text("Indoor Units (IDUs):", 20, yPos);
+                yPos += 8;
+                
+                doc.setFontSize(10);
+                currentCalculation.idus.forEach(idu => {
+                    if (idu.quantity > 0) {
+                        doc.text(`${idu.quantity} × ${idu.label} (${idu.capacity}) - $${idu.unitPrice.toFixed(2)} each = $${idu.totalPrice.toFixed(2)}`, 25, yPos);
+                        yPos += 6;
+                    }
+                });
+                yPos += 5;
+            }
+            
+            // Branch details
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Branches:", 20, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            if (currentCalculation.branches.yBranches > 0) {
+                doc.text(`Y Shape Branches: ${currentCalculation.branches.yBranches} × $20 = $${currentCalculation.branches.yBranchCost}`, 25, yPos);
+                yPos += 6;
+            }
+            
+            const branchTypes = ['3 Heads', '4 Heads', '5 Heads', '6 Heads'];
+            [currentCalculation.branches.branch3, currentCalculation.branches.branch4, 
+             currentCalculation.branches.branch5, currentCalculation.branches.branch6].forEach((qty, index) => {
+                if (qty > 0) {
+                    doc.text(`${branchTypes[index]} Branch: ${qty} units`, 25, yPos);
+                    yPos += 6;
+                }
+            });
+            
+            yPos += 10;
+            
+            // Installation options
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Installation Options:", 20, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            const totalIDUs = currentCalculation.idus.reduce((sum, idu) => sum + idu.quantity, 0);
+            doc.text(`Base Installation: ${totalIDUs} IDUs × $900 = $${currentCalculation.results.baseInstallation}`, 25, yPos);
+            yPos += 6;
+            
+            if (currentCalculation.installation.difficultAccess) {
+                doc.text("✓ Difficult ODU Access: +$300", 25, yPos);
+                yPos += 6;
+            }
+            if (currentCalculation.installation.secondFloor) {
+                doc.text(`✓ Second Storey: +${totalIDUs} × $150 = $${totalIDUs * 150}`, 25, yPos);
+                yPos += 6;
+            }
+            if (currentCalculation.installation.metalRoof) {
+                doc.text(`✓ Metal Roof: +${totalIDUs} × $150 = $${totalIDUs * 150}`, 25, yPos);
+                yPos += 6;
+            }
+            if (currentCalculation.installation.doubleBrick) {
+                doc.text(`✓ Double Brick Wall: +${totalIDUs} × $150 = $${totalIDUs * 150}`, 25, yPos);
+                yPos += 6;
+            }
+            
+            yPos += 10;
+            
+            // Check if we need a new page
+            if (yPos > pageHeight - 60) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            // Financial details
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text("Financial Details", 20, yPos);
+            yPos += 8;
+            doc.setDrawColor(0, 86, 166);
+            doc.line(20, yPos, pageWidth - 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            if (currentCalculation.financial.veecQuantity > 0) {
+                doc.text(`VEEC Quantity: ${currentCalculation.financial.veecQuantity}`, 20, yPos);
+                doc.text(`VEEC Price Each: $${currentCalculation.financial.veecUnitPrice.toFixed(2)}`, pageWidth / 2, yPos);
+                yPos += 7;
+                
+                doc.text(`VEEC Registration Fees: $${currentCalculation.financial.veecFees.toFixed(2)}`, 20, yPos);
+                doc.text(`VEEC Proceeds: $${currentCalculation.financial.veecProceeds.toFixed(2)}`, pageWidth / 2, yPos);
+                yPos += 7;
+            }
+            
+            if (currentCalculation.financial.customerContribution > 0) {
+                doc.text(`Customer Contribution: $${currentCalculation.financial.customerContribution.toFixed(2)}`, 20, yPos);
+                yPos += 7;
+            }
+            
+            yPos += 10;
+            
+            // Check if we need a new page for summary
+            if (yPos > pageHeight - 100) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            // Summary section
+            doc.setFontSize(16);
+            doc.setTextColor(0, 86, 166);
+            doc.text("Quote Summary", pageWidth / 2, yPos, { align: 'center' });
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            
+            // Equipment costs
+            doc.text("Equipment Costs:", 20, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`ODU: $${currentCalculation.results.oduCost.toLocaleString()}`, 30, yPos);
+            doc.text(`IDUs: $${currentCalculation.results.iduCost.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 6;
+            
+            doc.text(`EEV Boxes: $${currentCalculation.results.eevCost.toLocaleString()}`, 30, yPos);
+            doc.text(`Branches: $${currentCalculation.results.branchCost.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 8;
+            
+            doc.setFontSize(11);
+            doc.setDrawColor(150, 150, 150);
+            doc.line(30, yPos, pageWidth - 30, yPos);
+            yPos += 8;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text(`Equipment Total: $${currentCalculation.results.equipmentTotal.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 10;
+            
+            // Installation costs
+            doc.setFont(undefined, 'normal');
+            doc.text("Installation & Registration:", 20, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`Base Installation: $${currentCalculation.results.baseInstallation.toLocaleString()}`, 30, yPos);
+            doc.text(`Additional Installation: $${currentCalculation.results.additionalInstallation.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 6;
+            
+            doc.text(`VEEC Registration Fees: $${currentCalculation.results.veecRegistrationFees.toFixed(2)}`, 30, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(11);
+            doc.setDrawColor(150, 150, 150);
+            doc.line(30, yPos, pageWidth - 30, yPos);
+            yPos += 8;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text(`Installation & Registration Total: $${currentCalculation.results.installationTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 12;
+            
+            // Revenue
+            doc.setFont(undefined, 'normal');
+            doc.text("Revenue:", 20, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            if (currentCalculation.financial.veecProceeds > 0) {
+                doc.setTextColor(46, 125, 50); // Green for revenue
+                doc.text(`VEEC Proceeds: +$${currentCalculation.financial.veecProceeds.toFixed(2)}`, pageWidth - 30, yPos, { align: 'right' });
+                yPos += 6;
+            }
+            
+            if (currentCalculation.financial.customerContribution > 0) {
+                doc.text(`Customer Contribution: +$${currentCalculation.financial.customerContribution.toFixed(2)}`, pageWidth - 30, yPos, { align: 'right' });
+                yPos += 8;
+            }
+            
+            doc.setFontSize(11);
+            doc.setDrawColor(150, 150, 150);
+            doc.line(30, yPos, pageWidth - 30, yPos);
+            yPos += 8;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text(`Total Revenue: +$${currentCalculation.results.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 30, yPos, { align: 'right' });
+            yPos += 12;
+            
+            // Final calculation
+            doc.setFontSize(12);
+            doc.setDrawColor(0, 86, 166);
+            doc.line(20, yPos, pageWidth - 20, yPos);
+            yPos += 10;
+            
+            const subtotal = currentCalculation.results.subtotal;
+            doc.setTextColor(0, 0, 0);
+            doc.text("Subtotal (Equipment + Installation + Registration):", 20, yPos);
+            doc.text(`-$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 20, yPos, { align: 'right' });
+            yPos += 10;
+            
+            doc.text("Total Revenue:", 20, yPos);
+            doc.text(`+$${currentCalculation.results.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 20, yPos, { align: 'right' });
+            yPos += 15;
+            
+            // Final Profit/Loss
+            doc.setFontSize(14);
+            doc.setDrawColor(0, 150, 136);
+            doc.line(20, yPos, pageWidth - 20, yPos);
+            yPos += 10;
+            
+            const finalTotal = currentCalculation.results.finalTotal;
+            if (finalTotal >= 0) {
+                doc.setTextColor(46, 125, 50); // Green for profit
+                doc.setFont(undefined, 'bold');
+                doc.text("PROFIT:", 20, yPos);
+                doc.text(`+$${Math.abs(finalTotal).toFixed(2)}`, pageWidth - 20, yPos, { align: 'right' });
+            } else {
+                doc.setTextColor(211, 47, 47); // Red for loss
+                doc.setFont(undefined, 'bold');
+                doc.text("LOSS:", 20, yPos);
+                doc.text(`-$${Math.abs(finalTotal).toFixed(2)}`, pageWidth - 20, yPos, { align: 'right' });
+            }
+            
+            yPos += 20;
+            
+            // Footer notes
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text("* Prices exclude GST and local freight", 20, yPos);
+            yPos += 5;
+            doc.text("* Generated by AUX Mini VRF Product Costs Dashboard", 20, yPos);
+            yPos += 5;
+            doc.text("* For official quotes, please contact Nex Energy Services", 20, yPos);
+            
+            // Save the PDF
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            doc.save(`AUX-VRF-Quote-${timestamp}.pdf`);
+            
+            showLoading(false);
+            
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            showLoading(false);
+            alert('Error generating PDF report. Please try again.');
+        }
+    }
+    
+    function showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (show) {
+            overlay.style.display = 'flex';
+        } else {
+            overlay.style.display = 'none';
+        }
     }
     
     window.addEventListener('DOMContentLoaded', initCalculator);
