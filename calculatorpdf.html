@@ -15,6 +15,7 @@
         .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
         /* Hide the formal quote template from the web view */
         #pdf-template { display: none; }
+        .pdf-link { color: #B08D2E; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -25,16 +26,16 @@
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
-                <input type="number" id="bedrooms" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                <input type="number" id="bedrooms" oninput="calculate()" value="0" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
             <div>
-                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways</label>
-                <input type="number" id="hallways" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
+                <input type="number" id="hallways" oninput="calculate()" value="0" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
         </div>
         <div>
             <label class="text-[10px] font-bold uppercase text-gray-400">No. of Storeys</label>
-            <input type="number" id="levels" oninput="toggleStoreyQuestion(); calculate();" value="" placeholder="1" min="1" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+            <input type="number" id="levels" oninput="toggleStoreyQuestion(); calculate();" value="1" placeholder="1" min="1" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
         </div>
         <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded border border-gray-200">
             <p class="text-xs font-semibold mb-1">Does every level have a bedroom?</p>
@@ -80,12 +81,14 @@
     </div>
 </div>
 
-<div id="pdf-template" class="p-10 bg-white text-black">
+<!-- PDF Template (Hidden from web view) -->
+<div id="pdf-template" class="p-10 bg-white text-black" style="display: none;">
     <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
         <div>
             <h1 class="text-3xl font-bold text-black">QUOTE</h1>
             <p class="text-sm">Goldsure Pty Ltd</p>
             <p class="text-sm">ABN: 66 683 305 106</p>
+            <p class="text-sm">Phone: (07) 2145 5155</p>
         </div>
         <div class="text-right">
             <p class="font-bold">Date: <span id="pdf-date"></span></p>
@@ -115,8 +118,18 @@
         </div>
     </div>
 
-    <div class="mt-20 text-[10px] text-gray-500 italic">
-        <p>* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+    <div class="mt-12 space-y-4 text-xs text-gray-700">
+        <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+        <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
+        <p class="mb-4">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+        <p class="font-semibold">Smoke Alarm Datasheet:</p>
+        <p>
+            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
+               class="pdf-link" 
+               target="_blank">
+                Click here to view the Smoke Alarm Datasheet
+            </a>
+        </p>
     </div>
 </div>
 
@@ -135,6 +148,12 @@
 <script>
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
+// Initialize the calculator when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    toggleStoreyQuestion();
+    calculate();
+});
+
 function toggleStoreyQuestion() {
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     document.getElementById('extraStoreyBox').classList.toggle('hidden', storeys <= 1);
@@ -143,6 +162,7 @@ function toggleStoreyQuestion() {
 function toggleControllerQty(show) {
     document.getElementById('controllerInput').classList.toggle('hidden', !show);
     document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
+    calculate();
 }
 
 function calculate() {
@@ -154,42 +174,58 @@ function calculate() {
     const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
 
     let alarmCount = bedrooms + hallways;
-    if (storeys > 1 && !allHaveBedrooms) alarmCount += (storeys - 1); 
+    if (storeys > 1 && !allHaveBedrooms) {
+        alarmCount += (storeys - 1);
+    }
 
     const alarmTotal = alarmCount * 98;
     const ctrlTotal = controllerQty * 49;
     const grandTotal = alarmTotal + ctrlTotal + 33;
 
+    // Update display
     document.getElementById('res_alarmQty').innerText = alarmCount;
     document.getElementById('res_alarmTotal').innerText = formatter.format(alarmTotal);
     document.getElementById('res_ctrlQty').innerText = controllerQty;
     document.getElementById('res_ctrlTotal').innerText = formatter.format(ctrlTotal);
-    document.getElementById('res-balance').innerText = formatter.format(alarmTotal + ctrlTotal);
     document.getElementById('res-total').innerText = formatter.format(grandTotal);
 }
 
-function openModal() { document.getElementById('pdfModal').classList.remove('hidden'); }
-function closeModal() { document.getElementById('pdfModal').classList.add('hidden'); }
+function openModal() { 
+    document.getElementById('pdfModal').classList.remove('hidden'); 
+}
+
+function closeModal() { 
+    document.getElementById('pdfModal').classList.add('hidden'); 
+}
 
 function generatePDF() {
     const name = document.getElementById('userName').value;
     const email = document.getElementById('userEmail').value;
-    if (!name || !email) { alert("Please enter details."); return; }
+    if (!name || !email) { 
+        alert("Please enter both name and email."); 
+        return; 
+    }
 
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
-    const grandTotal = parseFloat(document.getElementById('res-total').innerText.replace(/[^0-9.-]+/g,""));
+    const grandTotalText = document.getElementById('res-total').innerText;
     
-    // GST Calculation (1/11th of total because total includes GST)
-    const gst = grandTotal / 11;
-    const subtotal = grandTotal - gst;
+    // Parse the grand total correctly
+    const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
+    
+    // Calculate subtotal and GST correctly
+    // Since the total includes GST, and GST is 10% of subtotal:
+    // total = subtotal * 1.1
+    // So subtotal = total / 1.1
+    const subtotal = grandTotal / 1.1;
+    const gst = grandTotal - subtotal;
 
     // Build PDF content
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
     document.getElementById('pdf-cust-name').innerText = name;
     document.getElementById('pdf-cust-email').innerText = email;
 
-    let rows = `<tr><td class="py-2 border-b">Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+    let rows = `<tr><td class="py-2 border-b"> Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
     if (ctrlQty > 0) {
         rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
     }
@@ -201,18 +237,37 @@ function generatePDF() {
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
     const element = document.getElementById('pdf-template');
-    element.style.display = 'block'; // Temporarily show for capture
+    
+    // Temporarily show for capture
+    const originalDisplay = element.style.display;
+    element.style.display = 'block';
 
     const opt = {
         margin: 10,
-        filename: `Goldsure_Quote_${name}.pdf`,
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        filename: `Goldsure_Quote_${name.replace(/\s+/g, '_')}.pdf`,
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true,
+            logging: true 
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = 'none';
+        // Restore original display
+        element.style.display = originalDisplay;
         closeModal();
+        // Clear the form after download
+        document.getElementById('userName').value = '';
+        document.getElementById('userEmail').value = '';
+    }).catch(err => {
+        console.error('PDF generation error:', err);
+        alert('Error generating PDF. Please try again.');
+        element.style.display = originalDisplay;
     });
 }
 </script>
