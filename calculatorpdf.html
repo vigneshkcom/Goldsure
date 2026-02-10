@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smoke Alarm Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .bg-goldsure { background-color: #B08D2E; }
+        .text-goldsure { color: #B08D2E; }
+        .calculator-container > div:first-child { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
+        /* Hide the formal quote template from the web view */
+        #pdf-template { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="max-w-xl mx-auto calculator-container shadow-xl">
+    <div class="bg-white p-6 rounded-t-lg border-x border-t border-gray-200 space-y-6">
+        <h2 class="font-bold text-lg border-b pb-2">Property Assessment</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
+                <input type="number" id="bedrooms" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways</label>
+                <input type="number" id="hallways" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+            </div>
+        </div>
+        <div>
+            <label class="text-[10px] font-bold uppercase text-gray-400">No. of Storeys</label>
+            <input type="number" id="levels" oninput="toggleStoreyQuestion(); calculate();" value="" placeholder="1" min="1" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+        </div>
+        <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded border border-gray-200">
+            <p class="text-xs font-semibold mb-1">Does every level have a bedroom?</p>
+            <div class="flex gap-4">
+                <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2"> Yes</label>
+                <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2"> No</label>
+            </div>
+        </div>
+        <div class="bg-blue-50 p-4 rounded border border-blue-100">
+            <p class="text-xs font-bold text-blue-900 mb-2">Add Smoke Alarm Controller? ($49)</p>
+            <div class="flex gap-4 mb-2">
+                <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2"> No</label>
+                <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2"> Yes</label>
+            </div>
+            <div id="controllerInput" class="hidden">
+                <label class="text-[10px] font-bold text-gray-400 uppercase">QTY of Controllers</label>
+                <input type="number" id="controllerQty" value="1" min="1" oninput="calculate()" class="w-full p-2 border rounded text-sm">
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-black text-white p-6 rounded-b-lg border-t-8 border-goldsure">
+        <h4 class="text-center font-bold text-[10px] tracking-widest mb-4 opacity-70 uppercase">PRICING SUMMARY</h4>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span>Alarms (<span id="res_alarmQty">0</span> x $98.00):</span>
+                <span id="res_alarmTotal">$0.00</span>
+            </div>
+            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-2">
+                <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
+                <span id="res_ctrlTotal">$0.00</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span>Booking Fee:</span>
+                <span>$33.00</span>
+            </div>
+            <div class="flex justify-between text-xl font-black pt-4 border-t border-gray-800 mt-2">
+                <span>TOTAL (Inc. GST):</span>
+                <span id="res-total" class="text-goldsure">$33.00</span>
+            </div>
+        </div>
+        <button onclick="openModal()" class="w-full mt-6 py-3 bg-goldsure text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-600 transition">Download Itemised Quote</button>
+    </div>
+</div>
+
+<div id="pdf-template" class="p-10 bg-white text-black">
+    <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-black">QUOTE</h1>
+            <p class="text-sm">Goldsure Pty Ltd</p>
+            <p class="text-sm">ABN: 66 683 305 106</p>
+        </div>
+        <div class="text-right">
+            <p class="font-bold">Date: <span id="pdf-date"></span></p>
+            <p id="pdf-cust-name" class="text-sm font-semibold"></p>
+            <p id="pdf-cust-email" class="text-sm"></p>
+        </div>
+    </div>
+
+    <table class="w-full text-left mb-8">
+        <thead>
+            <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
+                <th class="py-2 px-1">Description</th>
+                <th class="py-2 px-1 text-center">Qty</th>
+                <th class="py-2 px-1 text-right">Unit Price</th>
+                <th class="py-2 px-1 text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody id="pdf-table-body" class="text-sm">
+            </tbody>
+    </table>
+
+    <div class="flex justify-end">
+        <div class="w-1/2 space-y-2 border-t pt-4">
+            <div class="flex justify-between text-sm"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
+            <div class="flex justify-between text-sm"><span>GST (10%)</span><span id="pdf-gst"></span></div>
+            <div class="flex justify-between text-lg font-bold border-t-2 border-black pt-2"><span>Total (Incl. GST)</span><span id="pdf-grand-total"></span></div>
+        </div>
+    </div>
+
+    <div class="mt-20 text-[10px] text-gray-500 italic">
+        <p>* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+    </div>
+</div>
+
+<div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-lg max-w-sm w-full space-y-4">
+        <h3 class="font-bold text-lg">Customer Details</h3>
+        <input type="text" id="userName" placeholder="Full Name" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+        <input type="email" id="userEmail" placeholder="Email Address" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+        <div class="flex gap-2">
+            <button onclick="closeModal()" class="flex-1 py-2 text-gray-500 font-bold text-sm uppercase">Cancel</button>
+            <button onclick="generatePDF()" class="flex-1 py-2 bg-black text-white font-bold text-sm rounded uppercase">Generate PDF</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+
+function toggleStoreyQuestion() {
+    const storeys = parseInt(document.getElementById('levels').value) || 1;
+    document.getElementById('extraStoreyBox').classList.toggle('hidden', storeys <= 1);
+}
+
+function toggleControllerQty(show) {
+    document.getElementById('controllerInput').classList.toggle('hidden', !show);
+    document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
+}
+
+function calculate() {
+    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+    const hallways = parseInt(document.getElementById('hallways').value) || 0;
+    const storeys = parseInt(document.getElementById('levels').value) || 1;
+    const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked').value === 'yes';
+    const wantController = document.querySelector('input[name="wantController"]:checked').value === 'yes';
+    const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
+
+    let alarmCount = bedrooms + hallways;
+    if (storeys > 1 && !allHaveBedrooms) alarmCount += (storeys - 1); 
+
+    const alarmTotal = alarmCount * 98;
+    const ctrlTotal = controllerQty * 49;
+    const grandTotal = alarmTotal + ctrlTotal + 33;
+
+    document.getElementById('res_alarmQty').innerText = alarmCount;
+    document.getElementById('res_alarmTotal').innerText = formatter.format(alarmTotal);
+    document.getElementById('res_ctrlQty').innerText = controllerQty;
+    document.getElementById('res_ctrlTotal').innerText = formatter.format(ctrlTotal);
+    document.getElementById('res-balance').innerText = formatter.format(alarmTotal + ctrlTotal);
+    document.getElementById('res-total').innerText = formatter.format(grandTotal);
+}
+
+function openModal() { document.getElementById('pdfModal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('pdfModal').classList.add('hidden'); }
+
+function generatePDF() {
+    const name = document.getElementById('userName').value;
+    const email = document.getElementById('userEmail').value;
+    if (!name || !email) { alert("Please enter details."); return; }
+
+    const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
+    const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
+    const grandTotal = parseFloat(document.getElementById('res-total').innerText.replace(/[^0-9.-]+/g,""));
+    
+    // GST Calculation (1/11th of total because total includes GST)
+    const gst = grandTotal / 11;
+    const subtotal = grandTotal - gst;
+
+    // Build PDF content
+    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
+    document.getElementById('pdf-cust-name').innerText = name;
+    document.getElementById('pdf-cust-email').innerText = email;
+
+    let rows = `<tr><td class="py-2 border-b">Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+    if (ctrlQty > 0) {
+        rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
+    }
+    rows += `<tr><td class="py-2 border-b">Electrician Booking Fee</td><td class="text-center border-b">1</td><td class="text-right border-b">$33.00</td><td class="text-right border-b">$33.00</td></tr>`;
+    
+    document.getElementById('pdf-table-body').innerHTML = rows;
+    document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
+    document.getElementById('pdf-gst').innerText = formatter.format(gst);
+    document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
+
+    const element = document.getElementById('pdf-template');
+    element.style.display = 'block'; // Temporarily show for capture
+
+    const opt = {
+        margin: 10,
+        filename: `Goldsure_Quote_${name}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = 'none';
+        closeModal();
+    });
+}
+</script>
+
+</body>
+</html>
