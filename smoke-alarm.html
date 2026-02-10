@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Goldsure Sales Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body, button, input, label, h4, p, span, li { font-family: 'Poppins', sans-serif; }
@@ -20,6 +21,28 @@
         /* Raptor Branding Color */
         .bg-raptor { background-color: #D3662B; }
         .hover-raptor:hover { background-color: #b3521e; }
+        /* PDF Modal Styles */
+        .pdf-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .pdf-modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+        }
+        /* Hide PDF template from view */
+        #pdf-template { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 p-2 md:p-4 text-sm">
@@ -183,6 +206,7 @@
                 <div class="mt-5 space-y-2">
                     <button onclick="copySMS()" class="w-full py-2 bg-goldsure text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-yellow-600 transition">Copy Quote SMS</button>
                     <button onclick="sendEmail()" class="w-full py-2 bg-white text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-gray-200 transition">Email Quote Template</button>
+                    <button onclick="openPdfModal()" class="w-full py-2 bg-goldsure text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-yellow-600 transition">Download PDF Quote</button>
                 </div>
 
                 <div class="mt-5 pt-4 border-t border-gray-800 space-y-1.5">
@@ -215,9 +239,87 @@
     </div>
 </div>
 
+<div id="pdf-template" class="p-10 bg-white text-black" style="display: none;">
+    <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-black">QUOTE</h1>
+            <p class="text-sm">Goldsure Pty Ltd</p>
+            <p class="text-sm">ABN: 66 683 305 106</p>
+            <p class="text-sm">Phone: (07) 2145 5155</p>
+        </div>
+        <div class="text-right">
+            <p class="font-bold">Date: <span id="pdf-date"></span></p>
+            <p id="pdf-cust-name" class="text-sm font-semibold"></p>
+            <p id="pdf-cust-address" class="text-sm"></p>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <p class="text-sm font-semibold">Property Details:</p>
+        <p class="text-sm">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
+        <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
+    </div>
+
+    <table class="w-full text-left mb-8">
+        <thead>
+            <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
+                <th class="py-2 px-1">Description</th>
+                <th class="py-2 px-1 text-center">Qty</th>
+                <th class="py-2 px-1 text-right">Unit Price</th>
+                <th class="py-2 px-1 text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody id="pdf-table-body" class="text-sm">
+        </tbody>
+    </table>
+
+    <div class="flex justify-end">
+        <div class="w-1/2 space-y-2 border-t pt-4">
+            <div class="flex justify-between text-sm"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
+            <div class="flex justify-between text-sm"><span>GST (10%)</span><span id="pdf-gst"></span></div>
+            <div class="flex justify-between text-lg font-bold border-t-2 border-black pt-2"><span>Total (Incl. GST)</span><span id="pdf-grand-total"></span></div>
+        </div>
+    </div>
+
+    <div class="mt-12 space-y-4 text-xs text-gray-700">
+        <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+        <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
+        <p class="mb-4">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+        <p class="font-semibold">Smoke Alarm Datasheet:</p>
+        <p>
+            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
+               class="text-blue-600 underline" 
+               target="_blank">
+                Click here to view the Smoke Alarm Datasheet
+            </a>
+        </p>
+    </div>
+</div>
+
+<div id="pdfModal" class="pdf-modal">
+    <div class="pdf-modal-content">
+        <h3 class="font-bold text-lg mb-4 text-black">Generate PDF Quote</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                <input type="text" id="pdfCustomerName" placeholder="Full Name" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Address (Optional)</label>
+                <textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode" rows="3" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] text-sm"></textarea>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closePdfModal()" class="flex-1 py-2 text-gray-500 font-bold text-sm uppercase border border-gray-300 rounded">Cancel</button>
+                <button onclick="generatePDF()" class="flex-1 py-2 bg-black text-white font-bold text-sm rounded uppercase hover:bg-gray-800">Generate PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let serviceMode = 'install';
 let customerName = "";
+const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
 function setMode(type) {
     const scripts = {
@@ -274,8 +376,6 @@ function calculate() {
     const totalAlarmPrice = alarmCount * PRICE_ALARM;
     const totalCtrlPrice = controllerQty * PRICE_CTRL;
     const grandTotal = totalAlarmPrice + totalCtrlPrice + FEE_BOOKING;
-
-    const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
     document.getElementById('script-qty').innerText = alarmCount;
     document.getElementById('res_alarmQty').innerText = alarmCount;
@@ -381,6 +481,114 @@ function sendEmail() {
     const body = encodeURIComponent(`Hi ${nameStr},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${breakdown}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this email or call us on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`);
     
     window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
+}
+
+// PDF Functions
+function openPdfModal() {
+    const nameField = document.getElementById('pdfCustomerName');
+    const addressField = document.getElementById('pdfCustomerAddress');
+    
+    // Pre-fill name if available from main form
+    if (customerName) {
+        nameField.value = customerName;
+    } else {
+        nameField.value = '';
+    }
+    addressField.value = '';
+    
+    document.getElementById('pdfModal').style.display = 'flex';
+}
+
+function closePdfModal() {
+    document.getElementById('pdfModal').style.display = 'none';
+}
+
+function generatePDF() {
+    const name = document.getElementById('pdfCustomerName').value.trim();
+    const address = document.getElementById('pdfCustomerAddress').value.trim();
+    
+    if (!name) { 
+        alert("Please enter customer name."); 
+        return; 
+    }
+    
+    // Address is now optional, so no check here.
+
+    // Get current quote data
+    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+    const hallways = parseInt(document.getElementById('hallways').value) || 0;
+    const storeys = parseInt(document.getElementById('levels').value) || 1;
+    const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+    const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+    const grandTotalText = document.getElementById('res-total').innerText;
+    
+    // Parse the grand total
+    const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
+    
+    // Calculate subtotal and GST
+    const subtotal = grandTotal / 1.1;
+    const gst = grandTotal - subtotal;
+
+    // Build PDF content
+    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
+    document.getElementById('pdf-cust-name').innerText = name;
+    document.getElementById('pdf-cust-address').innerText = address;
+    document.getElementById('pdf-bedrooms').innerText = bedrooms;
+    document.getElementById('pdf-storeys').innerText = storeys;
+    document.getElementById('pdf-hallways').innerText = hallways;
+    document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
+
+    let rows = '';
+    if (serviceMode === 'install') {
+        if (alarmQty > 0) {
+            rows += `<tr><td class="py-2 border-b">Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+        }
+        if (ctrlQty > 0) {
+            rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
+        }
+        rows += `<tr><td class="py-2 border-b">Electrician Booking Fee</td><td class="text-center border-b">1</td><td class="text-right border-b">$33.00</td><td class="text-right border-b">$33.00</td></tr>`;
+    } else {
+        rows += `<tr><td class="py-2 border-b">Smoke Alarm Inspection Service</td><td class="text-center border-b">1</td><td class="text-right border-b">$131.00</td><td class="text-right border-b">$131.00</td></tr>`;
+    }
+    
+    document.getElementById('pdf-table-body').innerHTML = rows;
+    document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
+    document.getElementById('pdf-gst').innerText = formatter.format(gst);
+    document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
+
+    const element = document.getElementById('pdf-template');
+    
+    // Temporarily show for capture
+    const originalDisplay = element.style.display;
+    element.style.display = 'block';
+
+    const opt = {
+        margin: 10,
+        filename: `Goldsure_Quote_${name.replace(/\s+/g, '_')}.pdf`,
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true,
+            logging: false 
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Restore original display
+        element.style.display = originalDisplay;
+        closePdfModal();
+        // Clear the form fields after download
+        document.getElementById('pdfCustomerName').value = '';
+        document.getElementById('pdfCustomerAddress').value = '';
+    }).catch(err => {
+        console.error('PDF generation error:', err);
+        alert('Error generating PDF. Please try again.');
+        element.style.display = originalDisplay;
+    });
 }
 
 // Initialize
