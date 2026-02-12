@@ -77,11 +77,11 @@
                 <span id="res-total" class="text-goldsure">$33.00</span>
             </div>
         </div>
-        <button onclick="openModal()" class="w-full mt-6 py-3 bg-goldsure text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-600 transition">Download Itemised Quote</button>
+        <button onclick="downloadPDF()" class="w-full mt-6 py-3 bg-goldsure text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-600 transition">Download Itemised Quote</button>
     </div>
 </div>
 
-<!-- PDF Template (Hidden from web view) -->
+<!-- PDF Template – Enhanced with property details & compliance info (no customer popup) -->
 <div id="pdf-template" class="p-10 bg-white text-black" style="display: none;">
     <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
         <div>
@@ -89,12 +89,19 @@
             <p class="text-sm">Goldsure Pty Ltd</p>
             <p class="text-sm">ABN: 66 683 305 106</p>
             <p class="text-sm">Phone: (07) 2145 5155</p>
+            <p class="text-sm"><a href="https://www.goldsure.com.au" target="_blank" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
         </div>
         <div class="text-right">
             <p class="font-bold">Date: <span id="pdf-date"></span></p>
-            <p id="pdf-cust-name" class="text-sm font-semibold"></p>
-            <p id="pdf-cust-email" class="text-sm"></p>
+            <p class="text-sm font-semibold">Customer Quote</p>
+            <!-- No customer name/address requested -->
         </div>
+    </div>
+
+    <div class="mb-4">
+        <p class="text-sm font-semibold">Property Details:</p>
+        <p class="text-sm">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
+        <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
     </div>
 
     <table class="w-full text-left mb-8">
@@ -107,7 +114,7 @@
             </tr>
         </thead>
         <tbody id="pdf-table-body" class="text-sm">
-            </tbody>
+        </tbody>
     </table>
 
     <div class="flex justify-end">
@@ -122,26 +129,32 @@
         <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
         <p class="mb-4">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+        
+        <p class="font-semibold uppercase">Queensland Smoke Alarm Legislation:</p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li>Photoelectric and interconnected smoke alarms</li>
+            <li>Installed in each bedroom and in hallways connecting bedrooms</li>
+            <li>Installed on each level of the dwelling</li>
+            <li>10-year sealed lithium backup battery</li>
+            <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
+            <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
+        </ul>
+
+        <p class="font-semibold mt-4">Product Assurance:</p>
+        <p class="text-xs">
+            Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet
+            Queensland compliance requirements. Each alarm supplied and installed includes a
+            <strong>10-Year Manufacturer’s Warranty</strong>.
+        </p>
+
         <p class="font-semibold">Smoke Alarm Datasheet:</p>
         <p>
             <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
-               class="pdf-link" 
+               class="text-blue-600 underline" 
                target="_blank">
                 Click here to view the Smoke Alarm Datasheet
             </a>
         </p>
-    </div>
-</div>
-
-<div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white p-6 rounded-lg max-w-sm w-full space-y-4">
-        <h3 class="font-bold text-lg">Customer Details</h3>
-        <input type="text" id="userName" placeholder="Full Name" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
-        <input type="email" id="userEmail" placeholder="Email Address" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
-        <div class="flex gap-2">
-            <button onclick="closeModal()" class="flex-1 py-2 text-gray-500 font-bold text-sm uppercase">Cancel</button>
-            <button onclick="generatePDF()" class="flex-1 py-2 bg-black text-white font-bold text-sm rounded uppercase">Generate PDF</button>
-        </div>
     </div>
 </div>
 
@@ -190,42 +203,43 @@ function calculate() {
     document.getElementById('res-total').innerText = formatter.format(grandTotal);
 }
 
-function openModal() { 
-    document.getElementById('pdfModal').classList.remove('hidden'); 
-}
-
-function closeModal() { 
-    document.getElementById('pdfModal').classList.add('hidden'); 
-}
-
-function generatePDF() {
-    const name = document.getElementById('userName').value;
-    const email = document.getElementById('userEmail').value;
-    if (!name || !email) { 
-        alert("Please enter both name and email."); 
-        return; 
-    }
-
+function downloadPDF() {
+    // Get current calculator values
+    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+    const hallways = parseInt(document.getElementById('hallways').value) || 0;
+    const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const grandTotalText = document.getElementById('res-total').innerText;
     
-    // Parse the grand total correctly
+    // Parse the grand total
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
     
-    // Calculate subtotal and GST correctly
-    // Since the total includes GST, and GST is 10% of subtotal:
-    // total = subtotal * 1.1
-    // So subtotal = total / 1.1
+    // Calculate subtotal and GST (total includes GST)
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // Build PDF content
-    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
-    document.getElementById('pdf-cust-name').innerText = name;
-    document.getElementById('pdf-cust-email').innerText = email;
+    // --- Populate PDF template fields ---
+    // Date & time
+    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 
-    let rows = `<tr><td class="py-2 border-b"> Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+    // Property details
+    document.getElementById('pdf-bedrooms').innerText = bedrooms;
+    document.getElementById('pdf-storeys').innerText = storeys;
+    document.getElementById('pdf-hallways').innerText = hallways;
+    document.getElementById('pdf-service-type').innerText = 'Installation';
+
+    // Table rows
+    let rows = '';
+    if (alarmQty > 0) {
+        rows += `<tr><td class="py-2 border-b">Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+    }
     if (ctrlQty > 0) {
         rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
     }
@@ -236,19 +250,18 @@ function generatePDF() {
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
+    // --- Generate PDF ---
     const element = document.getElementById('pdf-template');
-    
-    // Temporarily show for capture
     const originalDisplay = element.style.display;
     element.style.display = 'block';
 
     const opt = {
         margin: 10,
-        filename: `Goldsure_Quote_${name.replace(/\s+/g, '_')}.pdf`,
+        filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
         html2canvas: { 
             scale: 2, 
             useCORS: true,
-            logging: true 
+            logging: false 
         },
         jsPDF: { 
             unit: 'mm', 
@@ -258,12 +271,7 @@ function generatePDF() {
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
-        // Restore original display
         element.style.display = originalDisplay;
-        closeModal();
-        // Clear the form after download
-        document.getElementById('userName').value = '';
-        document.getElementById('userEmail').value = '';
     }).catch(err => {
         console.error('PDF generation error:', err);
         alert('Error generating PDF. Please try again.');
