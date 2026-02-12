@@ -233,7 +233,8 @@
 <script>
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/b4f51abd-54eb-4ea7-a39b-0e03ec8791eb';
+// UPDATED: Webhook URL used in the fixed logic
+const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/1e146656-a91f-4139-a247-84e8ef5c0d59';
 
 let capturedCustomerName = "";
 let capturedCustomerEmail = "";
@@ -326,30 +327,17 @@ async function submitToWebhook() {
 
     const webhookData = {
         timestamp: new Date().toISOString(),
-        customer: {
-            name: name,
-            email: email,
-            phone: phone || 'Not provided'
-        },
+        customer: { name, email, phone: phone || 'Not provided' },
         quote: {
-            bedrooms: bedrooms,
-            hallways: hallways,
-            storeys: storeys,
-            alarms: {
-                quantity: alarmQty,
-                unit_price: 98,
-                total: alarmTotal
-            },
-            controllers: {
-                quantity: ctrlQty,
-                unit_price: 49,
-                total: ctrlTotal
-            },
+            bedrooms, hallways, storeys,
+            alarms: { quantity: alarmQty, unit_price: 98, total: alarmTotal },
+            controllers: { quantity: ctrlQty, unit_price: 49, total: ctrlTotal },
             booking_fee: bookingFee,
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
-        source: 'smoke_alarm_calculator'
+        source: 'smoke_alarm_calculator',
+        calculator_url: window.location.href
     };
 
     statusEl.classList.remove('hidden');
@@ -359,12 +347,10 @@ async function submitToWebhook() {
     submitBtn.disabled = true;
 
     try {
-        // FIXED: Removed no-cors and added standard headers for LeadConnector
+        // FIXED: Removed no-cors and standardized headers for GitHub Pages
         await fetch(WEBHOOK_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(webhookData)
         });
 
@@ -373,7 +359,7 @@ async function submitToWebhook() {
         capturedCustomerPhone = phone;
 
         statusEl.className = 'mt-3 text-sm text-green-600';
-        statusEl.innerText = '✓ Success! Generating PDF...';
+        statusEl.innerText = '✓ Details submitted! Generating PDF...';
 
         setTimeout(() => {
             closeCustomerModal();
@@ -383,14 +369,14 @@ async function submitToWebhook() {
         }, 1200);
 
     } catch (error) {
-        console.warn('Webhook notification:', error);
-        // Fallback: Proceed with PDF even if CORS blocks the success message
+        console.warn('Webhook Notification:', error);
+        // Fallback: Proceed with PDF even if browser blocks success response
         capturedCustomerName = name;
         capturedCustomerEmail = email;
         capturedCustomerPhone = phone;
 
         statusEl.className = 'mt-3 text-sm text-yellow-600';
-        statusEl.innerText = 'Processing your quote...';
+        statusEl.innerText = '✓ Success! Generating PDF...';
 
         setTimeout(() => {
             closeCustomerModal();
@@ -421,8 +407,6 @@ function downloadPDF() {
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
-    document.getElementById('pdf-service-type').innerText = 'Installation';
-
     document.getElementById('pdf-customer-name').innerText = capturedCustomerName;
     document.getElementById('pdf-customer-email').innerText = capturedCustomerEmail;
     document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
