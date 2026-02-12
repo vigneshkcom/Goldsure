@@ -13,7 +13,6 @@
         .text-goldsure { color: #B08D2E; }
         .calculator-container > div:first-child { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
         .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
-        /* Hide the formal quote template from the web view */
         #pdf-template { display: none; }
         .pdf-link { color: #B08D2E; text-decoration: underline; }
     </style>
@@ -26,11 +25,13 @@
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
-                <input type="number" id="bedrooms" oninput="calculate()" value="0" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                <!-- ✅ Removed value="0" – now blank by default -->
+                <input type="number" id="bedrooms" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
-                <input type="number" id="hallways" oninput="calculate()" value="0" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                <!-- ✅ Removed value="0" – now blank by default -->
+                <input type="number" id="hallways" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
         </div>
         <div>
@@ -94,7 +95,6 @@
         <div class="text-right">
             <p class="font-bold">Date: <span id="pdf-date"></span></p>
             <p class="text-sm font-semibold">Customer Quote</p>
-            <!-- No customer name/address requested -->
         </div>
     </div>
 
@@ -161,7 +161,6 @@
 <script>
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-// Initialize the calculator when the page loads
 document.addEventListener('DOMContentLoaded', function() {
     toggleStoreyQuestion();
     calculate();
@@ -179,6 +178,7 @@ function toggleControllerQty(show) {
 }
 
 function calculate() {
+    // parseInt on an empty field returns NaN, so we fallback to 0
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
@@ -195,7 +195,6 @@ function calculate() {
     const ctrlTotal = controllerQty * 49;
     const grandTotal = alarmTotal + ctrlTotal + 33;
 
-    // Update display
     document.getElementById('res_alarmQty').innerText = alarmCount;
     document.getElementById('res_alarmTotal').innerText = formatter.format(alarmTotal);
     document.getElementById('res_ctrlQty').innerText = controllerQty;
@@ -204,7 +203,6 @@ function calculate() {
 }
 
 function downloadPDF() {
-    // Get current calculator values
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
@@ -212,30 +210,21 @@ function downloadPDF() {
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const grandTotalText = document.getElementById('res-total').innerText;
     
-    // Parse the grand total
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
-    
-    // Calculate subtotal and GST (total includes GST)
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // --- Populate PDF template fields ---
-    // Date & time
+    // Populate PDF fields
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
     });
 
-    // Property details
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
     document.getElementById('pdf-service-type').innerText = 'Installation';
 
-    // Table rows
     let rows = '';
     if (alarmQty > 0) {
         rows += `<tr><td class="py-2 border-b">Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
@@ -250,7 +239,6 @@ function downloadPDF() {
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
-    // --- Generate PDF ---
     const element = document.getElementById('pdf-template');
     const originalDisplay = element.style.display;
     element.style.display = 'block';
@@ -258,16 +246,8 @@ function downloadPDF() {
     const opt = {
         margin: 10,
         filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            logging: false 
-        },
-        jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait' 
-        }
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
