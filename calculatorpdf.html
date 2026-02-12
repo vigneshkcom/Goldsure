@@ -23,6 +23,7 @@
         .bg-goldsure { background-color: #B08D2E; }
         .text-goldsure { color: #B08D2E; }
         
+        /* Clean white card */
         .calculator-card {
             background: white;
             border-radius: 28px;
@@ -32,6 +33,7 @@
             max-width: 600px;
         }
 
+        /* Uppercase labels – exactly like screenshot */
         .input-label {
             font-size: 11px;
             font-weight: 600;
@@ -71,6 +73,7 @@
             cursor: pointer;
         }
 
+        /* Pricing summary – dark, clean */
         .pricing-box {
             background: #0b1120;
             color: white;
@@ -82,6 +85,7 @@
             display: none;
         }
 
+        /* Controller section styling */
         .controller-section {
             background: #f8fafc;
             border-radius: 20px;
@@ -122,12 +126,6 @@
         <h2 class="text-xl font-bold text-slate-900">Check how many alarms your home requires <span class="text-goldsure">in less than 30 seconds.</span></h2>
     </div>
 
-    <!-- ✨ NEW: Optional Customer Name Field ✨ -->
-    <div class="px-8 pt-4">
-        <span class="input-label">Customer Name (optional)</span>
-        <input type="text" id="customerName" placeholder="e.g. John Smith" class="input-field">
-    </div>
-
     <!-- Property Assessment -->
     <div class="px-8 py-6">
         <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-3 mb-6">Property Assessment</h3>
@@ -156,7 +154,7 @@
             </div>
         </div>
 
-        <!-- Smoke Alarm Controller Section -->
+        <!-- Smoke Alarm Controller Section – exactly as screenshot -->
         <div class="controller-section">
             <p class="text-sm font-bold text-slate-800 mb-2">Add Smoke Alarm Controller? ($49)</p>
             <div class="radio-group">
@@ -170,7 +168,7 @@
         </div>
     </div>
 
-    <!-- PRICING SUMMARY -->
+    <!-- PRICING SUMMARY – Dark box, clean typography -->
     <div class="pricing-box">
         <h4 class="text-center font-bold text-[10px] tracking-widest mb-5 opacity-70 uppercase">PRICING SUMMARY</h4>
         <div class="space-y-3 text-sm">
@@ -195,8 +193,9 @@
     </div>
 </div>
 
-<!-- ========== PDF TEMPLATE – WITH CUSTOMER NAME FIELD ========== -->
+<!-- ========== PDF TEMPLATE – FULLY RESTORED ========== -->
 <div id="pdf-template" class="text-black">
+    <!-- (Full PDF template content – unchanged, matches your original) -->
     <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
         <div>
             <h1 class="text-3xl font-bold text-black">QUOTE</h1>
@@ -207,18 +206,14 @@
         </div>
         <div class="text-right">
             <p class="font-bold">Date: <span id="pdf-date"></span></p>
-            <!-- ✨ Customer name appears here if provided -->
-            <p id="pdf-customer-row" class="text-sm font-semibold hidden">Customer: <span id="pdf-customer-name"></span></p>
             <p class="text-sm font-semibold">Customer Quote</p>
         </div>
     </div>
-
     <div class="mb-4">
         <p class="text-sm font-semibold">Property Details:</p>
         <p class="text-sm">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
         <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
     </div>
-
     <table class="w-full text-left mb-8 table-fixed">
         <thead>
             <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
@@ -230,7 +225,6 @@
         </thead>
         <tbody id="pdf-table-body" class="text-sm"></tbody>
     </table>
-
     <div class="flex justify-end">
         <div class="w-1/2 space-y-2 border-t pt-4">
             <div class="flex justify-between text-sm"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
@@ -238,7 +232,6 @@
             <div class="flex justify-between text-lg font-bold border-t-2 border-black pt-2"><span>Total (Incl. GST)</span><span id="pdf-grand-total"></span></div>
         </div>
     </div>
-
     <div class="mt-12 space-y-4 text-xs text-gray-700">
         <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
@@ -280,7 +273,8 @@ function toggleControllerQty(show) {
 
 function calculate() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
-    let hallways = 0; // hidden, always 0
+    // Hallways hidden but still used – default to 0 unless you want to set via hidden input
+    let hallways = 0; 
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value === 'yes';
     const wantController = document.querySelector('input[name="wantController"]:checked')?.value === 'yes';
@@ -302,15 +296,10 @@ function calculate() {
     document.getElementById('res-total').innerText = formatter.format(grandTotal);
 }
 
-function sanitizeFilename(name) {
-    // Remove invalid characters, replace spaces with underscore
-    return name.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || '';
-}
-
 function downloadPDF() {
     // Get values
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
-    const hallways = 0;
+    const hallways = 0; // hidden, set to 0
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
@@ -319,26 +308,11 @@ function downloadPDF() {
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // ✨ Customer name (optional)
-    const customerName = document.getElementById('customerName').value.trim();
-
     // Populate PDF fields
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });
-
-    // Show customer name in PDF if provided
-    const customerRow = document.getElementById('pdf-customer-row');
-    const customerSpan = document.getElementById('pdf-customer-name');
-    if (customerName) {
-        customerSpan.innerText = customerName;
-        customerRow.classList.remove('hidden');
-    } else {
-        customerRow.classList.add('hidden');
-        customerSpan.innerText = '';
-    }
-
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
@@ -358,20 +332,12 @@ function downloadPDF() {
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
-    // Build filename: include customer name if provided
-    let filename = 'Goldsure_Quote';
-    if (customerName) {
-        const safeName = sanitizeFilename(customerName);
-        if (safeName) filename += `_${safeName}`;
-    }
-    filename += `_${new Date().toISOString().slice(0,10)}.pdf`;
-
     const element = document.getElementById('pdf-template');
     element.style.display = 'block';
 
     const opt = {
         margin: [10, 10, 10, 10],
-        filename: filename,
+        filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
         html2canvas: { scale: 2, useCORS: true, scrollY: 0, logging: false, windowWidth: 800, windowHeight: 1200 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
