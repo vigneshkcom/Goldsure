@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Smoke Alarm Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -23,6 +23,13 @@
             input[type="number"], input[type="text"], input[type="email"], button { font-size: 16px; }
         }
         
+        /* Android specific fixes */
+        @media (max-width: 480px) {
+            .calculator-container { max-width: 100%; }
+            .p-6 { padding: 1rem; }
+            .text-xl { font-size: 1.25rem; }
+        }
+        
         .loading-spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #B08D2E;
@@ -36,6 +43,42 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        
+        /* PDF compact styles - ULTRA COMPACT for all devices */
+        #pdf-template * {
+            line-height: 1.2;
+        }
+        #pdf-template p, #pdf-template div, #pdf-template li {
+            margin-bottom: 1px;
+        }
+        #pdf-template ul {
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-left: 16px;
+        }
+        #pdf-template li {
+            margin-bottom: 1px;
+            font-size: 8.5px;
+        }
+        .legislation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            list-style-type: disc;
+            padding-left: 16px;
+            margin-bottom: 2px;
+        }
+        .legislation-grid li {
+            margin-left: 0;
+            padding-left: 0;
+            font-size: 8.5px;
+        }
+        /* Force single page */
+        #pdf-template {
+            page-break-inside: avoid;
+            page-break-after: avoid;
+            page-break-before: avoid;
         }
     </style>
 </head>
@@ -153,78 +196,86 @@
     </div>
 </div>
 
-<div id="pdf-template" class="p-10 bg-white text-black" style="display:none;">
-    <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
+<!-- EXTRA COMPACT PDF template - Fits Android screen -->
+<div id="pdf-template" class="p-3 bg-white text-black" style="display:none; max-width: 210mm; font-family: 'Poppins', sans-serif;">
+    <!-- Header - Extra compact -->
+    <div class="flex justify-between items-start border-b-2 border-black pb-1.5 mb-1.5">
         <div>
-            <h1 class="text-3xl font-bold text-black">QUOTE</h1>
-            <p class="text-sm">Goldsure Pty Ltd</p>
-            <p class="text-sm">ABN: 66 683 305 106</p>
-            <p class="text-sm">Phone: (07) 2145 5155</p>
-            <p class="text-sm"><a href="https://www.goldsure.com.au" target="_blank" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
+            <h1 class="text-xl font-bold text-black">QUOTE</h1>
+            <p class="text-[9px] leading-tight">Goldsure Pty Ltd</p>
+            <p class="text-[9px] leading-tight">ABN: 66 683 305 106</p>
+            <p class="text-[9px] leading-tight">Phone: (07) 2145 5155</p>
+            <p class="text-[9px] leading-tight"><a href="https://www.goldsure.com.au" target="_blank" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
         </div>
         <div class="text-right">
-            <p class="font-bold">Date: <span id="pdf-date"></span></p>
-            <p class="text-sm font-semibold">Customer Quote</p>
-            <p class="text-sm">Name: <span id="pdf-customer-name"></span></p>
-            <p class="text-sm">Email: <span id="pdf-customer-email"></span></p>
-            <p class="text-sm">Phone: <span id="pdf-customer-phone"></span></p>
+            <p class="text-[9px] font-bold">Date: <span id="pdf-date"></span></p>
+            <p class="text-[9px] font-semibold">Customer Quote</p>
+            <p class="text-[9px]">Name: <span id="pdf-customer-name"></span></p>
+            <p class="text-[9px]">Email: <span id="pdf-customer-email"></span></p>
+            <p class="text-[9px]">Phone: <span id="pdf-customer-phone"></span></p>
         </div>
     </div>
 
-    <div class="mb-4">
-        <p class="text-sm font-semibold">Property Details:</p>
-        <p class="text-sm">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
-        <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
+    <!-- Property Details - Single line, extra compact -->
+    <div class="mb-1.5 text-[9px]">
+        <span class="font-semibold">Property:</span>
+        <span> Bd: <span id="pdf-bedrooms">0</span> | St: <span id="pdf-storeys">1</span> | Hw: <span id="pdf-hallways">0</span></span>
+        <span> | Svc: <span id="pdf-service-type">Installation</span></span>
     </div>
 
-    <table class="w-full text-left mb-8">
+    <!-- Table - Ultra compact -->
+    <table class="w-full text-left mb-1.5 text-[9px]">
         <thead>
-            <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
-                <th class="py-2 px-1">Description</th>
-                <th class="py-2 px-1 text-center">Qty</th>
-                <th class="py-2 px-1 text-right">Unit Price</th>
-                <th class="py-2 px-1 text-right">Total</th>
+            <tr class="bg-gray-100 uppercase text-[8px] font-bold border-b border-black">
+                <th class="py-0.5 px-0.5">Description</th>
+                <th class="py-0.5 px-0.5 text-center w-8">Qty</th>
+                <th class="py-0.5 px-0.5 text-right w-14">Unit Price</th>
+                <th class="py-0.5 px-0.5 text-right w-14">Total</th>
             </tr>
         </thead>
-        <tbody id="pdf-table-body" class="text-sm"></tbody>
+        <tbody id="pdf-table-body" class="text-[9px]"></tbody>
     </table>
 
-    <div class="flex justify-end">
-        <div class="w-1/2 space-y-2 border-t pt-4">
-            <div class="flex justify-between text-sm"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
-            <div class="flex justify-between text-sm"><span>GST (10%)</span><span id="pdf-gst"></span></div>
-            <div class="flex justify-between text-lg font-bold border-t-2 border-black pt-2"><span>Total (Incl. GST)</span><span id="pdf-grand-total"></span></div>
+    <!-- Totals - Extra compact -->
+    <div class="flex justify-end mb-1.5">
+        <div class="w-1/2 space-y-0 border-t pt-1 text-[9px]">
+            <div class="flex justify-between"><span>Subtotal</span><span id="pdf-subtotal"></span></div>
+            <div class="flex justify-between"><span>GST (10%)</span><span id="pdf-gst"></span></div>
+            <div class="flex justify-between font-bold border-t border-black pt-0.5 mt-0.5"><span>Total</span><span id="pdf-grand-total"></span></div>
         </div>
     </div>
 
-    <div class="mt-12 space-y-4 text-xs text-gray-700">
-        <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
-        <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
-        <p class="mb-4">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+    <!-- Footer - ALL SINGLE COLUMN, EXTRA COMPACT for Android -->
+    <div class="mt-0.5 text-[8px] text-gray-700">
+        <!-- Disclaimer - Single line -->
+        <p class="italic mb-0.5 leading-tight">* Estimate only. On-site assessment required for compliance certification.</p>
         
-        <p class="font-semibold uppercase">Queensland Smoke Alarm Legislation:</p>
-        <ul style="list-style-type: disc; margin-left: 20px;">
-            <li>Photoelectric and interconnected smoke alarms</li>
-            <li>Installed in each bedroom and in hallways connecting bedrooms</li>
-            <li>Installed on each level of the dwelling</li>
-            <li>10-year sealed lithium backup battery</li>
-            <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
-            <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
+        <!-- Booking Fee - Compact -->
+        <p class="font-semibold mt-0.5 mb-0">Booking Fee: What is the $33 Booking Fee?</p>
+        <p class="mb-0.5 leading-tight">Required upfront to secure Electrician. Fully refundable if installation cannot be completed.</p>
+        
+        <!-- QLD Legislation - TWO COLUMNS, Ultra compact -->
+        <p class="font-semibold uppercase mt-0.5 mb-0">Queensland Smoke Alarm Legislation:</p>
+        <ul class="legislation-grid">
+            <li>Photoelectric and interconnected</li>
+            <li>Installed each bedroom & hallways</li>
+            <li>Installed each level of dwelling</li>
+            <li>10-year sealed lithium battery</li>
+            <li>Compliant AS 3786-2014 or 2023</li>
+            <li>Hard-wired replacements where applicable</li>
         </ul>
+        
+        <!-- Product Assurance - Compact -->
+        <p class="font-semibold mt-0.5 mb-0">Product Assurance:</p>
+        <p class="leading-tight mb-0.5">Raptor premium-grade, photoelectric, interconnected. <strong>10-Year Warranty</strong>.</p>
 
-        <p class="font-semibold mt-4">Product Assurance:</p>
-        <p class="text-xs">
-            Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet
-            Queensland compliance requirements. Each alarm supplied and installed includes a
-            <strong>10-Year Manufacturer’s Warranty</strong>.
-        </p>
-
-        <p class="font-semibold">Smoke Alarm Datasheet:</p>
-        <p>
+        <!-- Smoke Alarm Datasheet - Compact -->
+        <p class="font-semibold mt-0.5 mb-0">Smoke Alarm Datasheet:</p>
+        <p class="leading-tight">
             <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
                class="text-blue-600 underline" 
                target="_blank">
-                Click here to view the Smoke Alarm Datasheet
+                Click here to view
             </a>
         </p>
     </div>
@@ -238,6 +289,9 @@ const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5
 let capturedCustomerName = "";
 let capturedCustomerEmail = "";
 let capturedCustomerPhone = "";
+
+// Detect Android device
+const isAndroid = /Android/i.test(navigator.userAgent);
 
 document.addEventListener('DOMContentLoaded', function() {
     toggleStoreyQuestion();
@@ -430,29 +484,29 @@ function downloadPDF() {
     // Alarms row
     if (alarmQty > 0) {
         rows += `<tr class="border-b">
-            <td class="py-2 px-1">Raptor Smoke Alarms - Photoelectric, Interconnected</td>
-            <td class="py-2 px-1 text-center">${alarmQty}</td>
-            <td class="py-2 px-1 text-right">$98.00</td>
-            <td class="py-2 px-1 text-right">${formatter.format(alarmQty * 98)}</td>
+            <td class="py-0.5 px-0.5">Raptor Smoke Alarms - Photoelectric, Interconnected</td>
+            <td class="py-0.5 px-0.5 text-center">${alarmQty}</td>
+            <td class="py-0.5 px-0.5 text-right">$98.00</td>
+            <td class="py-0.5 px-0.5 text-right">${formatter.format(alarmQty * 98)}</td>
         </tr>`;
     }
     
-    // Controllers row - FIXED: Now properly displays with all columns
+    // Controllers row
     if (ctrlQty > 0) {
         rows += `<tr class="border-b">
-            <td class="py-2 px-1">Smoke Alarm Controller</td>
-            <td class="py-2 px-1 text-center">${ctrlQty}</td>
-            <td class="py-2 px-1 text-right">$49.00</td>
-            <td class="py-2 px-1 text-right">${formatter.format(ctrlQty * 49)}</td>
+            <td class="py-0.5 px-0.5">Smoke Alarm Controller</td>
+            <td class="py-0.5 px-0.5 text-center">${ctrlQty}</td>
+            <td class="py-0.5 px-0.5 text-right">$49.00</td>
+            <td class="py-0.5 px-0.5 text-right">${formatter.format(ctrlQty * 49)}</td>
         </tr>`;
     }
     
     // Booking fee row
     rows += `<tr class="border-b">
-        <td class="py-2 px-1">Electrician Booking Fee</td>
-        <td class="py-2 px-1 text-center">1</td>
-        <td class="py-2 px-1 text-right">$33.00</td>
-        <td class="py-2 px-1 text-right">$33.00</td>
+        <td class="py-0.5 px-0.5">Booking Fee:</td>
+        <td class="py-0.5 px-0.5 text-center">1</td>
+        <td class="py-0.5 px-0.5 text-right">$33.00</td>
+        <td class="py-0.5 px-0.5 text-right">$33.00</td>
     </tr>`;
 
     document.getElementById('pdf-table-body').innerHTML = rows;
@@ -463,13 +517,34 @@ function downloadPDF() {
     const element = document.getElementById('pdf-template');
     element.style.display = 'block';
 
-    html2pdf().set({
-        margin: 10,
+    // Android-specific PDF settings
+    const pdfConfig = {
+        margin: isAndroid ? 1 : 2,     // Even smaller margins for Android (1mm)
         filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(element).save().then(() => {
+        pagebreak: { mode: 'avoid-all' },
+        html2canvas: { 
+            scale: isAndroid ? 1.2 : 1.3,  // Lower scale for Android
+            useCORS: true, 
+            logging: false,
+            letterRendering: true,
+            allowTaint: true,
+            foreignObjectRendering: false,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
+    };
+
+    html2pdf().set(pdfConfig).from(element).save().then(() => {
         element.style.display = 'none';
+    }).catch(() => {
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, 1000);
     });
 }
 </script>
