@@ -311,8 +311,10 @@ let capturedCustomerName = "";
 let capturedCustomerEmail = "";
 let capturedCustomerPhone = "";
 
-// Detect mobile devices
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// Detect mobile devices AND specifically Safari on iPhone
+const userAgent = navigator.userAgent;
+const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
+const isIPhoneSafari = /iPhone/i.test(userAgent) && /Safari/i.test(userAgent) && !/CriOS/i.test(userAgent) && !/FxiOS/i.test(userAgent);
 
 document.addEventListener('DOMContentLoaded', function() {
     toggleStoreyQuestion();
@@ -541,19 +543,41 @@ function downloadPDF() {
     const element = document.getElementById('pdf-template');
     element.style.display = 'block';
 
-    // HIGH QUALITY settings for ALL devices
+    // ========== FIXES ==========
+    // 1. PC: increased margin from 5 to 7 to prevent right edge cut-off
+    // 2. iPhone Safari: special handling - use smaller margin + scale, disable problematic settings
+    
+    let pdfMargin;
+    let pdfScale = 2.5; // default high quality
+    let useForeignObject = false;
+    let allowTaintSetting = true;
+    
+    if (isIPhoneSafari) {
+        // Safari on iPhone fix: reduce margin slightly, use safe rendering
+        pdfMargin = 2.5;       // tiny margin to prevent cut-off but keep content visible
+        pdfScale = 2.0;        // slightly lower scale for Safari performance/reliability
+        useForeignObject = false;
+        allowTaintSetting = false;  // Safari security quirk
+    } else if (isMobile) {
+        pdfMargin = 3;         // Android/other mobile unchanged
+    } else {
+        pdfMargin = 7;         // PC fix for right edge
+    }
+
     const pdfConfig = {
-        margin: isMobile ? 3 : 5,
+        margin: pdfMargin,
         filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
         pagebreak: { mode: 'avoid-all' },
         html2canvas: { 
-            scale: 2.5,
+            scale: pdfScale,
             useCORS: true, 
             logging: false,
             letterRendering: true,
-            allowTaint: true,
-            foreignObjectRendering: false,
-            backgroundColor: '#ffffff'
+            allowTaint: allowTaintSetting,
+            foreignObjectRendering: useForeignObject,
+            backgroundColor: '#ffffff',
+            imageTimeout: 0,
+            removeContainer: true
         },
         jsPDF: { 
             unit: 'mm', 
@@ -562,13 +586,25 @@ function downloadPDF() {
         }
     };
 
-    // Generate PDF
-    html2pdf().set(pdfConfig).from(element).save().then(() => {
-        element.style.display = 'none';
-    }).catch((error) => {
-        console.error('PDF Error:', error);
-        element.style.display = 'none';
-    });
+    // Generate PDF - with Safari-specific delay to ensure DOM is ready
+    if (isIPhoneSafari) {
+        // Small delay helps Safari render correctly
+        setTimeout(() => {
+            html2pdf().set(pdfConfig).from(element).save().then(() => {
+                element.style.display = 'none';
+            }).catch((error) => {
+                console.error('PDF Error (Safari):', error);
+                element.style.display = 'none';
+            });
+        }, 50);
+    } else {
+        html2pdf().set(pdfConfig).from(element).save().then(() => {
+            element.style.display = 'none';
+        }).catch((error) => {
+            console.error('PDF Error:', error);
+            element.style.display = 'none';
+        });
+    }
 }
 </script>
 
