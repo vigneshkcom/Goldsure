@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smoke Alarm Calculator</title>
+    <title>Smoke Alarm Calculator – Goldsure</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,24 +13,50 @@
         .text-goldsure { color: #B08D2E; }
         .calculator-container > div:first-child { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
         .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
-        #pdf-template { display: none; }
-        .pdf-link { color: #B08D2E; text-decoration: underline; }
+
+        /* ✅ PDF TEMPLATE – FIXED FOR PERFECT MARGINS */
+        #pdf-template {
+            display: none;               /* hidden until PDF generation */
+            width: 190mm;               /* fits exactly inside 10mm margins */
+            box-sizing: border-box;     /* padding INCLUDED in width */
+            background: white;
+            margin: 0 auto;            /* center horizontally (not needed but safe) */
+            padding: 1.5rem;           /* Tailwind p-6 = 1.5rem (approx 5.6mm each side) */
+            border: 0;
+            box-shadow: none;
+        }
+
+        /* Table column widths – prevents right‑side cropping */
+        #pdf-template table {
+            width: 100%;
+            table-layout: fixed;        /* forces column widths */
+            border-collapse: collapse;
+        }
+        #pdf-template th:nth-child(1) { width: 50%; }  /* Description */
+        #pdf-template th:nth-child(2) { width: 10%; }  /* Qty */
+        #pdf-template th:nth-child(3) { width: 20%; }  /* Unit Price */
+        #pdf-template th:nth-child(4) { width: 20%; }  /* Total */
+
+        /* Ensure text wraps instead of overflowing */
+        #pdf-template td, #pdf-template th {
+            word-wrap: break-word;
+            padding: 8px 4px;
+        }
     </style>
 </head>
 <body>
 
+<!-- ========== CALCULATOR UI ========== -->
 <div class="max-w-xl mx-auto calculator-container shadow-xl">
     <div class="bg-white p-6 rounded-t-lg border-x border-t border-gray-200 space-y-6">
         <h2 class="font-bold text-lg border-b pb-2">Property Assessment</h2>
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
-                <!-- ✅ Removed value="0" – now blank by default -->
                 <input type="number" id="bedrooms" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
-                <!-- ✅ Removed value="0" – now blank by default -->
                 <input type="number" id="hallways" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
         </div>
@@ -82,8 +108,8 @@
     </div>
 </div>
 
-<!-- PDF Template – Enhanced with property details & compliance info (no customer popup) -->
-<div id="pdf-template" class="p-10 bg-white text-black" style="display: none;">
+<!-- ========== PDF TEMPLATE – FULLY RESTORED + WIDTH FIX ========== -->
+<div id="pdf-template" class="text-black">
     <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
         <div>
             <h1 class="text-3xl font-bold text-black">QUOTE</h1>
@@ -104,13 +130,14 @@
         <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
     </div>
 
-    <table class="w-full text-left mb-8">
+    <!-- Table with fixed layout prevents cropping -->
+    <table class="w-full text-left mb-8 table-fixed">
         <thead>
             <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
-                <th class="py-2 px-1">Description</th>
-                <th class="py-2 px-1 text-center">Qty</th>
-                <th class="py-2 px-1 text-right">Unit Price</th>
-                <th class="py-2 px-1 text-right">Total</th>
+                <th class="py-2 px-1 w-1/2">Description</th>
+                <th class="py-2 px-1 text-center w-1/6">Qty</th>
+                <th class="py-2 px-1 text-right w-1/6">Unit Price</th>
+                <th class="py-2 px-1 text-right w-1/6">Total</th>
             </tr>
         </thead>
         <tbody id="pdf-table-body" class="text-sm">
@@ -178,12 +205,11 @@ function toggleControllerQty(show) {
 }
 
 function calculate() {
-    // parseInt on an empty field returns NaN, so we fallback to 0
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
-    const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked').value === 'yes';
-    const wantController = document.querySelector('input[name="wantController"]:checked').value === 'yes';
+    const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value === 'yes';
+    const wantController = document.querySelector('input[name="wantController"]:checked')?.value === 'yes';
     const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
 
     let alarmCount = bedrooms + hallways;
@@ -203,18 +229,18 @@ function calculate() {
 }
 
 function downloadPDF() {
+    // 1. Get current values
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const grandTotalText = document.getElementById('res-total').innerText;
-    
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // Populate PDF fields
+    // 2. Populate template fields
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -233,29 +259,43 @@ function downloadPDF() {
         rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
     }
     rows += `<tr><td class="py-2 border-b">Electrician Booking Fee</td><td class="text-center border-b">1</td><td class="text-right border-b">$33.00</td><td class="text-right border-b">$33.00</td></tr>`;
-    
+
     document.getElementById('pdf-table-body').innerHTML = rows;
     document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
+    // 3. Show template, wait for layout, then capture
     const element = document.getElementById('pdf-template');
-    const originalDisplay = element.style.display;
     element.style.display = 'block';
 
     const opt = {
-        margin: 10,
+        margin: [10, 10, 10, 10],      // top, right, bottom, left (mm)
         filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            scrollY: 0,
+            logging: false,
+            windowWidth: 800,          // force consistent viewport
+            windowHeight: 1200
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = originalDisplay;
-    }).catch(err => {
-        console.error('PDF generation error:', err);
-        alert('Error generating PDF. Please try again.');
-        element.style.display = originalDisplay;
+    // Double rAF + longer timeout – guarantees full paint
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                html2pdf().set(opt).from(element).save()
+                    .then(() => { element.style.display = 'none'; })
+                    .catch((err) => {
+                        console.error('PDF error:', err);
+                        alert('Could not generate PDF. Please try again.');
+                        element.style.display = 'none';
+                    });
+            }, 600); // 600ms – safe for fonts & layout
+        });
     });
 }
 </script>
