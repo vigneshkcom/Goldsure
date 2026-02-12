@@ -16,15 +16,13 @@
         #pdf-template { display: none; }
         .pdf-link { color: #B08D2E; text-decoration: underline; }
         
-        /* Mobile optimizations - only added, never removed */
         @media (max-width: 640px) {
             body { padding: 12px; }
-            .grid-cols-2 { grid-template-columns: 1fr; } /* Stack on mobile */
+            .grid-cols-2 { grid-template-columns: 1fr; }
             .text-xs { font-size: 0.75rem; }
             input[type="number"], input[type="text"], input[type="email"], button { font-size: 16px; }
         }
         
-        /* Loading spinner */
         .loading-spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #B08D2E;
@@ -47,7 +45,6 @@
     <div class="bg-white p-6 rounded-t-lg border-x border-t border-gray-200 space-y-6">
         <h2 class="font-bold text-lg border-b pb-2">Property Assessment</h2>
 
-        <!-- Mobile: Stacked on mobile, grid on desktop -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
@@ -132,7 +129,6 @@
     </div>
 </div>
 
-<!-- CUSTOMER MODAL - With Webhook Integration -->
 <div id="customerModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
     <div class="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
         <h3 class="text-lg font-bold mb-4">Enter Your Details</h3>
@@ -157,7 +153,6 @@
     </div>
 </div>
 
-<!-- ORIGINAL FULL PDF TEMPLATE - COMPLETELY PRESERVED, NOTHING REMOVED -->
 <div id="pdf-template" class="p-10 bg-white text-black" style="display:none;">
     <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
         <div>
@@ -238,7 +233,6 @@
 <script>
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-// Your LeadConnector webhook URL
 const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/1e146656-a91f-4139-a247-84e8ef5c0d59';
 
 let capturedCustomerName = "";
@@ -310,7 +304,6 @@ async function submitToWebhook() {
         return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         alert("Please enter a valid email address.");
@@ -321,7 +314,6 @@ async function submitToWebhook() {
     const submitBtn = document.getElementById('submitBtn');
     const submitSpinner = document.getElementById('submitSpinner');
 
-    // Get quote data
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
@@ -332,7 +324,6 @@ async function submitToWebhook() {
     const bookingFee = 33;
     const grandTotal = alarmTotal + ctrlTotal + bookingFee;
 
-    // Prepare webhook data
     const webhookData = {
         timestamp: new Date().toISOString(),
         customer: {
@@ -358,62 +349,58 @@ async function submitToWebhook() {
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
-        source: 'smoke_alarm_calculator',
-        calculator_url: window.location.href
+        source: 'smoke_alarm_calculator'
     };
 
     statusEl.classList.remove('hidden');
     statusEl.className = 'mt-3 text-sm text-blue-600';
-    statusEl.innerText = 'Submitting your details...';
+    statusEl.innerText = 'Submitting details...';
     submitSpinner.classList.remove('hidden');
     submitBtn.disabled = true;
 
     try {
-        // Send to LeadConnector webhook
+        // FIXED: Removed no-cors and added standard headers for LeadConnector
         await fetch(WEBHOOK_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(webhookData)
         });
 
-        // Store customer details
         capturedCustomerName = name;
         capturedCustomerEmail = email;
         capturedCustomerPhone = phone;
 
         statusEl.className = 'mt-3 text-sm text-green-600';
-        statusEl.innerText = '✓ Details submitted successfully! Generating PDF...';
+        statusEl.innerText = '✓ Success! Generating PDF...';
 
         setTimeout(() => {
             closeCustomerModal();
             downloadPDF();
             submitSpinner.classList.add('hidden');
             submitBtn.disabled = false;
-        }, 1500);
+        }, 1200);
 
     } catch (error) {
-        console.error('Webhook error:', error);
-        statusEl.className = 'mt-3 text-sm text-yellow-600';
-        statusEl.innerText = '✓ Connected! Generating PDF...';
-
-        // Still proceed with PDF download
+        console.warn('Webhook notification:', error);
+        // Fallback: Proceed with PDF even if CORS blocks the success message
         capturedCustomerName = name;
         capturedCustomerEmail = email;
         capturedCustomerPhone = phone;
 
+        statusEl.className = 'mt-3 text-sm text-yellow-600';
+        statusEl.innerText = 'Processing your quote...';
+
         setTimeout(() => {
             closeCustomerModal();
             downloadPDF();
             submitSpinner.classList.add('hidden');
             submitBtn.disabled = false;
-        }, 1500);
+        }, 1200);
     }
 }
 
-// ORIGINAL downloadPDF function - PRESERVED with minor addition for phone
 function downloadPDF() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
