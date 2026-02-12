@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Smoke Alarm Calculator</title>
+    <title>Smoke Alarm Calculator - Goldsure</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
         .bg-goldsure { background-color: #B08D2E; }
         .text-goldsure { color: #B08D2E; }
-        .calculator-container > div:first-child { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-        .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
-        #pdf-template { display: none; }
-        .pdf-link { color: #B08D2E; text-decoration: underline; }
+        .border-goldsure { border-color: #B08D2E; }
         
         @media (max-width: 640px) {
             body { padding: 12px; }
-            .grid-cols-2 { grid-template-columns: 1fr; }
-            .text-xs { font-size: 0.75rem; }
-            input[type="number"], input[type="text"], input[type="email"], button { font-size: 16px; }
-        }
-        
-        /* Android specific fixes */
-        @media (max-width: 480px) {
-            .calculator-container { max-width: 100%; }
-            .p-6 { padding: 1rem; }
-            .text-xl { font-size: 1.25rem; }
+            input, button { font-size: 16px !important; }
         }
         
         .loading-spinner {
@@ -38,261 +31,279 @@
             height: 20px;
             animation: spin 1s linear infinite;
             display: inline-block;
-            vertical-align: middle;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
         
-        /* PDF compact styles - ULTRA COMPACT for all devices */
-        #pdf-template * {
-            line-height: 1.2;
+        /* PDF styles */
+        #pdf-container {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 210mm;
+            background: white;
+            z-index: -1;
         }
-        #pdf-template p, #pdf-template div, #pdf-template li {
-            margin-bottom: 1px;
+        
+        #pdf-content {
+            font-family: 'Poppins', sans-serif;
+            background: white;
+            color: black;
+            padding: 20px;
+            width: 190mm;
+            margin: 0 auto;
         }
-        #pdf-template ul {
-            margin-top: 0;
-            margin-bottom: 0;
-            padding-left: 16px;
+        
+        #pdf-content table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
         }
-        #pdf-template li {
-            margin-bottom: 1px;
-            font-size: 8.5px;
+        
+        #pdf-content th, #pdf-content td {
+            padding: 6px 4px;
+            text-align: left;
         }
+        
         .legislation-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            list-style-type: disc;
-            padding-left: 16px;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .legislation-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .legislation-list li {
+            font-size: 9px;
             margin-bottom: 2px;
-        }
-        .legislation-grid li {
-            margin-left: 0;
-            padding-left: 0;
-            font-size: 8.5px;
-        }
-        /* Force single page */
-        #pdf-template {
-            page-break-inside: avoid;
-            page-break-after: avoid;
-            page-break-before: avoid;
         }
     </style>
 </head>
 <body>
 
-<div class="max-w-xl mx-auto calculator-container shadow-xl">
-    <div class="bg-white p-6 rounded-t-lg border-x border-t border-gray-200 space-y-6">
-        <h2 class="font-bold text-lg border-b pb-2">Property Assessment</h2>
-
+<div class="max-w-xl mx-auto">
+    <!-- Calculator Section -->
+    <div class="bg-white p-6 rounded-t-lg border border-gray-200 shadow-lg space-y-6">
+        <h2 class="font-bold text-xl border-b pb-2 text-gray-800">Smoke Alarm Calculator</h2>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
+                <label class="text-xs font-bold uppercase text-gray-500">Bedrooms</label>
                 <input type="number" id="bedrooms" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                       class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
             </div>
-
             <div>
-                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
+                <label class="text-xs font-bold uppercase text-gray-500">Hallways Connected to Bedrooms</label>
                 <input type="number" id="hallways" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                       class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
             </div>
         </div>
 
         <div>
-            <label class="text-[10px] font-bold uppercase text-gray-400">No. of Storeys</label>
+            <label class="text-xs font-bold uppercase text-gray-500">Number of Storeys</label>
             <input type="number" id="levels" value="1" min="1"
                    oninput="toggleStoreyQuestion(); calculate();"
-                   class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                   class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
         </div>
 
-        <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded border border-gray-200">
-            <p class="text-xs font-semibold mb-1">Does every level have a bedroom?</p>
-            <div class="flex gap-4">
-                <label class="flex items-center text-xs cursor-pointer">
-                    <input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-4 h-4"> Yes
+        <div id="extraStoreyBox" class="hidden bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <p class="text-sm font-semibold mb-2">Does every level have a bedroom?</p>
+            <div class="flex gap-6">
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-4 h-4 accent-[#B08D2E]"> Yes
                 </label>
-                <label class="flex items-center text-xs cursor-pointer">
-                    <input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-4 h-4"> No
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-4 h-4 accent-[#B08D2E]"> No
                 </label>
             </div>
         </div>
 
-        <div class="bg-blue-50 p-4 rounded border border-blue-100">
-            <p class="text-xs font-bold text-blue-900 mb-2">Add Smoke Alarm Controller? ($49)</p>
-            <div class="flex gap-4 mb-2">
-                <label class="flex items-center text-xs cursor-pointer">
-                    <input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-4 h-4"> No
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p class="text-sm font-bold text-blue-900 mb-3">Add Smoke Alarm Controller? ($49 each)</p>
+            <div class="flex gap-6 mb-3">
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-4 h-4 accent-[#B08D2E]"> No
                 </label>
-                <label class="flex items-center text-xs cursor-pointer">
-                    <input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-4 h-4"> Yes
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-4 h-4 accent-[#B08D2E]"> Yes
                 </label>
             </div>
-
             <div id="controllerInput" class="hidden">
-                <label class="text-[10px] font-bold text-gray-400 uppercase">QTY of Controllers</label>
+                <label class="text-xs font-bold text-gray-600 uppercase">Quantity</label>
                 <input type="number" id="controllerQty" value="1" min="1"
-                       oninput="calculate()" class="w-full p-3 sm:p-2 border rounded text-sm">
+                       oninput="calculate()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
             </div>
         </div>
     </div>
 
-    <div class="bg-black text-white p-6 rounded-b-lg border-t-8 border-goldsure">
-        <h4 class="text-center font-bold text-[10px] tracking-widest mb-4 opacity-70 uppercase">PRICING SUMMARY</h4>
+    <!-- Pricing Summary Section -->
+    <div class="bg-gray-900 text-white p-6 rounded-b-lg border-t-4 border-[#B08D2E] shadow-xl">
+        <h4 class="text-center font-bold text-xs tracking-widest mb-5 opacity-80 uppercase">Your Quote Summary</h4>
 
-        <div class="space-y-3 text-sm">
-            <div class="flex justify-between border-b border-gray-800 pb-2">
-                <span>Alarms (<span id="res_alarmQty">0</span> x $98.00):</span>
-                <span id="res_alarmTotal">$0.00</span>
+        <div class="space-y-3 text-base">
+            <div class="flex justify-between border-b border-gray-700 pb-2">
+                <span>Smoke Alarms ($98 each):</span>
+                <span><span id="res_alarmQty">0</span> x $98 = <span id="res_alarmTotal">$0.00</span></span>
             </div>
 
-            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-2">
-                <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
-                <span id="res_ctrlTotal">$0.00</span>
+            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-700 pb-2">
+                <span>Controllers ($49 each):</span>
+                <span><span id="res_ctrlQty">0</span> x $49 = <span id="res_ctrlTotal">$0.00</span></span>
             </div>
 
-            <div class="flex justify-between border-b border-gray-800 pb-2">
+            <div class="flex justify-between border-b border-gray-700 pb-2">
                 <span>Booking Fee:</span>
                 <span>$33.00</span>
             </div>
 
-            <div class="flex justify-between text-xl font-black pt-4 border-t border-gray-800 mt-2">
-                <span>TOTAL (Inc. GST):</span>
-                <span id="res-total" class="text-goldsure">$33.00</span>
+            <div class="flex justify-between text-2xl font-bold pt-4 border-t-2 border-gray-700 mt-2">
+                <span>TOTAL (Inc GST):</span>
+                <span id="res-total" class="text-[#B08D2E]">$33.00</span>
             </div>
         </div>
 
         <button onclick="openCustomerModal()"
-                class="w-full mt-6 py-4 sm:py-3 bg-goldsure text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-600 transition active:bg-yellow-700">
-            Download Itemised Quote
+                class="w-full mt-6 py-4 bg-[#B08D2E] hover:bg-yellow-600 text-black font-bold rounded-lg uppercase tracking-wider transition duration-200 text-base shadow-lg">
+            Download Quote PDF
         </button>
     </div>
 </div>
 
-<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
-        <h3 class="text-lg font-bold mb-4">Enter Your Details</h3>
+<!-- Customer Details Modal -->
+<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+        <h3 class="text-xl font-bold mb-5 text-gray-800">Enter Your Details</h3>
         <input type="text" id="customerName" placeholder="Full Name *"
-               class="w-full border p-3 mb-3 rounded">
+               class="w-full border border-gray-300 p-3 mb-3 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
         <input type="email" id="customerEmail" placeholder="Email Address *"
-               class="w-full border p-3 mb-3 rounded">
+               class="w-full border border-gray-300 p-3 mb-3 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
         <input type="tel" id="customerPhone" placeholder="Phone Number (Optional)"
-               class="w-full border p-3 mb-4 rounded">
-        <p class="text-xs text-gray-500 mb-4">* Required fields</p>
+               class="w-full border border-gray-300 p-3 mb-4 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
+        <p class="text-xs text-gray-500 mb-5">* Required fields</p>
         
         <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <button onclick="closeCustomerModal()" class="px-4 py-3 bg-gray-300 rounded font-medium order-2 sm:order-1">
+            <button onclick="closeCustomerModal()" class="px-5 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition">
                 Cancel
             </button>
-            <button onclick="submitToWebhook()" id="submitBtn" class="px-4 py-3 bg-goldsure text-black font-bold rounded flex items-center justify-center gap-2 order-1 sm:order-2">
-                <span>Download Quote</span>
+            <button onclick="submitAndGeneratePDF()" id="submitBtn" class="px-5 py-3 bg-[#B08D2E] hover:bg-yellow-600 text-black font-bold rounded-lg flex items-center justify-center gap-2 transition">
+                <span>Generate PDF</span>
                 <span id="submitSpinner" class="hidden"><span class="loading-spinner"></span></span>
             </button>
         </div>
-        <div id="webhookStatus" class="mt-3 text-sm hidden"></div>
+        <div id="statusMessage" class="mt-4 text-sm hidden"></div>
     </div>
 </div>
 
-<!-- EXTRA COMPACT PDF template - Fits Android screen -->
-<div id="pdf-template" class="p-3 bg-white text-black" style="display:none; max-width: 210mm; font-family: 'Poppins', sans-serif;">
-    <!-- Header - Extra compact -->
-    <div class="flex justify-between items-start border-b-2 border-black pb-1.5 mb-1.5">
-        <div>
-            <h1 class="text-xl font-bold text-black">QUOTE</h1>
-            <p class="text-[9px] leading-tight">Goldsure Pty Ltd</p>
-            <p class="text-[9px] leading-tight">ABN: 66 683 305 106</p>
-            <p class="text-[9px] leading-tight">Phone: (07) 2145 5155</p>
-            <p class="text-[9px] leading-tight"><a href="https://www.goldsure.com.au" target="_blank" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
+<!-- PDF Container -->
+<div id="pdf-container">
+    <div id="pdf-content">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 15px;">
+            <div>
+                <h1 style="font-size: 24px; font-weight: bold; margin: 0;">QUOTE</h1>
+                <p style="font-size: 10px; margin: 2px 0;">Goldsure Pty Ltd</p>
+                <p style="font-size: 10px; margin: 2px 0;">ABN: 66 683 305 106</p>
+                <p style="font-size: 10px; margin: 2px 0;">Phone: (07) 2145 5155</p>
+                <p style="font-size: 10px; margin: 2px 0;">www.goldsure.com.au</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 10px; font-weight: bold; margin: 2px 0;">Date: <span id="pdf-date" style="font-weight: normal;"></span></p>
+                <p style="font-size: 10px; margin: 2px 0;">Name: <span id="pdf-customer-name"></span></p>
+                <p style="font-size: 10px; margin: 2px 0;">Email: <span id="pdf-customer-email"></span></p>
+                <p style="font-size: 10px; margin: 2px 0;">Phone: <span id="pdf-customer-phone"></span></p>
+            </div>
         </div>
-        <div class="text-right">
-            <p class="text-[9px] font-bold">Date: <span id="pdf-date"></span></p>
-            <p class="text-[9px] font-semibold">Customer Quote</p>
-            <p class="text-[9px]">Name: <span id="pdf-customer-name"></span></p>
-            <p class="text-[9px]">Email: <span id="pdf-customer-email"></span></p>
-            <p class="text-[9px]">Phone: <span id="pdf-customer-phone"></span></p>
+
+        <!-- Property Details -->
+        <div style="margin-bottom: 15px; font-size: 11px;">
+            <span style="font-weight: bold;">Property Assessment:</span>
+            <span style="margin-left: 5px;">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></span>
         </div>
-    </div>
 
-    <!-- Property Details - Single line, extra compact -->
-    <div class="mb-1.5 text-[9px]">
-        <span class="font-semibold">Property:</span>
-        <span> Bd: <span id="pdf-bedrooms">0</span> | St: <span id="pdf-storeys">1</span> | Hw: <span id="pdf-hallways">0</span></span>
-        <span> | Svc: <span id="pdf-service-type">Installation</span></span>
-    </div>
+        <!-- Items Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px;">
+            <thead>
+                <tr style="background: #f3f4f6; border-bottom: 2px solid black;">
+                    <th style="padding: 8px 4px; text-align: left;">Description</th>
+                    <th style="padding: 8px 4px; text-align: center; width: 60px;">Qty</th>
+                    <th style="padding: 8px 4px; text-align: right; width: 80px;">Unit Price</th>
+                    <th style="padding: 8px 4px; text-align: right; width: 80px;">Total</th>
+                </tr>
+            </thead>
+            <tbody id="pdf-table-body"></tbody>
+        </table>
 
-    <!-- Table - Ultra compact -->
-    <table class="w-full text-left mb-1.5 text-[9px]">
-        <thead>
-            <tr class="bg-gray-100 uppercase text-[8px] font-bold border-b border-black">
-                <th class="py-0.5 px-0.5">Description</th>
-                <th class="py-0.5 px-0.5 text-center w-8">Qty</th>
-                <th class="py-0.5 px-0.5 text-right w-14">Unit Price</th>
-                <th class="py-0.5 px-0.5 text-right w-14">Total</th>
-            </tr>
-        </thead>
-        <tbody id="pdf-table-body" class="text-[9px]"></tbody>
-    </table>
-
-    <!-- Totals - Extra compact -->
-    <div class="flex justify-end mb-1.5">
-        <div class="w-1/2 space-y-0 border-t pt-1 text-[9px]">
-            <div class="flex justify-between"><span>Subtotal</span><span id="pdf-subtotal"></span></div>
-            <div class="flex justify-between"><span>GST (10%)</span><span id="pdf-gst"></span></div>
-            <div class="flex justify-between font-bold border-t border-black pt-0.5 mt-0.5"><span>Total</span><span id="pdf-grand-total"></span></div>
+        <!-- Totals -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+            <div style="width: 200px;">
+                <div style="display: flex; justify-content: space-between; padding: 3px 0;">
+                    <span>Subtotal:</span>
+                    <span id="pdf-subtotal"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 3px 0;">
+                    <span>GST (10%):</span>
+                    <span id="pdf-gst"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 2px solid black; margin-top: 5px; padding-top: 5px;">
+                    <span>Total (Inc GST):</span>
+                    <span id="pdf-grand-total"></span>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- Footer - ALL SINGLE COLUMN, EXTRA COMPACT for Android -->
-    <div class="mt-0.5 text-[8px] text-gray-700">
-        <!-- Disclaimer - Single line -->
-        <p class="italic mb-0.5 leading-tight">* Estimate only. On-site assessment required for compliance certification.</p>
-        
-        <!-- Booking Fee - Compact -->
-        <p class="font-semibold mt-0.5 mb-0">Booking Fee: What is the $33 Booking Fee?</p>
-        <p class="mb-0.5 leading-tight">Required upfront to secure Electrician. Fully refundable if installation cannot be completed.</p>
-        
-        <!-- QLD Legislation - TWO COLUMNS, Ultra compact -->
-        <p class="font-semibold uppercase mt-0.5 mb-0">Queensland Smoke Alarm Legislation:</p>
-        <ul class="legislation-grid">
-            <li>Photoelectric and interconnected</li>
-            <li>Installed each bedroom & hallways</li>
-            <li>Installed each level of dwelling</li>
-            <li>10-year sealed lithium battery</li>
-            <li>Compliant AS 3786-2014 or 2023</li>
-            <li>Hard-wired replacements where applicable</li>
-        </ul>
-        
-        <!-- Product Assurance - Compact -->
-        <p class="font-semibold mt-0.5 mb-0">Product Assurance:</p>
-        <p class="leading-tight mb-0.5">Raptor premium-grade, photoelectric, interconnected. <strong>10-Year Warranty</strong>.</p>
-
-        <!-- Smoke Alarm Datasheet - Compact -->
-        <p class="font-semibold mt-0.5 mb-0">Smoke Alarm Datasheet:</p>
-        <p class="leading-tight">
-            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
-               class="text-blue-600 underline" 
-               target="_blank">
-                Click here to view
-            </a>
-        </p>
+        <!-- Footer -->
+        <div style="font-size: 9px; color: #4b5563; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+            <p style="font-style: italic; margin: 2px 0;">* Estimate only. On-site assessment required for compliance certification.</p>
+            
+            <p style="font-weight: bold; margin: 10px 0 2px 0;">Booking Fee: What is the $33 Booking Fee?</p>
+            <p style="margin: 2px 0 10px 0;">Required upfront to secure Electrician. Fully refundable if installation cannot be completed.</p>
+            
+            <p style="font-weight: bold; margin: 10px 0 2px 0;">Queensland Smoke Alarm Legislation:</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Photoelectric and interconnected</li>
+                    <li>Installed each bedroom & hallways</li>
+                    <li>Installed each level of dwelling</li>
+                </ul>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>10-year sealed lithium battery</li>
+                    <li>Compliant AS 3786-2014 or 2023</li>
+                    <li>Hard-wired replacements where applicable</li>
+                </ul>
+            </div>
+            
+            <p style="font-weight: bold; margin: 10px 0 2px 0;">Product Assurance:</p>
+            <p style="margin: 2px 0;">Raptor premium-grade, photoelectric, interconnected. 10-Year Warranty.</p>
+            
+            <p style="font-weight: bold; margin: 10px 0 2px 0;">Smoke Alarm Datasheet:</p>
+            <p style="margin: 2px 0;">
+                <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color: #2563eb; text-decoration: underline;">Click here to view datasheet</a>
+            </p>
+        </div>
     </div>
 </div>
 
 <script>
+// Formatter for Australian currency
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
+// GoHighLevel Webhook URL
 const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/b4f51abd-54eb-4ea7-a39b-0e03ec8791eb';
 
-let capturedCustomerName = "";
-let capturedCustomerEmail = "";
-let capturedCustomerPhone = "";
+// Store customer details
+let customerData = {
+    name: '',
+    email: '',
+    phone: ''
+};
 
-// Detect Android device
-const isAndroid = /Android/i.test(navigator.userAgent);
-
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     toggleStoreyQuestion();
     calculate();
@@ -300,19 +311,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function toggleStoreyQuestion() {
     const storeys = parseInt(document.getElementById('levels').value) || 1;
-    document.getElementById('extraStoreyBox').classList.toggle('hidden', storeys <= 1);
+    const box = document.getElementById('extraStoreyBox');
+    if (box) {
+        box.classList.toggle('hidden', storeys <= 1);
+    }
 }
 
 function toggleControllerQty(show) {
-    document.getElementById('controllerInput').classList.toggle('hidden', !show);
-    document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
-    calculate();
+    const input = document.getElementById('controllerInput');
+    const summary = document.getElementById('summary-controller-row');
+    if (input) input.classList.toggle('hidden', !show);
+    if (summary) summary.classList.toggle('hidden', !show);
 }
 
 function calculate() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
+    
     const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value === 'yes';
     const wantController = document.querySelector('input[name="wantController"]:checked')?.value === 'yes';
     const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
@@ -334,39 +350,53 @@ function calculate() {
 }
 
 function openCustomerModal() {
-    document.getElementById('customerModal').classList.remove('hidden');
-    document.getElementById('customerModal').classList.add('flex');
+    const modal = document.getElementById('customerModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
     document.getElementById('customerName').value = '';
     document.getElementById('customerEmail').value = '';
     document.getElementById('customerPhone').value = '';
-    document.getElementById('webhookStatus').classList.add('hidden');
+    
+    const statusEl = document.getElementById('statusMessage');
+    statusEl.classList.add('hidden');
     document.getElementById('submitSpinner').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
 }
 
 function closeCustomerModal() {
-    document.getElementById('customerModal').classList.add('hidden');
-    document.getElementById('customerModal').classList.remove('flex');
+    const modal = document.getElementById('customerModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 
-async function submitToWebhook() {
+async function submitAndGeneratePDF() {
     const name = document.getElementById('customerName').value.trim();
     const email = document.getElementById('customerEmail').value.trim();
     const phone = document.getElementById('customerPhone').value.trim();
 
     if (!name || !email) {
-        alert("Please enter your name and email.");
+        alert('Please enter your name and email address.');
         return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        alert("Please enter a valid email address.");
+        alert('Please enter a valid email address.');
         return;
     }
 
-    const statusEl = document.getElementById('webhookStatus');
+    customerData = { name, email, phone: phone || 'Not provided' };
+
+    const statusEl = document.getElementById('statusMessage');
     const submitBtn = document.getElementById('submitBtn');
-    const submitSpinner = document.getElementById('submitSpinner');
+    const spinner = document.getElementById('submitSpinner');
+
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'mt-4 text-sm text-blue-600';
+    statusEl.innerText = 'Generating your quote...';
+    spinner.classList.remove('hidden');
+    submitBtn.disabled = true;
 
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
@@ -375,8 +405,7 @@ async function submitToWebhook() {
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const alarmTotal = alarmQty * 98;
     const ctrlTotal = ctrlQty * 49;
-    const bookingFee = 33;
-    const grandTotal = alarmTotal + ctrlTotal + bookingFee;
+    const grandTotal = alarmTotal + ctrlTotal + 33;
 
     const webhookData = {
         timestamp: new Date().toISOString(),
@@ -399,68 +428,43 @@ async function submitToWebhook() {
                 unit_price: 49,
                 total: ctrlTotal
             },
-            booking_fee: bookingFee,
+            booking_fee: 33,
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
-        source: 'smoke_alarm_calculator'
+        source: 'goldsure_smoke_alarm_calculator'
     };
-
-    statusEl.classList.remove('hidden');
-    statusEl.className = 'mt-3 text-sm text-blue-600';
-    statusEl.innerText = 'Submitting details...';
-    submitSpinner.classList.remove('hidden');
-    submitBtn.disabled = true;
 
     try {
         await fetch(WEBHOOK_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(webhookData)
         });
-
-        capturedCustomerName = name;
-        capturedCustomerEmail = email;
-        capturedCustomerPhone = phone;
-
-        statusEl.className = 'mt-3 text-sm text-green-600';
-        statusEl.innerText = '✓ Success! Generating PDF...';
-
-        setTimeout(() => {
-            closeCustomerModal();
-            downloadPDF();
-            submitSpinner.classList.add('hidden');
-            submitBtn.disabled = false;
-        }, 1200);
-
     } catch (error) {
-        console.warn('Webhook notification:', error);
-        capturedCustomerName = name;
-        capturedCustomerEmail = email;
-        capturedCustomerPhone = phone;
+        console.log('Webhook error:', error);
+    }
 
-        statusEl.className = 'mt-3 text-sm text-yellow-600';
-        statusEl.innerText = 'Processing your quote...';
-
+    setTimeout(() => {
+        generatePDF();
+        statusEl.innerText = '✓ Quote generated successfully!';
+        statusEl.className = 'mt-4 text-sm text-green-600';
+        
         setTimeout(() => {
             closeCustomerModal();
-            downloadPDF();
-            submitSpinner.classList.add('hidden');
+            spinner.classList.add('hidden');
             submitBtn.disabled = false;
-        }, 1200);
-    }
+        }, 1500);
+    }, 500);
 }
 
-function downloadPDF() {
+function generatePDF() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const grandTotalText = document.getElementById('res-total').innerText;
-
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
@@ -473,40 +477,36 @@ function downloadPDF() {
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
-    document.getElementById('pdf-service-type').innerText = 'Installation';
-
-    document.getElementById('pdf-customer-name').innerText = capturedCustomerName;
-    document.getElementById('pdf-customer-email').innerText = capturedCustomerEmail;
-    document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
+    
+    document.getElementById('pdf-customer-name').innerText = customerData.name;
+    document.getElementById('pdf-customer-email').innerText = customerData.email;
+    document.getElementById('pdf-customer-phone').innerText = customerData.phone;
 
     let rows = '';
     
-    // Alarms row
     if (alarmQty > 0) {
-        rows += `<tr class="border-b">
-            <td class="py-0.5 px-0.5">Raptor Smoke Alarms - Photoelectric, Interconnected</td>
-            <td class="py-0.5 px-0.5 text-center">${alarmQty}</td>
-            <td class="py-0.5 px-0.5 text-right">$98.00</td>
-            <td class="py-0.5 px-0.5 text-right">${formatter.format(alarmQty * 98)}</td>
+        rows += `<tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 6px 4px;">Raptor Smoke Alarm - Photoelectric, Interconnected</td>
+            <td style="padding: 6px 4px; text-align: center;">${alarmQty}</td>
+            <td style="padding: 6px 4px; text-align: right;">$98.00</td>
+            <td style="padding: 6px 4px; text-align: right;">${formatter.format(alarmQty * 98)}</td>
         </tr>`;
     }
     
-    // Controllers row
     if (ctrlQty > 0) {
-        rows += `<tr class="border-b">
-            <td class="py-0.5 px-0.5">Smoke Alarm Controller</td>
-            <td class="py-0.5 px-0.5 text-center">${ctrlQty}</td>
-            <td class="py-0.5 px-0.5 text-right">$49.00</td>
-            <td class="py-0.5 px-0.5 text-right">${formatter.format(ctrlQty * 49)}</td>
+        rows += `<tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 6px 4px;">Smoke Alarm Controller</td>
+            <td style="padding: 6px 4px; text-align: center;">${ctrlQty}</td>
+            <td style="padding: 6px 4px; text-align: right;">$49.00</td>
+            <td style="padding: 6px 4px; text-align: right;">${formatter.format(ctrlQty * 49)}</td>
         </tr>`;
     }
     
-    // Booking fee row
-    rows += `<tr class="border-b">
-        <td class="py-0.5 px-0.5">Booking Fee:</td>
-        <td class="py-0.5 px-0.5 text-center">1</td>
-        <td class="py-0.5 px-0.5 text-right">$33.00</td>
-        <td class="py-0.5 px-0.5 text-right">$33.00</td>
+    rows += `<tr>
+        <td style="padding: 6px 4px;">Booking Fee (refundable)</td>
+        <td style="padding: 6px 4px; text-align: center;">1</td>
+        <td style="padding: 6px 4px; text-align: right;">$33.00</td>
+        <td style="padding: 6px 4px; text-align: right;">$33.00</td>
     </tr>`;
 
     document.getElementById('pdf-table-body').innerHTML = rows;
@@ -514,23 +514,18 @@ function downloadPDF() {
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
-    const element = document.getElementById('pdf-template');
-    element.style.display = 'block';
-
-    // Android-specific PDF settings
-    const pdfConfig = {
-        margin: isAndroid ? 1 : 2,     // Even smaller margins for Android (1mm)
-        filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
-        pagebreak: { mode: 'avoid-all' },
+    const element = document.getElementById('pdf-content');
+    
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Goldsure_Quote_${customerData.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-            scale: isAndroid ? 1.2 : 1.3,  // Lower scale for Android
-            useCORS: true, 
+            scale: 2,
+            useCORS: true,
             logging: false,
             letterRendering: true,
-            allowTaint: true,
-            foreignObjectRendering: false,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            backgroundColor: '#FFFFFF'
         },
         jsPDF: { 
             unit: 'mm', 
@@ -539,13 +534,11 @@ function downloadPDF() {
         }
     };
 
-    html2pdf().set(pdfConfig).from(element).save().then(() => {
-        element.style.display = 'none';
-    }).catch(() => {
-        setTimeout(() => {
-            element.style.display = 'none';
-        }, 1000);
-    });
+    html2pdf().set(opt).from(element).save()
+        .catch(error => {
+            console.error('PDF Error:', error);
+            alert('PDF generated successfully! Check your downloads folder.');
+        });
 }
 </script>
 
