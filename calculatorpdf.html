@@ -359,7 +359,6 @@ async function submitToWebhook() {
     submitBtn.disabled = true;
 
     try {
-        // FIXED: Removed no-cors and added standard headers for LeadConnector
         await fetch(WEBHOOK_URL, {
             method: 'POST',
             headers: {
@@ -384,7 +383,6 @@ async function submitToWebhook() {
 
     } catch (error) {
         console.warn('Webhook notification:', error);
-        // Fallback: Proceed with PDF even if CORS blocks the success message
         capturedCustomerName = name;
         capturedCustomerEmail = email;
         capturedCustomerPhone = phone;
@@ -428,13 +426,34 @@ function downloadPDF() {
     document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
 
     let rows = '';
+    
+    // Alarms row
     if (alarmQty > 0) {
-        rows += `<tr><td class="py-2 border-b">Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
+        rows += `<tr class="border-b">
+            <td class="py-2 px-1">Raptor Smoke Alarms - Photoelectric, Interconnected</td>
+            <td class="py-2 px-1 text-center">${alarmQty}</td>
+            <td class="py-2 px-1 text-right">$98.00</td>
+            <td class="py-2 px-1 text-right">${formatter.format(alarmQty * 98)}</td>
+        </tr>`;
     }
+    
+    // Controllers row - FIXED: Now properly displays with all columns
     if (ctrlQty > 0) {
-        rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
+        rows += `<tr class="border-b">
+            <td class="py-2 px-1">Smoke Alarm Controller</td>
+            <td class="py-2 px-1 text-center">${ctrlQty}</td>
+            <td class="py-2 px-1 text-right">$49.00</td>
+            <td class="py-2 px-1 text-right">${formatter.format(ctrlQty * 49)}</td>
+        </tr>`;
     }
-    rows += `<tr><td class="py-2 border-b">Electrician Booking Fee</td><td class="text-center border-b">1</td><td class="text-right border-b">$33.00</td><td class="text-right border-b">$33.00</td></tr>`;
+    
+    // Booking fee row
+    rows += `<tr class="border-b">
+        <td class="py-2 px-1">Electrician Booking Fee</td>
+        <td class="py-2 px-1 text-center">1</td>
+        <td class="py-2 px-1 text-right">$33.00</td>
+        <td class="py-2 px-1 text-right">$33.00</td>
+    </tr>`;
 
     document.getElementById('pdf-table-body').innerHTML = rows;
     document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
