@@ -3,24 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Smoke Alarm Calculator - Goldsure</title>
+    <title>Smoke Alarm Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background: #f3f4f6;
-            margin: 0;
-            padding: 20px;
-        }
+        body { font-family: 'Poppins', sans-serif; background-color: #f3f4f6; padding: 20px; }
         .bg-goldsure { background-color: #B08D2E; }
         .text-goldsure { color: #B08D2E; }
-        .border-goldsure { border-color: #B08D2E; }
+        .calculator-container > div:first-child { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .calculator-container > div:last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
+        #pdf-template { display: none; }
         
         @media (max-width: 640px) {
             body { padding: 12px; }
-            input, button { font-size: 16px !important; }
+            .grid-cols-2 { grid-template-columns: 1fr; }
+            input[type="number"], input[type="text"], input[type="email"], button { font-size: 16px; }
         }
         
         .loading-spinner {
@@ -31,312 +29,291 @@
             height: 20px;
             animation: spin 1s linear infinite;
             display: inline-block;
+            vertical-align: middle;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
         
-        /* CRYSTAL CLEAR PDF STYLES */
-        #pdf-container {
-            position: fixed;
-            left: -9999px;
-            top: 0;
-            width: 210mm;
-            background: white;
-            z-index: -1;
-        }
-        
-        #pdf-content {
+        /* PDF styles - CLEAN, NO DUPLICATION */
+        #pdf-template {
             font-family: 'Poppins', sans-serif;
+            line-height: 1.4;
             background: white;
             color: black;
-            padding: 25px;
-            width: 190mm;
-            margin: 0 auto;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
         
-        #pdf-content table {
+        #pdf-template table {
             width: 100%;
             border-collapse: collapse;
+        }
+        
+        #pdf-template th {
+            background-color: #f3f4f6;
+            font-weight: 700;
+            text-transform: uppercase;
             font-size: 11px;
-            font-weight: normal;
+            border-bottom: 2px solid black;
+            padding: 8px 4px;
         }
         
-        #pdf-content th {
-            background: #f3f4f6;
-            font-weight: 600;
-            padding: 10px 6px;
-            border-bottom: 2px solid #000;
-            font-size: 11px;
+        #pdf-template td {
+            padding: 8px 4px;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
         }
         
-        #pdf-content td {
-            padding: 8px 6px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 11px;
+        #pdf-template .text-right {
+            text-align: right;
         }
         
-        #pdf-content ul {
-            margin: 0;
-            padding-left: 20px;
+        #pdf-template .text-center {
+            text-align: center;
         }
         
-        #pdf-content li {
-            font-size: 9.5px;
-            margin-bottom: 3px;
-            line-height: 1.4;
-        }
-        
-        #pdf-content p, #pdf-content div {
-            line-height: 1.4;
-        }
-        
-        #pdf-content .border-bottom {
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        #pdf-content .header-text {
-            font-size: 10px;
-            margin: 2px 0;
-        }
-        
-        #pdf-content .footer-text {
-            font-size: 9px;
-            color: #4b5563;
-        }
-        
-        #pdf-content .legislation-grid {
+        .legislation-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 5px;
+            gap: 12px;
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-bottom: 12px;
+        }
+        
+        .legislation-grid li {
+            margin-bottom: 2px;
+            font-size: 11px;
+        }
+        
+        /* Force single page */
+        #pdf-template {
+            page-break-inside: avoid;
+            page-break-after: avoid;
+            page-break-before: avoid;
         }
     </style>
 </head>
 <body>
 
-<div class="max-w-xl mx-auto">
-    <!-- Calculator Section -->
-    <div class="bg-white p-6 rounded-t-lg border border-gray-200 shadow-lg space-y-6">
-        <h2 class="font-bold text-xl border-b pb-2 text-gray-800">Smoke Alarm Calculator</h2>
-        
+<div class="max-w-xl mx-auto calculator-container shadow-xl">
+    <div class="bg-white p-6 rounded-t-lg border-x border-t border-gray-200 space-y-6">
+        <h2 class="font-bold text-lg border-b pb-2">Property Assessment</h2>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="text-xs font-bold uppercase text-gray-500">Bedrooms</label>
+                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
                 <input type="number" id="bedrooms" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
+                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
+
             <div>
-                <label class="text-xs font-bold uppercase text-gray-500">Hallways Connected to Bedrooms</label>
+                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
                 <input type="number" id="hallways" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
+                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
             </div>
         </div>
 
         <div>
-            <label class="text-xs font-bold uppercase text-gray-500">Number of Storeys</label>
+            <label class="text-[10px] font-bold uppercase text-gray-400">No. of Storeys</label>
             <input type="number" id="levels" value="1" min="1"
                    oninput="toggleStoreyQuestion(); calculate();"
-                   class="w-full border border-gray-300 p-3 rounded-lg outline-none focus:ring-2 focus:ring-[#B08D2E] focus:border-transparent">
+                   class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
         </div>
 
-        <div id="extraStoreyBox" class="hidden bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <p class="text-sm font-semibold mb-2">Does every level have a bedroom?</p>
-            <div class="flex gap-6">
-                <label class="flex items-center text-sm cursor-pointer">
-                    <input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-4 h-4 accent-[#B08D2E]"> Yes
+        <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded border border-gray-200">
+            <p class="text-xs font-semibold mb-1">Does every level have a bedroom?</p>
+            <div class="flex gap-4">
+                <label class="flex items-center text-xs cursor-pointer">
+                    <input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-4 h-4"> Yes
                 </label>
-                <label class="flex items-center text-sm cursor-pointer">
-                    <input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-4 h-4 accent-[#B08D2E]"> No
+                <label class="flex items-center text-xs cursor-pointer">
+                    <input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-4 h-4"> No
                 </label>
             </div>
         </div>
 
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <p class="text-sm font-bold text-blue-900 mb-3">Add Smoke Alarm Controller? ($49 each)</p>
-            <div class="flex gap-6 mb-3">
-                <label class="flex items-center text-sm cursor-pointer">
-                    <input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-4 h-4 accent-[#B08D2E]"> No
+        <div class="bg-blue-50 p-4 rounded border border-blue-100">
+            <p class="text-xs font-bold text-blue-900 mb-2">Add Smoke Alarm Controller? ($49)</p>
+            <div class="flex gap-4 mb-2">
+                <label class="flex items-center text-xs cursor-pointer">
+                    <input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-4 h-4"> No
                 </label>
-                <label class="flex items-center text-sm cursor-pointer">
-                    <input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-4 h-4 accent-[#B08D2E]"> Yes
+                <label class="flex items-center text-xs cursor-pointer">
+                    <input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-4 h-4"> Yes
                 </label>
             </div>
+
             <div id="controllerInput" class="hidden">
-                <label class="text-xs font-bold text-gray-600 uppercase">Quantity</label>
+                <label class="text-[10px] font-bold text-gray-400 uppercase">QTY of Controllers</label>
                 <input type="number" id="controllerQty" value="1" min="1"
-                       oninput="calculate()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
+                       oninput="calculate()" class="w-full p-3 sm:p-2 border rounded text-sm">
             </div>
         </div>
     </div>
 
-    <!-- Pricing Summary Section -->
-    <div class="bg-gray-900 text-white p-6 rounded-b-lg border-t-4 border-[#B08D2E] shadow-xl">
-        <h4 class="text-center font-bold text-xs tracking-widest mb-5 opacity-80 uppercase">Your Quote Summary</h4>
+    <div class="bg-black text-white p-6 rounded-b-lg border-t-8 border-goldsure">
+        <h4 class="text-center font-bold text-[10px] tracking-widest mb-4 opacity-70 uppercase">PRICING SUMMARY</h4>
 
-        <div class="space-y-3 text-base">
-            <div class="flex justify-between border-b border-gray-700 pb-2">
-                <span>Smoke Alarms ($98 each):</span>
-                <span><span id="res_alarmQty">0</span> x $98 = <span id="res_alarmTotal">$0.00</span></span>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span>Alarms (<span id="res_alarmQty">0</span> x $98.00):</span>
+                <span id="res_alarmTotal">$0.00</span>
             </div>
 
-            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-700 pb-2">
-                <span>Controllers ($49 each):</span>
-                <span><span id="res_ctrlQty">0</span> x $49 = <span id="res_ctrlTotal">$0.00</span></span>
+            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-2">
+                <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
+                <span id="res_ctrlTotal">$0.00</span>
             </div>
 
-            <div class="flex justify-between border-b border-gray-700 pb-2">
+            <div class="flex justify-between border-b border-gray-800 pb-2">
                 <span>Booking Fee:</span>
                 <span>$33.00</span>
             </div>
 
-            <div class="flex justify-between text-2xl font-bold pt-4 border-t-2 border-gray-700 mt-2">
-                <span>TOTAL (Inc GST):</span>
-                <span id="res-total" class="text-[#B08D2E]">$33.00</span>
+            <div class="flex justify-between text-xl font-black pt-4 border-t border-gray-800 mt-2">
+                <span>TOTAL (Inc. GST):</span>
+                <span id="res-total" class="text-goldsure">$33.00</span>
             </div>
         </div>
 
         <button onclick="openCustomerModal()"
-                class="w-full mt-6 py-4 bg-[#B08D2E] hover:bg-yellow-600 text-black font-bold rounded-lg uppercase tracking-wider transition duration-200 text-base shadow-lg">
-            Download Quote PDF
+                class="w-full mt-6 py-4 sm:py-3 bg-goldsure text-black font-bold rounded uppercase tracking-wider hover:bg-yellow-600 transition active:bg-yellow-700">
+            Download Itemised Quote
         </button>
     </div>
 </div>
 
-<!-- Customer Details Modal -->
-<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-        <h3 class="text-xl font-bold mb-5 text-gray-800">Enter Your Details</h3>
+<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
+        <h3 class="text-lg font-bold mb-4">Enter Your Details</h3>
         <input type="text" id="customerName" placeholder="Full Name *"
-               class="w-full border border-gray-300 p-3 mb-3 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
+               class="w-full border p-3 mb-3 rounded">
         <input type="email" id="customerEmail" placeholder="Email Address *"
-               class="w-full border border-gray-300 p-3 mb-3 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
+               class="w-full border p-3 mb-3 rounded">
         <input type="tel" id="customerPhone" placeholder="Phone Number (Optional)"
-               class="w-full border border-gray-300 p-3 mb-4 rounded-lg focus:ring-2 focus:ring-[#B08D2E]">
-        <p class="text-xs text-gray-500 mb-5">* Required fields</p>
+               class="w-full border p-3 mb-4 rounded">
+        <p class="text-xs text-gray-500 mb-4">* Required fields</p>
         
         <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <button onclick="closeCustomerModal()" class="px-5 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition">
+            <button onclick="closeCustomerModal()" class="px-4 py-3 bg-gray-300 rounded font-medium order-2 sm:order-1">
                 Cancel
             </button>
-            <button onclick="submitAndGeneratePDF()" id="submitBtn" class="px-5 py-3 bg-[#B08D2E] hover:bg-yellow-600 text-black font-bold rounded-lg flex items-center justify-center gap-2 transition">
-                <span>Generate PDF</span>
+            <button onclick="submitToWebhook()" id="submitBtn" class="px-4 py-3 bg-goldsure text-black font-bold rounded flex items-center justify-center gap-2 order-1 sm:order-2">
+                <span>Download Quote</span>
                 <span id="submitSpinner" class="hidden"><span class="loading-spinner"></span></span>
             </button>
         </div>
-        <div id="statusMessage" class="mt-4 text-sm hidden"></div>
+        <div id="webhookStatus" class="mt-3 text-sm hidden"></div>
     </div>
 </div>
 
-<!-- PDF Container - Crystal Clear Quality -->
-<div id="pdf-container">
-    <div id="pdf-content">
-        <!-- Header -->
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid black; padding-bottom: 12px; margin-bottom: 15px;">
-            <div>
-                <h1 style="font-size: 26px; font-weight: 700; margin: 0; color: #000;">QUOTE</h1>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">Goldsure Pty Ltd</p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">ABN: 66 683 305 106</p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">Phone: (07) 2145 5155</p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">www.goldsure.com.au</p>
+<!-- PDF template - COMPLETELY RESTRUCTURED, NO DUPLICATION -->
+<div id="pdf-template" style="display: none; padding: 20px; max-width: 210mm; background: white; font-family: 'Poppins', sans-serif;">
+    <!-- HEADER SECTION -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 16px; margin-bottom: 16px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 8px 0;">QUOTE</h1>
+            <p style="margin: 2px 0; font-size: 13px;">Goldsure Pty Ltd</p>
+            <p style="margin: 2px 0; font-size: 13px;">ABN: 66 683 305 106</p>
+            <p style="margin: 2px 0; font-size: 13px;">Phone: (07) 2145 5155</p>
+            <p style="margin: 2px 0; font-size: 13px;"><a href="https://www.goldsure.com.au" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
+        </div>
+        <div style="text-align: right;">
+            <p style="margin: 2px 0; font-size: 13px; font-weight: 700;">Date: <span id="pdf-date"></span></p>
+            <p style="margin: 2px 0; font-size: 13px; font-weight: 600;">Customer Quote</p>
+            <p style="margin: 2px 0; font-size: 13px;">Name: <span id="pdf-customer-name"></span></p>
+            <p style="margin: 2px 0; font-size: 13px;">Email: <span id="pdf-customer-email"></span></p>
+            <p style="margin: 2px 0; font-size: 13px;">Phone: <span id="pdf-customer-phone"></span></p>
+        </div>
+    </div>
+    
+    <!-- PROPERTY DETAILS -->
+    <div style="margin-bottom: 16px;">
+        <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600;">Property Details:</p>
+        <p style="margin: 2px 0; font-size: 13px;">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
+        <p style="margin: 2px 0; font-size: 13px;">Service Type: <span id="pdf-service-type">Installation</span></p>
+    </div>
+    
+    <!-- ITEMS TABLE - PROPER HTML TABLE -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+        <thead>
+            <tr style="background-color: #f3f4f6; border-bottom: 2px solid black;">
+                <th style="padding: 8px 4px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;">Description</th>
+                <th style="padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase;">Qty</th>
+                <th style="padding: 8px 4px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase;">Unit Price</th>
+                <th style="padding: 8px 4px; text-align: right; font-size: 11px; font-weight: 700; text-transform: uppercase;">Total</th>
+            </tr>
+        </thead>
+        <tbody id="pdf-table-body"></tbody>
+    </table>
+    
+    <!-- TOTALS -->
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+        <div style="width: 50%;">
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid #ddd; font-size: 13px;">
+                <span>Subtotal (Excl. GST)</span>
+                <span id="pdf-subtotal"></span>
             </div>
-            <div style="text-align: right;">
-                <p style="font-size: 11px; font-weight: 600; margin: 3px 0; color: #000;">Date: <span id="pdf-date" style="font-weight: 400;"></span></p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">Name: <span id="pdf-customer-name" style="font-weight: 500;"></span></p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">Email: <span id="pdf-customer-email" style="font-weight: 500;"></span></p>
-                <p style="font-size: 11px; margin: 3px 0; color: #000;">Phone: <span id="pdf-customer-phone" style="font-weight: 500;"></span></p>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px;">
+                <span>GST (10%)</span>
+                <span id="pdf-gst"></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0 0 0; margin-top: 4px; border-top: 2px solid black; font-size: 14px; font-weight: 700;">
+                <span>Total (Incl. GST)</span>
+                <span id="pdf-grand-total"></span>
             </div>
         </div>
-
-        <!-- Property Details -->
-        <div style="margin-bottom: 20px; font-size: 12px; background: #f9fafb; padding: 10px; border-radius: 4px;">
-            <span style="font-weight: 700; color: #000;">Property Assessment:</span>
-            <span style="margin-left: 10px; color: #000;">Bedrooms: <span id="pdf-bedrooms" style="font-weight: 600;">0</span> | Storeys: <span id="pdf-storeys" style="font-weight: 600;">1</span> | Hallways: <span id="pdf-hallways" style="font-weight: 600;">0</span></span>
+    </div>
+    
+    <!-- FOOTER - ALL SINGLE COLUMN EXCEPT LEGISLATION -->
+    <div style="margin-top: 8px; font-size: 12px; color: #4b5563;">
+        <!-- Disclaimer -->
+        <p style="margin: 0 0 12px 0; font-style: italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+        
+        <!-- Booking Fee -->
+        <p style="margin: 0 0 4px 0; font-weight: 600;">Booking Fee: What is the $33 Booking Fee?</p>
+        <p style="margin: 0 0 16px 0;">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+        
+        <!-- QLD Legislation - TWO COLUMNS -->
+        <p style="margin: 0 0 8px 0; font-weight: 600; text-transform: uppercase;">Queensland Smoke Alarm Legislation:</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+                <li style="margin-bottom: 2px; font-size: 11px;">Photoelectric and interconnected smoke alarms</li>
+                <li style="margin-bottom: 2px; font-size: 11px;">Installed in each bedroom and in hallways connecting bedrooms</li>
+                <li style="margin-bottom: 2px; font-size: 11px;">Installed on each level of the dwelling</li>
+            </ul>
+            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+                <li style="margin-bottom: 2px; font-size: 11px;">10-year sealed lithium backup battery</li>
+                <li style="margin-bottom: 2px; font-size: 11px;">Compliant with AS 3786-2014 or AS 3786-2023</li>
+                <li style="margin-bottom: 2px; font-size: 11px;">Hard-wired smoke alarms replaced with hard-wired where applicable</li>
+            </ul>
         </div>
-
-        <!-- Items Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <thead>
-                <tr style="background: #f3f4f6; border-bottom: 2px solid black;">
-                    <th style="padding: 10px 6px; text-align: left; font-size: 11px; font-weight: 700;">Description</th>
-                    <th style="padding: 10px 6px; text-align: center; width: 70px; font-size: 11px; font-weight: 700;">Qty</th>
-                    <th style="padding: 10px 6px; text-align: right; width: 90px; font-size: 11px; font-weight: 700;">Unit Price</th>
-                    <th style="padding: 10px 6px; text-align: right; width: 90px; font-size: 11px; font-weight: 700;">Total</th>
-                </tr>
-            </thead>
-            <tbody id="pdf-table-body"></tbody>
-        </table>
-
-        <!-- Totals -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 25px;">
-            <div style="width: 220px;">
-                <div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px;">
-                    <span style="font-weight: 500;">Subtotal:</span>
-                    <span id="pdf-subtotal" style="font-weight: 500;"></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px;">
-                    <span style="font-weight: 500;">GST (10%):</span>
-                    <span id="pdf-gst" style="font-weight: 500;"></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-weight: 700; border-top: 2px solid black; margin-top: 8px; padding-top: 8px; font-size: 13px;">
-                    <span>Total (Inc GST):</span>
-                    <span id="pdf-grand-total" style="color: #B08D2E; font-weight: 700;"></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer - Crystal Clear -->
-        <div style="font-size: 9.5px; color: #1f2937; border-top: 1px solid #d1d5db; padding-top: 15px;">
-            <p style="font-style: italic; margin: 3px 0; font-size: 9.5px;">* Estimate only. On-site assessment required for compliance certification.</p>
-            
-            <p style="font-weight: 700; margin: 15px 0 3px 0; font-size: 10px;">Booking Fee: What is the $33 Booking Fee?</p>
-            <p style="margin: 3px 0 12px 0; font-size: 9.5px;">Required upfront to secure Electrician. Fully refundable if installation cannot be completed.</p>
-            
-            <p style="font-weight: 700; margin: 15px 0 5px 0; font-size: 10px;">Queensland Smoke Alarm Legislation:</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <ul style="margin: 0; padding-left: 20px;">
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">Photoelectric and interconnected</li>
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">Installed each bedroom & hallways</li>
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">Installed each level of dwelling</li>
-                </ul>
-                <ul style="margin: 0; padding-left: 20px;">
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">10-year sealed lithium battery</li>
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">Compliant AS 3786-2014 or 2023</li>
-                    <li style="font-size: 9.5px; margin-bottom: 4px;">Hard-wired replacements where applicable</li>
-                </ul>
-            </div>
-            
-            <p style="font-weight: 700; margin: 15px 0 3px 0; font-size: 10px;">Product Assurance:</p>
-            <p style="margin: 3px 0; font-size: 9.5px;">Raptor premium-grade, photoelectric, interconnected. <span style="font-weight: 700;">10-Year Warranty</span>.</p>
-            
-            <p style="font-weight: 700; margin: 15px 0 3px 0; font-size: 10px;">Smoke Alarm Datasheet:</p>
-            <p style="margin: 3px 0; font-size: 9.5px;">
-                <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color: #2563eb; text-decoration: underline; font-size: 9.5px;">Click here to view datasheet</a>
-            </p>
-            
-            <p style="margin-top: 15px; font-size: 8px; color: #6b7280; text-align: center;">Goldsure Pty Ltd - Your Safety is Our Priority</p>
-        </div>
+        
+        <!-- Product Assurance -->
+        <p style="margin: 0 0 4px 0; font-weight: 600;">Product Assurance:</p>
+        <p style="margin: 0 0 12px 0; font-size: 12px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet Queensland compliance requirements. Each alarm supplied and installed includes a <strong>10-Year Manufacturer’s Warranty</strong>.</p>
+        
+        <!-- Smoke Alarm Datasheet -->
+        <p style="margin: 0 0 4px 0; font-weight: 600;">Smoke Alarm Datasheet:</p>
+        <p style="margin: 0 0 4px 0; font-size: 12px;">
+            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color: blue; text-decoration: underline;">Click here to view the Smoke Alarm Datasheet</a>
+        </p>
     </div>
 </div>
 
 <script>
-// Formatter for Australian currency
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-// GoHighLevel Webhook URL
 const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/b4f51abd-54eb-4ea7-a39b-0e03ec8791eb';
 
-// Store customer details
-let customerData = {
-    name: '',
-    email: '',
-    phone: ''
-};
+let capturedCustomerName = "";
+let capturedCustomerEmail = "";
+let capturedCustomerPhone = "";
 
-// Initialize
+// Detect mobile devices
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 document.addEventListener('DOMContentLoaded', function() {
     toggleStoreyQuestion();
     calculate();
@@ -344,24 +321,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function toggleStoreyQuestion() {
     const storeys = parseInt(document.getElementById('levels').value) || 1;
-    const box = document.getElementById('extraStoreyBox');
-    if (box) {
-        box.classList.toggle('hidden', storeys <= 1);
-    }
+    document.getElementById('extraStoreyBox').classList.toggle('hidden', storeys <= 1);
 }
 
 function toggleControllerQty(show) {
-    const input = document.getElementById('controllerInput');
-    const summary = document.getElementById('summary-controller-row');
-    if (input) input.classList.toggle('hidden', !show);
-    if (summary) summary.classList.toggle('hidden', !show);
+    document.getElementById('controllerInput').classList.toggle('hidden', !show);
+    document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
+    calculate();
 }
 
 function calculate() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
-    
     const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value === 'yes';
     const wantController = document.querySelector('input[name="wantController"]:checked')?.value === 'yes';
     const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
@@ -383,53 +355,39 @@ function calculate() {
 }
 
 function openCustomerModal() {
-    const modal = document.getElementById('customerModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
+    document.getElementById('customerModal').classList.remove('hidden');
+    document.getElementById('customerModal').classList.add('flex');
     document.getElementById('customerName').value = '';
     document.getElementById('customerEmail').value = '';
     document.getElementById('customerPhone').value = '';
-    
-    const statusEl = document.getElementById('statusMessage');
-    statusEl.classList.add('hidden');
+    document.getElementById('webhookStatus').classList.add('hidden');
     document.getElementById('submitSpinner').classList.add('hidden');
-    document.getElementById('submitBtn').disabled = false;
 }
 
 function closeCustomerModal() {
-    const modal = document.getElementById('customerModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    document.getElementById('customerModal').classList.add('hidden');
+    document.getElementById('customerModal').classList.remove('flex');
 }
 
-async function submitAndGeneratePDF() {
+async function submitToWebhook() {
     const name = document.getElementById('customerName').value.trim();
     const email = document.getElementById('customerEmail').value.trim();
     const phone = document.getElementById('customerPhone').value.trim();
 
     if (!name || !email) {
-        alert('Please enter your name and email address.');
+        alert("Please enter your name and email.");
         return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        alert('Please enter a valid email address.');
+        alert("Please enter a valid email address.");
         return;
     }
 
-    customerData = { name, email, phone: phone || 'Not provided' };
-
-    const statusEl = document.getElementById('statusMessage');
+    const statusEl = document.getElementById('webhookStatus');
     const submitBtn = document.getElementById('submitBtn');
-    const spinner = document.getElementById('submitSpinner');
-
-    statusEl.classList.remove('hidden');
-    statusEl.className = 'mt-4 text-sm text-blue-600';
-    statusEl.innerText = 'Generating high-quality PDF...';
-    spinner.classList.remove('hidden');
-    submitBtn.disabled = true;
+    const submitSpinner = document.getElementById('submitSpinner');
 
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
@@ -438,7 +396,8 @@ async function submitAndGeneratePDF() {
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const alarmTotal = alarmQty * 98;
     const ctrlTotal = ctrlQty * 49;
-    const grandTotal = alarmTotal + ctrlTotal + 33;
+    const bookingFee = 33;
+    const grandTotal = alarmTotal + ctrlTotal + bookingFee;
 
     const webhookData = {
         timestamp: new Date().toISOString(),
@@ -461,128 +420,155 @@ async function submitAndGeneratePDF() {
                 unit_price: 49,
                 total: ctrlTotal
             },
-            booking_fee: 33,
+            booking_fee: bookingFee,
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
-        source: 'goldsure_smoke_alarm_calculator'
+        source: 'smoke_alarm_calculator'
     };
+
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'mt-3 text-sm text-blue-600';
+    statusEl.innerText = 'Submitting details...';
+    submitSpinner.classList.remove('hidden');
+    submitBtn.disabled = true;
 
     try {
         await fetch(WEBHOOK_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(webhookData)
         });
-    } catch (error) {
-        console.log('Webhook error:', error);
-    }
 
-    setTimeout(() => {
-        generatePDF();
-        statusEl.innerText = '✓ PDF generated successfully!';
-        statusEl.className = 'mt-4 text-sm text-green-600';
-        
+        capturedCustomerName = name;
+        capturedCustomerEmail = email;
+        capturedCustomerPhone = phone;
+
+        statusEl.className = 'mt-3 text-sm text-green-600';
+        statusEl.innerText = '✓ Success! Generating PDF...';
+
         setTimeout(() => {
             closeCustomerModal();
-            spinner.classList.add('hidden');
+            downloadPDF();
+            submitSpinner.classList.add('hidden');
             submitBtn.disabled = false;
-        }, 1500);
-    }, 500);
+        }, 1200);
+
+    } catch (error) {
+        console.warn('Webhook notification:', error);
+        capturedCustomerName = name;
+        capturedCustomerEmail = email;
+        capturedCustomerPhone = phone;
+
+        statusEl.className = 'mt-3 text-sm text-yellow-600';
+        statusEl.innerText = 'Processing your quote...';
+
+        setTimeout(() => {
+            closeCustomerModal();
+            downloadPDF();
+            submitSpinner.classList.add('hidden');
+            submitBtn.disabled = false;
+        }, 1200);
+    }
 }
 
-// CRYSTAL CLEAR PDF GENERATION
-function generatePDF() {
+function downloadPDF() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const grandTotalText = document.getElementById('res-total').innerText;
+
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // Update PDF fields
+    // Set date
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });
 
+    // Set property details
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
-    
-    document.getElementById('pdf-customer-name').innerText = customerData.name;
-    document.getElementById('pdf-customer-email').innerText = customerData.email;
-    document.getElementById('pdf-customer-phone').innerText = customerData.phone;
+    document.getElementById('pdf-service-type').innerText = 'Installation';
 
+    // Set customer details
+    document.getElementById('pdf-customer-name').innerText = capturedCustomerName;
+    document.getElementById('pdf-customer-email').innerText = capturedCustomerEmail;
+    document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
+
+    // Build table rows - CLEAN, NO DUPLICATION
     let rows = '';
     
     if (alarmQty > 0) {
-        rows += `<tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 8px 6px; font-size: 11px; color: #000;">Raptor Smoke Alarm - Photoelectric, Interconnected</td>
-            <td style="padding: 8px 6px; text-align: center; font-size: 11px; color: #000;">${alarmQty}</td>
-            <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000;">$98.00</td>
-            <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000; font-weight: 500;">${formatter.format(alarmQty * 98)}</td>
+        rows += `<tr>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px;">Raptor Smoke Alarms - Photoelectric, Interconnected</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: center;">${alarmQty}</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$98.00</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">${formatter.format(alarmQty * 98)}</td>
         </tr>`;
     }
     
     if (ctrlQty > 0) {
-        rows += `<tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 8px 6px; font-size: 11px; color: #000;">Smoke Alarm Controller</td>
-            <td style="padding: 8px 6px; text-align: center; font-size: 11px; color: #000;">${ctrlQty}</td>
-            <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000;">$49.00</td>
-            <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000; font-weight: 500;">${formatter.format(ctrlQty * 49)}</td>
+        rows += `<tr>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px;">Smoke Alarm Controller</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: center;">${ctrlQty}</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$49.00</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">${formatter.format(ctrlQty * 49)}</td>
         </tr>`;
     }
     
     rows += `<tr>
-        <td style="padding: 8px 6px; font-size: 11px; color: #000;">Booking Fee (refundable)</td>
-        <td style="padding: 8px 6px; text-align: center; font-size: 11px; color: #000;">1</td>
-        <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000;">$33.00</td>
-        <td style="padding: 8px 6px; text-align: right; font-size: 11px; color: #000; font-weight: 500;">$33.00</td>
+        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px;">Booking Fee:</td>
+        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: center;">1</td>
+        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$33.00</td>
+        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$33.00</td>
     </tr>`;
 
     document.getElementById('pdf-table-body').innerHTML = rows;
+    
+    // Set totals
     document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
 
-    const element = document.getElementById('pdf-content');
-    
-    // 🚀 OPTIMIZED FOR CRYSTAL CLEAR QUALITY ON ALL DEVICES
-    const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `Goldsure_Quote_${customerData.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
+    const element = document.getElementById('pdf-template');
+    element.style.display = 'block';
+
+    // HIGH QUALITY settings for ALL devices
+    const pdfConfig = {
+        margin: isMobile ? 3 : 5,
+        filename: `Goldsure_Quote_${new Date().toISOString().slice(0,10)}.pdf`,
+        pagebreak: { mode: 'avoid-all' },
         html2canvas: { 
-            scale: 3,
-            useCORS: true,
+            scale: 2.5,
+            useCORS: true, 
             logging: false,
             letterRendering: true,
-            backgroundColor: '#FFFFFF',
-            dpi: 300,
-            windowWidth: 1200,
-            windowHeight: 1600
+            allowTaint: true,
+            foreignObjectRendering: false,
+            backgroundColor: '#ffffff'
         },
         jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait',
-            precision: 16
+            orientation: 'portrait' 
         }
     };
 
-    // Generate PDF with high quality
-    html2pdf().set(opt).from(element).save()
-        .catch(error => {
-            console.error('PDF Error:', error);
-            // Fallback with slightly lower scale
-            const fallbackOpt = {...opt, html2canvas: {...opt.html2canvas, scale: 2}};
-            html2pdf().set(fallbackOpt).from(element).save();
-            alert('PDF generated! Check your downloads folder.');
-        });
+    // Generate PDF
+    html2pdf().set(pdfConfig).from(element).save().then(() => {
+        element.style.display = 'none';
+    }).catch((error) => {
+        console.error('PDF Error:', error);
+        element.style.display = 'none';
+    });
 }
 </script>
 
