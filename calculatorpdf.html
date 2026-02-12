@@ -18,7 +18,7 @@
         
         @media (max-width: 640px) {
             body { padding: 12px; }
-            .grid-cols-2 { grid-template-columns: 1fr; } 
+            .grid-cols-2 { grid-template-columns: 1fr; }
             .text-xs { font-size: 0.75rem; }
             input[type="number"], input[type="text"], input[type="email"], button { font-size: 16px; }
         }
@@ -233,7 +233,6 @@
 <script>
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-// Using the correct Webhook URL from your logs
 const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/b4f51abd-54eb-4ea7-a39b-0e03ec8791eb';
 
 let capturedCustomerName = "";
@@ -315,21 +314,38 @@ async function submitToWebhook() {
     const submitBtn = document.getElementById('submitBtn');
     const submitSpinner = document.getElementById('submitSpinner');
 
+    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+    const hallways = parseInt(document.getElementById('hallways').value) || 0;
+    const storeys = parseInt(document.getElementById('levels').value) || 1;
     const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
     const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
     const alarmTotal = alarmQty * 98;
     const ctrlTotal = ctrlQty * 49;
-    const grandTotal = alarmTotal + ctrlTotal + 33;
+    const bookingFee = 33;
+    const grandTotal = alarmTotal + ctrlTotal + bookingFee;
 
     const webhookData = {
         timestamp: new Date().toISOString(),
-        customer: { name: name, email: email, phone: phone || 'Not provided' },
+        customer: {
+            name: name,
+            email: email,
+            phone: phone || 'Not provided'
+        },
         quote: {
-            bedrooms: parseInt(document.getElementById('bedrooms').value) || 0,
-            hallways: parseInt(document.getElementById('hallways').value) || 0,
-            storeys: parseInt(document.getElementById('levels').value) || 1,
-            alarms: { quantity: alarmQty, total: alarmTotal },
-            controllers: { quantity: ctrlQty, total: ctrlTotal },
+            bedrooms: bedrooms,
+            hallways: hallways,
+            storeys: storeys,
+            alarms: {
+                quantity: alarmQty,
+                unit_price: 98,
+                total: alarmTotal
+            },
+            controllers: {
+                quantity: ctrlQty,
+                unit_price: 49,
+                total: ctrlTotal
+            },
+            booking_fee: bookingFee,
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
@@ -343,10 +359,12 @@ async function submitToWebhook() {
     submitBtn.disabled = true;
 
     try {
-        // HYBRID FETCH: no-cors prevents the 'preflight' 204 error
+        // FIXED: Removed no-cors and added standard headers for LeadConnector
         await fetch(WEBHOOK_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(webhookData)
         });
 
@@ -365,7 +383,8 @@ async function submitToWebhook() {
         }, 1200);
 
     } catch (error) {
-        console.warn('Webhook notification (CORS likely):', error);
+        console.warn('Webhook notification:', error);
+        // Fallback: Proceed with PDF even if CORS blocks the success message
         capturedCustomerName = name;
         capturedCustomerEmail = email;
         capturedCustomerPhone = phone;
