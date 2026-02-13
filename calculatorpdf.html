@@ -10,43 +10,61 @@
     <style>
         body { 
             font-family: 'Poppins', sans-serif; 
-            background-color: #f3f4f6; 
+            background-color: transparent !important; 
             padding: 0;
             margin: 0;
         }
         .bg-goldsure { background-color: #B08D2E; }
         .text-goldsure { color: #B08D2E; }
         
-        /* Remove ALL box styling - completely flush */
-        .calculator-container {
+        /* Remove ALL backgrounds and borders - completely transparent */
+        .calculator-container,
+        .calculator-container > div,
+        .calculator-container > div:first-child,
+        .calculator-container > div:last-child {
             box-shadow: none !important;
             border-radius: 0 !important;
             border: none !important;
-        }
-        .calculator-container > div {
-            border-radius: 0 !important;
-            border-left: none !important;
-            border-right: none !important;
-            border-top: none !important;
-            border-bottom: none !important;
-        }
-        .calculator-container > div:first-child { 
-            border-radius: 0 !important; 
-            border: none !important;
-        }
-        .calculator-container > div:last-child { 
-            border-radius: 0 !important;
-            border: none !important;
+            background: transparent !important;
         }
         
-        /* Remove border from the main content divs */
+        /* Make white backgrounds transparent */
         .bg-white {
+            background: transparent !important;
             border: none !important;
         }
         
-        /* Override Tailwind border classes */
-        .border, .border-x, .border-t, .border-b, .border-gray-200 {
+        /* Make black background transparent but keep text white */
+        .bg-black {
+            background: transparent !important;
             border: none !important;
+        }
+        .bg-black .text-white {
+            color: white !important;
+        }
+        .bg-black .border-gray-800 {
+            border-color: rgba(255,255,255,0.2) !important;
+        }
+        
+        /* Make other backgrounds transparent */
+        .bg-gray-50,
+        .bg-blue-50 {
+            background: transparent !important;
+            border: none !important;
+        }
+        
+        /* Override all Tailwind border classes */
+        .border, .border-x, .border-t, .border-b, .border-gray-200, 
+        .border-gray-800, .border-blue-100, .border-goldsure {
+            border: none !important;
+        }
+        
+        /* Keep borders only for summary dividers - but make them subtle */
+        .border-b, .border-t {
+            border-bottom-width: 1px !important;
+            border-top-width: 1px !important;
+            border-style: solid !important;
+            border-color: rgba(255,255,255,0.2) !important;
         }
         
         #pdf-template { display: none; }
@@ -72,7 +90,13 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* PDF styles - CLEAN, NO DUPLICATION */
+        /* Input styling - keep them visible */
+        input[type="number"], input[type="text"], input[type="email"] {
+            background-color: rgba(255,255,255,0.9);
+            border: 1px solid #ddd !important;
+        }
+        
+        /* PDF styles */
         #pdf-template {
             font-family: 'Poppins', sans-serif;
             line-height: 1.4;
@@ -111,81 +135,81 @@
 <body>
 
 <div class="max-w-xl mx-auto calculator-container">
-    <div class="bg-white p-6 space-y-6">
-        <h2 class="font-bold text-lg pb-2">Property Assessment</h2>
+    <div class="p-6 space-y-6">
+        <h2 class="font-bold text-lg pb-2 text-white">Property Assessment</h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Bedrooms</label>
+                <label class="text-[10px] font-bold uppercase text-gray-300">No. of Bedrooms</label>
                 <input type="number" id="bedrooms" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] bg-white bg-opacity-90">
             </div>
 
             <div>
-                <label class="text-[10px] font-bold uppercase text-gray-400">No. of Hallways Connected to Bedrooms</label>
+                <label class="text-[10px] font-bold uppercase text-gray-300">No. of Hallways Connected to Bedrooms</label>
                 <input type="number" id="hallways" oninput="calculate()" placeholder="0" min="0"
-                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                       class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] bg-white bg-opacity-90">
             </div>
         </div>
 
         <div>
-            <label class="text-[10px] font-bold uppercase text-gray-400">No. of Storeys</label>
+            <label class="text-[10px] font-bold uppercase text-gray-300">No. of Storeys</label>
             <input type="number" id="levels" value="1" min="1"
                    oninput="toggleStoreyQuestion(); calculate();"
-                   class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E]">
+                   class="w-full border p-3 sm:p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] bg-white bg-opacity-90">
         </div>
 
-        <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded">
-            <p class="text-xs font-semibold mb-1">Does every level have a bedroom?</p>
+        <div id="extraStoreyBox" class="hidden p-3">
+            <p class="text-xs font-semibold mb-1 text-white">Does every level have a bedroom?</p>
             <div class="flex gap-4">
-                <label class="flex items-center text-xs cursor-pointer">
+                <label class="flex items-center text-xs cursor-pointer text-white">
                     <input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-4 h-4"> Yes
                 </label>
-                <label class="flex items-center text-xs cursor-pointer">
+                <label class="flex items-center text-xs cursor-pointer text-white">
                     <input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-4 h-4"> No
                 </label>
             </div>
         </div>
 
-        <div class="bg-blue-50 p-4 rounded">
-            <p class="text-xs font-bold text-blue-900 mb-2">Add Smoke Alarm Controller? ($49)</p>
+        <div class="p-4">
+            <p class="text-xs font-bold text-blue-300 mb-2">Add Smoke Alarm Controller? ($49)</p>
             <div class="flex gap-4 mb-2">
-                <label class="flex items-center text-xs cursor-pointer">
+                <label class="flex items-center text-xs cursor-pointer text-white">
                     <input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-4 h-4"> No
                 </label>
-                <label class="flex items-center text-xs cursor-pointer">
+                <label class="flex items-center text-xs cursor-pointer text-white">
                     <input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-4 h-4"> Yes
                 </label>
             </div>
 
             <div id="controllerInput" class="hidden">
-                <label class="text-[10px] font-bold text-gray-400 uppercase">QTY of Controllers</label>
+                <label class="text-[10px] font-bold text-gray-300 uppercase">QTY of Controllers</label>
                 <input type="number" id="controllerQty" value="1" min="1"
-                       oninput="calculate()" class="w-full p-3 sm:p-2 border rounded text-sm">
+                       oninput="calculate()" class="w-full p-3 sm:p-2 border rounded text-sm bg-white bg-opacity-90">
             </div>
         </div>
     </div>
 
-    <div class="bg-black text-white p-6">
-        <h4 class="text-center font-bold text-[10px] tracking-widest mb-4 opacity-70 uppercase">PRICING SUMMARY</h4>
+    <div class="p-6">
+        <h4 class="text-center font-bold text-[10px] tracking-widest mb-4 opacity-70 uppercase text-white">PRICING SUMMARY</h4>
 
-        <div class="space-y-3 text-sm">
-            <div class="flex justify-between border-b border-gray-800 pb-2">
+        <div class="space-y-3 text-sm text-white">
+            <div class="flex justify-between border-b border-white border-opacity-20 pb-2">
                 <span>Alarms (<span id="res_alarmQty">0</span> x $98.00):</span>
                 <span id="res_alarmTotal">$0.00</span>
             </div>
 
-            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-2">
+            <div id="summary-controller-row" class="hidden flex justify-between border-b border-white border-opacity-20 pb-2">
                 <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
                 <span id="res_ctrlTotal">$0.00</span>
             </div>
 
-            <div class="flex justify-between border-b border-gray-800 pb-2">
+            <div class="flex justify-between border-b border-white border-opacity-20 pb-2">
                 <span>Booking Fee:</span>
                 <span>$33.00</span>
             </div>
 
-            <div class="flex justify-between text-xl font-black pt-4 border-t border-gray-800 mt-2">
+            <div class="flex justify-between text-xl font-black pt-4 border-t border-white border-opacity-20 mt-2">
                 <span>TOTAL (Inc. GST):</span>
                 <span id="res-total" class="text-goldsure">$33.00</span>
             </div>
@@ -222,9 +246,9 @@
     </div>
 </div>
 
-<!-- PDF template - COMPLETELY RESTRUCTURED, NO DUPLICATION -->
+<!-- PDF template -->
 <div id="pdf-template" style="display: none; padding: 20px; max-width: 210mm; background: white; font-family: 'Poppins', sans-serif;">
-    <!-- HEADER SECTION -->
+    <!-- PDF content remains the same -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 16px; margin-bottom: 16px;">
         <div>
             <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 8px 0;">QUOTE</h1>
@@ -242,14 +266,12 @@
         </div>
     </div>
     
-    <!-- PROPERTY DETAILS -->
     <div style="margin-bottom: 16px;">
         <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600;">Property Details:</p>
         <p style="margin: 2px 0; font-size: 13px;">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
         <p style="margin: 2px 0; font-size: 13px;">Service Type: <span id="pdf-service-type">Installation</span></p>
     </div>
     
-    <!-- ITEMS TABLE - PROPER HTML TABLE -->
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
         <thead>
             <tr style="background-color: #f3f4f6; border-bottom: 2px solid black;">
@@ -262,7 +284,6 @@
         <tbody id="pdf-table-body"></tbody>
     </table>
     
-    <!-- TOTALS -->
     <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
         <div style="width: 50%;">
             <div style="display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid #ddd; font-size: 13px;">
@@ -280,16 +301,12 @@
         </div>
     </div>
     
-    <!-- FOOTER - ALL SINGLE COLUMN EXCEPT LEGISLATION -->
     <div style="margin-top: 8px; font-size: 12px; color: #4b5563;">
-        <!-- Disclaimer -->
         <p style="margin: 0 0 12px 0; font-style: italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         
-        <!-- Booking Fee -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Booking Fee: What is the $33 Booking Fee?</p>
         <p style="margin: 0 0 16px 0;">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
         
-        <!-- QLD Legislation - TWO COLUMNS -->
         <p style="margin: 0 0 8px 0; font-weight: 600; text-transform: uppercase;">Queensland Smoke Alarm Legislation:</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
@@ -304,11 +321,9 @@
             </ul>
         </div>
         
-        <!-- Product Assurance -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Product Assurance:</p>
         <p style="margin: 0 0 12px 0; font-size: 12px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet Queensland compliance requirements. Each alarm supplied and installed includes a <strong>10-Year Manufacturer’s Warranty</strong>.</p>
         
-        <!-- Smoke Alarm Datasheet -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Smoke Alarm Datasheet:</p>
         <p style="margin: 0 0 4px 0; font-size: 12px;">
             <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color: blue; text-decoration: underline;">Click here to view the Smoke Alarm Datasheet</a>
@@ -317,6 +332,7 @@
 </div>
 
 <script>
+// JavaScript remains exactly the same
 const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
 const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/11epCbQAg9B4rQt5yHjw/webhook-trigger/b4f51abd-54eb-4ea7-a39b-0e03ec8791eb';
@@ -325,7 +341,6 @@ let capturedCustomerName = "";
 let capturedCustomerEmail = "";
 let capturedCustomerPhone = "";
 
-// Detect mobile devices AND specifically Safari on iPhone
 const userAgent = navigator.userAgent;
 const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
 const isIPhoneSafari = /iPhone/i.test(userAgent) && /Safari/i.test(userAgent) && !/CriOS/i.test(userAgent) && !/FxiOS/i.test(userAgent);
@@ -502,24 +517,20 @@ function downloadPDF() {
     const subtotal = grandTotal / 1.1;
     const gst = grandTotal - subtotal;
 
-    // Set date
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
     });
 
-    // Set property details
     document.getElementById('pdf-bedrooms').innerText = bedrooms;
     document.getElementById('pdf-storeys').innerText = storeys;
     document.getElementById('pdf-hallways').innerText = hallways;
     document.getElementById('pdf-service-type').innerText = 'Installation';
 
-    // Set customer details
     document.getElementById('pdf-customer-name').innerText = capturedCustomerName;
     document.getElementById('pdf-customer-email').innerText = capturedCustomerEmail;
     document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
 
-    // Build table rows - CLEAN, NO DUPLICATION
     let rows = '';
     
     if (alarmQty > 0) {
@@ -549,7 +560,6 @@ function downloadPDF() {
 
     document.getElementById('pdf-table-body').innerHTML = rows;
     
-    // Set totals
     document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
     document.getElementById('pdf-gst').innerText = formatter.format(gst);
     document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
@@ -557,25 +567,20 @@ function downloadPDF() {
     const element = document.getElementById('pdf-template');
     element.style.display = 'block';
 
-    // ========== FIXES ==========
-    // 1. PC: increased margin from 5 to 7 to prevent right edge cut-off
-    // 2. iPhone Safari: special handling - use smaller margin + scale, disable problematic settings
-    
     let pdfMargin;
-    let pdfScale = 2.5; // default high quality
+    let pdfScale = 2.5;
     let useForeignObject = false;
     let allowTaintSetting = true;
     
     if (isIPhoneSafari) {
-        // Safari on iPhone fix: reduce margin slightly, use safe rendering
-        pdfMargin = 2.5;       // tiny margin to prevent cut-off but keep content visible
-        pdfScale = 2.0;        // slightly lower scale for Safari performance/reliability
+        pdfMargin = 2.5;
+        pdfScale = 2.0;
         useForeignObject = false;
-        allowTaintSetting = false;  // Safari security quirk
+        allowTaintSetting = false;
     } else if (isMobile) {
-        pdfMargin = 3;         // Android/other mobile unchanged
+        pdfMargin = 3;
     } else {
-        pdfMargin = 7;         // PC fix for right edge
+        pdfMargin = 7;
     }
 
     const pdfConfig = {
@@ -600,9 +605,7 @@ function downloadPDF() {
         }
     };
 
-    // Generate PDF - with Safari-specific delay to ensure DOM is ready
     if (isIPhoneSafari) {
-        // Small delay helps Safari render correctly
         setTimeout(() => {
             html2pdf().set(pdfConfig).from(element).save().then(() => {
                 element.style.display = 'none';
