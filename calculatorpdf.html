@@ -208,7 +208,7 @@
     </div>
 </div>
 
-<!-- PDF template - COMPLETELY RESTRUCTURED, NO DUPLICATION -->
+<!-- PDF template -->
 <div id="pdf-template" style="display: none; padding: 20px; max-width: 210mm; background: white; font-family: 'Poppins', sans-serif;">
     <!-- HEADER SECTION -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 16px; margin-bottom: 16px;">
@@ -235,7 +235,7 @@
         <p style="margin: 2px 0; font-size: 13px;">Service Type: <span id="pdf-service-type">Installation</span></p>
     </div>
     
-    <!-- ITEMS TABLE - PROPER HTML TABLE -->
+    <!-- ITEMS TABLE -->
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
         <thead>
             <tr style="background-color: #f3f4f6; border-bottom: 2px solid black;">
@@ -266,16 +266,13 @@
         </div>
     </div>
     
-    <!-- FOOTER - ALL SINGLE COLUMN EXCEPT LEGISLATION -->
+    <!-- FOOTER -->
     <div style="margin-top: 8px; font-size: 12px; color: #4b5563;">
-        <!-- Disclaimer -->
         <p style="margin: 0 0 12px 0; font-style: italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         
-        <!-- Booking Fee -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Booking Fee: What is the $33 Booking Fee?</p>
         <p style="margin: 0 0 16px 0;">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
         
-        <!-- QLD Legislation - TWO COLUMNS -->
         <p style="margin: 0 0 8px 0; font-weight: 600; text-transform: uppercase;">Queensland Smoke Alarm Legislation:</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
@@ -290,11 +287,9 @@
             </ul>
         </div>
         
-        <!-- Product Assurance -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Product Assurance:</p>
         <p style="margin: 0 0 12px 0; font-size: 12px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet Queensland compliance requirements. Each alarm supplied and installed includes a <strong>10-Year Manufacturer’s Warranty</strong>.</p>
         
-        <!-- Smoke Alarm Datasheet -->
         <p style="margin: 0 0 4px 0; font-weight: 600;">Smoke Alarm Datasheet:</p>
         <p style="margin: 0 0 4px 0; font-size: 12px;">
             <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color: blue; text-decoration: underline;">Click here to view the Smoke Alarm Datasheet</a>
@@ -311,7 +306,7 @@ let capturedCustomerName = "";
 let capturedCustomerEmail = "";
 let capturedCustomerPhone = "";
 
-// Detect mobile devices AND specifically Safari on iPhone
+// Detect mobile devices and Safari
 const userAgent = navigator.userAgent;
 const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
 const isIPhoneSafari = /iPhone/i.test(userAgent) && /Safari/i.test(userAgent) && !/CriOS/i.test(userAgent) && !/FxiOS/i.test(userAgent);
@@ -505,7 +500,7 @@ function downloadPDF() {
     document.getElementById('pdf-customer-email').innerText = capturedCustomerEmail;
     document.getElementById('pdf-customer-phone').innerText = capturedCustomerPhone || 'Not provided';
 
-    // Build table rows - CLEAN, NO DUPLICATION
+    // Build table rows
     let rows = '';
     
     if (alarmQty > 0) {
@@ -527,7 +522,7 @@ function downloadPDF() {
     }
     
     rows += `<tr>
-        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px;">Booking Fee:</td>
+        <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px;">Booking Fee</td>
         <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: center;">1</td>
         <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$33.00</td>
         <td style="padding: 8px 4px; border-bottom: 1px solid #ddd; font-size: 12px; text-align: right;">$33.00</td>
@@ -543,25 +538,17 @@ function downloadPDF() {
     const element = document.getElementById('pdf-template');
     element.style.display = 'block';
 
-    // ========== FIXES ==========
-    // 1. PC: increased margin from 5 to 7 to prevent right edge cut-off
-    // 2. iPhone Safari: special handling - use smaller margin + scale, disable problematic settings
-    
+    // PDF Configuration
     let pdfMargin;
-    let pdfScale = 2.5; // default high quality
-    let useForeignObject = false;
-    let allowTaintSetting = true;
+    let pdfScale = 2.0;
     
     if (isIPhoneSafari) {
-        // Safari on iPhone fix: reduce margin slightly, use safe rendering
-        pdfMargin = 2.5;       // tiny margin to prevent cut-off but keep content visible
-        pdfScale = 2.0;        // slightly lower scale for Safari performance/reliability
-        useForeignObject = false;
-        allowTaintSetting = false;  // Safari security quirk
+        pdfMargin = 1;
+        pdfScale = 1.8;
     } else if (isMobile) {
-        pdfMargin = 3;         // Android/other mobile unchanged
+        pdfMargin = 3;
     } else {
-        pdfMargin = 7;         // PC fix for right edge
+        pdfMargin = 7;
     }
 
     const pdfConfig = {
@@ -573,11 +560,10 @@ function downloadPDF() {
             useCORS: true, 
             logging: false,
             letterRendering: true,
-            allowTaint: allowTaintSetting,
-            foreignObjectRendering: useForeignObject,
+            allowTaint: false,
+            foreignObjectRendering: false,
             backgroundColor: '#ffffff',
-            imageTimeout: 0,
-            removeContainer: true
+            imageTimeout: 0
         },
         jsPDF: { 
             unit: 'mm', 
@@ -586,25 +572,61 @@ function downloadPDF() {
         }
     };
 
-    // Generate PDF - with Safari-specific delay to ensure DOM is ready
-    if (isIPhoneSafari) {
-        // Small delay helps Safari render correctly
-        setTimeout(() => {
-            html2pdf().set(pdfConfig).from(element).save().then(() => {
-                element.style.display = 'none';
+    // Create a user interaction guarantee for iOS
+    const generatePDF = () => {
+        // For iOS Safari, use a more reliable approach
+        if (isIPhoneSafari) {
+            // Create a temporary link to trigger download
+            html2pdf().set(pdfConfig).from(element).outputPdf('blob').then((blob) => {
+                const blobUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = pdfConfig.filename;
+                
+                // Append to body, click, and remove
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(blobUrl);
+                    element.style.display = 'none';
+                }, 200);
             }).catch((error) => {
                 console.error('PDF Error (Safari):', error);
-                element.style.display = 'none';
+                // Fallback
+                html2pdf().set(pdfConfig).from(element).save().then(() => {
+                    element.style.display = 'none';
+                });
             });
-        }, 50);
-    } else {
-        html2pdf().set(pdfConfig).from(element).save().then(() => {
-            element.style.display = 'none';
-        }).catch((error) => {
-            console.error('PDF Error:', error);
-            element.style.display = 'none';
-        });
-    }
+        } else {
+            // For other browsers, try multiple methods
+            html2pdf().set(pdfConfig).from(element).outputPdf('blob').then((blob) => {
+                const blobUrl = URL.createObjectURL(blob);
+                
+                // Try download attribute first
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = pdfConfig.filename;
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(blobUrl);
+                    element.style.display = 'none';
+                }, 200);
+            }).catch(() => {
+                // Fallback to save method
+                html2pdf().set(pdfConfig).from(element).save().then(() => {
+                    element.style.display = 'none';
+                });
+            });
+        }
+    };
+
+    // Execute PDF generation
+    setTimeout(generatePDF, 50);
 }
 </script>
 
