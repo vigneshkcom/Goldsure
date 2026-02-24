@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Pipeline Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --green-bg: #eaf7f2;
+  --red: #e04f4f;
+  --red-bg: #fdf0f0;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --amber-bg: #fdf5e6;
+  --purple: #7251c2;
+  --teal: #0ea4ac;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* UPLOAD SCREEN */
+#upload-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.upload-logo { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 48px; }
+.upload-logo span { color: var(--blue); }
+.upload-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.upload-icon {
+  width: 60px; height: 60px;
+  background: var(--blue-bg);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 22px;
+  font-size: 26px;
+}
+.upload-card h1 { font-size: 21px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.3px; }
+.upload-card p { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 34px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface2);
+  margin-bottom: 12px;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--blue); background: var(--blue-bg); }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-text { font-size: 14px; color: var(--muted); pointer-events: none; }
+.drop-text strong { color: var(--blue); }
+.upload-hint { font-size: 12px; color: var(--muted); }
+.btn-load {
+  display: none;
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-load:hover { background: #1f56cc; }
+.upload-error { color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
+
+/* DASHBOARD */
+#dashboard { display: none; }
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+.logo span { color: var(--blue); }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.file-chip { font-size: 12px; color: var(--muted); background: var(--surface2); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); }
+.btn-new {
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-new:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+main { padding: 22px 28px; max-width: 1320px; margin: 0 auto; }
+
+/* Filters */
+.filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.fg { display: flex; align-items: center; gap: 7px; }
+.fg label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+input[type="date"], select {
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+input[type="date"]:focus, select:focus { border-color: var(--blue); }
+.fsep { width: 1px; height: 22px; background: var(--border); }
+.pbtn {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.pbtn:hover { background: var(--blue-bg); color: var(--blue); border-color: #b5ccf7; }
+.pbtn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.lcount { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.lcount strong { color: var(--text); font-weight: 700; }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
+.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
+.kpi-val { font-size: 30px; font-weight: 700; letter-spacing: -1px; line-height: 1; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+.kpi-sub { font-size: 11px; color: var(--muted); }
+.cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cr { color: var(--red); }
+
+/* Cards */
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 22px; box-shadow: var(--shadow); }
+.ctitle { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.ctitle-row { display: flex; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.ctitle-row .ctitle { border: none; padding: 0; margin: 0; }
+
+/* Stage bars */
+.sr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sname { font-size: 12px; font-weight: 500; min-width: 150px; }
+.btrack { flex: 1; height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.bfill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.snums { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); min-width: 72px; text-align: right; }
+
+/* Tables */
+.dtable { width: 100%; border-collapse: collapse; }
+.dtable th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); text-align: left; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
+.dtable th:not(:first-child) { text-align: right; }
+.dtable td { padding: 9px 0; font-size: 12px; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
+.dtable td:not(:first-child) { text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 12px; }
+.dtable tr:last-child td { border-bottom: none; }
+.scdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; }
+.scname { font-weight: 500; }
+
+/* Volume table */
+.vtable-wrap { overflow-x: auto; }
+.vtable { width: 100%; border-collapse: collapse; min-width: 500px; }
+.vtable th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); padding: 0 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+.vtable th:first-child { text-align: left; padding-left: 0; }
+.vtable td { padding: 8px 8px; font-size: 12px; border-bottom: 1px solid var(--surface2); text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 500; vertical-align: middle; }
+.vtable td:first-child { text-align: left; padding-left: 0; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); }
+.vtable tr:last-child td { border-bottom: none; }
+.vtable tbody tr:hover td { background: var(--surface2); }
+.vtable .tr-total td { border-top: 2px solid var(--border); font-weight: 700; border-bottom: none; background: var(--surface2) !important; }
+.vtable .tr-total td:first-child { font-family: 'Sora', sans-serif; }
+.nz { color: #c5cbdb; } .ni { color: var(--green); font-weight: 600; }
+
+/* Toggle */
+.vtoggle { display: flex; gap: 5px; margin-left: auto; }
+.vtbtn { font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.vtbtn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2,1fr); }
+  .row2 { grid-template-columns: 1fr; }
+  main { padding: 14px; }
+  header { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div class="upload-logo">Lead<span>Track</span></div>
+  <div class="upload-card">
+    <div class="upload-icon">📊</div>
+    <h1>Upload your pipeline CSV</h1>
+    <p>Export your opportunities CSV from your CRM and drop it here. The dashboard will automatically detect columns and display your lead data.</p>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="csv-input" accept=".csv">
+      <div class="drop-text" id="drop-text"><strong>Click to browse</strong> or drag &amp; drop your CSV file here</div>
+    </div>
+    <div class="upload-hint">Supports standard CRM exports · Needs stage and date columns</div>
+    <button class="btn-load" id="btn-load" onclick="parseCSV()">Load Dashboard</button>
+    <div class="upload-error" id="upload-error"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <header>
+    <div class="logo">Lead<span>Track</span></div>
+    <div class="header-right">
+      <div class="file-chip" id="file-chip"></div>
+      <button class="btn-new" onclick="resetUpload()">Upload New CSV</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="filters">
+      <div class="fg"><label>From</label><input type="date" id="dateFrom" onchange="render()"></div>
+      <div class="fg"><label>To</label><input type="date" id="dateTo" onchange="render()"></div>
+      <div class="fsep"></div>
+      <button class="pbtn" onclick="setPreset('7d',this)">Last 7 days</button>
+      <button class="pbtn" onclick="setPreset('30d',this)">Last 30 days</button>
+      <button class="pbtn" onclick="setPreset('mtd',this)">This month</button>
+      <button class="pbtn" id="btn-all" onclick="setPreset('all',this)">All time</button>
+      <div class="fsep"></div>
+      <div class="fg"><label>Source</label><select id="filterSource" onchange="render()"></select></div>
+      <div class="fg"><label>Pipeline</label><select id="filterPipeline" onchange="render()"></select></div>
+      <div class="lcount"><strong id="lcount">0</strong> leads</div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-lbl">Total Leads</div><div class="kpi-val cb" id="k-total">0</div><div class="kpi-sub">in selected period</div></div>
+      <div class="kpi"><div class="kpi-lbl">Close Rate</div><div class="kpi-val cg" id="k-rate">0%</div><div class="kpi-sub" id="k-rate-sub">installs of total</div></div>
+      <div class="kpi"><div class="kpi-lbl">Installed</div><div class="kpi-val ca" id="k-inst">0</div><div class="kpi-sub">Won / Installed</div></div>
+      <div class="kpi"><div class="kpi-lbl">Not Interested</div><div class="kpi-val cr" id="k-ni">0</div><div class="kpi-sub" id="k-ni-sub">of total leads</div></div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <div class="ctitle">Stage Breakdown</div>
+        <div id="stage-rows"></div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Lead Sources</div>
+        <table class="dtable">
+          <thead><tr><th>Source</th><th>Leads</th><th>Installed</th><th>Close %</th></tr></thead>
+          <tbody id="src-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ctitle-row">
+        <div class="ctitle">Lead Volume by Date</div>
+        <div class="vtoggle">
+          <button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button>
+          <button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button>
+        </div>
+      </div>
+      <div class="vtable-wrap">
+        <table class="vtable">
+          <thead id="vol-head"></thead>
+          <tbody id="vol-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let RAW = [];
+let selectedFile = null;
+let viewMode = 'weekly';
+
+const STAGE_COLORS = {
+  'Not Interested/Spam':'#e04f4f','Not Reachable':'#d98c1e','Out of Area':'#7251c2',
+  'New Lead':'#94a3b8','Quote Sent':'#2d6be4','Follow-Up':'#0ea4ac',
+  'Shopping Around':'#e0833b','Won/Installed':'#18a96e',
+};
+const SRC_COLORS = ['#1877f2','#18a96e','#d98c1e','#7251c2','#e04f4f','#0ea4ac','#e0833b','#94a3b8'];
+
+// ---- Upload ----
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById('csv-input').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) { showErr('Please upload a .csv file.'); return; }
+  selectedFile = file;
+  document.getElementById('drop-text').innerHTML =
+    `<strong style="color:var(--green)">&#10003; ${file.name}</strong><br><span style="font-size:11px">${(file.size/1024).toFixed(1)} KB &mdash; click Load Dashboard to continue</span>`;
+  document.getElementById('btn-load').style.display = 'block';
+  hideErr();
+}
+function showErr(m) { const e = document.getElementById('upload-error'); e.textContent = m; e.style.display = 'block'; }
+function hideErr() { document.getElementById('upload-error').style.display = 'none'; }
+
+function parseCSV() {
+  if (!selectedFile) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = processCSV(e.target.result);
+      if (!rows.length) { showErr('No data rows found in the CSV.'); return; }
+      RAW = rows;
+      initDashboard();
+    } catch(err) { showErr('Parse error: ' + err.message); }
+  };
+  reader.readAsText(selectedFile);
+}
+
+function processCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]).map(h => h.toLowerCase().replace(/['"]/g,'').trim());
+
+  const col = (...names) => {
+    for (const n of names) {
+      const i = headers.findIndex(h => h.includes(n));
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  const iStage    = col('stage');
+  const iSource   = col('source');
+  const iPipeline = col('pipeline');
+  const iCreated  = col('created on','created_on','created date','created','date');
+  const iAssigned = col('assigned','owner','agent','rep');
+
+  if (iStage === -1)   throw new Error('Could not find a "stage" column.');
+  if (iCreated === -1) throw new Error('Could not find a date/created column.');
+
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCSVLine(lines[i]);
+    if (cols.length < 2) continue;
+    const raw_date = iCreated !== -1 ? cols[iCreated] || '' : '';
+    const created = raw_date.trim().slice(0, 10);
+    if (!created || created.length < 10 || !/^\d{4}-\d{2}-\d{2}/.test(created)) continue;
+    out.push({
+      stage:    (cols[iStage]    || '').trim() || 'Unknown',
+      source:   (iSource   !== -1 ? cols[iSource]   || '' : '').trim() || 'Unknown',
+      pipeline: (iPipeline !== -1 ? cols[iPipeline] || '' : '').trim(),
+      created,
+      assigned: (iAssigned !== -1 ? cols[iAssigned] || '' : '').trim() || 'Unassigned',
+    });
+  }
+  return out;
+}
+
+function splitCSVLine(line) {
+  const r = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { r.push(cur.replace(/^"|"$/g,'')); cur = ''; }
+    else { cur += line[i]; }
+  }
+  r.push(cur.replace(/^"|"$/g,''));
+  return r;
+}
+
+function resetUpload() {
+  RAW = []; selectedFile = null;
+  document.getElementById('csv-input').value = '';
+  document.getElementById('drop-text').innerHTML = '<strong>Click to browse</strong> or drag &amp; drop your CSV file here';
+  document.getElementById('btn-load').style.display = 'none';
+  hideErr();
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+}
+
+// ---- Dashboard ----
+function initDashboard() {
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('file-chip').textContent = selectedFile.name + ' · ' + RAW.length + ' records';
+
+  const fill = (id, all, col) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">All</option>';
+    [...new Set(RAW.map(r => r[col]).filter(Boolean))].sort()
+      .forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; sel.appendChild(o); });
+  };
+  fill('filterSource', RAW, 'source');
+  fill('filterPipeline', RAW, 'pipeline');
+
+  const dates = RAW.map(r => r.created).sort();
+  document.getElementById('dateFrom').value = dates[0];
+  document.getElementById('dateTo').value   = dates[dates.length - 1];
+  document.getElementById('btn-all').classList.add('active');
+  render();
+}
+
+function getFiltered() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const src  = document.getElementById('filterSource').value;
+  const pip  = document.getElementById('filterPipeline').value;
+  return RAW.filter(r =>
+    (!from || r.created >= from) &&
+    (!to   || r.created <= to)   &&
+    (!src  || r.source   === src) &&
+    (!pip  || r.pipeline === pip)
+  );
+}
+
+const isInst = r => /install|won/i.test(r.stage);
+const isNI   = r => /not.?interest|spam/i.test(r.stage);
+const pct    = (n, d) => d === 0 ? '0.0' : ((n/d)*100).toFixed(1);
+
+function render() {
+  const data = getFiltered();
+  const total = data.length;
+  document.getElementById('lcount').textContent = total;
+
+  const inst = data.filter(isInst).length;
+  const ni   = data.filter(isNI).length;
+  document.getElementById('k-total').textContent = total;
+  document.getElementById('k-rate').textContent  = pct(inst, total) + '%';
+  document.getElementById('k-rate-sub').textContent = inst + ' of ' + total + ' leads';
+  document.getElementById('k-inst').textContent  = inst;
+  document.getElementById('k-ni').textContent    = ni;
+  document.getElementById('k-ni-sub').textContent = pct(ni, total) + '% of total';
+
+  renderStages(data, total);
+  renderSources(data);
+  renderVolume(data);
+}
+
+function renderStages(data, total) {
+  const counts = {};
+  data.forEach(r => { counts[r.stage] = (counts[r.stage]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const max = Math.max(...sorted.map(([,v]) => v), 1);
+  document.getElementById('stage-rows').innerHTML = sorted.map(([s, cnt]) => {
+    const color = STAGE_COLORS[s] || '#94a3b8';
+    return `<div class="sr">
+      <div class="sdot" style="background:${color}"></div>
+      <span class="sname">${s}</span>
+      <div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${color}"></div></div>
+      <span class="snums">${cnt} · ${pct(cnt,total)}%</span>
+    </div>`;
+  }).join('') || '<span style="color:var(--muted);font-size:12px">No data</span>';
+}
+
+function renderSources(data) {
+  const map = {};
+  data.forEach(r => {
+    if (!map[r.source]) map[r.source] = {t:0, i:0};
+    map[r.source].t++;
+    if (isInst(r)) map[r.source].i++;
+  });
+  const sorted = Object.entries(map).sort((a,b) => b[1].t-a[1].t);
+  document.getElementById('src-tbody').innerHTML = sorted.map(([src, v], idx) => {
+    const color = SRC_COLORS[idx % SRC_COLORS.length];
+    const p = parseFloat(pct(v.i, v.t));
+    const pc = p >= 20 ? 'cg' : p >= 10 ? 'ca' : 'cr';
+    return `<tr>
+      <td><span class="scdot" style="background:${color}"></span><span class="scname">${src}</span></td>
+      <td>${v.t}</td>
+      <td style="color:var(--green);font-weight:600">${v.i}</td>
+      <td><span class="${pc}">${pct(v.i,v.t)}%</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--muted);font-size:12px;padding-top:10px">No data</td></tr>';
+}
+
+function setView(v) {
+  viewMode = v;
+  document.getElementById('vbtn-w').classList.toggle('active', v === 'weekly');
+  document.getElementById('vbtn-d').classList.toggle('active', v === 'daily');
+  renderVolume(getFiltered());
+}
+
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0,10);
+}
+
+function fmtWeek(k) {
+  const d = new Date(k + 'T00:00:00');
+  const e = new Date(d); e.setDate(e.getDate() + 6);
+  const o = { day:'numeric', month:'short' };
+  return d.toLocaleDateString('en-AU', o) + ' – ' + e.toLocaleDateString('en-AU', o);
+}
+
+function fmtDay(k) {
+  return new Date(k + 'T00:00:00').toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'2-digit' });
+}
+
+function renderVolume(data) {
+  // Collect stage order by overall frequency
+  const sc = {};
+  data.forEach(r => { sc[r.stage] = (sc[r.stage]||0)+1; });
+  const stages = Object.keys(sc).sort((a,b) => sc[b]-sc[a]);
+
+  const buckets = {};
+  data.forEach(r => {
+    const key = viewMode === 'weekly' ? getWeekStart(r.created) : r.created;
+    if (!buckets[key]) { buckets[key] = {_t:0}; stages.forEach(s => buckets[key][s]=0); }
+    buckets[key][r.stage] = (buckets[key][r.stage]||0)+1;
+    buckets[key]._t++;
+  });
+
+  let keys = Object.keys(buckets).sort();
+  if (viewMode === 'daily') keys = keys.reverse(); // newest first for daily
+
+  // Header
+  document.getElementById('vol-head').innerHTML = `<tr>
+    <th>${viewMode === 'weekly' ? 'Week' : 'Date'}</th>
+    <th>Total</th>
+    ${stages.map(s => {
+      const color = STAGE_COLORS[s] || '#94a3b8';
+      return `<th><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${color};margin-right:4px;vertical-align:middle"></span>${s}</th>`;
+    }).join('')}
+  </tr>`;
+
+  // Totals
+  const totals = {_t:0}; stages.forEach(s => totals[s]=0);
+  keys.forEach(k => { totals._t += buckets[k]._t; stages.forEach(s => totals[s]+=(buckets[k][s]||0)); });
+
+  // Rows
+  const rows = keys.map(k => {
+    const b = buckets[k];
+    const cells = stages.map(s => {
+      const v = b[s]||0;
+      const cls = v===0 ? 'nz' : /install|won/i.test(s) ? 'ni' : '';
+      return `<td class="${cls}">${v===0 ? '—' : v}</td>`;
+    }).join('');
+    const label = viewMode === 'weekly' ? fmtWeek(k) : fmtDay(k);
+    return `<tr><td>${label}</td><td><strong>${b._t}</strong></td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = stages.map(s => {
+    const v = totals[s]||0;
+    const cls = v===0 ? 'nz' : /install|won/i.test(s) ? 'ni' : '';
+    return `<td class="${cls}"><strong>${v===0 ? '—' : v}</strong></td>`;
+  }).join('');
+
+  document.getElementById('vol-body').innerHTML = rows +
+    `<tr class="tr-total"><td>TOTAL</td><td><strong>${totals._t}</strong></td>${totalCells}</tr>`;
+}
+
+function setPreset(p, btn) {
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  let from, to = fmt(today);
+  if (p==='7d')  { const d=new Date(today); d.setDate(d.getDate()-6); from=fmt(d); }
+  else if (p==='30d') { const d=new Date(today); d.setDate(d.getDate()-29); from=fmt(d); }
+  else if (p==='mtd') { from=fmt(new Date(today.getFullYear(),today.getMonth(),1)); }
+  else {
+    const dates = RAW.map(r=>r.created).sort();
+    from = dates[0]; to = dates[dates.length-1];
+  }
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value   = to;
+  render();
+}
+</script>
+</body>
+</html>
