@@ -855,7 +855,7 @@ function initDashboard(){
   populateFilters();
   switchProduct('smoke');
   if (META_TOKEN) {
-    loadMetaSpend();
+    loadMetaSpend(); // async — will re-render when done
   } else {
     renderCurrentProduct();
   }
@@ -1051,11 +1051,11 @@ function renderVolumeTable(data, headId, bodyId) {
 }
 
 function updateMetaPanelDisplay() {
-  if (!META_TOKEN || !SMOKE_SPEND_ALL.length && !HWS_SPEND_ALL.length) return;
+  if (!META_TOKEN || (!SMOKE_SPEND_ALL.length && !HWS_SPEND_ALL.length)) return;
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
-  const smokeFiltered = SMOKE_SPEND_ALL.filter(m => m.date >= from && m.date <= to);
-  const hwsFiltered   = HWS_SPEND_ALL.filter(m => m.date >= from && m.date <= to);
+  const smokeFiltered = from && to ? SMOKE_SPEND_ALL.filter(m => m.date >= from && m.date <= to) : SMOKE_SPEND_ALL;
+  const hwsFiltered   = from && to ? HWS_SPEND_ALL.filter(m => m.date >= from && m.date <= to)   : HWS_SPEND_ALL;
   const smokeTotal = smokeFiltered.reduce((a,b)=>a+b.amount,0);
   const hwsTotal   = hwsFiltered.reduce((a,b)=>a+b.amount,0);
   const smokeCpm   = smokeFiltered.length ? (smokeFiltered.reduce((a,b)=>a+b.cpm,0)/smokeFiltered.length).toFixed(2) : '—';
@@ -1305,37 +1305,31 @@ function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.tog
 
 async function loadMetaSpend() {
   if (!META_TOKEN) return;
-  // Always fetch the widest possible range for _ALL so date filtering works correctly.
-  // Use a fixed start date well before any campaigns existed, up to today.
-  const since = '2023-01-01';
+  const statusEl = document.getElementById('meta-panel-smoke-spend');
+  if (statusEl) statusEl.innerHTML = '<em>Fetching spend data…</em>';
+  // Meta allows max 37 months history — use 36 to stay safe
+  const sinceDate = new Date();
+  sinceDate.setMonth(sinceDate.getMonth() - 36);
+  const since = sinceDate.toISOString().slice(0, 10);
   const until = new Date().toISOString().slice(0,10);
   try {
     const [smokeData, hwsData] = await Promise.all([
       fetchMetaInsights(SMOKE_ACCOUNT, META_TOKEN, since, until),
       fetchMetaInsights(HWS_ACCOUNT,   META_TOKEN, since, until)
     ]);
-    // Store full datasets — getFilteredSpend will slice by date picker
     SMOKE_SPEND_ALL = smokeData;
     HWS_SPEND_ALL   = hwsData;
-    SMOKE_SPEND = smokeData;
-    HWS_SPEND   = hwsData;
-    // Update panel totals using the current date picker range
-    const from = document.getElementById('dateFrom').value;
-    const to   = document.getElementById('dateTo').value;
-    const smokeFiltered = smokeData.filter(m => m.date >= from && m.date <= to);
-    const hwsFiltered   = hwsData.filter(m => m.date >= from && m.date <= to);
-    const smokeTotal = smokeFiltered.reduce((a,b)=>a+b.amount,0);
-    const hwsTotal   = hwsFiltered.reduce((a,b)=>a+b.amount,0);
-    const smokeCpm   = smokeFiltered.length ? (smokeFiltered.reduce((a,b)=>a+b.cpm,0)/smokeFiltered.length).toFixed(2) : '—';
-    const hwsCpm     = hwsFiltered.length   ? (hwsFiltered.reduce((a,b)=>a+b.cpm,0)/hwsFiltered.length).toFixed(2)     : '—';
-    document.getElementById('meta-panel-smoke-spend').innerHTML = `<strong>Smoke:</strong> $${smokeTotal.toFixed(2)} spend · CPM $${smokeCpm}`;
-    document.getElementById('meta-panel-hws-spend').innerHTML   = `<strong>HWS:</strong> $${hwsTotal.toFixed(2)} spend · CPM $${hwsCpm}`;
+    SMOKE_SPEND     = smokeData;
+    HWS_SPEND       = hwsData;
     document.getElementById('meta-last-refresh').innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
-    // Now render with correct data
+    // Re-render to pick up the now-loaded spend data
     if(currentProduct==='smoke') renderSmoke();
     else renderHws();
   } catch(e) {
-    console.warn('Meta API refresh failed:', e.message);
+    // Show error visibly in the panel instead of silently failing
+    const panel = document.getElementById('meta-panel-smoke-spend');
+    if (panel) panel.innerHTML = `<span style="color:#e04f4f">Meta error: ${e.message}</span>`;
+    console.error('Meta API failed:', e);
   }
 }
 
