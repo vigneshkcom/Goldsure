@@ -1156,46 +1156,24 @@ async function testGHLConnection() {
   GHL_LOCATION_ID = loc;
   status.className='ghl-status loading'; status.innerText='Connecting to GoHighLevel…';
   try {
-    // Fetch opportunities sample to test
     const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
     const total = json.meta?.total || json.opportunities?.length || 0;
-
-    // Fetch pipelines to get IDs and stage names
-    try {
-      const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
-      GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({
-        id:     p.id,
-        name:   p.name,
-        stages: (p.stages || []).map(s => ({ id: s.id, name: s.name }))
-      }));
-      // Auto-detect smoke and HWS by pipeline name
-      const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
-      // HWS = any pipeline that isn't smoke (catches "Sales", "HWS", "Hot Water", etc.)
-      const hwsPipe   = GHL_PIPELINES.find(p => !(/smoke/i.test(p.name)));
-      if (smokePipe) SMOKE_PIPELINE_ID = smokePipe.id;
-      if (hwsPipe)   HWS_PIPELINE_ID   = hwsPipe.id;
-
-      // Show detected pipelines in status
-      const pipeNames = GHL_PIPELINES.map(p => `${p.name} (${p.id.slice(0,8)}…)`).join(', ');
-      status.className='ghl-status ok';
-      status.innerText = `Connected! ${total} opportunities. Pipelines: ${pipeNames || 'none detected'}`;
-    } catch(pipeErr) {
-      // Pipelines fetch failed — fall back to name-based detection from opp data
-      const pipelineNames = {};
-      (json.opportunities || []).forEach(o => {
-        const pId = o.pipelineId || '';
-        const pName = o.pipeline?.name || o.pipelineName || '';
-        if (pId) pipelineNames[pId] = pName;
-      });
-      Object.entries(pipelineNames).forEach(([id, name]) => {
-        if (/smoke/i.test(name) && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = id;
-        if (/hws|hot.?water/i.test(name) && !HWS_PIPELINE_ID) HWS_PIPELINE_ID = id;
-      });
-      status.className='ghl-status ok';
-      status.innerText = `Connected! ${total} opportunities. (Pipeline details fetched from opp data.)`;
-    }
-
+    // Detect pipeline names and IDs from sample
+    const pipelineMap = {};
+    (json.opportunities || []).forEach(o => {
+      const pId   = o.pipelineId || '';
+      const pName = o.pipeline?.name || o.pipelineName || '';
+      if (pId && pName) pipelineMap[pId] = pName;
+    });
+    // Smoke = name matches "smoke", HWS = everything else
+    Object.entries(pipelineMap).forEach(([id, name]) => {
+      if (/smoke/i.test(name)) SMOKE_PIPELINE_ID = id;
+      else HWS_PIPELINE_ID = id;
+    });
     GHL_CONNECTED = true;
+    status.className='ghl-status ok';
+    const detected = Object.entries(pipelineMap).map(([id,name])=>`${name}`).join(', ');
+    status.innerText = `Connected! ${total} opportunities. Pipelines: ${detected || 'detecting on load…'}`;
     document.getElementById('btn-load').disabled = false;
   } catch(e) {
     status.className='ghl-status err';
@@ -1281,21 +1259,16 @@ const HWS_ACCOUNT   = 'act_716067364534837';
 
 async function fetchMetaInsights(account, token, since, until) {
   const fields = 'spend,cpm,impressions,reach,frequency';
-  // Properly encode the time_range JSON so curly braces and quotes don't break the URL
-  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-  const url = `https://graph.facebook.com/v20.0/${account}/insights?fields=${fields}&time_range=${timeRange}&time_increment=1&access_token=${token}`;
+  const url = `https://graph.facebook.com/v19.0/${account}/insights?fields=${fields}&time_range={"since":"${since}","until":"${until}"}&time_increment=1&access_token=${token}`;
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
   const json = await resp.json();
-  if (json.error) throw new Error(`${json.error.message} (code ${json.error.code})`);
+  if (json.error) throw new Error(json.error.message);
   const payments = [];
   let data = json.data || [];
-  // Handle pagination
   let next = json.paging?.next;
   while (next) {
     const r2 = await fetch(next);
     const j2 = await r2.json();
-    if (j2.error) break;
     data = data.concat(j2.data || []);
     next = j2.paging?.next;
   }
@@ -1313,21 +1286,14 @@ async function testMetaToken() {
   if (!token) { status.className='meta-status err'; status.innerText='Please paste your access token first.'; return; }
   status.className='meta-status loading'; status.innerText='Testing connection…';
   try {
-    // First verify the token itself is valid by hitting /me
-    const meResp = await fetch(`https://graph.facebook.com/v20.0/me?access_token=${token}`);
-    const meJson = await meResp.json();
-    if (meJson.error) throw new Error(`Token invalid: ${meJson.error.message}`);
-
-    // Then test account access — fetch last 30 days for smoke account
-    const today = new Date();
-    const fmt = d => d.toISOString().slice(0,10);
-    const since = fmt(new Date(today.getFullYear(), today.getMonth()-1, today.getDate()));
+    const today = new Date(); const fmt = d => d.toISOString().slice(0,10);
+    const since = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
     const until = fmt(today);
     const smokeData = await fetchMetaInsights(SMOKE_ACCOUNT, token, since, until);
     const smokeTotal = smokeData.reduce((a,b)=>a+b.amount,0);
     META_TOKEN = token;
     status.className='meta-status ok';
-    status.innerText = `Connected as ${meJson.name || meJson.id}. Smoke spend (last 30d): $${smokeTotal.toFixed(2)} — click Load Dashboard to continue.`;
+    status.innerText = `Connected! Smoke Alarm spend this month: $${smokeTotal.toFixed(2)} AUD — click Load Dashboard to continue.`;
     document.getElementById('btn-load').disabled = false;
   } catch(e) {
     status.className='meta-status err';
@@ -1336,6 +1302,8 @@ async function testMetaToken() {
 }
 
 function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.toggle('active',v==='weekly'); document.getElementById('vbtn-d').classList.toggle('active',v==='daily'); renderCurrentProduct(); }
+
+async function loadMetaSpend() {
   if (!META_TOKEN) return;
   // Always fetch the widest possible range for _ALL so date filtering works correctly.
   // Use a fixed start date well before any campaigns existed, up to today.
