@@ -438,30 +438,66 @@ input[type="date"], select {
 }
 .vtbtn { font-size:11px; font-weight:600; padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--muted); cursor:pointer; }
 .vtbtn.active { background:var(--text); color:#fff; }
+
+/* README MODAL */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 36px 40px;
+  max-width: 620px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  position: relative;
+}
+.modal-close {
+  position: absolute; top: 16px; right: 20px;
+  font-size: 20px; background: none; border: none;
+  cursor: pointer; color: var(--muted); line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.modal-box h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; letter-spacing: 0.4px; }
+.modal-box p { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 8px; }
+.modal-box a { color: var(--blue); }
+.modal-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 </style>
 </head>
 <body>
 
 <div id="upload-screen">
-  <div class="upload-logo">Goldsure Pty Ltd <small>Smoke Alarms & Hot Water System</small></div>
+  <div class="upload-logo">
+    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:64px;width:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+    Goldsure Pty Ltd <small>Smoke Alarms &amp; Hot Water System</small>
+  </div>
   <div class="upload-card">
-    <div class="upload-icon" style="font-size:20px;font-weight:700;color:var(--blue);">CSV</div>
-    <h1>Upload opportunity & spend files</h1>
+    <button class="upload-icon" onclick="document.getElementById('readme-modal').classList.add('open')" style="background:var(--blue-bg);border:none;cursor:pointer;width:60px;height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:11px;font-weight:700;color:var(--blue);letter-spacing:0.3px;">Readme</button>
+    <h1>Upload opportunity &amp; spend files</h1>
     <p>Supply CSV for Smoke Alarm and/or Hot Water System (HWS). You can upload any combination.</p>
     <!-- GHL Live CRM Connect Panel -->
     <div class="ghl-connect-card">
-      <h3>Connect GoHighLevel — Live CRM Data</h3>
-      <p>Connect your GHL account to pull live opportunity data for both Smoke Alarm and HWS pipelines. No CSV uploads needed for CRM data.</p>
+      <h3>Connect Goldsure GoHighLevel — Live CRM Data</h3>
+      <p>Connect your Goldsure GHL account to pull live opportunity data for both Smoke Alarm and HWS pipelines. No CSV uploads needed for CRM data. Contact <a href="mailto:vignesh@goldsure.com.au" style="color:#16a34a;">vignesh@goldsure.com.au</a> for your API Key and Location ID.</p>
       <div class="ghl-token-row">
         <label>API Key</label>
         <input type="password" class="ghl-token-input" id="ghl-api-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
       </div>
       <div class="ghl-token-row">
         <label>Location ID</label>
-        <input type="text" class="ghl-token-input" id="ghl-location-id" placeholder="Your GHL Location ID">
+        <input type="text" class="ghl-token-input" id="ghl-location-id" placeholder="Your Goldsure GHL Location ID">
       </div>
       <div style="margin-top:10px;">
-        <button class="btn-ghl-connect" onclick="testGHLConnection()">Test &amp; Connect GHL</button>
+        <button class="btn-ghl-connect" onclick="testGHLConnection()">Test &amp; Connect Goldsure GHL</button>
       </div>
       <div class="ghl-status" id="ghl-status"></div>
     </div>
@@ -480,7 +516,7 @@ input[type="date"], select {
         <div id="smoke-crm-badge" class="file-badge">No file</div>
       </div>
       <div class="upload-col">
-        <label>Smoke Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Meta API)</span></label>
+        <label>Smoke Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Goldsure Meta API)</span></label>
         <div class="drop-zone" id="drop-smoke-spend">
           <input type="file" id="smoke-spend-input" accept=".csv">
           <div class="drop-text"><strong>Click / drop</strong> smoke_spend.csv</div>
@@ -500,7 +536,7 @@ input[type="date"], select {
         <div id="hws-crm-badge" class="file-badge">No file</div>
       </div>
       <div class="upload-col">
-        <label>HWS Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Meta API)</span></label>
+        <label>HWS Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Goldsure Meta API)</span></label>
         <div class="drop-zone" id="drop-hws-spend">
           <input type="file" id="hws-spend-input" accept=".csv">
           <div class="drop-text"><strong>Click / drop</strong> hws_spend.csv</div>
@@ -511,22 +547,64 @@ input[type="date"], select {
 
     <!-- Meta API Connect Panel -->
     <div class="meta-connect-card">
-      <h3>Connect Meta Ads API — Live Spend Data</h3>
-      <p>Paste your Meta User Access Token to automatically pull live spend &amp; CPM data. This replaces the need to upload spend CSVs. Token is stored in browser memory only — never saved or sent anywhere.</p>
+      <h3>Connect Goldsure Meta Ads API — Live Spend Data</h3>
+      <p>Paste your Goldsure Meta Access Token to automatically pull live spend &amp; CPM data. This replaces the need to upload spend CSVs. Token is stored in browser memory only — never saved or sent anywhere. Contact <a href="mailto:vignesh@goldsure.com.au" style="color:#1877f2;">vignesh@goldsure.com.au</a> for your access token.</p>
       <div class="meta-token-row">
         <label>Access Token</label>
         <input type="password" class="meta-token-input" id="upload-meta-token" placeholder="EAAia7vwGvH...paste your token here">
-        <button class="btn-meta-connect" onclick="testMetaToken()">Test &amp; Connect</button>
+        <button class="btn-meta-connect" onclick="testMetaToken()">Test &amp; Connect Goldsure Meta</button>
       </div>
       <div class="meta-status" id="meta-token-status"></div>
       <div style="margin-top:10px;font-size:10px;color:var(--muted);">
-        Your Smoke Alarm account: <strong>act_1420815159464502</strong> &nbsp;|&nbsp; 
-        HWS account: <strong>act_716067364534837</strong> &nbsp;|&nbsp;
-        Get token at: <a href="https://developers.facebook.com/tools/explorer" target="_blank" style="color:var(--blue);">developers.facebook.com/tools/explorer</a>
+        Goldsure Smoke Alarm account: <strong>act_1420815159464502</strong> &nbsp;|&nbsp; 
+        Goldsure HWS account: <strong>act_716067364534837</strong>
       </div>
     </div>
-    <button class="btn-load" id="btn-load" onclick="loadDashboards()">Load Dashboard</button>
+    <button class="btn-load" id="btn-load" onclick="loadDashboards()">Load Goldsure Dashboard</button>
     <div class="upload-error" id="upload-error"></div>
+  </div>
+</div>
+
+<!-- README MODAL -->
+<div class="modal-overlay" id="readme-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('readme-modal').classList.remove('open')">&times;</button>
+    <h2>Goldsure Dashboard — Guide</h2>
+    <p>This is the internal performance dashboard for Goldsure Pty Ltd. It connects live to your CRM and Meta Ads to show leads, conversions, and ad spend in real time.</p>
+
+    <div class="modal-section">
+      <h3>GoHighLevel (CRM) Connection</h3>
+      <p>To connect the CRM, you need an <strong>API Key</strong> and a <strong>Location ID</strong> specific to the Goldsure GHL account. These are not public — contact Vignesh to get yours:</p>
+      <p><a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></p>
+      <p>Once entered, click <strong>Test &amp; Connect Goldsure GHL</strong>. A green confirmation will appear showing how many opportunities were found.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Meta Ads API Connection</h3>
+      <p>To connect Meta Ads spend data, you need a <strong>Meta Access Token</strong> linked to the Goldsure ad accounts. Contact Vignesh for the token:</p>
+      <p><a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></p>
+      <p>Paste the token and click <strong>Test &amp; Connect Goldsure Meta</strong>. Tokens last up to 60 days — request a new one when it expires.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Switching Between Smoke Alarms and HWS</h3>
+      <p>Once the dashboard loads, use the <strong>Smoke Alarm / HWS</strong> toggle buttons in the top-right header to switch between the two product views. Each view shows its own KPIs, stage breakdown, lead sources, and lead volume table.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Download PDF Button</h3>
+      <p>The <strong>Download PDF</strong> button (top-right) generates a branded Goldsure report for whichever product is currently selected. It includes your logo, company address, the selected date range, and a page-by-page breakdown of all metrics. Use your browser's print dialog to save as PDF.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Date Filters</h3>
+      <p>Use the date pickers or the quick buttons (7d, 30d, MTD, All) to change the reporting period. All metrics, spend, and tables update instantly.</p>
+    </div>
+
+    <div class="modal-section" style="background:var(--surface2);border-radius:10px;padding:14px 16px;border-top:none;margin-top:20px;">
+      <p style="margin:0;font-size:12px;">Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072<br>
+      Phone: <a href="tel:+61451898761">+61 451 898 761</a> · Email: <a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></p>
+    </div>
   </div>
 </div>
 
