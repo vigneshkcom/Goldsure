@@ -410,12 +410,31 @@ input[type="date"], select {
   #upload-screen { display: none !important; }
   header { position: static !important; box-shadow: none !important; }
   .btn-new, .btn-pdf, .product-toggle, .file-chip { display: none !important; }
+  header .logo { display: block !important; }
+  header img { display: none !important; }
+  #meta-live-panel { display: none !important; }
   .filters { page-break-inside: avoid; }
   .row2 { page-break-inside: avoid; }
   .card { page-break-inside: avoid; border: 1px solid #ddd !important; box-shadow: none !important; }
   body { background: white !important; }
   main { padding: 10px !important; }
   .vtable-wrap { overflow: visible !important; }
+  footer { display: none !important; }
+  #pdf-cover { display: block !important; }
+  /* Print footer on every page */
+  @page {
+    margin: 15mm 12mm;
+    @bottom-center {
+      content: "Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072 · +61 451 898 761 · vignesh@goldsure.com.au";
+      font-size: 9pt;
+      color: #6b7899;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+      color: #6b7899;
+    }
+  }
 }
 .vtbtn { font-size:11px; font-weight:600; padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--muted); cursor:pointer; }
 .vtbtn.active { background:var(--text); color:#fff; }
@@ -525,8 +544,9 @@ input[type="date"], select {
       </div>
       <span id="ghl-live-indicator" style="display:none;" class="ghl-live-badge"><span class="ghl-live-dot"></span>GHL Live</span>
       <span id="meta-live-indicator" style="display:none;" class="meta-live-badge"><span class="meta-live-dot"></span>Meta Live</span>
-      <button class="btn-pdf" onclick="printDashboard()">Download PDF</button>
+      <button class="btn-pdf" onclick="generatePDF()">Download PDF</button>
       <button class="btn-new" onclick="resetUpload()">Upload New</button>
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:48px; width:auto; margin-left:8px; object-fit:contain;">
     </div>
   </header>
   <main>
@@ -601,7 +621,7 @@ input[type="date"], select {
       <div class="card"><div class="ctitle">LEAD SOURCES</div><table class="dtable"><thead><tr><th>SOURCE</th><th>LEADS</th><th>INSTALLED</th><th>CLOSE %</th></tr></thead><tbody id="src-tbody"></tbody></table></div>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card" id="smoke-vol-card" style="margin-bottom:16px;">
       <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
         SMOKE ALARM LEAD VOLUME
         <span class="vtoggle"><button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button><button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button></span>
@@ -609,7 +629,7 @@ input[type="date"], select {
       <div class="vtable-wrap"><table class="vtable"><thead id="smoke-vol-head"></thead><tbody id="smoke-vol-body"></tbody></table></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="hws-vol-card" style="display:none; margin-bottom:16px;">
       <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
         HWS LEAD VOLUME
         <span class="vtoggle" style="opacity:0.4;pointer-events:none;font-size:10px;color:var(--muted);">synced with above</span>
@@ -617,6 +637,22 @@ input[type="date"], select {
       <div class="vtable-wrap"><table class="vtable"><thead id="hws-vol-head"></thead><tbody id="hws-vol-body"></tbody></table></div>
     </div>
   </main>
+
+  <footer style="background:var(--surface); border-top:1px solid var(--border); padding:20px 28px; margin-top:8px;">
+    <div style="max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px; width:auto; object-fit:contain;">
+        <div>
+          <div style="font-size:13px; font-weight:700; color:var(--text);">Goldsure Pty Ltd</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072</div>
+        </div>
+      </div>
+      <div style="font-size:11px; color:var(--muted); text-align:right; line-height:1.8;">
+        <div>Phone: <a href="tel:+61451898761" style="color:var(--blue); text-decoration:none;">+61 451 898 761</a></div>
+        <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue); text-decoration:none;">vignesh@goldsure.com.au</a></div>
+      </div>
+    </div>
+  </footer>
 </div>
 
 <script>
@@ -878,6 +914,9 @@ function switchProduct(prod){
   document.getElementById('active-product-indicator').innerText = prod==='smoke'?'Smoke Alarms':'Hot Water System';
   document.getElementById('smoke-kpis').style.display = prod==='smoke'?'block':'none';
   document.getElementById('hws-kpis').style.display = prod==='hws'?'block':'none';
+  // Show only the relevant lead volume table
+  document.getElementById('smoke-vol-card').style.display = prod==='smoke'?'block':'none';
+  document.getElementById('hws-vol-card').style.display   = prod==='hws'?'block':'none';
   renderCurrentProduct();
 }
 
@@ -1077,14 +1116,38 @@ function setPreset(p,btn){
   document.getElementById('dateFrom').value=from; document.getElementById('dateTo').value=to; renderCurrentProduct();
 }
 
-function printDashboard(){
-  const product = currentProduct === 'smoke' ? 'Smoke Alarms' : 'Hot Water System';
-  const from = document.getElementById('dateFrom').value;
-  const to = document.getElementById('dateTo').value;
+function generatePDF(){
+  const product  = currentProduct === 'smoke' ? 'Smoke Alarms' : 'Hot Water System';
+  const from     = document.getElementById('dateFrom').value;
+  const to       = document.getElementById('dateTo').value;
+  const fmtDate  = s => s ? new Date(s+'T00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) : '';
+  const generated = new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  // Inject a print-only branded cover header
+  const cover = document.createElement('div');
+  cover.id = 'pdf-cover';
+  cover.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div>
+          <div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;">
+        <div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div>
+        <div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div>
+        <div>Generated: ${generated}</div>
+      </div>
+    </div>`;
+  document.querySelector('#dashboard main').prepend(cover);
+
   const originalTitle = document.title;
   document.title = `Goldsure – ${product} Report ${from} to ${to}`;
   window.print();
   document.title = originalTitle;
+  cover.remove();
 }
 
 // ── GHL API INTEGRATION ──────────────────────────────────────────────────
