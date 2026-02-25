@@ -431,15 +431,15 @@ input[type="date"], select {
     <p>Supply CSV for Smoke Alarm and/or Hot Water System (HWS). You can upload any combination.</p>
     <!-- GHL Live CRM Connect Panel -->
     <div class="ghl-connect-card">
-      <h3>&#128279; Connect GoHighLevel — Live CRM Data</h3>
+      <h3>Connect GoHighLevel — Live CRM Data</h3>
       <p>Connect your GHL account to pull live opportunity data for both Smoke Alarm and HWS pipelines. No CSV uploads needed for CRM data.</p>
       <div class="ghl-token-row">
         <label>API Key</label>
-        <input type="password" class="ghl-token-input" id="ghl-api-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="pit-da8c541f-fe41-424e-bf22-3f9976fbe159">
+        <input type="password" class="ghl-token-input" id="ghl-api-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
       </div>
       <div class="ghl-token-row">
         <label>Location ID</label>
-        <input type="text" class="ghl-token-input" id="ghl-location-id" placeholder="Your GHL Location ID" value="11epCbQAg9B4rQt5yHjw">
+        <input type="text" class="ghl-token-input" id="ghl-location-id" placeholder="Your GHL Location ID">
       </div>
       <div style="margin-top:10px;">
         <button class="btn-ghl-connect" onclick="testGHLConnection()">Test &amp; Connect GHL</button>
@@ -492,7 +492,7 @@ input[type="date"], select {
 
     <!-- Meta API Connect Panel -->
     <div class="meta-connect-card">
-      <h3>&#9889; Connect Meta Ads API — Live Spend Data</h3>
+      <h3>Connect Meta Ads API — Live Spend Data</h3>
       <p>Paste your Meta User Access Token to automatically pull live spend &amp; CPM data. This replaces the need to upload spend CSVs. Token is stored in browser memory only — never saved or sent anywhere.</p>
       <div class="meta-token-row">
         <label>Access Token</label>
@@ -525,20 +525,20 @@ input[type="date"], select {
       </div>
       <span id="ghl-live-indicator" style="display:none;" class="ghl-live-badge"><span class="ghl-live-dot"></span>GHL Live</span>
       <span id="meta-live-indicator" style="display:none;" class="meta-live-badge"><span class="meta-live-dot"></span>Meta Live</span>
-      <button class="btn-pdf" onclick="printDashboard()">&#x2913; Download PDF</button>
+      <button class="btn-pdf" onclick="printDashboard()">Download PDF</button>
       <button class="btn-new" onclick="resetUpload()">Upload New</button>
     </div>
   </header>
   <main>
     <!-- GHL + Meta Live Panel -->
     <div id="meta-live-panel" style="display:none; background:#f0f4ff; border:1px solid #c5d3f5; border-radius:12px; padding:12px 18px; margin-bottom:14px; align-items:center; gap:16px; flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:700;color:#1877f2;">&#9889; Live Data Connected</span>
+      <span style="font-size:12px;font-weight:700;color:#1877f2;">Live Data Connected</span>
       <span id="ghl-panel-info" style="font-size:12px;color:var(--muted);"></span>
       <span id="meta-panel-smoke-spend" style="font-size:12px;color:var(--muted);"></span>
       <span id="meta-panel-hws-spend" style="font-size:12px;color:var(--muted);"></span>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-        <button onclick="refreshGHL()" id="btn-refresh-ghl" style="display:none;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#16a34a;color:white;border:none;border-radius:7px;cursor:pointer;">&#8635; Refresh CRM</button>
-        <button onclick="refreshMetaSpend()" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#1877f2;color:white;border:none;border-radius:7px;cursor:pointer;">&#8635; Refresh Spend</button>
+        <button onclick="refreshGHL()" id="btn-refresh-ghl" style="display:none;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#16a34a;color:white;border:none;border-radius:7px;cursor:pointer;">Refresh CRM</button>
+        <button onclick="refreshMetaSpend()" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#1877f2;color:white;border:none;border-radius:7px;cursor:pointer;">Refresh Spend</button>
         <span id="meta-last-refresh" style="font-size:10px;color:var(--muted);"></span>
       </div>
     </div>
@@ -601,9 +601,20 @@ input[type="date"], select {
       <div class="card"><div class="ctitle">LEAD SOURCES</div><table class="dtable"><thead><tr><th>SOURCE</th><th>LEADS</th><th>INSTALLED</th><th>CLOSE %</th></tr></thead><tbody id="src-tbody"></tbody></table></div>
     </div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
+        SMOKE ALARM LEAD VOLUME
+        <span class="vtoggle"><button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button><button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button></span>
+      </div>
+      <div class="vtable-wrap"><table class="vtable"><thead id="smoke-vol-head"></thead><tbody id="smoke-vol-body"></tbody></table></div>
+    </div>
+
     <div class="card">
-      <div class="ctitle" style="display:flex; justify-content:space-between;">LEAD VOLUME <span class="vtoggle"><button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button><button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button></span></div>
-      <div class="vtable-wrap"><table class="vtable"><thead id="vol-head"></thead><tbody id="vol-body"></tbody></table></div>
+      <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
+        HWS LEAD VOLUME
+        <span class="vtoggle" style="opacity:0.4;pointer-events:none;font-size:10px;color:var(--muted);">synced with above</span>
+      </div>
+      <div class="vtable-wrap"><table class="vtable"><thead id="hws-vol-head"></thead><tbody id="hws-vol-body"></tbody></table></div>
     </div>
   </main>
 </div>
@@ -616,6 +627,13 @@ let SMOKE_SPEND = [];
 let HWS_SPEND = [];
 let SMOKE_SPEND_ALL = []; // Store all payments regardless of date
 let HWS_SPEND_ALL = [];   // Store all payments regardless of date
+
+// Pipeline IDs — auto-detected from GHL on connect. Can also be set manually.
+let SMOKE_PIPELINE_ID = '';
+let HWS_PIPELINE_ID   = '';
+// Full pipelines array from GHL (for stage name lookup)
+// Each entry: { id, name, stages: [{id, name}] }
+let GHL_PIPELINES = [];
 
 let smokeCrmFile = null, hwsCrmFile = null, smokeSpendFile = null, hwsSpendFile = null;
 let currentProduct = 'smoke';
@@ -864,11 +882,7 @@ function switchProduct(prod){
 }
 
 function renderCurrentProduct(){
-  if (META_TOKEN && !window._metaRefreshing) {
-    window._metaRefreshing = true;
-    loadMetaSpend().finally(()=>{ window._metaRefreshing = false; });
-    return; // loadMetaSpend calls renderCurrentProduct at the end
-  }
+  // Never auto-trigger Meta re-fetch here — spend data is already loaded
   if(currentProduct==='smoke') renderSmoke();
   else renderHws();
 }
@@ -896,6 +910,7 @@ function getFilteredSpend(prod){
 }
 
 function renderSmoke(){
+  updateMetaPanelDisplay();
   const leads = getFilteredCRM('smoke');
   const spend = getFilteredSpend('smoke'); // This now returns ALL spend when "All" is selected
   const total = leads.length;
@@ -927,6 +942,7 @@ function renderSmoke(){
 }
 
 function renderHws(){
+  updateMetaPanelDisplay();
   const leads = getFilteredCRM('hws');
   const spend = getFilteredSpend('hws'); // This now returns ALL spend when "All" is selected
   const total = leads.length;
@@ -963,7 +979,10 @@ function renderStagesAndSources(leads, total){
   const sortedSrc = Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
   document.getElementById('src-tbody').innerHTML = sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
 
-  renderVolume(leads);
+  // Pass both smoke and hws leads for the combined volume table
+  const smokeLeads = getFilteredCRM('smoke');
+  const hwsLeads   = getFilteredCRM('hws');
+  renderVolume(smokeLeads, hwsLeads);
 }
 
 function getWeekStart(d){ 
@@ -985,24 +1004,67 @@ function fmtWeek(k){
 }
 function fmtDay(k){ return new Date(k+'T00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}); }
 
-function renderVolume(data){
-  const stages = [...new Set(data.map(r=>r.stage))].sort();
+function renderVolume(smokeLeads, hwsLeads){
+  renderVolumeTable(smokeLeads, 'smoke-vol-head', 'smoke-vol-body');
+  renderVolumeTable(hwsLeads,   'hws-vol-head',   'hws-vol-body');
+}
+
+function renderVolumeTable(data, headId, bodyId) {
+  // Build ordered stage list
+  const stageOrder = ['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)',
+    'Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent',
+    'Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
+  const stageCount = {};
+  data.forEach(r => { stageCount[r.stage] = (stageCount[r.stage]||0)+1; });
+  const stages = stageOrder.filter(s=>stageCount[s])
+    .concat(Object.keys(stageCount).filter(s=>!stageOrder.includes(s)).sort());
+
+  // Time buckets
   const buckets = {};
-  data.forEach(r=>{
-    const key = viewMode==='weekly'? getWeekStart(r.created) : r.created;
+  data.forEach(r => {
+    const key = viewMode==='weekly' ? getWeekStart(r.created) : r.created;
     if(!buckets[key]){ buckets[key]={_t:0}; stages.forEach(s=>buckets[key][s]=0); }
-    buckets[key][r.stage]++; buckets[key]._t++;
+    buckets[key][r.stage]++;
+    buckets[key]._t++;
   });
-  let keys=Object.keys(buckets).sort(); if(viewMode==='daily') keys=keys.reverse();
-  document.getElementById('vol-head').innerHTML=`<tr><th>${viewMode==='weekly'?'Week':'Date'}</th><th>Total</th>${stages.map(s=>`<th><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${STAGE_COLORS[s]||'#888'};margin-right:4px"></span>${s}</th>`).join('')}</tr>`;
-  const rows = keys.map(k=>`<tr><td>${viewMode==='weekly'?fmtWeek(k):fmtDay(k)}</td><td><strong>${buckets[k]._t}</strong></td>${stages.map(s=>`<td>${buckets[k][s]||'—'}</td>`).join('')}</tr>`).join('');
+  let keys = Object.keys(buckets).sort();
+  if(viewMode==='daily') keys = keys.reverse();
+
+  const timeLabel = viewMode==='weekly' ? 'Week' : 'Date';
+  document.getElementById(headId).innerHTML =
+    `<tr><th>${timeLabel}</th><th>Total</th>${stages.map(s=>`<th><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${STAGE_COLORS[s]||'#888'};margin-right:4px;vertical-align:middle;"></span>${s}</th>`).join('')}</tr>`;
+
+  if(keys.length === 0){
+    document.getElementById(bodyId).innerHTML = `<tr><td colspan="${stages.length+2}" style="color:var(--muted);font-size:12px;padding:12px 0;">No data in selected date range</td></tr>`;
+    return;
+  }
+
+  const rows = keys.map(k =>
+    `<tr><td>${viewMode==='weekly'?fmtWeek(k):fmtDay(k)}</td><td><strong>${buckets[k]._t}</strong></td>${stages.map(s=>`<td>${buckets[k][s]||'—'}</td>`).join('')}</tr>`
+  ).join('');
+
   const totals = {_t:0}; stages.forEach(s=>totals[s]=0);
   keys.forEach(k=>{ totals._t+=buckets[k]._t; stages.forEach(s=>totals[s]+=(buckets[k][s]||0)); });
   const totalRow = `<tr class="tr-total"><td>TOTAL</td><td><strong>${totals._t}</strong></td>${stages.map(s=>`<td><strong>${totals[s]||'—'}</strong></td>`).join('')}</tr>`;
-  document.getElementById('vol-body').innerHTML = rows + totalRow;
+
+  document.getElementById(bodyId).innerHTML = rows + totalRow;
 }
 
-function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.toggle('active',v==='weekly'); document.getElementById('vbtn-d').classList.toggle('active',v==='daily'); renderCurrentProduct(); }
+function updateMetaPanelDisplay() {
+  if (!META_TOKEN || !SMOKE_SPEND_ALL.length && !HWS_SPEND_ALL.length) return;
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const smokeFiltered = SMOKE_SPEND_ALL.filter(m => m.date >= from && m.date <= to);
+  const hwsFiltered   = HWS_SPEND_ALL.filter(m => m.date >= from && m.date <= to);
+  const smokeTotal = smokeFiltered.reduce((a,b)=>a+b.amount,0);
+  const hwsTotal   = hwsFiltered.reduce((a,b)=>a+b.amount,0);
+  const smokeCpm   = smokeFiltered.length ? (smokeFiltered.reduce((a,b)=>a+b.cpm,0)/smokeFiltered.length).toFixed(2) : '—';
+  const hwsCpm     = hwsFiltered.length   ? (hwsFiltered.reduce((a,b)=>a+b.cpm,0)/hwsFiltered.length).toFixed(2)     : '—';
+  document.getElementById('meta-panel-smoke-spend').innerHTML = `<strong>Smoke:</strong> $${smokeTotal.toFixed(2)} spend · CPM $${smokeCpm}`;
+  document.getElementById('meta-panel-hws-spend').innerHTML   = `<strong>HWS:</strong> $${hwsTotal.toFixed(2)} spend · CPM $${hwsCpm}`;
+}
+
+
 function updateAssumptions(){ alarmsPerJob=+document.getElementById('alarmsPerJob').value; sellPrice=+document.getElementById('sellPrice').value; costPrice=+document.getElementById('costPrice').value; if(currentProduct==='smoke') renderSmoke(); }
 
 function setPreset(p,btn){
@@ -1026,8 +1088,8 @@ function printDashboard(){
 }
 
 // ── GHL API INTEGRATION ──────────────────────────────────────────────────
-let GHL_API_KEY = 'pit-da8c541f-fe41-424e-bf22-3f9976fbe159';
-let GHL_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
+let GHL_API_KEY = '';
+let GHL_LOCATION_ID = '';
 let GHL_CONNECTED = false;
 
 // Pipeline name → product mapping (auto-detected or set manually)
@@ -1076,9 +1138,11 @@ async function fetchAllOpportunities() {
 function mapGHLOpportunity(opp) {
   const created = opp.createdAt ? opp.createdAt.slice(0, 10) : '';
   return {
-    stage:    (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
-    source:   (opp.source || 'Unknown').trim(),
-    pipeline: (opp.pipeline?.name || opp.pipelineName || '').trim(),
+    stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
+    stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
+    source:     (opp.source || 'Unknown').trim(),
+    pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
+    pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
     created,
   };
 }
@@ -1092,18 +1156,46 @@ async function testGHLConnection() {
   GHL_LOCATION_ID = loc;
   status.className='ghl-status loading'; status.innerText='Connecting to GoHighLevel…';
   try {
-    // Fetch first page to test
+    // Fetch opportunities sample to test
     const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
     const total = json.meta?.total || json.opportunities?.length || 0;
-    // Detect pipelines
-    const pipelines = {};
-    (json.opportunities || []).forEach(o => {
-      const pName = o.pipeline?.name || o.pipelineName || '';
-      if (pName) pipelines[pName] = (pipelines[pName]||0) + 1;
-    });
+
+    // Fetch pipelines to get IDs and stage names
+    try {
+      const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
+      GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({
+        id:     p.id,
+        name:   p.name,
+        stages: (p.stages || []).map(s => ({ id: s.id, name: s.name }))
+      }));
+      // Auto-detect smoke and HWS by pipeline name
+      const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
+      // HWS = any pipeline that isn't smoke (catches "Sales", "HWS", "Hot Water", etc.)
+      const hwsPipe   = GHL_PIPELINES.find(p => !(/smoke/i.test(p.name)));
+      if (smokePipe) SMOKE_PIPELINE_ID = smokePipe.id;
+      if (hwsPipe)   HWS_PIPELINE_ID   = hwsPipe.id;
+
+      // Show detected pipelines in status
+      const pipeNames = GHL_PIPELINES.map(p => `${p.name} (${p.id.slice(0,8)}…)`).join(', ');
+      status.className='ghl-status ok';
+      status.innerText = `Connected! ${total} opportunities. Pipelines: ${pipeNames || 'none detected'}`;
+    } catch(pipeErr) {
+      // Pipelines fetch failed — fall back to name-based detection from opp data
+      const pipelineNames = {};
+      (json.opportunities || []).forEach(o => {
+        const pId = o.pipelineId || '';
+        const pName = o.pipeline?.name || o.pipelineName || '';
+        if (pId) pipelineNames[pId] = pName;
+      });
+      Object.entries(pipelineNames).forEach(([id, name]) => {
+        if (/smoke/i.test(name) && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = id;
+        if (/hws|hot.?water/i.test(name) && !HWS_PIPELINE_ID) HWS_PIPELINE_ID = id;
+      });
+      status.className='ghl-status ok';
+      status.innerText = `Connected! ${total} opportunities. (Pipeline details fetched from opp data.)`;
+    }
+
     GHL_CONNECTED = true;
-    status.className='ghl-status ok';
-    status.innerText = `✓ Connected! Found ${total} total opportunities. Click "Load Dashboard" to import all data.`;
     document.getElementById('btn-load').disabled = false;
   } catch(e) {
     status.className='ghl-status err';
@@ -1116,35 +1208,51 @@ async function loadGHLData() {
   const statusEl = document.getElementById('ghl-panel-info');
   if (statusEl) statusEl.innerText = 'Fetching CRM data…';
   try {
+    // If we don't have pipelines yet, try fetching them now
+    if (GHL_PIPELINES.length === 0) {
+      try {
+        const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
+        GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({
+          id: p.id, name: p.name,
+          stages: (p.stages || []).map(s => ({ id: s.id, name: s.name }))
+        }));
+        const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
+        const hwsPipe   = GHL_PIPELINES.find(p => /hws|hot.?water|water/i.test(p.name));
+        if (smokePipe && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = smokePipe.id;
+        if (hwsPipe   && !HWS_PIPELINE_ID)   HWS_PIPELINE_ID   = hwsPipe.id;
+      } catch(e) { /* fall back to name-matching below */ }
+    }
+
     const opps = await fetchAllOpportunities();
     const mapped = opps.map(mapGHLOpportunity).filter(r => r.created);
 
-    // Auto-detect Smoke vs HWS pipeline by name
-    const pipelineNames = [...new Set(mapped.map(r => r.pipeline).filter(Boolean))];
-    GHL_SMOKE_PIPELINE = pipelineNames.find(p => /smoke/i.test(p)) || '';
-    GHL_HWS_PIPELINE   = pipelineNames.find(p => /hws|hot.?water|water/i.test(p)) || '';
+    // Build stage name lookup from GHL_PIPELINES
+    const stageNameMap = {};
+    GHL_PIPELINES.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
+    // Enrich stage name from stageId where available
+    mapped.forEach(r => {
+      if (r.stageId && stageNameMap[r.stageId]) r.stage = stageNameMap[r.stageId];
+    });
 
-    // If only one pipeline or can't detect, put all in smoke and filter by pipeline toggle
-    if (!GHL_SMOKE_PIPELINE && !GHL_HWS_PIPELINE) {
-      // Single pipeline — check Sales pipeline name
-      const salesPipe = pipelineNames.find(p => /sales/i.test(p));
-      // Put everything in SMOKE_CRM for now, user can filter by pipeline dropdown
-      SMOKE_CRM = mapped;
-      HWS_CRM = [];
+    // Split by pipeline ID if available, else fall back to name matching
+    if (SMOKE_PIPELINE_ID || HWS_PIPELINE_ID) {
+      SMOKE_CRM = SMOKE_PIPELINE_ID ? mapped.filter(r => r.pipelineId === SMOKE_PIPELINE_ID) : mapped.filter(r => !/hws|hot.?water|sales/i.test(r.pipeline));
+      HWS_CRM   = HWS_PIPELINE_ID   ? mapped.filter(r => r.pipelineId === HWS_PIPELINE_ID)   : mapped.filter(r => r.pipelineId !== SMOKE_PIPELINE_ID);
     } else {
-      SMOKE_CRM = GHL_SMOKE_PIPELINE ? mapped.filter(r => r.pipeline === GHL_SMOKE_PIPELINE) : mapped.filter(r => !/hws|hot.?water/i.test(r.pipeline));
-      HWS_CRM   = GHL_HWS_PIPELINE   ? mapped.filter(r => r.pipeline === GHL_HWS_PIPELINE)   : mapped.filter(r => /hws|hot.?water/i.test(r.pipeline));
-      // If HWS has a "Sales" pipeline, assign all non-smoke to HWS
-      if (HWS_CRM.length === 0 && pipelineNames.length === 1) {
-        HWS_CRM = mapped;
+      // Name-based fallback
+      const pipelineNames = [...new Set(mapped.map(r => r.pipeline).filter(Boolean))];
+      GHL_SMOKE_PIPELINE = pipelineNames.find(p => /smoke/i.test(p)) || '';
+      // HWS = anything that isn't smoke (catches "Sales", "HWS", "Hot Water", etc.)
+      GHL_HWS_PIPELINE = pipelineNames.find(p => !(/smoke/i.test(p))) || '';
+      if (!GHL_SMOKE_PIPELINE && !GHL_HWS_PIPELINE) {
+        SMOKE_CRM = mapped; HWS_CRM = [];
+      } else {
+        SMOKE_CRM = GHL_SMOKE_PIPELINE ? mapped.filter(r => r.pipeline === GHL_SMOKE_PIPELINE) : [];
+        HWS_CRM   = mapped.filter(r => r.pipeline !== GHL_SMOKE_PIPELINE);
       }
     }
 
-    // If still no split detected, use ALL opps for both (user filters via pipeline dropdown)
-    if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0) {
-      SMOKE_CRM = mapped;
-      HWS_CRM = mapped;
-    }
+    if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0) { SMOKE_CRM = mapped; HWS_CRM = mapped; }
 
     const total = mapped.length;
     if (statusEl) statusEl.innerText = `GHL: ${total} opportunities loaded (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
@@ -1173,11 +1281,13 @@ const HWS_ACCOUNT   = 'act_716067364534837';
 
 async function fetchMetaInsights(account, token, since, until) {
   const fields = 'spend,cpm,impressions,reach,frequency';
-  const url = `https://graph.facebook.com/v19.0/${account}/insights?fields=${fields}&time_range={"since":"${since}","until":"${until}"}&time_increment=1&access_token=${token}`;
+  // Properly encode the time_range JSON so curly braces and quotes don't break the URL
+  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
+  const url = `https://graph.facebook.com/v20.0/${account}/insights?fields=${fields}&time_range=${timeRange}&time_increment=1&access_token=${token}`;
   const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
   const json = await resp.json();
-  if (json.error) throw new Error(json.error.message);
-  // Aggregate all daily rows into payment-style objects
+  if (json.error) throw new Error(`${json.error.message} (code ${json.error.code})`);
   const payments = [];
   let data = json.data || [];
   // Handle pagination
@@ -1185,6 +1295,7 @@ async function fetchMetaInsights(account, token, since, until) {
   while (next) {
     const r2 = await fetch(next);
     const j2 = await r2.json();
+    if (j2.error) break;
     data = data.concat(j2.data || []);
     next = j2.paging?.next;
   }
@@ -1202,15 +1313,21 @@ async function testMetaToken() {
   if (!token) { status.className='meta-status err'; status.innerText='Please paste your access token first.'; return; }
   status.className='meta-status loading'; status.innerText='Testing connection…';
   try {
-    // Test with smoke account, this month
-    const today = new Date(); const fmt = d => d.toISOString().slice(0,10);
-    const since = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+    // First verify the token itself is valid by hitting /me
+    const meResp = await fetch(`https://graph.facebook.com/v20.0/me?access_token=${token}`);
+    const meJson = await meResp.json();
+    if (meJson.error) throw new Error(`Token invalid: ${meJson.error.message}`);
+
+    // Then test account access — fetch last 30 days for smoke account
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    const since = fmt(new Date(today.getFullYear(), today.getMonth()-1, today.getDate()));
     const until = fmt(today);
     const smokeData = await fetchMetaInsights(SMOKE_ACCOUNT, token, since, until);
     const smokeTotal = smokeData.reduce((a,b)=>a+b.amount,0);
     META_TOKEN = token;
     status.className='meta-status ok';
-    status.innerText = `✓ Connected! Smoke Alarm spend this month: $${smokeTotal.toFixed(2)} AUD — click Load Dashboard to continue.`;
+    status.innerText = `Connected as ${meJson.name || meJson.id}. Smoke spend (last 30d): $${smokeTotal.toFixed(2)} — click Load Dashboard to continue.`;
     document.getElementById('btn-load').disabled = false;
   } catch(e) {
     status.className='meta-status err';
@@ -1218,39 +1335,49 @@ async function testMetaToken() {
   }
 }
 
-async function loadMetaSpend() {
+function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.toggle('active',v==='weekly'); document.getElementById('vbtn-d').classList.toggle('active',v==='daily'); renderCurrentProduct(); }
   if (!META_TOKEN) return;
-  const from = document.getElementById('dateFrom').value;
-  const to = document.getElementById('dateTo').value;
-  if (!from || !to) return;
+  // Always fetch the widest possible range for _ALL so date filtering works correctly.
+  // Use a fixed start date well before any campaigns existed, up to today.
+  const since = '2023-01-01';
+  const until = new Date().toISOString().slice(0,10);
   try {
     const [smokeData, hwsData] = await Promise.all([
-      fetchMetaInsights(SMOKE_ACCOUNT, META_TOKEN, from, to),
-      fetchMetaInsights(HWS_ACCOUNT, META_TOKEN, from, to)
+      fetchMetaInsights(SMOKE_ACCOUNT, META_TOKEN, since, until),
+      fetchMetaInsights(HWS_ACCOUNT,   META_TOKEN, since, until)
     ]);
+    // Store full datasets — getFilteredSpend will slice by date picker
     SMOKE_SPEND_ALL = smokeData;
-    HWS_SPEND_ALL = hwsData;
+    HWS_SPEND_ALL   = hwsData;
     SMOKE_SPEND = smokeData;
-    HWS_SPEND = hwsData;
-    // Update panel
-    const smokeTotal = smokeData.reduce((a,b)=>a+b.amount,0);
-    const hwsTotal   = hwsData.reduce((a,b)=>a+b.amount,0);
-    const smokeCpm   = smokeData.length ? (smokeData.reduce((a,b)=>a+b.cpm,0)/smokeData.length).toFixed(2) : '—';
-    const hwsCpm     = hwsData.length   ? (hwsData.reduce((a,b)=>a+b.cpm,0)/hwsData.length).toFixed(2)   : '—';
+    HWS_SPEND   = hwsData;
+    // Update panel totals using the current date picker range
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    const smokeFiltered = smokeData.filter(m => m.date >= from && m.date <= to);
+    const hwsFiltered   = hwsData.filter(m => m.date >= from && m.date <= to);
+    const smokeTotal = smokeFiltered.reduce((a,b)=>a+b.amount,0);
+    const hwsTotal   = hwsFiltered.reduce((a,b)=>a+b.amount,0);
+    const smokeCpm   = smokeFiltered.length ? (smokeFiltered.reduce((a,b)=>a+b.cpm,0)/smokeFiltered.length).toFixed(2) : '—';
+    const hwsCpm     = hwsFiltered.length   ? (hwsFiltered.reduce((a,b)=>a+b.cpm,0)/hwsFiltered.length).toFixed(2)     : '—';
     document.getElementById('meta-panel-smoke-spend').innerHTML = `<strong>Smoke:</strong> $${smokeTotal.toFixed(2)} spend · CPM $${smokeCpm}`;
     document.getElementById('meta-panel-hws-spend').innerHTML   = `<strong>HWS:</strong> $${hwsTotal.toFixed(2)} spend · CPM $${hwsCpm}`;
     document.getElementById('meta-last-refresh').innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
-    renderCurrentProduct();
+    // Now render with correct data
+    if(currentProduct==='smoke') renderSmoke();
+    else renderHws();
   } catch(e) {
     console.warn('Meta API refresh failed:', e.message);
   }
 }
 
 async function refreshMetaSpend() {
-  const btn = document.querySelector('#meta-live-panel button');
-  if (btn) { btn.innerText = '↻ Refreshing…'; btn.disabled = true; }
+  const btns = document.querySelectorAll('#meta-live-panel button');
+  btns.forEach(b=>{ b.innerText='Refreshing…'; b.disabled=true; });
   await loadMetaSpend();
-  if (btn) { btn.innerText = '↻ Refresh Spend'; btn.disabled = false; }
+  btns.forEach(b=>{ b.disabled=false; });
+  if(btns[0]) btns[0].innerText='Refresh CRM';
+  if(btns[1]) btns[1].innerText='Refresh Spend';
 }
 // ── END META API ─────────────────────────────────────────────────────────
 
