@@ -1,1273 +1,1032 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goldsure Sales Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body, button, input, label, h4, p, span, li, select, textarea {
-            font-family: 'Poppins', sans-serif;
-        }
-        /* ── COLOUR TOKENS ── */
-        :root {
-            --gold: #B08D2E;
-            --gold-hover: #9a7a24;
-            --gold-bg: #fdf8ee;
-            --gold-border: #e8d49a;
-            --raptor: #D3662B;
-            --black: #000000;
-            --gray-bg: #f3f4f6;
-            --card-bg: #ffffff;
-            --border: #e5e7eb;
-            --text: #111827;
-            --muted: #6b7280;
-            --green: #16a34a;
-            --green-bg: #f0fdf4;
-            --green-border: #bbf7d0;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Sales Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --green-bg: #eaf7f2;
+  --red: #e04f4f;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --gold: #b08d2e;
+  --gold-bg: #fef7e7;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(0,0,0,0.08);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-        body { background: var(--gray-bg); color: var(--text); min-height: 100vh; font-size: 13px; }
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; background: #000000; padding: 24px; /* full black */
+}
+.login-card {
+  background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08);
+  border-top: 3px solid var(--gold); border-radius: 20px;
+  padding: 44px 40px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo img { height: 52px; width: auto; margin: 0 auto 14px; display: block; }
+.login-logo h2 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.login-logo p  { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255,255,255,0.4); margin-bottom: 7px; }
+.login-field input {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 14px;
+  padding: 11px 14px; border-radius: 9px; border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.15s;
+}
+.login-field input::placeholder { color: rgba(255,255,255,0.2); }
+.login-field input:focus { border-color: var(--gold); }
+.login-error {
+  font-size: 12px; font-weight: 600; color: var(--red);
+  background: rgba(224,79,79,0.1); border: 1px solid rgba(224,79,79,0.25);
+  border-radius: 7px; padding: 9px 12px; margin-bottom: 14px; display: none;
+}
+.login-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 13px; border-radius: 9px; border: none; cursor: pointer;
+  background: var(--gold); color: #000; text-transform: uppercase; /* black text on gold */
+  letter-spacing: 0.5px; transition: background 0.15s; margin-top: 4px;
+}
+.login-btn:hover { background: #caa535; }
+.login-hint { font-size: 11px; color: rgba(255,255,255,0.22); text-align: center; margin-top: 16px; line-height: 1.6; }
 
-        /* ── HEADER ── */
-        .portal-header {
-            background: #000;
-            padding: 0 20px;
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            gap: 12px;
-        }
-        .logo-wrap { display: flex; align-items: center; gap: 10px; }
-        .logo-wrap img { height: 30px; width: auto; }
-        .logo-title { color: white; font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
+/* ── APP ── */
+#app { display: none; }
 
-        /* ── HEADER NAV BUTTONS ── */
-        .hbtn {
-            padding: 5px 13px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.15s;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            background: #1f2937;
-            color: #9ca3af;
-        }
-        .hbtn:hover { background: #374151; color: #fff; }
-        .hbtn.active { background: var(--gold) !important; color: #000 !important; }
-        .raptor-hbtn {
-            padding: 5px 13px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-            border: none;
-            background: var(--raptor);
-            color: white;
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            display: inline-flex;
-            align-items: center;
-            transition: background 0.15s;
-        }
-        .raptor-hbtn:hover { background: #b3521e; }
-        .ghl-hbtn {
-            padding: 5px 13px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-            border: 1px solid #166534;
-            background: #14532d;
-            color: #4ade80;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .ghl-hbtn:hover { background: #166534; }
+/* ── HEADER full black (navy turned to black) ── */
+header {
+  background: #000000; border-bottom: 3px solid var(--gold);
+  padding: 0 28px; display: flex; align-items: stretch;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 36px; width: auto; object-fit: contain; }
+.header-logo-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.header-logo-text span { color: var(--gold); }
+.hd { width: 1px; height: 28px; background: rgba(255,255,255,0.15); }
+.header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.5); }
+.header-right { display: flex; align-items: center; gap: 8px; }
 
-        /* ── CARD ── */
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 18px 20px;
-        }
+.agent-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(176,141,46,0.15); border: 1px solid rgba(176,141,46,0.3);
+  border-radius: 20px; padding: 5px 13px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.agent-name { font-size: 12px; font-weight: 600; color: var(--gold); }
 
-        /* ── STEP LABELS ── */
-        .step-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--muted);
-            margin-bottom: 10px;
-        }
-        .step-num {
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 9px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .step-gold { background: var(--gold); color: #000; }
-        .step-gray { background: #e5e7eb; color: #6b7280; }
+.nav-btn {
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 7px 14px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+  background: transparent; color: rgba(255,255,255,0.6); cursor: pointer;
+  text-decoration: none; transition: all 0.15s; display: inline-flex;
+  align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.3); }
+.nav-btn.active { background: var(--gold); color: #000; border-color: var(--gold); } /* black text on gold */
+.nav-btn.raptor { background: #d3662b; color: #fff; border-color: #d3662b; }
+.nav-btn.raptor:hover { background: #b3521e; }
+.nav-btn.logout { font-size: 10px; padding: 5px 10px; color: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.07); }
+.nav-btn.logout:hover { color: var(--red); border-color: rgba(224,79,79,0.3); background: rgba(224,79,79,0.06); }
 
-        /* ── SCRIPT BOX ── */
-        .script-box {
-            background: #fafafa;
-            border-left: 3px solid var(--gold);
-            border-radius: 0 8px 8px 0;
-            padding: 12px 14px;
-            font-size: 13px;
-            font-style: italic;
-            color: #374151;
-            line-height: 1.7;
-        }
+/* ── SUB-NAV now also black ── */
+.sub-nav {
+  background: #000000; border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 0 28px; display: flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 44px; flex-wrap: wrap;
+}
+.radio-label {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5);
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
+}
+.radio-label input { accent-color: var(--gold); }
+.radio-label:has(input:checked) { background: rgba(176,141,46,0.15); color: var(--gold); }
+.sub-divider { width: 1px; height: 22px; background: rgba(255,255,255,0.1); margin: 0 4px; }
+.sub-link {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 12px; border-radius: 6px;
+  background: rgba(176,141,46,0.12); color: var(--gold);
+  border: 1px solid rgba(176,141,46,0.25);
+  text-decoration: none; text-transform: uppercase; letter-spacing: 0.4px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.sub-link:hover { background: var(--gold); color: #000; }
 
-        /* ── INPUTS ── */
-        .finput {
-            width: 100%;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 11px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 13px;
-            color: var(--text);
-            background: #fff;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-        .finput:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(176,141,46,0.1); }
-        .finput::placeholder { color: #9ca3af; }
-        .flabel {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: var(--muted);
-            display: block;
-            margin-bottom: 4px;
-        }
+/* ── MAIN ── */
+main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
 
-        /* ── RADIO ── */
-        .radio-opt {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 12px;
-            color: #374151;
-            cursor: pointer;
-        }
-        .radio-opt input { accent-color: var(--gold); width: 13px; height: 13px; }
+.customer-bar {
+  grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 18px;
+  display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow);
+}
+.customer-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
+.customer-bar input { flex: 1; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
+.customer-bar input::placeholder { color: var(--border); }
 
-        /* ── SERVICE TABS ── */
-        .svc-tabs {
-            display: inline-flex;
-            background: #f3f4f6;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 3px;
-            gap: 2px;
-        }
-        .svc-tab {
-            padding: 6px 14px;
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 4px;
-            border: none;
-            background: transparent;
-            color: var(--muted);
-            cursor: pointer;
-            transition: all 0.15s;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .svc-tab.active { background: var(--gold); color: #000; }
+/* ── STEP CARDS ── */
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+.step-card:hover { box-shadow: var(--shadow-lg); }
+.step-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
+.step-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; }
+.step-1 .step-badge { background: #141c2e; color: #fff; }
+.step-2 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-3 .step-badge { background: #141c2e; color: #fff; }
+.step-4 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.step-body { padding: 12px 18px 16px; }
+.script-text { font-size: 13px; font-style: italic; color: var(--text); line-height: 1.7; font-weight: 500; }
+.script-text strong { font-style: normal; color: var(--blue); font-weight: 700; }
+.script-text .red { color: var(--red); font-weight: 700; font-style: normal; text-transform: uppercase; }
 
-        /* ── PRICING SIDEBAR ── */
-        .price-card {
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            position: sticky;
-            top: 64px;
-            border: 1px solid #1f2937;
-        }
-        .price-header {
-            background: var(--gold);
-            padding: 12px 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .price-header-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #000; }
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 9px 18px;
-            border-bottom: 1px solid #1f2937;
-            font-size: 12px;
-            color: #9ca3af;
-        }
-        .price-val { font-family: monospace; color: #fff; font-size: 12px; font-weight: 600; }
-        .price-total-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 13px 18px;
-            font-size: 14px;
-            font-weight: 700;
-            color: #fff;
-        }
-        .price-total-amount { font-family: monospace; color: var(--gold); font-size: 18px; font-weight: 700; }
+.input-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 14px 0; }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.field-input { font-family: 'Sora', sans-serif; font-size: 13px; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s; width: 100%; }
+.field-input:focus { border-color: var(--blue); background: var(--surface); }
 
-        /* ── ACTION BUTTONS ── */
-        .abtn {
-            width: 100%;
-            padding: 9px 12px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            cursor: pointer;
-            border: none;
-            transition: all 0.15s;
-        }
-        .abtn-gold { background: var(--gold); color: #000; }
-        .abtn-gold:hover { background: var(--gold-hover); }
-        .abtn-white { background: #fff; color: #000; border: 1px solid #e5e7eb; }
-        .abtn-white:hover { background: #f9fafb; }
-        .abtn-dark { background: #1f2937; color: #d1d5db; border: 1px solid #374151; }
-        .abtn-dark:hover { background: #374151; color: #fff; }
-        .abtn-green { background: #14532d; color: #4ade80; border: 1px solid #166534; }
-        .abtn-green:hover { background: #166534; }
+.storey-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; display: none; }
+.storey-box.visible { display: block; }
+.storey-box p { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.storey-radio { display: flex; gap: 16px; }
+.storey-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.storey-radio label:has(input:checked) { color: var(--text); }
 
-        /* ── GHL PANEL ── */
-        .ghl-panel {
-            background: var(--green-bg);
-            border: 1px solid var(--green-border);
-            border-radius: 10px;
-            padding: 14px 18px;
-        }
-        .ghl-connected-badge {
-            display: none;
-            align-items: center;
-            gap: 5px;
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--green);
-            background: #dcfce7;
-            border: 1px solid #86efac;
-            border-radius: 20px;
-            padding: 3px 10px;
-        }
-        .ghl-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 1.5s infinite; flex-shrink: 0; }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .ghl-search-input {
-            flex: 1;
-            border: 1px solid var(--green-border);
-            border-radius: 6px;
-            padding: 8px 11px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 13px;
-            background: #fff;
-            color: var(--text);
-            outline: none;
-        }
-        .ghl-search-input:focus { border-color: var(--green); }
-        .ghl-search-input::placeholder { color: #9ca3af; }
-        .ghl-contact-card {
-            background: #fff;
-            border: 1px solid var(--green-border);
-            border-radius: 8px;
-            padding: 12px 14px;
-            margin-top: 10px;
-        }
-        .ghl-field-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green); margin-bottom: 2px; }
-        .ghl-field-val { font-size: 12px; color: var(--text); font-weight: 500; }
+.controller-box { background: var(--blue-bg); border: 1px solid #c5d3f5; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.controller-box p { font-size: 12px; font-weight: 700; color: var(--blue); margin-bottom: 8px; }
+.ctrl-radio { display: flex; gap: 16px; margin-bottom: 8px; }
+.ctrl-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.ctrl-radio label:has(input:checked) { color: var(--blue); }
+.ctrl-qty-row { display: none; }
+.ctrl-qty-row.visible { display: flex; align-items: center; gap: 10px; }
+.ctrl-qty-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
 
-        /* ── POST-CALL SECTION ── */
-        .post-call-card {
-            background: var(--gold-bg);
-            border: 1px solid var(--gold-border);
-            border-radius: 10px;
-            padding: 16px 18px;
-        }
-        .stage-select {
-            width: 100%;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 11px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 13px;
-            background: #fff;
-            color: var(--text);
-            outline: none;
-            cursor: pointer;
-        }
-        .stage-select:focus { border-color: var(--gold); }
+.legislation-box { background: var(--gold-bg); border: 1px solid #e8d28a; border-radius: 8px; padding: 12px 14px; }
+.legislation-box h5 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); margin-bottom: 8px; }
+.legislation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.legislation-item { font-size: 10px; color: #7a6020; display: flex; align-items: center; gap: 5px; }
+.legislation-item::before { content: "✓"; color: var(--gold); font-weight: 700; }
 
-        /* ── LEGISLATION GRID ── */
-        .leg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; }
-        .leg-item { font-size: 10px; color: #374151; display: flex; align-items: flex-start; gap: 5px; padding: 2px 0; line-height: 1.4; }
-        .leg-item::before { content: '✓'; color: var(--gold); font-weight: 700; font-size: 9px; flex-shrink: 0; margin-top: 1px; }
+details.step-card summary { list-style: none; cursor: pointer; }
+details.step-card summary::-webkit-details-marker { display: none; }
+details.step-card .step-header { cursor: pointer; padding-bottom: 14px; }
+details.step-card[open] .step-header { padding-bottom: 0; }
+details.step-card .step-hint { font-size: 11px; color: var(--muted); padding: 2px 18px 12px 18px; }
+details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px solid var(--border); }
 
-        /* ── OBJECTION BOX ── */
-        .obj-box {
-            background: var(--gold-bg);
-            border: 1px solid var(--gold-border);
-            border-radius: 8px;
-            padding: 12px 14px;
-        }
+.service-block { display: none; }
+.service-block.active { display: block; }
 
-        /* ── DOCS LINKS ── */
-        .doc-link {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 0;
-            border-bottom: 1px solid #1f2937;
-            font-size: 11px;
-            color: #9ca3af;
-            text-decoration: none;
-            transition: color 0.15s;
-        }
-        .doc-link:hover { color: var(--gold); }
-        .doc-link:last-child { border-bottom: none; }
+/* ── SIDEBAR ── */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.price-card {
+  background: #000000; border-radius: var(--r); padding: 22px 20px;
+  border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg);
+  position: sticky; top: 80px;
+}
+.price-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.4); margin-bottom: 16px; text-align: center; }
+.price-line { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.price-line-label { font-size: 12px; color: rgba(255,255,255,0.6); }
+.price-line-val { font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #fff; }
+.price-line.balance .price-line-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+.price-line.balance .price-line-val { font-size: 11px; color: rgba(255,255,255,0.4); }
+.ctrl-summary-row { display: none; }
+.ctrl-summary-row.visible { display: flex; }
+.price-total-block { margin-top: 14px; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,0.15); display: flex; justify-content: space-between; align-items: baseline; }
+.price-total-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.price-total-val { font-size: 26px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--gold); }
 
-        /* ── TOAST ── */
-        .toast {
-            position: fixed; bottom: 20px; right: 20px;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px 16px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 9999;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            transform: translateY(60px);
-            opacity: 0;
-            transition: all 0.25s;
-        }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast.ok .ti { color: var(--green); }
-        .toast.err { border-color: #fca5a5; }
-        .toast.err .ti { color: #ef4444; }
+.action-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
+  padding: 11px 14px; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border: none; transition: all 0.15s; margin-bottom: 6px;
+}
+.action-btn:last-child { margin-bottom: 0; }
+.action-btn.primary { background: var(--gold); color: #000; } /* black text */
+.action-btn.primary:hover { background: #caa535; }
+.action-btn.secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); }
+.action-btn.secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
 
-        /* ── MODAL ── */
-        .modal-bg {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.55);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9000;
-        }
-        .modal-bg.open { display: flex; }
-        .modal-box {
-            background: #fff;
-            border-radius: 12px;
-            padding: 26px 28px;
-            max-width: 440px;
-            width: 94%;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.2);
-        }
-        .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
+.followup-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.1); }
+.followup-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.35); margin-bottom: 8px; }
+.sms-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 600;
+  padding: 8px 12px; border-radius: 7px; cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.3px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.1); transition: all 0.15s; margin-bottom: 5px; text-align: left;
+}
+.sms-btn:last-child { margin-bottom: 0; }
+.sms-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85); }
 
-        details > summary { list-style: none; cursor: pointer; }
-        details > summary::-webkit-details-marker { display: none; }
+/* Docs accordion – FIXED: now opens on click with improved toggle */
+.docs-accordion { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+.docs-toggle {
+  width: 100%; background: none; border: none; cursor: pointer; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.55);
+}
+.docs-toggle .arrow { transition: transform 0.2s; font-size: 9px; color: rgba(255,255,255,0.3); }
+.docs-list {
+  display: none; background: rgba(0,0,0,0.2);
+}
+.docs-list.open {
+  display: block;
+}
+.docs-list a {
+  display: block; font-family: 'Sora', sans-serif; font-size: 11px;
+  padding: 8px 14px; color: rgba(255,255,255,0.5); text-decoration: none;
+  border-top: 1px solid rgba(255,255,255,0.05); transition: color 0.15s;
+}
+.docs-list a:hover { color: var(--gold); }
 
-        /* ── PDF TEMPLATE ── */
-        #pdf-template { display: none; }
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #000000; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
 
-        /* controller row */
-        .ctrl-row { display: none; }
-        .ctrl-row.show { display: flex; }
+/* ── MODALS ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--surface); border-radius: 18px; padding: 32px 36px; max-width: 520px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.22); position: relative; max-height: 90vh; overflow-y: auto; }
+.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+.modal-box > p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.modal-close { position: absolute; top: 16px; right: 20px; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--muted); }
+.modal-close:hover { color: var(--text); }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.modal-field input, .modal-field textarea {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.modal-field input:focus, .modal-field textarea:focus { border-color: var(--blue); background: var(--surface); }
+.modal-field textarea { resize: vertical; min-height: 70px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+.modal-actions button { flex: 1; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; padding: 11px; border-radius: 9px; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+.modal-actions button.confirm { background: #000000; color: #fff; border-color: #000000; }
+.modal-actions button.confirm:hover { background: #2a3a5c; }
+.modal-actions button.gold { background: var(--gold); color: #000; border-color: var(--gold); }
+.modal-actions button.gold:hover { background: #caa535; }
+.modal-actions button:not(.confirm):not(.gold):hover { background: var(--surface); color: var(--text); }
 
-        /* divider */
-        .div { height: 1px; background: var(--border); margin: 14px 0; }
+/* Cellcast extras (removed all emojis) */
+.api-key-session-note {
+  font-size: 10px; color: var(--muted); background: var(--gold-bg);
+  border: 1px solid #e8d28a; border-radius: 7px; padding: 8px 11px;
+  margin-bottom: 14px; line-height: 1.5;
+}
+.api-key-session-note::before { content: "⚿"; margin-right: 4px; } /* key symbol only, not emoji face */
+.sms-type-tabs { display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: wrap; }
+.sms-type-btn {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 11px; border-radius: 7px; cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.3px; border: 1.5px solid var(--border);
+  background: var(--surface2); color: var(--muted); transition: all 0.15s;
+}
+.sms-type-btn.active { background: #000000; color: #fff; border-color: #000000; }
+.sms-preview-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); line-height: 1.6; white-space: pre-wrap; max-height: 130px; overflow-y: auto; margin-bottom: 6px; }
+.cellcast-status { font-size: 12px; font-weight: 600; min-height: 20px; margin-top: 8px; }
+.cellcast-status.ok { color: var(--green); }
+.cellcast-status.err { color: var(--red); }
+.cellcast-status.sending { color: var(--amber); }
 
-        textarea.finput { resize: vertical; min-height: 72px; }
-    </style>
+/* ── PDF ── */
+#pdf-template { display: none; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { order: -1; }
+  .price-card { position: static; }
+  header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  .sub-nav { padding: 8px 16px; }
+  main { padding: 16px; }
+  .login-card { padding: 32px 24px; }
+}
+</style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
-<header class="portal-header">
-    <div class="logo-wrap">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" onerror="this.style.display='none'">
-        <span class="logo-title">Sales Portal</span>
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <h2>Goldsure Sales Portal</h2>
+      <p>Agent Sign In</p>
     </div>
-    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/raptor-enquiry-workflow.html" target="_blank" class="raptor-hbtn">Purchase Enquiries</a>
-        <button onclick="setMode('inbound')" id="btn-inbound" class="hbtn">Inbound</button>
-        <button onclick="setMode('outbound')" id="btn-outbound" class="hbtn">Outbound</button>
-        <button onclick="setMode('social')" id="btn-social" class="hbtn">Social</button>
-        <button onclick="openConfig()" class="ghl-hbtn" id="ghl-header-btn">⚙ GHL</button>
+    <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
+    <div class="login-field">
+      <label>Your Name</label>
+      <input type="text" id="login-agent" placeholder="e.g. Shanira" autocomplete="name" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
     </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="login-hint">Your name will appear in all call scripts and SMS messages.<br>Contact your manager for the portal password.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="header-title">Sales Portal</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip">
+      <div class="agent-dot"></div>
+      <span class="agent-name" id="header-agent-name">Agent</span>
+    </div>
+    <div class="hd"></div>
+    <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/raptor-enquiry-workflow.html" target="_blank" class="nav-btn raptor">Purchase Enquiries</a>
+    <button onclick="setMode('inbound')"  id="btn-inbound"  class="nav-btn">Inbound Call</button>
+    <button onclick="setMode('outbound')" id="btn-outbound" class="nav-btn">Outbound (Missed)</button>
+    <button onclick="setMode('social')"   id="btn-social"   class="nav-btn active">Social / Online</button>
+    <button onclick="doLogout()" class="nav-btn logout">Sign Out</button>
+  </div>
 </header>
 
-<!-- ═══════════════════════════════ MAIN GRID ════════════════════════════ -->
-<div style="max-width:1280px; margin:0 auto; padding:18px 18px; display:grid; grid-template-columns:1fr 290px; gap:18px; align-items:start;">
+<div class="sub-nav">
+  <label class="radio-label"><input type="radio" name="serviceType" value="install" checked onchange="toggleService('install')"> Install Quote</label>
+  <label class="radio-label"><input type="radio" name="serviceType" value="inspection" onchange="toggleService('inspect')"> Inspection ($131)</label>
+  <div class="sub-divider"></div>
+  <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/smoke-alarm-troubleshooting.html" target="_blank" class="sub-link">Troubleshooting</a>
+  <a href="https://docs.google.com/spreadsheets/d/17YPF4VnAA0OCyYX-cWuNEWriw5RN8VRTD-PES89EXQ8/edit?gid=1558660794#gid=1558660794" target="_blank" class="sub-link">Active Electricians</a>
+  <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/employee-calendar.html" target="_blank" class="sub-link">Electrician Calendar</a>
+</div>
 
-<!-- ════════════ LEFT COLUMN ════════════ -->
-<div style="display:flex; flex-direction:column; gap:14px;">
+<main>
 
-    <!-- GHL SEARCH -->
-    <div class="ghl-panel">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--green);">GoHighLevel CRM</span>
-                <span id="ghl-not-connected-label" style="font-size:11px; color:var(--muted);">— not connected</span>
-                <span class="ghl-connected-badge" id="ghl-connected-badge"><span class="ghl-dot"></span>Connected</span>
-            </div>
-        </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-            <input type="tel" id="search-phone" class="ghl-search-input" placeholder="Search by phone number..." onkeydown="if(event.key==='Enter')searchGHL()" inputmode="tel">
-            <input type="text" id="search-name" class="ghl-search-input" placeholder="or search by name..." onkeydown="if(event.key==='Enter')searchGHL()">
-            <button onclick="searchGHL()" class="abtn abtn-green" style="white-space:nowrap; padding:9px 16px; font-size:11px;">Search</button>
-        </div>
-        <div id="ghl-loading" style="display:none; font-size:11px; color:var(--muted); margin-top:8px;">Searching…</div>
-        <div id="ghl-no-results" style="display:none; font-size:11px; color:#ef4444; margin-top:8px;">No contacts found.</div>
-        <div id="ghl-results" style="display:none;" class="ghl-contact-card">
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
-                <div><div class="ghl-field-lbl">Name</div><div class="ghl-field-val" id="ghl-r-name">—</div></div>
-                <div><div class="ghl-field-lbl">Phone</div><div class="ghl-field-val" id="ghl-r-phone">—</div></div>
-                <div><div class="ghl-field-lbl">Email</div><div class="ghl-field-val" id="ghl-r-email" style="font-size:11px;">—</div></div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
-                <div><div class="ghl-field-lbl">Address</div><div class="ghl-field-val" id="ghl-r-address" style="font-size:11px;">—</div></div>
-                <div><div class="ghl-field-lbl">Current Stage</div><div class="ghl-field-val" id="ghl-r-stage">—</div></div>
-            </div>
-            <button onclick="fillFromGHL()" class="abtn abtn-green" style="width:auto; padding:6px 14px; font-size:10px;">↙ Use This Contact</button>
-        </div>
+  <div class="customer-bar">
+    <label>Customer Name</label>
+    <input type="text" id="custName" oninput="updateName()" placeholder="Enter customer name…">
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps">
+
+    <div class="step-card step-1">
+      <div class="step-header"><span class="step-badge">Step 1</span><span class="step-title">Greeting</span></div>
+      <div class="step-body"><p id="script-greeting" class="script-text"></p></div>
     </div>
 
-    <!-- STEP 1: GREETING -->
-    <div class="card">
-        <div class="step-label"><span class="step-num step-gold">1</span> Greeting</div>
-        <div class="script-box" id="script-greeting">Select a mode above to load the greeting script.</div>
-        <div style="margin-top:12px;">
-            <label class="flabel">Customer Name</label>
-            <input type="text" id="custName" oninput="updateName()" placeholder="Enter customer name..." class="finput">
+    <div id="assessment-box" class="step-card step-2 service-block active">
+      <div class="step-header"><span class="step-badge">Step 2</span><span class="step-title">Property Assessment</span></div>
+      <div class="step-body">
+        <p class="script-text">"Can I please confirm the number of bedrooms? Is it a single or double storey home? Legislation requires one Smoke Alarm in each bedroom and in each hallway that connects the bedrooms, as well as on each level."</p>
+        <div class="input-grid">
+          <div class="field-group"><label>No. of Bedrooms</label><input type="number" id="bedrooms" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
+          <div class="field-group"><label>No. of Storeys</label><input type="number" id="levels" class="field-input" placeholder="1" min="1" oninput="toggleStoreyQ(); calculate();"></div>
+          <div class="field-group"><label>No. of Hallways</label><input type="number" id="hallways" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
         </div>
+        <div id="extraStoreyBox" class="storey-box">
+          <p>Does every level have a bedroom?</p>
+          <div class="storey-radio">
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()"> Yes</label>
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()"> No</label>
+          </div>
+        </div>
+        <div class="controller-box">
+          <p>Add Smoke Alarm Controller? ($49)</p>
+          <div class="ctrl-radio">
+            <label><input type="radio" name="wantController" value="no" checked onclick="toggleCtrlQty(false); calculate();"> No</label>
+            <label><input type="radio" name="wantController" value="yes" onclick="toggleCtrlQty(true); calculate();"> Yes</label>
+          </div>
+          <div class="ctrl-qty-row" id="controllerInput">
+            <label>Qty</label>
+            <input type="number" id="controllerQty" class="field-input" value="1" min="1" oninput="calculate()" style="width:80px;">
+          </div>
+        </div>
+        <div class="legislation-box">
+          <h5>Queensland Smoke Alarm Legislation (Effective 01/01/2027)</h5>
+          <div class="legislation-grid">
+            <span class="legislation-item">Photoelectric & Interconnected</span>
+            <span class="legislation-item">In each bedroom & connecting hallway</span>
+            <span class="legislation-item">Installed on each level</span>
+            <span class="legislation-item">10-year backup battery</span>
+            <span class="legislation-item">Less than 10 years old</span>
+            <span class="legislation-item">AS 3786-2014 or AS 3786-2023</span>
+            <span class="legislation-item">Hard-wired replaced with hard-wired</span>
+            <span class="legislation-item">10 Year Warranty included</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- STEP 2: ASSESSMENT -->
-    <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div class="step-label" style="margin-bottom:0;"><span class="step-num step-gold">2</span> Property Assessment</div>
-            <div class="svc-tabs">
-                <button class="svc-tab active" id="tab-install" onclick="toggleService('install')">Install Quote</button>
-                <button class="svc-tab" id="tab-inspect" onclick="toggleService('inspect')">Inspection ($131)</button>
-            </div>
-        </div>
-
-        <!-- INSTALL CONTENT -->
-        <div id="assessment-box">
-            <div class="script-box" style="font-size:12px; margin-bottom:14px;">"Can I please confirm the number of bedrooms? Is it a single or double storey home? Legislation requires one Smoke Alarm in each bedroom and in each hallway that connects the bedrooms, as well as on each level."</div>
-
-            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px;">
-                <div>
-                    <label class="flabel">No. of Bedrooms</label>
-                    <input type="number" id="bedrooms" oninput="calculate()" placeholder="0" min="0" class="finput" inputmode="numeric">
-                </div>
-                <div>
-                    <label class="flabel">No. of Storeys</label>
-                    <input type="number" id="levels" oninput="toggleStoreyQuestion(); calculate();" placeholder="1" min="1" class="finput" inputmode="numeric">
-                </div>
-                <div>
-                    <label class="flabel">No. of Hallways</label>
-                    <input type="number" id="hallways" oninput="calculate()" placeholder="0" min="0" class="finput" inputmode="numeric">
-                </div>
-            </div>
-
-            <div id="extraStoreyBox" class="hidden" style="background:#f9fafb; border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px;">
-                <p style="font-size:11px; font-weight:600; color:var(--text); margin-bottom:8px;">Does every level have a bedroom?</p>
-                <div style="display:flex; gap:16px;">
-                    <label class="radio-opt"><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()"> Yes</label>
-                    <label class="radio-opt"><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()"> No</label>
-                </div>
-            </div>
-
-            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:12px;">
-                <p style="font-size:11px; font-weight:700; color:#1d4ed8; margin-bottom:8px;">Add Smoke Alarm Controller? ($49 each)</p>
-                <div style="display:flex; gap:16px; margin-bottom:8px;">
-                    <label class="radio-opt" style="color:#1d4ed8;"><input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" style="accent-color:#1d4ed8;"> No</label>
-                    <label class="radio-opt" style="color:#1d4ed8;"><input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" style="accent-color:#1d4ed8;"> Yes</label>
-                </div>
-                <div id="controllerInput" class="hidden">
-                    <label class="flabel">QTY of Controllers</label>
-                    <input type="number" id="controllerQty" value="1" min="1" oninput="calculate()" class="finput" style="max-width:110px;" inputmode="numeric">
-                </div>
-            </div>
-
-            <div style="background:#f9fafb; border:1px solid var(--border); border-radius:8px; padding:12px;">
-                <p style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:8px;">QLD Smoke Alarm Legislation (Effective 01/01/2027)</p>
-                <div class="leg-grid">
-                    <div class="leg-item">Photoelectric &amp; Interconnected</div>
-                    <div class="leg-item">In each bedroom &amp; connecting hallway</div>
-                    <div class="leg-item">Installed on each level</div>
-                    <div class="leg-item">10-year backup battery</div>
-                    <div class="leg-item">Less than 10 years old</div>
-                    <div class="leg-item">AS 3786-2014 or AS 3786-2023</div>
-                    <div class="leg-item">Hard-wired replaced with hard-wired</div>
-                    <div class="leg-item">10 Year Warranty included</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- INSPECTION CONTENT -->
-        <div id="inspect-script-box" class="hidden">
-            <div class="script-box" style="font-size:12px;">"The inspection cost is <strong>$131 paid upfront</strong> to secure your booking. The electrician will check all alarms for 2027 QLD compliance. If the home is not compliant and you choose to make it compliant with us today, we <strong>WAIVE the $131 fee</strong>. We only charge the $33 booking fee plus required alarms."</div>
-        </div>
+    <div id="quote-script-box" class="step-card step-3 service-block active">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Presenting the Quote</span></div>
+      <div class="step-body">
+        <p class="script-text">"Based on your information you have provided, you will need <strong id="script-qty">0</strong> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."</p>
+        <br>
+        <p class="script-text">"The cost is $98 per smoke alarm payable on the day of installation and a $33 electrician fee which I need to take upfront to secure your booking."</p>
+      </div>
     </div>
 
-    <!-- STEP 3: QUOTE SCRIPT -->
-    <div id="quote-script-box" class="card">
-        <div class="step-label"><span class="step-num step-gold">3</span> Presenting the Quote</div>
-        <div class="script-box" style="font-size:12px;">"Based on your information you have provided, you will need <span id="script-qty" style="color:var(--gold); font-weight:700; font-style:normal;">0</span> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."<br><br>"The cost is <strong>$98 per smoke alarm</strong> payable on the day of installation and a <strong>$33 electrician fee</strong> which I need to take upfront to secure your booking."</div>
+    <div id="inspect-script-box" class="step-card step-3 service-block">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Inspection Service</span></div>
+      <div class="step-body">
+        <p class="script-text">"The inspection cost is <strong>$131 paid upfront</strong> to secure your booking. The electrician will check all alarms for 2027 QLD compliance."</p>
+        <br>
+        <p class="script-text">"If the home is not compliant and you choose to make it compliant with us today, we <strong>WAIVE the $131 fee</strong>. We only charge the $33 booking fee plus required alarms."</p>
+      </div>
     </div>
 
-    <!-- STEP 4: BOOKING -->
-    <details class="card" id="step4-details">
-        <summary style="display:flex; align-items:center; justify-content:space-between; user-select:none;">
-            <div class="step-label" style="margin-bottom:0;">
-                <span class="step-num step-gray" id="step4-num">4</span>
-                Secure Booking &amp; Payment
-            </div>
-            <span id="step4-hint" style="font-size:10px; color:var(--muted);">▼ expand</span>
-        </summary>
-        <div class="div"></div>
-        <div class="script-box" style="font-size:12px;">"Can we proceed with your contact details starting with: <strong>Your name, Your address, Your email address, Confirmation of your phone number</strong>" (Create job in Dataforce).<br><br>"I need to take the $33 call fee to secure your Electrician booking. Let me know when you are ready so I can <strong style="color:#dc2626;">PAUSE THE CALL RECORDING</strong> before we proceed with your card details. Can I please have your card details?"</div>
+    <details class="step-card step-4" id="step4-details">
+      <summary>
+        <div class="step-header"><span class="step-badge">Step 4</span><span class="step-title">Secure Booking & Payment</span></div>
+        <p class="step-hint" id="step4-hint">Click to expand booking details</p>
+      </summary>
+      <div class="step-body-inner">
+        <p class="script-text">"Can we proceed with your contact details starting with; <strong>Your name, Your address, Your email address, Confirmation of your phone number.</strong>" (Create job in Dataforce).</p>
+        <br>
+        <p class="script-text">"I need to take the $33 call fee to secure your Electrician booking. Let me know when you are ready so I can <span class="red">pause the call recording</span> before we proceed with your card details. Can I please have your card details?"</p>
+      </div>
     </details>
 
-    <!-- STEP 5: POST-CALL GHL (only shows when contact loaded) -->
-    <div id="post-call-section" style="display:none;" class="post-call-card">
-        <div class="step-label" style="margin-bottom:12px;"><span class="step-num step-gold">5</span> Post-Call — Update GHL</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-            <div>
-                <label class="flabel">Update Opportunity Stage</label>
-                <select class="stage-select" id="ghl-new-stage">
-                    <option value="">— Select Stage —</option>
-                    <option value="New Lead">New Lead</option>
-                    <option value="Follow Up">Follow Up</option>
-                    <option value="Quote Sent">Quote Sent</option>
-                    <option value="IHA Booked">IHA Booked</option>
-                    <option value="Won/Installed">Won / Installed</option>
-                    <option value="Not Interested/Spam">Not Interested</option>
-                    <option value="Not Reachable">Not Reachable</option>
-                    <option value="Out of Area">Out of Area</option>
-                </select>
-            </div>
-            <div>
-                <label class="flabel">Customer Email (for GHL email)</label>
-                <input type="email" id="ghl-email-field" class="finput" placeholder="customer@email.com">
-            </div>
-        </div>
-        <div style="margin-bottom:12px;">
-            <label class="flabel">Note to add to contact</label>
-            <textarea id="ghl-note" class="finput" style="min-height:72px;" placeholder="Auto-generated quote note will appear here..."></textarea>
-        </div>
-        <div style="display:flex; gap:8px;">
-            <button onclick="updateGHLStage()" class="abtn abtn-green" style="flex:1;">✓ Update Stage</button>
-            <button onclick="addGHLNote()" class="abtn" style="flex:1; background:#f3f4f6; color:#374151; border:1px solid var(--border);">📋 Add Note</button>
-            <button onclick="sendGHLEmail()" class="abtn abtn-gold" style="flex:1;">✉ Send Email</button>
-        </div>
-    </div>
+  </div><!-- /steps -->
 
-</div><!-- end left col -->
-
-<!-- ════════════ RIGHT SIDEBAR ════════════ -->
-<div>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
     <div class="price-card">
-        <!-- Header -->
-        <div class="price-header">
-            <span class="price-header-lbl">Pricing Summary</span>
-            <span style="font-size:10px; color:rgba(0,0,0,0.55); font-weight:600;" id="price-mode-lbl">Install</span>
-        </div>
+      <div class="price-card-title">Pricing Summary</div>
+      <div class="price-line">
+        <span class="price-line-label">Alarms (<span id="res_alarmQty">0</span> × $98.00)</span>
+        <span class="price-line-val" id="res_alarmTotal">$0.00</span>
+      </div>
+      <div class="price-line ctrl-summary-row" id="summary-controller-row">
+        <span class="price-line-label">Controllers (<span id="res_ctrlQty">0</span> × $49.00)</span>
+        <span class="price-line-val" id="res_ctrlTotal">$0.00</span>
+      </div>
+      <div class="price-line">
+        <span class="price-line-label" id="lbl-upfront">Booking Fee</span>
+        <span class="price-line-val" id="res-upfront">$33.00</span>
+      </div>
+      <div class="price-line balance">
+        <span class="price-line-label">Balance Due on Install</span>
+        <span class="price-line-val" id="res-balance">$0.00</span>
+      </div>
+      <div class="price-total-block">
+        <span class="price-total-label">Grand Total</span>
+        <span class="price-total-val" id="res-total">$33.00</span>
+      </div>
 
-        <!-- Rows -->
-        <div class="price-row">
-            <span>Alarms (<span id="res_alarmQty">0</span> × $98)</span>
-            <span class="price-val" id="res_alarmTotal">$0.00</span>
-        </div>
-        <div class="price-row ctrl-row" id="summary-controller-row">
-            <span>Controllers (<span id="res_ctrlQty">0</span> × $49)</span>
-            <span class="price-val" id="res_ctrlTotal">$0.00</span>
-        </div>
-        <div class="price-row">
-            <span id="lbl-upfront">Booking Fee</span>
-            <span class="price-val" id="res-upfront">$33.00</span>
-        </div>
-        <div class="price-row" style="font-size:11px; color:#6b7280;">
-            <span>Balance on Install</span>
-            <span class="price-val" style="font-size:11px;" id="res-balance">$0.00</span>
-        </div>
-        <div class="price-total-row">
-            <span>Grand Total</span>
-            <span class="price-total-amount" id="res-total">$33.00</span>
-        </div>
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:0;">
+        <button class="action-btn primary" onclick="openCellcastModal('quote')">Send Quote SMS (Cellcast)</button>
+        <button class="action-btn secondary" onclick="copySMS()">Copy Quote SMS</button>
+        <button class="action-btn secondary" onclick="sendEmail()">Email Quote Template</button>
+        <button class="action-btn primary" onclick="openPdfModal()">Download PDF Quote</button>
+      </div>
 
-        <!-- Primary actions -->
-        <div style="padding:10px 14px; display:flex; flex-direction:column; gap:7px; border-top:1px solid #1f2937;">
-            <button onclick="copySMS()" class="abtn abtn-gold">Copy Quote SMS</button>
-            <button onclick="sendEmail()" class="abtn abtn-white">Email Quote Template</button>
-            <button onclick="openPdfModal()" class="abtn abtn-white">Download PDF Quote</button>
-        </div>
+      <div class="followup-section">
+        <div class="followup-title">Follow-up SMS via Cellcast</div>
+        <button class="sms-btn" onclick="openCellcastModal('followup1')">1. Missed Call</button>
+        <button class="sms-btn" onclick="openCellcastModal('followup2')">2. Multiple Attempts</button>
+        <button class="sms-btn" onclick="openCellcastModal('followup3')">3. Quote Follow-Up</button>
+        <button class="sms-btn" onclick="openCellcastModal('followup4')">4. Out of Area</button>
+      </div>
 
-        <!-- Follow-up SMS -->
-        <div style="padding:0 14px 10px; border-top:1px solid #1f2937; padding-top:10px;">
-            <p style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#6b7280; margin-bottom:6px;">Follow-up SMS Templates</p>
-            <div style="display:flex; flex-direction:column; gap:5px;">
-                <button onclick="copyTemplateSMS(1)" class="abtn abtn-dark">1. Missed Call</button>
-                <button onclick="copyTemplateSMS(2)" class="abtn abtn-dark">2. Multiple Attempts</button>
-                <button onclick="copyTemplateSMS(3)" class="abtn abtn-dark">3. Quote Follow-Up</button>
-                <button onclick="copyTemplateSMS(4)" class="abtn abtn-dark">4. Out of Area</button>
-            </div>
+      <!-- Fixed docs accordion: toggleDocs function improved and arrow rotates -->
+      <div class="docs-accordion">
+        <button class="docs-toggle" onclick="toggleDocs(this)">Product & Compliance Docs<span class="arrow">▲</span></button>
+        <div class="docs-list" id="docs-list">
+          <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank">Raptor Smoke Alarm Data Sheet</a>
+          <a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank">Raptor Smoke Alarm Manual</a>
+          <a href="https://workdrive.zohopublic.com.au/external/2d2ebaa70546a87acbfeacda65bd2d68ce4c0c5ba53b77bce328fe53819797a7" target="_blank">UMS Brochure</a>
         </div>
-
-        <!-- Docs -->
-        <div style="padding:0 14px 10px; border-top:1px solid #1f2937; padding-top:10px;">
-            <details>
-                <summary style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#6b7280; padding:4px 0;">Product &amp; Compliance Docs ▾</summary>
-                <div style="margin-top:6px;">
-                    <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank" class="doc-link">📄 Raptor Smoke Alarm Data Sheet</a>
-                    <a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank" class="doc-link">🛠 Raptor Smoke Alarm Manual</a>
-                    <a href="https://workdrive.zohopublic.com.au/external/2d2ebaa70546a87acbfeacda65bd2d68ce4c0c5ba53b77bce328fe53819797a7" target="_blank" class="doc-link">📖 UMS Brochure</a>
-                </div>
-            </details>
-        </div>
-
-        <!-- Objection -->
-        <div style="padding:0 14px 10px; border-top:1px solid #1f2937; padding-top:10px;">
-            <div class="obj-box">
-                <p style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--gold); margin-bottom:5px;">Handling Price Objections</p>
-                <p style="font-size:10px; line-height:1.6; font-style:italic; color:#374151;">"The price is already discounted. For example, an electrician would charge at least $100 call out fee plus another $100 per hour. Our prices are fixed... we offer the best value in the market."</p>
-            </div>
-        </div>
-
-        <!-- Quick links -->
-        <div style="padding:0 14px 14px; display:flex; gap:7px; border-top:1px solid #1f2937; padding-top:10px;">
-            <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/smoke-alarm-troubleshooting.html" target="_blank" class="abtn abtn-dark" style="flex:1; text-align:center; text-decoration:none; display:block;">🔧 Troubleshoot</a>
-            <a href="https://docs.google.com/spreadsheets/d/17YPF4VnAA0OCyYX-cWuNEWriw5RN8VRTD-PES89EXQ8/edit" target="_blank" class="abtn abtn-dark" style="flex:1; text-align:center; text-decoration:none; display:block;">⚡ Electricians</a>
-            <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/employee-calendar.html" target="_blank" class="abtn abtn-dark" style="flex:1; text-align:center; text-decoration:none; display:block;">📅 Calendar</a>
-        </div>
+      </div>
     </div>
-</div><!-- end right col -->
+  </div>
 
-</div><!-- end grid -->
+</main>
 
-<!-- ═══════════════════════════════ PDF TEMPLATE ═════════════════════════ -->
-<div id="pdf-template" style="display:none; padding:40px; background:white; color:#000; font-family:'Poppins',sans-serif;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #B08D2E; padding-bottom:22px; margin-bottom:24px;">
-        <div style="display:flex; align-items:flex-start; gap:14px;">
-            <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:52px; width:auto;" crossorigin="anonymous">
-            <div>
-                <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; color:#000;">QUOTE</div>
-                <div style="font-size:11px; color:#555;">Goldsure Pty Ltd</div>
-                <div style="font-size:11px; color:#555;">ABN: 66 683 305 106</div>
-                <div style="font-size:11px; color:#555;">Phone: (07) 2145 5155</div>
-                <div style="font-size:11px;"><a href="https://www.goldsure.com.au" style="color:#B08D2E;">www.goldsure.com.au</a></div>
-            </div>
-        </div>
-        <div style="text-align:right;">
-            <div style="font-size:11px; color:#555; margin-bottom:6px;">Date: <span id="pdf-date"></span></div>
-            <div id="pdf-cust-name" style="font-size:14px; font-weight:700;"></div>
-            <div id="pdf-cust-address" style="font-size:11px; color:#555; margin-top:2px; white-space:pre-line;"></div>
-        </div>
+<footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
+  <div style="max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072 · ABN: 66 683 305 106</div>
+      </div>
     </div>
-    <div style="background:#fdf8ee; border-radius:6px; padding:11px 14px; margin-bottom:18px;">
-        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#B08D2E; margin-bottom:5px;">Property Details</div>
-        <div style="font-size:12px; color:#333;">
-            Bedrooms: <strong id="pdf-bedrooms">0</strong> &nbsp;|&nbsp;
-            Storeys: <strong id="pdf-storeys">1</strong> &nbsp;|&nbsp;
-            Hallways: <strong id="pdf-hallways">0</strong> &nbsp;|&nbsp;
-            Service: <strong id="pdf-service-type">Installation</strong>
-        </div>
+    <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
+      <div>Phone: <a href="tel:0721455155" style="color:var(--blue);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--blue);text-decoration:none;">+61 451 898 761</a></div>
+      <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue);text-decoration:none;">vignesh@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--blue);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
-    <table style="width:100%; border-collapse:collapse; margin-bottom:22px;">
-        <thead>
-            <tr style="background:#B08D2E;">
-                <th style="padding:9px 12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#fff;">Description</th>
-                <th style="padding:9px 12px; text-align:center; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#fff;">Qty</th>
-                <th style="padding:9px 12px; text-align:right; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#fff;">Unit Price</th>
-                <th style="padding:9px 12px; text-align:right; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#fff;">Total</th>
-            </tr>
-        </thead>
-        <tbody id="pdf-table-body" style="font-size:12px;"></tbody>
-    </table>
-    <div style="display:flex; justify-content:flex-end; margin-bottom:28px;">
-        <div style="width:260px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid #eee;"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid #eee;"><span>GST (10%)</span><span id="pdf-gst"></span></div>
-            <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:800; padding:9px 0; border-top:2px solid #B08D2E; margin-top:2px;"><span>Total (Incl. GST)</span><span id="pdf-grand-total" style="color:#B08D2E;"></span></div>
-        </div>
+  </div>
+</footer>
+
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CELLCAST SMS MODAL -->
+<div class="modal-overlay" id="cellcastModal" onclick="if(event.target===this)closeCellcastModal()">
+  <div class="modal-box" style="max-width:560px;">
+    <button class="modal-close" onclick="closeCellcastModal()">&times;</button>
+    <h2>Send SMS via Cellcast</h2>
+    <p>Sending as <strong id="cellcast-agent-label">Agent</strong> · To: <strong id="cellcast-cust-label">customer</strong></p>
+
+    <div class="api-key-session-note">
+      Your API key is saved in this session only — it is never stored or sent anywhere except directly to Cellcast. You only need to paste it once per login session.
     </div>
-    <div style="font-size:10px; color:#555; line-height:1.7; border-top:1px solid #eee; padding-top:18px;">
-        <p style="font-style:italic; margin-bottom:10px;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
-        <p style="font-weight:700; margin-bottom:3px;">Booking Fee ($33)</p>
-        <p style="margin-bottom:10px;">Required upfront to secure the Electrician on the agreed installation date. Fully refundable if installation cannot be completed.</p>
-        <p style="font-weight:700; margin-bottom:3px; text-transform:uppercase;">QLD Smoke Alarm Legislation</p>
-        <ul style="margin-left:16px; margin-bottom:10px;">
-            <li>Photoelectric and interconnected smoke alarms</li>
-            <li>Installed in each bedroom and in hallways connecting bedrooms</li>
-            <li>Installed on each level of the dwelling</li>
-            <li>10-year sealed lithium backup battery</li>
-            <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
-            <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
-        </ul>
-        <p style="font-weight:700; margin-bottom:3px;">Product Assurance</p>
-        <p style="margin-bottom:10px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms with a <strong>10-Year Manufacturer's Warranty</strong>.</p>
-        <p><a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color:#B08D2E;">View Smoke Alarm Datasheet →</a></p>
+
+    <div class="modal-field">
+      <label>Cellcast API Key</label>
+      <input type="password" id="cellcast-api-key" placeholder="Paste your Cellcast API key…" oninput="saveCellcastKey()">
     </div>
+
+    <div class="modal-field">
+      <label>Recipient Mobile Number</label>
+      <input type="tel" id="cellcast-phone" placeholder="04XX XXX XXX">
+    </div>
+
+    <div class="modal-field">
+      <label>Message Type</label>
+      <div class="sms-type-tabs" id="sms-type-tabs">
+        <button class="sms-type-btn active"  onclick="setSmsType('quote',     this)">Quote</button>
+        <button class="sms-type-btn"         onclick="setSmsType('followup1', this)">Missed Call</button>
+        <button class="sms-type-btn"         onclick="setSmsType('followup2', this)">Multi-Attempt</button>
+        <button class="sms-type-btn"         onclick="setSmsType('followup3', this)">Quote F/U</button>
+        <button class="sms-type-btn"         onclick="setSmsType('followup4', this)">Out of Area</button>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>Message Preview <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--green);">(editable)</span></label>
+      <textarea id="cellcast-preview" style="min-height:140px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;"></textarea>
+    </div>
+
+    <div id="cellcast-status" class="cellcast-status"></div>
+
+    <div class="modal-actions" style="margin-top:14px;">
+      <button onclick="closeCellcastModal()">Cancel</button>
+      <button class="gold" onclick="sendCellcastSMS()">Send SMS Now</button>
+    </div>
+  </div>
 </div>
 
-<!-- ═══════════════════════════════ PDF MODAL ════════════════════════════ -->
-<div class="modal-bg" id="pdfModal">
-    <div class="modal-box">
-        <div class="modal-title">Download PDF Quote</div>
-        <div style="display:flex; flex-direction:column; gap:11px;">
-            <div>
-                <label class="flabel">Customer Name *</label>
-                <input type="text" id="pdfCustomerName" placeholder="Full Name" class="finput">
-            </div>
-            <div>
-                <label class="flabel">Customer Address (Optional)</label>
-                <textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode" class="finput" style="min-height:64px;"></textarea>
-            </div>
-            <div style="display:flex; gap:8px; margin-top:6px;">
-                <button onclick="closePdfModal()" class="abtn" style="flex:1; background:#f3f4f6; color:#374151; border:1px solid var(--border);">Cancel</button>
-                <button onclick="generatePDF()" class="abtn abtn-gold" style="flex:1;">Generate PDF</button>
-            </div>
-        </div>
+<!-- PDF MODAL -->
+<div class="modal-overlay" id="pdfModal" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    <h2>Generate PDF Quote</h2>
+    <p>Enter customer details for the quote document.</p>
+    <div class="modal-field"><label>Customer Name</label><input type="text" id="pdfCustomerName" placeholder="Full Name"></div>
+    <div class="modal-field"><label>Customer Address (Optional)</label><textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode"></textarea></div>
+    <div class="modal-actions">
+      <button onclick="closePdfModal()">Cancel</button>
+      <button class="confirm" onclick="generatePDF()">Generate PDF</button>
     </div>
+  </div>
 </div>
 
-<!-- ═══════════════════════════════ CONFIG MODAL ═════════════════════════ -->
-<div class="modal-bg" id="configModal">
-    <div class="modal-box" style="max-width:460px;">
-        <div class="modal-title">⚙ GHL Configuration</div>
-        <div style="display:flex; flex-direction:column; gap:11px;">
-            <div>
-                <label class="flabel">API Key (Location-level, starts with <code style="background:#f3f4f6; padding:1px 4px; border-radius:3px; font-size:10px;">pit-</code>)</label>
-                <input type="password" id="config-api-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="finput">
-            </div>
-            <div>
-                <label class="flabel">Location ID <span style="color:var(--green); font-size:10px;">(Pre-filled)</span></label>
-                <input type="text" id="config-location-id" value="11epCbQAg9B4rQt5yHjw" class="finput" style="color:var(--green); background:#f0fdf4;" readonly>
-            </div>
-            <div>
-                <label class="flabel">Agent Name (used in scripts)</label>
-                <input type="text" id="config-agent-name" placeholder="e.g. Shanira" class="finput">
-            </div>
-            <div style="font-size:11px; color:var(--muted); background:#f9fafb; border:1px solid var(--border); border-radius:6px; padding:10px; line-height:1.6;">
-                ℹ️ Your API key is stored in browser memory only and is never sent anywhere except GHL's official API (<code style="font-size:10px;">services.leadconnectorhq.com</code>). Use a <strong>Location API key</strong> from GHL → Settings → API Keys, not an Agency key.
-            </div>
-            <div id="config-status" style="font-size:12px; min-height:16px; font-weight:500;"></div>
-            <div style="display:flex; gap:8px; margin-top:4px;">
-                <button onclick="closeConfig()" class="abtn" style="flex:1; background:#f3f4f6; color:#374151; border:1px solid var(--border);">Cancel</button>
-                <button onclick="testAndSaveConfig()" class="abtn abtn-green" style="flex:1;">Test &amp; Save</button>
-            </div>
-        </div>
+<!-- PDF TEMPLATE (hidden) -->
+<div id="pdf-template" style="display:none;padding:32px 36px;background:white;font-family:'Sora',sans-serif;color:#141c2e;max-width:780px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141c2e;padding-bottom:24px;margin-bottom:28px;">
+    <div>
+      <div style="font-size:26px;font-weight:700;letter-spacing:-0.5px;">QUOTE</div>
+      <div style="margin-top:8px;font-size:12px;color:#6b7899;line-height:1.9;">
+        <strong style="color:#141c2e;">Goldsure Pty Ltd</strong><br>
+        ABN: 66 683 305 106<br>
+        Suite 4, Level 1, 293 High Street, Preston VIC 3072<br>
+        Phone: (07) 2145 5155<br>
+        <a href="https://www.goldsure.com.au" style="color:#2d6be4;">www.goldsure.com.au</a>
+      </div>
     </div>
+    <div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.9;">
+      Date: <strong id="pdf-date" style="color:#141c2e;"></strong><br>
+      <strong id="pdf-cust-name" style="color:#141c2e;font-size:13px;"></strong><br>
+      <span id="pdf-cust-address" style="white-space:pre-line;"></span>
+    </div>
+  </div>
+  <div style="margin-bottom:20px;font-size:12px;color:#6b7899;line-height:1.8;">
+    <strong style="color:#141c2e;">Property Details:</strong>&nbsp;
+    Bedrooms: <span id="pdf-bedrooms">0</span> &nbsp;|&nbsp;
+    Storeys: <span id="pdf-storeys">1</span> &nbsp;|&nbsp;
+    Hallways: <span id="pdf-hallways">0</span> &nbsp;|&nbsp;
+    Service: <span id="pdf-service-type">Installation</span>
+  </div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
+    <thead>
+      <tr style="background:#f0f2f5;">
+        <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Description</th>
+        <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Qty</th>
+        <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Unit Price</th>
+        <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Total</th>
+      </tr>
+    </thead>
+    <tbody id="pdf-table-body"></tbody>
+  </table>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
+    <div style="width:240px;">
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid #e3e7ef;"><span style="color:#6b7899;">Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid #e3e7ef;"><span style="color:#6b7899;">GST (10%)</span><span id="pdf-gst"></span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-size:16px;font-weight:700;border-top:2px solid #141c2e;margin-top:4px;"><span>Total (Incl. GST)</span><span id="pdf-grand-total" style="color:#b08d2e;"></span></div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#6b7899;line-height:1.7;border-top:1px solid #e3e7ef;padding-top:20px;">
+    <p style="margin-bottom:10px;font-style:italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+    <p style="font-weight:700;color:#141c2e;margin-bottom:4px;">Booking Fee – What is the $33 Booking Fee?</p>
+    <p style="margin-bottom:14px;">This fee is required upfront to secure the Electrician on the installation date agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+    <p style="font-weight:700;color:#141c2e;text-transform:uppercase;margin-bottom:6px;">Queensland Smoke Alarm Legislation:</p>
+    <ul style="list-style:disc;margin-left:20px;margin-bottom:14px;">
+      <li>Photoelectric and interconnected smoke alarms</li>
+      <li>Installed in each bedroom and in hallways connecting bedrooms</li>
+      <li>Installed on each level of the dwelling</li>
+      <li>10-year sealed lithium backup battery</li>
+      <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
+      <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
+    </ul>
+    <p style="font-weight:700;color:#141c2e;margin-bottom:4px;">Product Assurance:</p>
+    <p style="margin-bottom:10px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet Queensland compliance requirements. Each alarm supplied and installed includes a <strong>10-Year Manufacturer's Warranty</strong>.</p>
+    <p><a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color:#2d6be4;">Click here to view the Smoke Alarm Datasheet</a></p>
+  </div>
 </div>
 
-<!-- ═══════════════════════════════ TOAST ════════════════════════════════ -->
-<div class="toast" id="toast"><span class="ti" id="ti">✓</span><span id="toast-msg">Done</span></div>
-
-<!-- ═══════════════════════════════ SCRIPT ═══════════════════════════════ -->
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────────────
-const HARDCODED_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
-// Try multiple CORS proxies in order
-const CORS_PROXIES = [
-    'https://corsproxy.io/?url=',
-    'https://api.allorigins.win/raw?url=',
-];
+// ════════════════════════════════════════
+// CONSTANTS & STATE
+// ════════════════════════════════════════
+const PORTAL_PASSWORD = 'cellcast'; // ← change this to update the shared password
 
-let GHL_API_KEY = '';
-let AGENT_NAME = 'Shanira';
-let GHL_CONNECTED = false;
-let currentContact = null;
-let serviceMode = 'install';
-let customerName = '';
+let agentName      = '';
+let customerName   = '';
+let serviceMode    = 'install';
+let activeSmsType  = 'quote';
+let cellcastApiKey = ''; // session memory only — cleared on logout/refresh
+
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-// ── TOAST ─────────────────────────────────────────────────────────────────
-function toast(msg, type = 'ok') {
-    const el = document.getElementById('toast');
-    document.getElementById('ti').innerText = type === 'ok' ? '✓' : '✗';
-    document.getElementById('toast-msg').innerText = msg;
-    el.className = `toast ${type} show`;
-    setTimeout(() => el.className = `toast ${type}`, 3000);
+// ════════════════════════════════════════
+// LOGIN / LOGOUT
+// ════════════════════════════════════════
+function doLogin() {
+  const agent = document.getElementById('login-agent').value.trim();
+  const pass  = document.getElementById('login-pass').value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!agent) { errEl.style.display='block'; errEl.innerText='Please enter your name first.'; return; }
+  if (pass !== PORTAL_PASSWORD) { errEl.style.display='block'; errEl.innerText='Incorrect password. Please try again.'; return; }
+  errEl.style.display = 'none';
+  agentName = agent;
+  document.getElementById('header-agent-name').innerText = agentName;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setMode('social');
+  calculate();
 }
 
-// ── GHL API HELPER — tries proxies in order ───────────────────────────────
-async function ghlFetch(path, options = {}) {
-    const target = `https://services.leadconnectorhq.com${path}`;
-    const headers = {
-        'Authorization': `Bearer ${GHL_API_KEY}`,
-        'Version': '2021-07-28',
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-    };
-
-    let lastErr = null;
-    for (const proxy of CORS_PROXIES) {
-        try {
-            const url = proxy + encodeURIComponent(target);
-            const resp = await fetch(url, { ...options, headers });
-            const text = await resp.text();
-            let json;
-            try { json = JSON.parse(text); } catch(e) { continue; }
-            if (json.statusCode >= 400 || json.error || json.message?.toLowerCase().includes('not valid')) {
-                throw new Error(json.message || json.error || `HTTP ${json.statusCode}`);
-            }
-            return json;
-        } catch(e) {
-            lastErr = e;
-        }
-    }
-    throw lastErr || new Error('All proxies failed');
+function doLogout() {
+  agentName = customerName = cellcastApiKey = '';
+  document.getElementById('login-agent').value = '';
+  document.getElementById('login-pass').value  = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('custName').value = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
 }
 
-// ── CONFIG MODAL ──────────────────────────────────────────────────────────
-function openConfig() {
-    if (GHL_API_KEY) document.getElementById('config-api-key').value = GHL_API_KEY;
-    document.getElementById('config-agent-name').value = AGENT_NAME;
-    document.getElementById('config-status').innerText = '';
-    document.getElementById('configModal').classList.add('open');
-}
-function closeConfig() { document.getElementById('configModal').classList.remove('open'); }
-
-async function testAndSaveConfig() {
-    const key = document.getElementById('config-api-key').value.trim();
-    const agent = document.getElementById('config-agent-name').value.trim();
-    const statusEl = document.getElementById('config-status');
-    if (!key) { statusEl.style.color = '#dc2626'; statusEl.innerText = 'Please enter your API key.'; return; }
-    statusEl.style.color = '#d97706'; statusEl.innerText = 'Testing connection…';
-    // Temporarily set key for test
-    const prevKey = GHL_API_KEY;
-    GHL_API_KEY = key;
-    try {
-        const json = await ghlFetch(`/contacts/?locationId=${HARDCODED_LOCATION_ID}&limit=1`);
-        GHL_CONNECTED = true;
-        if (agent) AGENT_NAME = agent;
-        statusEl.style.color = '#16a34a';
-        statusEl.innerText = `✓ Connected successfully!`;
-        document.getElementById('ghl-not-connected-label').style.display = 'none';
-        document.getElementById('ghl-connected-badge').style.display = 'inline-flex';
-        document.getElementById('ghl-header-btn').style.background = '#14532d';
-        document.getElementById('ghl-header-btn').style.color = '#4ade80';
-        setTimeout(() => { closeConfig(); setMode(document.querySelector('.hbtn.active')?.id?.replace('btn-','') || 'social'); }, 1000);
-    } catch(e) {
-        GHL_API_KEY = prevKey;
-        statusEl.style.color = '#dc2626';
-        statusEl.innerText = 'Error: ' + e.message;
-    }
-}
-
-// ── GHL SEARCH ────────────────────────────────────────────────────────────
-async function searchGHL() {
-    if (!GHL_CONNECTED) { toast('Configure GHL API key first — click ⚙ GHL', 'err'); openConfig(); return; }
-    const phone = document.getElementById('search-phone').value.trim();
-    const name  = document.getElementById('search-name').value.trim();
-    if (!phone && !name) { toast('Enter phone or name to search', 'err'); return; }
-
-    document.getElementById('ghl-results').style.display   = 'none';
-    document.getElementById('ghl-no-results').style.display = 'none';
-    document.getElementById('ghl-loading').style.display    = 'block';
-
-    try {
-        let contacts = [];
-
-        // ① Phone search (most reliable)
-        if (phone) {
-            try {
-                const r = await ghlFetch(`/contacts/search/duplicate?locationId=${HARDCODED_LOCATION_ID}&phone=${encodeURIComponent(phone)}`);
-                if (r.contact) contacts = [r.contact];
-            } catch(e) {}
-
-            // Fallback: general query with phone
-            if (!contacts.length) {
-                const r2 = await ghlFetch(`/contacts/?locationId=${HARDCODED_LOCATION_ID}&query=${encodeURIComponent(phone)}&limit=5`);
-                contacts = r2.contacts || r2.contact ? (r2.contacts || [r2.contact]) : [];
-            }
-        }
-
-        // ② Name search if phone gave nothing
-        if (!contacts.length && name) {
-            const r = await ghlFetch(`/contacts/?locationId=${HARDCODED_LOCATION_ID}&query=${encodeURIComponent(name)}&limit=5`);
-            contacts = r.contacts || [];
-        }
-
-        document.getElementById('ghl-loading').style.display = 'none';
-
-        if (!contacts.length) {
-            document.getElementById('ghl-no-results').style.display = 'block';
-            return;
-        }
-
-        const c = contacts[0];
-        currentContact = c;
-        currentContact._opportunityId = null;
-        currentContact._pipelineId = null;
-
-        // Try to fetch linked opportunity stage
-        try {
-            const opp = await ghlFetch(`/opportunities/search?location_id=${HARDCODED_LOCATION_ID}&contact_id=${c.id}&limit=1`);
-            const o = (opp.opportunities || [])[0];
-            if (o) {
-                currentContact._opportunityId = o.id;
-                currentContact._pipelineId = o.pipelineId;
-                document.getElementById('ghl-r-stage').innerText = o.pipelineStage?.name || o.status || '—';
-            }
-        } catch(e) {
-            document.getElementById('ghl-r-stage').innerText = '—';
-        }
-
-        const addr = [c.address1, c.city, c.state, c.postalCode].filter(Boolean).join(', ');
-        document.getElementById('ghl-r-name').innerText    = [c.firstName, c.lastName].filter(Boolean).join(' ') || '—';
-        document.getElementById('ghl-r-phone').innerText   = c.phone || '—';
-        document.getElementById('ghl-r-email').innerText   = c.email || '—';
-        document.getElementById('ghl-r-address').innerText = addr || '—';
-        document.getElementById('ghl-results').style.display = 'block';
-
-    } catch(e) {
-        document.getElementById('ghl-loading').style.display = 'none';
-        toast('Search error: ' + e.message, 'err');
-    }
-}
-
-function fillFromGHL() {
-    if (!currentContact) return;
-    const fullName = [currentContact.firstName, currentContact.lastName].filter(Boolean).join(' ');
-    document.getElementById('custName').value = fullName;
-    customerName = fullName;
-    updateName();
-    if (currentContact.email) document.getElementById('ghl-email-field').value = currentContact.email;
-    document.getElementById('post-call-section').style.display = 'block';
-    generateNotePreview();
-    toast('Contact loaded: ' + fullName);
-}
-
-function generateNotePreview() {
-    const qty   = document.getElementById('res_alarmQty').innerText;
-    const total = document.getElementById('res-total').innerText;
-    const mode  = serviceMode === 'install' ? 'Installation Quote' : 'Inspection';
-    document.getElementById('ghl-note').value =
-        `📋 ${mode} — ${new Date().toLocaleDateString('en-AU')}\nAgent: ${AGENT_NAME}\nAlarms Quoted: ${qty}\nGrand Total: ${total}\n\nGenerated via Goldsure Sales Portal.`;
-}
-
-// ── POST-CALL GHL ACTIONS ─────────────────────────────────────────────────
-async function updateGHLStage() {
-    if (!currentContact?._opportunityId) { toast('No opportunity linked to this contact', 'err'); return; }
-    const stage = document.getElementById('ghl-new-stage').value;
-    if (!stage) { toast('Please select a stage', 'err'); return; }
-    try {
-        await ghlFetch(`/opportunities/${currentContact._opportunityId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ status: stage })
-        });
-        toast('Stage updated → ' + stage);
-    } catch(e) { toast('Stage error: ' + e.message, 'err'); }
-}
-
-async function addGHLNote() {
-    if (!currentContact?.id) { toast('No contact loaded', 'err'); return; }
-    const note = document.getElementById('ghl-note').value.trim();
-    if (!note) { toast('Note is empty', 'err'); return; }
-    try {
-        await ghlFetch(`/contacts/${currentContact.id}/notes`, {
-            method: 'POST',
-            body: JSON.stringify({ body: note })
-        });
-        toast('Note added to contact ✓');
-    } catch(e) { toast('Note error: ' + e.message, 'err'); }
-}
-
-async function sendGHLEmail() {
-    if (!currentContact?.id) { toast('No contact loaded', 'err'); return; }
-    const email   = document.getElementById('ghl-email-field').value.trim();
-    if (!email)   { toast('Please enter customer email', 'err'); return; }
-
-    const qty        = document.getElementById('res_alarmQty').innerText;
-    const total      = document.getElementById('res-total').innerText;
-    const alarmTotal = document.getElementById('res_alarmTotal').innerText;
-    const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
-    const ctrlTotal  = document.getElementById('res_ctrlTotal').innerText;
-    const nameStr    = customerName || 'there';
-
-    let items = '';
-    if (serviceMode === 'install') {
-        items += `<li>Smoke Alarms (${qty} × $98.00): ${alarmTotal}</li>`;
-        if (ctrlQty > 0) items += `<li>Controllers (${ctrlQty} × $49.00): ${ctrlTotal}</li>`;
-        items += `<li>Booking Fee: $33.00</li>`;
-    } else {
-        items += `<li>Inspection Fee: $131.00</li>`;
-    }
-
-    const html = `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;">
-<div style="background:#B08D2E;padding:18px 22px;border-radius:8px 8px 0 0;">
-<span style="color:#fff;font-size:18px;font-weight:700;letter-spacing:0.06em;">GOLDSURE</span>
-</div>
-<div style="background:#fafafa;padding:22px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;">
-<p style="margin:0 0 12px;">Hi ${nameStr},</p>
-<p style="margin:0 0 12px;">Thank you for your enquiry. Based on the details you provided, here is your smoke alarm quote:</p>
-<ul style="background:#fff;padding:14px 18px;border-radius:6px;border:1px solid #eee;margin:0 0 12px;">${items}</ul>
-<p style="font-size:16px;font-weight:700;color:#B08D2E;margin:0 0 12px;">Grand Total: ${total}</p>
-<p style="font-size:12px;color:#666;font-style:italic;margin:0 0 12px;">This is an estimate based on information provided. Final confirmation will be made on-site by a licensed electrician.</p>
-<p style="margin:0 0 4px;">To proceed or for any questions, reply to this email or call <strong>(07) 2145 5155</strong>.</p>
-<p style="margin:12px 0 0;">Regards,<br><strong>${AGENT_NAME}</strong><br>Goldsure Pty Ltd</p>
-</div></div>`;
-
-    try {
-        await ghlFetch('/conversations/messages/outbound', {
-            method: 'POST',
-            body: JSON.stringify({
-                type: 'Email',
-                contactId: currentContact.id,
-                locationId: HARDCODED_LOCATION_ID,
-                subject: 'Your Smoke Alarm Quote — Goldsure',
-                html
-            })
-        });
-        toast('Quote email sent via GHL ✓');
-    } catch(e) {
-        toast('GHL email failed — falling back to mailto', 'err');
-        sendEmail();
-    }
-}
-
-// ── EXISTING QUOTE LOGIC (unchanged) ─────────────────────────────────────
+// ════════════════════════════════════════
+// CALL MODE — agent name in scripts
+// ════════════════════════════════════════
 function setMode(type) {
-    const n = customerName || '(name)';
-    const scripts = {
-        inbound:  `Good morning/afternoon, this is ${AGENT_NAME} from Goldsure, how can I help you?`,
-        outbound: `Good morning/afternoon, this is ${AGENT_NAME} from Goldsure returning your call. How can I help you?`,
-        social:   `Good morning/afternoon ${n}, this is ${AGENT_NAME} from Goldsure calling in regard to your inquiry about your smoke alarm installation.`
-    };
-    document.getElementById('script-greeting').innerText = scripts[type] || scripts.social;
-    document.querySelectorAll('.hbtn').forEach(b => b.classList.remove('active'));
-    const btn = document.getElementById('btn-' + type);
-    if (btn) btn.classList.add('active');
+  const n = customerName || '(name)';
+  const a = agentName || 'Goldsure';
+  const scripts = {
+    inbound:  `Good morning/afternoon, this is ${a} from Goldsure, how can I help you?`,
+    outbound: `Good morning/afternoon, this is ${a} from Goldsure returning your call. How can I help you?`,
+    social:   `Good morning/afternoon ${n}, this is ${a} from Goldsure calling in regard to your inquiry about your smoke alarm installation.`
+  };
+  document.getElementById('script-greeting').innerText = scripts[type];
+  document.querySelectorAll('[id^="btn-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('btn-' + type);
+  if (btn) btn.classList.add('active');
 }
 
 function updateName() {
-    customerName = document.getElementById('custName').value;
-    const active = document.querySelector('.hbtn.active');
-    if (active?.id === 'btn-social') setMode('social');
-    if (currentContact) generateNotePreview();
+  customerName = document.getElementById('custName').value;
+  const active = document.querySelector('header .nav-btn.active');
+  if (active && active.id === 'btn-social') setMode('social');
 }
 
+// ════════════════════════════════════════
+// SERVICE TOGGLE
+// ════════════════════════════════════════
 function toggleService(type) {
-    serviceMode = type;
-    document.getElementById('tab-install').classList.toggle('active', type === 'install');
-    document.getElementById('tab-inspect').classList.toggle('active', type === 'inspect');
-    document.getElementById('assessment-box').classList.toggle('hidden', type === 'inspect');
-    document.getElementById('quote-script-box').classList.toggle('hidden', type === 'inspect');
-    document.getElementById('inspect-script-box').classList.toggle('hidden', type === 'install');
-    document.getElementById('price-mode-lbl').innerText = type === 'install' ? 'Install' : 'Inspect';
-    calculate();
+  serviceMode = type;
+  document.querySelectorAll('.service-block').forEach(el => el.classList.remove('active'));
+  if (type === 'install') {
+    document.getElementById('assessment-box').classList.add('active');
+    document.getElementById('quote-script-box').classList.add('active');
+  } else {
+    document.getElementById('inspect-script-box').classList.add('active');
+  }
+  calculate();
+}
+function toggleStoreyQ() {
+  const s = parseInt(document.getElementById('levels').value) || 1;
+  document.getElementById('extraStoreyBox').classList.toggle('visible', s > 1);
+}
+function toggleCtrlQty(show) {
+  document.getElementById('controllerInput').classList.toggle('visible', show);
+  document.getElementById('summary-controller-row').classList.toggle('visible', show);
 }
 
-function toggleStoreyQuestion() {
-    const s = parseInt(document.getElementById('levels').value) || 1;
-    document.getElementById('extraStoreyBox').classList.toggle('hidden', s <= 1);
-}
-
-function toggleControllerQty(show) {
-    document.getElementById('controllerInput').classList.toggle('hidden', !show);
-    const row = document.getElementById('summary-controller-row');
-    if (show) row.classList.add('show'); else row.classList.remove('show');
-}
-
+// ════════════════════════════════════════
+// CALCULATE
+// ════════════════════════════════════════
 function calculate() {
-    const bedrooms  = parseInt(document.getElementById('bedrooms').value) || 0;
-    const hallways  = parseInt(document.getElementById('hallways').value) || 0;
-    const storeys   = parseInt(document.getElementById('levels').value) || 1;
-    const allBeds   = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked').value === 'yes';
-    const wantCtrl  = document.querySelector('input[name="wantController"]:checked').value === 'yes';
-    const ctrlQty   = wantCtrl ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
+  const bedrooms   = parseInt(document.getElementById('bedrooms').value) || 0;
+  const hallways   = parseInt(document.getElementById('hallways').value) || 0;
+  const storeys    = parseInt(document.getElementById('levels').value) || 1;
+  const allHaveBeds= document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value === 'yes';
+  const wantCtrl   = document.querySelector('input[name="wantController"]:checked')?.value === 'yes';
+  const ctrlQty    = wantCtrl ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
 
-    let alarmCount = bedrooms + hallways;
-    if (storeys > 1 && !allBeds) alarmCount += (storeys - 1);
+  let alarms = bedrooms + hallways;
+  if (storeys > 1 && !allHaveBeds) alarms += (storeys - 1);
 
-    const ALARM = 98, CTRL = 49, FEE = serviceMode === 'install' ? 33 : 131;
-    const alarmPrice = alarmCount * ALARM;
-    const ctrlPrice  = ctrlQty * CTRL;
-    const grand      = alarmPrice + ctrlPrice + FEE;
+  const ALARM = 98, CTRL = 49;
+  const FEE   = serviceMode === 'install' ? 33 : 131;
+  const alarmT = alarms * ALARM, ctrlT = ctrlQty * CTRL;
+  const grand  = alarmT + ctrlT + FEE;
 
-    document.getElementById('script-qty').innerText     = alarmCount;
-    document.getElementById('res_alarmQty').innerText   = alarmCount;
-    document.getElementById('res_alarmTotal').innerText = fmt.format(alarmPrice);
-    document.getElementById('res_ctrlQty').innerText    = ctrlQty;
-    document.getElementById('res_ctrlTotal').innerText  = fmt.format(ctrlPrice);
+  document.getElementById('script-qty').innerText    = alarms;
+  document.getElementById('res_alarmQty').innerText  = alarms;
+  document.getElementById('res_alarmTotal').innerText= fmt.format(alarmT);
+  document.getElementById('res_ctrlQty').innerText   = ctrlQty;
+  document.getElementById('res_ctrlTotal').innerText = fmt.format(ctrlT);
 
-    if (serviceMode === 'install') {
-        document.getElementById('lbl-upfront').innerText  = 'Booking Fee';
-        document.getElementById('res-upfront').innerText  = '$33.00';
-        document.getElementById('res-balance').innerText  = fmt.format(alarmPrice + ctrlPrice);
-    } else {
-        document.getElementById('lbl-upfront').innerText  = 'Inspection Fee';
-        document.getElementById('res-upfront').innerText  = '$131.00';
-        document.getElementById('res-balance').innerText  = '$0.00';
-    }
-    document.getElementById('res-total').innerText = fmt.format(grand);
+  if (serviceMode === 'install') {
+    document.getElementById('lbl-upfront').innerText = 'Booking Fee';
+    document.getElementById('res-upfront').innerText = '$33.00';
+    document.getElementById('res-balance').innerText = fmt.format(alarmT + ctrlT);
+  } else {
+    document.getElementById('lbl-upfront').innerText = 'Inspection Fee';
+    document.getElementById('res-upfront').innerText = '$131.00';
+    document.getElementById('res-balance').innerText = '$0.00';
+  }
+  document.getElementById('res-total').innerText = fmt.format(grand);
 
-    const step4 = document.getElementById('step4-details');
-    const num   = document.getElementById('step4-num');
-    if (alarmCount > 0 || serviceMode === 'inspect') {
-        step4.open = true;
-        num.className = 'step-num step-gold';
-        document.getElementById('step4-hint').innerText = '▲ collapse';
-    } else {
-        step4.open = false;
-        num.className = 'step-num step-gray';
-        document.getElementById('step4-hint').innerText = '▼ expand';
-    }
-    if (currentContact) generateNotePreview();
+  const step4 = document.getElementById('step4-details');
+  const hint  = document.getElementById('step4-hint');
+  if (alarms > 0 || serviceMode === 'inspect') { hint.style.display='none'; step4.open=true; }
+  else { hint.style.display='block'; }
 }
 
+// ════════════════════════════════════════
+// SMS MESSAGE BUILDERS — agent name included
+// ════════════════════════════════════════
+function buildQuoteSMS() {
+  const n    = customerName || 'there';
+  const a    = agentName    || 'Goldsure';
+  const qty  = document.getElementById('res_alarmQty').innerText;
+  const aT   = document.getElementById('res_alarmTotal').innerText;
+  const grand= document.getElementById('res-total').innerText;
+  const cQty = document.getElementById('res_ctrlQty').innerText;
+  const cT   = document.getElementById('res_ctrlTotal').innerText;
+  const hasC = parseInt(cQty) > 0;
+  let bd = '';
+  if (serviceMode === 'install') {
+    bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${aT}`;
+    if (hasC) bd += `\n- Controllers (${cQty} x $49.00): ${cT}`;
+    bd += `\n- Booking Fee: $33.00\n- Total: ${grand}`;
+  } else {
+    bd = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${grand}`;
+  }
+  return `Hi ${n},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`;
+}
+
+function buildFollowupSMS(index) {
+  const n = customerName || '[Name]';
+  const a = agentName    || 'Goldsure';
+  const msgs = [
+    `Hi ${n}, this is ${a} from Goldsure.\n\nWe tried calling earlier regarding your smoke alarm upgrades enquiry but were not able to reach you.\n\nWe are happy to provide a quick assessment of your home's compliance, particularly around the newer QLD requirements for interconnected alarms in bedrooms.\n\nWhenever you have a moment, give us a call on 07 2145 5155 or reply here with a preferred time.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure. We have tried reaching out regarding your smoke alarm enquiry but have not been able to connect.\n\nIf you are still looking for help with your alarms, let us know a good time to chat. We are here on 07 2145 5155 if you would like to call us back.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure checking in regarding the quote we sent through for your smoke alarm upgrade.\n\nHappy to answer any questions or help you move forward when it suits.\n\nReply here or give us a call on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is Goldsure. Thanks for your enquiry regarding smoke alarm compliance.\n\nUnfortunately, we do not currently service your suburb. We have saved your details and will reach out once we expand into your area.\n\nAppreciate your understanding.\n\nRegards,\n${a}\nGoldsure Pty Ltd`
+  ];
+  return msgs[index - 1];
+}
+
+// ════════════════════════════════════════
+// CLIPBOARD COPY FALLBACK
+// ════════════════════════════════════════
 function copySMS() {
-    const qty   = document.getElementById('res_alarmQty').innerText;
-    const at    = document.getElementById('res_alarmTotal').innerText;
-    const gt    = document.getElementById('res-total').innerText;
-    const cq    = document.getElementById('res_ctrlQty').innerText;
-    const ct    = document.getElementById('res_ctrlTotal').innerText;
-    const hasC  = parseInt(cq) > 0;
-    let bd = '';
-    if (serviceMode === 'install') {
-        bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${at}`;
-        if (hasC) bd += `\n- Controllers (${cq} x $49.00): ${ct}`;
-        bd += `\n- Booking Fee: $33.00\n- Total: ${gt}`;
-    } else {
-        bd = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${gt}`;
-    }
-    const body = `Hi,\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`;
-    navigator.clipboard.writeText(body);
-    toast('SMS copied to clipboard ✓');
+  navigator.clipboard.writeText(buildQuoteSMS());
+  showToast('Quote SMS copied to clipboard!');
 }
 
-function copyTemplateSMS(i) {
-    const n = customerName || '[Name]';
-    const templates = {
-        1: `Hi ${n}, this is Goldsure.\n\nWe tried calling earlier regarding your smoke alarm upgrades enquiry but were not able to reach you.\n\nWe are happy to provide a quick assessment of your home's compliance, particularly around the newer QLD requirements for interconnected alarms in bedrooms.\n\nWhenever you have a moment, give us a call on 07 2145 5155 or reply here with a preferred time and we will reach out.\n\nRegards,\nThe Goldsure Team`,
-        2: `Hi ${n}, this is Goldsure. We have tried reaching out regarding your smoke alarm enquiry but have not been able to connect.\n\nIf you are still looking for help with your alarms, let us know a good time to chat. We are here on 07 2145 5155 if you would like to call us back instead.\n\nRegards,\nGoldsure Pty Ltd`,
-        3: `Hi ${n}, this is Goldsure checking in regarding the quote we sent through for your smoke alarm upgrade.\n\nHappy to answer any questions or help you move forward when it suits. We can also confirm availability to get everything sorted.\n\nReply here or give us a call on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`,
-        4: `Hi ${n}, this is Goldsure. Thanks for your enquiry regarding smoke alarm compliance.\n\nUnfortunately, we do not currently service your suburb. We have saved your details and will reach out once we expand into your area.\n\nAppreciate your understanding.\n\nRegards,\nGoldsure Pty Ltd`
-    };
-    navigator.clipboard.writeText(templates[i]);
-    toast(`Template ${i} copied ✓`);
-}
-
+// ════════════════════════════════════════
+// EMAIL
+// ════════════════════════════════════════
 function sendEmail() {
-    const qty   = document.getElementById('res_alarmQty').innerText;
-    const at    = document.getElementById('res_alarmTotal').innerText;
-    const gt    = document.getElementById('res-total').innerText;
-    const cq    = document.getElementById('res_ctrlQty').innerText;
-    const ct    = document.getElementById('res_ctrlTotal').innerText;
-    const hasC  = parseInt(cq) > 0;
-    const n     = customerName || 'customer';
-    let bd = '';
-    if (serviceMode === 'install') {
-        bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${at}`;
-        if (hasC) bd += `\n- Controllers (${cq} x $49.00): ${ct}`;
-        bd += `\n- Booking Fee: $33.00\n- Total: ${gt}`;
-    } else {
-        bd = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${gt}`;
-    }
-    const body = encodeURIComponent(`Hi ${n},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this email or call us on 07 2145 5155.\n\nRegards,\n${AGENT_NAME}\nGoldsure Pty Ltd`);
-    window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
+  const n = customerName || 'customer';
+  const body = encodeURIComponent(buildQuoteSMS().replace('Hi there', `Hi ${n}`));
+  window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
 }
 
+// ════════════════════════════════════════
+// CELLCAST SMS MODAL
+// ════════════════════════════════════════
+function saveCellcastKey() {
+  cellcastApiKey = document.getElementById('cellcast-api-key').value.trim();
+}
+
+function setSmsType(type, btn) {
+  activeSmsType = type;
+  document.querySelectorAll('.sms-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  refreshCellcastPreview();
+}
+
+function refreshCellcastPreview() {
+  let msg = activeSmsType === 'quote'
+    ? buildQuoteSMS()
+    : buildFollowupSMS(parseInt(activeSmsType.replace('followup','')));
+  document.getElementById('cellcast-preview').value = msg;
+}
+
+function openCellcastModal(type) {
+  activeSmsType = type || 'quote';
+
+  if (cellcastApiKey) document.getElementById('cellcast-api-key').value = cellcastApiKey;
+
+  document.getElementById('cellcast-agent-label').innerText = agentName;
+  document.getElementById('cellcast-cust-label').innerText  = customerName || 'customer';
+  document.getElementById('cellcast-status').innerText = '';
+  document.getElementById('cellcast-status').className = 'cellcast-status';
+
+  const tabs = document.querySelectorAll('.sms-type-btn');
+  const map  = { quote:0, followup1:1, followup2:2, followup3:3, followup4:4 };
+  tabs.forEach((b,i) => b.classList.toggle('active', i === (map[activeSmsType] || 0)));
+
+  refreshCellcastPreview();
+  document.getElementById('cellcastModal').classList.add('open');
+}
+
+function closeCellcastModal() {
+  saveCellcastKey();
+  document.getElementById('cellcastModal').classList.remove('open');
+}
+
+async function sendCellcastSMS() {
+  const apiKey = document.getElementById('cellcast-api-key').value.trim();
+  const phone  = document.getElementById('cellcast-phone').value.trim().replace(/\s+/g,'');
+  const message= document.getElementById('cellcast-preview').value.trim();
+  const status = document.getElementById('cellcast-status');
+
+  if (!apiKey)  { status.className='cellcast-status err'; status.innerText='Please paste your Cellcast API key.'; return; }
+  if (!phone)   { status.className='cellcast-status err'; status.innerText='Please enter a recipient mobile number.'; return; }
+  if (!message) { status.className='cellcast-status err'; status.innerText='Message cannot be empty.'; return; }
+
+  let to = phone;
+  if (to.startsWith('04') && to.length === 10) to = '+61' + to.slice(1);
+  else if (to.startsWith('4') && to.length === 9) to = '+61' + to;
+
+  cellcastApiKey = apiKey;
+  status.className = 'cellcast-status sending';
+  status.innerText = 'Sending…';
+
+  try {
+    const resp = await fetch('https://app.cellcast.com.au/api/v3/sms/send', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        to:      to,
+        message: message,
+        from:    'Goldsure'
+      })
+    });
+
+    const json = await resp.json();
+
+    if (resp.ok && (json.success || json.status === 'success' || json.id || json.messageId || json.data)) {
+      status.className = 'cellcast-status ok';
+      status.innerText = `SMS sent successfully to ${to}`;
+      showToast(`SMS sent to ${to}!`);
+      setTimeout(() => closeCellcastModal(), 2200);
+    } else {
+      const msg = json.message || json.error || json.detail || JSON.stringify(json);
+      status.className = 'cellcast-status err';
+      status.innerText = `Cellcast error: ${msg}`;
+    }
+  } catch(e) {
+    status.className = 'cellcast-status err';
+    status.innerText = `Network error — ${e.message}. If this persists, Cellcast may need CORS enabled for browser calls. Your key is saved for this session.`;
+  }
+}
+
+// ════════════════════════════════════════
+// PDF
+// ════════════════════════════════════════
 function openPdfModal() {
-    document.getElementById('pdfCustomerName').value = customerName || '';
-    document.getElementById('pdfCustomerAddress').value = currentContact
-        ? [currentContact.address1, currentContact.city, currentContact.state, currentContact.postalCode].filter(Boolean).join(', ')
-        : '';
-    document.getElementById('pdfModal').classList.add('open');
+  document.getElementById('pdfCustomerName').value    = customerName || '';
+  document.getElementById('pdfCustomerAddress').value = '';
+  document.getElementById('pdfModal').classList.add('open');
 }
 function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
 
 function generatePDF() {
-    const name = document.getElementById('pdfCustomerName').value.trim();
-    const addr = document.getElementById('pdfCustomerAddress').value.trim();
-    if (!name) { toast('Please enter customer name', 'err'); return; }
+  const name    = document.getElementById('pdfCustomerName').value.trim();
+  const address = document.getElementById('pdfCustomerAddress').value.trim();
+  if (!name) { showToast('Please enter customer name.'); return; }
+  const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+  const hallways = parseInt(document.getElementById('hallways').value) || 0;
+  const storeys  = parseInt(document.getElementById('levels').value) || 1;
+  const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+  const ctrlQty  = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const grand    = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
+  const subtotal = grand / 1.1;
+  const gst      = grand - subtotal;
 
-    const beds  = parseInt(document.getElementById('bedrooms').value) || 0;
-    const halls = parseInt(document.getElementById('hallways').value) || 0;
-    const stor  = parseInt(document.getElementById('levels').value) || 1;
-    const aq    = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
-    const cq    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
-    const grand = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
-    const sub   = grand / 1.1;
-    const gst   = grand - sub;
+  document.getElementById('pdf-date').innerText         = new Date().toLocaleDateString('en-AU');
+  document.getElementById('pdf-cust-name').innerText    = name;
+  document.getElementById('pdf-cust-address').innerText = address;
+  document.getElementById('pdf-bedrooms').innerText     = bedrooms;
+  document.getElementById('pdf-storeys').innerText      = storeys;
+  document.getElementById('pdf-hallways').innerText     = hallways;
+  document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
 
-    document.getElementById('pdf-date').innerText         = new Date().toLocaleDateString('en-AU');
-    document.getElementById('pdf-cust-name').innerText    = name;
-    document.getElementById('pdf-cust-address').innerText = addr;
-    document.getElementById('pdf-bedrooms').innerText     = beds;
-    document.getElementById('pdf-storeys').innerText      = stor;
-    document.getElementById('pdf-hallways').innerText     = halls;
-    document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
+  const td = 'padding:9px 8px;font-size:12px;border-bottom:1px solid #e3e7ef;';
+  let rows = '';
+  if (serviceMode === 'install') {
+    if (alarmQty > 0) rows += `<tr><td style="${td}">Raptor Smoke Alarms – Photoelectric, Interconnected</td><td style="${td}text-align:center;">${alarmQty}</td><td style="${td}text-align:right;">$98.00</td><td style="${td}text-align:right;font-weight:600;">${fmt.format(alarmQty*98)}</td></tr>`;
+    if (ctrlQty  > 0) rows += `<tr><td style="${td}">Smoke Alarm Controller</td><td style="${td}text-align:center;">${ctrlQty}</td><td style="${td}text-align:right;">$49.00</td><td style="${td}text-align:right;font-weight:600;">${fmt.format(ctrlQty*49)}</td></tr>`;
+    rows += `<tr><td style="${td}">Electrician Booking Fee</td><td style="${td}text-align:center;">1</td><td style="${td}text-align:right;">$33.00</td><td style="${td}text-align:right;font-weight:600;">$33.00</td></tr>`;
+  } else {
+    rows += `<tr><td style="${td}">Smoke Alarm Inspection Service</td><td style="${td}text-align:center;">1</td><td style="${td}text-align:right;">$131.00</td><td style="${td}text-align:right;font-weight:600;">$131.00</td></tr>`;
+  }
+  document.getElementById('pdf-table-body').innerHTML  = rows;
+  document.getElementById('pdf-subtotal').innerText    = fmt.format(subtotal);
+  document.getElementById('pdf-gst').innerText         = fmt.format(gst);
+  document.getElementById('pdf-grand-total').innerText = fmt.format(grand);
 
-    let rows = '';
-    const td = (txt, extra='') => `<td style="padding:9px 12px; border-bottom:1px solid #eee; ${extra}">${txt}</td>`;
-    if (serviceMode === 'install') {
-        if (aq > 0) rows += `<tr>${td('Raptor Smoke Alarms — Photoelectric, Interconnected')}${td(aq,'text-align:center')}${td('$98.00','text-align:right')}${td(fmt.format(aq*98),'text-align:right')}</tr>`;
-        if (cq > 0) rows += `<tr>${td('Smoke Alarm Controller')}${td(cq,'text-align:center')}${td('$49.00','text-align:right')}${td(fmt.format(cq*49),'text-align:right')}</tr>`;
-        rows += `<tr>${td('Electrician Booking Fee')}${td(1,'text-align:center')}${td('$33.00','text-align:right')}${td('$33.00','text-align:right')}</tr>`;
-    } else {
-        rows += `<tr>${td('Smoke Alarm Inspection Service')}${td(1,'text-align:center')}${td('$131.00','text-align:right')}${td('$131.00','text-align:right')}</tr>`;
-    }
-
-    document.getElementById('pdf-table-body').innerHTML = rows;
-    document.getElementById('pdf-subtotal').innerText   = fmt.format(sub);
-    document.getElementById('pdf-gst').innerText        = fmt.format(gst);
-    document.getElementById('pdf-grand-total').innerText = fmt.format(grand);
-
-    const el = document.getElementById('pdf-template');
-    el.style.display = 'block';
-    html2pdf().set({
-        margin: 10,
-        filename: `Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`,
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(el).save().then(() => {
-        el.style.display = 'none';
-        closePdfModal();
-        toast('PDF downloaded ✓');
-    }).catch(err => {
-        el.style.display = 'none';
-        toast('PDF error — try again', 'err');
-    });
+  const el = document.getElementById('pdf-template');
+  el.style.display = 'block';
+  html2pdf().set({
+    margin:     10,
+    filename:   `Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`,
+    html2canvas:{ scale:2, useCORS:true, logging:false },
+    jsPDF:      { unit:'mm', format:'a4', orientation:'portrait' }
+  }).from(el).save().then(() => { el.style.display='none'; closePdfModal(); })
+    .catch(err => { console.error(err); el.style.display='none'; });
 }
 
-// Init
-setMode('social');
+// ════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function toggleDocs(btn) {
+  const list = document.getElementById('docs-list');
+  list.classList.toggle('open');
+  const arrow = btn.querySelector('.arrow');
+  if (arrow) arrow.style.transform = list.classList.contains('open') ? 'rotate(180deg)' : '';
+}
 </script>
 </body>
 </html>
