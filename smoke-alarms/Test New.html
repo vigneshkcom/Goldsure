@@ -904,7 +904,7 @@ function closeCellcastModal() {
 }
 
 // ════════════════════════════════════════
-// UPDATED: send to Cloudflare Worker with correct endpoint
+// UPDATED: send to Cloudflare Worker with better error handling
 // ════════════════════════════════════════
 async function sendCellcastSMS() {
   const apiKey = document.getElementById('cellcast-api-key').value.trim();
@@ -916,7 +916,7 @@ async function sendCellcastSMS() {
   if (!phone)   { status.className='cellcast-status err'; status.innerText='Please enter a recipient mobile number.'; return; }
   if (!message) { status.className='cellcast-status err'; status.innerText='Message cannot be empty.'; return; }
 
-  // Format Australian mobile number - remove all non-digits
+  // Format Australian mobile number
   phone = phone.replace(/\D/g, '');
   if (phone.startsWith('0')) {
     phone = '61' + phone.substring(1);
@@ -925,12 +925,10 @@ async function sendCellcastSMS() {
     phone = '+' + phone;
   }
 
-  cellcastApiKey = apiKey;
   status.className = 'cellcast-status sending';
   status.innerText = 'Sending…';
 
   try {
-    // Send to Cloudflare Worker
     const resp = await fetch('https://cellcast.vigneshk-com.workers.dev', {
       method: 'POST',
       headers: {
@@ -939,25 +937,29 @@ async function sendCellcastSMS() {
       body: JSON.stringify({
         to: phone,
         message: message
-        // No apiKey needed - it's now hardcoded in your Worker
       })
     });
 
     const json = await resp.json();
 
-    if (resp.ok && !json.error) {
+    if (resp.ok && json.success) {
       status.className = 'cellcast-status ok';
       status.innerText = `SMS sent successfully to ${phone}`;
       showToast(`SMS sent to ${phone}!`);
       setTimeout(() => closeCellcastModal(), 2200);
     } else {
-      const msg = json.message || json.error || json.detail || JSON.stringify(json);
+      const errorMsg = json.error || json.message || JSON.stringify(json);
       status.className = 'cellcast-status err';
-      status.innerText = `Cellcast error: ${msg}`;
+      status.innerText = `Cellcast error: ${errorMsg}`;
+      
+      // If we got debug info, show which endpoint worked
+      if (json.endpoint) {
+        console.log('Working endpoint:', json.endpoint);
+      }
     }
   } catch(e) {
     status.className = 'cellcast-status err';
-    status.innerText = `Network error — ${e.message}. Check your Worker URL and try again.`;
+    status.innerText = `Network error — ${e.message}`;
   }
 }
 
