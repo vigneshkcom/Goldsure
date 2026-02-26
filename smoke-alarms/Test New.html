@@ -904,11 +904,11 @@ function closeCellcastModal() {
 }
 
 // ════════════════════════════════════════
-// UPDATED: send to Cloudflare Worker with API key in BODY (not header)
+// UPDATED: send to Cloudflare Worker with correct endpoint
 // ════════════════════════════════════════
 async function sendCellcastSMS() {
   const apiKey = document.getElementById('cellcast-api-key').value.trim();
-  const phone  = document.getElementById('cellcast-phone').value.trim().replace(/\s+/g,'');
+  let phone = document.getElementById('cellcast-phone').value.trim();
   const message = document.getElementById('cellcast-preview').value.trim();
   const status = document.getElementById('cellcast-status');
 
@@ -916,37 +916,39 @@ async function sendCellcastSMS() {
   if (!phone)   { status.className='cellcast-status err'; status.innerText='Please enter a recipient mobile number.'; return; }
   if (!message) { status.className='cellcast-status err'; status.innerText='Message cannot be empty.'; return; }
 
-  // Format Australian mobile number
-  let to = phone;
-  if (to.startsWith('04') && to.length === 10) to = '+61' + to.slice(1);
-  else if (to.startsWith('4') && to.length === 9) to = '+61' + to;
+  // Format Australian mobile number - remove all non-digits
+  phone = phone.replace(/\D/g, '');
+  if (phone.startsWith('0')) {
+    phone = '61' + phone.substring(1);
+  }
+  if (!phone.startsWith('+')) {
+    phone = '+' + phone;
+  }
 
   cellcastApiKey = apiKey;
   status.className = 'cellcast-status sending';
   status.innerText = 'Sending…';
 
   try {
-    // Send to Cloudflare Worker with API key in BODY (not in Authorization header)
+    // Send to Cloudflare Worker
     const resp = await fetch('https://cellcast.vigneshk-com.workers.dev', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-        // NO Authorization header - API key goes in body
       },
       body: JSON.stringify({
-        apiKey: apiKey,  // API key in body as your worker expects
-        to: to,
-        message: message,
-        from: 'Goldsure'
+        to: phone,
+        message: message
+        // No apiKey needed - it's now hardcoded in your Worker
       })
     });
 
     const json = await resp.json();
 
-    if (resp.ok && (json.success || json.status === 'success' || json.id || json.messageId || json.data)) {
+    if (resp.ok && !json.error) {
       status.className = 'cellcast-status ok';
-      status.innerText = `SMS sent successfully to ${to}`;
-      showToast(`SMS sent to ${to}!`);
+      status.innerText = `SMS sent successfully to ${phone}`;
+      showToast(`SMS sent to ${phone}!`);
       setTimeout(() => closeCellcastModal(), 2200);
     } else {
       const msg = json.message || json.error || json.detail || JSON.stringify(json);
