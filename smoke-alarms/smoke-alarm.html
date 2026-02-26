@@ -1,618 +1,870 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goldsure Sales Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body, button, input, label, h4, p, span, li { font-family: 'Poppins', sans-serif; }
-        .active-tab { background: #B08D2E !important; color: white !important; }
-        .bg-goldsure { background-color: #B08D2E; }
-        .text-goldsure { color: #B08D2E; }
-        details summary::-webkit-details-marker { display: none; }
-        .step-border { border-left-width: 4px; }
-        .step-1 { border-left-color: #000000; }
-        .step-2 { border-left-color: #B08D2E; }
-        .step-3 { border-left-color: #000000; }
-        .step-4 { border-left-color: #B08D2E; }
-        /* Raptor Branding Color */
-        .bg-raptor { background-color: #D3662B; }
-        .hover-raptor:hover { background-color: #b3521e; }
-        /* PDF Modal Styles */
-        .pdf-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .pdf-modal-content {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 400px;
-            width: 90%;
-        }
-        /* Hide PDF template from view */
-        #pdf-template { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Sales Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --green-bg: #eaf7f2;
+  --red: #e04f4f;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --gold: #b08d2e;
+  --gold-bg: #fef7e7;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(0,0,0,0.08);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; background: #000000; padding: 24px;
+}
+.login-card {
+  background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08);
+  border-top: 3px solid var(--gold); border-radius: 20px;
+  padding: 44px 40px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo img { height: 52px; width: auto; margin: 0 auto 14px; display: block; }
+.login-logo h2 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.login-logo p  { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255,255,255,0.4); margin-bottom: 7px; }
+.login-field input {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 14px;
+  padding: 11px 14px; border-radius: 9px; border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.15s;
+}
+.login-field input::placeholder { color: rgba(255,255,255,0.2); }
+.login-field input:focus { border-color: var(--gold); }
+.login-error {
+  font-size: 12px; font-weight: 600; color: var(--red);
+  background: rgba(224,79,79,0.1); border: 1px solid rgba(224,79,79,0.25);
+  border-radius: 7px; padding: 9px 12px; margin-bottom: 14px; display: none;
+}
+.login-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 13px; border-radius: 9px; border: none; cursor: pointer;
+  background: var(--gold); color: #000; text-transform: uppercase;
+  letter-spacing: 0.5px; transition: background 0.15s; margin-top: 4px;
+}
+.login-btn:hover { background: #caa535; }
+.login-hint { font-size: 11px; color: rgba(255,255,255,0.22); text-align: center; margin-top: 16px; line-height: 1.6; }
+
+/* ── APP ── */
+#app { display: none; }
+
+/* ── HEADER white with subtle border ── */
+header {
+  background: #ffffff; 
+  border-bottom: 3px solid var(--gold);
+  padding: 0 28px; display: flex; align-items: stretch;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 36px; width: auto; object-fit: contain; }
+.header-logo-text { font-size: 15px; font-weight: 700; color: #141c2e; letter-spacing: -0.3px; }
+.header-logo-text span { color: var(--gold); }
+.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.1); }
+.header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7899; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+
+.agent-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: #f0f2f5; border: 1px solid #d0d5df;
+  border-radius: 20px; padding: 5px 13px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.agent-name { font-size: 12px; font-weight: 600; color: #141c2e; }
+
+.nav-btn {
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 7px 14px; border: 1px solid #d0d5df; border-radius: 8px;
+  background: transparent; color: #4b5b7a; cursor: pointer;
+  text-decoration: none; transition: all 0.15s; display: inline-flex;
+  align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.nav-btn:hover { background: #f0f2f5; color: #141c2e; border-color: #b08d2e; }
+.nav-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+.nav-btn.raptor { background: #d3662b; color: #fff; border-color: #d3662b; }
+.nav-btn.raptor:hover { background: #b3521e; }
+.nav-btn.logout { font-size: 10px; padding: 5px 10px; color: #8f9bb3; border-color: #e3e7ef; }
+.nav-btn.logout:hover { color: var(--red); border-color: rgba(224,79,79,0.3); background: rgba(224,79,79,0.06); }
+
+/* ── SUB-NAV white background ── */
+.sub-nav {
+  background: #ffffff; border-bottom: 1px solid #e3e7ef;
+  padding: 0 28px; display: flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 44px; flex-wrap: wrap;
+}
+.radio-label {
+  font-size: 11px; font-weight: 600; color: #4b5b7a;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
+}
+.radio-label input { accent-color: var(--gold); }
+.radio-label:has(input:checked) { background: #fef7e7; color: var(--gold); }
+.sub-divider { width: 1px; height: 22px; background: #e3e7ef; margin: 0 4px; }
+.sub-link {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 12px; border-radius: 6px;
+  background: #fef7e7; color: var(--gold);
+  border: 1px solid #e8d28a;
+  text-decoration: none; text-transform: uppercase; letter-spacing: 0.4px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.sub-link:hover { background: var(--gold); color: #000; }
+
+/* ── MAIN ── */
+main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+.customer-bar {
+  grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 18px;
+  display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow);
+}
+.customer-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
+.customer-bar input { flex: 1; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
+.customer-bar input::placeholder { color: var(--border); }
+
+/* ── STEP CARDS ── */
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+.step-card:hover { box-shadow: var(--shadow-lg); }
+.step-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
+.step-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; }
+.step-1 .step-badge { background: #141c2e; color: #fff; }
+.step-2 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-3 .step-badge { background: #141c2e; color: #fff; }
+.step-4 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.step-body { padding: 12px 18px 16px; }
+.script-text { font-size: 13px; font-style: italic; color: var(--text); line-height: 1.7; font-weight: 500; }
+.script-text strong { font-style: normal; color: var(--blue); font-weight: 700; }
+.script-text .red { color: var(--red); font-weight: 700; font-style: normal; text-transform: uppercase; }
+
+.input-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 14px 0; }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.field-input { font-family: 'Sora', sans-serif; font-size: 13px; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s; width: 100%; }
+.field-input:focus { border-color: var(--blue); background: var(--surface); }
+
+.storey-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; display: none; }
+.storey-box.visible { display: block; }
+.storey-box p { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.storey-radio { display: flex; gap: 16px; }
+.storey-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.storey-radio label:has(input:checked) { color: var(--text); }
+
+.controller-box { background: var(--blue-bg); border: 1px solid #c5d3f5; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.controller-box p { font-size: 12px; font-weight: 700; color: var(--blue); margin-bottom: 8px; }
+.ctrl-radio { display: flex; gap: 16px; margin-bottom: 8px; }
+.ctrl-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.ctrl-radio label:has(input:checked) { color: var(--blue); }
+.ctrl-qty-row { display: none; }
+.ctrl-qty-row.visible { display: flex; align-items: center; gap: 10px; }
+.ctrl-qty-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+
+.legislation-box { background: var(--gold-bg); border: 1px solid #e8d28a; border-radius: 8px; padding: 12px 14px; }
+.legislation-box h5 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); margin-bottom: 8px; }
+.legislation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.legislation-item { font-size: 10px; color: #7a6020; display: flex; align-items: center; gap: 5px; }
+.legislation-item::before { content: "✓"; color: var(--gold); font-weight: 700; }
+
+details.step-card summary { list-style: none; cursor: pointer; }
+details.step-card summary::-webkit-details-marker { display: none; }
+details.step-card .step-header { cursor: pointer; padding-bottom: 14px; }
+details.step-card[open] .step-header { padding-bottom: 0; }
+details.step-card .step-hint { font-size: 11px; color: var(--muted); padding: 2px 18px 12px 18px; }
+details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px solid var(--border); }
+
+.service-block { display: none; }
+.service-block.active { display: block; }
+
+/* ── SIDEBAR ── */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.price-card {
+  background: #000000; border-radius: var(--r); padding: 22px 20px;
+  border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg);
+  position: sticky; top: 80px;
+}
+.price-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.4); margin-bottom: 16px; text-align: center; }
+.price-line { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.price-line-label { font-size: 12px; color: rgba(255,255,255,0.6); }
+.price-line-val { font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #fff; }
+.price-line.balance .price-line-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+.price-line.balance .price-line-val { font-size: 11px; color: rgba(255,255,255,0.4); }
+.ctrl-summary-row { display: none; }
+.ctrl-summary-row.visible { display: flex; }
+.price-total-block { margin-top: 14px; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,0.15); display: flex; justify-content: space-between; align-items: baseline; }
+.price-total-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.price-total-val { font-size: 26px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--gold); }
+
+.action-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
+  padding: 11px 14px; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border: none; transition: all 0.15s; margin-bottom: 6px;
+}
+.action-btn:last-child { margin-bottom: 0; }
+.action-btn.primary { background: var(--gold); color: #000; }
+.action-btn.primary:hover { background: #caa535; }
+.action-btn.secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); }
+.action-btn.secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+/* Removed Follow-up section */
+
+.docs-accordion { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+.docs-toggle {
+  width: 100%; background: none; border: none; cursor: pointer; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.55);
+}
+.docs-toggle .arrow { transition: transform 0.2s; font-size: 9px; color: rgba(255,255,255,0.3); }
+.docs-list {
+  display: none; background: rgba(0,0,0,0.2);
+}
+.docs-list.open { display: block; }
+.docs-list a {
+  display: block; font-family: 'Sora', sans-serif; font-size: 11px;
+  padding: 8px 14px; color: rgba(255,255,255,0.5); text-decoration: none;
+  border-top: 1px solid rgba(255,255,255,0.05); transition: color 0.15s;
+}
+.docs-list a:hover { color: var(--gold); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #000000; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+/* ── COPY MODAL (with editable text) ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--surface); border-radius: 18px; padding: 32px 36px; max-width: 560px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.22); position: relative; max-height: 90vh; overflow-y: auto; }
+.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+.modal-box > p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.modal-close { position: absolute; top: 16px; right: 20px; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--muted); }
+.modal-close:hover { color: var(--text); }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.modal-field textarea {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.modal-field textarea:focus { border-color: var(--blue); background: var(--surface); }
+.modal-field textarea { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
+
+.sms-type-tabs { display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: wrap; }
+.sms-type-btn {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 11px; border-radius: 7px; cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.3px; border: 1.5px solid var(--border);
+  background: var(--surface2); color: var(--muted); transition: all 0.15s;
+}
+.sms-type-btn.active { background: #000000; color: #fff; border-color: #000000; }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.modal-actions button { flex: 1; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; padding: 11px; border-radius: 9px; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+.modal-actions button.gold { background: var(--gold); color: #000; border-color: var(--gold); }
+.modal-actions button.gold:hover { background: #caa535; }
+.modal-actions button:not(.gold):hover { background: var(--surface); color: var(--text); }
+
+/* PDF modal */
+.modal-field input, .modal-field textarea { width:100%; font-family:'Sora',sans-serif; font-size:13px; border:1.5px solid var(--border); border-radius:8px; padding:9px 12px; background:var(--surface2); color:var(--text); outline:none; transition:border-color 0.15s; }
+.modal-field input:focus, .modal-field textarea:focus { border-color:var(--blue); background:var(--surface); }
+#pdf-template { display: none; }
+
+/* responsive */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { order: -1; }
+  .price-card { position: static; }
+  header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  .sub-nav { padding: 8px 16px; }
+  main { padding: 16px; }
+}
+</style>
 </head>
-<body class="bg-gray-100 p-2 md:p-4 text-sm">
+<body>
 
-<div class="max-w-6xl mx-auto space-y-3">
-    
-    <div class="bg-black rounded-t-lg shadow-lg overflow-hidden">
-        <div class="p-3 md:p-4 flex flex-col md:flex-row justify-between items-center gap-3">
-            <h1 class="text-white font-bold tracking-widest uppercase text-lg">GOLDSURE SALES PORTAL</h1>
-            <div class="flex flex-wrap gap-2">
-                <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/raptor-enquiry-workflow.html" target="_blank" class="px-3 py-1.5 rounded text-xs font-bold bg-raptor text-white transition hover-raptor uppercase">Purchase Enquiries</a>
-                
-                <button onclick="setMode('inbound')" id="btn-inbound" class="px-3 py-1.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 transition hover:bg-gray-700">Inbound Call</button>
-                <button onclick="setMode('outbound')" id="btn-outbound" class="px-3 py-1.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 transition hover:bg-gray-700">Outbound (Missed)</button>
-                <button onclick="setMode('social')" id="btn-social" class="px-3 py-1.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 transition hover:bg-gray-700">Social Media/Online</button>
-            </div>
-        </div>
-        <div class="bg-gray-900 p-2 md:p-3 flex flex-wrap justify-center items-center gap-6 md:gap-8 border-t border-gray-800">
-            <label class="text-white text-xs font-medium flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="serviceType" value="install" checked onclick="toggleService('install')"> Install Quote
-            </label>
-            <label class="text-white text-xs font-medium flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="serviceType" value="inspection" onclick="toggleService('inspect')"> Inspection ($131)
-            </label>
-            <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/smoke-alarm-troubleshooting.html" target="_blank" class="bg-[#B08D2E] hover:bg-yellow-600 text-black text-[10px] font-bold px-3 py-1 rounded transition uppercase">Troubleshooting</a>
-<a href="https://docs.google.com/spreadsheets/d/17YPF4VnAA0OCyYX-cWuNEWriw5RN8VRTD-PES89EXQ8/edit?gid=1558660794#gid=1558660794"
-   target="_blank"
-   class="bg-[#B08D2E] hover:bg-yellow-600 text-black text-[10px] font-bold px-3 py-1 rounded transition uppercase">
-    Active Electricians
-</a>
-<a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/employee-calendar.html"
-   target="_blank"
-   class="bg-[#B08D2E] hover:bg-yellow-600 text-black text-[10px] font-bold px-3 py-1 rounded transition uppercase">
-    Electrician Calendar
-</a>
-        </div>
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <h2>Goldsure Sales Portal</h2>
+      <p>Agent Sign In</p>
     </div>
-
-    <div class="bg-white p-3 shadow-sm border rounded-lg flex flex-col md:flex-row gap-2 items-center">
-        <label class="font-bold text-gray-700 text-xs">Customer Name:</label>
-        <input type="text" id="custName" oninput="updateName()" placeholder="Enter name here..." class="flex-1 p-2 border rounded-md outline-none focus:ring-1 focus:ring-[#B08D2E] text-sm">
+    <div class="login-error" id="login-error">Please enter your name.</div>
+    <div class="login-field">
+      <label>Your Name</label>
+      <input type="text" id="login-agent" placeholder="e.g. Vignesh or Shanira" autocomplete="name" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        
-        <div class="lg:col-span-2 space-y-4">
-            
-            <div class="bg-white p-4 rounded-lg shadow step-border step-1">
-                <h4 class="text-[10px] font-bold text-gray-400 mb-1 uppercase">STEP 1: GREETING</h4>
-                <p id="script-greeting" class="text-sm md:text-base italic text-gray-800 font-medium leading-relaxed"></p>
-            </div>
-
-            <div id="assessment-box" class="bg-white p-4 rounded-lg shadow step-border step-2">
-                <h4 class="text-[10px] font-bold text-gray-400 mb-1 uppercase">STEP 2: PROPERTY ASSESSMENT</h4>
-                <p class="mb-3 text-sm italic text-gray-700 font-medium leading-relaxed">"Can I please confirm the number of bedrooms? Is it a single or double storey home? Legislation requires one Smoke Alarm in each bedroom and in each hallway that connects the bedrooms, as well as on each level."</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                    <div>
-                        <label class="text-[10px] font-bold uppercase text-gray-500">No. of Bedrooms</label>
-                        <input type="number" id="bedrooms" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded focus:border-[#B08D2E] outline-none text-sm">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase text-gray-500">No. of Storeys</label>
-                        <input type="number" id="levels" oninput="toggleStoreyQuestion(); calculate();" value="" placeholder="1" min="1" class="w-full border p-2 rounded focus:border-[#B08D2E] outline-none text-sm">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase text-gray-500">No. of Hallways</label>
-                        <input type="number" id="hallways" oninput="calculate()" value="" placeholder="0" min="0" class="w-full border p-2 rounded focus:border-[#B08D2E] outline-none text-sm">
-                    </div>
-                </div>
-
-                <div id="extraStoreyBox" class="hidden bg-gray-50 p-3 rounded border border-gray-200 mb-3">
-                    <p class="text-xs font-semibold mb-1 text-gray-800">Does every level have a bedroom?</p>
-                    <div class="flex gap-4">
-                        <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()" class="mr-2 w-3 h-3"> Yes</label>
-                        <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()" class="mr-2 w-3 h-3"> No</label>
-                    </div>
-                </div>
-
-                <div class="bg-blue-50 p-3 rounded border border-blue-100 mb-4">
-                    <p class="text-xs font-bold text-blue-900 mb-1">Add Smoke Alarm Controller? ($49)</p>
-                    <div class="flex gap-4">
-                        <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="wantController" value="no" checked onclick="toggleControllerQty(false); calculate();" class="mr-2 w-3 h-3"> No</label>
-                        <label class="flex items-center text-xs cursor-pointer"><input type="radio" name="wantController" value="yes" onclick="toggleControllerQty(true); calculate();" class="mr-2 w-3 h-3"> Yes</label>
-                    </div>
-                    <div id="controllerInput" class="hidden mt-2">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">QTY of Controllers</label>
-                        <input type="number" id="controllerQty" value="1" min="1" oninput="calculate()" class="w-full p-1.5 border-b border-blue-200 outline-none text-sm bg-transparent">
-                    </div>
-                </div>
-
-                <div class="bg-gray-100 border rounded p-3">
-                    <h5 class="font-bold text-[10px] mb-1 uppercase text-gray-600">QUEENSLAND SMOKE ALARM LEGISLATION (EFFECTIVE 01/01/2027)</h5>
-                    <ul class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-600">
-                        <li>✓ Photoelectric & Interconnected</li>
-                        <li>✓ In each bedroom & connecting hallway</li>
-                        <li>✓ Installed on each level</li>
-                        <li>✓ 10-year backup battery</li>
-                        <li>✓ Less than 10 years old</li>
-                        <li>✓ AS 3786-2014 or AS 3786-2023</li>
-                        <li>✓ Hard-wired replaced with hard-wired</li>
-                        <li>✓ 10 Year Warranty included</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div id="quote-script-box" class="bg-white p-4 rounded-lg shadow step-border step-3">
-                <h4 class="text-[10px] font-bold text-gray-400 mb-1 uppercase">STEP 3: PRESENTING THE QUOTE</h4>
-                <div class="space-y-2 text-sm italic text-gray-700 font-medium leading-relaxed">
-                    <p>"Based on your information you have provided, you will need <span id="script-qty" class="font-bold">0</span> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."</p>
-                    <p>"The cost is $98 per smoke alarm payable on the day of installation and a $33 electrician fee which I need to take upfront to secure your booking."</p>
-                </div>
-            </div>
-
-            <div id="inspect-script-box" class="hidden bg-white p-4 rounded-lg shadow step-border step-3">
-                <h4 class="text-[10px] font-bold text-gray-400 mb-1 uppercase">STEP 3: INSPECTION SERVICE</h4>
-                <div class="space-y-2 text-sm italic text-gray-700 font-medium leading-relaxed">
-                    <p>"The inspection cost is <strong>$131 paid upfront</strong> to secure your booking. The electrician will check all alarms for 2027 QLD compliance."</p>
-                    <p>"If the home is not compliant and you choose to make it compliant with us today, we <strong>WAIVE the $131 fee</strong>. We only charge the $33 booking fee plus required alarms."</p>
-                </div>
-            </div>
-
-            <details id="step4-details" class="bg-white rounded-lg shadow overflow-hidden">
-                <summary class="p-4 cursor-pointer list-none step-border step-4">
-                    <h4 class="text-[10px] font-bold text-gray-400 uppercase">STEP 4: SECURE BOOKING & PAYMENT</h4>
-                    <p id="step4-hint" class="text-xs text-gray-500 mt-1">Click to expand booking details</p>
-                </summary>
-                <div class="p-4 pt-2 space-y-2 text-sm italic text-gray-700 font-medium leading-relaxed border-t">
-                    <p>"Can we proceed with your contact details starting with; <strong>Your name, Your address, Your email address, Confirmation of your phone number.</strong>" (Create job in Dataforce).</p>
-                    <p>"I need to take the $33 call fee to secure your Electrician booking. Let me know when you are ready so I can <strong class="text-red-600 uppercase">pause the call recording</strong> before we proceed with your card details. Can I please have your card details?"</p>
-                </div>
-            </details>
-        </div>
-
-        <div class="space-y-4">
-            <div class="bg-black text-white p-4 md:p-5 rounded-lg shadow-xl border-t-8 border-goldsure sticky top-4">
-                <h4 class="text-center font-bold text-[10px] tracking-widest mb-3 opacity-70 uppercase">PRICING SUMMARY</h4>
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between border-b border-gray-800 pb-1.5">
-                        <span>Alarms (<span id="res_alarmQty">0</span> x $98.00):</span>
-                        <span id="res_alarmTotal" class="font-bold">$0.00</span>
-                    </div>
-                    <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-1.5">
-                        <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
-                        <span id="res_ctrlTotal" class="font-bold">$0.00</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-800 pb-1.5">
-                        <span id="lbl-upfront">Booking Fee:</span>
-                        <span id="res-upfront" class="font-bold">$33.00</span>
-                    </div>
-                    <div class="flex justify-between text-gray-500 text-[10px] pt-1">
-                        <span>Balance Due on Install:</span>
-                        <span id="res-balance">$0.00</span>
-                    </div>
-                    <div class="flex justify-between text-base md:text-lg font-black pt-2 border-t border-gray-800 mt-1">
-                        <span>GRAND TOTAL:</span>
-                        <span id="res-total" class="text-goldsure font-bold">$33.00</span>
-                    </div>
-                </div>
-
-                <div class="mt-5 space-y-2">
-                    <button onclick="copySMS()" class="w-full py-2 bg-goldsure text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-yellow-600 transition">Copy Quote SMS</button>
-                    <button onclick="sendEmail()" class="w-full py-2 bg-white text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-gray-200 transition">Email Quote Template</button>
-                    <button onclick="openPdfModal()" class="w-full py-2 bg-goldsure text-black rounded font-black text-[10px] uppercase tracking-tighter hover:bg-yellow-600 transition">Download PDF Quote</button>
-                </div>
-
-                <div class="mt-5 pt-4 border-t border-gray-800 space-y-1.5">
-                    <h5 class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Follow-up SMS Templates</h5>
-                    <button onclick="copyTemplateSMS(1)" class="w-full py-1.5 bg-gray-800 text-gray-300 rounded text-[9px] uppercase font-bold hover:bg-gray-700 transition">1. Missed Call</button>
-                    <button onclick="copyTemplateSMS(2)" class="w-full py-1.5 bg-gray-800 text-gray-300 rounded text-[9px] uppercase font-bold hover:bg-gray-700 transition">2. Multiple Attempts</button>
-                    <button onclick="copyTemplateSMS(3)" class="w-full py-1.5 bg-gray-800 text-gray-300 rounded text-[9px] uppercase font-bold hover:bg-gray-700 transition">3. Quote Follow-Up</button>
-                    <button onclick="copyTemplateSMS(4)" class="w-full py-1.5 bg-gray-800 text-gray-300 rounded text-[9px] uppercase font-bold hover:bg-gray-700 transition">4. Out of Area</button>
-                </div>
-                <div class="mt-5 border-t border-gray-800 pt-4">
-                    <details class="group bg-gray-900 rounded overflow-hidden">
-                        <summary class="flex justify-between items-center cursor-pointer list-none p-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                            PRODUCT & COMPLIANCE DOCUMENTS
-                            <span class="transition group-open:rotate-180">▲</span>
-                        </summary>
-                        <div class="p-2 space-y-1 text-[11px] bg-black">
-                            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank" class="block py-1.5 px-3 hover:bg-gray-900 transition border-b border-gray-800 text-gray-300">📄 Raptor Smoke Alarm Data Sheet</a>
-                            <a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank" class="block py-1.5 px-3 hover:bg-gray-900 transition border-b border-gray-800 text-gray-300">🛠️ Raptor Smoke Alarm Manual</a>
-                            <a href="https://workdrive.zohopublic.com.au/external/2d2ebaa70546a87acbfeacda65bd2d68ce4c0c5ba53b77bce328fe53819797a7" target="_blank" class="block py-1.5 px-3 hover:bg-gray-900 transition text-gray-300">📖 UMS Brochure</a>
-                        </div>
-                    </details>
-                </div>
-            </div>
-
-            <div class="bg-yellow-50 border border-yellow-100 p-3 rounded-lg">
-                <h5 class="text-[10px] font-black uppercase text-yellow-800 mb-1">HANDLING PRICE OBJECTIONS</h5>
-                <p class="text-[10px] leading-relaxed italic text-yellow-900">"The price is already discounted. For example, an electrician would charge at least $100 call out fee plus another $100 per hour. Our prices are fixed... we offer the best value in the market."</p>
-            </div>
-        </div>
-    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="login-hint">Your name will appear in all scripts and SMS messages.</p>
+  </div>
 </div>
 
-<div id="pdf-template" class="p-10 bg-white text-black" style="display: none;">
-    <div class="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-black">QUOTE</h1>
-            <p class="text-sm">Goldsure Pty Ltd</p>
-            <p class="text-sm">ABN: 66 683 305 106</p>
-            <p class="text-sm">Phone: (07) 2145 5155</p>
-            <p class="text-sm"><a href="https://www.goldsure.com.au" target="_blank" style="color: blue; text-decoration: underline;">www.goldsure.com.au</a></p>
-        </div>
-        <div class="text-right">
-            <p class="font-bold">Date: <span id="pdf-date"></span></p>
-            <p id="pdf-cust-name" class="text-sm font-semibold"></p>
-            <p id="pdf-cust-address" class="text-sm"></p>
-        </div>
+<!-- APP -->
+<div id="app">
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="header-title">Sales Portal</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip">
+      <div class="agent-dot"></div>
+      <span class="agent-name" id="header-agent-name">Agent</span>
+    </div>
+    <div class="hd"></div>
+    <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/raptor-enquiry-workflow.html" target="_blank" class="nav-btn raptor">Purchase Enquiries</a>
+    <button onclick="setMode('inbound')"  id="btn-inbound"  class="nav-btn">Inbound Call</button>
+    <button onclick="setMode('outbound')" id="btn-outbound" class="nav-btn">Outbound (Missed)</button>
+    <button onclick="setMode('social')"   id="btn-social"   class="nav-btn active">Social / Online</button>
+    <button onclick="doLogout()" class="nav-btn logout">Sign Out</button>
+  </div>
+</header>
+
+<div class="sub-nav">
+  <label class="radio-label"><input type="radio" name="serviceType" value="install" checked onchange="toggleService('install')"> Install Quote</label>
+  <label class="radio-label"><input type="radio" name="serviceType" value="inspection" onchange="toggleService('inspect')"> Inspection ($131)</label>
+  <div class="sub-divider"></div>
+  <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/smoke-alarm-troubleshooting.html" target="_blank" class="sub-link">Troubleshooting</a>
+  <a href="https://docs.google.com/spreadsheets/d/17YPF4VnAA0OCyYX-cWuNEWriw5RN8VRTD-PES89EXQ8/edit?gid=1558660794#gid=1558660794" target="_blank" class="sub-link">Active Electricians</a>
+  <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/employee-calendar.html" target="_blank" class="sub-link">Electrician Calendar</a>
+</div>
+
+<main>
+
+  <div class="customer-bar">
+    <label>Customer Name</label>
+    <input type="text" id="custName" oninput="updateName()" placeholder="Enter customer name…">
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step-card step-1">
+      <div class="step-header"><span class="step-badge">Step 1</span><span class="step-title">Greeting</span></div>
+      <div class="step-body"><p id="script-greeting" class="script-text"></p></div>
     </div>
 
-    <div class="mb-4">
-        <p class="text-sm font-semibold">Property Details:</p>
-        <p class="text-sm">Bedrooms: <span id="pdf-bedrooms">0</span> | Storeys: <span id="pdf-storeys">1</span> | Hallways: <span id="pdf-hallways">0</span></p>
-        <p class="text-sm">Service Type: <span id="pdf-service-type">Installation</span></p>
-    </div>
-
-    <table class="w-full text-left mb-8">
-        <thead>
-            <tr class="bg-gray-100 uppercase text-xs font-bold border-b border-black">
-                <th class="py-2 px-1">Description</th>
-                <th class="py-2 px-1 text-center">Qty</th>
-                <th class="py-2 px-1 text-right">Unit Price</th>
-                <th class="py-2 px-1 text-right">Total</th>
-            </tr>
-        </thead>
-        <tbody id="pdf-table-body" class="text-sm">
-        </tbody>
-    </table>
-
-    <div class="flex justify-end">
-        <div class="w-1/2 space-y-2 border-t pt-4">
-            <div class="flex justify-between text-sm"><span>Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
-            <div class="flex justify-between text-sm"><span>GST (10%)</span><span id="pdf-gst"></span></div>
-            <div class="flex justify-between text-lg font-bold border-t-2 border-black pt-2"><span>Total (Incl. GST)</span><span id="pdf-grand-total"></span></div>
+    <div id="assessment-box" class="step-card step-2 service-block active">
+      <div class="step-header"><span class="step-badge">Step 2</span><span class="step-title">Property Assessment</span></div>
+      <div class="step-body">
+        <p class="script-text">"Can I please confirm the number of bedrooms? Is it a single or double storey home? Legislation requires one Smoke Alarm in each bedroom and in each hallway that connects the bedrooms, as well as on each level."</p>
+        <div class="input-grid">
+          <div class="field-group"><label>No. of Bedrooms</label><input type="number" id="bedrooms" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
+          <div class="field-group"><label>No. of Storeys</label><input type="number" id="levels" class="field-input" placeholder="1" min="1" oninput="toggleStoreyQ(); calculate();"></div>
+          <div class="field-group"><label>No. of Hallways</label><input type="number" id="hallways" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
         </div>
+        <div id="extraStoreyBox" class="storey-box">
+          <p>Does every level have a bedroom?</p>
+          <div class="storey-radio">
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()"> Yes</label>
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()"> No</label>
+          </div>
+        </div>
+        <div class="controller-box">
+          <p>Add Smoke Alarm Controller? ($49)</p>
+          <div class="ctrl-radio">
+            <label><input type="radio" name="wantController" value="no" checked onclick="toggleCtrlQty(false); calculate();"> No</label>
+            <label><input type="radio" name="wantController" value="yes" onclick="toggleCtrlQty(true); calculate();"> Yes</label>
+          </div>
+          <div class="ctrl-qty-row" id="controllerInput">
+            <label>Qty</label>
+            <input type="number" id="controllerQty" class="field-input" value="1" min="1" oninput="calculate()" style="width:80px;">
+          </div>
+        </div>
+        <div class="legislation-box">
+          <h5>Queensland Smoke Alarm Legislation (Effective 01/01/2027)</h5>
+          <div class="legislation-grid">
+            <span class="legislation-item">Photoelectric & Interconnected</span>
+            <span class="legislation-item">In each bedroom & connecting hallway</span>
+            <span class="legislation-item">Installed on each level</span>
+            <span class="legislation-item">10-year backup battery</span>
+            <span class="legislation-item">Less than 10 years old</span>
+            <span class="legislation-item">AS 3786-2014 or AS 3786-2023</span>
+            <span class="legislation-item">Hard-wired replaced with hard-wired</span>
+            <span class="legislation-item">10 Year Warranty included</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="mt-12 space-y-4 text-xs text-gray-700">
-        <p class="italic">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
-        <p class="font-semibold">Booking Fee: What is the $33 Booking Fee?</p>
-        <p class="mb-4">This fee is required upfront to 'secure the Electrician' on the installation date, agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
-        
-        <p class="font-semibold uppercase">Queensland Smoke Alarm Legislation:</p>
-       <ul style="list-style-type: disc; margin-left: 20px;">
-    <li>Photoelectric and interconnected smoke alarms</li>
-    <li>Installed in each bedroom and in hallways connecting bedrooms</li>
-    <li>Installed on each level of the dwelling</li>
-    <li>10-year sealed lithium backup battery</li>
-    <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
-    <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
+    <div id="quote-script-box" class="step-card step-3 service-block active">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Presenting the Quote</span></div>
+      <div class="step-body">
+        <p class="script-text">"Based on your information you have provided, you will need <strong id="script-qty">0</strong> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."</p>
+        <br>
+        <p class="script-text">"The cost is $98 per smoke alarm payable on the day of installation and a $33 electrician fee which I need to take upfront to secure your booking."</p>
+      </div>
+    </div>
+
+    <div id="inspect-script-box" class="step-card step-3 service-block">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Inspection Service</span></div>
+      <div class="step-body">
+        <p class="script-text">"The inspection cost is <strong>$131 paid upfront</strong> to secure your booking. The electrician will check all alarms for 2027 QLD compliance."</p>
+        <br>
+        <p class="script-text">"If the home is not compliant and you choose to make it compliant with us today, we <strong>WAIVE the $131 fee</strong>. We only charge the $33 booking fee plus required alarms."</p>
+      </div>
+    </div>
+
+    <details class="step-card step-4" id="step4-details">
+      <summary>
+        <div class="step-header"><span class="step-badge">Step 4</span><span class="step-title">Secure Booking & Payment</span></div>
+        <p class="step-hint" id="step4-hint">Click to expand booking details</p>
+      </summary>
+      <div class="step-body-inner">
+        <p class="script-text">"Can we proceed with your contact details starting with; <strong>Your name, Your address, Your email address, Confirmation of your phone number.</strong>" (Create job in Dataforce).</p>
+        <br>
+        <p class="script-text">"I need to take the $33 call fee to secure your Electrician booking. Let me know when you are ready so I can <span class="red">pause the call recording</span> before we proceed with your card details. Can I please have your card details?"</p>
+      </div>
+    </details>
+
+  </div><!-- /steps -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="price-card">
+      <div class="price-card-title">Pricing Summary</div>
+      <div class="price-line">
+        <span class="price-line-label">Alarms (<span id="res_alarmQty">0</span> × $98.00)</span>
+        <span class="price-line-val" id="res_alarmTotal">$0.00</span>
+      </div>
+      <div class="price-line ctrl-summary-row" id="summary-controller-row">
+        <span class="price-line-label">Controllers (<span id="res_ctrlQty">0</span> × $49.00)</span>
+        <span class="price-line-val" id="res_ctrlTotal">$0.00</span>
+      </div>
+      <div class="price-line">
+        <span class="price-line-label" id="lbl-upfront">Booking Fee</span>
+        <span class="price-line-val" id="res-upfront">$33.00</span>
+      </div>
+      <div class="price-line balance">
+        <span class="price-line-label">Balance Due on Install</span>
+        <span class="price-line-val" id="res-balance">$0.00</span>
+      </div>
+      <div class="price-total-block">
+        <span class="price-total-label">Grand Total</span>
+        <span class="price-total-val" id="res-total">$33.00</span>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:0;">
+        <!-- Changed: "Copy Quote SMS" → "Copy SMS Template" (no emoji) -->
+        <button class="action-btn primary" onclick="openCopyModal()">Copy SMS Template</button>
+        <button class="action-btn secondary" onclick="sendEmail()">Email Quote Template</button>
+        <button class="action-btn primary" onclick="openPdfModal()">Download PDF Quote</button>
+      </div>
+
+      <!-- REMOVED: Follow-up SMS Templates section completely -->
+
+      <div class="docs-accordion">
+        <button class="docs-toggle" onclick="toggleDocs(this)">Product & Compliance Docs<span class="arrow">▲</span></button>
+        <div class="docs-list" id="docs-list">
+          <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank">Raptor Smoke Alarm Data Sheet</a>
+          <a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank">Raptor Smoke Alarm Manual</a>
+          <a href="https://workdrive.zohopublic.com.au/external/2d2ebaa70546a87acbfeacda65bd2d68ce4c0c5ba53b77bce328fe53819797a7" target="_blank">UMS Brochure</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
+  <div style="max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072 · ABN: 66 683 305 106</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
+      <div>Phone: <a href="tel:0721455155" style="color:var(--blue);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--blue);text-decoration:none;">+61 451 898 761</a></div>
+      <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue);text-decoration:none;">vignesh@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--blue);text-decoration:none;">www.goldsure.com.au</a></div>
+    </div>
+  </div>
+</footer>
+
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SIMPLE COPY MODAL (with editable text) -->
+<div class="modal-overlay" id="copyModal" onclick="if(event.target===this)closeCopyModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeCopyModal()">&times;</button>
+    <h2>Copy message template</h2>
+    <p>Choose type, edit if needed, then copy.</p>
+
+    <div class="modal-field">
+      <label>Message type</label>
+      <div class="sms-type-tabs" id="copy-type-tabs">
+        <button class="sms-type-btn active"  onclick="setCopyType('quote', this)">Quote</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup1', this)">Missed Call</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup2', this)">Multi-Attempt</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup3', this)">Quote F/U</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup4', this)">Out of Area</button>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>Message preview (editable)</label>
+      <textarea id="copy-preview"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeCopyModal()">Cancel</button>
+      <button class="gold" onclick="copyPreviewToClipboard()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF MODAL -->
+<div class="modal-overlay" id="pdfModal" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    <h2>Generate PDF Quote</h2>
+    <p>Enter customer details for the quote document.</p>
+    <div class="modal-field"><label>Customer Name</label><input type="text" id="pdfCustomerName" placeholder="Full Name"></div>
+    <div class="modal-field"><label>Customer Address (Optional)</label><textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode"></textarea></div>
+    <div class="modal-actions">
+      <button onclick="closePdfModal()">Cancel</button>
+      <button class="confirm" onclick="generatePDF()">Generate PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF template (complete with all original content) -->
+<div id="pdf-template" style="display:none;padding:32px 36px;background:white;font-family:'Sora',sans-serif;color:#141c2e;max-width:780px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141c2e;padding-bottom:24px;margin-bottom:28px;">
+    <div>
+      <div style="font-size:26px;font-weight:700;letter-spacing:-0.5px;">QUOTE</div>
+      <div style="margin-top:8px;font-size:12px;color:#6b7899;line-height:1.9;">
+        <strong style="color:#141c2e;">Goldsure Pty Ltd</strong><br>
+        ABN: 66 683 305 106<br>
+        Suite 4, Level 1, 293 High Street, Preston VIC 3072<br>
+        Phone: (07) 2145 5155<br>
+        <a href="https://www.goldsure.com.au" style="color:#2d6be4;">www.goldsure.com.au</a>
+      </div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.9;">
+      Date: <strong id="pdf-date" style="color:#141c2e;"></strong><br>
+      <strong id="pdf-cust-name" style="color:#141c2e;font-size:13px;"></strong><br>
+      <span id="pdf-cust-address" style="white-space:pre-line;"></span>
+    </div>
+  </div>
+  
+  <div style="margin-bottom:20px;font-size:12px;color:#6b7899;line-height:1.8;">
+    <strong style="color:#141c2e;">Property Details:</strong>&nbsp;
+    Bedrooms: <span id="pdf-bedrooms">0</span> &nbsp;|&nbsp;
+    Storeys: <span id="pdf-storeys">1</span> &nbsp;|&nbsp;
+    Hallways: <span id="pdf-hallways">0</span> &nbsp;|&nbsp;
+    Service: <span id="pdf-service-type">Installation</span>
+  </div>
+  
+  <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
+    <thead>
+      <tr style="background:#f0f2f5;">
+        <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Description</th>
+        <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Qty</th>
+        <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Unit Price</th>
+        <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7899;border-bottom:2px solid #141c2e;">Total</th>
+      </tr>
+    </thead>
+    <tbody id="pdf-table-body"></tbody>
+  </table>
+  
+  <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
+    <div style="width:240px;">
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid #e3e7ef;"><span style="color:#6b7899;">Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid #e3e7ef;"><span style="color:#6b7899;">GST (10%)</span><span id="pdf-gst"></span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-size:16px;font-weight:700;border-top:2px solid #141c2e;margin-top:4px;"><span>Total (Incl. GST)</span><span id="pdf-grand-total" style="color:#b08d2e;"></span></div>
+    </div>
+  </div>
+  
+  <!-- Full PDF content with legislation, warranty, datasheet link -->
+  <div style="font-size:11px;color:#6b7899;line-height:1.7;border-top:1px solid #e3e7ef;padding-top:20px;">
+    <p style="margin-bottom:10px;font-style:italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
+    <p style="font-weight:700;color:#141c2e;margin-bottom:4px;">Booking Fee – What is the $33 Booking Fee?</p>
+    <p style="margin-bottom:14px;">This fee is required upfront to secure the Electrician on the installation date agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.</p>
+    <p style="font-weight:700;color:#141c2e;text-transform:uppercase;margin-bottom:6px;">Queensland Smoke Alarm Legislation:</p>
+    <ul style="list-style:disc;margin-left:20px;margin-bottom:14px;">
+      <li>Photoelectric and interconnected smoke alarms</li>
+      <li>Installed in each bedroom and in hallways connecting bedrooms</li>
+      <li>Installed on each level of the dwelling</li>
+      <li>10-year sealed lithium backup battery</li>
+      <li>Compliant with AS 3786-2014 or AS 3786-2023</li>
+      <li>Hard-wired smoke alarms replaced with hard-wired where applicable</li>
     </ul>
-
-<p class="font-semibold mt-4">Product Assurance:</p>
-<p class="text-xs">
-    Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet
-    Queensland compliance requirements. Each alarm supplied and installed includes a
-    <strong>10-Year Manufacturer’s Warranty</strong>.
-</p>
-
-        <p class="font-semibold">Smoke Alarm Datasheet:</p>
-        <p>
-            <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" 
-               class="text-blue-600 underline" 
-               target="_blank">
-                Click here to view the Smoke Alarm Datasheet
-            </a>
-        </p>
-        </div>
-</div>
-
-<div id="pdfModal" class="pdf-modal">
-    <div class="pdf-modal-content">
-        <h3 class="font-bold text-lg mb-4 text-black">Generate PDF Quote</h3>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-                <input type="text" id="pdfCustomerName" placeholder="Full Name" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] text-sm">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Address (Optional)</label>
-                <textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode" rows="3" class="w-full border p-2 rounded outline-none focus:ring-1 focus:ring-[#B08D2E] text-sm"></textarea>
-            </div>
-            <div class="flex gap-2 pt-2">
-                <button onclick="closePdfModal()" class="flex-1 py-2 text-gray-500 font-bold text-sm uppercase border border-gray-300 rounded">Cancel</button>
-                <button onclick="generatePDF()" class="flex-1 py-2 bg-black text-white font-bold text-sm rounded uppercase hover:bg-gray-800">Generate PDF</button>
-            </div>
-        </div>
-    </div>
+    <p style="font-weight:700;color:#141c2e;margin-bottom:4px;">Product Assurance:</p>
+    <p style="margin-bottom:10px;">Raptor Smoke Alarms are premium-grade, photoelectric, interconnected smoke alarms designed to meet Queensland compliance requirements. Each alarm supplied and installed includes a <strong>10-Year Manufacturer's Warranty</strong>.</p>
+    <p><a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color:#2d6be4;">Click here to view the Smoke Alarm Datasheet</a></p>
+  </div>
 </div>
 
 <script>
-let serviceMode = 'install';
-let customerName = "";
-const formatter = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+// ════════════════════════════════════════
+// STATE & LOGIN (no password)
+// ════════════════════════════════════════
+let agentName      = '';
+let customerName   = '';
+let serviceMode    = 'install';
+let activeCopyType = 'quote'; // for modal
 
-function setMode(type) {
-    const scripts = {
-        inbound: "Good morning/afternoon, this is Shanira from Goldsure, how can I help you?",
-        outbound: "Good morning/afternoon, this is Shanira from Goldsure returning your call. How can I help you?",
-        social: "Good morning/afternoon " + (customerName || "(name)") + ", this is Shanira from Goldsure calling in regard to your inquiry about your smoke alarm installation."
-    };
-    document.getElementById('script-greeting').innerText = scripts[type];
-    document.querySelectorAll('[id^="btn-"]').forEach(b => b.classList.remove('active-tab'));
-    document.getElementById('btn-' + type).classList.add('active-tab');
+const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+
+function doLogin() {
+  const agent = document.getElementById('login-agent').value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!agent) { errEl.style.display='block'; errEl.innerText='Please enter your name.'; return; }
+  errEl.style.display='none';
+  agentName = agent;
+  document.getElementById('header-agent-name').innerText = agentName;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setMode('social');
+  calculate();
+}
+function doLogout() {
+  agentName = customerName = '';
+  document.getElementById('login-agent').value='';
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
 }
 
+function setMode(type) {
+  const n = customerName || '(name)';
+  const a = agentName || 'Goldsure';
+  const scripts = {
+    inbound:  `Good morning/afternoon, this is ${a} from Goldsure, how can I help you?`,
+    outbound: `Good morning/afternoon, this is ${a} from Goldsure returning your call. How can I help you?`,
+    social:   `Good morning/afternoon ${n}, this is ${a} from Goldsure calling in regard to your inquiry about your smoke alarm installation.`
+  };
+  document.getElementById('script-greeting').innerText = scripts[type];
+  document.querySelectorAll('[id^="btn-"]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+type)?.classList.add('active');
+}
 function updateName() {
-    customerName = document.getElementById('custName').value;
-    const currentBtn = document.querySelector('.active-tab');
-    if (currentBtn && currentBtn.id === 'btn-social') setMode('social');
+  customerName = document.getElementById('custName').value;
+  if (document.querySelector('header .nav-btn.active')?.id === 'btn-social') setMode('social');
 }
 
 function toggleService(type) {
-    serviceMode = type;
-    document.getElementById('assessment-box').classList.toggle('hidden', type === 'inspect');
-    document.getElementById('quote-script-box').classList.toggle('hidden', type === 'inspect');
-    document.getElementById('inspect-script-box').classList.toggle('hidden', type === 'install');
-    calculate();
+  serviceMode = type;
+  document.querySelectorAll('.service-block').forEach(el=>el.classList.remove('active'));
+  if (type==='install') {
+    document.getElementById('assessment-box').classList.add('active');
+    document.getElementById('quote-script-box').classList.add('active');
+  } else {
+    document.getElementById('inspect-script-box').classList.add('active');
+  }
+  calculate();
 }
-
-function toggleStoreyQuestion() {
-    const storeys = parseInt(document.getElementById('levels').value) || 1;
-    document.getElementById('extraStoreyBox').classList.toggle('hidden', storeys <= 1);
+function toggleStoreyQ() {
+  const s = parseInt(document.getElementById('levels').value)||1;
+  document.getElementById('extraStoreyBox').classList.toggle('visible',s>1);
 }
-
-function toggleControllerQty(show) {
-    document.getElementById('controllerInput').classList.toggle('hidden', !show);
-    document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
+function toggleCtrlQty(show) {
+  document.getElementById('controllerInput').classList.toggle('visible',show);
+  document.getElementById('summary-controller-row').classList.toggle('visible',show);
 }
-
 function calculate() {
-    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
-    const hallways = parseInt(document.getElementById('hallways').value) || 0;
-    const storeys = parseInt(document.getElementById('levels').value) || 1;
-    const allHaveBedrooms = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked').value === 'yes';
-    const wantController = document.querySelector('input[name="wantController"]:checked').value === 'yes';
-    const controllerQty = wantController ? (parseInt(document.getElementById('controllerQty').value) || 1) : 0;
-
-    let alarmCount = bedrooms + hallways;
-    if (storeys > 1 && !allHaveBedrooms) {
-        alarmCount += (storeys - 1); 
-    }
-
-    const PRICE_ALARM = 98;
-    const PRICE_CTRL = 49;
-    const FEE_BOOKING = serviceMode === 'install' ? 33 : 131;
-
-    const totalAlarmPrice = alarmCount * PRICE_ALARM;
-    const totalCtrlPrice = controllerQty * PRICE_CTRL;
-    const grandTotal = totalAlarmPrice + totalCtrlPrice + FEE_BOOKING;
-
-    document.getElementById('script-qty').innerText = alarmCount;
-    document.getElementById('res_alarmQty').innerText = alarmCount;
-    document.getElementById('res_alarmTotal').innerText = formatter.format(totalAlarmPrice);
-    document.getElementById('res_ctrlQty').innerText = controllerQty;
-    document.getElementById('res_ctrlTotal').innerText = formatter.format(totalCtrlPrice);
-
-    if (serviceMode === 'install') {
-        document.getElementById('lbl-upfront').innerText = "Booking Fee:";
-        document.getElementById('res-upfront').innerText = "$33.00";
-        document.getElementById('res-balance').innerText = formatter.format(totalAlarmPrice + totalCtrlPrice);
-    } else {
-        document.getElementById('lbl-upfront').innerText = "Inspection Fee:";
-        document.getElementById('res-upfront').innerText = "$131.00";
-        document.getElementById('res-balance').innerText = "$0.00";
-    }
-
-    document.getElementById('res-total').innerText = formatter.format(grandTotal);
-    
-    // Handle Step 4 hint visibility and auto-expand
-    const step4Details = document.getElementById('step4-details');
-    const step4Hint = document.getElementById('step4-hint');
-    
-    // Show/hide hint based on alarm count or inspection mode
-    if (alarmCount > 0 || (serviceMode === 'inspect' && FEE_BOOKING > 0)) {
-        step4Hint.classList.add('hidden');
-        step4Details.open = true;
-    } else {
-        step4Hint.classList.remove('hidden');
-        // Keep it closed if there are no alarms
-        step4Details.open = false;
-    }
+  const bedrooms = parseInt(document.getElementById('bedrooms').value)||0;
+  const hallways = parseInt(document.getElementById('hallways').value)||0;
+  const storeys  = parseInt(document.getElementById('levels').value)||1;
+  const allHaveBeds = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value==='yes';
+  const wantCtrl   = document.querySelector('input[name="wantController"]:checked')?.value==='yes';
+  const ctrlQty    = wantCtrl ? (parseInt(document.getElementById('controllerQty').value)||1):0;
+  let alarms = bedrooms+hallways;
+  if (storeys>1 && !allHaveBeds) alarms += (storeys-1);
+  const ALARM=98,CTRL=49,FEE=serviceMode==='install'?33:131;
+  const alarmT=alarms*ALARM,ctrlT=ctrlQty*CTRL,grand=alarmT+ctrlT+FEE;
+  document.getElementById('script-qty').innerText=alarms;
+  document.getElementById('res_alarmQty').innerText=alarms;
+  document.getElementById('res_alarmTotal').innerText=fmt.format(alarmT);
+  document.getElementById('res_ctrlQty').innerText=ctrlQty;
+  document.getElementById('res_ctrlTotal').innerText=fmt.format(ctrlT);
+  if (serviceMode==='install') {
+    document.getElementById('lbl-upfront').innerText='Booking Fee';
+    document.getElementById('res-upfront').innerText='$33.00';
+    document.getElementById('res-balance').innerText=fmt.format(alarmT+ctrlT);
+  } else {
+    document.getElementById('lbl-upfront').innerText='Inspection Fee';
+    document.getElementById('res-upfront').innerText='$131.00';
+    document.getElementById('res-balance').innerText='$0.00';
+  }
+  document.getElementById('res-total').innerText=fmt.format(grand);
+  const step4=document.getElementById('step4-details');
+  const hint=document.getElementById('step4-hint');
+  if (alarms>0||serviceMode==='inspect') { hint.style.display='none'; step4.open=true; }
+  else { hint.style.display='block'; }
 }
 
-function copySMS() {
-    const qty = document.getElementById('res_alarmQty').innerText;
-    const alarmTotal = document.getElementById('res_alarmTotal').innerText;
-    const grandTotal = document.getElementById('res-total').innerText;
-    const controllerQty = document.getElementById('res_ctrlQty').innerText;
-    const controllerTotal = document.getElementById('res_ctrlTotal').innerText;
-    const hasControllers = controllerQty > 0;
-    
-    let breakdown = "";
-    if (serviceMode === 'install') {
-        breakdown = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${alarmTotal}`;
-        if (hasControllers) {
-            breakdown += `\n- Controllers (${controllerQty} x $49.00): ${controllerTotal}`;
-        }
-        breakdown += `\n- Booking Fee: $33.00\n- Total: ${grandTotal}`;
-    } else {
-        breakdown = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${grandTotal}`;
-    }
-    
-    const body = `Hi,\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${breakdown}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`;
-    
-    navigator.clipboard.writeText(body);
-    alert("SMS Template Copied!");
+// message builders
+function buildQuoteSMS() {
+  const n = customerName || 'there';
+  const a = agentName || 'Goldsure';
+  const qty = document.getElementById('res_alarmQty').innerText;
+  const aT  = document.getElementById('res_alarmTotal').innerText;
+  const grand = document.getElementById('res-total').innerText;
+  const cQty = document.getElementById('res_ctrlQty').innerText;
+  const cT   = document.getElementById('res_ctrlTotal').innerText;
+  const hasC = parseInt(cQty)>0;
+  let bd = '';
+  if (serviceMode==='install') {
+    bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${aT}`;
+    if (hasC) bd += `\n- Controllers (${cQty} x $49.00): ${cT}`;
+    bd += `\n- Booking Fee: $33.00\n- Total: ${grand}`;
+  } else {
+    bd = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${grand}`;
+  }
+  return `Hi ${n},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`;
+}
+function buildFollowupSMS(index) {
+  const n = customerName || '[Name]';
+  const a = agentName || 'Goldsure';
+  const msgs = [
+    `Hi ${n}, this is ${a} from Goldsure.\n\nWe tried calling earlier regarding your smoke alarm upgrades enquiry but were not able to reach you.\n\nWe are happy to provide a quick assessment of your home's compliance, particularly around the newer QLD requirements for interconnected alarms in bedrooms.\n\nWhenever you have a moment, give us a call on 07 2145 5155 or reply here with a preferred time.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure. We have tried reaching out regarding your smoke alarm enquiry but have not been able to connect.\n\nIf you are still looking for help with your alarms, let us know a good time to chat. We are here on 07 2145 5155 if you would like to call us back.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure checking in regarding the quote we sent through for your smoke alarm upgrade.\n\nHappy to answer any questions or help you move forward when it suits.\n\nReply here or give us a call on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is Goldsure. Thanks for your enquiry regarding smoke alarm compliance.\n\nUnfortunately, we do not currently service your suburb. We have saved your details and will reach out once we expand into your area.\n\nAppreciate your understanding.\n\nRegards,\n${a}\nGoldsure Pty Ltd`
+  ];
+  return msgs[index-1];
 }
 
-function copyTemplateSMS(index) {
-    const nameStr = customerName || "[Name]";
-    let body = "";
+// modal functions
+function openCopyModal() {
+  activeCopyType = 'quote';
+  document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.getElementById('copy-preview').value = buildQuoteSMS();
+  document.getElementById('copyModal').classList.add('open');
+}
+function closeCopyModal() { document.getElementById('copyModal').classList.remove('open'); }
 
-    switch(index) {
-        case 1:
-    body = `Hi ${nameStr}, this is Goldsure.\n\nWe tried calling earlier regarding your smoke alarm upgrades enquiry but were not able to reach you.\n\nWe are happy to provide a quick assessment of your home's compliance, particularly around the newer QLD requirements for interconnected alarms in bedrooms.\n\nWhenever you have a moment, give us a call on 07 2145 5155 or reply here with a preferred time and we will reach out.\n\nRegards,\nThe Goldsure Team`;
-    break;
-        case 2:
-    body = `Hi ${nameStr}, this is Goldsure. We have tried reaching out regarding your smoke alarm enquiry but have not been able to connect.\n\nIf you are still looking for help with your alarms, let us know a good time to chat. We are here on 07 2145 5155 if you would like to call us back instead.\n\nRegards,\nGoldsure Pty Ltd`;
-    break;
-      case 3:
-    body = `Hi ${nameStr}, this is Goldsure checking in regarding the quote we sent through for your smoke alarm upgrade.\n\nHappy to answer any questions or help you move forward when it suits. We can also confirm availability to get everything sorted.\n\nReply here or give us a call on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`;
-    break;
-        case 4:
-            body = `Hi ${nameStr}, this is Goldsure. Thanks for your enquiry regarding smoke alarm compliance.\n\nUnfortunately, we do not currently service your suburb. We have saved your details and will reach out once we expand into your area.\n\nAppreciate your understanding.\n\nRegards,\nGoldsure Pty Ltd`;
-            break;
-    }
+function setCopyType(type, btn) {
+  activeCopyType = type;
+  document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let msg = type==='quote' ? buildQuoteSMS() : buildFollowupSMS(parseInt(type.replace('followup','')));
+  document.getElementById('copy-preview').value = msg;
+}
 
-    navigator.clipboard.writeText(body);
-    alert("Template " + index + " Copied!");
+function copyPreviewToClipboard() {
+  const text = document.getElementById('copy-preview').value;
+  navigator.clipboard.writeText(text).then(()=>{
+    showToast('Template copied to clipboard!');
+    closeCopyModal();
+  }).catch(()=>showToast('Press Ctrl+C to copy'));
 }
 
 function sendEmail() {
-    const qty = document.getElementById('res_alarmQty').innerText;
-    const alarmTotal = document.getElementById('res_alarmTotal').innerText;
-    const grandTotal = document.getElementById('res-total').innerText;
-    const controllerQty = document.getElementById('res_ctrlQty').innerText;
-    const controllerTotal = document.getElementById('res_ctrlTotal').innerText;
-    const hasControllers = controllerQty > 0;
-    const nameStr = customerName || "customer";
-
-    let breakdown = "";
-    if (serviceMode === 'install') {
-        breakdown = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${alarmTotal}`;
-        if (hasControllers) {
-            breakdown += `\n- Controllers (${controllerQty} x $49.00): ${controllerTotal}`;
-        }
-        breakdown += `\n- Booking Fee: $33.00\n- Total: ${grandTotal}`;
-    } else {
-        breakdown = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${grandTotal}`;
-    }
-
-    const body = encodeURIComponent(`Hi ${nameStr},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${breakdown}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this email or call us on 07 2145 5155.\n\nRegards,\nGoldsure Pty Ltd`);
-    
-    window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
+  const n = customerName || 'customer';
+  const body = encodeURIComponent(buildQuoteSMS().replace('Hi there',`Hi ${n}`));
+  window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
 }
+function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 
-// PDF Functions
-function openPdfModal() {
-    const nameField = document.getElementById('pdfCustomerName');
-    const addressField = document.getElementById('pdfCustomerAddress');
-    
-    // Pre-fill name if available from main form
-    if (customerName) {
-        nameField.value = customerName;
-    } else {
-        nameField.value = '';
-    }
-    addressField.value = '';
-    
-    document.getElementById('pdfModal').style.display = 'flex';
+// PDF functions (updated with complete template)
+function openPdfModal() { 
+  document.getElementById('pdfCustomerName').value = customerName || '';
+  document.getElementById('pdfCustomerAddress').value = '';
+  document.getElementById('pdfModal').classList.add('open'); 
 }
-
-function closePdfModal() {
-    document.getElementById('pdfModal').style.display = 'none';
-}
+function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
 
 function generatePDF() {
-    const name = document.getElementById('pdfCustomerName').value.trim();
-    const address = document.getElementById('pdfCustomerAddress').value.trim();
-    
-    if (!name) { 
-        alert("Please enter customer name."); 
-        return; 
-    }
-    
-    // ADDRESS CHECK REMOVED: User requested to allow download even if no customer address.
+  const name = document.getElementById('pdfCustomerName').value.trim();
+  const address = document.getElementById('pdfCustomerAddress').value.trim();
+  if (!name) { showToast('Please enter customer name.'); return; }
+  
+  const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
+  const hallways = parseInt(document.getElementById('hallways').value) || 0;
+  const storeys = parseInt(document.getElementById('levels').value) || 1;
+  const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+  const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const grandTotal = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
+  const subtotal = grandTotal / 1.1;
+  const gst = grandTotal - subtotal;
 
-    // Get current quote data
-    const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
-    const hallways = parseInt(document.getElementById('hallways').value) || 0;
-    const storeys = parseInt(document.getElementById('levels').value) || 1;
-    const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
-    const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
-    const grandTotalText = document.getElementById('res-total').innerText;
-    
-    // Parse the grand total
-    const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
-    
-    // Calculate subtotal and GST
-    const subtotal = grandTotal / 1.1;
-    const gst = grandTotal - subtotal;
+  document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
+  document.getElementById('pdf-cust-name').innerText = name;
+  document.getElementById('pdf-cust-address').innerText = address;
+  document.getElementById('pdf-bedrooms').innerText = bedrooms;
+  document.getElementById('pdf-storeys').innerText = storeys;
+  document.getElementById('pdf-hallways').innerText = hallways;
+  document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
 
-    // Build PDF content
-    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
-    document.getElementById('pdf-cust-name').innerText = name;
-    document.getElementById('pdf-cust-address').innerText = address;
-    document.getElementById('pdf-bedrooms').innerText = bedrooms;
-    document.getElementById('pdf-storeys').innerText = storeys;
-    document.getElementById('pdf-hallways').innerText = hallways;
-    document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
+  const tdStyle = 'padding:9px 8px;font-size:12px;border-bottom:1px solid #e3e7ef;';
+  let rows = '';
+  if (serviceMode === 'install') {
+    if (alarmQty > 0) rows += `<tr><td style="${tdStyle}">Raptor Smoke Alarms – Photoelectric, Interconnected</td><td style="${tdStyle}text-align:center;">${alarmQty}</td><td style="${tdStyle}text-align:right;">$98.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(alarmQty*98)}</td></tr>`;
+    if (ctrlQty  > 0) rows += `<tr><td style="${tdStyle}">Smoke Alarm Controller</td><td style="${tdStyle}text-align:center;">${ctrlQty}</td><td style="${tdStyle}text-align:right;">$49.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(ctrlQty*49)}</td></tr>`;
+    rows += `<tr><td style="${tdStyle}">Electrician Booking Fee</td><td style="${tdStyle}text-align:center;">1</td><td style="${tdStyle}text-align:right;">$33.00</td><td style="${tdStyle}text-align:right;font-weight:600;">$33.00</td></tr>`;
+  } else {
+    rows += `<tr><td style="${tdStyle}">Smoke Alarm Inspection Service</td><td style="${tdStyle}text-align:center;">1</td><td style="${tdStyle}text-align:right;">$131.00</td><td style="${tdStyle}text-align:right;font-weight:600;">$131.00</td></tr>`;
+  }
+  document.getElementById('pdf-table-body').innerHTML = rows;
+  document.getElementById('pdf-subtotal').innerText = fmt.format(subtotal);
+  document.getElementById('pdf-gst').innerText = fmt.format(gst);
+  document.getElementById('pdf-grand-total').innerText = fmt.format(grandTotal);
 
-    let rows = '';
-    if (serviceMode === 'install') {
-        if (alarmQty > 0) {
-            rows += `<tr><td class="py-2 border-b">Raptor Smoke Alarms - Photoelectric, Interconnected</td><td class="text-center border-b">${alarmQty}</td><td class="text-right border-b">$98.00</td><td class="text-right border-b">${formatter.format(alarmQty * 98)}</td></tr>`;
-        }
-        if (ctrlQty > 0) {
-            rows += `<tr><td class="py-2 border-b">Smoke Alarm Controller</td><td class="text-center border-b">${ctrlQty}</td><td class="text-right border-b">$49.00</td><td class="text-right border-b">${formatter.format(ctrlQty * 49)}</td></tr>`;
-        }
-        rows += `<tr><td class="py-2 border-b">Electrician Booking Fee</td><td class="text-center border-b">1</td><td class="text-right border-b">$33.00</td><td class="text-right border-b">$33.00</td></tr>`;
-    } else {
-        rows += `<tr><td class="py-2 border-b">Smoke Alarm Inspection Service</td><td class="text-center border-b">1</td><td class="text-right border-b">$131.00</td><td class="text-right border-b">$131.00</td></tr>`;
-    }
-    
-    document.getElementById('pdf-table-body').innerHTML = rows;
-    document.getElementById('pdf-subtotal').innerText = formatter.format(subtotal);
-    document.getElementById('pdf-gst').innerText = formatter.format(gst);
-    document.getElementById('pdf-grand-total').innerText = formatter.format(grandTotal);
-
-    const element = document.getElementById('pdf-template');
-    
-    // Temporarily show for capture
-    const originalDisplay = element.style.display;
-    element.style.display = 'block';
-
-    const opt = {
-        margin: 10,
-        filename: `Goldsure_Quote_${name.replace(/\s+/g, '_')}.pdf`,
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            logging: false 
-        },
-        jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait' 
-        }
-    };
-
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Restore original display
-        element.style.display = originalDisplay;
-        closePdfModal();
-        // Clear the form fields after download
-        document.getElementById('pdfCustomerName').value = '';
-        document.getElementById('pdfCustomerAddress').value = '';
-    }).catch(err => {
-        console.error('PDF generation error:', err);
-        alert('Error generating PDF. Please try again.');
-        element.style.display = originalDisplay;
-    });
+  const el = document.getElementById('pdf-template');
+  el.style.display = 'block';
+  html2pdf().set({
+    margin:     10,
+    filename:   `Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`,
+    html2canvas:{ scale:2, useCORS:true, logging:false },
+    jsPDF:      { unit:'mm', format:'a4', orientation:'portrait' }
+  }).from(el).save().then(() => { 
+    el.style.display='none'; 
+    closePdfModal();
+    document.getElementById('pdfCustomerName').value = '';
+    document.getElementById('pdfCustomerAddress').value = '';
+  }).catch(err => { 
+    console.error(err); 
+    el.style.display='none'; 
+  });
 }
 
-// Initialize
-setMode('social');
+// docs toggle
+function toggleDocs(btn) { 
+  document.getElementById('docs-list').classList.toggle('open'); 
+  const arrow = btn.querySelector('.arrow');
+  if (arrow) arrow.style.transform = document.getElementById('docs-list').classList.contains('open') ? 'rotate(180deg)' : '';
+}
 </script>
-
 </body>
 </html>
