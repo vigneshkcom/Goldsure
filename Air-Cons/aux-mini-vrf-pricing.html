@@ -13,709 +13,641 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        /* Modern Reset and Base Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ============================================
+           DESIGN SYSTEM — Light & Subtle
+           Soft slate primary, warm whites, gentle accents
+           ============================================ */
+        :root {
+            --blue:       #3d6b8e;
+            --blue-dark:  #2d5270;
+            --blue-light: #f0f5f9;
+            --blue-mid:   #dde8f0;
+            --teal:       #3d8e7a;
+            --teal-dark:  #2d6e5f;
+            --teal-light: #f0f7f5;
+            --red:        #c0392b;
+            --red-dark:   #922b21;
+            --red-light:  #fdf0ef;
+            --green:      #27774e;
+            --green-light:#eef7f2;
+            --amber:      #c97d1a;
+            --amber-light:#fdf6ea;
+            --text:       #2c3e50;
+            --text-muted: #7f8c9a;
+            --border:     #e8edf2;
+            --bg:         #f5f7f9;
+            --surface:    #ffffff;
+            --sidebar-bg: #fafbfc;
+            --radius:     8px;
+            --radius-lg:  12px;
+            --shadow-sm:  0 1px 3px rgba(0,0,0,0.05);
+            --shadow:     0 3px 12px rgba(0,0,0,0.06);
+            --shadow-lg:  0 6px 24px rgba(0,0,0,0.08);
         }
-        
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background-color: #f8fafb;
-            color: #333;
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px 20px;
             line-height: 1.6;
         }
-        
-        .dashboard-container { 
-            background: white;
+
+        /* ── Page Header ─────────────────────────────── */
+        /* ── Page Footer ─────────────────────────────── */
+        .page-footer {
+            max-width: 1500px;
+            margin: 20px auto 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        .page-footer-brand { display: flex; align-items: center; gap: 14px; }
+        .page-footer-brand img { height: 36px; width: auto; }
+        .page-footer-name { font-size: 13px; font-weight: 700; color: var(--text); }
+        .page-footer-addr { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .page-footer-contact { font-size: 11px; color: var(--text-muted); text-align: right; line-height: 1.9; }
+        .page-footer-contact a { color: var(--blue); text-decoration: none; }
+        @media (max-width: 768px) {
+            .page-footer { flex-direction: column; align-items: flex-start; }
+            .page-footer-contact { text-align: left; }
+        }
+
+        .page-header {
+            max-width: 1500px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px 24px;
+            box-shadow: var(--shadow-sm);
+        }
+        .page-header-logo img {
+            height: 48px;
+            width: auto;
+            display: block;
+            flex-shrink: 0;
+        }
+        .page-header-text h1 {
+            font-size: 20px; font-weight: 700;
+            color: var(--blue); line-height: 1.2;
+            margin: 0; padding: 0; border: none; width: auto;
+        }
+        .page-header-text h1::after { display: none; }
+        .page-header-text p {
+            font-size: 12px; color: var(--text-muted); margin-top: 3px;
+        }
+
+        /* ── Main container ──────────────────────────── */
+        .dashboard-container {
+            background: var(--surface);
             max-width: 1500px;
             margin: 0 auto;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
             position: relative;
             overflow: hidden;
             display: flex;
             flex-wrap: wrap;
-            gap: 40px;
+            gap: 32px;
         }
-        
         .dashboard-container::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: #0056a6;
-            border-radius: 12px 12px 0 0;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue) 0%, #14a085 100%);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         }
-        
-        .main-content {
-            flex: 1;
-            min-width: 300px;
-        }
-        
+
+        .main-content { flex: 1; min-width: 300px; }
+
+        /* ── Sidebar ─────────────────────────────────── */
         .calculator-sidebar {
-            width: 400px;
-            min-width: 350px;
-            background: #f9f9f9;
-            border-radius: 10px;
-            padding: 25px;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            width: 320px;
+            min-width: 300px;
+            background: var(--sidebar-bg);
+            border-radius: var(--radius-lg);
+            padding: 0;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            align-self: flex-start;
+            position: sticky;
+            top: 24px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
         }
-        
-        h1 { 
-            font-size: 30px;
-            font-weight: 700;
-            margin-bottom: 30px;
-            color: #0056a6;
-            text-align: left;
-            position: relative;
-            padding-bottom: 15px;
-            width: 100%;
+        .calculator-sidebar::-webkit-scrollbar { width: 5px; }
+        .calculator-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .sidebar-header {
+            background: var(--surface);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid var(--blue);
         }
-        
+        .sidebar-header svg { color: var(--blue); flex-shrink: 0; }
+        .sidebar-header-text { color: var(--text); }
+        .sidebar-header-text .title { font-size: 14px; font-weight: 600; color: var(--blue); }
+        .sidebar-header-text .subtitle { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+        .sidebar-body { padding: 14px 16px; }
+
+        /* Section dividers in sidebar */
+        .sidebar-section {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-section:last-of-type { border-bottom: none; }
+        .sidebar-section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .sidebar-section-label .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--blue);
+            flex-shrink: 0;
+        }
+        .sidebar-section-label.teal .dot { background: var(--teal); }
+        .sidebar-section-label.amber .dot { background: var(--amber); }
+
+        /* ── Heading styles ──────────────────────────── */
+        h1 {
+            font-size: 24px; font-weight: 700;
+            color: var(--blue);
+            margin-bottom: 24px; padding-bottom: 14px;
+            position: relative; width: 100%;
+        }
         h1::after {
             content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 80px;
-            height: 3px;
-            background: #0056a6;
+            position: absolute; bottom: 0; left: 0;
+            width: 48px; height: 3px;
+            background: var(--blue);
             border-radius: 2px;
         }
-        
-        /* Main Navigation Layout */
+        h2 {
+            font-size: 18px; font-weight: 600;
+            color: var(--text);
+            margin-bottom: 16px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Navigation bar ──────────────────────────── */
         .main-nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            padding: 0;
-            background: transparent;
-        }
-        
-        .year-tabs {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .doc-buttons {
-            display: flex;
+            margin-bottom: 24px;
             gap: 12px;
+            background: var(--bg);
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
-        
-        .nav-btn {
-            padding: 12px 24px;
-            border: none;
-            background: white;
+        .year-tabs { display: flex; gap: 6px; }
+        .doc-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* Unified button base */
+        .nav-btn, .doc-btn, .inst-btn {
             font-family: 'Poppins', sans-serif;
             font-weight: 500;
-            font-size: 14px;
-            border-radius: 6px;
+            font-size: 13px;
+            border-radius: var(--radius);
             cursor: pointer;
-            transition: all 0.2s ease;
-            color: #555;
-            border: 1px solid #ddd;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            display: flex;
+            transition: all 0.18s ease;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 100px;
-        }
-        
-        .nav-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
-            border-color: #0056a6;
-            color: #0056a6;
-        }
-        
-        .year-btn.active {
-            background: #0056a6;
-            color: white;
-            border-color: #0056a6;
-            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.15);
-        }
-        
-        .doc-btn {
-            background: #0056a6;
-            color: white;
+            gap: 6px;
             text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 86, 166, 0.1);
-            border: 1px solid #0056a6;
-            min-width: 140px;
-            text-align: center;
-        }
-        
-        .doc-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.2);
-            background: #004a8f;
-        }
-        
-        .doc-btn.eco {
-            background: #009688;
-            border-color: #009688;
-            box-shadow: 0 2px 4px rgba(0, 150, 136, 0.1);
+            border: 1.5px solid transparent;
+            padding: 8px 16px;
+            white-space: nowrap;
         }
 
+        /* Year tab buttons — outlined style */
+        .nav-btn {
+            background: var(--surface);
+            color: var(--text-muted);
+            border-color: var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+        .nav-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: var(--blue-light);
+        }
+        .year-btn.active {
+            background: var(--blue);
+            color: white;
+            border-color: var(--blue);
+            box-shadow: 0 2px 6px rgba(61,107,142,0.2);
+        }
+
+        /* Doc link buttons — subtle outlined */
+        .doc-btn {
+            background: var(--surface);
+            color: var(--blue);
+            border-color: var(--blue-mid);
+            box-shadow: var(--shadow-sm);
+        }
+        .doc-btn:hover {
+            background: var(--blue-light);
+            border-color: var(--blue);
+            transform: translateY(-1px);
+        }
+        .doc-btn.eco {
+            color: var(--teal);
+            border-color: #c8e0d8;
+        }
         .doc-btn.eco:hover {
-            background: #008577;
-            box-shadow: 0 4px 8px rgba(0, 150, 136, 0.2);
+            background: var(--teal-light);
+            border-color: var(--teal);
         }
-     
-        /* Content Sections */
-        .content-section {
-            margin-bottom: 30px;
+
+        /* Install costs button */
+        .inst-btn {
+            margin-top: 20px;
+            background: var(--surface);
+            color: var(--blue);
+            border-color: var(--blue-mid);
+            padding: 10px 20px;
+            font-size: 13px;
         }
-        
-        h2 {
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #333;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
+        .inst-btn:hover {
+            background: var(--blue-light);
+            transform: translateY(-1px);
         }
-        
-        /* Tables - Compact Design */
+        .inst-btn.active {
+            background: var(--blue);
+            color: white;
+        }
+
+        /* ── Tables ──────────────────────────────────── */
+        .content-section { margin-bottom: 28px; }
+
         table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-            font-size: 13px;
-            border: 1px solid #e0e0e0;
-            background: white;
+            width: 100%; border-collapse: collapse;
+            margin-top: 4px; font-size: 13px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: var(--radius);
+            overflow: hidden;
         }
-        
         th {
-            background: #f5f7fa;
-            color: #333;
-            padding: 14px 10px;
+            background: #f8fafc;
+            color: var(--text-muted);
+            padding: 11px 10px;
             text-align: center;
             font-weight: 600;
-            font-size: 13px;
-            border: 1px solid #e0e0e0;
-            border-bottom: 2px solid #ddd;
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border: none;
+            border-bottom: 1px solid var(--border);
         }
-        
+        th:first-child { border-radius: 0; }
         td {
-            padding: 12px 10px;
+            padding: 10px 10px;
             text-align: center;
-            border: 1px solid #eee;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
         }
-        
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        tr:hover td {
-            background-color: #f0f7ff;
-        }
-        
-        .brand-cell {
+        td:last-child { border-right: none; }
+
+        /* ODU rows — very subtle left accent */
+        tr.odu-row td {
+            background: #f8fbfe;
             font-weight: 600;
-            font-size: 13px;
-            color: #0056a6;
+            border-left: 3px solid var(--blue);
         }
-        
+        tr.odu-row td:first-child { border-left: 3px solid var(--blue); }
+
+        tr:hover td { background: #fbfcfd; }
+        tr.odu-row:hover td { background: #f0f6fb; }
+
+        .brand-cell { font-weight: 700; font-size: 13px; color: var(--blue); }
+
         .combinations-header {
-            background: #f0f7ff;
-            color: #0056a6;
-            font-weight: 600;
-            font-size: 14px;
-            padding: 16px;
+            background: var(--blue-light);
+            color: var(--blue);
+            font-weight: 700;
+            font-size: 13px;
+            padding: 12px 16px;
             text-align: center;
-            border-top: 2px solid #ddd;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 11px;
         }
-        
+
+        /* VEEC badge — pill style */
         .veec-highlight {
-            color: #d32f2f;
-            font-weight: 600;
-            font-size: 14px;
             vertical-align: middle;
         }
-        
+        .veec-badge {
+            display: inline-block;
+            background: var(--blue);
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            letter-spacing: 0.02em;
+        }
+
         .align-left {
             text-align: left;
             padding-left: 20px;
             font-weight: 500;
         }
-        
-        /* Installation Section */
-        .inst-table td {
-            text-align: left;
-            padding-left: 20px;
-        }
-        
+
+        /* Installation table */
+        .inst-table td { text-align: left; padding-left: 20px; }
         .inst-table .price-col {
-            text-align: center;
-            width: 30%;
-            font-weight: 600;
-            color: #009688;
+            text-align: center; width: 28%;
+            font-weight: 600; color: var(--teal);
         }
-        
         .price-highlight {
-            font-size: 18px;
-            font-weight: 600;
-            color: #0056a6;
-            margin-bottom: 20px;
-            background: #f0f7ff;
-            padding: 15px 20px;
-            border-radius: 6px;
-            display: inline-block;
-            border-left: 4px solid #0056a6;
+            font-size: 17px; font-weight: 600; color: var(--blue);
+            margin-bottom: 18px; background: var(--blue-light);
+            padding: 14px 20px; border-radius: var(--radius);
+            display: inline-block; border-left: 4px solid var(--blue);
         }
-        
-        /* Calculator Styles */
-        .calculator-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #0056a6;
-            border-bottom: 2px solid #0056a6;
-            padding-bottom: 8px;
-        }
-        
-        .calc-input-group {
-            margin-bottom: 15px;
-        }
-        
+
+        /* ── Calculator input styles ─────────────────── */
+        .calculator-title { display: none; } /* replaced by sidebar-header */
+
+        .calc-input-group { margin-bottom: 9px; }
         .calc-label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #555;
-            font-size: 14px;
+            display: block; font-weight: 500;
+            margin-bottom: 3px; color: var(--text-muted); font-size: 12px;
         }
-        
         .calc-select, .calc-input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            width: 100%; padding: 7px 10px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
             font-family: 'Poppins', sans-serif;
-            font-size: 14px;
-            background: white;
+            font-size: 12px; background: var(--surface);
+            color: var(--text);
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        
         .calc-input:focus, .calc-select:focus {
             outline: none;
-            border-color: #0056a6;
-            box-shadow: 0 0 0 2px rgba(0, 86, 166, 0.1);
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(61,107,142,0.15);
         }
-        
+
         .calc-unit-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between;
+            align-items: center; padding: 5px 0;
+            border-bottom: 1px solid var(--border);
         }
-        
-        .calc-unit-info {
-            flex: 1;
-            text-align: left;
-        }
-        
+        .calc-unit-info { flex: 1; text-align: left; font-size: 12px; }
         .calc-unit-qty {
-            width: 70px;
-            padding: 6px;
-            text-align: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            width: 52px; padding: 4px;
+            text-align: center; border: 1.5px solid var(--border);
+            border-radius: 6px; font-size: 12px;
+            font-family: 'Poppins', sans-serif;
         }
-        
-        .calc-results {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #e0e0e0;
-            margin-top: 25px;
-        }
-        
-        .calc-result-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .calc-subtotal-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-top: 2px solid #ddd;
-            font-weight: 600;
-            font-size: 15px;
-        }
-        
-        .calc-total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-top: 2px solid #0056a6;
-            font-weight: 600;
-            font-size: 16px;
-            color: #0056a6;
-        }
-        
-        .calc-financial-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed #ddd;
-        }
-        
-        .calc-note {
-            font-size: 12px;
-            color: #777;
-            margin-top: 10px;
-            font-style: italic;
-        }
-        
-        /* Financial Inputs */
-        .calc-financial-inputs {
-            background: #f0f7ff;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
-            border: 1px solid #d0e3ff;
-        }
-        
-        .calc-financial-title {
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #0056a6;
-            font-size: 15px;
-        }
-        
-        .calc-financial-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .calc-financial-group .calc-input {
-            flex: 1;
-        }
-        
-        /* VEEC Registration Section */
-        .calc-veec-fees {
-            background: #fff8e1;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            border: 1px solid #ffd54f;
-        }
-        
-        .calc-veec-fee-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            font-size: 13.5px;
-        }
-        
-        .calc-veec-fee-title {
-            font-weight: 600;
-            color: #5d4037;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        
-        /* Installation Fee Inputs */
+        .calc-unit-qty:focus { outline: none; border-color: var(--blue); }
+
+        /* Installation fee rows */
         .calc-installation-fee-row {
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 8px 10px;
-            background: white;
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
+            margin-bottom: 5px; padding: 5px 8px;
+            background: var(--surface);
+            border-radius: 6px; border: 1px solid var(--border);
         }
-        
-        .calc-installation-label {
-            flex: 2;
-            font-size: 13px;
-            color: #555;
-        }
-        
+        .calc-installation-label { flex: 2; font-size: 11px; color: var(--text-muted); }
         .calc-installation-price {
-            flex: 1;
-            text-align: center;
-            font-weight: 500;
-            color: #009688;
-            font-size: 13px;
+            flex: 1; text-align: center;
+            font-weight: 600; color: var(--teal); font-size: 11px;
         }
-        
         .calc-installation-qty {
-            width: 80px;
-            padding: 6px;
-            text-align: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
+            width: 56px; padding: 4px; text-align: center;
+            border: 1.5px solid var(--border); border-radius: 6px; font-size: 11px;
+            font-family: 'Poppins', sans-serif;
         }
-        
-        /* Sign Color Classes */
-        .neg-expense {
-            color: #d32f2f; /* Red for negative expenses */
+        .calc-installation-qty:focus { outline: none; border-color: var(--blue); }
+
+        /* Financial inputs block */
+        .calc-financial-inputs {
+            background: var(--blue-light);
+            border-radius: var(--radius); padding: 10px;
+            margin: 0 0 4px; border: 1px solid var(--blue-mid);
         }
-        .pos-revenue {
-            color: #2e7d32; /* Green for positive revenue */
+        .calc-financial-title {
+            font-weight: 600; margin-bottom: 8px;
+            color: var(--blue); font-size: 13px;
         }
-        
-        /* Footer and Actions */
-        .footer-note {
-            font-size: 13px;
-            color: #666;
-            margin-top: 30px;
-            padding: 15px 20px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            border-left: 4px solid #999;
-            font-style: normal;
+        .calc-financial-group {
+            display: flex; gap: 8px; margin-bottom: 8px;
         }
-        
-        .hidden { 
-            display: none; 
+        .calc-financial-group .calc-input { flex: 1; }
+
+        /* VEEC fees block */
+        .calc-veec-fees {
+            background: var(--amber-light);
+            border-radius: var(--radius); padding: 10px;
+            margin: 0; border: 1px solid #ffe082;
         }
-        
-        .inst-btn {
-            margin-top: 25px;
-            padding: 14px 30px;
-            border: none;
-            background: #555;
-            color: white;
-            cursor: pointer;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            display: inline-block;
+        .calc-veec-fee-row {
+            display: flex; justify-content: space-between;
+            padding: 4px 0; font-size: 11.5px;
         }
-        
-        .inst-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-            background: #444;
+        .calc-veec-fee-title {
+            font-weight: 600; color: #5d4037;
+            margin-bottom: 6px; font-size: 12px;
         }
-        
-        .inst-btn.active {
-            background: #0056a6;
-            box-shadow: 0 4px 8px rgba(0, 86, 166, 0.2);
+
+        /* ── Results panel ───────────────────────────── */
+        .calc-results {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 12px; border: 1px solid var(--border);
+            margin-top: 0;
         }
-        
-        /* PDF Download Button */
-        .pdf-btn {
-            margin-top: 20px;
-            padding: 14px 30px;
-            border: none;
-            background: #d32f2f;
-            color: white;
-            cursor: pointer;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 15px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(211, 47, 47, 0.2);
-            display: flex;
+        .calc-results-title {
+            font-size: 12px; font-weight: 600; color: var(--blue);
+            margin-bottom: 8px; padding-bottom: 6px;
+            border-bottom: 2px solid var(--blue-mid);
+        }
+        .calc-result-row {
+            display: flex; justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
+            padding: 5px 0; border-bottom: 1px solid var(--border);
+            font-size: 12px;
         }
-        
+        .calc-result-row .label { color: var(--text-muted); }
+        .calc-subtotal-row {
+            display: flex; justify-content: space-between;
+            align-items: center;
+            padding: 7px 0; border-top: 2px solid var(--border);
+            font-weight: 600; font-size: 12.5px;
+        }
+        .calc-total-row {
+            display: flex; justify-content: space-between;
+            align-items: center;
+            padding: 7px 0; border-top: 2px solid var(--blue);
+            font-weight: 600; font-size: 13px; color: var(--blue);
+        }
+        .calc-financial-row {
+            display: flex; justify-content: space-between;
+            align-items: center;
+            padding: 5px 0; border-bottom: 1px dashed var(--border);
+            font-size: 12px;
+        }
+
+        /* Profit/Loss card */
+        .profit-card {
+            margin-top: 10px;
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--green-light);
+            border: 1.5px solid #a5d6a7;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .profit-card.loss {
+            background: var(--red-light);
+            border-color: #ef9a9a;
+        }
+        .profit-card-label {
+            font-size: 12px; font-weight: 600;
+            color: var(--green);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .profit-card.loss .profit-card-label { color: var(--red); }
+        .profit-card-amount {
+            font-size: 18px; font-weight: 700; color: var(--green);
+        }
+        .profit-card.loss .profit-card-amount { color: var(--red); }
+
+        .calc-note {
+            font-size: 10.5px; color: var(--text-muted);
+            margin-top: 8px; line-height: 1.6;
+            padding: 8px 10px;
+            background: var(--bg);
+            border-radius: 6px;
+        }
+
+        /* Sign colours */
+        .neg-expense { color: var(--red); font-weight: 500; }
+        .pos-revenue { color: var(--green); font-weight: 500; }
+
+        /* Footer note */
+        .footer-note {
+            font-size: 12.5px; color: var(--text-muted);
+            margin-top: 24px; padding: 12px 16px;
+            background: var(--bg); border-radius: var(--radius);
+            border-left: 3px solid var(--blue-mid);
+        }
+
+        .hidden { display: none; }
+
+        /* PDF button */
+        .pdf-btn {
+            margin-top: 16px; padding: 13px 20px;
+            border: none; background: var(--red);
+            color: white; cursor: pointer;
+            border-radius: var(--radius); font-weight: 600;
+            font-size: 14px; font-family: 'Poppins', sans-serif;
+            transition: all 0.18s ease;
+            box-shadow: 0 3px 8px rgba(229,57,53,0.25);
+            display: flex; align-items: center;
+            justify-content: center; gap: 8px; width: 100%;
+        }
         .pdf-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
-            background: #b71c1c;
+            box-shadow: 0 6px 16px rgba(229,57,53,0.35);
+            background: var(--red-dark);
         }
-        
-        .pdf-btn:active {
-            transform: translateY(0);
-        }
-        
-        /* Loading Overlay */
+        .pdf-btn:active { transform: translateY(0); }
+
+        /* Loading overlay */
         .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            flex-direction: column;
-            color: white;
-            font-size: 18px;
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(10,20,40,0.75);
+            display: none; justify-content: center;
+            align-items: center; z-index: 1000;
+            flex-direction: column; color: white; font-size: 16px;
+            backdrop-filter: blur(3px);
         }
-        
         .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #0056a6;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top: 3px solid white;
+            border-radius: 50%; width: 44px; height: 44px;
+            animation: spin 0.9s linear infinite;
+            margin-bottom: 16px;
         }
-        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        /* Responsive adjustments */
+
+        /* ── Responsive ──────────────────────────────── */
         @media (max-width: 1200px) {
-            .dashboard-container {
-                padding: 30px;
-                max-width: 100%;
-                flex-direction: column;
-            }
-            
-            .calculator-sidebar {
-                width: 100%;
-                order: 2;
-            }
-            
-            .main-content {
-                order: 1;
-            }
-            
-            table {
-                font-size: 12px;
-            }
-            
-            th, td {
-                padding: 10px 8px;
-            }
+            .dashboard-container { padding: 24px; flex-direction: column; }
+            .calculator-sidebar { width: 100%; min-width: unset; order: 2; position: static; max-height: none; }
+            .main-content { order: 1; }
+            table { font-size: 12px; }
+            th, td { padding: 10px 8px; }
         }
-        
         @media (max-width: 992px) {
-            .main-nav {
-                flex-direction: column;
-                gap: 15px;
-                align-items: stretch;
-            }
-            
-            .year-tabs, .doc-buttons {
-                width: 100%;
-                justify-content: center;
-                flex-wrap: wrap;
-            }
-            
-            .dashboard-container {
-                padding: 25px 20px;
-            }
-            
-            h1 {
-                font-size: 26px;
-            }
-            
-            .nav-btn, .doc-btn {
-                padding: 10px 18px;
-                font-size: 13px;
-                min-width: auto;
-                flex: 1;
-                min-width: 120px;
-            }
+            .main-nav { flex-direction: column; gap: 10px; align-items: stretch; }
+            .year-tabs, .doc-buttons { width: 100%; justify-content: center; flex-wrap: wrap; }
+            h1 { font-size: 22px; }
+            .nav-btn, .doc-btn { font-size: 13px; flex: 1; }
         }
-        
         @media (max-width: 768px) {
-            body {
-                padding: 15px 10px;
-            }
-            
-            .dashboard-container {
-                padding: 20px 15px;
-                border-radius: 8px;
-            }
-            
-            h1 {
-                font-size: 22px;
-                margin-bottom: 25px;
-            }
-            
-            h2 {
-                font-size: 18px;
-            }
-            
-            table {
-                font-size: 11px;
-            }
-            
-            th, td {
-                padding: 8px 5px;
-            }
-            
-            .nav-btn, .doc-btn {
-                padding: 8px 12px;
-                font-size: 12px;
-                min-width: 100px;
-            }
-            
-            .calculator-sidebar {
-                padding: 20px;
-            }
+            body { padding: 12px 10px; }
+            .dashboard-container { padding: 18px; border-radius: var(--radius); }
+            h1 { font-size: 20px; margin-bottom: 20px; }
+            h2 { font-size: 16px; }
+            table { font-size: 11px; }
+            th, td { padding: 8px 5px; }
+            .nav-btn, .doc-btn { padding: 8px 12px; font-size: 12px; }
+            .calculator-sidebar { padding: 0; }
         }
-        
         @media (max-width: 480px) {
-            .dashboard-container {
-                padding: 15px 10px;
-            }
-            
-            h1 {
-                font-size: 20px;
-            }
-            
-            table {
-                font-size: 10px;
-                display: block;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-            
-            th, td {
-                padding: 6px 4px;
-            }
+            table { display: block; overflow-x: auto; white-space: nowrap; }
+            th, td { padding: 6px 4px; }
         }
-        
-        /* Print Styles */
         @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            
-            .dashboard-container {
-                box-shadow: none;
-                padding: 0;
-            }
-            
-            .main-nav, .inst-btn, .doc-buttons, .calculator-sidebar {
-                display: none;
-            }
-            
-            table {
-                break-inside: avoid;
-            }
+            body { background: white; padding: 0; }
+            .dashboard-container { box-shadow: none; padding: 0; }
+            .main-nav, .inst-btn, .doc-buttons, .calculator-sidebar, .page-header { display: none; }
+            table { break-inside: avoid; }
         }
     </style>
 </head>
@@ -727,9 +659,20 @@
     <div>Generating PDF Report...</div>
 </div>
 
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header-logo">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
+    </div>
+    <div class="page-header-text">
+        <h1>Goldsure Pty Ltd <span style="color:var(--text-muted); font-weight:400; font-size:16px;">|</span> AUX Mini VRF</h1>
+        <p>Product Costs Dashboard &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072 &nbsp;·&nbsp; <a href="tel:+61451898761" style="color:var(--blue); text-decoration:none;">+61 451 898 761</a> &nbsp;·&nbsp; <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue); text-decoration:none;">vignesh@goldsure.com.au</a></p>
+    </div>
+</div>
+
 <div class="dashboard-container">
     <div class="main-content">
-        <h1>AUX Mini VRF Product Costs Dashboard</h1>
+        <h1 style="display:none">AUX Mini VRF Product Costs Dashboard</h1>
         
         <div class="main-nav">
             <div class="year-tabs">
@@ -767,30 +710,20 @@
                         <th>Capacity (Cooling/Heating)</th>
                         <th style="width: 50px;">VEEC Value</th>
                         <th>Container 33</th>
-                        <th>local stock 10+</th>
+                        <th>Local Stock 10+</th>
                         <th>Local Stock 5-10</th>
-                        <th>Local Stock < 5</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,499</td><td>$1,544</td><td>$1,590</td><td>$1,638</td></tr>
-                    <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,899</td><td>$1,956</td><td>$2,015</td><td>$2,075</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$380</td><td>$391</td><td>$403</td><td>$415</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$409</td><td>$421</td><td>$434</td><td>$447</td></tr>
-                    <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$450</td><td>$464</td><td>$477</td><td>$492</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$470</td><td>$484</td><td>$499</td><td>$514</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$488</td><td>$503</td><td>$518</td><td>$533</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$519</td><td>$535</td><td>$551</td><td>$567</td></tr>
-                    <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td><td>$60</td></tr>
-                    <tr><td colspan="9" class="combinations-header">Combinations</td></tr>
-                    <tr><td colspan="4" class="align-left"><b>ODU: 18.1/21.5 KW</b></td><td rowspan="4" colspan="5" class="veec-highlight">94 VEECS</td></tr>
-                    <tr><td>3 IDU</td><td colspan="3" class="align-left">8+8+2.3= 18.3/22 KW (3 EEV boxes)</td></tr>
-                    <tr><td>4 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6*2= 18.8/21.9 KW (4 EEV boxes)</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+2.8*4= 18.3/21.9 KW (5 EEV boxes)</td></tr>
-                    <tr><td colspan="4" class="align-left"><b>ODU: 20/24.1 KW</b></td><td rowspan="4" colspan="5" class="veec-highlight">107 VEECS</td></tr>
-                    <tr><td>4 IDU</td><td colspan="3" class="align-left">8+5.6+3.6*2= 20.8/24.1 KW</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6+2.8*2= 20.8/24.1KW</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">8+4.5+2.8*3= 20.9/24.7 KW</td></tr>
+                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,499</td><td>$1,544</td><td>$1,590</td></tr>
+                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,899</td><td>$1,956</td><td>$2,015</td></tr>
+                    <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$380</td><td>$391</td><td>$403</td></tr>
+                    <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$409</td><td>$421</td><td>$434</td></tr>
+                    <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$450</td><td>$464</td><td>$477</td></tr>
+                    <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$470</td><td>$484</td><td>$499</td></tr>
+                    <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$488</td><td>$503</td><td>$518</td></tr>
+                    <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$519</td><td>$535</td><td>$551</td></tr>
+                    <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td></tr>
                 </tbody>
             </table>
         </div>
@@ -806,13 +739,13 @@
                         <th>Capacity (Cooling/Heating)</th>
                         <th style="width: 50px;">VEEC Value</th>
                         <th>Container 36</th>
-                        <th>local stock 10+</th>
+                        <th>Local Stock 10+</th>
                         <th>Local Stock 5-10</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,540</td><td>$1,586</td><td>$1,632</td></tr>
-                    <tr><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,760</td><td>$1,813</td><td>$1,866</td></tr>
+                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,540</td><td>$1,586</td><td>$1,632</td></tr>
+                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,760</td><td>$1,813</td><td>$1,866</td></tr>
                     <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$363</td><td>$374</td><td>$385</td></tr>
                     <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$385</td><td>$397</td><td>$408</td></tr>
                     <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$418</td><td>$431</td><td>$443</td></tr>
@@ -825,15 +758,6 @@
                     <tr><td></td><td>4 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$100</td><td>$103</td><td>$106</td></tr>
                     <tr><td></td><td>5 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$105</td><td>$108</td><td>$111</td></tr>
                     <tr><td></td><td>6 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$110</td><td>$113</td><td>$117</td></tr>
-                    <tr><td colspan="8" class="combinations-header">Combinations</td></tr>
-                    <tr><td colspan="4" class="align-left"><b>ODU: 18.1/21.5 KW</b></td><td rowspan="4" colspan="4" class="veec-highlight">94 VEECS</td></tr>
-                    <tr><td>3 IDU</td><td colspan="3" class="align-left">8+8+2.3= 18.3/22 KW (3 EEV boxes)</td></tr>
-                    <tr><td>4 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6*2= 18.8/21.9 KW (4 EEV boxes)</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+2.8*4= 18.3/21.9 KW (5 EEV boxes)</td></tr>
-                    <tr><td colspan="4" class="align-left"><b>ODU: 20/24.1 KW</b></td><td rowspan="4" colspan="4" class="veec-highlight">107 VEECS</td></tr>
-                    <tr><td>4 IDU</td><td colspan="3" class="align-left">8+5.6+3.6*2= 20.8/24.1 KW</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">7.1+4.5+3.6+2.8*2= 20.8/24.1KW</td></tr>
-                    <tr><td>5 IDU</td><td colspan="3" class="align-left">8+4.5+2.8*3= 20.9/24.7 KW</td></tr>
                 </tbody>
             </table>
         </div>
@@ -860,7 +784,7 @@
                 </tbody>
             </table>
             <div class="footer-note">
-                * All prices above are GST exclusive. Special installations by Nex Energy Services.
+                * All prices above are GST exclusive. Special installations by Goldsure Pty Ltd.
             </div>
         </div>
 
@@ -872,15 +796,29 @@
     </div>
     
     <div class="calculator-sidebar">
+        <div class="sidebar-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
+            </svg>
+            <div class="sidebar-header-text">
+                <div class="title">VRF System Calculator</div>
+                <div class="subtitle">2026 pricing · All amounts ex-GST</div>
+            </div>
+        </div>
+        <div class="sidebar-body">
         <div class="calculator-title">VRF System Calculator</div>
         
-        <div class="calc-input-group">
-            <label class="calc-label">Year (Preset to 2026)</label>
-            <select class="calc-select" id="calcYear" disabled style="background-color: #f0f0f0;">
-                <option value="2026" selected>2026</option>
-            </select>
+        <div class="sidebar-section">
+        <div class="sidebar-section-label"><span class="dot"></span> Quote Configuration</div>
+        <div class="calc-input-group" style="background:var(--blue-light); border-radius:6px; padding:6px 10px; border-left:3px solid var(--blue); margin-bottom:9px; font-size:11px; color:var(--blue); font-weight:500;">
+            Prices based on 2026 cost table
         </div>
-        
+
+        <div class="calc-input-group">
+            <label class="calc-label">Quote Name <span style="font-weight:400; color:#999;">(optional)</span></label>
+            <input type="text" class="calc-input" id="quoteName" placeholder="e.g. Smith Residence – 5 IDU System">
+        </div>
+
         <div class="calc-input-group">
             <label class="calc-label">Stock Level</label>
             <select class="calc-select" id="calcStock">
@@ -890,7 +828,11 @@
             </select>
         </div>
         
-        <div class="calc-input-group">
+        </div><!-- end config section -->
+
+        <div class="sidebar-section">
+        <div class="sidebar-section-label"><span class="dot"></span> Equipment Selection</div>
+        <div style="margin-bottom:13px;">
             <label class="calc-label">ODU Model</label>
             <select class="calc-select" id="calcODU">
                 <option value="ARV-H180/NR1B-AU">ARV-H180/NR1B-AU (18.1/21.5 KW)</option>
@@ -906,11 +848,20 @@
         </div>
         
         <div style="margin-top: 20px;">
-            <div style="font-weight: 500; margin-bottom: 10px;">Branches (Auto-calculated)</div>
+            <div style="font-weight: 500; margin-bottom: 10px;">Branches</div>
             
-            <div class="calc-unit-row">
-                <div class="calc-unit-info">Y Shape Branches (auto: IDUs - 1 × $20 each)</div>
-                <div id="yBranchesCost">$0</div>
+            <div class="calc-unit-row" style="align-items:flex-start; flex-direction:column; gap:6px; padding:10px 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <div class="calc-unit-info">Y Shape Branches</div>
+                    <div id="yBranchesCost">$0</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; width:100%; font-size:12px; color:#777;">
+                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                        <input type="checkbox" id="yBranchOverride" style="cursor:pointer;"> Override auto-calculate
+                    </label>
+                    <span id="yBranchAutoLabel">(auto: IDUs − 1 × $20)</span>
+                </div>
+                <input type="number" class="calc-installation-qty" id="yBranchManualQty" value="0" min="0" style="display:none; width:80px;">
             </div>
             
             <div class="calc-unit-row">
@@ -934,12 +885,14 @@
             </div>
         </div>
         
-        <div style="margin-top: 20px;">
-            <div style="font-weight: 500; margin-bottom: 10px;">Installation Options</div>
+        </div><!-- end equipment section -->
+
+        <div class="sidebar-section">
+        <div class="sidebar-section-label teal"><span class="dot"></span> Installation Options</div>
             
-            <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 6px;">
-                <strong>Base Installation:</strong> $900 per IDU
-                <div id="baseInstallation">Total: $0</div>
+            <div style="margin-bottom: 8px; padding: 7px 10px; background: var(--teal-light); border-radius: 6px; border-left:3px solid var(--teal);">
+                <div style="font-weight:600; color:var(--teal); font-size:12px;">Base Installation: $900 per IDU</div>
+                <div id="baseInstallation" style="font-size:11px; color:var(--text-muted); margin-top:1px;">Total: $0</div>
             </div>
             
             <!-- Installation Fee Rows with Quantity Inputs -->
@@ -987,11 +940,13 @@
             
             <div class="calc-installation-fee-row">
                 <div class="calc-installation-label">Special installation fees</div>
-                <div class="calc-installation-price">Custom</div>
-                <input type="number" class="calc-installation-qty" id="instSpecialQty" value="0" min="0" placeholder="$">
+                <div class="calc-installation-price">Custom $</div>
+                <input type="number" class="calc-installation-qty" id="instSpecialQty" value="0" min="0" step="0.01" placeholder="$0">
             </div>
-        </div>
+        </div><!-- end installation section -->
         
+        <div class="sidebar-section">
+        <div class="sidebar-section-label amber"><span class="dot"></span> VEEC &amp; Revenue</div>
         <div class="calc-financial-inputs">
             <div class="calc-financial-title">VEEC & Customer Details</div>
             
@@ -1030,8 +985,12 @@
             </div>
         </div>
         
+        </div><!-- end financial section -->
+
+        <div class="sidebar-section">
+        <div class="sidebar-section-label"><span class="dot"></span> Quote Summary</div>
         <div class="calc-results">
-            <div style="font-weight: 600; margin-bottom: 15px; color: #0056a6;">Quote Summary</div>
+            <div class="calc-results-title">Cost Breakdown</div>
             
             <div class="calc-result-row">
                 <div>ODU Cost:</div>
@@ -1079,17 +1038,17 @@
             </div>
             
             <div class="calc-total-row">
-                <div>Subtotal (Eqp + Inst + Reg):</div>
-                <div id="resultSubtotal" class="neg-expense">-$0</div>
+                <div>Total Costs:</div>
+                <div id="resultSubtotal" class="neg-expense">−$0</div>
             </div>
             
             <div class="calc-financial-row">
-                <div>VEEC Proceeds:</div>
+                <div class="label">VEEC Proceeds:</div>
                 <div id="resultVeecProceeds" class="pos-revenue">+$0</div>
             </div>
             
             <div class="calc-financial-row">
-                <div>Customer Contribution:</div>
+                <div class="label">Customer Contribution:</div>
                 <div id="resultCustomerContribution" class="pos-revenue">+$0</div>
             </div>
             
@@ -1097,32 +1056,54 @@
                 <div>Total Revenue:</div>
                 <div id="resultTotalRevenue" class="pos-revenue">+$0</div>
             </div>
-            
-            <div class="calc-total-row" style="border-top: 2px solid #009688;">
-                <div><strong>PROFIT / LOSS:</strong></div>
-                <div><strong id="resultFinalTotal" class="neg-expense">-$0</strong></div>
+        </div>
+
+        <!-- Profit / Loss Card -->
+        <div class="profit-card" id="profitCard">
+            <div class="profit-card-label">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                <span id="profitLabel">Profit</span>
             </div>
-            
+            <div class="profit-card-amount" id="resultFinalTotal">$0</div>
+        </div>
+
             <div class="calc-note">
                 * Prices exclude GST and local freight
-                <br>* Y Branches auto-calculated as (IDUs - 1) × $20
+                <br>* Y Branches auto-calculated as (IDUs − 1) × $20 unless overridden
                 <br>* VEEC Registration Fees = VEEC Qty × ($5.00 + $4.35)
+                <br>* Special installation entered as a total dollar amount
             </div>
-        </div>
-        
+        </div><!-- end results section -->
+
         <!-- PDF Download Button -->
         <button class="pdf-btn" onclick="generatePDFReport()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            Download PDF Report
+            Download PDF Quote
         </button>
+
+        </div><!-- end sidebar-body -->
+    </div><!-- end sidebar -->
+</div><!-- end dashboard-container -->
+
+<!-- Page Footer -->
+<footer class="page-footer">
+    <div class="page-footer-brand">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
+        <div>
+            <div class="page-footer-name">Goldsure Pty Ltd</div>
+            <div class="page-footer-addr">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
+        </div>
     </div>
-</div>
+    <div class="page-footer-contact">
+        <a href="tel:+61451898761">Phone: +61 451 898 761</a><br>
+        <a href="mailto:vignesh@goldsure.com.au">Email: vignesh@goldsure.com.au</a>
+    </div>
+</footer>
 
 <script>
     const { jsPDF } = window.jspdf;
@@ -1159,20 +1140,30 @@
             'customerContribution', 'branch3', 'branch4', 'branch5', 'branch6',
             'instDifficultQty', 'instGasHeaterQty', 'instSecondFloorQty',
             'instMetalRoofQty', 'instDoubleBrickQty', 'instRemovalQty',
-            'instSwitchboardQty', 'instSpecialQty'
+            'instSwitchboardQty', 'instSpecialQty', 'yBranchManualQty'
         ];
         
         inputs.forEach(id => {
-            document.getElementById(id).addEventListener('input', calculateTotals);
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', calculateTotals);
         });
 
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', calculateTotals);
+        document.getElementById('yBranchOverride').addEventListener('change', function() {
+            const manualInput = document.getElementById('yBranchManualQty');
+            const autoLabel = document.getElementById('yBranchAutoLabel');
+            if (this.checked) {
+                manualInput.style.display = 'inline-block';
+                autoLabel.style.display = 'none';
+            } else {
+                manualInput.style.display = 'none';
+                autoLabel.style.display = 'inline';
+            }
+            calculateTotals();
         });
-        
+
+        // Single delegated listener for dynamically generated IDU inputs
         document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('calc-unit-qty') || 
-                e.target.classList.contains('calc-installation-qty')) {
+            if (e.target.classList.contains('calc-unit-qty')) {
                 calculateTotals();
             }
         });
@@ -1251,8 +1242,16 @@
         const oduCost = getPriceFromTable('ODU', oduModel, stock);
         const eevCost = totalIDUs * getPriceFromTable('EEV BOX', '/', stock);
 
-        let yBranchCost = totalIDUs > 1 ? (totalIDUs - 1) * 20 : 0;
-        document.getElementById('yBranchesCost').textContent = `$${yBranchCost}`;
+        let yBranchCost;
+        const yOverride = document.getElementById('yBranchOverride').checked;
+        if (yOverride) {
+            const manualQty = parseInt(document.getElementById('yBranchManualQty').value) || 0;
+            yBranchCost = manualQty * 20;
+            document.getElementById('yBranchesCost').textContent = `$${yBranchCost} (${manualQty} manual)`;
+        } else {
+            yBranchCost = totalIDUs > 1 ? (totalIDUs - 1) * 20 : 0;
+            document.getElementById('yBranchesCost').textContent = `$${yBranchCost}`;
+        }
 
         // Store branch data
         currentCalculation.branches = {
@@ -1361,22 +1360,26 @@
         document.getElementById('resultVeecRegFees').textContent = `$${totalVeecFees.toFixed(2)}`;
         document.getElementById('resultInstallTotal').textContent = `$${installationTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         
-        document.getElementById('resultSubtotal').textContent = `-$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        document.getElementById('resultSubtotal').textContent = `−$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         document.getElementById('resultVeecProceeds').textContent = `+$${veecProceeds.toFixed(2)}`;
         document.getElementById('resultCustomerContribution').textContent = `+$${customerContribution.toFixed(2)}`;
         document.getElementById('resultTotalRevenue').textContent = `+$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
         const finalEl = document.getElementById('resultFinalTotal');
-        const absFinal = Math.abs(finalTotal).toFixed(2);
+        const profitCard = document.getElementById('profitCard');
+        const profitLabel = document.getElementById('profitLabel');
+        const absFinal = Math.abs(finalTotal).toLocaleString(undefined, {minimumFractionDigits: 2});
+        const profitIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
+        const lossIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>`;
 
         if (finalTotal >= 0) {
-            finalEl.textContent = `+$${absFinal}`;
-            finalEl.classList.remove('neg-expense');
-            finalEl.classList.add('pos-revenue');
+            finalEl.textContent = `$${absFinal}`;
+            profitCard.classList.remove('loss');
+            profitLabel.innerHTML = `${profitIcon} Profit`;
         } else {
-            finalEl.textContent = `-$${absFinal}`;
-            finalEl.classList.remove('pos-revenue');
-            finalEl.classList.add('neg-expense');
+            finalEl.textContent = `−$${absFinal}`;
+            profitCard.classList.add('loss');
+            profitLabel.innerHTML = `${lossIcon} Loss`;
         }
     }
 
@@ -1398,304 +1401,228 @@
         showLoading(true);
         
         try {
-            // Create a new PDF document
             const doc = new jsPDF('p', 'mm', 'a4');
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            let yPos = 20;
-            
-            // Add header
-            doc.setFontSize(20);
-            doc.setTextColor(0, 86, 166); // AUX blue
-            doc.text("AUX Mini VRF System Quote", pageWidth / 2, yPos, { align: 'center' });
-            
-            doc.setFontSize(11);
-            doc.setTextColor(100, 100, 100);
-            yPos += 8;
-            doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth / 2, yPos, { align: 'center' });
-            
-            yPos += 15;
-            
-            // Add configuration section
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Configuration", 20, yPos);
-            yPos += 8;
-            doc.setDrawColor(0, 86, 166);
-            doc.line(20, yPos, pageWidth - 20, yPos);
-            yPos += 10;
-            
-            doc.setFontSize(11);
-            doc.setTextColor(80, 80, 80);
-            
-            // Configuration details
-            const stockText = document.getElementById('calcStock').options[document.getElementById('calcStock').selectedIndex].text;
-            const oduText = document.getElementById('calcODU').options[document.getElementById('calcODU').selectedIndex].text;
-            
-            doc.text(`Year: ${currentCalculation.year}`, 20, yPos);
-            doc.text(`Stock Level: ${stockText}`, pageWidth / 2, yPos);
-            yPos += 7;
-            
-            doc.text(`ODU Model: ${oduText}`, 20, yPos);
-            yPos += 10;
-            
-            // IDU details
-            if (currentCalculation.idus.length > 0) {
-                doc.setFontSize(12);
-                doc.setTextColor(0, 0, 0);
-                doc.text("Indoor Units (IDUs):", 20, yPos);
-                yPos += 8;
-                
-                doc.setFontSize(10);
-                currentCalculation.idus.forEach(idu => {
-                    if (idu.quantity > 0) {
-                        doc.text(`${idu.quantity} × ${idu.label} (${idu.capacity}) - $${idu.unitPrice.toFixed(2)} each = $${idu.totalPrice.toFixed(2)}`, 25, yPos);
-                        yPos += 6;
-                    }
-                });
-                yPos += 5;
-            }
-            
-            // Branch details
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Branches:", 20, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(10);
-            if (currentCalculation.branches.yBranches > 0) {
-                doc.text(`Y Shape Branches: ${currentCalculation.branches.yBranches} × $20 = $${currentCalculation.branches.yBranchCost}`, 25, yPos);
-                yPos += 6;
-            }
-            
-            const branchTypes = ['3 Heads', '4 Heads', '5 Heads', '6 Heads'];
-            [currentCalculation.branches.branch3, currentCalculation.branches.branch4, 
-             currentCalculation.branches.branch5, currentCalculation.branches.branch6].forEach((qty, index) => {
-                if (qty > 0) {
-                    doc.text(`${branchTypes[index]} Branch: ${qty} units`, 25, yPos);
-                    yPos += 6;
+            const pw = doc.internal.pageSize.getWidth();   // 210
+            const ph = doc.internal.pageSize.getHeight();  // 297
+            const margin = 18;
+            const col2 = pw / 2;
+            let y = 0;
+
+            // ── Helper functions ────────────────────────
+            function pageCheck(needed) {
+                if (y + needed > ph - 20) {
+                    doc.addPage();
+                    y = 20;
                 }
+            }
+            function hrLine(color) {
+                doc.setDrawColor(...(color || [220, 228, 240]));
+                doc.setLineWidth(0.3);
+                doc.line(margin, y, pw - margin, y);
+                y += 5;
+            }
+            function sectionHeading(label, r, g, b) {
+                pageCheck(14);
+                doc.setFillColor(r || 61, g || 107, b || 142);
+                doc.roundedRect(margin, y, pw - margin * 2, 8, 1, 1, 'F');
+                doc.setFontSize(9); doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 255, 255);
+                doc.text(label.toUpperCase(), margin + 4, y + 5.5);
+                y += 12;
+                doc.setTextColor(30, 30, 30);
+            }
+            function row2col(leftLabel, leftVal, rightLabel, rightVal) {
+                pageCheck(8);
+                doc.setFontSize(9); doc.setFont(undefined, 'normal');
+                doc.setTextColor(100, 110, 130);
+                doc.text(leftLabel, margin + 2, y);
+                if (rightLabel) doc.text(rightLabel, col2 + 2, y);
+                y += 4.5;
+                doc.setFontSize(10); doc.setFont(undefined, 'bold');
+                doc.setTextColor(20, 30, 50);
+                doc.text(String(leftVal), margin + 2, y);
+                if (rightVal !== undefined) doc.text(String(rightVal), col2 + 2, y);
+                y += 7;
+            }
+            function lineItem(label, value, labelColor, valueColor) {
+                pageCheck(7);
+                doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
+                doc.setTextColor(...(labelColor || [50, 60, 80]));
+                doc.text(label, margin + 4, y);
+                doc.setFont(undefined, 'semibold');
+                doc.setTextColor(...(valueColor || [20, 30, 50]));
+                doc.text(value, pw - margin - 2, y, { align: 'right' });
+                y += 6.5;
+            }
+            function subtotalLine(label, value, valueColor) {
+                pageCheck(8);
+                doc.setFontSize(10); doc.setFont(undefined, 'bold');
+                doc.setTextColor(20, 30, 50);
+                doc.text(label, margin + 4, y);
+                doc.setTextColor(...(valueColor || [20, 30, 50]));
+                doc.text(value, pw - margin - 2, y, { align: 'right' });
+                y += 8;
+            }
+
+            const quoteName = document.getElementById('quoteName').value.trim();
+            const stockText = document.getElementById('calcStock').options[document.getElementById('calcStock').selectedIndex].text;
+
+            // ── HEADER BANNER ───────────────────────────
+            // Soft slate header
+            doc.setFillColor(248, 250, 252);
+            doc.rect(0, 0, pw, 30, 'F');
+            // Thin accent line at top
+            doc.setFillColor(61, 107, 142);
+            doc.rect(0, 0, pw, 2, 'F');
+            // Bottom border
+            doc.setDrawColor(220, 228, 235);
+            doc.setLineWidth(0.5);
+            doc.line(0, 30, pw, 30);
+
+            // Logo (best-effort)
+            try {
+                const logoUrl = 'https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png';
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise((res) => {
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                        canvas.getContext('2d').drawImage(img, 0, 0);
+                        const data = canvas.toDataURL('image/png');
+                        const aspect = img.naturalWidth / img.naturalHeight;
+                        const lh = 16, lw = lh * aspect;
+                        doc.addImage(data, 'PNG', margin, 7, lw, lh);
+                        res();
+                    };
+                    img.onerror = res;
+                    img.src = logoUrl;
+                });
+            } catch(e) { /* logo optional */ }
+
+            doc.setFontSize(13); doc.setFont(undefined, 'bold');
+            doc.setTextColor(44, 62, 80);
+            doc.text('Goldsure Pty Ltd', pw - margin, 12, { align: 'right' });
+            doc.setFontSize(8); doc.setFont(undefined, 'normal');
+            doc.setTextColor(127, 140, 154);
+            const dateStr = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+            doc.text('Suite 4, Level 1, 293 High Street, Preston VIC 3072', pw - margin, 18.5, { align: 'right' });
+            doc.text(`+61 451 898 761  ·  vignesh@goldsure.com.au`, pw - margin, 25, { align: 'right' });
+
+            y = 38;
+
+            // Document title
+            doc.setFontSize(15); doc.setFont(undefined, 'bold');
+            doc.setTextColor(44, 62, 80);
+            doc.text('AUX Mini VRF — System Quote', margin, y); y += 6;
+            doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(127, 140, 154);
+            doc.text(`Generated: ${dateStr}`, margin, y);
+            y += 9;
+
+            // ── QUOTE NAME (if set) ──────────────────────
+            if (quoteName) {
+                doc.setFontSize(13); doc.setFont(undefined, 'bold');
+                doc.setTextColor(61, 107, 142);
+                doc.text(quoteName, col2, y, { align: 'center' });
+                y += 6;
+            }
+            // ODU model + stock as a small info line
+            doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(127, 140, 154);
+            doc.text(`ODU Model: ${currentCalculation.oduModel}   |   Stock: ${stockText}`, margin, y);
+            y += 10;
+
+            // ── COSTS BREAKDOWN ─────────────────────────
+            pageCheck(20);
+            sectionHeading('Cost Breakdown');
+
+            // Equipment
+            doc.setFontSize(8.5); doc.setFont(undefined, 'bold'); doc.setTextColor(100, 110, 130);
+            doc.text('EQUIPMENT', margin + 2, y); y += 5;
+            lineItem('Outdoor Unit (ODU)', `$${currentCalculation.results.oduCost.toLocaleString()}`);
+            // Show each IDU line
+            currentCalculation.idus.forEach(idu => {
+                lineItem(`  ${idu.model} × ${idu.quantity}`, `$${idu.totalPrice.toLocaleString('en-AU', {minimumFractionDigits: 2})}`);
             });
-            
-            yPos += 10;
-            
-            // Installation options
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Installation Options:", 20, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(10);
-            const totalIDUs = currentCalculation.idus.reduce((sum, idu) => sum + idu.quantity, 0);
-            doc.text(`Base Installation: ${totalIDUs} IDUs × $900 = $${currentCalculation.results.baseInstallation}`, 25, yPos);
-            yPos += 6;
-            
-            // Additional installation fees
-            if (currentCalculation.installation.difficultAccess > 0) {
-                doc.text(`✓ Difficult ODU Access: ${currentCalculation.installation.difficultAccess} × $300 = $${currentCalculation.installation.difficultAccess * 300}`, 25, yPos);
-                yPos += 6;
+            lineItem(`Indoor Units (IDUs) — Total`, `$${currentCalculation.results.iduCost.toLocaleString()}`);
+            lineItem(`EEV Boxes (${currentCalculation.idus.reduce((s,i)=>s+i.quantity,0)} units @ $${Math.round(currentCalculation.results.eevCost / Math.max(1, currentCalculation.idus.reduce((s,i)=>s+i.quantity,0)))} each)`, `$${currentCalculation.results.eevCost.toLocaleString()}`);
+            if (currentCalculation.results.branchCost > 0) lineItem('Branches', `$${currentCalculation.results.branchCost.toLocaleString()}`);
+            hrLine();
+            subtotalLine('Equipment Total', `$${currentCalculation.results.equipmentTotal.toLocaleString()}`);
+
+            // Installation
+            pageCheck(12);
+            doc.setFontSize(8.5); doc.setFont(undefined, 'bold'); doc.setTextColor(100, 110, 130);
+            doc.text('INSTALLATION', margin + 2, y); y += 5;
+            const totalIDUs = currentCalculation.idus.reduce((s, i) => s + i.quantity, 0);
+            lineItem(`Base Installation (${totalIDUs} IDU${totalIDUs !== 1 ? 's' : ''} × $900)`, `$${currentCalculation.results.baseInstallation.toLocaleString()}`);
+            if (currentCalculation.results.additionalInstallation > 0) lineItem('Additional Installation Fees', `$${currentCalculation.results.additionalInstallation.toLocaleString()}`);
+            if (currentCalculation.results.veecRegistrationFees > 0) lineItem('VEEC Registration Fees', `$${currentCalculation.results.veecRegistrationFees.toFixed(2)}`);
+            hrLine();
+            subtotalLine('Installation & Registration Total', `$${currentCalculation.results.installationTotal.toLocaleString('en-AU', {minimumFractionDigits: 2})}`);
+
+            // ── REVENUE ──────────────────────────────────
+            if (currentCalculation.results.totalRevenue > 0) {
+                pageCheck(20);
+                sectionHeading('Revenue', 0, 100, 80);
+                if (currentCalculation.financial.veecQuantity > 0) {
+                    lineItem(
+                        `VEEC Proceeds (${currentCalculation.financial.veecQuantity} VEECs x $${currentCalculation.financial.veecUnitPrice.toFixed(2)})`,
+                        `+$${currentCalculation.financial.veecProceeds.toLocaleString('en-AU', {minimumFractionDigits: 2})}`,
+                        [50, 60, 80], [46, 125, 50]
+                    );
+                    lineItem('Less: VEEC Registration Fees', `-$${currentCalculation.financial.veecFees.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [50, 60, 80], [180, 40, 40]);
+                }
+                if (currentCalculation.financial.customerContribution > 0) {
+                    lineItem('Customer Contribution', `+$${currentCalculation.financial.customerContribution.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [50, 60, 80], [46, 125, 50]);
+                }
+                hrLine();
+                subtotalLine('Total Revenue', `+$${currentCalculation.results.totalRevenue.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [46, 125, 50]);
             }
-            if (currentCalculation.installation.gasHeater > 0) {
-                doc.text(`✓ Disconnect Gas Heater: ${currentCalculation.installation.gasHeater} × $200 = $${currentCalculation.installation.gasHeater * 200}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.secondFloor > 0) {
-                doc.text(`✓ Second Storey: ${currentCalculation.installation.secondFloor} × $150 = $${currentCalculation.installation.secondFloor * 150}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.metalRoof > 0) {
-                doc.text(`✓ Metal Roof: ${currentCalculation.installation.metalRoof} × $150 = $${currentCalculation.installation.metalRoof * 150}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.doubleBrick > 0) {
-                doc.text(`✓ Double Brick Wall: ${currentCalculation.installation.doubleBrick} × $150 = $${currentCalculation.installation.doubleBrick * 150}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.removal > 0) {
-                doc.text(`✓ Removal/Disposal: ${currentCalculation.installation.removal} × $150 = $${currentCalculation.installation.removal * 150}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.switchboard > 0) {
-                doc.text(`✓ Switchboard Work: ${currentCalculation.installation.switchboard} × $200 = $${currentCalculation.installation.switchboard * 200}`, 25, yPos);
-                yPos += 6;
-            }
-            if (currentCalculation.installation.special > 0) {
-                doc.text(`✓ Special Installation: $${currentCalculation.installation.special}`, 25, yPos);
-                yPos += 6;
-            }
-            
-            yPos += 10;
-            
-            // Check if we need a new page
-            if (yPos > pageHeight - 60) {
-                doc.addPage();
-                yPos = 20;
-            }
-            
-            // Financial details
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Financial Details", 20, yPos);
-            yPos += 8;
-            doc.setDrawColor(0, 86, 166);
-            doc.line(20, yPos, pageWidth - 20, yPos);
-            yPos += 10;
-            
-            doc.setFontSize(11);
-            if (currentCalculation.financial.veecQuantity > 0) {
-                doc.text(`VEEC Quantity: ${currentCalculation.financial.veecQuantity}`, 20, yPos);
-                doc.text(`VEEC Price Each: $${currentCalculation.financial.veecUnitPrice.toFixed(2)}`, pageWidth / 2, yPos);
-                yPos += 7;
-                
-                doc.text(`VEEC Registration Fees: $${currentCalculation.financial.veecFees.toFixed(2)}`, 20, yPos);
-                doc.text(`VEEC Proceeds: $${currentCalculation.financial.veecProceeds.toFixed(2)}`, pageWidth / 2, yPos);
-                yPos += 7;
-            }
-            
-            if (currentCalculation.financial.customerContribution > 0) {
-                doc.text(`Customer Contribution: $${currentCalculation.financial.customerContribution.toFixed(2)}`, 20, yPos);
-                yPos += 7;
-            }
-            
-            yPos += 10;
-            
-            // Check if we need a new page for summary
-            if (yPos > pageHeight - 100) {
-                doc.addPage();
-                yPos = 20;
-            }
-            
-            // Summary section
-            doc.setFontSize(16);
-            doc.setTextColor(0, 86, 166);
-            doc.text("Quote Summary", pageWidth / 2, yPos, { align: 'center' });
-            yPos += 10;
-            
-            doc.setFontSize(11);
-            doc.setTextColor(0, 0, 0);
-            
-            // Equipment costs
-            doc.text("Equipment Costs:", 20, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(10);
-            doc.text(`ODU: $${currentCalculation.results.oduCost.toLocaleString()}`, 30, yPos);
-            doc.text(`IDUs: $${currentCalculation.results.iduCost.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 6;
-            
-            doc.text(`EEV Boxes: $${currentCalculation.results.eevCost.toLocaleString()}`, 30, yPos);
-            doc.text(`Branches: $${currentCalculation.results.branchCost.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 8;
-            
-            doc.setFontSize(11);
-            doc.setDrawColor(150, 150, 150);
-            doc.line(30, yPos, pageWidth - 30, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'bold');
-            doc.text(`Equipment Total: $${currentCalculation.results.equipmentTotal.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 10;
-            
-            // Installation costs
-            doc.setFont(undefined, 'normal');
-            doc.text("Installation & Registration:", 20, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(10);
-            doc.text(`Base Installation: $${currentCalculation.results.baseInstallation.toLocaleString()}`, 30, yPos);
-            doc.text(`Additional Installation: $${currentCalculation.results.additionalInstallation.toLocaleString()}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 6;
-            
-            doc.text(`VEEC Registration Fees: $${currentCalculation.results.veecRegistrationFees.toFixed(2)}`, 30, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(11);
-            doc.setDrawColor(150, 150, 150);
-            doc.line(30, yPos, pageWidth - 30, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'bold');
-            doc.text(`Installation & Registration Total: $${currentCalculation.results.installationTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 12;
-            
-            // Revenue
-            doc.setFont(undefined, 'normal');
-            doc.text("Revenue:", 20, yPos);
-            yPos += 8;
-            
-            doc.setFontSize(10);
-            if (currentCalculation.financial.veecProceeds > 0) {
-                doc.setTextColor(46, 125, 50); // Green for revenue
-                doc.text(`VEEC Proceeds: +$${currentCalculation.financial.veecProceeds.toFixed(2)}`, pageWidth - 30, yPos, { align: 'right' });
-                yPos += 6;
-            }
-            
-            if (currentCalculation.financial.customerContribution > 0) {
-                doc.text(`Customer Contribution: +$${currentCalculation.financial.customerContribution.toFixed(2)}`, pageWidth - 30, yPos, { align: 'right' });
-                yPos += 8;
-            }
-            
-            doc.setFontSize(11);
-            doc.setDrawColor(150, 150, 150);
-            doc.line(30, yPos, pageWidth - 30, yPos);
-            yPos += 8;
-            
-            doc.setFont(undefined, 'bold');
-            doc.text(`Total Revenue: +$${currentCalculation.results.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 30, yPos, { align: 'right' });
-            yPos += 12;
-            
-            // Final calculation
-            doc.setFontSize(12);
-            doc.setDrawColor(0, 86, 166);
-            doc.line(20, yPos, pageWidth - 20, yPos);
-            yPos += 10;
-            
-            const subtotal = currentCalculation.results.subtotal;
-            doc.setTextColor(0, 0, 0);
-            doc.text("Subtotal (Equipment + Installation + Registration):", 20, yPos);
-            doc.text(`-$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 20, yPos, { align: 'right' });
-            yPos += 10;
-            
-            doc.text("Total Revenue:", 20, yPos);
-            doc.text(`+$${currentCalculation.results.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 20, yPos, { align: 'right' });
-            yPos += 15;
-            
-            // Final Profit/Loss
-            doc.setFontSize(14);
-            doc.setDrawColor(0, 150, 136);
-            doc.line(20, yPos, pageWidth - 20, yPos);
-            yPos += 10;
-            
+
+            // ── FINAL RESULT CARD ────────────────────────
+            pageCheck(30);
+            y += 4;
             const finalTotal = currentCalculation.results.finalTotal;
-            if (finalTotal >= 0) {
-                doc.setTextColor(46, 125, 50); // Green for profit
-                doc.setFont(undefined, 'bold');
-                doc.text("PROFIT:", 20, yPos);
-                doc.text(`+$${Math.abs(finalTotal).toFixed(2)}`, pageWidth - 20, yPos, { align: 'right' });
-            } else {
-                doc.setTextColor(211, 47, 47); // Red for loss
-                doc.setFont(undefined, 'bold');
-                doc.text("LOSS:", 20, yPos);
-                doc.text(`-$${Math.abs(finalTotal).toFixed(2)}`, pageWidth - 20, yPos, { align: 'right' });
-            }
-            
-            yPos += 20;
-            
-            // Footer notes
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100);
-            doc.text("* Prices exclude GST and local freight", 20, yPos);
-            yPos += 5;
-            doc.text("* Generated by AUX Mini VRF Product Costs Dashboard", 20, yPos);
-            yPos += 5;
-            doc.text("* For official quotes, please contact Nex Energy Services", 20, yPos);
-            
-            // Save the PDF
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-            doc.save(`AUX-VRF-Quote-${timestamp}.pdf`);
-            
+            const isProfit = finalTotal >= 0;
+
+            const cardR = isProfit ? 232 : 253, cardG = isProfit ? 245 : 232, cardB = isProfit ? 233 : 232;
+            doc.setFillColor(cardR, cardG, cardB);
+            doc.roundedRect(margin, y, pw - margin * 2, 24, 2, 2, 'F');
+            doc.setDrawColor(isProfit ? 46 : 211, isProfit ? 125 : 47, isProfit ? 50 : 47);
+            doc.setLineWidth(0.5);
+            doc.roundedRect(margin, y, pw - margin * 2, 24, 2, 2, 'S');
+
+            doc.setFontSize(10); doc.setFont(undefined, 'normal');
+            doc.setTextColor(isProfit ? 46 : 180, isProfit ? 100 : 30, isProfit ? 50 : 30);
+            doc.text(isProfit ? '✓  NET PROFIT' : '✗  NET LOSS', margin + 6, y + 9);
+
+            doc.setFontSize(18); doc.setFont(undefined, 'bold');
+            doc.setTextColor(isProfit ? 46 : 211, isProfit ? 125 : 47, isProfit ? 50 : 47);
+            const finalStr = `${isProfit ? '+' : '−'}$${Math.abs(finalTotal).toLocaleString('en-AU', {minimumFractionDigits: 2})}`;
+            doc.text(finalStr, pw - margin - 5, y + 16, { align: 'right' });
+
+            doc.setFontSize(7.5); doc.setFont(undefined, 'normal');
+            doc.setTextColor(140, 150, 170);
+            doc.text('Revenue minus Equipment, Installation & Registration costs', margin + 6, y + 20);
+            y += 30;
+
+            // ── FOOTER ───────────────────────────────────
+            pageCheck(16);
+            y += 6;
+            doc.setDrawColor(220, 228, 240); doc.setLineWidth(0.3);
+            doc.line(margin, y, pw - margin, y); y += 5;
+            doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(160, 170, 190);
+            doc.text('All prices exclude GST and local freight. For official quotes, contact Goldsure Pty Ltd.', col2, y, { align: 'center' });
+            y += 4;
+            doc.text(`Generated by AUX Mini VRF Dashboard · ${new Date().toLocaleString('en-AU')}`, col2, y, { align: 'center' });
+
+            // Save
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const quoteNameForFile = (quoteName || '').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-');
+            const filename = quoteNameForFile ? `AUX-VRF-${quoteNameForFile}-${timestamp}.pdf` : `AUX-VRF-Quote-${timestamp}.pdf`;
+            doc.save(filename);
             showLoading(false);
-            
+
         } catch (error) {
             console.error('Error generating PDF:', error);
             showLoading(false);
