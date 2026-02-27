@@ -22,6 +22,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid required fields.' });
   }
 
+  // ── Build the Accept Quote URL ──
+  // All quote data is encoded into the link so the modal knows what was accepted
+  const baseUrl = process.env.SITE_URL || 'https://www.goldsure.com.au';
+  const params = new URLSearchParams({
+    accept:      'true',
+    name:        customer_name   || '',
+    email:       to_email        || '',
+    agent:       agent_name      || '',
+    service:     service_type    || '',
+    alarm_qty:   alarm_qty       || '0',
+    alarm_total: alarm_total     || '$0.00',
+    ctrl_qty:    String(ctrl_qty || '0'),
+    ctrl_total:  ctrl_total      || '$0.00',
+    fee_label:   fee_label       || '',
+    fee_amount:  fee_amount      || '',
+    grand_total: grand_total     || '',
+  });
+  const acceptUrl = `${baseUrl}/smoke-alarms/smoke-alarm.html?${params.toString()}`;
+
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -236,8 +255,24 @@ export default async function handler(req, res) {
               * This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.
             </p>
 
+            <!-- ═══════════════════════════════════════════════
+                 14-DAY VALIDITY + ACCEPT QUOTE BUTTON
+                 ═══════════════════════════════════════════════ -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#fef7e7;border:1px solid #e8d28a;border-radius:6px;">
+              <tr>
+                <td style="padding:22px 24px;text-align:center;">
+                  <p style="margin:0 0 4px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">&#9203; This quote is valid for 14 days</p>
+                  <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#7a6020;line-height:1.5;">Ready to proceed? Click the button below to accept your quote and we will be in touch to confirm your booking.</p>
+                  <a href="${acceptUrl}"
+                     style="display:inline-block;background:#b08d2e;color:#000000;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:13px;font-weight:bold;text-decoration:none;padding:15px 36px;border-radius:6px;text-transform:uppercase;letter-spacing:1px;">
+                    &#10003; Accept This Quote
+                  </a>
+                </td>
+              </tr>
+            </table>
+
             <!-- SIGNATURE -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:18px;padding-top:14px;border-top:1px solid #e0e0e0;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;padding-top:14px;border-top:1px solid #e0e0e0;">
               <tr>
                 <td width="100" valign="middle" style="padding-right:14px;">
                   <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/6941477dca729831ab339932.jpg"
