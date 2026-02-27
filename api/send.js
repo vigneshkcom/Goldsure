@@ -148,6 +148,22 @@ export default async function handler(req, res) {
               </tr>
             </table>
 
+            <!-- ═══════════════════════════════════════════════
+                 ACCEPT QUOTE BUTTON
+                 ═══════════════════════════════════════════════ -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr>
+                <td align="center" style="padding:24px 0 8px;">
+                  <p style="margin:0 0 6px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 14 days</p>
+                  <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;line-height:1.5;">Ready to proceed? Click below and we'll be in touch to confirm your booking.</p>
+                  <a href="${acceptUrl}"
+                     style="display:inline-block;background:#b08d2e;color:#000000;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">
+                    Accept This Quote
+                  </a>
+                </td>
+              </tr>
+            </table>
+
             <!-- LEGISLATION -->
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
               <tr>
@@ -254,22 +270,6 @@ export default async function handler(req, res) {
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">
               * This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.
             </p>
-
-            <!-- ═══════════════════════════════════════════════
-                 14-DAY VALIDITY + ACCEPT QUOTE BUTTON
-                 ═══════════════════════════════════════════════ -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#fef7e7;border:1px solid #e8d28a;border-radius:6px;">
-              <tr>
-                <td style="padding:22px 24px;text-align:center;">
-                  <p style="margin:0 0 4px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">&#9203; This quote is valid for 14 days</p>
-                  <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#7a6020;line-height:1.5;">Ready to proceed? Click the button below to accept your quote and we will be in touch to confirm your booking.</p>
-                  <a href="${acceptUrl}"
-                     style="display:inline-block;background:#b08d2e;color:#000000;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:13px;font-weight:bold;text-decoration:none;padding:15px 36px;border-radius:6px;text-transform:uppercase;letter-spacing:1px;">
-                    &#10003; Accept This Quote
-                  </a>
-                </td>
-              </tr>
-            </table>
 
             <!-- SIGNATURE -->
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;padding-top:14px;border-top:1px solid #e0e0e0;">
