@@ -215,7 +215,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         from: 'Goldsure Quotes <info@goldsure.com.au>',
-        to: ['vignesh@goldsure.com.au'],
+        to: ['info@goldsure.com.au'],
         subject: `Quote Accepted – ${customer_name} – ${grand_total}`,
         html,
       }),
