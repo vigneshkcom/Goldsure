@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Sales Portal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -593,7 +592,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </div>
     <div class="modal-actions">
       <button onclick="closeEmailModal()">Cancel</button>
-      <button class="gold" id="sendEmailBtn" onclick="sendEmailJS()">Send Email</button>
+      <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()">Send Email</button>
     </div>
   </div>
 </div>
@@ -613,14 +612,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-// ════════════════════════════════════════════════════════════
-// EMAILJS INIT
-// ════════════════════════════════════════════════════════════
-emailjs.init({ publicKey: 'RTNqVDdp7oPAFw6JA' });
-const EMAILJS_SERVICE_ID  = 'service_2s1i3u9';
-const EMAILJS_TEMPLATE_ID = 'Goldsure Quote';
-
+<script>
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
@@ -813,34 +805,73 @@ function openEmailModal() {
 }
 function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
 
-function sendEmailJS() {
+// ════════════════════════════════════════════════════════════
+// SEND EMAIL — posts to /api/send (Resend serverless function)
+// ════════════════════════════════════════════════════════════
+async function sendQuoteEmail() {
   const custName  = document.getElementById('emailCustomerName').value.trim();
   const custEmail = document.getElementById('emailCustomerEmail').value.trim();
   if (!custName)  { showToast('Please enter the customer name.'); return; }
   if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
+
   const alarmQty   = document.getElementById('res_alarmQty').innerText;
   const alarmTotal = document.getElementById('res_alarmTotal').innerText;
   const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
   const ctrlTotal  = document.getElementById('res_ctrlTotal').innerText;
   const grandTotal = document.getElementById('res-total').innerText;
   const agent      = agentName || 'Goldsure';
-  let paymentNote, feeLabel, feeAmount;
+
+  let feeLabel, feeAmount, paymentNote;
   if (serviceMode === 'install') {
     feeLabel    = 'Electrician Booking Fee';
     feeAmount   = '$33.00';
-    const balanceDue = fmt.format((parseInt(alarmQty)*98) + (ctrlQty*49));
+    const balanceDue = fmt.format((parseInt(alarmQty) * 98) + (ctrlQty * 49));
     paymentNote = `$33.00 booking fee is payable today to secure your electrician. The remaining balance of ${balanceDue} is payable on the day of installation.`;
   } else {
     feeLabel    = 'Smoke Alarm Inspection Service';
     feeAmount   = '$131.00';
     paymentNote = 'The $131.00 inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the $131 fee is fully waived — you only pay the $33 booking fee plus required alarms.';
   }
-  const templateParams = { to_email: custEmail, customer_name: custName, agent_name: agent, service_type: serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote', alarm_qty: alarmQty, alarm_total: alarmTotal, ctrl_qty: ctrlQty, ctrl_total: ctrlTotal, fee_label: feeLabel, fee_amount: feeAmount, grand_total: grandTotal, payment_note: paymentNote };
+
   const btn = document.getElementById('sendEmailBtn');
-  btn.disabled = true; btn.innerText = 'Sending…';
-  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
-    .then(() => { showToast(`Quote emailed to ${custEmail}`); closeEmailModal(); btn.disabled = false; btn.innerText = 'Send Email'; })
-    .catch((err) => { console.error('EmailJS error:', err); showToast('Send failed — check console for details.'); btn.disabled = false; btn.innerText = 'Send Email'; });
+  btn.disabled = true;
+  btn.innerText = 'Sending…';
+
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name: custName,
+        to_email:      custEmail,
+        agent_name:    agent,
+        service_type:  serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
+        alarm_qty:     alarmQty,
+        alarm_total:   alarmTotal,
+        ctrl_qty:      ctrlQty,
+        ctrl_total:    ctrlTotal,
+        fee_label:     feeLabel,
+        fee_amount:    feeAmount,
+        grand_total:   grandTotal,
+        payment_note:  paymentNote,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('API error:', err);
+      showToast('Send failed — check console for details.');
+    } else {
+      showToast(`Quote emailed to ${custEmail}`);
+      closeEmailModal();
+    }
+  } catch (err) {
+    console.error('Network error:', err);
+    showToast('Network error — please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Send Email';
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -870,7 +901,6 @@ function generatePDF() {
   const address = document.getElementById('pdfCustomerAddress').value.trim();
   if (!name) { showToast('Please enter customer name.'); return; }
 
-  // Pull quote data
   const bedrooms   = parseInt(document.getElementById('bedrooms').value) || 0;
   const hallways   = parseInt(document.getElementById('hallways').value) || 0;
   const storeys    = parseInt(document.getElementById('levels').value) || 1;
@@ -883,34 +913,17 @@ function generatePDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-  const PW = 210; // page width mm
-  const PH = 297; // page height mm
-  const ML = 18;  // margin left
-  const MR = 18;  // margin right
-  const CW = PW - ML - MR; // content width
+  const PW = 210, PH = 297, ML = 18, MR = 18, CW = PW - ML - MR;
+  const GOLD = [176,141,46], DARK = [0,0,0], MUTED = [107,120,153];
+  const LIGHT = [240,242,245], WHITE = [255,255,255], GOLD_BG = [254,247,231];
 
-  // ── Colours ──
-  const GOLD   = [176, 141, 46];
-  const DARK   = [0, 0, 0];
-  const MUTED  = [107, 120, 153];
-  const LIGHT  = [240, 242, 245];
-  const WHITE  = [255, 255, 255];
-  const GOLD_BG = [254, 247, 231];
-
-  // ── Helper: hex strip ──
   function fmtAUD(val) {
     return '$' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
-  // ══════════════════════════════════════
-  // PAGE 1
-  // ══════════════════════════════════════
-
-  // ── Dark header band (starts at top, no gold accent) ──
   doc.setFillColor(...DARK);
   doc.rect(0, 0, PW, 41, 'F');
 
-  // ── Logo image in header ──
   const logoUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg';
   async function loadLogoAndGenerate() {
     try {
@@ -918,447 +931,260 @@ function generatePDF() {
       const blob = await resp.blob();
       const reader = new FileReader();
       reader.onload = function(e) {
-        const imgData = e.target.result;
-        // Place logo in header - centered vertically in dark band (y=3 to y=41, height=38)
-        doc.addImage(imgData, 'JPEG', ML, 5, 32, 32);
+        doc.addImage(e.target.result, 'JPEG', ML, 5, 32, 32);
         finishPDF();
       };
       reader.readAsDataURL(blob);
     } catch(err) {
-      // Fallback to text if image fails
-      doc.setTextColor(...GOLD);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
+      doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(22);
       doc.text('GOLDSURE', ML, 22);
-      doc.setTextColor(255,255,255);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('SMOKE ALARM COMPLIANCE', ML, 28);
       finishPDF();
     }
   }
 
-  // ── QUOTE label (right) — draw now, before async ──
-  doc.setTextColor(...GOLD);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
+  doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(28);
   doc.text('QUOTE', PW - MR, 26, { align: 'right' });
 
-  // ── Thin gold divider below header ──
   function finishPDF() {
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.5);
-  doc.line(ML, 44, PW - MR, 44);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+    doc.line(ML, 44, PW - MR, 44);
 
-  // ── Two-column info block ──
-  // Left: company details
-  let y = 50;
-  doc.setTextColor(...DARK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('Goldsure Pty Ltd', ML, y);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...MUTED);
-  doc.setFontSize(8);
-  doc.text('ABN: 66 683 305 106', ML, y + 5);
-  doc.text('Suite 4, Level 1, 293 High Street', ML, y + 10);
-  doc.text('Preston VIC 3072', ML, y + 15);
-  doc.text('Phone: (07) 2145 5155', ML, y + 20);
-  doc.setTextColor(...DARK);
-  doc.text('www.goldsure.com.au', ML, y + 25);
+    let y = 50;
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('Goldsure Pty Ltd', ML, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(8);
+    doc.text('ABN: 66 683 305 106', ML, y+5);
+    doc.text('Suite 4, Level 1, 293 High Street', ML, y+10);
+    doc.text('Preston VIC 3072', ML, y+15);
+    doc.text('Phone: (07) 2145 5155', ML, y+20);
+    doc.setTextColor(...DARK); doc.text('www.goldsure.com.au', ML, y+25);
 
-  // Right: quote details
-  const rightX = PW - MR;
-  const dateStr = new Date().toLocaleDateString('en-AU');
-  doc.setTextColor(...MUTED);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text('Date:', rightX - 50, y, { align: 'left' });
-  doc.setTextColor(...DARK);
-  doc.setFont('helvetica', 'bold');
-  doc.text(dateStr, rightX, y, { align: 'right' });
+    const rightX = PW - MR;
+    const dateStr = new Date().toLocaleDateString('en-AU');
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Date:', rightX-50, y, { align:'left' });
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold');
+    doc.text(dateStr, rightX, y, { align:'right' });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...MUTED);
-  doc.setFontSize(8);
-  doc.text('Prepared for:', rightX - 50, y + 7, { align: 'left' });
-  doc.setTextColor(...DARK);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(name, rightX, y + 7, { align: 'right' });
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(8);
+    doc.text('Prepared for:', rightX-50, y+7, { align:'left' });
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(name, rightX, y+7, { align:'right' });
 
-  if (address) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    const addrLines = address.split('\n');
-    addrLines.forEach((line, i) => {
-      doc.text(line, rightX, y + 14 + (i * 5), { align: 'right' });
-    });
-  }
-
-  // ── Property details strip ──
-  y = 84;
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  doc.text('PROPERTY DETAILS', ML + 4, y + 4.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...MUTED);
-  const propText = `Bedrooms: ${bedrooms}   |   Storeys: ${storeys}   |   Hallways: ${hallways}   |   Service: ${serviceMode === 'install' ? 'Installation' : 'Inspection'}`;
-  doc.text(propText, ML + 4, y + 9);
-
-  // ── LINE ITEMS TABLE ──
-  y = 104;
-
-  // Table header
-  doc.setFillColor(...DARK);
-  doc.rect(ML, y, CW, 9, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...WHITE);
-  doc.text('DESCRIPTION', ML + 4, y + 6);
-  doc.text('QTY', ML + CW * 0.62, y + 6, { align: 'center' });
-  doc.text('UNIT PRICE', ML + CW * 0.78, y + 6, { align: 'center' });
-  doc.text('TOTAL', ML + CW - 3, y + 6, { align: 'right' });
-
-  y += 9;
-
-  // Build line items
-  const items = [];
-  if (serviceMode === 'install') {
-    if (alarmQty > 0) items.push({ desc: 'Raptor Smoke Alarms – Photoelectric, Interconnected, 10-Year Warranty', qty: alarmQty, unit: 98.00, total: alarmQty * 98 });
-    if (ctrlQty > 0)  items.push({ desc: 'Smoke Alarm Controller', qty: ctrlQty, unit: 49.00, total: ctrlQty * 49 });
-    items.push({ desc: 'Electrician Booking Fee (fully refundable if install cannot be completed)', qty: 1, unit: 33.00, total: 33.00 });
-  } else {
-    items.push({ desc: 'Smoke Alarm Inspection Service – QLD 2027 Compliance Check', qty: 1, unit: 131.00, total: 131.00 });
-  }
-
-  items.forEach((item, idx) => {
-    const rowH = 12;
-    doc.setFillColor(idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 252 : 255);
-    doc.rect(ML, y, CW, rowH, 'F');
-    doc.setDrawColor(230, 232, 238);
-    doc.setLineWidth(0.3);
-    doc.line(ML, y + rowH, ML + CW, y + rowH);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...DARK);
-    // Truncate description if too long
-    const maxDescW = CW * 0.55;
-    const descLines = doc.splitTextToSize(item.desc, maxDescW);
-    doc.text(descLines[0], ML + 4, y + 7.5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...MUTED);
-    doc.text(String(item.qty), ML + CW * 0.62, y + 7.5, { align: 'center' });
-    doc.text(fmtAUD(item.unit), ML + CW * 0.78, y + 7.5, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...DARK);
-    doc.text(fmtAUD(item.total), ML + CW - 3, y + 7.5, { align: 'right' });
-    y += rowH;
-  });
-
-  // ── TOTALS BLOCK ──
-  y += 8;
-  const totalsX = ML + CW * 0.58;
-  const totalsW = CW * 0.42;
-
-  // Subtotal row
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...MUTED);
-  doc.text('Subtotal (Excl. GST)', totalsX, y);
-  doc.setTextColor(80, 80, 80);
-  doc.text(fmtAUD(subtotalRaw), totalsX + totalsW, y, { align: 'right' });
-
-  y += 8;
-  doc.setTextColor(...MUTED);
-  doc.text('GST (10%)', totalsX, y);
-  doc.setTextColor(80, 80, 80);
-  doc.text(fmtAUD(gstRaw), totalsX + totalsW, y, { align: 'right' });
-
-  // Total highlight box — clear gap below GST
-  y += 12;
-  doc.setFillColor(...DARK);
-  doc.roundedRect(totalsX - 3, y - 5, totalsW + 3, 13, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('Total (Incl. GST)', totalsX + 2, y + 3);
-  doc.setTextColor(...GOLD);
-  doc.setFontSize(13);
-  doc.text(fmtAUD(grandRaw), totalsX + totalsW - 1, y + 4, { align: 'right' });
-
-  // ── PAYMENT NOTE ──
-  y += 18;
-  doc.setFillColor(...GOLD_BG);
-  doc.roundedRect(ML, y, CW, 18, 2, 2, 'F');
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.5);
-  doc.line(ML, y, ML, y + 18); // left accent bar
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...GOLD);
-  doc.text('PAYMENT STRUCTURE', ML + 4, y + 6);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(122, 96, 32);
-  doc.setFontSize(8);
-  let payNote = '';
-  if (serviceMode === 'install') {
-    const balanceDue = fmtAUD(alarmQty * 98 + ctrlQty * 49);
-    payNote = `$33.00 booking fee is payable today to secure your electrician. Remaining balance of ${balanceDue} is payable on the day of installation.`;
-  } else {
-    payNote = '$131.00 inspection fee is payable upfront. If alarms are non-compliant and you upgrade with us, the $131 fee is fully waived.';
-  }
-  const payNoteLines = doc.splitTextToSize(payNote, CW - 10);
-  doc.text(payNoteLines, ML + 4, y + 12);
-
-  // ── DISCLAIMER (on page 1, below payment) ──
-  y += 26;
-  doc.setFont('helvetica', 'bolditalic');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...MUTED);
-  const disclaimer = '* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.';
-  const disclaimerLines1 = doc.splitTextToSize(disclaimer, CW - 8);
-  doc.text(disclaimerLines1, ML, y);
-
-  // ──────────────────────────────────────
-  // PAGE 2 — Terms, Legislation, Product
-  // ──────────────────────────────────────
-  doc.addPage();
-
-  // Dark mini-header (no gold accent bar)
-  doc.setFillColor(...DARK);
-  doc.rect(0, 0, PW, 14, 'F');
-  doc.setTextColor(...GOLD);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('GOLDSURE', ML, 10);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(255,255,255);
-  doc.text('Quote Terms & Compliance Information', PW - MR, 10, { align: 'right' });
-
-  y = 22;
-
-  // ── BOOKING FEE SECTION ──
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text('BOOKING FEE – WHAT IS THE $33 BOOKING FEE?', ML, y);
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.4);
-  doc.line(ML, y + 2, ML + 85, y + 2);
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  const bookingText = 'This fee is required upfront to secure the Electrician on the installation date agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.';
-  const bookingLines = doc.splitTextToSize(bookingText, CW);
-  doc.text(bookingLines, ML, y);
-  y += bookingLines.length * 5 + 8;
-
-  // ── QLD LEGISLATION SECTION ──
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text('QUEENSLAND SMOKE ALARM LEGISLATION (EFFECTIVE 01/01/2027)', ML, y);
-  doc.setDrawColor(...GOLD);
-  doc.line(ML, y + 2, ML + 120, y + 2);
-  y += 8;
-
-  const legislation = [
-    'Photoelectric and interconnected smoke alarms',
-    'Installed in each bedroom and in hallways connecting bedrooms',
-    'Installed on each level of the dwelling',
-    '10-year sealed lithium backup battery',
-    'Compliant with AS 3786-2014 or AS 3786-2023',
-    'Hard-wired smoke alarms replaced with hard-wired where applicable',
-  ];
-
-  // Two-column layout for legislation
-  const colW = CW / 2 - 4;
-  legislation.forEach((item, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const lx = ML + (col * (colW + 8));
-    const ly = y + (row * 9);
-    doc.setFillColor(...GOLD);
-    doc.circle(lx + 1.5, ly - 1, 1.2, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...DARK);
-    doc.text(item, lx + 5, ly);
-  });
-
-  y += Math.ceil(legislation.length / 2) * 9 + 8;
-
-  // ── PRODUCT SHOWCASE SECTION ──
-  // Product image URLs
-  const frontViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png';
-  const installedViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png';
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...GOLD);
-  doc.text('RAPTOR ALARMS', ML, y);
-  y += 6;
-
-  doc.setFontSize(13);
-  doc.setTextColor(...DARK);
-  doc.text('The Raptor Smoke Alarm', ML, y);
-  y += 6;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  const tagline = 'Purpose-built for Australian Standards and approved for Queensland\'s fire safety regulatory requirements.';
-  const tagLines = doc.splitTextToSize(tagline, CW);
-  doc.text(tagLines, ML, y);
-  y += tagLines.length * 5 + 6;
-
-  // Load both product images async (front and installed view)
-  const frontImgUrl = frontViewUrl || null;
-  const installedImgUrl = installedViewUrl || null;
-
-  const imgY = y;
-  const imgH = 80;
-  const imgW = CW / 2 - 6;
-
-  async function loadProductImages() {
-    const loadImg = (url) => new Promise((resolve) => {
-      if (!url) { resolve(null); return; }
-      fetch(url).then(r => r.blob()).then(blob => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.readAsDataURL(blob);
-      }).catch(() => resolve(null));
-    });
-
-    const [frontData, installedData] = await Promise.all([loadImg(frontImgUrl), loadImg(installedImgUrl)]);
-
-    if (frontData) {
-      doc.addImage(frontData, 'PNG', ML, imgY, imgW, imgH);
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(7);
-      doc.setTextColor(...MUTED);
-      doc.text('Front View', ML + imgW / 2, imgY + imgH + 4, { align: 'center' });
-    }
-    if (installedData) {
-      doc.addImage(installedData, 'PNG', ML + imgW + 8, imgY, imgW, imgH);
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(7);
-      doc.setTextColor(...MUTED);
-      doc.text('Installed View', ML + imgW + 8 + imgW / 2, imgY + imgH + 4, { align: 'center' });
+    if (address) {
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+      address.split('\n').forEach((line,i) => doc.text(line, rightX, y+14+(i*5), { align:'right' }));
     }
 
-    finishProductSection(imgY + imgH + (frontData || installedData ? 12 : 0));
-  }
+    y = 84;
+    doc.setFillColor(...LIGHT); doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...DARK);
+    doc.text('PROPERTY DETAILS', ML+4, y+4.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED);
+    doc.text(`Bedrooms: ${bedrooms}   |   Storeys: ${storeys}   |   Hallways: ${hallways}   |   Service: ${serviceMode==='install'?'Installation':'Inspection'}`, ML+4, y+9);
 
-  function finishProductSection(yAfterImages) {
-    let py = yAfterImages;
+    y = 104;
+    doc.setFillColor(...DARK); doc.rect(ML, y, CW, 9, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...WHITE);
+    doc.text('DESCRIPTION', ML+4, y+6);
+    doc.text('QTY', ML+CW*0.62, y+6, { align:'center' });
+    doc.text('UNIT PRICE', ML+CW*0.78, y+6, { align:'center' });
+    doc.text('TOTAL', ML+CW-3, y+6, { align:'right' });
+    y += 9;
 
-    // ── KEY FEATURES TABLE ──
-    py += 4;
-    doc.setFillColor(...DARK);
-    doc.rect(ML, py, CW, 8, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...GOLD);
-    doc.text('KEY FEATURES', ML + 4, py + 5.5);
-    py += 8;
+    const items = [];
+    if (serviceMode==='install') {
+      if (alarmQty>0) items.push({ desc:'Raptor Smoke Alarms – Photoelectric, Interconnected, 10-Year Warranty', qty:alarmQty, unit:98, total:alarmQty*98 });
+      if (ctrlQty>0)  items.push({ desc:'Smoke Alarm Controller', qty:ctrlQty, unit:49, total:ctrlQty*49 });
+      items.push({ desc:'Electrician Booking Fee (fully refundable if install cannot be completed)', qty:1, unit:33, total:33 });
+    } else {
+      items.push({ desc:'Smoke Alarm Inspection Service – QLD 2027 Compliance Check', qty:1, unit:131, total:131 });
+    }
 
-    const features = [
-      { title: 'Photoelectric Sensing', desc: 'Reduces nuisance alarms from cooking while ensuring reliable early detection.' },
-      { title: 'RF Wireless Interconnect', desc: 'When one alarm sounds, all connected alarms sound. Up to 40 units per network.' },
-      { title: 'Alarm Memory', desc: 'Visual indication of prior activations and end-of-life warning for easy management.' },
-      { title: '10-Year Warranty', desc: 'Backed by a full 10-year manufacturer warranty for complete peace of mind.' },
+    items.forEach((item,idx) => {
+      const rowH = 12;
+      doc.setFillColor(idx%2===0?250:255, idx%2===0?250:255, idx%2===0?252:255);
+      doc.rect(ML, y, CW, rowH, 'F');
+      doc.setDrawColor(230,232,238); doc.setLineWidth(0.3);
+      doc.line(ML, y+rowH, ML+CW, y+rowH);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...DARK);
+      const descLines = doc.splitTextToSize(item.desc, CW*0.55);
+      doc.text(descLines[0], ML+4, y+7.5);
+      doc.setTextColor(...MUTED);
+      doc.text(String(item.qty), ML+CW*0.62, y+7.5, { align:'center' });
+      doc.text(fmtAUD(item.unit), ML+CW*0.78, y+7.5, { align:'center' });
+      doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+      doc.text(fmtAUD(item.total), ML+CW-3, y+7.5, { align:'right' });
+      y += rowH;
+    });
+
+    y += 8;
+    const totalsX = ML+CW*0.58, totalsW = CW*0.42;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    doc.text('Subtotal (Excl. GST)', totalsX, y);
+    doc.setTextColor(80,80,80); doc.text(fmtAUD(subtotalRaw), totalsX+totalsW, y, { align:'right' });
+    y += 8;
+    doc.setTextColor(...MUTED); doc.text('GST (10%)', totalsX, y);
+    doc.setTextColor(80,80,80); doc.text(fmtAUD(gstRaw), totalsX+totalsW, y, { align:'right' });
+    y += 12;
+    doc.setFillColor(...DARK); doc.roundedRect(totalsX-3, y-5, totalsW+3, 13, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(255,255,255);
+    doc.text('Total (Incl. GST)', totalsX+2, y+3);
+    doc.setTextColor(...GOLD); doc.setFontSize(13);
+    doc.text(fmtAUD(grandRaw), totalsX+totalsW-1, y+4, { align:'right' });
+
+    y += 18;
+    doc.setFillColor(...GOLD_BG); doc.roundedRect(ML, y, CW, 18, 2, 2, 'F');
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+    doc.line(ML, y, ML, y+18);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+    doc.text('PAYMENT STRUCTURE', ML+4, y+6);
+    doc.setFont('helvetica','normal'); doc.setTextColor(122,96,32); doc.setFontSize(8);
+    let payNote = serviceMode==='install'
+      ? `$33.00 booking fee is payable today to secure your electrician. Remaining balance of ${fmtAUD(alarmQty*98+ctrlQty*49)} is payable on the day of installation.`
+      : '$131.00 inspection fee is payable upfront. If alarms are non-compliant and you upgrade with us, the $131 fee is fully waived.';
+    doc.text(doc.splitTextToSize(payNote, CW-10), ML+4, y+12);
+
+    y += 26;
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text(doc.splitTextToSize('* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.', CW-8), ML, y);
+
+    // PAGE 2
+    doc.addPage();
+    doc.setFillColor(...DARK); doc.rect(0,0,PW,14,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('GOLDSURE', ML, 10);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+    doc.text('Quote Terms & Compliance Information', PW-MR, 10, { align:'right' });
+
+    y = 22;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...DARK);
+    doc.text('BOOKING FEE – WHAT IS THE $33 BOOKING FEE?', ML, y);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.4);
+    doc.line(ML, y+2, ML+85, y+2);
+    y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    const bookingLines = doc.splitTextToSize('This fee is required upfront to secure the Electrician on the installation date agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.', CW);
+    doc.text(bookingLines, ML, y);
+    y += bookingLines.length*5+8;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...DARK);
+    doc.text('QUEENSLAND SMOKE ALARM LEGISLATION (EFFECTIVE 01/01/2027)', ML, y);
+    doc.setDrawColor(...GOLD); doc.line(ML, y+2, ML+120, y+2);
+    y += 8;
+
+    const legislation = [
+      'Photoelectric and interconnected smoke alarms',
+      'Installed in each bedroom and in hallways connecting bedrooms',
+      'Installed on each level of the dwelling',
+      '10-year sealed lithium backup battery',
+      'Compliant with AS 3786-2014 or AS 3786-2023',
+      'Hard-wired smoke alarms replaced with hard-wired where applicable',
     ];
-
-    const fColW = CW / 2 - 2;
-    features.forEach((f, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const fx = ML + col * (fColW + 4);
-      const fy = py + row * 26;
-      // Alternating fill: row 0 white, row 1 light grey
-      doc.setFillColor(row === 0 ? 255 : 249, row === 0 ? 255 : 249, row === 0 ? 255 : 249);
-      doc.rect(fx, fy, fColW, 24, 'F');
-      // Subtle bottom border only
-      doc.setDrawColor(238, 238, 238);
-      doc.setLineWidth(0.3);
-      doc.line(fx, fy + 24, fx + fColW, fy + 24);
-      // Right border between columns (col 0 only)
-      if (col === 0) doc.line(fx + fColW, fy, fx + fColW, fy + 24);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(...GOLD);
-      doc.text('\u2713 ' + f.title, fx + 4, fy + 8);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(...MUTED);
-      const descLines = doc.splitTextToSize(f.desc, fColW - 8);
-      doc.text(descLines, fx + 4, fy + 14);
+    const colW = CW/2-4;
+    legislation.forEach((item,i) => {
+      const col=i%2, row=Math.floor(i/2);
+      const lx=ML+(col*(colW+8)), ly=y+(row*9);
+      doc.setFillColor(...GOLD); doc.circle(lx+1.5, ly-1, 1.2, 'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...DARK);
+      doc.text(item, lx+5, ly);
     });
+    y += Math.ceil(legislation.length/2)*9+8;
 
-    py += features.length / 2 * 26 + 2;
+    const frontViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png';
+    const installedViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png';
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+    doc.text('RAPTOR ALARMS', ML, y); y += 6;
+    doc.setFontSize(13); doc.setTextColor(...DARK);
+    doc.text('The Raptor Smoke Alarm', ML, y); y += 6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    const tagLines = doc.splitTextToSize("Purpose-built for Australian Standards and approved for Queensland's fire safety regulatory requirements.", CW);
+    doc.text(tagLines, ML, y);
+    y += tagLines.length*5+6;
 
-    // ── CERTIFICATION BAR ──
-    doc.setFillColor(...DARK);
-    doc.rect(ML, py, CW, 9, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(255,255,255);
-    doc.text('Certified to ', ML + 4, py + 6);
-    const certW = doc.getTextWidth('Certified to ');
-    doc.setTextColor(...GOLD);
-    doc.textWithLink('AS3786 2023', ML + 4 + certW, py + 6, { url: 'https://www.standards.org.au' });
-    const goldW = doc.getTextWidth('AS3786 2023');
-    doc.setTextColor(255,255,255);
-    doc.text('  |  Approved for All Australian States', ML + 4 + certW + goldW, py + 6);
-    py += 9;
+    const imgY=y, imgH=80, imgW=CW/2-6;
 
-    // ── DATASHEET LINK ──
-    py += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...GOLD);
-    doc.textWithLink('View the Raptor Smoke Alarm Datasheet →', ML, py, { url: 'https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6' });
+    async function loadProductImages() {
+      const loadImg = (url) => new Promise((resolve) => {
+        if (!url) { resolve(null); return; }
+        fetch(url).then(r=>r.blob()).then(blob => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.readAsDataURL(blob);
+        }).catch(()=>resolve(null));
+      });
+      const [frontData, installedData] = await Promise.all([loadImg(frontViewUrl), loadImg(installedViewUrl)]);
+      if (frontData) {
+        doc.addImage(frontData, 'PNG', ML, imgY, imgW, imgH);
+        doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+        doc.text('Front View', ML+imgW/2, imgY+imgH+4, { align:'center' });
+      }
+      if (installedData) {
+        doc.addImage(installedData, 'PNG', ML+imgW+8, imgY, imgW, imgH);
+        doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+        doc.text('Installed View', ML+imgW+8+imgW/2, imgY+imgH+4, { align:'center' });
+      }
+      finishProductSection(imgY+imgH+(frontData||installedData?12:0));
+    }
 
-    // ── PAGE 2 FOOTER ──
-    doc.setFillColor(...DARK);
-    doc.rect(0, PH - 18, PW, 18, 'F');
-    doc.setFillColor(...GOLD);
-    doc.rect(0, PH - 18, PW, 1.5, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(255,255,255);
-    doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH - 11, { align: 'center' });
-    doc.text('(07) 2145 5155  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH - 6, { align: 'center' });
-    doc.text('Page 2 of 2', PW - MR, PH - 11, { align: 'right' });
+    function finishProductSection(yAfterImages) {
+      let py = yAfterImages+4;
+      doc.setFillColor(...DARK); doc.rect(ML, py, CW, 8, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+      doc.text('KEY FEATURES', ML+4, py+5.5);
+      py += 8;
 
-    // Add footer to page 1
-    doc.setPage(1);
-    doc.setFillColor(...DARK);
-    doc.rect(0, PH - 18, PW, 18, 'F');
-    doc.setFillColor(...GOLD);
-    doc.rect(0, PH - 18, PW, 1.5, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(255,255,255);
-    doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH - 11, { align: 'center' });
-    doc.text('(07) 2145 5155  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH - 6, { align: 'center' });
-    doc.text('Page 1 of 2', PW - MR, PH - 11, { align: 'right' });
+      const features = [
+        { title:'Photoelectric Sensing', desc:'Reduces nuisance alarms from cooking while ensuring reliable early detection.' },
+        { title:'RF Wireless Interconnect', desc:'When one alarm sounds, all connected alarms sound. Up to 40 units per network.' },
+        { title:'Alarm Memory', desc:'Visual indication of prior activations and end-of-life warning for easy management.' },
+        { title:'10-Year Warranty', desc:'Backed by a full 10-year manufacturer warranty for complete peace of mind.' },
+      ];
+      const fColW = CW/2-2;
+      features.forEach((f,i) => {
+        const col=i%2, row=Math.floor(i/2);
+        const fx=ML+col*(fColW+4), fy=py+row*26;
+        doc.setFillColor(row===0?255:249, row===0?255:249, row===0?255:249);
+        doc.rect(fx, fy, fColW, 24, 'F');
+        doc.setDrawColor(238,238,238); doc.setLineWidth(0.3);
+        doc.line(fx, fy+24, fx+fColW, fy+24);
+        if (col===0) doc.line(fx+fColW, fy, fx+fColW, fy+24);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+        doc.text('\u2713 '+f.title, fx+4, fy+8);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+        doc.text(doc.splitTextToSize(f.desc, fColW-8), fx+4, fy+14);
+      });
+      py += features.length/2*26+2;
 
-    doc.save(`Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`);
-    closePdfModal();
-    showToast('PDF downloaded successfully!');
-  } // end finishProductSection
+      doc.setFillColor(...DARK); doc.rect(ML, py, CW, 9, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+      doc.text('Certified to ', ML+4, py+6);
+      const certW = doc.getTextWidth('Certified to ');
+      doc.setTextColor(...GOLD); doc.textWithLink('AS3786 2023', ML+4+certW, py+6, { url:'https://www.standards.org.au' });
+      const goldW = doc.getTextWidth('AS3786 2023');
+      doc.setTextColor(255,255,255); doc.text('  |  Approved for All Australian States', ML+4+certW+goldW, py+6);
+      py += 14;
 
-  loadProductImages();
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+      doc.textWithLink('View the Raptor Smoke Alarm Datasheet →', ML, py, { url:'https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6' });
+
+      // Footers
+      [1,2].forEach(pageNum => {
+        doc.setPage(pageNum);
+        doc.setFillColor(...DARK); doc.rect(0, PH-18, PW, 18, 'F');
+        doc.setFillColor(...GOLD); doc.rect(0, PH-18, PW, 1.5, 'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+        doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH-11, { align:'center' });
+        doc.text('(07) 2145 5155  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH-6, { align:'center' });
+        doc.text(`Page ${pageNum} of 2`, PW-MR, PH-11, { align:'right' });
+      });
+
+      doc.save(`Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`);
+      closePdfModal();
+      showToast('PDF downloaded successfully!');
+    }
+
+    loadProductImages();
   } // end finishPDF
 
   loadLogoAndGenerate();
@@ -1369,8 +1195,7 @@ function generatePDF() {
 // ════════════════════════════════════════════════════════════
 function toggleDocs(btn) {
   document.getElementById('docs-list').classList.toggle('open');
-  const arrow = btn.querySelector('.arrow');
-  arrow.textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
+  btn.querySelector('.arrow').textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
 }
 </script>
 </body>
