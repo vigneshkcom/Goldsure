@@ -31,9 +31,145 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-#upload-screen {
+/* ── AUTO-LOGIN SCREEN ── */
+#login-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--bg);
+}
+.login-logo {
+  margin-bottom: 36px;
+  text-align: center;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 52px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.login-card h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: -0.3px;
+}
+.login-card p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+.btn-login {
+  width: 100%;
+  padding: 15px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+.btn-login:hover { background: #1f56cc; }
+.btn-login:disabled { background: #b8c5dd; cursor: not-allowed; }
+.login-status {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 20px;
+  line-height: 1.5;
+}
+.login-status.loading { color: var(--amber); }
+.login-status.ok { color: var(--green); }
+.login-status.err { color: var(--red); }
+
+/* Animated spinner */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+.spinner.active { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Progress steps */
+.login-steps {
+  margin-top: 24px;
+  text-align: left;
+  display: none;
+}
+.login-steps.active { display: block; }
+.login-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--surface2);
+}
+.login-step:last-child { border-bottom: none; }
+.step-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--surface2);
+  color: var(--muted);
+}
+.step-icon.done { background: var(--green-bg); color: var(--green); }
+.step-icon.active { background: var(--blue-bg); color: var(--blue); animation: stepPulse 1s ease-in-out infinite; }
+.step-icon.err { background: var(--red-bg); color: var(--red); }
+@keyframes stepPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Manual fallback toggle */
+.manual-toggle {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  display: none; /* shown after error */
+}
+.manual-panel {
+  display: none;
+  margin-top: 16px;
+  text-align: left;
+}
+.manual-panel.open { display: block; }
+.mf-row { margin-bottom: 10px; }
+.mf-row label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 5px; }
+.mf-row input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  background: var(--surface2);
+}
+.mf-row input:focus { outline: none; border-color: var(--blue); }
+
+/* ── UPLOAD SCREEN (kept as CSV fallback) ── */
+#upload-screen {
+  min-height: 100vh;
+  display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -64,137 +200,29 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
   width: 100%;
   box-shadow: var(--shadow);
 }
-.upload-icon {
-  width: 60px; height: 60px;
-  background: var(--blue-bg);
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 22px;
-  font-size: 26px;
-}
 .upload-card h1 { font-size: 21px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.3px; }
 .upload-card > p { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
-
-/* Section divider */
-.section-divider {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 28px 0 20px;
-}
-.section-divider-line {
-  flex: 1;
-  height: 2px;
-  background: var(--border);
-}
-.section-divider-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* Live connect row */
-.live-connect-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 4px;
-}
-
 .upload-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 20px;
 }
-.upload-col {
-  text-align: left;
-}
-.upload-col label {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  display: block;
-  margin-bottom: 8px;
-}
-.drop-zone {
-  border: 2px dashed var(--border);
-  border-radius: 14px;
-  padding: 20px 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: var(--surface2);
-  margin-bottom: 8px;
-  position: relative;
-  text-align: center;
-  min-height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.upload-col { text-align: left; }
+.upload-col label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: block; margin-bottom: 8px; }
+.drop-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 20px 12px; cursor: pointer; transition: all 0.2s; background: var(--surface2); margin-bottom: 8px; position: relative; text-align: center; min-height: 90px; display: flex; align-items: center; justify-content: center; }
 .drop-zone:hover, .drop-zone.drag-over { border-color: var(--blue); background: var(--blue-bg); }
 .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .drop-text { font-size: 12px; color: var(--muted); pointer-events: none; }
 .drop-text strong { color: var(--blue); }
-.file-badge {
-  font-size: 11px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 10px;
-  display: inline-block;
-  margin-top: 6px;
-}
-.upload-section-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 20px 0 10px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border);
-  letter-spacing: -0.2px;
-}
-.upload-section-label:first-of-type { margin-top: 4px; }
-
-/* Two load buttons */
-.btn-load {
-  width: 100%;
-  margin-top: 16px;
-  padding: 14px;
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-family: 'Sora', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
+.file-badge { font-size: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; display: inline-block; margin-top: 6px; }
+.upload-section-label { font-size: 13px; font-weight: 700; color: var(--text); margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--border); letter-spacing: -0.2px; }
+.btn-load { width: 100%; margin-top: 16px; padding: 14px; background: var(--blue); color: #fff; border: none; border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn-load:hover { background: #1f56cc; }
 .btn-load:disabled { background: #b8c5dd; cursor: not-allowed; }
-.btn-load-csv {
-  width: 100%;
-  margin-top: 16px;
-  padding: 14px;
-  background: var(--surface);
-  color: var(--text);
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  font-family: 'Sora', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-load-csv:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
-.btn-load-csv:disabled { opacity: 0.45; cursor: not-allowed; }
-
 .upload-error { color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
 
+/* ── DASHBOARD ── */
 #dashboard { display: none; }
 header {
   background: var(--surface);
@@ -209,118 +237,43 @@ header {
   flex-wrap: wrap;
 }
 .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
-.logo .main { color: var(--text); }
 .logo .sub { font-size: 13px; font-weight: 400; color: var(--muted); display: block; }
 .logo span { color: var(--blue); }
 .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .file-chip { font-size: 11px; color: var(--muted); background: var(--surface2); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.product-toggle {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 30px;
-  display: inline-flex;
-  padding: 3px;
-}
-.toggle-btn {
-  font-family: 'Sora', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 18px;
-  border: none;
-  border-radius: 30px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.toggle-btn.active {
-  background: var(--blue);
-  color: white;
-}
-.btn-new {
-  font-family: 'Sora', sans-serif;
-  font-size: 12px;
-  padding: 6px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface2);
-  cursor: pointer;
-}
+.product-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 30px; display: inline-flex; padding: 3px; }
+.toggle-btn { font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; padding: 6px 18px; border: none; border-radius: 30px; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.toggle-btn.active { background: var(--blue); color: white; }
+.btn-new { font-family: 'Sora', sans-serif; font-size: 12px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); cursor: pointer; }
 .btn-new:hover { background: var(--blue-bg); color: var(--blue); }
 
 main { padding: 22px 28px; max-width: 1400px; margin: 0 auto; }
 
-.filters {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 13px 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-}
+.filters { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 13px 18px; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
 .fg { display: flex; align-items: center; gap: 7px; }
 .fg label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
-input[type="date"], select {
-  font-family: 'Sora', sans-serif;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 6px 10px;
-  background: var(--surface2);
-}
+input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; background: var(--surface2); }
 .fsep { width: 1px; height: 22px; background: var(--border); }
-.pbtn {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface2);
-  color: var(--muted);
-  cursor: pointer;
-}
+.pbtn { font-size: 11px; font-weight: 600; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--muted); cursor: pointer; }
 .pbtn.active { background: var(--blue); color: white; border-color: var(--blue); }
 .lcount { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
 
 .product-kpis { margin-bottom: 16px; display: block; }
 #smoke-kpis, #hws-kpis { display: none; }
-.kpi-row { 
-  display: grid; 
-  grid-template-columns: repeat(4,1fr); 
-  gap: 14px; 
-  margin-bottom: 16px; 
-}
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
 .kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .kpi-val { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
 .kpi-sub { font-size: 11px; color: var(--muted); }
 .cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cr { color: var(--red); } .cgold { color: var(--gold); }
 
-.financial-kpis {
-  display: grid;
-  grid-template-columns: repeat(5,1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
+.financial-kpis { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; }
 .fin-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; text-align: center; }
 .fin-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
 .fin-value { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .fin-note { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
 
-.assumptions-card {
-  background: var(--gold-bg);
-  border: 1px solid #f0dbaa;
-  border-radius: var(--r);
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
+.assumptions-card { background: var(--gold-bg); border: 1px solid #f0dbaa; border-radius: var(--r); padding: 14px 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
 .assumption-item { display: flex; align-items: center; gap: 8px; }
 .assumption-item label { font-size: 12px; font-weight: 600; color: var(--gold); text-transform: uppercase; white-space: nowrap; }
 .assumption-item input { width: 100px; padding: 8px 12px; border: 1px solid #f0dbaa; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; text-align: right; background: white; }
@@ -354,116 +307,23 @@ input[type="date"], select {
 .vtable td:first-child { text-align:left; font-family:'Sora',sans-serif; }
 .vtable .tr-total td { border-top:2px solid var(--border); font-weight:700; background:var(--surface2); }
 
-/* GHL Connect Card */
-.ghl-connect-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-  padding: 16px 20px;
-}
-.ghl-connect-card h3 { font-size: 13px; font-weight: 700; color: #16a34a; margin-bottom: 6px; }
-.ghl-connect-card p { font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
-.ghl-token-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.ghl-token-row label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; white-space: nowrap; min-width: 80px; }
-.ghl-token-input {
-  flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  padding: 8px 12px; border: 1px solid #bbf7d0; border-radius: 8px;
-  background: white; color: var(--text);
-}
-.ghl-token-input:focus { outline: none; border-color: #16a34a; }
-.ghl-location-display {
-  flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  padding: 8px 12px; border: 1px solid #bbf7d0; border-radius: 8px;
-  background: #f0fdf4; color: var(--muted);
-}
-.btn-ghl-connect {
-  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
-  padding: 8px 16px; background: #16a34a; color: white;
-  border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;
-}
-.btn-ghl-connect:hover { background: #15803d; }
-.ghl-status { font-size: 11px; margin-top: 4px; min-height: 16px; }
-.ghl-status.ok { color: var(--green); }
-.ghl-status.err { color: var(--red); }
-.ghl-status.loading { color: var(--amber); }
-.ghl-live-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600;
-  background: #f0fdf4; color: #16a34a;
-  border: 1px solid #bbf7d0; border-radius: 20px; padding: 4px 10px;
-}
+/* Live badges */
+.ghl-live-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 20px; padding: 4px 10px; }
 .ghl-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; animation: pulse 1.5s infinite; }
-
-/* Meta Connect Card */
-.meta-connect-card {
-  background: #f0f4ff;
-  border: 1px solid #c5d3f5;
-  border-radius: 12px;
-  padding: 16px 20px;
-}
-.meta-connect-card h3 { font-size: 13px; font-weight: 700; color: #1877f2; margin-bottom: 6px; }
-.meta-connect-card p { font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
-.meta-token-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.meta-token-row label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; white-space: nowrap; min-width: 80px; }
-.meta-token-input {
-  flex: 1;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  padding: 8px 12px;
-  border: 1px solid #c5d3f5;
-  border-radius: 8px;
-  background: white;
-  color: var(--text);
-}
-.meta-token-input:focus { outline: none; border-color: #1877f2; }
-.meta-status { font-size: 11px; margin-top: 4px; min-height: 16px; }
-.meta-status.ok { color: var(--green); }
-.meta-status.err { color: var(--red); }
-.meta-status.loading { color: var(--amber); }
-.btn-meta-connect {
-  font-family: 'Sora', sans-serif;
-  font-size: 12px; font-weight: 600;
-  padding: 8px 16px;
-  background: #1877f2; color: white;
-  border: none; border-radius: 8px; cursor: pointer;
-  white-space: nowrap;
-}
-.btn-meta-connect:hover { background: #1460cc; }
-.meta-live-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600;
-  background: #eaf7f2; color: var(--green);
-  border: 1px solid #b5e8d5;
-  border-radius: 20px; padding: 4px 10px;
-}
-.meta-live-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green);
-  animation: pulse 1.5s infinite;
-}
+.meta-live-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; background: #eaf7f2; color: var(--green); border: 1px solid #b5e8d5; border-radius: 20px; padding: 4px 10px; }
+.meta-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.btn-pdf {
-  font-family: 'Sora', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 14px;
-  border: none;
-  border-radius: 8px;
-  background: var(--text);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+.btn-pdf { font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; padding: 7px 14px; border: none; border-radius: 8px; background: var(--text); color: #fff; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .btn-pdf:hover { background: #2a3a5c; }
 
+.vtbtn { font-size:11px; font-weight:600; padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--muted); cursor:pointer; }
+.vtbtn.active { background:var(--text); color:#fff; }
+
 @media print {
-  #upload-screen { display: none !important; }
+  #login-screen, #upload-screen { display: none !important; }
   header { position: static !important; box-shadow: none !important; }
   .btn-new, .btn-pdf, .product-toggle, .file-chip { display: none !important; }
-  header .logo { display: block !important; }
   #meta-live-panel { display: none !important; }
   .filters { page-break-inside: avoid; }
   .row2 { page-break-inside: avoid; }
@@ -472,220 +332,132 @@ input[type="date"], select {
   main { padding: 10px !important; }
   .vtable-wrap { overflow: visible !important; }
   footer { display: none !important; }
-  #pdf-cover { display: block !important; }
-  @page {
-    margin: 15mm 12mm;
-    @bottom-center {
-      content: "Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072 · +61 451 898 761 · vignesh@goldsure.com.au";
-      font-size: 9pt; color: #6b7899;
-    }
-    @bottom-right {
-      content: "Page " counter(page) " of " counter(pages);
-      font-size: 9pt; color: #6b7899;
-    }
-  }
+  @page { margin: 15mm 12mm; }
 }
-.vtbtn { font-size:11px; font-weight:600; padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--muted); cursor:pointer; }
-.vtbtn.active { background:var(--text); color:#fff; }
-
-.modal-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 999;
-  align-items: center;
-  justify-content: center;
-}
-.modal-overlay.open { display: flex; }
-.modal-box {
-  background: var(--surface);
-  border-radius: 18px;
-  padding: 36px 40px;
-  max-width: 620px;
-  width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-  position: relative;
-}
-.modal-close {
-  position: absolute; top: 16px; right: 20px;
-  font-size: 20px; background: none; border: none;
-  cursor: pointer; color: var(--muted); line-height: 1;
-}
-.modal-close:hover { color: var(--text); }
-.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-.modal-box h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; letter-spacing: 0.4px; }
-.modal-box p { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 8px; }
-.modal-box a { color: var(--blue); }
-.modal-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
 </style>
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════
+     AUTO-LOGIN SCREEN
+     ══════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-logo">
+    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:64px;width:auto;display:block;margin:0 auto 12px;">
+    <div style="font-size:20px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:4px;">Smoke Alarms &amp; Hot Water Systems</div>
+  </div>
+
+  <div class="login-card">
+    <h1>Welcome back</h1>
+    <p>Click below to securely connect to GoHighLevel CRM and Meta Ads and load your live dashboard.</p>
+
+    <button class="btn-login" id="btn-auto-login" onclick="autoLogin()">
+      <div class="spinner" id="login-spinner"></div>
+      <span id="login-btn-text">Login &amp; Load Dashboard</span>
+    </button>
+
+    <div class="login-status" id="login-status"></div>
+
+    <!-- Step-by-step progress -->
+    <div class="login-steps" id="login-steps">
+      <div class="login-step" id="step-config">
+        <div class="step-icon" id="step-config-icon">1</div>
+        <span id="step-config-text">Fetching secure credentials…</span>
+      </div>
+      <div class="login-step" id="step-ghl">
+        <div class="step-icon" id="step-ghl-icon">2</div>
+        <span id="step-ghl-text">Connecting to GoHighLevel CRM…</span>
+      </div>
+      <div class="login-step" id="step-meta">
+        <div class="step-icon" id="step-meta-icon">3</div>
+        <span id="step-meta-text">Connecting to Meta Ads API…</span>
+      </div>
+      <div class="login-step" id="step-data">
+        <div class="step-icon" id="step-data-icon">4</div>
+        <span id="step-data-text">Loading all pipeline data…</span>
+      </div>
+    </div>
+
+    <!-- Manual fallback -->
+    <div class="manual-toggle" id="manual-toggle-btn" onclick="toggleManual()">
+      Enter credentials manually instead
+    </div>
+    <div class="manual-panel" id="manual-panel">
+      <div class="mf-row">
+        <label>GHL API Key</label>
+        <input type="password" id="manual-ghl-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      </div>
+      <div class="mf-row">
+        <label>Meta Access Token</label>
+        <input type="password" id="manual-meta-token" placeholder="EAAia7vwGvH…">
+      </div>
+      <button class="btn-login" style="margin-top:8px;" onclick="manualLogin()">
+        <span>Connect Manually</span>
+      </button>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;font-size:11px;color:var(--muted);text-align:center;">
+    Credentials are stored securely in Vercel &amp; never exposed in source code.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CSV UPLOAD FALLBACK SCREEN
+     ══════════════════════════════════════════════ -->
 <div id="upload-screen">
   <div class="upload-logo">
-    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:64px;width:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-    Goldsure Pty Ltd <small>Smoke Alarms &amp; Hot Water System</small>
+    Goldsure <span>|</span> CSV Fallback
+    <small>Upload CSV files below if live API is unavailable</small>
   </div>
   <div class="upload-card">
-    <button class="upload-icon" onclick="document.getElementById('readme-modal').classList.add('open')" style="background:var(--blue-bg);border:none;cursor:pointer;width:60px;height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:11px;font-weight:700;color:var(--blue);letter-spacing:0.3px;">Readme</button>
-    <h1>Connect live data or upload CSV files</h1>
-    <p>Connect GoHighLevel CRM and/or Meta Ads API for live data, then click <strong>Load Goldsure Dashboard</strong>. Alternatively, upload CSV files below.</p>
+    <h1>Upload CSV files</h1>
+    <p>Upload your exported CSV files for Smoke Alarm and/or HWS.</p>
 
-    <!-- ── LIVE CONNECT SECTION ── -->
-    <div class="section-divider">
-      <div class="section-divider-line"></div>
-      <div class="section-divider-label">⚡ Live API Connections</div>
-      <div class="section-divider-line"></div>
-    </div>
-
-    <div class="live-connect-row">
-      <!-- GHL Card -->
-      <div class="ghl-connect-card">
-        <h3>GoHighLevel CRM — Live Data</h3>
-        <p>Paste your API key to pull live opportunity data for both pipelines. Location ID is pre-filled. Contact <a href="mailto:vignesh@goldsure.com.au" style="color:#16a34a;">vignesh@goldsure.com.au</a> for your API key.</p>
-        <div class="ghl-token-row">
-          <label>API Key</label>
-          <input type="password" class="ghl-token-input" id="ghl-api-key" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-        </div>
-        <div class="ghl-token-row">
-          <label>Location ID</label>
-          <div class="ghl-location-display">11epCbQAg9B4rQt5yHjw</div>
-        </div>
-        <div style="margin-top:10px;">
-          <button class="btn-ghl-connect" onclick="testGHLConnection()">Test &amp; Connect GHL</button>
-        </div>
-        <div class="ghl-status" id="ghl-status"></div>
-      </div>
-
-      <!-- Meta Card -->
-      <div class="meta-connect-card">
-        <h3>Meta Ads API — Live Spend Data</h3>
-        <p>Paste your Meta Access Token to automatically pull live spend &amp; CPM data. Token is stored in browser memory only. Contact <a href="mailto:vignesh@goldsure.com.au" style="color:#1877f2;">vignesh@goldsure.com.au</a> for your token.</p>
-        <div class="meta-token-row">
-          <label>Access Token</label>
-          <input type="password" class="meta-token-input" id="upload-meta-token" placeholder="EAAia7vwGvH... paste token here">
-        </div>
-        <div style="margin-top:10px;">
-          <button class="btn-meta-connect" onclick="testMetaToken()">Test &amp; Connect Meta</button>
-        </div>
-        <div class="meta-status" id="meta-token-status"></div>
-        <div style="margin-top:8px;font-size:10px;color:var(--muted);">
-          Smoke: <strong>act_1420815159464502</strong> &nbsp;|&nbsp; HWS: <strong>act_716067364534837</strong>
-        </div>
-      </div>
-    </div>
-
-    <!-- Primary load button (live) -->
-    <button class="btn-load" id="btn-load" onclick="loadDashboards()"> Load Goldsure Dashboard (Live)</button>
-
-    <!-- ── CSV FALLBACK SECTION ── -->
-    <div class="section-divider" style="margin-top:32px;">
-      <div class="section-divider-line"></div>
-      <div class="section-divider-label">📄 CSV Upload (Fallback)</div>
-      <div class="section-divider-line"></div>
-    </div>
-
-    <!-- Smoke Alarm CSV -->
     <div class="upload-section-label">Smoke Alarm</div>
     <div class="upload-grid">
       <div class="upload-col">
         <label>Smoke Alarm Opportunity</label>
-        <div class="drop-zone" id="drop-smoke-crm">
-          <input type="file" id="smoke-crm-input" accept=".csv">
-          <div class="drop-text"><strong>Click / drop</strong> smoke_opp.csv</div>
-        </div>
+        <div class="drop-zone" id="drop-smoke-crm"><input type="file" id="smoke-crm-input" accept=".csv"><div class="drop-text"><strong>Click / drop</strong> smoke_opp.csv</div></div>
         <div id="smoke-crm-badge" class="file-badge">No file</div>
       </div>
       <div class="upload-col">
-        <label>Smoke Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Meta API)</span></label>
-        <div class="drop-zone" id="drop-smoke-spend">
-          <input type="file" id="smoke-spend-input" accept=".csv">
-          <div class="drop-text"><strong>Click / drop</strong> smoke_spend.csv</div>
-        </div>
+        <label>Smoke Ad Spend</label>
+        <div class="drop-zone" id="drop-smoke-spend"><input type="file" id="smoke-spend-input" accept=".csv"><div class="drop-text"><strong>Click / drop</strong> smoke_spend.csv</div></div>
         <div id="smoke-spend-badge" class="file-badge">No file</div>
       </div>
     </div>
 
-    <!-- HWS CSV -->
     <div class="upload-section-label">HWS</div>
     <div class="upload-grid">
       <div class="upload-col">
         <label>HWS Opportunity</label>
-        <div class="drop-zone" id="drop-hws-crm">
-          <input type="file" id="hws-crm-input" accept=".csv">
-          <div class="drop-text"><strong>Click / drop</strong> hws_opp.csv</div>
-        </div>
+        <div class="drop-zone" id="drop-hws-crm"><input type="file" id="hws-crm-input" accept=".csv"><div class="drop-text"><strong>Click / drop</strong> hws_opp.csv</div></div>
         <div id="hws-crm-badge" class="file-badge">No file</div>
       </div>
       <div class="upload-col">
-        <label>HWS Ad Spend <span style="font-size:10px;color:var(--muted);font-weight:400;">(optional if using Meta API)</span></label>
-        <div class="drop-zone" id="drop-hws-spend">
-          <input type="file" id="hws-spend-input" accept=".csv">
-          <div class="drop-text"><strong>Click / drop</strong> hws_spend.csv</div>
-        </div>
+        <label>HWS Ad Spend</label>
+        <div class="drop-zone" id="drop-hws-spend"><input type="file" id="hws-spend-input" accept=".csv"><div class="drop-text"><strong>Click / drop</strong> hws_spend.csv</div></div>
         <div id="hws-spend-badge" class="file-badge">No file</div>
       </div>
     </div>
 
-    <!-- Secondary load button (CSV) -->
-    <button class="btn-load-csv" id="btn-load-csv" onclick="loadDashboards()" disabled>📄 Load Goldsure Dashboard (CSV)</button>
-
+    <button class="btn-load" id="btn-load-csv" onclick="loadFromCsv()" disabled>Load Dashboard (CSV)</button>
     <div class="upload-error" id="upload-error"></div>
-  </div>
-</div>
-
-<!-- README MODAL -->
-<div class="modal-overlay" id="readme-modal" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('readme-modal').classList.remove('open')">&times;</button>
-    <h2>Goldsure Dashboard — Guide</h2>
-    <p>This is the internal performance dashboard for Goldsure Pty Ltd. It connects live to your CRM and Meta Ads to show leads, conversions, and ad spend in real time.</p>
-
-    <div class="modal-section">
-      <h3>GoHighLevel (CRM) Connection</h3>
-      <p>The Location ID is pre-filled (11epCbQAg9B4rQt5yHjw). You only need to paste your <strong>API Key</strong>. Contact Vignesh for the key:</p>
-      <p><a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></p>
-      <p>Once entered, click <strong>Test &amp; Connect GHL</strong>. A green confirmation will appear showing how many opportunities were found.</p>
-    </div>
-
-    <div class="modal-section">
-      <h3>Meta Ads API Connection</h3>
-      <p>To connect Meta Ads spend data, paste your <strong>Meta Access Token</strong>. Tokens last up to 60 days — request a new one from Vignesh when it expires.</p>
-      <p>Click <strong>Test &amp; Connect Meta</strong>, then click <strong>Load Goldsure Dashboard (Live)</strong>.</p>
-    </div>
-
-    <div class="modal-section">
-      <h3>Switching Between Smoke Alarms and HWS</h3>
-      <p>Once the dashboard loads, use the <strong>Smoke Alarm / HWS</strong> toggle buttons in the top-right header to switch between the two product views.</p>
-    </div>
-
-    <div class="modal-section">
-      <h3>Download PDF Button</h3>
-      <p>The <strong>Download PDF</strong> button generates a branded Goldsure report for whichever product is currently selected.</p>
-    </div>
-
-    <div class="modal-section">
-      <h3>Date Filters</h3>
-      <p>Use the date pickers or the quick buttons (7d, 30d, MTD, All) to change the reporting period. All metrics, spend, and tables update instantly.</p>
-    </div>
-
-    <div class="modal-section" style="background:var(--surface2);border-radius:10px;padding:14px 16px;border-top:none;margin-top:20px;">
-      <p style="margin:0;font-size:12px;">Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072<br>
-      Phone: <a href="tel:+61451898761">+61 451 898 761</a> · Email: <a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></p>
+    <div style="margin-top:16px;text-align:center;">
+      <button style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;font-family:'Sora',sans-serif;" onclick="showLoginScreen()">← Back to login</button>
     </div>
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════
+     DASHBOARD
+     ══════════════════════════════════════════════ -->
 <div id="dashboard">
   <header>
     <div class="logo">Goldsure <span>|</span> <span class="sub" id="active-product-indicator">Smoke Alarms</span></div>
     <div class="header-right">
-      <span class="file-chip" id="chip-smoke-crm"></span>
-      <span class="file-chip" id="chip-hws-crm"></span>
-      <span class="file-chip" id="chip-smoke-spend"></span>
-      <span class="file-chip" id="chip-hws-spend"></span>
       <div class="product-toggle">
         <button class="toggle-btn active" id="toggleSmoke" onclick="switchProduct('smoke')">Smoke Alarm</button>
         <button class="toggle-btn" id="toggleHws" onclick="switchProduct('hws')">HWS</button>
@@ -693,13 +465,13 @@ input[type="date"], select {
       <span id="ghl-live-indicator" style="display:none;" class="ghl-live-badge"><span class="ghl-live-dot"></span>GHL Live</span>
       <span id="meta-live-indicator" style="display:none;" class="meta-live-badge"><span class="meta-live-dot"></span>Meta Live</span>
       <button class="btn-pdf" onclick="generatePDF()">Download PDF</button>
-      <button class="btn-new" onclick="resetUpload()">Upload New</button>
-      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:48px; width:auto; margin-left:8px; object-fit:contain;">
+      <button class="btn-new" onclick="showLoginScreen()">← Back</button>
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:48px;width:auto;margin-left:8px;object-fit:contain;">
     </div>
   </header>
   <main>
-    <!-- GHL + Meta Live Panel -->
-    <div id="meta-live-panel" style="display:none; background:#f0f4ff; border:1px solid #c5d3f5; border-radius:12px; padding:12px 18px; margin-bottom:14px; align-items:center; gap:16px; flex-wrap:wrap;">
+    <!-- Live panel -->
+    <div id="meta-live-panel" style="display:none;background:#f0f4ff;border:1px solid #c5d3f5;border-radius:12px;padding:12px 18px;margin-bottom:14px;align-items:center;gap:16px;flex-wrap:wrap;">
       <span style="font-size:12px;font-weight:700;color:#1877f2;">Live Data Connected</span>
       <span id="ghl-panel-info" style="font-size:12px;color:var(--muted);"></span>
       <span id="meta-panel-smoke-spend" style="font-size:12px;color:var(--muted);"></span>
@@ -725,7 +497,7 @@ input[type="date"], select {
       <div class="lcount" id="lead-count">0 leads</div>
     </div>
 
-    <!-- Smoke Alarm KPI block -->
+    <!-- Smoke KPIs -->
     <div id="smoke-kpis" class="product-kpis" style="display:block;">
       <div class="assumptions-card">
         <div class="assumption-item"><label>ALARMS PER JOB</label><input type="number" id="alarmsPerJob" value="5" step="0.1" onchange="updateAssumptions()"></div>
@@ -733,15 +505,13 @@ input[type="date"], select {
         <div class="assumption-item"><label>COST PRICE $</label><input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()"></div>
         <div class="assumption-note">Changes auto-calculate all metrics</div>
       </div>
-      
       <div class="financial-kpis">
-        <div class="fin-card"><div class="fin-label">AD SPEND</div><div class="fin-value" id="kpi-spend">$0</div><div class="fin-note">Sum of Meta payments in date range</div></div>
-        <div class="fin-card"><div class="fin-label">REVENUE</div><div class="fin-value cg" id="kpi-revenue">$0</div><div class="fin-note" id="revenue-note">Installed jobs × alarms per job × sell price</div></div>
+        <div class="fin-card"><div class="fin-label">AD SPEND</div><div class="fin-value" id="kpi-spend">$0</div><div class="fin-note">Meta payments in date range</div></div>
+        <div class="fin-card"><div class="fin-label">REVENUE</div><div class="fin-value cg" id="kpi-revenue">$0</div><div class="fin-note" id="revenue-note">Installed × alarms × sell price</div></div>
         <div class="fin-card"><div class="fin-label">ROAS</div><div class="fin-value" id="kpi-roas">0.0x</div><div class="fin-note">Revenue ÷ Ad Spend</div></div>
-        <div class="fin-card"><div class="fin-label">COGS</div><div class="fin-value" id="kpi-cogs">$0</div><div class="fin-note" id="cogs-note">Installed jobs × alarms per job × cost price</div></div>
+        <div class="fin-card"><div class="fin-label">COGS</div><div class="fin-value" id="kpi-cogs">$0</div><div class="fin-note" id="cogs-note">Installed × alarms × cost price</div></div>
         <div class="fin-card"><div class="fin-label">GROSS PROFIT</div><div class="fin-value cgold" id="kpi-profit">$0</div><div class="fin-note">Revenue − COGS − Ad Spend</div></div>
       </div>
-      
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-lbl">TOTAL LEADS</div><div class="kpi-val cb" id="k-total">0</div><div class="kpi-sub">in selected period</div></div>
         <div class="kpi"><div class="kpi-lbl">CLOSE RATE</div><div class="kpi-val cg" id="k-rate">0%</div><div class="kpi-sub" id="k-rate-sub"></div></div>
@@ -750,10 +520,10 @@ input[type="date"], select {
       </div>
     </div>
 
-    <!-- HWS KPI block -->
+    <!-- HWS KPIs -->
     <div id="hws-kpis" class="product-kpis" style="display:none;">
       <div class="financial-kpis" style="grid-template-columns: repeat(2,1fr);">
-        <div class="fin-card"><div class="fin-label">HWS AD SPEND</div><div class="fin-value" id="hws-spend-val">$0</div><div class="fin-note">Sum of Meta payments in date range</div></div>
+        <div class="fin-card"><div class="fin-label">HWS AD SPEND</div><div class="fin-value" id="hws-spend-val">$0</div><div class="fin-note">Meta payments in date range</div></div>
         <div class="fin-card"><div class="fin-label">TOTAL LEADS</div><div class="fin-value cb" id="hws-leads-val">0</div><div class="fin-note">Pipeline leads in date range</div></div>
       </div>
       <div class="kpi-row">
@@ -770,59 +540,61 @@ input[type="date"], select {
     </div>
 
     <div class="card" id="smoke-vol-card" style="margin-bottom:16px;">
-      <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="ctitle" style="display:flex;justify-content:space-between;align-items:center;">
         SMOKE ALARM LEAD VOLUME
-        <span class="vtoggle"><button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button><button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button></span>
+        <span><button class="vtbtn active" id="vbtn-w" onclick="setView('weekly')">Weekly</button><button class="vtbtn" id="vbtn-d" onclick="setView('daily')">Daily</button></span>
       </div>
       <div class="vtable-wrap"><table class="vtable"><thead id="smoke-vol-head"></thead><tbody id="smoke-vol-body"></tbody></table></div>
     </div>
 
-    <div class="card" id="hws-vol-card" style="display:none; margin-bottom:16px;">
-      <div class="ctitle" style="display:flex; justify-content:space-between; align-items:center;">
-        HWS LEAD VOLUME
-        <span class="vtoggle" style="opacity:0.4;pointer-events:none;font-size:10px;color:var(--muted);">synced with above</span>
-      </div>
+    <div class="card" id="hws-vol-card" style="display:none;margin-bottom:16px;">
+      <div class="ctitle">HWS LEAD VOLUME</div>
       <div class="vtable-wrap"><table class="vtable"><thead id="hws-vol-head"></thead><tbody id="hws-vol-body"></tbody></table></div>
     </div>
   </main>
 
-  <footer style="background:var(--surface); border-top:1px solid var(--border); padding:20px 28px; margin-top:8px;">
-    <div style="max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px; width:auto; object-fit:contain;">
+  <footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
+    <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
         <div>
-          <div style="font-size:13px; font-weight:700; color:var(--text);">Goldsure Pty Ltd</div>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072</div>
         </div>
       </div>
-      <div style="font-size:11px; color:var(--muted); text-align:right; line-height:1.8;">
-        <div>Phone: <a href="tel:+61451898761" style="color:var(--blue); text-decoration:none;">+61 451 898 761</a></div>
-        <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue); text-decoration:none;">vignesh@goldsure.com.au</a></div>
+      <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.8;">
+        <div>Phone: <a href="tel:+61451898761" style="color:var(--blue);text-decoration:none;">+61 451 898 761</a></div>
+        <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue);text-decoration:none;">vignesh@goldsure.com.au</a></div>
       </div>
     </div>
   </footer>
 </div>
 
 <script>
-// GLOBAL DATA STORES
-let SMOKE_CRM = [];
-let HWS_CRM = [];
-let SMOKE_SPEND = [];
-let HWS_SPEND = [];
-let SMOKE_SPEND_ALL = [];
-let HWS_SPEND_ALL = [];
+// ══════════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ══════════════════════════════════════════════════════════════
+let SMOKE_CRM = [], HWS_CRM = [];
+let SMOKE_SPEND = [], HWS_SPEND = [];
+let SMOKE_SPEND_ALL = [], HWS_SPEND_ALL = [];
 
-// ── HARDCODED LOCATION ID ──
-const GHL_LOCATION_ID_HARDCODED = '11epCbQAg9B4rQt5yHjw';
+const GHL_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
+let GHL_API_KEY = '';
+let META_TOKEN = '';
+let GHL_CONNECTED = false;
+let META_CONNECTED = false;
 
-let SMOKE_PIPELINE_ID = '';
-let HWS_PIPELINE_ID   = '';
+let SMOKE_PIPELINE_ID = '', HWS_PIPELINE_ID = '';
 let GHL_PIPELINES = [];
 
 let smokeCrmFile = null, hwsCrmFile = null, smokeSpendFile = null, hwsSpendFile = null;
 let currentProduct = 'smoke';
 let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 98, costPrice = 25;
+
+const SMOKE_ACCOUNT = 'act_1420815159464502';
+const HWS_ACCOUNT   = 'act_716067364534837';
+const GHL_PROXY     = 'https://corsproxy.io/?';
 
 const STAGE_COLORS = {
   'Not Interested/Spam':'#e04f4f','Not Reachable':'#d98c1e','Out of Area':'#7251c2',
@@ -833,303 +605,419 @@ const STAGE_COLORS = {
 };
 const SRC_COLORS = ['#1877f2','#18a96e','#d98c1e','#7251c2','#e04f4f','#0ea4ac','#e0833b','#94a3b8'];
 
-function checkCsvButtonState() {
-  const hasCsv = !!(smokeCrmFile || hwsCrmFile || smokeSpendFile || hwsSpendFile);
-  document.getElementById('btn-load-csv').disabled = !hasCsv;
+// ══════════════════════════════════════════════════════════════
+//  AUTO-LOGIN FLOW
+// ══════════════════════════════════════════════════════════════
+function setStep(id, state, text) {
+  const icon = document.getElementById(`step-${id}-icon`);
+  const label = document.getElementById(`step-${id}-text`);
+  icon.className = `step-icon ${state}`;
+  if (state === 'done') icon.innerText = '✓';
+  else if (state === 'err') icon.innerText = '✗';
+  else icon.innerText = id === 'config' ? '1' : id === 'ghl' ? '2' : id === 'meta' ? '3' : '4';
+  if (text) label.innerText = text;
 }
 
+async function autoLogin() {
+  const btn = document.getElementById('btn-auto-login');
+  const spinner = document.getElementById('login-spinner');
+  const btnText = document.getElementById('login-btn-text');
+  const status = document.getElementById('login-status');
+  const steps = document.getElementById('login-steps');
+
+  btn.disabled = true;
+  spinner.classList.add('active');
+  btnText.innerText = 'Connecting…';
+  status.className = 'login-status loading';
+  status.innerText = 'Starting secure connection…';
+  steps.classList.add('active');
+
+  // ── STEP 1: Fetch credentials from Vercel ──
+  setStep('config', 'active', 'Fetching secure credentials from Vercel…');
+  let ghlKey = '', metaToken = '';
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const cfg = await resp.json();
+    if (cfg.error) throw new Error(cfg.error);
+    ghlKey = cfg.ghlKey || '';
+    metaToken = cfg.metaToken || '';
+    setStep('config', 'done', 'Credentials loaded from Vercel ✓');
+  } catch(e) {
+    setStep('config', 'err', `Failed to load credentials: ${e.message}`);
+    status.className = 'login-status err';
+    status.innerText = `Could not reach /api/config. Make sure GHL_API_KEY and META_TOKEN are set in Vercel Environment Variables.`;
+    btn.disabled = false;
+    spinner.classList.remove('active');
+    btnText.innerText = 'Retry';
+    document.getElementById('manual-toggle-btn').style.display = 'block';
+    return;
+  }
+
+  GHL_API_KEY = ghlKey;
+  META_TOKEN = metaToken;
+
+  // ── STEP 2: Connect GHL ──
+  if (ghlKey) {
+    setStep('ghl', 'active', 'Connecting to GoHighLevel CRM…');
+    try {
+      const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
+      const total = json.meta?.total || 0;
+      GHL_CONNECTED = true;
+      setStep('ghl', 'done', `GHL connected — ${total} opportunities found ✓`);
+    } catch(e) {
+      setStep('ghl', 'err', `GHL connection failed: ${e.message}`);
+      GHL_CONNECTED = false;
+    }
+  } else {
+    setStep('ghl', 'err', 'No GHL key configured in Vercel');
+  }
+
+  // ── STEP 3: Connect Meta ──
+  if (metaToken) {
+    setStep('meta', 'active', 'Connecting to Meta Ads API…');
+    try {
+      const today = new Date();
+      const since = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
+      const until = today.toISOString().slice(0,10);
+      const testData = await fetchMetaInsights(SMOKE_ACCOUNT, metaToken, since, until);
+      const testTotal = testData.reduce((a,b)=>a+b.amount, 0);
+      META_CONNECTED = true;
+      setStep('meta', 'done', `Meta connected — Smoke spend this month: $${testTotal.toFixed(2)} ✓`);
+    } catch(e) {
+      setStep('meta', 'err', `Meta connection failed: ${e.message}`);
+      META_CONNECTED = false;
+    }
+  } else {
+    setStep('meta', 'err', 'No Meta token configured in Vercel');
+  }
+
+  // Require at least one connection
+  if (!GHL_CONNECTED && !META_CONNECTED) {
+    status.className = 'login-status err';
+    status.innerText = 'Both connections failed. Check your Vercel environment variables.';
+    btn.disabled = false;
+    spinner.classList.remove('active');
+    btnText.innerText = 'Retry';
+    document.getElementById('manual-toggle-btn').style.display = 'block';
+    return;
+  }
+
+  // ── STEP 4: Load all data ──
+  setStep('data', 'active', 'Fetching all pipeline & spend data…');
+  try {
+    if (GHL_CONNECTED) await loadGHLData();
+    status.className = 'login-status ok';
+    setStep('data', 'done', 'All data loaded — opening dashboard ✓');
+    status.innerText = 'Connected! Opening dashboard…';
+    setTimeout(() => initDashboard(), 600);
+  } catch(e) {
+    setStep('data', 'err', `Data load failed: ${e.message}`);
+    status.className = 'login-status err';
+    status.innerText = 'Data load failed: ' + e.message;
+    btn.disabled = false;
+    spinner.classList.remove('active');
+    btnText.innerText = 'Retry';
+  }
+}
+
+function toggleManual() {
+  const panel = document.getElementById('manual-panel');
+  panel.classList.toggle('open');
+}
+
+async function manualLogin() {
+  const ghlKey = document.getElementById('manual-ghl-key').value.trim();
+  const metaToken = document.getElementById('manual-meta-token').value.trim();
+  if (!ghlKey && !metaToken) { alert('Please enter at least one credential.'); return; }
+  GHL_API_KEY = ghlKey;
+  META_TOKEN = metaToken;
+  GHL_CONNECTED = !!ghlKey;
+  META_CONNECTED = !!metaToken;
+  const steps = document.getElementById('login-steps');
+  steps.classList.add('active');
+  setStep('config', 'done', 'Manual credentials entered');
+  setStep('ghl', ghlKey ? 'done' : 'err', ghlKey ? 'GHL key provided' : 'No GHL key');
+  setStep('meta', metaToken ? 'done' : 'err', metaToken ? 'Meta token provided' : 'No Meta token');
+  setStep('data', 'active', 'Loading data…');
+  document.getElementById('login-status').className = 'login-status loading';
+  document.getElementById('login-status').innerText = 'Loading data…';
+  try {
+    if (GHL_CONNECTED) await loadGHLData();
+    setStep('data', 'done', 'Data loaded ✓');
+    document.getElementById('login-status').className = 'login-status ok';
+    document.getElementById('login-status').innerText = 'Done! Opening dashboard…';
+    setTimeout(() => initDashboard(), 600);
+  } catch(e) {
+    setStep('data', 'err', e.message);
+    document.getElementById('login-status').className = 'login-status err';
+    document.getElementById('login-status').innerText = e.message;
+  }
+}
+
+function showLoginScreen() {
+  GHL_CONNECTED = false; META_CONNECTED = false;
+  GHL_API_KEY = ''; META_TOKEN = '';
+  SMOKE_CRM = []; HWS_CRM = [];
+  SMOKE_SPEND = []; HWS_SPEND = [];
+  SMOKE_SPEND_ALL = []; HWS_SPEND_ALL = [];
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  // Reset steps
+  ['config','ghl','meta','data'].forEach(id => setStep(id, '', ''));
+  document.getElementById('login-steps').classList.remove('active');
+  document.getElementById('login-status').innerText = '';
+  document.getElementById('btn-auto-login').disabled = false;
+  document.getElementById('login-spinner').classList.remove('active');
+  document.getElementById('login-btn-text').innerText = 'Login & Load Dashboard';
+  document.getElementById('manual-toggle-btn').style.display = 'none';
+  document.getElementById('manual-panel').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CSV UPLOAD (FALLBACK)
+// ══════════════════════════════════════════════════════════════
 function initUploadHandlers() {
-  setupDrop('drop-smoke-crm', 'smoke-crm-input', file => handleFile(file, 'smokeCrm'));
-  setupDrop('drop-hws-crm', 'hws-crm-input', file => handleFile(file, 'hwsCrm'));
-  setupDrop('drop-smoke-spend', 'smoke-spend-input', file => handleFile(file, 'smokeSpend'));
-  setupDrop('drop-hws-spend', 'hws-spend-input', file => handleFile(file, 'hwsSpend'));
+  setupDrop('drop-smoke-crm','smoke-crm-input', f=>handleFile(f,'smokeCrm'));
+  setupDrop('drop-hws-crm','hws-crm-input',     f=>handleFile(f,'hwsCrm'));
+  setupDrop('drop-smoke-spend','smoke-spend-input', f=>handleFile(f,'smokeSpend'));
+  setupDrop('drop-hws-spend','hws-spend-input',     f=>handleFile(f,'hwsSpend'));
 }
-
 function setupDrop(zoneId, inputId, callback) {
-  const zone = document.getElementById(zoneId);
-  const input = document.getElementById(inputId);
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', e => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    if (e.dataTransfer.files[0]) callback(e.dataTransfer.files[0]);
-  });
-  input.addEventListener('change', e => { if (e.target.files[0]) callback(e.target.files[0]); });
+  const zone = document.getElementById(zoneId), input = document.getElementById(inputId);
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()=>zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) callback(e.dataTransfer.files[0]); });
+  input.addEventListener('change', e=>{ if(e.target.files[0]) callback(e.target.files[0]); });
 }
-
 function handleFile(file, type) {
-  if (!file.name.toLowerCase().endsWith('.csv')) { alert('Please upload CSV'); return; }
-  if (type === 'smokeCrm') { smokeCrmFile = file; document.getElementById('smoke-crm-badge').innerText = file.name.slice(0,20)+'…'; }
-  if (type === 'hwsCrm') { hwsCrmFile = file; document.getElementById('hws-crm-badge').innerText = file.name.slice(0,20)+'…'; }
-  if (type === 'smokeSpend') { smokeSpendFile = file; document.getElementById('smoke-spend-badge').innerText = file.name.slice(0,20)+'…'; }
-  if (type === 'hwsSpend') { hwsSpendFile = file; document.getElementById('hws-spend-badge').innerText = file.name.slice(0,20)+'…'; }
-  checkCsvButtonState();
+  if(!file.name.toLowerCase().endsWith('.csv')){ alert('Please upload CSV'); return; }
+  if(type==='smokeCrm')  { smokeCrmFile=file;   document.getElementById('smoke-crm-badge').innerText=file.name.slice(0,20)+'…'; }
+  if(type==='hwsCrm')    { hwsCrmFile=file;     document.getElementById('hws-crm-badge').innerText=file.name.slice(0,20)+'…'; }
+  if(type==='smokeSpend'){ smokeSpendFile=file; document.getElementById('smoke-spend-badge').innerText=file.name.slice(0,20)+'…'; }
+  if(type==='hwsSpend')  { hwsSpendFile=file;   document.getElementById('hws-spend-badge').innerText=file.name.slice(0,20)+'…'; }
+  document.getElementById('btn-load-csv').disabled = false;
 }
 
-function loadDashboards() {
-  const errEl = document.getElementById('upload-error');
-  errEl.style.display='none';
+function loadFromCsv() {
   const promises = [];
-  if (smokeCrmFile) promises.push(parseFile(smokeCrmFile, 'smokeCrm'));
-  if (hwsCrmFile) promises.push(parseFile(hwsCrmFile, 'hwsCrm'));
-  if (smokeSpendFile) promises.push(parseFile(smokeSpendFile, 'smokeSpend'));
-  if (hwsSpendFile) promises.push(parseFile(hwsSpendFile, 'hwsSpend'));
-
-  const loadAll = GHL_CONNECTED
-    ? Promise.all(promises).then(() => loadGHLData())
-    : Promise.all(promises);
-
-  loadAll.then(() => {
-    initDashboard();
-  }).catch(e => {
-    errEl.style.display='block';
-    errEl.innerText = e.message;
-  });
+  if(smokeCrmFile)   promises.push(parseFile(smokeCrmFile,'smokeCrm'));
+  if(hwsCrmFile)     promises.push(parseFile(hwsCrmFile,'hwsCrm'));
+  if(smokeSpendFile) promises.push(parseFile(smokeSpendFile,'smokeSpend'));
+  if(hwsSpendFile)   promises.push(parseFile(hwsSpendFile,'hwsSpend'));
+  Promise.all(promises).then(()=>initDashboard()).catch(e=>{ document.getElementById('upload-error').style.display='block'; document.getElementById('upload-error').innerText=e.message; });
 }
-
 function parseFile(file, type) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, reject)=>{
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = e=>{
       try {
-        if (type.includes('Crm')) {
-          const data = processCRM(e.target.result);
-          if (type === 'smokeCrm') SMOKE_CRM = data;
-          else HWS_CRM = data;
-        } else {
-          const data = processMeta(e.target.result);
-          if (type === 'smokeSpend') {
-            SMOKE_SPEND = data;
-            SMOKE_SPEND_ALL = data;
-          } else {
-            HWS_SPEND = data;
-            HWS_SPEND_ALL = data;
-          }
-        }
+        if(type.includes('Crm')){ const data=processCRM(e.target.result); if(type==='smokeCrm') SMOKE_CRM=data; else HWS_CRM=data; }
+        else { const data=processMeta(e.target.result); if(type==='smokeSpend'){SMOKE_SPEND=data;SMOKE_SPEND_ALL=data;}else{HWS_SPEND=data;HWS_SPEND_ALL=data;} }
         resolve();
       } catch(err){ reject(err); }
     };
-    reader.onerror = reject;
-    reader.readAsText(file);
+    reader.onerror=reject; reader.readAsText(file);
   });
 }
 
-function processCRM(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const headers = splitCSVLine(lines[0]).map(h => h.toLowerCase().replace(/['"]/g,'').trim());
-  const iStage = headers.findIndex(h => h.includes('stage'));
-  const iSource = headers.findIndex(h => h.includes('source'));
-  const iPipeline = headers.findIndex(h => h.includes('pipeline'));
-  const iCreated = headers.findIndex(h => h.includes('created')||h.includes('date'));
-  if (iStage === -1 || iCreated === -1) throw new Error('Could not find required columns (stage, date).');
-  const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
-    if (cols.length < 2) continue;
-    const raw_date = iCreated !== -1 ? cols[iCreated] || '' : '';
-    const created = raw_date.trim().slice(0, 10);
-    if (!created || created.length < 10 || !/^\d{4}-\d{2}-\d{2}/.test(created)) continue;
-    out.push({
-      stage:    (cols[iStage]    || '').trim() || 'Unknown',
-      source:   (iSource   !== -1 ? cols[iSource]   || '' : '').trim() || 'Unknown',
-      pipeline: (iPipeline !== -1 ? cols[iPipeline] || '' : '').trim(),
-      created,
-    });
-  }
-  return out;
-}
-
-function processMeta(text) {
-  const lines = text.split(/\r?\n/);
-  const payments = [];
-  let inPaymentSection = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.includes('Date,Transaction ID') && (line.includes('Amount,Currency') || line.includes('Payment method,Amount'))) {
-      inPaymentSection = true; continue;
-    }
-    if (inPaymentSection) {
-      if (line.startsWith(',') || line.trim() === '' || line.includes('Total amount billed')) break;
-      const parts = splitCSVLine(line);
-      if (parts.length >= 3) {
-        const dateStr = parts[0].trim();
-        let amountStr = '';
-        if (parts.length >= 4 && (parts[2].includes('Visa') || parts[2].includes('Mastercard') || parts[2].includes('····'))) {
-          amountStr = parts[3].trim().replace(',', '');
-        } else {
-          amountStr = parts[2].trim().replace(',', '');
-        }
-        if (dateStr && amountStr && !isNaN(parseFloat(amountStr))) {
-          const dateParts = dateStr.split('/');
-          if (dateParts.length === 3) {
-            const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}`;
-            payments.push({ date: formattedDate, amount: parseFloat(amountStr) });
-          }
-        }
-      }
-    }
-  }
-  return payments;
-}
-
-function splitCSVLine(line) {
-  const r = []; let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    if (line[i] === '"') { inQ = !inQ; }
-    else if (line[i] === ',' && !inQ) { r.push(cur.replace(/^"|"$/g,'')); cur = ''; }
-    else { cur += line[i]; }
-  }
-  r.push(cur.replace(/^"|"$/g,''));
-  return r;
-}
-
-function resetUpload(){
-  SMOKE_CRM=[];HWS_CRM=[];SMOKE_SPEND=[];HWS_SPEND=[];SMOKE_SPEND_ALL=[];HWS_SPEND_ALL=[];
-  META_TOKEN='';
-  GHL_CONNECTED=false;
-  smokeCrmFile=hwsCrmFile=smokeSpendFile=hwsSpendFile=null;
-  ['smoke-crm','hws-crm','smoke-spend','hws-spend'].forEach(id=>{
-    document.getElementById(id+'-input').value='';
-    document.getElementById(id+'-badge').innerText='No file';
-  });
-  document.getElementById('meta-live-panel').style.display='none';
-  document.getElementById('meta-live-indicator').style.display='none';
-  document.getElementById('upload-meta-token').value='';
-  document.getElementById('meta-token-status').innerText='';
-  document.getElementById('ghl-api-key').value='';
-  document.getElementById('ghl-status').innerText='';
-  document.getElementById('btn-load-csv').disabled = true;
-  document.getElementById('upload-screen').style.display='flex';
-  document.getElementById('dashboard').style.display='none';
-}
-
+// ══════════════════════════════════════════════════════════════
+//  DASHBOARD INIT
+// ══════════════════════════════════════════════════════════════
 function initDashboard(){
+  document.getElementById('login-screen').style.display='none';
   document.getElementById('upload-screen').style.display='none';
   document.getElementById('dashboard').style.display='block';
-  
-  document.getElementById('chip-smoke-crm').innerText = smokeCrmFile?`Smoke CRM: ${smokeCrmFile.name.slice(0,20)}`:(GHL_CONNECTED?'GHL Live':'');
-  document.getElementById('chip-hws-crm').innerText = hwsCrmFile?`HWS CRM: ${hwsCrmFile.name.slice(0,20)}`:(GHL_CONNECTED?'':'');
-  document.getElementById('chip-smoke-spend').innerText = smokeSpendFile?`Smoke Spend: ${smokeSpendFile.name.slice(0,15)}`:(META_TOKEN?'Meta Live':'');
-  document.getElementById('chip-hws-spend').innerText = hwsSpendFile?`HWS Spend: ${hwsSpendFile.name.slice(0,15)}`:(META_TOKEN?'':'');
 
-  if (GHL_CONNECTED) {
-    document.getElementById('ghl-live-indicator').style.display='inline-flex';
-    document.getElementById('btn-refresh-ghl').style.display='inline-block';
-    document.getElementById('meta-live-panel').style.display='flex';
-  }
-  if (META_TOKEN) {
-    document.getElementById('meta-live-panel').style.display='flex';
-    document.getElementById('meta-live-indicator').style.display='inline-flex';
-  }
+  if(GHL_CONNECTED){ document.getElementById('ghl-live-indicator').style.display='inline-flex'; document.getElementById('btn-refresh-ghl').style.display='inline-block'; document.getElementById('meta-live-panel').style.display='flex'; }
+  if(META_CONNECTED){ document.getElementById('meta-live-panel').style.display='flex'; document.getElementById('meta-live-indicator').style.display='inline-flex'; }
 
-  let allDates = [...SMOKE_CRM.map(r=>r.created), ...HWS_CRM.map(r=>r.created), ...SMOKE_SPEND_ALL.map(r=>r.date), ...HWS_SPEND_ALL.map(r=>r.date)].sort();
-  if(allDates.length){
-    document.getElementById('dateFrom').value = allDates[0];
-    document.getElementById('dateTo').value = allDates[allDates.length-1];
-  } else {
-    const t=new Date(), f=new Date(); f.setDate(t.getDate()-30);
-    document.getElementById('dateFrom').value = f.toISOString().slice(0,10);
-    document.getElementById('dateTo').value = t.toISOString().slice(0,10);
-  }
-  
+  let allDates=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();
+  if(allDates.length){ document.getElementById('dateFrom').value=allDates[0]; document.getElementById('dateTo').value=allDates[allDates.length-1]; }
+  else { const t=new Date(),f=new Date(); f.setDate(t.getDate()-30); document.getElementById('dateFrom').value=f.toISOString().slice(0,10); document.getElementById('dateTo').value=t.toISOString().slice(0,10); }
+
   populateFilters();
   switchProduct('smoke');
-  if (META_TOKEN) {
-    loadMetaSpend();
-  } else {
-    renderCurrentProduct();
-  }
+  if(META_CONNECTED) loadMetaSpend();
+  else renderCurrentProduct();
 }
 
-function populateFilters() {
-  const allCRM = [...SMOKE_CRM, ...HWS_CRM];
-  const sources = [...new Set(allCRM.map(r=>r.source).filter(Boolean))].sort();
-  const pipelines = [...new Set(allCRM.map(r=>r.pipeline).filter(Boolean))].sort();
-  const srcSel = document.getElementById('filterSource');
-  const pipSel = document.getElementById('filterPipeline');
-  srcSel.innerHTML = '<option value="">All</option>' + sources.map(v=>`<option value="${v}">${v}</option>`).join('');
-  pipSel.innerHTML = '<option value="">All</option>' + pipelines.map(v=>`<option value="${v}">${v}</option>`).join('');
+// ══════════════════════════════════════════════════════════════
+//  GHL API
+// ══════════════════════════════════════════════════════════════
+async function ghlFetch(path) {
+  const url = GHL_PROXY + encodeURIComponent(`https://services.leadconnectorhq.com${path}`);
+  const resp = await fetch(url, { headers: { 'Authorization':`Bearer ${GHL_API_KEY}`, 'Version':'2021-07-28', 'Content-Type':'application/json' } });
+  const json = await resp.json();
+  if(json.statusCode>=400||json.error) throw new Error(json.message||json.error||'API error');
+  return json;
+}
+
+async function fetchAllOpportunities() {
+  let all=[],startAfter=null,startAfterId=null,page=0;
+  while(true){
+    page++;
+    let path=`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=100`;
+    if(startAfter) path+=`&startAfter=${startAfter}&startAfterId=${startAfterId}`;
+    const json=await ghlFetch(path);
+    const opps=json.opportunities||[];
+    all=all.concat(opps);
+    if(opps.length<100||!json.meta?.nextPageUrl) break;
+    startAfter=json.meta?.startAfter; startAfterId=json.meta?.startAfterId;
+    if(!startAfter||page>50) break;
+  }
+  return all;
+}
+
+function mapGHLOpportunity(opp){
+  const created=opp.createdAt?opp.createdAt.slice(0,10):'';
+  return { stage:(opp.pipelineStage?.name||opp.status||'Unknown').trim(), stageId:(opp.pipelineStageId||opp.pipelineStage?.id||'').trim(), source:(opp.source||'Unknown').trim(), pipeline:(opp.pipeline?.name||opp.pipelineName||'').trim(), pipelineId:(opp.pipelineId||opp.pipeline?.id||'').trim(), created };
+}
+
+async function loadGHLData(){
+  const statusEl=document.getElementById('ghl-panel-info');
+  if(statusEl) statusEl.innerText='Fetching CRM data…';
+  if(GHL_PIPELINES.length===0){
+    try{
+      const pipeJson=await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
+      GHL_PIPELINES=(pipeJson.pipelines||[]).map(p=>({id:p.id,name:p.name,stages:(p.stages||[]).map(s=>({id:s.id,name:s.name}))}));
+      const smokePipe=GHL_PIPELINES.find(p=>/smoke/i.test(p.name));
+      const hwsPipe=GHL_PIPELINES.find(p=>/hws|hot.?water|water/i.test(p.name));
+      if(smokePipe&&!SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID=smokePipe.id;
+      if(hwsPipe&&!HWS_PIPELINE_ID) HWS_PIPELINE_ID=hwsPipe.id;
+    }catch(e){}
+  }
+  const opps=await fetchAllOpportunities();
+  const mapped=opps.map(mapGHLOpportunity).filter(r=>r.created);
+  const stageNameMap={};
+  GHL_PIPELINES.forEach(p=>p.stages.forEach(s=>{stageNameMap[s.id]=s.name;}));
+  mapped.forEach(r=>{ if(r.stageId&&stageNameMap[r.stageId]) r.stage=stageNameMap[r.stageId]; });
+  if(SMOKE_PIPELINE_ID||HWS_PIPELINE_ID){
+    SMOKE_CRM=SMOKE_PIPELINE_ID?mapped.filter(r=>r.pipelineId===SMOKE_PIPELINE_ID):mapped.filter(r=>!/hws|hot.?water|sales/i.test(r.pipeline));
+    HWS_CRM=HWS_PIPELINE_ID?mapped.filter(r=>r.pipelineId===HWS_PIPELINE_ID):mapped.filter(r=>r.pipelineId!==SMOKE_PIPELINE_ID);
+  } else {
+    const pipelineNames=[...new Set(mapped.map(r=>r.pipeline).filter(Boolean))];
+    const smokeName=pipelineNames.find(p=>/smoke/i.test(p)||'');
+    SMOKE_CRM=smokeName?mapped.filter(r=>r.pipeline===smokeName):mapped;
+    HWS_CRM=mapped.filter(r=>r.pipeline!==smokeName);
+  }
+  if(SMOKE_CRM.length===0&&HWS_CRM.length===0){SMOKE_CRM=mapped;HWS_CRM=mapped;}
+  if(statusEl) statusEl.innerText=`GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
+  document.getElementById('meta-last-refresh').innerText='Last refresh: '+new Date().toLocaleTimeString('en-AU');
+}
+
+async function refreshGHL(){
+  const btn=document.getElementById('btn-refresh-ghl');
+  if(btn){btn.innerText='↻ Fetching…';btn.disabled=true;}
+  try{ await loadGHLData(); populateFilters(); renderCurrentProduct(); }catch(e){ console.warn(e); }
+  finally{ if(btn){btn.innerText='↻ Refresh CRM';btn.disabled=false;} }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  META API
+// ══════════════════════════════════════════════════════════════
+async function fetchMetaInsights(account, token, since, until){
+  const fields='spend,cpm,impressions,reach,frequency';
+  const url=`https://graph.facebook.com/v19.0/${account}/insights?fields=${fields}&time_range={"since":"${since}","until":"${until}"}&time_increment=1&access_token=${token}`;
+  const resp=await fetch(url);
+  const json=await resp.json();
+  if(json.error) throw new Error(json.error.message);
+  let data=json.data||[];
+  let next=json.paging?.next;
+  while(next){ const r2=await fetch(next); const j2=await r2.json(); data=data.concat(j2.data||[]); next=j2.paging?.next; }
+  return data.filter(d=>d.spend&&parseFloat(d.spend)>0).map(d=>({date:d.date_start,amount:parseFloat(d.spend),cpm:parseFloat(d.cpm||0),impressions:parseInt(d.impressions||0)}));
+}
+
+async function loadMetaSpend(){
+  if(!META_CONNECTED||!META_TOKEN) return;
+  const statusEl=document.getElementById('meta-panel-smoke-spend');
+  if(statusEl) statusEl.innerHTML='<em>Fetching spend data…</em>';
+  const sinceDate=new Date(); sinceDate.setMonth(sinceDate.getMonth()-36);
+  const since=sinceDate.toISOString().slice(0,10);
+  const until=new Date().toISOString().slice(0,10);
+  try{
+    const [smokeData,hwsData]=await Promise.all([fetchMetaInsights(SMOKE_ACCOUNT,META_TOKEN,since,until),fetchMetaInsights(HWS_ACCOUNT,META_TOKEN,since,until)]);
+    SMOKE_SPEND_ALL=smokeData; HWS_SPEND_ALL=hwsData; SMOKE_SPEND=smokeData; HWS_SPEND=hwsData;
+    document.getElementById('meta-last-refresh').innerText='Last refresh: '+new Date().toLocaleTimeString('en-AU');
+    if(currentProduct==='smoke') renderSmoke(); else renderHws();
+  }catch(e){ console.error('Meta API failed:',e); }
+}
+
+async function refreshMetaSpend(){
+  const btns=document.querySelectorAll('#meta-live-panel button');
+  btns.forEach(b=>{b.innerText='Refreshing…';b.disabled=true;});
+  await loadMetaSpend();
+  btns.forEach(b=>{b.disabled=false;});
+  if(btns[0]) btns[0].innerText='↻ Refresh CRM';
+  if(btns[1]) btns[1].innerText='↻ Refresh Spend';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════
+function populateFilters(){
+  const allCRM=[...SMOKE_CRM,...HWS_CRM];
+  const sources=[...new Set(allCRM.map(r=>r.source).filter(Boolean))].sort();
+  const pipelines=[...new Set(allCRM.map(r=>r.pipeline).filter(Boolean))].sort();
+  document.getElementById('filterSource').innerHTML='<option value="">All</option>'+sources.map(v=>`<option value="${v}">${v}</option>`).join('');
+  document.getElementById('filterPipeline').innerHTML='<option value="">All</option>'+pipelines.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
 
 function switchProduct(prod){
-  currentProduct = prod;
-  document.getElementById('toggleSmoke').classList.toggle('active', prod==='smoke');
-  document.getElementById('toggleHws').classList.toggle('active', prod==='hws');
-  document.getElementById('active-product-indicator').innerText = prod==='smoke'?'Smoke Alarms':'Hot Water System';
-  document.getElementById('smoke-kpis').style.display = prod==='smoke'?'block':'none';
-  document.getElementById('hws-kpis').style.display = prod==='hws'?'block':'none';
-  document.getElementById('smoke-vol-card').style.display = prod==='smoke'?'block':'none';
-  document.getElementById('hws-vol-card').style.display   = prod==='hws'?'block':'none';
+  currentProduct=prod;
+  document.getElementById('toggleSmoke').classList.toggle('active',prod==='smoke');
+  document.getElementById('toggleHws').classList.toggle('active',prod==='hws');
+  document.getElementById('active-product-indicator').innerText=prod==='smoke'?'Smoke Alarms':'Hot Water System';
+  document.getElementById('smoke-kpis').style.display=prod==='smoke'?'block':'none';
+  document.getElementById('hws-kpis').style.display=prod==='hws'?'block':'none';
+  document.getElementById('smoke-vol-card').style.display=prod==='smoke'?'block':'none';
+  document.getElementById('hws-vol-card').style.display=prod==='hws'?'block':'none';
   renderCurrentProduct();
 }
 
-function renderCurrentProduct(){
-  if(currentProduct==='smoke') renderSmoke();
-  else renderHws();
-}
+function renderCurrentProduct(){ if(currentProduct==='smoke') renderSmoke(); else renderHws(); }
 
 function getFilteredCRM(prod){
-  const from = document.getElementById('dateFrom').value;
-  const to = document.getElementById('dateTo').value;
-  const src = document.getElementById('filterSource').value;
-  const pip = document.getElementById('filterPipeline').value;
-  const data = prod==='smoke'?SMOKE_CRM:HWS_CRM;
-  return data.filter(r =>
-    (!from||r.created>=from) && (!to||r.created<=to) &&
-    (!src||r.source===src) && (!pip||r.pipeline===pip)
-  );
+  const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
+  const src=document.getElementById('filterSource').value, pip=document.getElementById('filterPipeline').value;
+  return (prod==='smoke'?SMOKE_CRM:HWS_CRM).filter(r=>(!from||r.created>=from)&&(!to||r.created<=to)&&(!src||r.source===src)&&(!pip||r.pipeline===pip));
 }
-
 function getFilteredSpend(prod){
-  const from = document.getElementById('dateFrom').value;
-  const to = document.getElementById('dateTo').value;
-  const allData = prod==='smoke'?SMOKE_SPEND_ALL:HWS_SPEND_ALL;
-  if (!from || !to) return allData;
-  return allData.filter(m=>m.date>=from && m.date<=to);
+  const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
+  const all=prod==='smoke'?SMOKE_SPEND_ALL:HWS_SPEND_ALL;
+  return (!from||!to)?all:all.filter(m=>m.date>=from&&m.date<=to);
 }
 
 function renderSmoke(){
   updateMetaPanelDisplay();
-  const leads = getFilteredCRM('smoke');
-  const spend = getFilteredSpend('smoke');
-  const total = leads.length;
-  const inst = leads.filter(r=>/install|won/i.test(r.stage)).length;
-  const ni = leads.filter(r=>/not.?interest|spam/i.test(r.stage)).length;
-  const adSum = spend.reduce((a,b)=>a+b.amount,0);
-  const revenue = inst * alarmsPerJob * sellPrice;
-  const cogs = inst * alarmsPerJob * costPrice;
-  const profit = revenue - cogs - adSum;
-  const roas = adSum>0?(revenue/adSum).toFixed(2):revenue===0?'0.00':'∞';
-
+  const leads=getFilteredCRM('smoke'), spend=getFilteredSpend('smoke');
+  const total=leads.length, inst=leads.filter(r=>/install|won/i.test(r.stage)).length, ni=leads.filter(r=>/not.?interest|spam/i.test(r.stage)).length;
+  const adSum=spend.reduce((a,b)=>a+b.amount,0), revenue=inst*alarmsPerJob*sellPrice, cogs=inst*alarmsPerJob*costPrice, profit=revenue-cogs-adSum;
+  const roas=adSum>0?(revenue/adSum).toFixed(2):revenue===0?'0.00':'∞';
   document.getElementById('kpi-spend').innerText=`$${adSum.toFixed(2)}`;
   document.getElementById('kpi-revenue').innerText=`$${revenue.toFixed(2)}`;
   document.getElementById('kpi-roas').innerText=`${roas}x`;
   document.getElementById('kpi-cogs').innerText=`$${cogs.toFixed(2)}`;
   document.getElementById('kpi-profit').innerText=`$${profit.toFixed(2)}`;
-  document.getElementById('revenue-note').innerHTML = `${inst} jobs × ${alarmsPerJob.toFixed(1)} alarms × $${sellPrice.toFixed(2)}`;
-  document.getElementById('cogs-note').innerHTML = `${inst} jobs × ${alarmsPerJob.toFixed(1)} alarms × $${costPrice.toFixed(2)}`;
-  
+  document.getElementById('revenue-note').innerHTML=`${inst} jobs × ${alarmsPerJob.toFixed(1)} alarms × $${sellPrice.toFixed(2)}`;
+  document.getElementById('cogs-note').innerHTML=`${inst} jobs × ${alarmsPerJob.toFixed(1)} alarms × $${costPrice.toFixed(2)}`;
   document.getElementById('k-total').innerText=total;
   document.getElementById('k-rate').innerText=total?((inst/total*100).toFixed(1))+'%':'0%';
-  document.getElementById('k-rate-sub').innerHTML = `${inst} of ${total} leads`;
+  document.getElementById('k-rate-sub').innerHTML=`${inst} of ${total} leads`;
   document.getElementById('k-inst').innerText=inst;
   document.getElementById('k-ni').innerText=ni;
-  document.getElementById('k-ni-sub').innerHTML = total?((ni/total*100).toFixed(1))+'% of total':'0% of total';
+  document.getElementById('k-ni-sub').innerHTML=total?((ni/total*100).toFixed(1))+'% of total':'0% of total';
   document.getElementById('lead-count').innerHTML=`<strong>${total}</strong> leads (smoke)`;
-
-  renderStagesAndSources(leads, total);
+  renderStagesAndSources(leads,total);
 }
 
 function renderHws(){
   updateMetaPanelDisplay();
-  const leads = getFilteredCRM('hws');
-  const spend = getFilteredSpend('hws');
-  const total = leads.length;
-  const inst = leads.filter(r => r.stage === 'Installed' || r.stage === 'Won/Installed' || /^won$/i.test(r.stage)).length;
-  const ni = leads.filter(r => /not.?interest|spam/i.test(r.stage) || r.stage === 'Quote Not Accepted (Lost)' || r.stage === 'Out of Area' || r.stage === 'Not Reachable').length;
-  const other = total - inst - ni;
-  const adSum = spend.reduce((a,b)=>a+b.amount,0);
+  const leads=getFilteredCRM('hws'), spend=getFilteredSpend('hws');
+  const total=leads.length, inst=leads.filter(r=>r.stage==='Installed'||r.stage==='Won/Installed'||/^won$/i.test(r.stage)).length;
+  const ni=leads.filter(r=>/not.?interest|spam/i.test(r.stage)||r.stage==='Quote Not Accepted (Lost)'||r.stage==='Out of Area'||r.stage==='Not Reachable').length;
+  const other=total-inst-ni, adSum=spend.reduce((a,b)=>a+b.amount,0);
   document.getElementById('hws-spend-val').innerText=`$${adSum.toFixed(2)}`;
   document.getElementById('hws-leads-val').innerText=total;
   document.getElementById('hws-inst').innerText=inst;
@@ -1137,391 +1025,104 @@ function renderHws(){
   document.getElementById('hws-rate').innerText=total?((inst/total*100).toFixed(1))+'%':'0%';
   document.getElementById('hws-other').innerText=other;
   document.getElementById('lead-count').innerHTML=`<strong>${total}</strong> leads (HWS)`;
-
-  renderStagesAndSources(leads, total);
+  renderStagesAndSources(leads,total);
 }
 
-function renderStagesAndSources(leads, total){
-  const stageCount={}; leads.forEach(r=>stageCount[r.stage]=(stageCount[r.stage]||0)+1);
-  const stageOrder = ['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
-  const sorted = stageOrder.filter(s=>stageCount[s]).map(s=>[s,stageCount[s]]).concat(Object.entries(stageCount).filter(([s])=>!stageOrder.includes(s)).sort((a,b)=>b[1]-a[1]));
-  const max = Math.max(...sorted.map(([,v])=>v),1);
-  document.getElementById('stage-rows').innerHTML = sorted.map(([s,cnt])=>{
-    const col = STAGE_COLORS[s]||'#94a3b8';
-    let displayName = s;
-    if (s === 'Won/Installed') displayName = 'Installed';
-    else if (s === 'Qualified/IHA Complete') displayName = 'Qualified';
-    return `<div class="sr"><div class="sdot" style="background:${col}"></div><span class="sname">${displayName}</span><div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${col}"></div></div><span class="snums">${cnt} · ${total?((cnt/total*100).toFixed(1)):'0'}%</span></div>`;
-  }).join('')||'<span>No data</span>';
-
-  const srcMap = {}; leads.forEach(r=>{ if(!srcMap[r.source]) srcMap[r.source]={t:0,i:0}; srcMap[r.source].t++; if(r.stage==='Installed'||r.stage==='Won/Installed'||/install|won|iha booked|qualified/i.test(r.stage)) srcMap[r.source].i++; });
-  const sortedSrc = Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
-  document.getElementById('src-tbody').innerHTML = sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
-
-  const smokeLeads = getFilteredCRM('smoke');
-  const hwsLeads   = getFilteredCRM('hws');
-  renderVolume(smokeLeads, hwsLeads);
+function renderStagesAndSources(leads,total){
+  const stageCount={};leads.forEach(r=>stageCount[r.stage]=(stageCount[r.stage]||0)+1);
+  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
+  const sorted=stageOrder.filter(s=>stageCount[s]).map(s=>[s,stageCount[s]]).concat(Object.entries(stageCount).filter(([s])=>!stageOrder.includes(s)).sort((a,b)=>b[1]-a[1]));
+  const max=Math.max(...sorted.map(([,v])=>v),1);
+  document.getElementById('stage-rows').innerHTML=sorted.map(([s,cnt])=>{ const col=STAGE_COLORS[s]||'#94a3b8'; let dn=s; if(s==='Won/Installed') dn='Installed'; else if(s==='Qualified/IHA Complete') dn='Qualified'; return `<div class="sr"><div class="sdot" style="background:${col}"></div><span class="sname">${dn}</span><div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${col}"></div></div><span class="snums">${cnt} · ${total?((cnt/total*100).toFixed(1)):'0'}%</span></div>`; }).join('')||'<span>No data</span>';
+  const srcMap={};leads.forEach(r=>{ if(!srcMap[r.source]) srcMap[r.source]={t:0,i:0}; srcMap[r.source].t++; if(r.stage==='Installed'||r.stage==='Won/Installed'||/install|won|iha booked|qualified/i.test(r.stage)) srcMap[r.source].i++; });
+  const sortedSrc=Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
+  document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
+  renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'));
 }
 
-function getWeekStart(d){ 
-  let dt=new Date(d+'T00:00:00'); 
-  let day = dt.getDay();
-  let diff = (day === 0) ? -6 : 1 - day;
-  dt.setDate(dt.getDate()+diff); 
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth()+1).padStart(2,'0');
-  const dd = String(dt.getDate()).padStart(2,'0');
-  return `${y}-${m}-${dd}`;
-}
-function fmtWeek(k){ 
-  let s=new Date(k+'T00:00:00'), e=new Date(s); 
-  e.setDate(e.getDate()+6);
-  const opts = {day:'numeric',month:'short'};
-  return s.toLocaleDateString('en-AU',opts)+' – '+e.toLocaleDateString('en-AU',opts); 
-}
-function fmtDay(k){ return new Date(k+'T00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}); }
-
-function renderVolume(smokeLeads, hwsLeads){
-  renderVolumeTable(smokeLeads, 'smoke-vol-head', 'smoke-vol-body');
-  renderVolumeTable(hwsLeads,   'hws-vol-head',   'hws-vol-body');
-}
-
-function renderVolumeTable(data, headId, bodyId) {
-  const stageOrder = ['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)',
-    'Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent',
-    'Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
-  const stageCount = {};
-  data.forEach(r => { stageCount[r.stage] = (stageCount[r.stage]||0)+1; });
-  const stages = stageOrder.filter(s=>stageCount[s])
-    .concat(Object.keys(stageCount).filter(s=>!stageOrder.includes(s)).sort());
-
-  const buckets = {};
-  data.forEach(r => {
-    const key = viewMode==='weekly' ? getWeekStart(r.created) : r.created;
-    if(!buckets[key]){ buckets[key]={_t:0}; stages.forEach(s=>buckets[key][s]=0); }
-    buckets[key][r.stage]++;
-    buckets[key]._t++;
-  });
-  let keys = Object.keys(buckets).sort();
-  if(viewMode==='daily') keys = keys.reverse();
-
-  const timeLabel = viewMode==='weekly' ? 'Week' : 'Date';
-  document.getElementById(headId).innerHTML =
-    `<tr><th>${timeLabel}</th><th>Total</th>${stages.map(s=>`<th><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${STAGE_COLORS[s]||'#888'};margin-right:4px;vertical-align:middle;"></span>${s}</th>`).join('')}</tr>`;
-
-  if(keys.length === 0){
-    document.getElementById(bodyId).innerHTML = `<tr><td colspan="${stages.length+2}" style="color:var(--muted);font-size:12px;padding:12px 0;">No data in selected date range</td></tr>`;
-    return;
-  }
-
-  const rows = keys.map(k =>
-    `<tr><td>${viewMode==='weekly'?fmtWeek(k):fmtDay(k)}</td><td><strong>${buckets[k]._t}</strong></td>${stages.map(s=>`<td>${buckets[k][s]||'—'}</td>`).join('')}</tr>`
-  ).join('');
-
-  const totals = {_t:0}; stages.forEach(s=>totals[s]=0);
-  keys.forEach(k=>{ totals._t+=buckets[k]._t; stages.forEach(s=>totals[s]+=(buckets[k][s]||0)); });
-  const totalRow = `<tr class="tr-total"><td>TOTAL</td><td><strong>${totals._t}</strong></td>${stages.map(s=>`<td><strong>${totals[s]||'—'}</strong></td>`).join('')}</tr>`;
-
-  document.getElementById(bodyId).innerHTML = rows + totalRow;
-}
-
-function updateMetaPanelDisplay() {
-  if (!META_TOKEN || (!SMOKE_SPEND_ALL.length && !HWS_SPEND_ALL.length)) return;
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  const smokeFiltered = from && to ? SMOKE_SPEND_ALL.filter(m => m.date >= from && m.date <= to) : SMOKE_SPEND_ALL;
-  const hwsFiltered   = from && to ? HWS_SPEND_ALL.filter(m => m.date >= from && m.date <= to)   : HWS_SPEND_ALL;
-  const smokeTotal = smokeFiltered.reduce((a,b)=>a+b.amount,0);
-  const hwsTotal   = hwsFiltered.reduce((a,b)=>a+b.amount,0);
-  const smokeCpm   = smokeFiltered.length ? (smokeFiltered.reduce((a,b)=>a+b.cpm,0)/smokeFiltered.length).toFixed(2) : '—';
-  const hwsCpm     = hwsFiltered.length   ? (hwsFiltered.reduce((a,b)=>a+b.cpm,0)/hwsFiltered.length).toFixed(2)     : '—';
-  document.getElementById('meta-panel-smoke-spend').innerHTML = `<strong>Smoke:</strong> $${smokeTotal.toFixed(2)} spend · CPM $${smokeCpm}`;
-  document.getElementById('meta-panel-hws-spend').innerHTML   = `<strong>HWS:</strong> $${hwsTotal.toFixed(2)} spend · CPM $${hwsCpm}`;
+function updateMetaPanelDisplay(){
+  if(!META_CONNECTED||(!SMOKE_SPEND_ALL.length&&!HWS_SPEND_ALL.length)) return;
+  const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
+  const sf=from&&to?SMOKE_SPEND_ALL.filter(m=>m.date>=from&&m.date<=to):SMOKE_SPEND_ALL;
+  const hf=from&&to?HWS_SPEND_ALL.filter(m=>m.date>=from&&m.date<=to):HWS_SPEND_ALL;
+  const st=sf.reduce((a,b)=>a+b.amount,0), ht=hf.reduce((a,b)=>a+b.amount,0);
+  const scpm=sf.length?(sf.reduce((a,b)=>a+b.cpm,0)/sf.length).toFixed(2):'—';
+  const hcpm=hf.length?(hf.reduce((a,b)=>a+b.cpm,0)/hf.length).toFixed(2):'—';
+  document.getElementById('meta-panel-smoke-spend').innerHTML=`<strong>Smoke:</strong> $${st.toFixed(2)} spend · CPM $${scpm}`;
+  document.getElementById('meta-panel-hws-spend').innerHTML=`<strong>HWS:</strong> $${ht.toFixed(2)} spend · CPM $${hcpm}`;
 }
 
 function updateAssumptions(){ alarmsPerJob=+document.getElementById('alarmsPerJob').value; sellPrice=+document.getElementById('sellPrice').value; costPrice=+document.getElementById('costPrice').value; if(currentProduct==='smoke') renderSmoke(); }
 
 function setPreset(p,btn){
   document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
-  const t=new Date(); const fmt=d=>d.toISOString().slice(0,10); let from,to=fmt(t);
-  if(p==='7d'){ let d=new Date(t); d.setDate(d.getDate()-6); from=fmt(d); }
-  else if(p==='30d'){ let d=new Date(t); d.setDate(d.getDate()-29); from=fmt(d); }
-  else if(p==='mtd'){ from=fmt(new Date(t.getFullYear(),t.getMonth(),1)); }
-  else { let allDates=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort(); from=allDates[0]||fmt(new Date(t.getFullYear(),t.getMonth(),1)); to=allDates[allDates.length-1]||fmt(t); }
-  document.getElementById('dateFrom').value=from; document.getElementById('dateTo').value=to; renderCurrentProduct();
+  const t=new Date(),fmt=d=>d.toISOString().slice(0,10);let from,to=fmt(t);
+  if(p==='7d'){let d=new Date(t);d.setDate(d.getDate()-6);from=fmt(d);}
+  else if(p==='30d'){let d=new Date(t);d.setDate(d.getDate()-29);from=fmt(d);}
+  else if(p==='mtd'){from=fmt(new Date(t.getFullYear(),t.getMonth(),1));}
+  else{let all=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();from=all[0]||fmt(new Date(t.getFullYear(),t.getMonth(),1));to=all[all.length-1]||fmt(t);}
+  document.getElementById('dateFrom').value=from;document.getElementById('dateTo').value=to;renderCurrentProduct();
 }
 
-function generatePDF(){
-  const product  = currentProduct === 'smoke' ? 'Smoke Alarms' : 'Hot Water System';
-  const from     = document.getElementById('dateFrom').value;
-  const to       = document.getElementById('dateTo').value;
-  const fmtDate  = s => s ? new Date(s+'T00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) : '';
-  const generated = new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+// ══════════════════════════════════════════════════════════════
+//  VOLUME TABLE
+// ══════════════════════════════════════════════════════════════
+function getWeekStart(d){ let dt=new Date(d+'T00:00:00'),day=dt.getDay(),diff=day===0?-6:1-day; dt.setDate(dt.getDate()+diff); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+function fmtWeek(k){ let s=new Date(k+'T00:00:00'),e=new Date(s);e.setDate(e.getDate()+6);const o={day:'numeric',month:'short'};return s.toLocaleDateString('en-AU',o)+' – '+e.toLocaleDateString('en-AU',o); }
+function fmtDay(k){ return new Date(k+'T00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}); }
 
-  const cover = document.createElement('div');
-  cover.id = 'pdf-cover';
-  cover.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;">
-      <div style="display:flex;align-items:center;gap:14px;">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;">
-        <div>
-          <div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div>
-          <div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
-        </div>
-      </div>
-      <div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;">
-        <div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div>
-        <div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div>
-        <div>Generated: ${generated}</div>
-      </div>
-    </div>`;
-  document.querySelector('#dashboard main').prepend(cover);
-  const originalTitle = document.title;
-  document.title = `Goldsure – ${product} Report ${from} to ${to}`;
-  window.print();
-  document.title = originalTitle;
-  cover.remove();
-}
+function renderVolume(smokeLeads,hwsLeads){ renderVolumeTable(smokeLeads,'smoke-vol-head','smoke-vol-body'); renderVolumeTable(hwsLeads,'hws-vol-head','hws-vol-body'); }
 
-// ── GHL API ──────────────────────────────────────────────────────────────
-let GHL_API_KEY = '';
-let GHL_CONNECTED = false;
-let GHL_SMOKE_PIPELINE = '';
-let GHL_HWS_PIPELINE = '';
-
-const GHL_PROXY = 'https://corsproxy.io/?';
-
-async function ghlFetch(path) {
-  const url = GHL_PROXY + encodeURIComponent(`https://services.leadconnectorhq.com${path}`);
-  const resp = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${GHL_API_KEY}`,
-      'Version': '2021-07-28',
-      'Content-Type': 'application/json'
-    }
-  });
-  const json = await resp.json();
-  if (json.statusCode >= 400 || json.error) throw new Error(json.message || json.error || 'API error');
-  return json;
-}
-
-async function fetchAllOpportunities() {
-  let all = [];
-  let startAfter = null;
-  let startAfterId = null;
-  const limit = 100;
-  let page = 0;
-  while (true) {
-    page++;
-    let path = `/opportunities/search?location_id=${GHL_LOCATION_ID_HARDCODED}&limit=${limit}`;
-    if (startAfter) path += `&startAfter=${startAfter}&startAfterId=${startAfterId}`;
-    const json = await ghlFetch(path);
-    const opps = json.opportunities || [];
-    all = all.concat(opps);
-    if (opps.length < limit || !json.meta?.nextPageUrl) break;
-    startAfter = json.meta?.startAfter;
-    startAfterId = json.meta?.startAfterId;
-    if (!startAfter) break;
-    if (page > 50) break;
-  }
-  return all;
-}
-
-function mapGHLOpportunity(opp) {
-  const created = opp.createdAt ? opp.createdAt.slice(0, 10) : '';
-  return {
-    stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
-    stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
-    source:     (opp.source || 'Unknown').trim(),
-    pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
-    pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
-    created,
-  };
-}
-
-async function testGHLConnection() {
-  const key = document.getElementById('ghl-api-key').value.trim();
-  const status = document.getElementById('ghl-status');
-  if (!key) { status.className='ghl-status err'; status.innerText='Please enter your API Key.'; return; }
-  GHL_API_KEY = key;
-  status.className='ghl-status loading'; status.innerText='Connecting to GoHighLevel…';
-  try {
-    const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID_HARDCODED}&limit=5`);
-    const total = json.meta?.total || json.opportunities?.length || 0;
-    const pipelineMap = {};
-    (json.opportunities || []).forEach(o => {
-      const pId   = o.pipelineId || '';
-      const pName = o.pipeline?.name || o.pipelineName || '';
-      if (pId && pName) pipelineMap[pId] = pName;
-    });
-    Object.entries(pipelineMap).forEach(([id, name]) => {
-      if (/smoke/i.test(name)) SMOKE_PIPELINE_ID = id;
-      else HWS_PIPELINE_ID = id;
-    });
-    GHL_CONNECTED = true;
-    status.className='ghl-status ok';
-    const detected = Object.entries(pipelineMap).map(([id,name])=>`${name}`).join(', ');
-    status.innerText = `✓ Connected! ${total} opportunities. Pipelines: ${detected || 'detecting on load…'}`;
-    document.getElementById('btn-load').disabled = false;
-  } catch(e) {
-    status.className='ghl-status err';
-    status.innerText = 'Error: ' + e.message;
-  }
-}
-
-async function loadGHLData() {
-  if (!GHL_CONNECTED) return;
-  const statusEl = document.getElementById('ghl-panel-info');
-  if (statusEl) statusEl.innerText = 'Fetching CRM data…';
-  try {
-    if (GHL_PIPELINES.length === 0) {
-      try {
-        const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID_HARDCODED}`);
-        GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({
-          id: p.id, name: p.name,
-          stages: (p.stages || []).map(s => ({ id: s.id, name: s.name }))
-        }));
-        const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
-        const hwsPipe   = GHL_PIPELINES.find(p => /hws|hot.?water|water/i.test(p.name));
-        if (smokePipe && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = smokePipe.id;
-        if (hwsPipe   && !HWS_PIPELINE_ID)   HWS_PIPELINE_ID   = hwsPipe.id;
-      } catch(e) { /* fall back to name-matching */ }
-    }
-
-    const opps = await fetchAllOpportunities();
-    const mapped = opps.map(mapGHLOpportunity).filter(r => r.created);
-
-    const stageNameMap = {};
-    GHL_PIPELINES.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
-    mapped.forEach(r => {
-      if (r.stageId && stageNameMap[r.stageId]) r.stage = stageNameMap[r.stageId];
-    });
-
-    if (SMOKE_PIPELINE_ID || HWS_PIPELINE_ID) {
-      SMOKE_CRM = SMOKE_PIPELINE_ID ? mapped.filter(r => r.pipelineId === SMOKE_PIPELINE_ID) : mapped.filter(r => !/hws|hot.?water|sales/i.test(r.pipeline));
-      HWS_CRM   = HWS_PIPELINE_ID   ? mapped.filter(r => r.pipelineId === HWS_PIPELINE_ID)   : mapped.filter(r => r.pipelineId !== SMOKE_PIPELINE_ID);
-    } else {
-      const pipelineNames = [...new Set(mapped.map(r => r.pipeline).filter(Boolean))];
-      GHL_SMOKE_PIPELINE = pipelineNames.find(p => /smoke/i.test(p)) || '';
-      GHL_HWS_PIPELINE = pipelineNames.find(p => !(/smoke/i.test(p))) || '';
-      if (!GHL_SMOKE_PIPELINE && !GHL_HWS_PIPELINE) {
-        SMOKE_CRM = mapped; HWS_CRM = [];
-      } else {
-        SMOKE_CRM = GHL_SMOKE_PIPELINE ? mapped.filter(r => r.pipeline === GHL_SMOKE_PIPELINE) : [];
-        HWS_CRM   = mapped.filter(r => r.pipeline !== GHL_SMOKE_PIPELINE);
-      }
-    }
-
-    if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0) { SMOKE_CRM = mapped; HWS_CRM = mapped; }
-
-    const total = mapped.length;
-    if (statusEl) statusEl.innerText = `GHL: ${total} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
-    document.getElementById('meta-last-refresh').innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
-    return mapped;
-  } catch(e) {
-    if (statusEl) statusEl.innerText = 'GHL Error: ' + e.message;
-    throw e;
-  }
-}
-
-async function refreshGHL() {
-  const btn = document.getElementById('btn-refresh-ghl');
-  if (btn) { btn.innerText = '↻ Fetching…'; btn.disabled = true; }
-  try {
-    await loadGHLData();
-    populateFilters();
-    renderCurrentProduct();
-  } catch(e) { console.warn('GHL refresh failed:', e); }
-  finally { if (btn) { btn.innerText = '↻ Refresh CRM'; btn.disabled = false; } }
-}
-
-// ── META API ─────────────────────────────────────────────────────────────
-let META_TOKEN = '';
-const SMOKE_ACCOUNT = 'act_1420815159464502';
-const HWS_ACCOUNT   = 'act_716067364534837';
-
-async function fetchMetaInsights(account, token, since, until) {
-  const fields = 'spend,cpm,impressions,reach,frequency';
-  const url = `https://graph.facebook.com/v19.0/${account}/insights?fields=${fields}&time_range={"since":"${since}","until":"${until}"}&time_increment=1&access_token=${token}`;
-  const resp = await fetch(url);
-  const json = await resp.json();
-  if (json.error) throw new Error(json.error.message);
-  const payments = [];
-  let data = json.data || [];
-  let next = json.paging?.next;
-  while (next) {
-    const r2 = await fetch(next);
-    const j2 = await r2.json();
-    data = data.concat(j2.data || []);
-    next = j2.paging?.next;
-  }
-  data.forEach(d => {
-    if (d.spend && parseFloat(d.spend) > 0) {
-      payments.push({ date: d.date_start, amount: parseFloat(d.spend), cpm: parseFloat(d.cpm||0), impressions: parseInt(d.impressions||0) });
-    }
-  });
-  return payments;
-}
-
-async function testMetaToken() {
-  const token = document.getElementById('upload-meta-token').value.trim();
-  const status = document.getElementById('meta-token-status');
-  if (!token) { status.className='meta-status err'; status.innerText='Please paste your access token first.'; return; }
-  status.className='meta-status loading'; status.innerText='Testing connection…';
-  try {
-    const today = new Date(); const fmt = d => d.toISOString().slice(0,10);
-    const since = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
-    const until = fmt(today);
-    const smokeData = await fetchMetaInsights(SMOKE_ACCOUNT, token, since, until);
-    const smokeTotal = smokeData.reduce((a,b)=>a+b.amount,0);
-    META_TOKEN = token;
-    status.className='meta-status ok';
-    status.innerText = `✓ Connected! Smoke Alarm spend this month: $${smokeTotal.toFixed(2)} AUD — click Load Dashboard to continue.`;
-    document.getElementById('btn-load').disabled = false;
-  } catch(e) {
-    status.className='meta-status err';
-    status.innerText = 'Error: ' + e.message;
-  }
+function renderVolumeTable(data,headId,bodyId){
+  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
+  const stageCount={};data.forEach(r=>{stageCount[r.stage]=(stageCount[r.stage]||0)+1;});
+  const stages=stageOrder.filter(s=>stageCount[s]).concat(Object.keys(stageCount).filter(s=>!stageOrder.includes(s)).sort());
+  const buckets={};
+  data.forEach(r=>{ const key=viewMode==='weekly'?getWeekStart(r.created):r.created; if(!buckets[key]){buckets[key]={_t:0};stages.forEach(s=>buckets[key][s]=0);} buckets[key][r.stage]++;buckets[key]._t++; });
+  let keys=Object.keys(buckets).sort();if(viewMode==='daily') keys=keys.reverse();
+  document.getElementById(headId).innerHTML=`<tr><th>${viewMode==='weekly'?'Week':'Date'}</th><th>Total</th>${stages.map(s=>`<th><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${STAGE_COLORS[s]||'#888'};margin-right:4px;vertical-align:middle;"></span>${s}</th>`).join('')}</tr>`;
+  if(!keys.length){document.getElementById(bodyId).innerHTML=`<tr><td colspan="${stages.length+2}" style="color:var(--muted);font-size:12px;padding:12px 0;">No data in selected date range</td></tr>`;return;}
+  const rows=keys.map(k=>`<tr><td>${viewMode==='weekly'?fmtWeek(k):fmtDay(k)}</td><td><strong>${buckets[k]._t}</strong></td>${stages.map(s=>`<td>${buckets[k][s]||'—'}</td>`).join('')}</tr>`).join('');
+  const totals={_t:0};stages.forEach(s=>totals[s]=0);keys.forEach(k=>{totals._t+=buckets[k]._t;stages.forEach(s=>totals[s]+=(buckets[k][s]||0));});
+  document.getElementById(bodyId).innerHTML=rows+`<tr class="tr-total"><td>TOTAL</td><td><strong>${totals._t}</strong></td>${stages.map(s=>`<td><strong>${totals[s]||'—'}</strong></td>`).join('')}</tr>`;
 }
 
 function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.toggle('active',v==='weekly'); document.getElementById('vbtn-d').classList.toggle('active',v==='daily'); renderCurrentProduct(); }
 
-async function loadMetaSpend() {
-  if (!META_TOKEN) return;
-  const statusEl = document.getElementById('meta-panel-smoke-spend');
-  if (statusEl) statusEl.innerHTML = '<em>Fetching spend data…</em>';
-  const sinceDate = new Date();
-  sinceDate.setMonth(sinceDate.getMonth() - 36);
-  const since = sinceDate.toISOString().slice(0, 10);
-  const until = new Date().toISOString().slice(0,10);
-  try {
-    const [smokeData, hwsData] = await Promise.all([
-      fetchMetaInsights(SMOKE_ACCOUNT, META_TOKEN, since, until),
-      fetchMetaInsights(HWS_ACCOUNT,   META_TOKEN, since, until)
-    ]);
-    SMOKE_SPEND_ALL = smokeData;
-    HWS_SPEND_ALL   = hwsData;
-    SMOKE_SPEND     = smokeData;
-    HWS_SPEND       = hwsData;
-    document.getElementById('meta-last-refresh').innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
-    if(currentProduct==='smoke') renderSmoke();
-    else renderHws();
-  } catch(e) {
-    const panel = document.getElementById('meta-panel-smoke-spend');
-    if (panel) panel.innerHTML = `<span style="color:#e04f4f">Meta error: ${e.message}</span>`;
-    console.error('Meta API failed:', e);
-  }
+// ══════════════════════════════════════════════════════════════
+//  CSV PARSING
+// ══════════════════════════════════════════════════════════════
+function processCRM(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim()); if(lines.length<2) return [];
+  const headers=splitCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/['"]/g,'').trim());
+  const iStage=headers.findIndex(h=>h.includes('stage')),iSource=headers.findIndex(h=>h.includes('source')),iPipeline=headers.findIndex(h=>h.includes('pipeline')),iCreated=headers.findIndex(h=>h.includes('created')||h.includes('date'));
+  if(iStage===-1||iCreated===-1) throw new Error('Could not find required columns (stage, date).');
+  const out=[];
+  for(let i=1;i<lines.length;i++){ const cols=splitCSVLine(lines[i]); if(cols.length<2) continue; const raw_date=iCreated!==-1?cols[iCreated]||'':''; const created=raw_date.trim().slice(0,10); if(!created||created.length<10||!/^\d{4}-\d{2}-\d{2}/.test(created)) continue; out.push({stage:(cols[iStage]||'').trim()||'Unknown',source:(iSource!==-1?cols[iSource]||'':'').trim()||'Unknown',pipeline:(iPipeline!==-1?cols[iPipeline]||'':'').trim(),created}); }
+  return out;
+}
+function processMeta(text){
+  const lines=text.split(/\r?\n/);const payments=[];let inP=false;
+  for(let i=0;i<lines.length;i++){ const line=lines[i]; if(line.includes('Date,Transaction ID')&&(line.includes('Amount,Currency')||line.includes('Payment method,Amount'))){inP=true;continue;} if(inP){if(line.startsWith(',')||line.trim()===''||line.includes('Total amount billed')) break;const parts=splitCSVLine(line);if(parts.length>=3){const dateStr=parts[0].trim();let amountStr='';if(parts.length>=4&&(parts[2].includes('Visa')||parts[2].includes('Mastercard')||parts[2].includes('····'))){amountStr=parts[3].trim().replace(',','');}else{amountStr=parts[2].trim().replace(',','');}if(dateStr&&amountStr&&!isNaN(parseFloat(amountStr))){const dp=dateStr.split('/');if(dp.length===3){payments.push({date:`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`,amount:parseFloat(amountStr)});}}}}}
+  return payments;
+}
+function splitCSVLine(line){ const r=[];let cur='',inQ=false; for(let i=0;i<line.length;i++){if(line[i]==='"'){inQ=!inQ;}else if(line[i]===','&&!inQ){r.push(cur.replace(/^"|"$/g,''));cur='';}else{cur+=line[i];}} r.push(cur.replace(/^"|"$/g,'')); return r; }
+
+// ══════════════════════════════════════════════════════════════
+//  PDF
+// ══════════════════════════════════════════════════════════════
+function generatePDF(){
+  const product=currentProduct==='smoke'?'Smoke Alarms':'Hot Water System';
+  const from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
+  const fmtDate=s=>s?new Date(s+'T00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}):'';
+  const generated=new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const cover=document.createElement('div');
+  cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
+  document.querySelector('#dashboard main').prepend(cover);
+  const t=document.title; document.title=`Goldsure – ${product} Report ${from} to ${to}`; window.print(); document.title=t; cover.remove();
 }
 
-async function refreshMetaSpend() {
-  const btns = document.querySelectorAll('#meta-live-panel button');
-  btns.forEach(b=>{ b.innerText='Refreshing…'; b.disabled=true; });
-  await loadMetaSpend();
-  btns.forEach(b=>{ b.disabled=false; });
-  if(btns[0]) btns[0].innerText='↻ Refresh CRM';
-  if(btns[1]) btns[1].innerText='↻ Refresh Spend';
-}
-
+// ── INIT ──
 initUploadHandlers();
 </script>
 </body>
