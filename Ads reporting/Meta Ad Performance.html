@@ -573,13 +573,13 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
       <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.8;">
         <div>Phone: <a href="tel:+61451898761" style="color:var(--blue);text-decoration:none;">+61 451 898 761</a></div>
-        <div>Email: <a href="/cdn-cgi/l/email-protection#116778767f74627951767e7d75626463743f727e7c3f7064" style="color:var(--blue);text-decoration:none;"><span class="__cf_email__" data-cfemail="bfc9d6d8d1daccd7ffd8d0d3dbcccacdda91dcd0d291deca">[email&#160;protected]</span></a></div>
+        <div>Email: <a id="footer-email" style="color:var(--blue);text-decoration:none;"></a></div>
       </div>
     </div>
   </footer>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ══════════════════════════════════════════════════════════════
 //  GLOBAL STATE
 // ══════════════════════════════════════════════════════════════
@@ -1125,3 +1125,22 @@ function generatePDF(){
   const cover=document.createElement('div');
   cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
   document.querySelector
+  document.querySelector('#dashboard main').prepend(cover);
+  const t=document.title;
+  document.title=`Goldsure – ${product} Report ${from} to ${to}`;
+  window.print();
+  document.title=t;
+  cover.remove();
+}
+
+// Set email via JS so Cloudflare cannot obfuscate it
+(function(){
+  const e = document.getElementById('footer-email');
+  if(e){ const addr='vignesh'+'@'+'goldsure.com.au'; e.href='mailto:'+addr; e.innerText=addr; }
+})();
+
+// ── INIT ──
+initUploadHandlers();
+</script>
+</body>
+</html>
