@@ -535,7 +535,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </div>
     <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
       <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--gold);text-decoration:none;">+61 451 898 761</a></div>
-      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
+      <div>Email: <a href="/cdn-cgi/l/email-protection#b9d0d7dfd6f9ded6d5ddcacccbdc97dad6d497d8cc" style="color:var(--gold);text-decoration:none;"><span class="__cf_email__" data-cfemail="6c05020a032c0b0300081f191e09420f0301420d19">[email&#160;protected]</span></a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
   </div>
 </footer>
@@ -612,7 +612,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
@@ -1198,181 +1198,8 @@ function toggleDocs(btn) {
   btn.querySelector('.arrow').textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
 }
 
-// ════════════════════════════════════════════════════════════
-// ACCEPT QUOTE — detect ?accept=true in URL and open modal
-// ════════════════════════════════════════════════════════════
-function initAcceptModal() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('accept') !== 'true') return;
 
-  // Populate modal fields from URL params
-  document.getElementById('acceptCustomerName').value    = params.get('name')        || '';
-  document.getElementById('acceptCustomerEmail').value   = params.get('email')       || '';
-  document.getElementById('acceptGrandTotal').innerText  = params.get('grand_total') || '';
-  document.getElementById('acceptAlarmQty').innerText    = params.get('alarm_qty')   || '0';
-  document.getElementById('acceptAlarmTotal').innerText  = params.get('alarm_total') || '$0.00';
-  document.getElementById('acceptCtrlQty').innerText     = params.get('ctrl_qty')    || '0';
-  document.getElementById('acceptCtrlTotal').innerText   = params.get('ctrl_total')  || '$0.00';
-  document.getElementById('acceptFeeLabel').innerText    = params.get('fee_label')   || '';
-  document.getElementById('acceptFeeAmount').innerText   = params.get('fee_amount')  || '';
-
-  // Show/hide controller row
-  if (parseInt(params.get('ctrl_qty') || '0') > 0) {
-    document.getElementById('acceptCtrlRow').style.display = 'flex';
-  }
-
-  // Store for submission
-  window._acceptParams = {
-    customer_name:  params.get('name')        || '',
-    customer_email: params.get('email')       || '',
-    agent_name:     params.get('agent')       || '',
-    service_type:   params.get('service')     || '',
-    alarm_qty:      params.get('alarm_qty')   || '0',
-    alarm_total:    params.get('alarm_total') || '$0.00',
-    ctrl_qty:       params.get('ctrl_qty')    || '0',
-    ctrl_total:     params.get('ctrl_total')  || '$0.00',
-    fee_label:      params.get('fee_label')   || '',
-    fee_amount:     params.get('fee_amount')  || '',
-    grand_total:    params.get('grand_total') || '',
-  };
-
-  // Open modal (wait for app to be visible — customer may not be logged in)
-  document.getElementById('acceptModal').classList.add('open');
-}
-
-async function submitAcceptQuote() {
-  const phone   = document.getElementById('acceptPhone').value.trim();
-  const address = document.getElementById('acceptAddress').value.trim();
-
-  if (!phone)   { showAcceptToast('Please enter your phone number.'); return; }
-  if (!address) { showAcceptToast('Please enter your property address.'); return; }
-
-  const btn = document.getElementById('acceptConfirmBtn');
-  btn.disabled = true;
-  btn.innerText = 'Confirming…';
-
-  const now = new Date().toLocaleString('en-AU', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true,
-    timeZone: 'Australia/Brisbane'
-  });
-
-  try {
-    const res = await fetch('/api/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...window._acceptParams,
-        customer_phone:   phone,
-        customer_address: address,
-        accepted_at:      now,
-      }),
-    });
-
-    if (!res.ok) throw new Error('Server error');
-
-    // Show thank you state
-    document.getElementById('acceptFormContent').style.display = 'none';
-    document.getElementById('acceptThankYou').style.display    = 'block';
-
-    // Clean URL
-    window.history.replaceState({}, '', window.location.pathname);
-
-  } catch (err) {
-    console.error(err);
-    showAcceptToast('Something went wrong. Please call us on 07 2145 5155.');
-    btn.disabled = false;
-    btn.innerText = 'Confirm & Accept Quote';
-  }
-}
-
-function showAcceptToast(msg) {
-  // Reuse main toast
-  showToast(msg);
-}
-
-// Run on page load
-window.addEventListener('DOMContentLoaded', () => {
-  initAcceptModal();
-});
 </script>
-
-<!-- ══════════════════════════════════════════════════════════
-     ACCEPT QUOTE MODAL
-     Opens automatically when customer clicks the email button
-     ══════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="acceptModal">
-  <div class="modal-box" style="max-width:500px;">
-    <button class="modal-close" onclick="document.getElementById('acceptModal').classList.remove('open')">&times;</button>
-
-    <!-- FORM CONTENT -->
-    <div id="acceptFormContent">
-      <h2 style="color:#141c2e;">Accept Your Quote</h2>
-      <p>Please confirm your details below and we'll be in touch to lock in your booking.</p>
-
-      <!-- Quote summary strip -->
-      <div style="background:#f0f2f5;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7899;margin-bottom:10px;">Your Quote Summary</div>
-        <div class="email-preview-row">
-          <span>Raptor Smoke Alarms (<span id="acceptAlarmQty">0</span>)</span>
-          <span id="acceptAlarmTotal">$0.00</span>
-        </div>
-        <div class="email-preview-row" id="acceptCtrlRow" style="display:none;">
-          <span>Controllers (<span id="acceptCtrlQty">0</span>)</span>
-          <span id="acceptCtrlTotal">$0.00</span>
-        </div>
-        <div class="email-preview-row">
-          <span id="acceptFeeLabel"></span>
-          <span id="acceptFeeAmount"></span>
-        </div>
-        <div class="email-preview-row" style="border-bottom:none;font-weight:700;color:#b08d2e;font-size:13px;padding-top:8px;">
-          <span>Grand Total (Incl. GST)</span>
-          <span id="acceptGrandTotal"></span>
-        </div>
-      </div>
-
-      <!-- Pre-filled name/email (read only) -->
-      <div class="modal-field">
-        <label>Your Name</label>
-        <input type="text" id="acceptCustomerName" readonly style="background:#f0f2f5;color:#6b7899;cursor:default;">
-      </div>
-      <div class="modal-field">
-        <label>Your Email</label>
-        <input type="email" id="acceptCustomerEmail" readonly style="background:#f0f2f5;color:#6b7899;cursor:default;">
-      </div>
-
-      <!-- Customer fills these in -->
-      <div class="modal-field">
-        <label>Your Phone Number <span style="color:#e04f4f;">*</span></label>
-        <input type="tel" id="acceptPhone" placeholder="e.g. 0412 345 678">
-      </div>
-      <div class="modal-field">
-        <label>Property Address <span style="color:#e04f4f;">*</span></label>
-        <input type="text" id="acceptAddress" placeholder="Street, Suburb, State, Postcode">
-      </div>
-
-      <p style="font-size:11px;color:#6b7899;margin:0 0 16px;line-height:1.6;">
-        &#9203; This quote is valid for <strong>14 days</strong> from the date it was sent. By confirming, our team will contact you to arrange your installation date.
-      </p>
-
-      <div class="modal-actions" style="margin-top:0;">
-        <button onclick="document.getElementById('acceptModal').classList.remove('open')">Cancel</button>
-        <button class="gold" id="acceptConfirmBtn" onclick="submitAcceptQuote()">Confirm &amp; Accept Quote</button>
-      </div>
-    </div>
-
-    <!-- THANK YOU STATE (shown after successful submission) -->
-    <div id="acceptThankYou" style="display:none;text-align:center;padding:20px 0;">
-      <div style="font-size:52px;margin-bottom:16px;">✅</div>
-      <h2 style="color:#141c2e;margin-bottom:8px;">Quote Accepted!</h2>
-      <p style="color:#6b7899;font-size:14px;line-height:1.7;margin-bottom:0;">
-        Thank you! Our team has been notified and will be in touch shortly to confirm your installation date.<br><br>
-        If you have any questions in the meantime, call us on <strong style="color:#b08d2e;">07 2145 5155</strong>.
-      </p>
-    </div>
-
-  </div>
-</div>
 
 </body>
 </html>
