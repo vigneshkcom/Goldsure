@@ -27,166 +27,190 @@ export default async function handler(req, res) {
   const hasControllers = parseInt(ctrl_qty) > 0;
 
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quote Accepted – Goldsure</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Accepted – Goldsure</title>
 </head>
+<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#141c2e;">
 
-<body style="margin:0;padding:0;background:#f5f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#141c2e;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f2f5">
+  <tr>
+    <td align="center" style="padding:36px 16px 48px;">
+      <table width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
 
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;background:#f5f6f8;">
-<tr>
-<td align="center">
+        <!-- LOGO HEADER -->
+        <tr>
+          <td style="background:#000000;padding:20px 28px;border-radius:4px 4px 0 0;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td valign="middle">
+                  <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
+                       alt="Goldsure" width="130" style="display:block;width:130px;height:auto;" />
+                </td>
+                <td align="right" valign="middle">
+                  <span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Internal Notification</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:6px;border:1px solid #e3e7ef;overflow:hidden;">
+        <!-- GOLD LINE -->
+        <tr><td style="height:3px;background:#b08d2e;font-size:1px;line-height:1px;">&nbsp;</td></tr>
 
-<tr>
-<td style="background:#000000;padding:24px 28px;">
-  <table width="100%">
-    <tr>
-      <td>
-        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
-             width="130" style="display:block;">
-      </td>
-      <td align="right" style="color:#b08d2e;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">
-        Internal Notification
-      </td>
-    </tr>
-  </table>
-</td>
-</tr>
+        <!-- MAIN BODY -->
+        <tr>
+          <td style="background:#ffffff;padding:28px 28px 32px;border-radius:0 0 4px 4px;border:1px solid #e3e7ef;border-top:none;">
 
-<tr>
-<td style="background:#e9f7ef;padding:14px 28px;border-bottom:1px solid #d4efe0;">
-  <span style="font-size:13px;font-weight:700;color:#1f7a45;">
-    ✔ Quote Accepted
-  </span>
-  <span style="float:right;font-size:12px;color:#6b7899;">
-    ${accepted_at}
-  </span>
-</td>
-</tr>
+            <!-- Status + Customer name + Date -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr>
+                <td>
+                  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Quote Accepted</p>
+                  <p style="margin:0;font-size:22px;font-weight:700;color:#141c2e;line-height:1.2;">${customer_name}</p>
+                </td>
+                <td align="right" valign="top">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">${accepted_at}</p>
+                  <p style="margin:4px 0 0;font-size:11px;color:#6b7899;">Agent: <strong style="color:#141c2e;">${agent_name}</strong></p>
+                </td>
+              </tr>
+            </table>
 
-<tr>
-<td style="padding:28px;">
+            <!-- Divider -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+              <tr><td style="height:1px;background:#e3e7ef;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+            </table>
 
-<p style="margin:0 0 6px;font-size:22px;font-weight:700;">
-  ${customer_name}
-</p>
-<p style="margin:0 0 20px;font-size:13px;color:#6b7899;">
-  Agent: <strong style="color:#141c2e;">${agent_name || '—'}</strong>
-</p>
+            <!-- Customer Details -->
+            <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Customer Details</p>
 
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border-top:1px solid #e3e7ef;">
-<tr>
-<td style="padding:10px 0;font-size:12px;color:#6b7899;width:140px;">Email</td>
-<td style="padding:10px 0;font-size:13px;font-weight:600;">
-  ${customer_email}
-</td>
-</tr>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border:1px solid #e3e7ef;border-radius:4px;">
+              <tr>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;width:30%;background:#f0f2f5;">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">Email</p>
+                </td>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;"><a href="mailto:${customer_email}" style="color:#b08d2e;text-decoration:none;font-weight:600;">${customer_email}</a></p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f0f2f5;">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">Phone</p>
+                </td>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${customer_phone || '—'}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f0f2f5;">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">Address</p>
+                </td>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;">${customer_address || '—'}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;background:#f0f2f5;">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">Service</p>
+                </td>
+                <td style="padding:10px 14px;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${service_type}</p>
+                </td>
+              </tr>
+            </table>
 
-<tr>
-<td style="padding:10px 0;font-size:12px;color:#6b7899;">Phone</td>
-<td style="padding:10px 0;font-size:13px;font-weight:600;">
-  ${customer_phone || '—'}
-</td>
-</tr>
+            <!-- Quote Breakdown -->
+            <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Quote Breakdown</p>
 
-<tr>
-<td style="padding:10px 0;font-size:12px;color:#6b7899;">Address</td>
-<td style="padding:10px 0;font-size:13px;">
-  ${customer_address || '—'}
-</td>
-</tr>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border:1px solid #e3e7ef;border-radius:4px;">
 
-<tr>
-<td style="padding:10px 0;font-size:12px;color:#6b7899;">Service</td>
-<td style="padding:10px 0;font-size:13px;font-weight:600;">
-  ${service_type || '—'}
-</td>
-</tr>
-</table>
+              <!-- Column headers -->
+              <tr style="background:#f0f2f5;">
+                <td style="padding:8px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7899;">Description</p>
+                </td>
+                <td align="right" style="padding:8px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
+                  <p style="margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7899;">Amount</p>
+                </td>
+              </tr>
 
-<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:4px;overflow:hidden;margin-bottom:24px;">
+              <!-- Alarms -->
+              <tr>
+                <td style="padding:12px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;">Raptor Smoke Alarms</p>
+                  <p style="margin:2px 0 0;font-size:11px;color:#6b7899;">${alarm_qty} × $98.00</p>
+                </td>
+                <td align="right" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${alarm_total}</p>
+                </td>
+              </tr>
 
-<tr style="background:#f0f2f5;">
-<td style="padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7899;">
-Description
-</td>
-<td align="right" style="padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7899;">
-Amount
-</td>
-</tr>
+              ${hasControllers ? `
+              <!-- Controllers -->
+              <tr>
+                <td style="padding:12px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;">Smoke Alarm Controllers</p>
+                  <p style="margin:2px 0 0;font-size:11px;color:#6b7899;">${ctrl_qty} × $49.00</p>
+                </td>
+                <td align="right" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${ctrl_total}</p>
+                </td>
+              </tr>` : ''}
 
-<tr>
-<td style="padding:12px 14px;font-size:13px;">
-Raptor Smoke Alarms<br>
-<span style="font-size:11px;color:#6b7899;">${alarm_qty} × $98.00</span>
-</td>
-<td align="right" style="padding:12px 14px;font-size:13px;font-weight:600;">
-${alarm_total}
-</td>
-</tr>
+              <!-- Fee -->
+              <tr>
+                <td style="padding:12px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;">${fee_label}</p>
+                </td>
+                <td align="right" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${fee_amount}</p>
+                </td>
+              </tr>
 
-${hasControllers ? `
-<tr style="border-top:1px solid #e3e7ef;">
-<td style="padding:12px 14px;font-size:13px;">
-Smoke Alarm Controllers<br>
-<span style="font-size:11px;color:#6b7899;">${ctrl_qty} × $49.00</span>
-</td>
-<td align="right" style="padding:12px 14px;font-size:13px;font-weight:600;">
-${ctrl_total}
-</td>
-</tr>` : ''}
+              <!-- Grand Total -->
+              <tr style="background:#000000;">
+                <td style="padding:14px 14px;">
+                  <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:rgba(255,255,255,0.5);">Grand Total</p>
+                </td>
+                <td align="right" style="padding:14px 14px;white-space:nowrap;">
+                  <p style="margin:0;font-size:18px;font-weight:700;color:#b08d2e;">${grand_total}</p>
+                </td>
+              </tr>
 
-<tr style="border-top:1px solid #e3e7ef;">
-<td style="padding:12px 14px;font-size:13px;">
-${fee_label}
-</td>
-<td align="right" style="padding:12px 14px;font-size:13px;font-weight:600;">
-${fee_amount}
-</td>
-</tr>
+            </table>
 
-<tr style="background:#000000;">
-<td style="padding:16px 14px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;">
-Grand Total
-</td>
-<td align="right" style="padding:16px 14px;font-size:18px;font-weight:700;color:#b08d2e;">
-${grand_total}
-</td>
-</tr>
+            <!-- Divider -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+              <tr><td style="height:1px;background:#e3e7ef;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+            </table>
 
-</table>
+            <!-- Next Step -->
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:12px 16px;background:#fef7e7;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;">
+                  <p style="margin:0;font-size:13px;color:#7a6020;line-height:1.6;">
+                    <strong style="color:#141c2e;">Next step:</strong> Follow up with ${customer_name} to confirm the booking date and collect the $33.00 booking fee.
+                  </p>
+                </td>
+              </tr>
+            </table>
 
-<table width="100%" cellpadding="0" cellspacing="0">
-<tr>
-<td style="background:#fff7e6;padding:16px;border-left:4px solid #b08d2e;border-radius:4px;">
-<p style="margin:0;font-size:14px;font-weight:600;">
-Next Action Required
-</p>
-<p style="margin:6px 0 0;font-size:13px;color:#7a6020;">
-Contact ${customer_name} to confirm booking date and collect booking fee.
-</p>
-</td>
-</tr>
-</table>
+          </td>
+        </tr>
 
-</td>
-</tr>
+        <!-- FOOTER -->
+        <tr>
+          <td align="center" style="padding:20px 0 0;">
+            <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#6b7899;">Goldsure Pty Ltd</p>
+            <p style="margin:0;font-size:11px;color:#9aa5b8;">ABN: 66 683 305 106 &nbsp;·&nbsp; Queensland, Australia</p>
+          </td>
+        </tr>
 
-<tr>
-<td align="center" style="padding:24px 0 30px;font-size:11px;color:#9aa5b8;">
-Goldsure Pty Ltd · ABN 66 683 305 106 · Queensland, Australia
-</td>
-</tr>
-
-</table>
-
-</td>
-</tr>
+      </table>
+    </td>
+  </tr>
 </table>
 
 </body>
@@ -196,7 +220,7 @@ Goldsure Pty Ltd · ABN 66 683 305 106 · Queensland, Australia
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
