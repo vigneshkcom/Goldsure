@@ -38,8 +38,9 @@ export default async function handler(req, res) {
     fee_label:   fee_label       || '',
     fee_amount:  fee_amount      || '',
     grand_total: grand_total     || '',
+    sent_at:    Date.now().toString(),
   });
-  const acceptUrl = `${baseUrl}/smoke-alarms/smoke-alarm.html?${params.toString()}`;
+  const acceptUrl = `${baseUrl}/accept-quote.html?${params.toString()}`;
 
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
