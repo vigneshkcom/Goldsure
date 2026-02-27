@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Sales Portal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -70,9 +71,9 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
 /* ── APP ── */
 #app { display: none; }
 
-/* ── HEADER white with subtle border ── */
+/* ── HEADER ── */
 header {
-  background: #ffffff; 
+  background: #ffffff;
   border-bottom: 3px solid var(--gold);
   padding: 0 28px; display: flex; align-items: stretch;
   justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px;
@@ -109,7 +110,7 @@ header {
 .nav-btn.logout { font-size: 10px; padding: 5px 10px; color: #8f9bb3; border-color: #e3e7ef; }
 .nav-btn.logout:hover { color: var(--red); border-color: rgba(224,79,79,0.3); background: rgba(224,79,79,0.06); }
 
-/* ── SUB-NAV white background ── */
+/* ── SUB-NAV ── */
 .sub-nav {
   background: #ffffff; border-bottom: 1px solid #e3e7ef;
   padding: 0 28px; display: flex; align-items: center;
@@ -229,8 +230,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .action-btn.primary:hover { background: #caa535; }
 .action-btn.secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); }
 .action-btn.secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
-
-/* Removed Follow-up section */
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .docs-accordion { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 14px; }
 .docs-toggle {
@@ -240,9 +240,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.55);
 }
 .docs-toggle .arrow { transition: transform 0.2s; font-size: 9px; color: rgba(255,255,255,0.3); }
-.docs-list {
-  display: none; background: rgba(0,0,0,0.2);
-}
+.docs-list { display: none; background: rgba(0,0,0,0.2); }
 .docs-list.open { display: block; }
 .docs-list a {
   display: block; font-family: 'Sora', sans-serif; font-size: 11px;
@@ -261,7 +259,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 }
 .toast.show { opacity: 1; }
 
-/* ── COPY MODAL (with editable text) ── */
+/* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal-box { background: var(--surface); border-radius: 18px; padding: 32px 36px; max-width: 560px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.22); position: relative; max-height: 90vh; overflow-y: auto; }
@@ -271,13 +269,25 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-close:hover { color: var(--text); }
 .modal-field { margin-bottom: 14px; }
 .modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
-.modal-field textarea {
+.modal-field input, .modal-field textarea {
   width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
   border: 1.5px solid var(--border); border-radius: 8px;
   padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
 }
-.modal-field textarea:focus { border-color: var(--blue); background: var(--surface); }
-.modal-field textarea { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
+.modal-field input:focus, .modal-field textarea:focus { border-color: var(--blue); background: var(--surface); }
+.modal-field textarea { resize: vertical; min-height: 80px; }
+
+/* Email modal quote preview box */
+.email-preview-box {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 14px; font-size: 11px; color: var(--muted);
+  line-height: 1.7;
+}
+.email-preview-box strong { color: var(--text); }
+.email-preview-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.email-preview-row:last-child { border-bottom: none; font-weight: 700; color: var(--gold); font-size: 12px; }
+.email-preview-row span:first-child { color: var(--muted); }
+.email-preview-row span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--text); }
 
 .sms-type-tabs { display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: wrap; }
 .sms-type-btn {
@@ -293,13 +303,13 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-actions button.gold { background: var(--gold); color: #000; border-color: var(--gold); }
 .modal-actions button.gold:hover { background: #caa535; }
 .modal-actions button:not(.gold):hover { background: var(--surface); color: var(--text); }
+.modal-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* PDF modal */
-.modal-field input, .modal-field textarea { width:100%; font-family:'Sora',sans-serif; font-size:13px; border:1.5px solid var(--border); border-radius:8px; padding:9px 12px; background:var(--surface2); color:var(--text); outline:none; transition:border-color 0.15s; }
-.modal-field input:focus, .modal-field textarea:focus { border-color:var(--blue); background:var(--surface); }
+/* SMS modal textarea */
+#copy-preview { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
+
 #pdf-template { display: none; }
 
-/* responsive */
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; }
   .sidebar { order: -1; }
@@ -480,13 +490,10 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
       </div>
 
       <div style="margin-top:18px;display:flex;flex-direction:column;gap:0;">
-        <!-- Changed: "Copy Quote SMS" → "Copy SMS Template" (no emoji) -->
         <button class="action-btn primary" onclick="openCopyModal()">Copy SMS Template</button>
-        <button class="action-btn secondary" onclick="sendEmail()">Email Quote Template</button>
+        <button class="action-btn secondary" id="emailBtn" onclick="openEmailModal()">Email Quote to Customer</button>
         <button class="action-btn primary" onclick="openPdfModal()">Download PDF Quote</button>
       </div>
-
-      <!-- REMOVED: Follow-up SMS Templates section completely -->
 
       <div class="docs-accordion">
         <button class="docs-toggle" onclick="toggleDocs(this)">Product & Compliance Docs<span class="arrow">▲</span></button>
@@ -522,13 +529,14 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- SIMPLE COPY MODAL (with editable text) -->
+<!-- ══════════════════════════════════════════
+     SMS COPY MODAL
+══════════════════════════════════════════ -->
 <div class="modal-overlay" id="copyModal" onclick="if(event.target===this)closeCopyModal()">
   <div class="modal-box">
     <button class="modal-close" onclick="closeCopyModal()">&times;</button>
     <h2>Copy message template</h2>
     <p>Choose type, edit if needed, then copy.</p>
-
     <div class="modal-field">
       <label>Message type</label>
       <div class="sms-type-tabs" id="copy-type-tabs">
@@ -539,12 +547,10 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
         <button class="sms-type-btn"         onclick="setCopyType('followup4', this)">Out of Area</button>
       </div>
     </div>
-
     <div class="modal-field">
       <label>Message preview (editable)</label>
       <textarea id="copy-preview"></textarea>
     </div>
-
     <div class="modal-actions">
       <button onclick="closeCopyModal()">Cancel</button>
       <button class="gold" onclick="copyPreviewToClipboard()">Copy to clipboard</button>
@@ -552,7 +558,43 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   </div>
 </div>
 
-<!-- PDF MODAL -->
+<!-- ══════════════════════════════════════════
+     EMAIL MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="emailModal" onclick="if(event.target===this)closeEmailModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeEmailModal()">&times;</button>
+    <h2>Email Quote to Customer</h2>
+    <p>Confirm details and send a branded quote email directly to the customer.</p>
+
+    <div class="modal-field">
+      <label>Customer Name</label>
+      <input type="text" id="emailCustomerName" placeholder="Full name">
+    </div>
+
+    <div class="modal-field">
+      <label>Customer Email Address</label>
+      <input type="email" id="emailCustomerEmail" placeholder="customer@example.com">
+    </div>
+
+    <!-- Live quote summary preview -->
+    <div class="modal-field">
+      <label>Quote Summary</label>
+      <div class="email-preview-box" id="emailPreviewBox">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeEmailModal()">Cancel</button>
+      <button class="gold" id="sendEmailBtn" onclick="sendEmailJS()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PDF MODAL
+══════════════════════════════════════════ -->
 <div class="modal-overlay" id="pdfModal" onclick="if(event.target===this)closePdfModal()">
   <div class="modal-box">
     <button class="modal-close" onclick="closePdfModal()">&times;</button>
@@ -562,12 +604,12 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     <div class="modal-field"><label>Customer Address (Optional)</label><textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode"></textarea></div>
     <div class="modal-actions">
       <button onclick="closePdfModal()">Cancel</button>
-      <button class="confirm" onclick="generatePDF()">Generate PDF</button>
+      <button class="gold" onclick="generatePDF()">Generate PDF</button>
     </div>
   </div>
 </div>
 
-<!-- PDF template (complete with all original content) -->
+<!-- PDF TEMPLATE -->
 <div id="pdf-template" style="display:none;padding:32px 36px;background:white;font-family:'Sora',sans-serif;color:#141c2e;max-width:780px;">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141c2e;padding-bottom:24px;margin-bottom:28px;">
     <div>
@@ -586,7 +628,6 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
       <span id="pdf-cust-address" style="white-space:pre-line;"></span>
     </div>
   </div>
-  
   <div style="margin-bottom:20px;font-size:12px;color:#6b7899;line-height:1.8;">
     <strong style="color:#141c2e;">Property Details:</strong>&nbsp;
     Bedrooms: <span id="pdf-bedrooms">0</span> &nbsp;|&nbsp;
@@ -594,7 +635,6 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     Hallways: <span id="pdf-hallways">0</span> &nbsp;|&nbsp;
     Service: <span id="pdf-service-type">Installation</span>
   </div>
-  
   <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
     <thead>
       <tr style="background:#f0f2f5;">
@@ -606,7 +646,6 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </thead>
     <tbody id="pdf-table-body"></tbody>
   </table>
-  
   <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
     <div style="width:240px;">
       <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid #e3e7ef;"><span style="color:#6b7899;">Subtotal (Excl. GST)</span><span id="pdf-subtotal"></span></div>
@@ -614,8 +653,6 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
       <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-size:16px;font-weight:700;border-top:2px solid #141c2e;margin-top:4px;"><span>Total (Incl. GST)</span><span id="pdf-grand-total" style="color:#b08d2e;"></span></div>
     </div>
   </div>
-  
-  <!-- Full PDF content with legislation, warranty, datasheet link -->
   <div style="font-size:11px;color:#6b7899;line-height:1.7;border-top:1px solid #e3e7ef;padding-top:20px;">
     <p style="margin-bottom:10px;font-style:italic;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
     <p style="font-weight:700;color:#141c2e;margin-bottom:4px;">Booking Fee – What is the $33 Booking Fee?</p>
@@ -636,16 +673,26 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 </div>
 
 <script>
-// ════════════════════════════════════════
-// STATE & LOGIN (no password)
-// ════════════════════════════════════════
-let agentName      = '';
-let customerName   = '';
-let serviceMode    = 'install';
-let activeCopyType = 'quote'; // for modal
+// ════════════════════════════════════════════════════════════
+// EMAILJS INIT
+// ════════════════════════════════════════════════════════════
+emailjs.init({ publicKey: 'RTNqVDdp7oPAFw6JA' });
+
+const EMAILJS_SERVICE_ID  = 'service_2s1i3u9';
+const EMAILJS_TEMPLATE_ID = 'Goldsure Quote';
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let agentName    = '';
+let customerName = '';
+let serviceMode  = 'install';
 
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
+// ════════════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════════════
 function doLogin() {
   const agent = document.getElementById('login-agent').value.trim();
   const errEl = document.getElementById('login-error');
@@ -665,6 +712,9 @@ function doLogout() {
   document.getElementById('login-screen').style.display='flex';
 }
 
+// ════════════════════════════════════════════════════════════
+// CALL MODE / NAME
+// ════════════════════════════════════════════════════════════
 function setMode(type) {
   const n = customerName || '(name)';
   const a = agentName || 'Goldsure';
@@ -682,6 +732,9 @@ function updateName() {
   if (document.querySelector('header .nav-btn.active')?.id === 'btn-social') setMode('social');
 }
 
+// ════════════════════════════════════════════════════════════
+// SERVICE TOGGLE & CALCULATE
+// ════════════════════════════════════════════════════════════
 function toggleService(type) {
   serviceMode = type;
   document.querySelectorAll('.service-block').forEach(el=>el.classList.remove('active'));
@@ -695,54 +748,61 @@ function toggleService(type) {
 }
 function toggleStoreyQ() {
   const s = parseInt(document.getElementById('levels').value)||1;
-  document.getElementById('extraStoreyBox').classList.toggle('visible',s>1);
+  document.getElementById('extraStoreyBox').classList.toggle('visible', s>1);
 }
 function toggleCtrlQty(show) {
-  document.getElementById('controllerInput').classList.toggle('visible',show);
-  document.getElementById('summary-controller-row').classList.toggle('visible',show);
+  document.getElementById('controllerInput').classList.toggle('visible', show);
+  document.getElementById('summary-controller-row').classList.toggle('visible', show);
 }
 function calculate() {
-  const bedrooms = parseInt(document.getElementById('bedrooms').value)||0;
-  const hallways = parseInt(document.getElementById('hallways').value)||0;
-  const storeys  = parseInt(document.getElementById('levels').value)||1;
+  const bedrooms    = parseInt(document.getElementById('bedrooms').value)||0;
+  const hallways    = parseInt(document.getElementById('hallways').value)||0;
+  const storeys     = parseInt(document.getElementById('levels').value)||1;
   const allHaveBeds = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value==='yes';
-  const wantCtrl   = document.querySelector('input[name="wantController"]:checked')?.value==='yes';
-  const ctrlQty    = wantCtrl ? (parseInt(document.getElementById('controllerQty').value)||1):0;
-  let alarms = bedrooms+hallways;
+  const wantCtrl    = document.querySelector('input[name="wantController"]:checked')?.value==='yes';
+  const ctrlQty     = wantCtrl ? (parseInt(document.getElementById('controllerQty').value)||1) : 0;
+
+  let alarms = bedrooms + hallways;
   if (storeys>1 && !allHaveBeds) alarms += (storeys-1);
-  const ALARM=98,CTRL=49,FEE=serviceMode==='install'?33:131;
-  const alarmT=alarms*ALARM,ctrlT=ctrlQty*CTRL,grand=alarmT+ctrlT+FEE;
-  document.getElementById('script-qty').innerText=alarms;
-  document.getElementById('res_alarmQty').innerText=alarms;
-  document.getElementById('res_alarmTotal').innerText=fmt.format(alarmT);
-  document.getElementById('res_ctrlQty').innerText=ctrlQty;
-  document.getElementById('res_ctrlTotal').innerText=fmt.format(ctrlT);
+
+  const ALARM=98, CTRL=49, FEE = serviceMode==='install' ? 33 : 131;
+  const alarmT=alarms*ALARM, ctrlT=ctrlQty*CTRL, grand=alarmT+ctrlT+FEE;
+
+  document.getElementById('script-qty').innerText   = alarms;
+  document.getElementById('res_alarmQty').innerText = alarms;
+  document.getElementById('res_alarmTotal').innerText = fmt.format(alarmT);
+  document.getElementById('res_ctrlQty').innerText  = ctrlQty;
+  document.getElementById('res_ctrlTotal').innerText = fmt.format(ctrlT);
+
   if (serviceMode==='install') {
-    document.getElementById('lbl-upfront').innerText='Booking Fee';
-    document.getElementById('res-upfront').innerText='$33.00';
-    document.getElementById('res-balance').innerText=fmt.format(alarmT+ctrlT);
+    document.getElementById('lbl-upfront').innerText  = 'Booking Fee';
+    document.getElementById('res-upfront').innerText  = '$33.00';
+    document.getElementById('res-balance').innerText  = fmt.format(alarmT+ctrlT);
   } else {
-    document.getElementById('lbl-upfront').innerText='Inspection Fee';
-    document.getElementById('res-upfront').innerText='$131.00';
-    document.getElementById('res-balance').innerText='$0.00';
+    document.getElementById('lbl-upfront').innerText  = 'Inspection Fee';
+    document.getElementById('res-upfront').innerText  = '$131.00';
+    document.getElementById('res-balance').innerText  = '$0.00';
   }
-  document.getElementById('res-total').innerText=fmt.format(grand);
-  const step4=document.getElementById('step4-details');
-  const hint=document.getElementById('step4-hint');
-  if (alarms>0||serviceMode==='inspect') { hint.style.display='none'; step4.open=true; }
+  document.getElementById('res-total').innerText = fmt.format(grand);
+
+  const step4 = document.getElementById('step4-details');
+  const hint  = document.getElementById('step4-hint');
+  if (alarms>0 || serviceMode==='inspect') { hint.style.display='none'; step4.open=true; }
   else { hint.style.display='block'; }
 }
 
-// message builders
+// ════════════════════════════════════════════════════════════
+// SMS BUILDERS
+// ════════════════════════════════════════════════════════════
 function buildQuoteSMS() {
-  const n = customerName || 'there';
-  const a = agentName || 'Goldsure';
-  const qty = document.getElementById('res_alarmQty').innerText;
-  const aT  = document.getElementById('res_alarmTotal').innerText;
+  const n     = customerName || 'there';
+  const a     = agentName || 'Goldsure';
+  const qty   = document.getElementById('res_alarmQty').innerText;
+  const aT    = document.getElementById('res_alarmTotal').innerText;
   const grand = document.getElementById('res-total').innerText;
-  const cQty = document.getElementById('res_ctrlQty').innerText;
-  const cT   = document.getElementById('res_ctrlTotal').innerText;
-  const hasC = parseInt(cQty)>0;
+  const cQty  = document.getElementById('res_ctrlQty').innerText;
+  const cT    = document.getElementById('res_ctrlTotal').innerText;
+  const hasC  = parseInt(cQty)>0;
   let bd = '';
   if (serviceMode==='install') {
     bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${aT}`;
@@ -753,6 +813,7 @@ function buildQuoteSMS() {
   }
   return `Hi ${n},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`;
 }
+
 function buildFollowupSMS(index) {
   const n = customerName || '[Name]';
   const a = agentName || 'Goldsure';
@@ -765,9 +826,10 @@ function buildFollowupSMS(index) {
   return msgs[index-1];
 }
 
-// modal functions
+// ════════════════════════════════════════════════════════════
+// SMS MODAL
+// ════════════════════════════════════════════════════════════
 function openCopyModal() {
-  activeCopyType = 'quote';
   document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   document.getElementById('copy-preview').value = buildQuoteSMS();
   document.getElementById('copyModal').classList.add('open');
@@ -775,13 +837,12 @@ function openCopyModal() {
 function closeCopyModal() { document.getElementById('copyModal').classList.remove('open'); }
 
 function setCopyType(type, btn) {
-  activeCopyType = type;
   document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  let msg = type==='quote' ? buildQuoteSMS() : buildFollowupSMS(parseInt(type.replace('followup','')));
-  document.getElementById('copy-preview').value = msg;
+  document.getElementById('copy-preview').value = type==='quote'
+    ? buildQuoteSMS()
+    : buildFollowupSMS(parseInt(type.replace('followup','')));
 }
-
 function copyPreviewToClipboard() {
   const text = document.getElementById('copy-preview').value;
   navigator.clipboard.writeText(text).then(()=>{
@@ -790,78 +851,178 @@ function copyPreviewToClipboard() {
   }).catch(()=>showToast('Press Ctrl+C to copy'));
 }
 
-function sendEmail() {
-  const n = customerName || 'customer';
-  const body = encodeURIComponent(buildQuoteSMS().replace('Hi there',`Hi ${n}`));
-  window.location.href = `mailto:?subject=Your Smoke Alarm Quote - Goldsure&body=${body}`;
-}
-function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+// ════════════════════════════════════════════════════════════
+// EMAIL MODAL
+// ════════════════════════════════════════════════════════════
+function openEmailModal() {
+  // Pre-fill name from customer bar
+  document.getElementById('emailCustomerName').value  = customerName || '';
+  document.getElementById('emailCustomerEmail').value = '';
 
-// PDF functions (updated with complete template)
-function openPdfModal() { 
-  document.getElementById('pdfCustomerName').value = customerName || '';
+  // Build quote preview in modal
+  const alarmQty  = document.getElementById('res_alarmQty').innerText;
+  const alarmT    = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty   = document.getElementById('res_ctrlQty').innerText;
+  const ctrlT     = document.getElementById('res_ctrlTotal').innerText;
+  const grandTotal = document.getElementById('res-total').innerText;
+  const hasCtrl   = parseInt(ctrlQty) > 0;
+
+  let previewHTML = '';
+  if (serviceMode === 'install') {
+    previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
+    previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${hasCtrl ? ctrlT : '$0.00'}</span></div>`;
+    previewHTML += `<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>`;
+  } else {
+    previewHTML += `<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>`;
+    previewHTML += `<div class="email-preview-row"><span>Controllers (0 × $49.00)</span><span>$0.00</span></div>`;
+  }
+  previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${grandTotal}</span></div>`;
+
+  document.getElementById('emailPreviewBox').innerHTML = previewHTML;
+  document.getElementById('emailModal').classList.add('open');
+}
+function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════
+// SEND VIA EMAILJS
+// ════════════════════════════════════════════════════════════
+function sendEmailJS() {
+  const custName  = document.getElementById('emailCustomerName').value.trim();
+  const custEmail = document.getElementById('emailCustomerEmail').value.trim();
+
+  if (!custName)  { showToast('Please enter the customer name.'); return; }
+  if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
+
+  // Pull all values
+  const alarmQty   = document.getElementById('res_alarmQty').innerText;
+  const alarmTotal = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const ctrlTotal  = document.getElementById('res_ctrlTotal').innerText;
+  const grandTotal = document.getElementById('res-total').innerText;
+  const agent      = agentName || 'Goldsure';
+
+  // Payment structure note
+  let paymentNote, feeLabel, feeAmount;
+  if (serviceMode === 'install') {
+    feeLabel    = 'Electrician Booking Fee';
+    feeAmount   = '$33.00';
+    const balanceDue = fmt.format((parseInt(alarmQty)*98) + (ctrlQty*49));
+    paymentNote = `$33.00 booking fee is payable today to secure your electrician. The remaining balance of ${balanceDue} is payable on the day of installation.`;
+  } else {
+    feeLabel    = 'Smoke Alarm Inspection Service';
+    feeAmount   = '$131.00';
+    paymentNote = 'The $131.00 inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the $131 fee is fully waived — you only pay the $33 booking fee plus required alarms.';
+  }
+
+  const templateParams = {
+    to_email:       custEmail,
+    customer_name:  custName,
+    agent_name:     agent,
+    service_type:   serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
+    alarm_qty:      alarmQty,
+    alarm_total:    alarmTotal,
+    ctrl_qty:       ctrlQty,
+    ctrl_total:     ctrlTotal,
+    fee_label:      feeLabel,
+    fee_amount:     feeAmount,
+    grand_total:    grandTotal,
+    payment_note:   paymentNote,
+  };
+
+  // Disable button while sending
+  const btn = document.getElementById('sendEmailBtn');
+  btn.disabled = true;
+  btn.innerText = 'Sending…';
+
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+    .then(() => {
+      showToast(`Quote emailed to ${custEmail}`);
+      closeEmailModal();
+      btn.disabled = false;
+      btn.innerText = 'Send Email';
+    })
+    .catch((err) => {
+      console.error('EmailJS error:', err);
+      showToast('Send failed — check console for details.');
+      btn.disabled = false;
+      btn.innerText = 'Send Email';
+    });
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.innerText = m;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ════════════════════════════════════════════════════════════
+// PDF
+// ════════════════════════════════════════════════════════════
+function openPdfModal() {
+  document.getElementById('pdfCustomerName').value    = customerName || '';
   document.getElementById('pdfCustomerAddress').value = '';
-  document.getElementById('pdfModal').classList.add('open'); 
+  document.getElementById('pdfModal').classList.add('open');
 }
 function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
 
 function generatePDF() {
-  const name = document.getElementById('pdfCustomerName').value.trim();
+  const name    = document.getElementById('pdfCustomerName').value.trim();
   const address = document.getElementById('pdfCustomerAddress').value.trim();
   if (!name) { showToast('Please enter customer name.'); return; }
-  
-  const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
-  const hallways = parseInt(document.getElementById('hallways').value) || 0;
-  const storeys = parseInt(document.getElementById('levels').value) || 1;
-  const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
-  const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
-  const grandTotal = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
-  const subtotal = grandTotal / 1.1;
-  const gst = grandTotal - subtotal;
 
-  document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('en-AU');
-  document.getElementById('pdf-cust-name').innerText = name;
+  const bedrooms   = parseInt(document.getElementById('bedrooms').value) || 0;
+  const hallways   = parseInt(document.getElementById('hallways').value) || 0;
+  const storeys    = parseInt(document.getElementById('levels').value) || 1;
+  const alarmQty   = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+  const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const grandTotal = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
+  const subtotal   = grandTotal / 1.1;
+  const gst        = grandTotal - subtotal;
+
+  document.getElementById('pdf-date').innerText         = new Date().toLocaleDateString('en-AU');
+  document.getElementById('pdf-cust-name').innerText    = name;
   document.getElementById('pdf-cust-address').innerText = address;
-  document.getElementById('pdf-bedrooms').innerText = bedrooms;
-  document.getElementById('pdf-storeys').innerText = storeys;
-  document.getElementById('pdf-hallways').innerText = hallways;
-  document.getElementById('pdf-service-type').innerText = serviceMode === 'install' ? 'Installation' : 'Inspection';
+  document.getElementById('pdf-bedrooms').innerText     = bedrooms;
+  document.getElementById('pdf-storeys').innerText      = storeys;
+  document.getElementById('pdf-hallways').innerText     = hallways;
+  document.getElementById('pdf-service-type').innerText = serviceMode==='install' ? 'Installation' : 'Inspection';
 
   const tdStyle = 'padding:9px 8px;font-size:12px;border-bottom:1px solid #e3e7ef;';
   let rows = '';
   if (serviceMode === 'install') {
-    if (alarmQty > 0) rows += `<tr><td style="${tdStyle}">Raptor Smoke Alarms – Photoelectric, Interconnected</td><td style="${tdStyle}text-align:center;">${alarmQty}</td><td style="${tdStyle}text-align:right;">$98.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(alarmQty*98)}</td></tr>`;
-    if (ctrlQty  > 0) rows += `<tr><td style="${tdStyle}">Smoke Alarm Controller</td><td style="${tdStyle}text-align:center;">${ctrlQty}</td><td style="${tdStyle}text-align:right;">$49.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(ctrlQty*49)}</td></tr>`;
+    if (alarmQty>0) rows += `<tr><td style="${tdStyle}">Raptor Smoke Alarms – Photoelectric, Interconnected</td><td style="${tdStyle}text-align:center;">${alarmQty}</td><td style="${tdStyle}text-align:right;">$98.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(alarmQty*98)}</td></tr>`;
+    if (ctrlQty>0)  rows += `<tr><td style="${tdStyle}">Smoke Alarm Controller</td><td style="${tdStyle}text-align:center;">${ctrlQty}</td><td style="${tdStyle}text-align:right;">$49.00</td><td style="${tdStyle}text-align:right;font-weight:600;">${fmt.format(ctrlQty*49)}</td></tr>`;
     rows += `<tr><td style="${tdStyle}">Electrician Booking Fee</td><td style="${tdStyle}text-align:center;">1</td><td style="${tdStyle}text-align:right;">$33.00</td><td style="${tdStyle}text-align:right;font-weight:600;">$33.00</td></tr>`;
   } else {
     rows += `<tr><td style="${tdStyle}">Smoke Alarm Inspection Service</td><td style="${tdStyle}text-align:center;">1</td><td style="${tdStyle}text-align:right;">$131.00</td><td style="${tdStyle}text-align:right;font-weight:600;">$131.00</td></tr>`;
   }
   document.getElementById('pdf-table-body').innerHTML = rows;
-  document.getElementById('pdf-subtotal').innerText = fmt.format(subtotal);
-  document.getElementById('pdf-gst').innerText = fmt.format(gst);
+  document.getElementById('pdf-subtotal').innerText   = fmt.format(subtotal);
+  document.getElementById('pdf-gst').innerText        = fmt.format(gst);
   document.getElementById('pdf-grand-total').innerText = fmt.format(grandTotal);
 
   const el = document.getElementById('pdf-template');
   el.style.display = 'block';
   html2pdf().set({
-    margin:     10,
-    filename:   `Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`,
-    html2canvas:{ scale:2, useCORS:true, logging:false },
-    jsPDF:      { unit:'mm', format:'a4', orientation:'portrait' }
-  }).from(el).save().then(() => { 
-    el.style.display='none'; 
+    margin:      10,
+    filename:    `Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`,
+    html2canvas: { scale:2, useCORS:true, logging:false },
+    jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' }
+  }).from(el).save().then(() => {
+    el.style.display = 'none';
     closePdfModal();
-    document.getElementById('pdfCustomerName').value = '';
-    document.getElementById('pdfCustomerAddress').value = '';
-  }).catch(err => { 
-    console.error(err); 
-    el.style.display='none'; 
-  });
+  }).catch(err => { console.error(err); el.style.display='none'; });
 }
 
-// docs toggle
-function toggleDocs(btn) { 
-  document.getElementById('docs-list').classList.toggle('open'); 
+// ════════════════════════════════════════════════════════════
+// DOCS ACCORDION
+// ════════════════════════════════════════════════════════════
+function toggleDocs(btn) {
+  document.getElementById('docs-list').classList.toggle('open');
   const arrow = btn.querySelector('.arrow');
   if (arrow) arrow.style.transform = document.getElementById('docs-list').classList.contains('open') ? 'rotate(180deg)' : '';
 }
