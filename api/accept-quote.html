@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accept Your Quote – Goldsure</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: #000000;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.logo-wrap {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.logo-wrap img {
+  height: 48px;
+  width: auto;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 20px;
+  border-top: 3px solid #b08d2e;
+  padding: 36px 40px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ── EXPIRED STATE ── */
+#expiredState { display: none; text-align: center; padding: 12px 0; }
+.expired-icon { font-size: 48px; margin-bottom: 16px; }
+.expired-title { font-size: 20px; font-weight: 700; color: #141c2e; margin-bottom: 8px; }
+.expired-msg { font-size: 13px; color: #6b7899; line-height: 1.7; }
+.expired-msg a { color: #b08d2e; text-decoration: none; font-weight: 600; }
+
+/* ── FORM STATE ── */
+#formState { display: none; }
+.card-title { font-size: 22px; font-weight: 700; color: #141c2e; margin-bottom: 4px; }
+.card-sub   { font-size: 13px; color: #6b7899; margin-bottom: 24px; line-height: 1.5; }
+
+/* Quote summary */
+.summary-box {
+  background: #f5f6f8;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.summary-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: #9aa5b8; margin-bottom: 12px;
+}
+.summary-row {
+  display: flex; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid #e3e7ef;
+  font-size: 13px;
+}
+.summary-row:last-child { border-bottom: none; padding-top: 10px; }
+.summary-row span:first-child { color: #6b7899; }
+.summary-row span:last-child  { font-family: 'JetBrains Mono', monospace; color: #141c2e; font-weight: 600; }
+.summary-total span:first-child { font-weight: 700; color: #141c2e; }
+.summary-total span:last-child  { font-weight: 700; color: #b08d2e; font-size: 15px; }
+
+/* Fields */
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: #6b7899; margin-bottom: 6px;
+}
+.field input {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  padding: 10px 14px; border-radius: 9px;
+  border: 1.5px solid #e3e7ef;
+  background: #f5f6f8; color: #141c2e;
+  outline: none; transition: border-color 0.15s;
+}
+.field input:focus { border-color: #b08d2e; background: #fff; }
+.field input[readonly] { background: #f0f2f5; color: #9aa5b8; cursor: default; }
+.field .req { color: #e04f4f; }
+
+.validity-note {
+  font-size: 11px; color: #9aa5b8; line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.submit-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 14px; border-radius: 50px; border: none; cursor: pointer;
+  background: #b08d2e; color: #000000;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  transition: background 0.15s;
+}
+.submit-btn:hover { background: #caa535; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── THANK YOU STATE ── */
+#thankYouState { display: none; text-align: center; padding: 12px 0; }
+.ty-icon  { font-size: 52px; margin-bottom: 18px; }
+.ty-title { font-size: 22px; font-weight: 700; color: #141c2e; margin-bottom: 10px; }
+.ty-msg   { font-size: 13px; color: #6b7899; line-height: 1.8; }
+.ty-msg strong { color: #b08d2e; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #141c2e; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid #b08d2e;
+  opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 9999;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+.footer-note {
+  margin-top: 20px; text-align: center;
+  font-size: 11px; color: rgba(255,255,255,0.25); line-height: 1.6;
+}
+
+@media (max-width: 520px) {
+  .card { padding: 28px 22px; }
+}
+</style>
+</head>
+<body>
+
+<div class="logo-wrap">
+  <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+</div>
+
+<div class="card">
+
+  <!-- EXPIRED STATE -->
+  <div id="expiredState">
+    <div class="expired-icon">⏰</div>
+    <div class="expired-title">This Quote Has Expired</div>
+    <div class="expired-msg">
+      This quote was valid for 14 days and has now expired.<br><br>
+      Please contact us to receive an updated quote.<br><br>
+      <a href="tel:0721455155">(07) 2145 5155</a> &nbsp;·&nbsp;
+      <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a>
+    </div>
+  </div>
+
+  <!-- FORM STATE -->
+  <div id="formState">
+    <div class="card-title">Accept Your Quote</div>
+    <div class="card-sub">Please confirm your details and we'll be in touch to lock in your booking.</div>
+
+    <!-- Quote summary -->
+    <div class="summary-box">
+      <div class="summary-label">Your Quote Summary</div>
+      <div class="summary-row">
+        <span>Raptor Smoke Alarms (<span id="qAlarmQty">0</span>)</span>
+        <span id="qAlarmTotal">$0.00</span>
+      </div>
+      <div class="summary-row" id="qCtrlRow" style="display:none;">
+        <span>Controllers (<span id="qCtrlQty">0</span>)</span>
+        <span id="qCtrlTotal">$0.00</span>
+      </div>
+      <div class="summary-row">
+        <span id="qFeeLabel"></span>
+        <span id="qFeeAmount"></span>
+      </div>
+      <div class="summary-row summary-total">
+        <span>Grand Total (Incl. GST)</span>
+        <span id="qGrandTotal"></span>
+      </div>
+    </div>
+
+    <!-- Pre-filled read-only -->
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="fName" readonly>
+    </div>
+    <div class="field">
+      <label>Your Email</label>
+      <input type="email" id="fEmail" readonly>
+    </div>
+
+    <!-- Customer fills in -->
+    <div class="field">
+      <label>Your Phone Number <span class="req">*</span></label>
+      <input type="tel" id="fPhone" placeholder="e.g. 0412 345 678">
+    </div>
+    <div class="field">
+      <label>Property Address <span class="req">*</span></label>
+      <input type="text" id="fAddress" placeholder="Street, Suburb, State, Postcode">
+    </div>
+
+    <p class="validity-note">This quote is valid for <strong style="color:#141c2e;">14 days</strong> from the date it was sent. By confirming, our team will contact you to arrange your installation date.</p>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitAccept()">Confirm &amp; Accept Quote</button>
+  </div>
+
+  <!-- THANK YOU STATE -->
+  <div id="thankYouState">
+    <div class="ty-icon">✅</div>
+    <div class="ty-title">Quote Accepted!</div>
+    <div class="ty-msg">
+      Thank you! Our team has been notified and will be in touch shortly to confirm your installation date.<br><br>
+      Questions? Call us on <strong>(07) 2145 5155</strong>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-note">
+  Goldsure Pty Ltd &nbsp;·&nbsp; ABN: 66 683 305 106 &nbsp;·&nbsp; Queensland, Australia
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let _params = {};
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  function init() {
+    const p = new URLSearchParams(window.location.search);
+
+    // Check required param
+    if (p.get('accept') !== 'true') {
+      // No valid params — just show expired/invalid
+      document.getElementById('expiredState').style.display = 'block';
+      return;
+    }
+
+    // ── Check 14-day expiry ──
+    const sentAt = p.get('sent_at');
+    if (sentAt) {
+      const sent    = new Date(parseInt(sentAt));
+      const now     = new Date();
+      const daysDiff = (now - sent) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 14) {
+        document.getElementById('expiredState').style.display = 'block';
+        return;
+      }
+    }
+
+    // Populate fields
+    document.getElementById('fName').value        = p.get('name')        || '';
+    document.getElementById('fEmail').value       = p.get('email')       || '';
+    document.getElementById('qAlarmQty').innerText = p.get('alarm_qty')  || '0';
+    document.getElementById('qAlarmTotal').innerText = p.get('alarm_total') || '$0.00';
+    document.getElementById('qCtrlQty').innerText  = p.get('ctrl_qty')   || '0';
+    document.getElementById('qCtrlTotal').innerText = p.get('ctrl_total') || '$0.00';
+    document.getElementById('qFeeLabel').innerText = p.get('fee_label')  || '';
+    document.getElementById('qFeeAmount').innerText = p.get('fee_amount') || '';
+    document.getElementById('qGrandTotal').innerText = p.get('grand_total') || '';
+
+    if (parseInt(p.get('ctrl_qty') || '0') > 0) {
+      document.getElementById('qCtrlRow').style.display = 'flex';
+    }
+
+    _params = {
+      customer_name:  p.get('name')        || '',
+      customer_email: p.get('email')       || '',
+      agent_name:     p.get('agent')       || '',
+      service_type:   p.get('service')     || '',
+      alarm_qty:      p.get('alarm_qty')   || '0',
+      alarm_total:    p.get('alarm_total') || '$0.00',
+      ctrl_qty:       p.get('ctrl_qty')    || '0',
+      ctrl_total:     p.get('ctrl_total')  || '$0.00',
+      fee_label:      p.get('fee_label')   || '',
+      fee_amount:     p.get('fee_amount')  || '',
+      grand_total:    p.get('grand_total') || '',
+    };
+
+    document.getElementById('formState').style.display = 'block';
+  }
+
+  async function submitAccept() {
+    const phone   = document.getElementById('fPhone').value.trim();
+    const address = document.getElementById('fAddress').value.trim();
+
+    if (!phone)   { showToast('Please enter your phone number.'); return; }
+    if (!address) { showToast('Please enter your property address.'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled  = true;
+    btn.innerText = 'Confirming…';
+
+    const now = new Date().toLocaleString('en-AU', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      timeZone: 'Australia/Brisbane'
+    });
+
+    try {
+      const res = await fetch('/api/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ..._params,
+          customer_phone:   phone,
+          customer_address: address,
+          accepted_at:      now,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Server error');
+
+      document.getElementById('formState').style.display    = 'none';
+      document.getElementById('thankYouState').style.display = 'block';
+      window.history.replaceState({}, '', window.location.pathname);
+
+    } catch (err) {
+      console.error(err);
+      showToast('Something went wrong. Please call us on 07 2145 5155.');
+      btn.disabled  = false;
+      btn.innerText = 'Confirm & Accept Quote';
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
