@@ -564,13 +564,13 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
       <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.8;">
         <div>Phone: <a href="tel:+61451898761" style="color:var(--blue);text-decoration:none;">+61 451 898 761</a></div>
-        <div>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue);text-decoration:none;">vignesh@goldsure.com.au</a></div>
+        <div>Email: <a href="/cdn-cgi/l/email-protection#116778767f74627951767e7d75626463743f727e7c3f7064" style="color:var(--blue);text-decoration:none;"><span class="__cf_email__" data-cfemail="bfc9d6d8d1daccd7ffd8d0d3dbcccacdda91dcd0d291deca">[email&#160;protected]</span></a></div>
       </div>
     </div>
   </footer>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ══════════════════════════════════════════════════════════════
 //  GLOBAL STATE
 // ══════════════════════════════════════════════════════════════
@@ -594,7 +594,7 @@ let alarmsPerJob = 5, sellPrice = 98, costPrice = 25;
 
 const SMOKE_ACCOUNT = 'act_1420815159464502';
 const HWS_ACCOUNT   = 'act_716067364534837';
-const GHL_PROXY     = 'https://corsproxy.io/?';
+// GHL calls are proxied through /api/ghl (server-side) — no CORS issues
 
 const STAGE_COLORS = {
   'Not Interested/Spam':'#e04f4f','Not Reachable':'#d98c1e','Out of Area':'#7251c2',
@@ -632,16 +632,16 @@ async function autoLogin() {
   status.innerText = 'Starting secure connection…';
   steps.classList.add('active');
 
-  // ── STEP 1: Fetch credentials from Vercel ──
+  // ── STEP 1: Fetch Meta token from Vercel (GHL key stays server-side) ──
   setStep('config', 'active', 'Fetching secure credentials from Vercel…');
-  let ghlKey = '', metaToken = '';
+  let metaToken = '';
   try {
     const resp = await fetch('/api/config');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const cfg = await resp.json();
     if (cfg.error) throw new Error(cfg.error);
-    ghlKey = cfg.ghlKey || '';
     metaToken = cfg.metaToken || '';
+    // GHL key is intentionally NOT sent to the browser — /api/ghl handles it server-side
     setStep('config', 'done', 'Credentials loaded from Vercel ✓');
   } catch(e) {
     setStep('config', 'err', `Failed to load credentials: ${e.message}`);
@@ -654,23 +654,18 @@ async function autoLogin() {
     return;
   }
 
-  GHL_API_KEY = ghlKey;
   META_TOKEN = metaToken;
 
-  // ── STEP 2: Connect GHL ──
-  if (ghlKey) {
-    setStep('ghl', 'active', 'Connecting to GoHighLevel CRM…');
-    try {
-      const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
-      const total = json.meta?.total || 0;
-      GHL_CONNECTED = true;
-      setStep('ghl', 'done', `GHL connected — ${total} opportunities found ✓`);
-    } catch(e) {
-      setStep('ghl', 'err', `GHL connection failed: ${e.message}`);
-      GHL_CONNECTED = false;
-    }
-  } else {
-    setStep('ghl', 'err', 'No GHL key configured in Vercel');
+  // ── STEP 2: Test GHL via server-side proxy (no CORS, key never leaves Vercel) ──
+  setStep('ghl', 'active', 'Connecting to GoHighLevel CRM…');
+  try {
+    const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
+    const total = json.meta?.total || 0;
+    GHL_CONNECTED = true;
+    setStep('ghl', 'done', `GHL connected — ${total} opportunities found ✓`);
+  } catch(e) {
+    setStep('ghl', 'err', `GHL connection failed: ${e.message}`);
+    GHL_CONNECTED = false;
   }
 
   // ── STEP 3: Connect Meta ──
@@ -847,10 +842,12 @@ function initDashboard(){
 //  GHL API
 // ══════════════════════════════════════════════════════════════
 async function ghlFetch(path) {
-  const url = GHL_PROXY + encodeURIComponent(`https://services.leadconnectorhq.com${path}`);
-  const resp = await fetch(url, { headers: { 'Authorization':`Bearer ${GHL_API_KEY}`, 'Version':'2021-07-28', 'Content-Type':'application/json' } });
+  // Route through our Vercel server-side proxy (/api/ghl) to avoid CORS.
+  // The GHL API key is stored in Vercel env vars and never exposed to the browser.
+  const url = `/api/ghl?path=${encodeURIComponent(path)}`;
+  const resp = await fetch(url);
   const json = await resp.json();
-  if(json.statusCode>=400||json.error) throw new Error(json.message||json.error||'API error');
+  if (!resp.ok || json.error) throw new Error(json.error || json.message || `GHL error ${resp.status}`);
   return json;
 }
 
@@ -1118,12 +1115,4 @@ function generatePDF(){
   const generated=new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const cover=document.createElement('div');
   cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
-  document.querySelector('#dashboard main').prepend(cover);
-  const t=document.title; document.title=`Goldsure – ${product} Report ${from} to ${to}`; window.print(); document.title=t; cover.remove();
-}
-
-// ── INIT ──
-initUploadHandlers();
-</script>
-</body>
-</html>
+  document.querySelector
