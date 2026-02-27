@@ -326,7 +326,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
         to: [to_email],
-        bcc: ['info@goldsure.com.au'],
+        bcc: ['vignesh@goldsure.com.au'],
         subject: `Your Smoke Alarm Quote – Goldsure`,
         html,
       }),
