@@ -4,15 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Accept Your Quote – Goldsure</title>
-
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: 'Sora', sans-serif;
-  background: #000;
+  background: #000000;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -20,12 +17,11 @@ body {
   justify-content: center;
   padding: 24px 16px;
 }
-
 .logo-wrap { text-align: center; margin-bottom: 28px; }
-.logo-wrap img { width: 160px; max-width: 80%; }
+.logo-wrap img { height: auto; width: 160px; max-width: 80%; }
 
 .card {
-  background: #fff;
+  background: #ffffff;
   border-radius: 20px;
   border-top: 3px solid #b08d2e;
   padding: 36px 40px;
@@ -34,88 +30,69 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
-#expiredState,
-#thankYouState { display: none; text-align: center; }
+#expiredState { display: none; text-align: center; padding: 12px 0; }
+.expired-icon { font-size: 44px; margin-bottom: 16px; }
+.expired-title { font-size: 20px; font-weight: 700; color: #141c2e; margin-bottom: 8px; }
+.expired-msg { font-size: 13px; color: #6b7899; line-height: 1.8; }
 
-.card-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 6px;
-  color: #141c2e;
-}
+#formState { display: none; }
+.card-title { font-size: 22px; font-weight: 700; color: #141c2e; margin-bottom: 4px; }
+.card-sub { font-size: 13px; color: #6b7899; margin-bottom: 24px; line-height: 1.5; }
 
-.card-sub {
-  font-size: 13px;
-  color: #6b7899;
-  margin-bottom: 24px;
+.summary-box {
+  background: #f5f6f8; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 22px;
 }
+.summary-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: #9aa5b8; margin-bottom: 12px;
+}
+.summary-row {
+  display: flex; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid #e3e7ef; font-size: 13px;
+}
+.summary-row:last-child { border-bottom: none; padding-top: 10px; }
+.summary-row span:first-child { color: #6b7899; }
+.summary-row span:last-child { font-family: 'JetBrains Mono', monospace; color: #141c2e; font-weight: 600; }
+.summary-total span:first-child { font-weight: 700; color: #141c2e; }
+.summary-total span:last-child { font-weight: 700; color: #b08d2e; font-size: 15px; }
 
 .field { margin-bottom: 14px; }
-
 .field label {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6b7899;
-  margin-bottom: 6px;
+  display: block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: #6b7899; margin-bottom: 6px;
 }
-
 .field input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 9px;
-  border: 1.5px solid #e3e7ef;
-  background: #f5f6f8;
-  font-size: 13px;
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  padding: 10px 14px; border-radius: 9px; border: 1.5px solid #e3e7ef;
+  background: #f5f6f8; color: #141c2e; outline: none; transition: border-color 0.15s;
 }
-
-.field input:focus {
-  border-color: #b08d2e;
-  background: #fff;
-}
+.field input:focus { border-color: #b08d2e; background: #fff; }
+.field input[readonly] { background: #f0f2f5; color: #9aa5b8; cursor: default; }
 
 .submit-btn {
-  width: 100%;
-  padding: 14px;
-  border-radius: 50px;
-  border: none;
-  background: #b08d2e;
-  font-weight: 700;
-  text-transform: uppercase;
-  cursor: pointer;
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 14px; border-radius: 50px; border: none; cursor: pointer;
+  background: #b08d2e; color: #000000; text-transform: uppercase; letter-spacing: 1.5px;
 }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+#thankYouState { display: none; text-align: center; padding: 12px 0; }
 
 .toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #141c2e;
-  color: #fff;
-  padding: 10px 22px;
-  border-radius: 30px;
-  opacity: 0;
-  transition: 0.25s;
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #141c2e; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid #b08d2e;
+  opacity: 0; transition: opacity 0.25s; pointer-events: none;
 }
-
 .toast.show { opacity: 1; }
 
 .footer-note {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 11px;
-  color: rgba(255,255,255,0.3);
+  margin-top: 20px; text-align: center;
+  font-size: 11px; color: rgba(255,255,255,0.25);
 }
 </style>
 </head>
-
 <body>
 
 <div class="logo-wrap">
@@ -125,31 +102,29 @@ body {
 <div class="card">
 
 <div id="expiredState">
-  <h3>This Quote Has Expired</h3>
+  <div class="expired-icon">⏰</div>
+  <div class="expired-title">This Quote Has Expired</div>
 </div>
 
-<div id="formState" style="display:none;">
+<div id="formState">
   <div class="card-title">Accept Your Quote</div>
-  <div class="card-sub">Confirm your details below.</div>
+  <div class="card-sub">Please confirm your details and we'll be in touch to lock in your booking.</div>
 
   <div class="field">
     <label>Your Name</label>
     <input type="text" id="fName" readonly>
   </div>
-
   <div class="field">
     <label>Your Email</label>
     <input type="email" id="fEmail" readonly>
   </div>
-
   <div class="field">
-    <label>Your Phone *</label>
-    <input type="tel" id="fPhone" placeholder="e.g. 0412 345 678">
+    <label>Your Phone Number *</label>
+    <input type="tel" id="fPhone">
   </div>
-
   <div class="field">
     <label>Property Address *</label>
-    <input type="text" id="fAddress" placeholder="Start typing your address..." autocomplete="off">
+    <input type="text" id="fAddress" autocomplete="off">
   </div>
 
   <button class="submit-btn" id="submitBtn" onclick="submitAccept()">Confirm & Accept Quote</button>
@@ -157,7 +132,6 @@ body {
 
 <div id="thankYouState">
   <h2>Quote Accepted!</h2>
-  <p>Our team will contact you shortly.</p>
 </div>
 
 </div>
@@ -176,38 +150,38 @@ function showToast(msg) {
   var t = document.getElementById('toast');
   t.innerText = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(function() { t.classList.remove('show'); }, 2800);
 }
 
 function initAutocomplete() {
-  const input = document.getElementById('fAddress');
+  var input = document.getElementById('fAddress');
 
-  const autocomplete = new google.maps.places.Autocomplete(input, {
+  var autocomplete = new google.maps.places.Autocomplete(input, {
     componentRestrictions: { country: "au" },
     fields: ["formatted_address", "address_components", "geometry"],
     types: ["address"]
   });
 
   autocomplete.addListener("place_changed", function () {
-    const place = autocomplete.getPlace();
+    var place = autocomplete.getPlace();
     selectedQLDAddress = false;
 
     if (!place.geometry) {
-      showToast("Please select a valid address.");
+      showToast("Please select a valid address from the dropdown.");
       input.value = "";
       return;
     }
 
-    let state = "";
+    var state = "";
 
-    place.address_components.forEach(c => {
-      if (c.types.includes("administrative_area_level_1")) {
-        state = c.short_name;
+    place.address_components.forEach(function(component) {
+      if (component.types.includes("administrative_area_level_1")) {
+        state = component.short_name;
       }
     });
 
     if (state !== "QLD") {
-      showToast("We service Queensland only.");
+      showToast("We currently service Queensland properties only.");
       input.value = "";
       return;
     }
@@ -225,7 +199,7 @@ async function loadGoogleMaps() {
   script.src = "https://maps.googleapis.com/maps/api/js?key=" + data.key + "&libraries=places";
   script.async = true;
 
-  script.onload = function () {
+  script.onload = function() {
     initAutocomplete();
   };
 
@@ -252,9 +226,9 @@ async function submitAccept() {
   const phone = document.getElementById('fPhone').value.trim();
   const address = document.getElementById('fAddress').value.trim();
 
-  if (!phone) return showToast("Enter phone number.");
+  if (!phone) return showToast("Please enter your phone number.");
   if (!address || !selectedQLDAddress)
-    return showToast("Select a valid QLD address from dropdown.");
+    return showToast("Please select a valid Queensland address from dropdown.");
 
   document.getElementById('formState').style.display = 'none';
   document.getElementById('thankYouState').style.display = 'block';
