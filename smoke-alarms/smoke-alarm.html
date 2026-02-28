@@ -285,6 +285,22 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-field input:focus, .modal-field textarea:focus { border-color: var(--gold); background: var(--surface); }
 .modal-field textarea { resize: vertical; min-height: 80px; }
 
+/* ── ADDRESS FIELD STATES ── */
+.address-field-wrap { position: relative; }
+.address-field-wrap input { padding-right: 36px; }
+.address-status {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; pointer-events: none;
+}
+.address-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 4px 9px; border-radius: 20px; margin-top: 5px;
+}
+.address-badge.valid { background: #eaf7f2; color: #18a96e; border: 1px solid #b0e8d2; }
+.address-badge.invalid { background: rgba(224,79,79,0.08); color: var(--red); border: 1px solid rgba(224,79,79,0.25); }
+.address-badge.pending { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+
 .email-preview-box {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
   padding: 12px 14px; margin-bottom: 14px; font-size: 11px; color: var(--muted);
@@ -313,6 +329,26 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 #copy-preview { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
+
+/* Google Maps autocomplete dropdown styling */
+.pac-container {
+  font-family: 'Sora', sans-serif !important;
+  border-radius: 10px !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+  margin-top: 4px !important;
+  overflow: hidden !important;
+}
+.pac-item {
+  font-size: 12px !important;
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  border-top: 1px solid var(--border) !important;
+}
+.pac-item:first-child { border-top: none !important; }
+.pac-item:hover { background: var(--gold-bg) !important; }
+.pac-item-query { font-size: 12px !important; color: var(--text) !important; }
+.pac-matched { color: var(--gold) !important; font-weight: 700 !important; }
 
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; }
@@ -535,7 +571,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </div>
     <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
       <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--gold);text-decoration:none;">+61 451 898 761</a></div>
-      <div>Email: <a href="/cdn-cgi/l/email-protection#b9d0d7dfd6f9ded6d5ddcacccbdc97dad6d497d8cc" style="color:var(--gold);text-decoration:none;"><span class="__cf_email__" data-cfemail="6c05020a032c0b0300081f191e09420f0301420d19">[email&#160;protected]</span></a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
+      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
   </div>
 </footer>
@@ -578,18 +614,37 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     <button class="modal-close" onclick="closeEmailModal()">&times;</button>
     <h2>Email Quote to Customer</h2>
     <p>Confirm details and send a branded quote email directly to the customer.</p>
+
     <div class="modal-field">
       <label>Customer Name</label>
       <input type="text" id="emailCustomerName" placeholder="Full name">
     </div>
+
     <div class="modal-field">
       <label>Customer Email Address</label>
       <input type="email" id="emailCustomerEmail" placeholder="customer@example.com">
     </div>
+
+    <div class="modal-field">
+      <label>Customer Address <span style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">(Queensland only)</span></label>
+      <div class="address-field-wrap">
+        <input
+          type="text"
+          id="emailCustomerAddress"
+          placeholder="Start typing a Queensland address…"
+          autocomplete="off"
+          oninput="onAddressInput()"
+        >
+        <span class="address-status" id="addressStatus"></span>
+      </div>
+      <div id="addressBadge"></div>
+    </div>
+
     <div class="modal-field">
       <label>Quote Summary</label>
       <div class="email-preview-box" id="emailPreviewBox"></div>
     </div>
+
     <div class="modal-actions">
       <button onclick="closeEmailModal()">Cancel</button>
       <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()">Send Email</button>
@@ -612,13 +667,15 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
 let agentName    = '';
 let customerName = '';
 let serviceMode  = 'install';
+let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
+let mapsLoaded = false;
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
 // ════════════════════════════════════════════════════════════
@@ -635,12 +692,85 @@ function doLogin() {
   document.getElementById('app').style.display = 'block';
   setMode('social');
   calculate();
+  loadGoogleMaps(); // ← load Maps after login
 }
 function doLogout() {
   agentName = customerName = '';
   document.getElementById('login-agent').value='';
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
+}
+
+// ════════════════════════════════════════════════════════════
+// GOOGLE MAPS — load via existing API route
+// ════════════════════════════════════════════════════════════
+function loadGoogleMaps() {
+  if (mapsLoaded) return;
+  fetch('/api/smoke-alarms/google-key')
+    .then(r => r.json())
+    .then(data => {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAddressAutocomplete`;
+      script.async = true;
+      document.head.appendChild(script);
+      mapsLoaded = true;
+    })
+    .catch(err => console.warn('Could not load Google Maps:', err));
+}
+
+// ── Called automatically by the Maps callback param ──
+function initAddressAutocomplete() {
+  const input = document.getElementById('emailCustomerAddress');
+  if (!input || !window.google) return;
+
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'au' },  // AU only at API level
+    fields: ['formatted_address', 'address_components'],
+    types: ['address']
+  });
+
+  ac.addListener('place_changed', function () {
+    const place = ac.getPlace();
+    selectedQLDAddress = false;
+
+    if (!place || !place.address_components) {
+      setAddressState('invalid', 'No address details found.');
+      input.value = '';
+      return;
+    }
+
+    let state = '';
+    place.address_components.forEach(c => {
+      if (c.types.includes('administrative_area_level_1')) state = c.short_name;
+    });
+
+    if (state !== 'QLD') {
+      setAddressState('invalid', `❌ ${state || 'Unknown'} addresses not serviced — Queensland only`);
+      input.value = '';
+      return;
+    }
+
+    selectedQLDAddress = true;
+    input.value = place.formatted_address;
+    setAddressState('valid', '✓ Queensland address confirmed');
+  });
+}
+
+function onAddressInput() {
+  // If agent clears the field manually, reset the validation state
+  if (!document.getElementById('emailCustomerAddress').value.trim()) {
+    selectedQLDAddress = false;
+    setAddressState('pending', '');
+  }
+}
+
+function setAddressState(type, message) {
+  const badge = document.getElementById('addressBadge');
+  const icon  = document.getElementById('addressStatus');
+  if (!message) { badge.innerHTML = ''; icon.innerText = ''; return; }
+  const icons = { valid: '✅', invalid: '🚫', pending: '🔍' };
+  icon.innerText = '';
+  badge.innerHTML = `<span class="address-badge ${type}">${message}</span>`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -782,22 +912,27 @@ function copyPreviewToClipboard() {
 // EMAIL MODAL
 // ════════════════════════════════════════════════════════════
 function openEmailModal() {
+  // Reset address state every time modal opens
+  selectedQLDAddress = false;
   document.getElementById('emailCustomerName').value  = customerName || '';
   document.getElementById('emailCustomerEmail').value = '';
-  const alarmQty  = document.getElementById('res_alarmQty').innerText;
-  const alarmT    = document.getElementById('res_alarmTotal').innerText;
-  const ctrlQty   = document.getElementById('res_ctrlQty').innerText;
-  const ctrlT     = document.getElementById('res_ctrlTotal').innerText;
+  document.getElementById('emailCustomerAddress').value = '';
+  setAddressState('pending', '');
+
+  const alarmQty   = document.getElementById('res_alarmQty').innerText;
+  const alarmT     = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty    = document.getElementById('res_ctrlQty').innerText;
+  const ctrlT      = document.getElementById('res_ctrlTotal').innerText;
   const grandTotal = document.getElementById('res-total').innerText;
-  const hasCtrl   = parseInt(ctrlQty) > 0;
+  const hasCtrl    = parseInt(ctrlQty) > 0;
+
   let previewHTML = '';
   if (serviceMode === 'install') {
     previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
-    previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${hasCtrl ? ctrlT : '$0.00'}</span></div>`;
+    if (hasCtrl) previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${ctrlT}</span></div>`;
     previewHTML += `<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>`;
   } else {
     previewHTML += `<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>`;
-    previewHTML += `<div class="email-preview-row"><span>Controllers (0 × $49.00)</span><span>$0.00</span></div>`;
   }
   previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${grandTotal}</span></div>`;
   document.getElementById('emailPreviewBox').innerHTML = previewHTML;
@@ -806,13 +941,22 @@ function openEmailModal() {
 function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
 
 // ════════════════════════════════════════════════════════════
-// SEND EMAIL — posts to /api/send (Resend serverless function)
+// SEND EMAIL
 // ════════════════════════════════════════════════════════════
 async function sendQuoteEmail() {
-  const custName  = document.getElementById('emailCustomerName').value.trim();
-  const custEmail = document.getElementById('emailCustomerEmail').value.trim();
+  const custName    = document.getElementById('emailCustomerName').value.trim();
+  const custEmail   = document.getElementById('emailCustomerEmail').value.trim();
+  const custAddress = document.getElementById('emailCustomerAddress').value.trim();
+
   if (!custName)  { showToast('Please enter the customer name.'); return; }
   if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
+
+  // ── Address validation: must be QLD or left blank ──
+  if (custAddress && !selectedQLDAddress) {
+    showToast('Please select a valid Queensland address from the dropdown.');
+    document.getElementById('emailCustomerAddress').focus();
+    return;
+  }
 
   const alarmQty   = document.getElementById('res_alarmQty').innerText;
   const alarmTotal = document.getElementById('res_alarmTotal').innerText;
@@ -842,18 +986,19 @@ async function sendQuoteEmail() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        customer_name: custName,
-        to_email:      custEmail,
-        agent_name:    agent,
-        service_type:  serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
-        alarm_qty:     alarmQty,
-        alarm_total:   alarmTotal,
-        ctrl_qty:      ctrlQty,
-        ctrl_total:    ctrlTotal,
-        fee_label:     feeLabel,
-        fee_amount:    feeAmount,
-        grand_total:   grandTotal,
-        payment_note:  paymentNote,
+        customer_name:    custName,
+        to_email:         custEmail,
+        customer_address: custAddress || null,
+        agent_name:       agent,
+        service_type:     serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
+        alarm_qty:        alarmQty,
+        alarm_total:      alarmTotal,
+        ctrl_qty:         ctrlQty,
+        ctrl_total:       ctrlTotal,
+        fee_label:        feeLabel,
+        fee_amount:       feeAmount,
+        grand_total:      grandTotal,
+        payment_note:     paymentNote,
       }),
     });
 
@@ -894,7 +1039,7 @@ function openPdfModal() {
 function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
 
 // ════════════════════════════════════════════════════════════
-// PDF GENERATION — jsPDF programmatic (no HTML screenshot)
+// PDF GENERATION
 // ════════════════════════════════════════════════════════════
 function generatePDF() {
   const name    = document.getElementById('pdfCustomerName').value.trim();
@@ -1168,7 +1313,6 @@ function generatePDF() {
       doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
       doc.textWithLink('View the Raptor Smoke Alarm Datasheet →', ML, py, { url:'https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6' });
 
-      // Footers
       [1,2].forEach(pageNum => {
         doc.setPage(pageNum);
         doc.setFillColor(...DARK); doc.rect(0, PH-18, PW, 18, 'F');
@@ -1185,7 +1329,7 @@ function generatePDF() {
     }
 
     loadProductImages();
-  } // end finishPDF
+  }
 
   loadLogoAndGenerate();
 }
@@ -1197,8 +1341,6 @@ function toggleDocs(btn) {
   document.getElementById('docs-list').classList.toggle('open');
   btn.querySelector('.arrow').textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
 }
-
-
 </script>
 
 </body>
