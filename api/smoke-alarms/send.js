@@ -1,347 +1,296 @@
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+// api/MetaAdPerformace/send-report.js
+// Sends a daily KPI summary email via Resend.
+// Triggered by Vercel Cron at 45 7 * * * UTC = 5:45 PM AEST (UTC+10).
+//
+// Required Vercel Environment Variables:
+//   RESEND_API_KEY     = re_xxxx...
+//   GHL_API_KEY        = pit-xxxx...
+//   META_TOKEN         = EAAia7...
+//   REPORT_RECIPIENTS  = email1@example.com,email2@example.com
+//   CRON_SECRET        = any random string (to secure the endpoint)
 
-  const {
-    customer_name,
-    to_email,
-    agent_name,
-    service_type,
-    alarm_qty,
-    alarm_total,
-    ctrl_qty,
-    ctrl_total,
-    fee_label,
-    fee_amount,
-    grand_total,
-    payment_note,
-  } = req.body;
+const GHL_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
+const SMOKE_ACCOUNT   = 'act_1420815159464502';
+const HWS_ACCOUNT     = 'act_716067364534837';
 
-  if (!customer_name || !to_email || !to_email.includes('@')) {
-    return res.status(400).json({ error: 'Missing or invalid required fields.' });
-  }
+// ── Stage name constants (must match GHL exactly) ─────────────
+const STAGE_WON = ['Won/Installed', 'Installed', 'IHA Booked', 'Qualified/IHA Complete'];
+const STAGE_LOST = ['Not Interested/Spam', 'Not Reachable', 'Out of Area', 'Quote Not Accepted (Lost)'];
 
-  // ── Build the Accept Quote URL ──
-  // All quote data is encoded into the link so the modal knows what was accepted
-  const baseUrl = process.env.SITE_URL || 'https://www.goldsure.com.au';
-  const params = new URLSearchParams({
-    accept:      'true',
-    name:        customer_name   || '',
-    email:       to_email        || '',
-    agent:       agent_name      || '',
-    service:     service_type    || '',
-    alarm_qty:   alarm_qty       || '0',
-    alarm_total: alarm_total     || '$0.00',
-    ctrl_qty:    String(ctrl_qty || '0'),
-    ctrl_total:  ctrl_total      || '$0.00',
-    fee_label:   fee_label       || '',
-    fee_amount:  fee_amount      || '',
-    grand_total: grand_total     || '',
-    sent_at:    Date.now().toString(),
+// ── Helpers ───────────────────────────────────────────────────
+
+async function ghlFetch(path, ghlKey) {
+  const resp = await fetch(`https://services.leadconnectorhq.com${path}`, {
+    headers: {
+      'Authorization': `Bearer ${ghlKey}`,
+      'Version': '2021-07-28',
+      'Accept': 'application/json',
+    },
   });
-  const acceptUrl = `${baseUrl}/accept-quote.html?${params.toString()}`;
+  return resp.json();
+}
 
-  const html = `<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Goldsure Quote</title>
-</head>
-<body style="margin:0;padding:0;background-color:#ebebeb;">
+async function fetchPipelines(ghlKey) {
+  try {
+    const json = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`, ghlKey);
+    return json.pipelines || [];
+  } catch (e) {
+    console.warn('Could not fetch pipelines:', e.message);
+    return [];
+  }
+}
 
-<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ebebeb">
-  <tr>
-    <td align="center" style="padding:20px 16px;">
+async function fetchAllOpportunities(ghlKey) {
+  let all = [], startAfter = null, startAfterId = null, page = 0;
+  while (true) {
+    page++;
+    let path = `/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=100`;
+    if (startAfter) path += `&startAfter=${startAfter}&startAfterId=${startAfterId}`;
+    const json = await ghlFetch(path, ghlKey);
+    const opps = json.opportunities || [];
+    all = all.concat(opps);
+    if (opps.length < 100 || !json.meta?.nextPageUrl) break;
+    startAfter = json.meta?.startAfter;
+    startAfterId = json.meta?.startAfterId;
+    if (!startAfter || page > 50) break;
+  }
+  return all;
+}
 
-      <table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;overflow:hidden;">
+async function fetchMetaSpend(account, token, since, until) {
+  const url = `https://graph.facebook.com/v19.0/${account}/insights?fields=spend&time_range={"since":"${since}","until":"${until}"}&time_increment=1&access_token=${token}`;
+  const resp = await fetch(url);
+  const json = await resp.json();
+  if (json.error) {
+    console.warn(`Meta API error for ${account}:`, json.error.message);
+    return 0;
+  }
+  return (json.data || []).reduce((sum, d) => sum + parseFloat(d.spend || 0), 0);
+}
 
-        <!-- HEADER LOGO -->
-        <tr>
-          <td bgcolor="#000000" align="center" style="padding:20px 32px 5px;">
-            <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
-                 alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;" />
-          </td>
-        </tr>
+// ── Stage resolution ──────────────────────────────────────────
+// Builds a map of stageId → stageName from pipeline data
+// so we get the real stage name even if the opportunity only has an ID
+function buildStageNameMap(pipelines) {
+  const map = {};
+  pipelines.forEach(p => {
+    (p.stages || []).forEach(s => {
+      if (s.id && s.name) map[s.id] = s.name;
+    });
+  });
+  return map;
+}
 
-        <!-- SMOKE ALARM QUOTE label -->
-        <tr>
-          <td bgcolor="#000000" align="center" style="padding:0 32px 16px;">
-            <p style="margin:0;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Smoke Alarm Quote</p>
-          </td>
-        </tr>
+function resolveStage(opp, stageNameMap) {
+  // Try stage name from pipelineStage object first
+  const nameFromObj = opp.pipelineStage?.name;
+  if (nameFromObj) return nameFromObj.trim();
 
-        <!-- GOLD STRIPE -->
-        <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+  // Fall back to resolving via stage ID
+  const stageId = opp.pipelineStageId || opp.pipelineStage?.id;
+  if (stageId && stageNameMap[stageId]) return stageNameMap[stageId].trim();
 
-        <!-- BODY -->
-        <tr>
-          <td style="padding:24px 30px;background:#ffffff;">
+  // Last resort: use status field
+  return (opp.status || 'Unknown').trim();
+}
 
-            <!-- Greeting -->
-            <p style="margin:0 0 8px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:22px;font-weight:bold;color:#000000;">Hi ${customer_name},</p>
-            <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.6;">
-              Thank you for choosing Goldsure. As discussed, please find your personalised smoke alarm quote below.
-              Our licensed electrician will confirm the exact alarm placement on the day of installation to ensure
-              full compliance with Queensland legislation.
-            </p>
+// ── KPI calculation ───────────────────────────────────────────
+function calcKPIs(opps, label) {
+  const total = opps.length;
 
-            <!-- QUOTE TABLE -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #e0e0e0;">
+  const inst = opps.filter(o => STAGE_WON.includes(o.stage)).length;
 
-              <!-- Table header -->
-              <tr bgcolor="#000000">
-                <td style="padding:8px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Description</td>
-                <td style="padding:8px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:center;">Qty</td>
-                <td style="padding:8px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Unit</td>
-                <td style="padding:8px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Total</td>
-              </tr>
+  const ni = opps.filter(o => STAGE_LOST.includes(o.stage)).length;
 
-              <!-- Alarms row -->
-              <tr bgcolor="#ffffff">
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;">
-                  <span style="font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;">Raptor Smoke Alarms</span><br>
-                  <span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; 10-Yr Warranty</span>
-                </td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarm_qty}</td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$98.00</td>
-                <td style="padding:10px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarm_total}</td>
-              </tr>
+  const inProgress = total - inst - ni;
 
-              <!-- Controller row -->
-              <tr bgcolor="#f9f9f9">
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;">
-                  <span style="font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;">Smoke Alarm Controller</span><br>
-                  <span style="font-size:11px;color:#888888;">Remote control &amp; status display</span>
-                </td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${ctrl_qty}</td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$49.00</td>
-                <td style="padding:10px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ctrl_total}</td>
-              </tr>
+  const rate = total ? ((inst / total) * 100).toFixed(1) : '0.0';
 
-              <!-- Fee row -->
-              <tr bgcolor="#ffffff">
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;">
-                  <span style="font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;">${fee_label}</span><br>
-                  <span style="font-size:11px;color:#888888;">${fee_amount} payable upfront to secure your booking</span>
-                </td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">1</td>
-                <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
-                <td style="padding:10px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
-              </tr>
+  return { label, total, inst, ni, inProgress, rate };
+}
 
-              <!-- Grand Total -->
-              <tr bgcolor="#000000">
-                <td colspan="3" style="padding:12px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:10px;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Grand Total (Incl. GST)</td>
-                <td style="padding:12px 12px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${grand_total}</td>
-              </tr>
+// ── Email template ────────────────────────────────────────────
+function buildEmail(smoke, hws, smokeSpend, hwsSpend, dateStr) {
+  const row = (label, value, color = '#141c2e') =>
+    `<tr>
+      <td style="padding:9px 0;font-size:13px;color:#6b7899;border-bottom:1px solid #f0f2f5;">${label}</td>
+      <td style="padding:9px 0;font-size:13px;font-weight:700;color:${color};text-align:right;border-bottom:1px solid #f0f2f5;font-family:monospace;">${value}</td>
+    </tr>`;
 
-            </table>
-
-            <!-- Payment note -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;">
-              <tr>
-                <td style="padding:10px 14px;">
-                  <p style="margin:0 0 3px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Payment Structure</p>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;">${payment_note}</p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- ═══════════════════════════════════════════════
-                 ACCEPT QUOTE BUTTON
-                 ═══════════════════════════════════════════════ -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-              <tr>
-                <td align="center" style="padding:24px 0 8px;">
-                  <p style="margin:0 0 6px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 14 days</p>
-                  <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;line-height:1.5;">Ready to proceed? Click below and we'll be in touch to confirm your booking.</p>
-                  <a href="${acceptUrl}"
-                     style="display:inline-block;background:#b08d2e;color:#000000;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">
-                    Accept This Quote
-                  </a>
-                </td>
-              </tr>
-            </table>
-
-            <!-- LEGISLATION -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
-              <tr>
-                <td bgcolor="#000000" style="padding:8px 14px;">
-                  <p style="margin:0;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b08d2e;">Queensland Legislation &mdash; Effective 01/01/2027</p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:10px 12px;border:1px solid #e0e0e0;border-top:none;">
-                  <table width="100%" border="0" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td width="50%" valign="top" style="padding:3px 8px 3px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; Photoelectric &amp; Interconnected</td>
-                      <td width="50%" valign="top" style="padding:3px 0 3px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; In each bedroom &amp; connecting hallway</td>
-                    </tr>
-                    <tr>
-                      <td width="50%" valign="top" style="padding:3px 8px 3px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; Installed on each level</td>
-                      <td width="50%" valign="top" style="padding:3px 0 3px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; 10-year sealed lithium backup battery</td>
-                    </tr>
-                    <tr>
-                      <td width="50%" valign="top" style="padding:3px 8px 3px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; Compliant AS 3786-2014 / AS 3786-2023</td>
-                      <td width="50%" valign="top" style="padding:3px 0 3px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; Hard-wired replaced with hard-wired</td>
-                    </tr>
-                    <tr>
-                      <td width="50%" valign="top" style="padding:3px 8px 3px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; Less than 10 years old</td>
-                      <td width="50%" valign="top" style="padding:3px 0 3px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;">&#10003;&nbsp; 10-Year Warranty included</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- RAPTOR PRODUCT SHOWCASE -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border-top:2px solid #b08d2e;">
-              <tr>
-                <td style="padding-top:14px;">
-                  <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Raptor Alarms</p>
-                  <p style="margin:0 0 5px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:20px;color:#000000;line-height:1.2;">The Raptor Smoke Alarm</p>
-                  <p style="margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#666666;line-height:1.5;">Purpose-built for Australian Standards and approved for Queensland's fire safety regulatory requirements.</p>
-
-                  <!-- Product images -->
-                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
-                    <tr>
-                      <td width="48%" align="center">
-                        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png"
-                             alt="Raptor Front View" width="160"
-                             style="display:block;width:160px;height:auto;margin:0 auto;" />
-                        <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Front View</p>
-                      </td>
-                      <td width="4%"></td>
-                      <td width="48%" align="center">
-                        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png"
-                             alt="Raptor Installed View" width="160"
-                             style="display:block;width:160px;height:auto;margin:0 auto;" />
-                        <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Installed View</p>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Features grid -->
-                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e0e0e0;">
-                    <tr>
-                      <td colspan="2" bgcolor="#000000" style="padding:8px 12px;">
-                        <p style="margin:0;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Key Features</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-right:1px solid #eeeeee;border-bottom:1px solid #eeeeee;">
-                        <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:12px;color:#b08d2e;">&#10003; Photoelectric Sensing</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Reduces nuisance alarms from cooking while ensuring reliable early detection.</p>
-                      </td>
-                      <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-bottom:1px solid #eeeeee;">
-                        <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:12px;color:#b08d2e;">&#10003; RF Wireless Interconnect</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">When one alarm sounds, all connected alarms sound. Up to 40 units per network.</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;border-right:1px solid #eeeeee;">
-                        <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:12px;color:#b08d2e;">&#10003; Alarm Memory</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Visual indication of prior activations and end-of-life warning for easy management.</p>
-                      </td>
-                      <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;">
-                        <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:12px;color:#b08d2e;">&#10003; 10-Year Warranty</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Backed by a full 10-year manufacturer warranty for complete peace of mind.</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colspan="2" bgcolor="#000000" align="center" style="padding:8px 12px;">
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">Certified to <strong style="color:#b08d2e;">AS3786 2023</strong> &nbsp;|&nbsp; Approved for All Australian States</p>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Datasheet link -->
-                  <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:center;">
-                    <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6"
-                       style="color:#b08d2e;text-decoration:none;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;">View the Raptor Smoke Alarm Datasheet &rarr;</a>
-                  </p>
-
-                </td>
-              </tr>
-            </table>
-
-            <!-- DISCLAIMER -->
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">
-              * This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.
-            </p>
-
-            <!-- SIGNATURE -->
-            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;padding-top:14px;border-top:1px solid #e0e0e0;">
-              <tr>
-                <td width="100" valign="middle" style="padding-right:14px;">
-                  <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/6941477dca729831ab339932.jpg"
-                       alt="Goldsure Team" width="90"
-                       style="display:block;width:90px;height:auto;" />
-                </td>
-                <td valign="middle" style="padding-left:14px;border-left:2px solid #b08d2e;">
-                  <p style="margin:0 0 2px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:16px;color:#000000;">${agent_name}</p>
-                  <p style="margin:0 0 5px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:11px;color:#b08d2e;letter-spacing:1px;text-transform:uppercase;">Goldsure Pty Ltd</p>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;line-height:1.6;">
-                    p: 07 2145 5155<br>
-                    e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">info@goldsure.com.au</a><br>
-                    w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">www.goldsure.com.au</a>
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-          </td>
-        </tr>
-
-        <!-- FOOTER -->
-        <tr>
-          <td bgcolor="#000000" align="center" style="padding:15px 20px;">
-            <p style="margin:0 0 3px;font-family:'Arial Black', 'Arial Bold', Gadget, sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
-            <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#888888;line-height:1.5;">
-              ABN: 66 683 305 106<br>
-              Queensland, Australia
-            </p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#555555;line-height:1.4;">
-              CONFIDENTIAL: This email and any attachments are intended solely for the named recipient. Unauthorised use is prohibited.
-            </p>
-          </td>
-        </tr>
-
+  const section = (kpi, spend) => `
+    <div style="margin-bottom:32px;">
+      <div style="font-size:15px;font-weight:700;color:#141c2e;border-bottom:2px solid #b08d2e;padding-bottom:8px;margin-bottom:14px;">${kpi.label}</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${row('Total Leads', kpi.total, '#2d6be4')}
+        ${row('Installed / Won', kpi.inst, '#18a96e')}
+        ${row('Not Interested / Lost', kpi.ni, '#e04f4f')}
+        ${row('In Progress', kpi.inProgress, '#d98c1e')}
+        ${row('Close Rate', kpi.rate + '%', kpi.rate >= 20 ? '#18a96e' : kpi.rate >= 10 ? '#d98c1e' : '#e04f4f')}
+        ${row('Ad Spend (MTD)', '$' + spend.toFixed(2))}
       </table>
-    </td>
-  </tr>
-</table>
+    </div>`;
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f6f8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:580px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+    <!-- Header -->
+    <div style="background:#000000;padding:0 0 0 0;border-top:3px solid #b08d2e;">
+      <div style="padding:22px 32px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
+               alt="Goldsure" style="height:36px;width:auto;display:block;margin-bottom:10px;">
+          <div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Daily Report</div>
+          <div style="font-size:12px;color:#6b7899;margin-top:3px;">${dateStr}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#18a96e;box-shadow:0 0 0 3px rgba(24,169,110,0.3);margin-left:auto;margin-bottom:8px;"></div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;">Auto Report</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:28px 32px;">
+      ${section(smoke, smokeSpend)}
+      ${section(hws, hwsSpend)}
+
+      <!-- Summary row -->
+      <div style="background:#f5f6f8;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="font-size:12px;color:#6b7899;">Total MTD Ad Spend</div>
+        <div style="font-size:16px;font-weight:700;font-family:monospace;color:#141c2e;">$${(smokeSpend + hwsSpend).toFixed(2)}</div>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center;margin-top:8px;">
+        <a href="https://portal.goldsure.com.au/Ads%20reporting/Meta%20Ad%20Performance.html"
+           style="display:inline-block;padding:13px 32px;background:#b08d2e;color:#000;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
+          Open Dashboard →
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#f5f6f8;padding:16px 32px;text-align:center;font-size:11px;color:#6b7899;border-top:1px solid #e3e7ef;">
+      Goldsure Pty Ltd · ABN: 66 683 305 106 · Suite 4, Level 1, 293 High Street, Preston VIC 3072
+    </div>
+  </div>
 </body>
 </html>`;
+}
+
+// ── Handler ───────────────────────────────────────────────────
+export default async function handler(req, res) {
+  // Secure the endpoint — Vercel automatically sends CRON_SECRET as Bearer token
+  const secret = process.env.CRON_SECRET || '';
+  const authHeader = req.headers['authorization'] || '';
+  if (secret && authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const ghlKey     = process.env.GHL_API_KEY       || '';
+  const metaToken  = process.env.META_TOKEN         || '';
+  const resendKey  = process.env.RESEND_API_KEY     || '';
+  const recipients = (process.env.REPORT_RECIPIENTS || '')
+    .split(',').map(e => e.trim()).filter(Boolean);
+
+  if (!resendKey)         return res.status(500).json({ error: 'RESEND_API_KEY not set' });
+  if (!recipients.length) return res.status(500).json({ error: 'REPORT_RECIPIENTS not set' });
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    // ── 1. Fetch pipelines so we can resolve stage IDs → stage names ──
+    const pipelines = ghlKey ? await fetchPipelines(ghlKey) : [];
+    const stageNameMap = buildStageNameMap(pipelines);
+
+    let smokePipelineId = '';
+    let hwsPipelineId   = '';
+    pipelines.forEach(p => {
+      if (/smoke/i.test(p.name))              smokePipelineId = p.id;
+      if (/hws|hot.?water|water/i.test(p.name)) hwsPipelineId = p.id;
+    });
+
+    // ── 2. Fetch all opportunities ──
+    const rawOpps = ghlKey ? await fetchAllOpportunities(ghlKey) : [];
+
+    // Map each opp — resolve real stage name using stageNameMap
+    const mapped = rawOpps.map(o => ({
+      stage:      resolveStage(o, stageNameMap),
+      pipelineId: (o.pipelineId || o.pipeline?.id || '').trim(),
+    }));
+
+    // ── 3. Split into smoke vs HWS ──
+    let smokeOpps, hwsOpps;
+
+    if (smokePipelineId || hwsPipelineId) {
+      smokeOpps = smokePipelineId
+        ? mapped.filter(o => o.pipelineId === smokePipelineId)
+        : mapped.filter(o => o.pipelineId !== hwsPipelineId);
+      hwsOpps = hwsPipelineId
+        ? mapped.filter(o => o.pipelineId === hwsPipelineId)
+        : mapped.filter(o => o.pipelineId !== smokePipelineId);
+    } else {
+      // Fallback: use all opps for smoke, empty for HWS
+      smokeOpps = mapped;
+      hwsOpps   = [];
+    }
+
+    const smokeKPIs = calcKPIs(smokeOpps, '🔥 Smoke Alarms');
+    const hwsKPIs   = calcKPIs(hwsOpps,   '💧 Hot Water Systems');
+
+    // ── 4. Fetch Meta spend MTD ──
+    const today = new Date();
+    const since = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString().slice(0, 10);
+    const until = today.toISOString().slice(0, 10);
+
+    let smokeSpend = 0, hwsSpend = 0;
+    if (metaToken) {
+      [smokeSpend, hwsSpend] = await Promise.all([
+        fetchMetaSpend(SMOKE_ACCOUNT, metaToken, since, until),
+        fetchMetaSpend(HWS_ACCOUNT,   metaToken, since, until),
+      ]);
+    }
+
+    // ── 5. Build & send email ──
+    const dateStr = today.toLocaleDateString('en-AU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      timeZone: 'Australia/Brisbane',
+    });
+
+    const html = buildEmail(smokeKPIs, hwsKPIs, smokeSpend, hwsSpend, dateStr);
+
+    const emailResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Authorization': `Bearer ${resendKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-        to: [to_email],
-        bcc: ['vignesh@goldsure.com.au'],
-        subject: `Your Smoke Alarm Quote – Goldsure`,
+        from:    'Goldsure Reports <reports@goldsure.com.au>',
+        to:      recipients,
+        subject: `Goldsure Daily Report — ${dateStr}`,
         html,
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Resend error:', error);
-      return res.status(500).json({ error: 'Failed to send email.', detail: error });
+    const emailData = await emailResp.json();
+    if (!emailResp.ok) {
+      return res.status(500).json({ error: 'Resend failed', detail: emailData });
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({
+      ok: true,
+      sent_to:    recipients,
+      smoke:      smokeKPIs,
+      hws:        hwsKPIs,
+      smokeSpend,
+      hwsSpend,
+    });
 
   } catch (err) {
-    console.error('Server error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    console.error('send-report error:', err);
+    return res.status(500).json({ error: err.message });
   }
 }
