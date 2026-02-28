@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Accept Your Quote – Goldsure</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -30,14 +31,11 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
-/* EXPIRED */
 #expiredState { display: none; text-align: center; padding: 12px 0; }
 .expired-icon { font-size: 44px; margin-bottom: 16px; }
 .expired-title { font-size: 20px; font-weight: 700; color: #141c2e; margin-bottom: 8px; }
 .expired-msg { font-size: 13px; color: #6b7899; line-height: 1.8; }
-.expired-msg a { color: #b08d2e; text-decoration: none; font-weight: 600; }
 
-/* FORM */
 #formState { display: none; }
 .card-title { font-size: 22px; font-weight: 700; color: #141c2e; margin-bottom: 4px; }
 .card-sub { font-size: 13px; color: #6b7899; margin-bottom: 24px; line-height: 1.5; }
@@ -68,50 +66,29 @@ body {
 .field input {
   width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
   padding: 10px 14px; border-radius: 9px; border: 1.5px solid #e3e7ef;
-  background: #f5f6f8; color: #141c2e; outline: none; transition: border-color 0.15s;
+  background: #f5f6f8; color: #141c2e; outline: none;
 }
 .field input:focus { border-color: #b08d2e; background: #fff; }
-.field input[readonly] { background: #f0f2f5; color: #9aa5b8; cursor: default; }
-.req { color: #e04f4f; }
-
-.validity-note { font-size: 11px; color: #9aa5b8; line-height: 1.6; margin-bottom: 20px; }
 
 .submit-btn {
   width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
   padding: 14px; border-radius: 50px; border: none; cursor: pointer;
   background: #b08d2e; color: #000000; text-transform: uppercase; letter-spacing: 1.5px;
-  transition: background 0.15s;
 }
-.submit-btn:hover { background: #caa535; }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* THANK YOU */
 #thankYouState { display: none; text-align: center; padding: 12px 0; }
-.ty-checkmark {
-  width: 64px; height: 64px; background: #000; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
-}
-.ty-title { font-size: 22px; font-weight: 700; color: #141c2e; margin-bottom: 10px; }
-.ty-msg { font-size: 13px; color: #6b7899; line-height: 1.8; }
-.ty-msg strong { color: #b08d2e; }
 
-/* Toast */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   background: #141c2e; color: #fff; font-size: 12px; font-weight: 600;
   padding: 10px 22px; border-radius: 30px; border-left: 3px solid #b08d2e;
-  opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap;
+  opacity: 0; transition: opacity 0.25s; pointer-events: none;
 }
 .toast.show { opacity: 1; }
-
-.footer-note {
-  margin-top: 20px; text-align: center;
-  font-size: 11px; color: rgba(255,255,255,0.25); line-height: 1.6;
-}
-
-@media (max-width: 520px) { .card { padding: 28px 22px; } }
 </style>
 </head>
+
 <body>
 
 <div class="logo-wrap">
@@ -120,193 +97,134 @@ body {
 
 <div class="card">
 
-  <!-- EXPIRED -->
-  <div id="expiredState">
-    <div class="expired-icon">⏰</div>
-    <div class="expired-title">This Quote Has Expired</div>
-    <div class="expired-msg">
-      This quote was valid for 14 days and has now expired.<br><br>
-      Please contact us to receive an updated quote.<br><br>
-      <a href="tel:0721455155">(07) 2145 5155</a> &nbsp;·&nbsp;
-      <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a>
-    </div>
-  </div>
-
-  <!-- FORM -->
-  <div id="formState">
-    <div class="card-title">Accept Your Quote</div>
-    <div class="card-sub">Please confirm your details and we'll be in touch to lock in your booking.</div>
-
-    <div class="summary-box">
-      <div class="summary-label">Your Quote Summary</div>
-      <div class="summary-row">
-        <span>Raptor Smoke Alarms (<span id="qAlarmQty">0</span>)</span>
-        <span id="qAlarmTotal">$0.00</span>
-      </div>
-      <div class="summary-row" id="qCtrlRow" style="display:none;">
-        <span>Controllers (<span id="qCtrlQty">0</span>)</span>
-        <span id="qCtrlTotal">$0.00</span>
-      </div>
-      <div class="summary-row">
-        <span id="qFeeLabel"></span>
-        <span id="qFeeAmount"></span>
-      </div>
-      <div class="summary-row summary-total">
-        <span>Grand Total (Incl. GST)</span>
-        <span id="qGrandTotal"></span>
-      </div>
-    </div>
-
-    <div class="field">
-      <label>Your Name</label>
-      <input type="text" id="fName" readonly>
-    </div>
-    <div class="field">
-      <label>Your Email</label>
-      <input type="email" id="fEmail" readonly>
-    </div>
-    <div class="field">
-      <label>Your Phone Number <span class="req">*</span></label>
-      <input type="tel" id="fPhone" placeholder="e.g. 0412 345 678">
-    </div>
-    <div class="field">
-      <label>Property Address <span class="req">*</span></label>
-      <input type="text" id="fAddress" placeholder="Street, Suburb, State, Postcode">
-    </div>
-
-    <p class="validity-note">This quote is valid for <strong style="color:#141c2e;">14 days</strong> from the date it was sent. By confirming, our team will contact you to arrange your installation date.</p>
-
-    <button class="submit-btn" id="submitBtn" onclick="submitAccept()">Confirm &amp; Accept Quote</button>
-  </div>
-
-  <!-- THANK YOU -->
-  <div id="thankYouState">
-    <div class="ty-checkmark">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 16L13 23L26 9" stroke="#b08d2e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <div class="ty-title">Quote Accepted!</div>
-    <div class="ty-msg">
-      Thank you! Our team has been notified and will be in touch shortly to confirm your installation date.<br><br>
-      Questions? Call us on <strong>(07) 2145 5155</strong>
-    </div>
-  </div>
-
+<div id="expiredState">
+  <div class="expired-icon">⏰</div>
+  <div class="expired-title">This Quote Has Expired</div>
 </div>
 
-<div class="footer-note">
-  Goldsure Pty Ltd &nbsp;·&nbsp; ABN: 66 683 305 106 &nbsp;·&nbsp; Queensland, Australia
+<div id="formState">
+  <div class="card-title">Accept Your Quote</div>
+  <div class="card-sub">Please confirm your details and we'll be in touch to lock in your booking.</div>
+
+  <div class="field">
+    <label>Your Name</label>
+    <input type="text" id="fName" readonly>
+  </div>
+
+  <div class="field">
+    <label>Your Email</label>
+    <input type="email" id="fEmail" readonly>
+  </div>
+
+  <div class="field">
+    <label>Your Phone Number *</label>
+    <input type="tel" id="fPhone" placeholder="e.g. 0412 345 678">
+  </div>
+
+  <div class="field">
+    <label>Property Address *</label>
+    <input type="text" id="fAddress" placeholder="Start typing your address..." autocomplete="off">
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitAccept()">Confirm & Accept Quote</button>
+</div>
+
+<div id="thankYouState">
+  <h2>Quote Accepted!</h2>
+</div>
+
 </div>
 
 <div class="toast" id="toast"></div>
 
-<!-- SCRIPT AT BOTTOM — runs after all DOM elements exist -->
+<!-- GOOGLE API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC_naSoCXktG1v18VS08tH4mIb0OtGLl34&libraries=places"></script>
+
 <script>
-  var _params = {};
+var _params = {};
+var selectedQLDAddress = false;
 
-  function showToast(msg) {
-    var t = document.getElementById('toast');
-    t.innerText = msg;
-    t.classList.add('show');
-    setTimeout(function() { t.classList.remove('show'); }, 2800);
-  }
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2800);
+}
 
-  function init() {
-    var p = new URLSearchParams(window.location.search);
+function initAutocomplete() {
+  var input = document.getElementById('fAddress');
 
-    if (p.get('accept') !== 'true') {
-      document.getElementById('expiredState').style.display = 'block';
+  var autocomplete = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: "au" },
+    fields: ["formatted_address", "address_components", "geometry"],
+    types: ["address"]
+  });
+
+  autocomplete.addListener("place_changed", function () {
+    var place = autocomplete.getPlace();
+    selectedQLDAddress = false;
+
+    if (!place.geometry) {
+      showToast("Please select a valid address from the list.");
+      input.value = "";
       return;
     }
 
-    // Check 14-day expiry only if sent_at exists
-    var sentAt = p.get('sent_at');
-    if (sentAt) {
-      var sent = new Date(parseInt(sentAt));
-      var now = new Date();
-      var daysDiff = (now - sent) / (1000 * 60 * 60 * 24);
-      if (daysDiff > 14) {
-        document.getElementById('expiredState').style.display = 'block';
-        return;
+    var state = "";
+
+    place.address_components.forEach(function(component) {
+      if (component.types.includes("administrative_area_level_1")) {
+        state = component.short_name;
       }
-    }
-
-    // Populate summary
-    document.getElementById('fName').value            = p.get('name')        || '';
-    document.getElementById('fEmail').value           = p.get('email')       || '';
-    document.getElementById('qAlarmQty').innerText    = p.get('alarm_qty')   || '0';
-    document.getElementById('qAlarmTotal').innerText  = p.get('alarm_total') || '$0.00';
-    document.getElementById('qCtrlQty').innerText     = p.get('ctrl_qty')    || '0';
-    document.getElementById('qCtrlTotal').innerText   = p.get('ctrl_total')  || '$0.00';
-    document.getElementById('qFeeLabel').innerText    = p.get('fee_label')   || '';
-    document.getElementById('qFeeAmount').innerText   = p.get('fee_amount')  || '';
-    document.getElementById('qGrandTotal').innerText  = p.get('grand_total') || '';
-
-    if (parseInt(p.get('ctrl_qty') || '0') > 0) {
-      document.getElementById('qCtrlRow').style.display = 'flex';
-    }
-
-    _params = {
-      customer_name:  p.get('name')        || '',
-      customer_email: p.get('email')       || '',
-      agent_name:     p.get('agent')       || '',
-      service_type:   p.get('service')     || '',
-      alarm_qty:      p.get('alarm_qty')   || '0',
-      alarm_total:    p.get('alarm_total') || '$0.00',
-      ctrl_qty:       p.get('ctrl_qty')    || '0',
-      ctrl_total:     p.get('ctrl_total')  || '$0.00',
-      fee_label:      p.get('fee_label')   || '',
-      fee_amount:     p.get('fee_amount')  || '',
-      grand_total:    p.get('grand_total') || ''
-    };
-
-    document.getElementById('formState').style.display = 'block';
-  }
-
-  async function submitAccept() {
-    var phone   = document.getElementById('fPhone').value.trim();
-    var address = document.getElementById('fAddress').value.trim();
-    if (!phone)   { showToast('Please enter your phone number.'); return; }
-    if (!address) { showToast('Please enter your property address.'); return; }
-
-    var btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.innerText = 'Confirming…';
-
-    var now = new Date().toLocaleString('en-AU', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: true,
-      timeZone: 'Australia/Brisbane'
     });
 
-    try {
-      var res = await fetch('/api/smoke-alarms/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({}, _params, {
-          customer_phone:   phone,
-          customer_address: address,
-          accepted_at:      now
-        }))
-      });
-
-      if (!res.ok) throw new Error('Server error');
-
-      document.getElementById('formState').style.display     = 'none';
-      document.getElementById('thankYouState').style.display = 'block';
-      window.history.replaceState({}, '', window.location.pathname);
-
-    } catch(err) {
-      console.error(err);
-      showToast('Something went wrong. Please call us on 07 2145 5155.');
-      btn.disabled = false;
-      btn.innerText = 'Confirm & Accept Quote';
+    if (state !== "QLD") {
+      showToast("We currently service Queensland properties only.");
+      input.value = "";
+      return;
     }
+
+    selectedQLDAddress = true;
+    input.value = place.formatted_address;
+  });
+}
+
+function init() {
+  var p = new URLSearchParams(window.location.search);
+
+  if (p.get('accept') !== 'true') {
+    document.getElementById('expiredState').style.display = 'block';
+    return;
   }
 
-  // Run immediately — script is at bottom so DOM is ready
-  init();
+  document.getElementById('fName').value  = p.get('name')  || '';
+  document.getElementById('fEmail').value = p.get('email') || '';
+
+  document.getElementById('formState').style.display = 'block';
+
+  initAutocomplete();
+}
+
+async function submitAccept() {
+  var phone   = document.getElementById('fPhone').value.trim();
+  var address = document.getElementById('fAddress').value.trim();
+
+  if (!phone) {
+    showToast('Please enter your phone number.');
+    return;
+  }
+
+  if (!address || !selectedQLDAddress) {
+    showToast('Please select a valid Queensland address from the dropdown.');
+    return;
+  }
+
+  document.getElementById('formState').style.display     = 'none';
+  document.getElementById('thankYouState').style.display = 'block';
+}
+
+init();
 </script>
+
 </body>
 </html>
