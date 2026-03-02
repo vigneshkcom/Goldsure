@@ -1283,7 +1283,11 @@ function updateGoogleUploadStatus() {
     const dates = SMOKE_GOOGLE_SPEND.map(r=>r.date).sort();
     const from = document.getElementById('dateFrom').value;
     const to   = document.getElementById('dateTo').value;
-    const filtered = SMOKE_GOOGLE_SPEND.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+    const filtered = SMOKE_GOOGLE_SPEND.filter(r => {
+      if (from && r.date < from) return false;
+      if (to   && r.date > to)   return false;
+      return true;
+    });
     const filteredTotal = filtered.reduce((a,b)=>a+b.amount,0);
     const rangeNote = (from && to) ? ` · <strong>$${filteredTotal.toFixed(2)} in selected range</strong>` : '';
     el.innerHTML = `<span style="color:var(--green);font-size:11px;">✓ ${SMOKE_GOOGLE_SPEND.length} days loaded · $${total.toFixed(2)} total (${dates[0]} → ${dates[dates.length-1]})${rangeNote}</span>
@@ -1295,8 +1299,11 @@ function getFilteredGoogleSpend(prod) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND_HARDCODED;
-  // Always filter strictly — even if only one date is set
-  return all.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+  return all.filter(r => {
+    if (from && r.date < from) return false;
+    if (to   && r.date > to)   return false;
+    return true;
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
