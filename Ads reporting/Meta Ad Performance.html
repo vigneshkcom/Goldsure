@@ -1240,8 +1240,9 @@ function parseGoogleCSV(text) {
     if (!dm) continue;
     const mo = MONTHS[dm[1]];
     if (mo === undefined) continue;
-    const d = new Date(parseInt(dm[3]), mo, parseInt(dm[2]));
-    const iso = d.toISOString().slice(0,10);
+    const year = parseInt(dm[3], 10);
+    const day = parseInt(dm[2], 10);
+    const iso = `${year}-${String(mo + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     byDate[iso] = (byDate[iso] || 0) + cost;
   }
   return Object.entries(byDate).map(([date,amount]) => ({date, amount: Math.round(amount*100)/100}));
