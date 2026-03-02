@@ -484,10 +484,16 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="assumption-item"><label>ALARMS PER JOB</label><input type="number" id="alarmsPerJob" value="5" step="0.1" onchange="updateAssumptions()"></div>
         <div class="assumption-item"><label>SELL PRICE $</label><input type="number" id="sellPrice" value="98" step="0.01" onchange="updateAssumptions()"></div>
         <div class="assumption-item"><label>COST PRICE $ (ex-GST)</label><input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()"></div>
-        <div class="assumption-item" style="flex-direction:column;align-items:flex-start;gap:4px;">
-          <label style="color:var(--blue);">GOOGLE ADS CSV (Smoke)</label>
-          <input type="file" id="smoke-google-csv-input" accept=".csv" style="font-size:11px;max-width:200px;" onchange="handleSmokeGoogleCSV(this.files[0])">
-          <div id="smoke-google-status"><span style="color:var(--muted);font-size:11px;">No file uploaded — Smoke Google Spend = $0</span></div>
+        <div class="assumption-item" style="flex-direction:column;align-items:flex-start;gap:6px;">
+          <label style="color:var(--blue);">GOOGLE ADS CSV (SMOKE)</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="document.getElementById('smoke-google-csv-input').click()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload CSV
+            </button>
+            <input type="file" id="smoke-google-csv-input" accept=".csv" style="display:none;" onchange="handleSmokeGoogleCSV(this.files[0])">
+          </div>
+          <div id="smoke-google-status"><span style="color:var(--muted);font-size:11px;">No file uploaded — Google Spend = $0</span></div>
         </div>
         <div class="assumption-note">All figures inc-GST · COGS shown as ex-GST with inc-GST calculated</div>
       </div>
@@ -1014,6 +1020,7 @@ function getFilteredSpend(prod){
 
 function renderSmoke(){
   updateMetaPanelDisplay();
+  updateGoogleUploadStatus(); // refresh filtered total in status bar
   const leads = getFilteredCRM('smoke'), spend = getFilteredSpend('smoke');
   const from = document.getElementById('dateFrom').value, to = document.getElementById('dateTo').value;
   const total = leads.length;
@@ -1270,12 +1277,17 @@ function updateGoogleUploadStatus() {
   const el = document.getElementById('smoke-google-status');
   if (!el) return;
   if (!SMOKE_GOOGLE_SPEND.length) {
-    el.innerHTML = '<span style="color:var(--muted);font-size:11px;">No file uploaded — Smoke Google Spend = $0</span>';
+    el.innerHTML = '<span style="color:var(--muted);font-size:11px;">No file uploaded — Google Spend = $0</span>';
   } else {
     const total = SMOKE_GOOGLE_SPEND.reduce((a,b)=>a+b.amount,0);
     const dates = SMOKE_GOOGLE_SPEND.map(r=>r.date).sort();
-    el.innerHTML = `<span style="color:var(--green);font-size:11px;">✓ ${SMOKE_GOOGLE_SPEND.length} days loaded · $${total.toFixed(2)} total (${dates[0]} → ${dates[dates.length-1]})</span>
-      <button onclick="clearSmokeGoogleSpend()" style="margin-left:8px;font-size:10px;padding:2px 8px;border:1px solid var(--red);border-radius:4px;background:white;color:var(--red);cursor:pointer;">Clear</button>`;
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    const filtered = SMOKE_GOOGLE_SPEND.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+    const filteredTotal = filtered.reduce((a,b)=>a+b.amount,0);
+    const rangeNote = (from && to) ? ` · <strong>$${filteredTotal.toFixed(2)} in selected range</strong>` : '';
+    el.innerHTML = `<span style="color:var(--green);font-size:11px;">✓ ${SMOKE_GOOGLE_SPEND.length} days loaded · $${total.toFixed(2)} total (${dates[0]} → ${dates[dates.length-1]})${rangeNote}</span>
+      <button onclick="clearSmokeGoogleSpend()" style="margin-left:8px;font-size:10px;padding:3px 9px;border:1px solid var(--red);border-radius:6px;background:white;color:var(--red);cursor:pointer;font-family:'Sora',sans-serif;font-weight:600;">✕ Clear</button>`;
   }
 }
 
@@ -1283,8 +1295,8 @@ function getFilteredGoogleSpend(prod) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND_HARDCODED;
-  if (!from || !to) return all;
-  return all.filter(r => r.date >= from && r.date <= to);
+  // Always filter strictly — even if only one date is set
+  return all.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
 }
 
 // ══════════════════════════════════════════════════════════════
