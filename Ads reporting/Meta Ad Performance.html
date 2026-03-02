@@ -593,27 +593,9 @@ let currentProduct = 'smoke';
 let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 98, costPrice = 25;
 
-// ── GOOGLE ADS SPEND (HWS hardcoded from CSVs; Smoke from upload) ──
-// All amounts are inc-GST (as billed by Google)
-const HWS_GOOGLE_SPEND_HARDCODED = [{"date": "2025-09-15", "amount": 1.76}, {"date": "2025-09-16", "amount": 1.27}, {"date": "2025-09-17", "amount": 20.42}, {"date": "2025-09-18", "amount": 55.13}, {"date": "2025-09-19", "amount": 90.28}, {"date": "2025-09-20", "amount": 99.99}, {"date": "2025-09-21", "amount": 84.72}, {"date": "2025-09-22", "amount": 65.39}, {"date": "2025-09-23", "amount": 33.21}, {"date": "2025-09-24", "amount": 44.67}, {"date": "2025-09-25", "amount": 63.18}, {"date": "2025-09-26", "amount": 61.82}, {"date": "2025-09-27", "amount": 46.87}, {"date": "2025-09-28", "amount": 45.76}, {"date": "2025-09-29", "amount": 44.44}, {"date": "2025-09-30", "amount": 39.11}, {"date": "2025-10-01", "amount": 51.65}, {"date": "2025-10-02", "amount": 47.13}, {"date": "2025-10-03", "amount": 13.42}, {"date": "2025-10-04", "amount": 66.93}, {"date": "2025-10-05", "amount": 70.83}, {"date": "2025-10-06", "amount": 85.11}, {"date": "2025-10-07", "amount": 58.56}, {"date": "2025-10-08", "amount": 49.36}, {"date": "2025-10-09", "amount": 52.08}, {"date": "2025-10-10", "amount": 45.26}, {"date": "2025-10-11", "amount": 28.67}, {"date": "2025-10-12", "amount": 42.45}, {"date": "2025-10-13", "amount": 32.52}, {"date": "2025-10-14", "amount": 65.87}, {"date": "2025-10-15", "amount": 27.76}, {"date": "2025-10-16", "amount": 14.26}, {"date": "2025-10-17", "amount": 79.51}, {"date": "2025-10-18", "amount": 95.73}, {"date": "2025-10-19", "amount": 64.02}, {"date": "2025-10-20", "amount": 42.89}, {"date": "2025-10-21", "amount": 22.71}, {"date": "2025-10-22", "amount": 9.98}, {"date": "2025-10-23", "amount": 87.58}, {"date": "2025-10-24", "amount": 33.06}, {"date": "2025-10-25", "amount": 27.81}, {"date": "2025-10-26", "amount": 61.53}, {"date": "2025-10-27", "amount": 72.48}, {"date": "2025-10-28", "amount": 51.61}, {"date": "2025-10-29", "amount": 32.09}, {"date": "2025-10-30", "amount": 48.3}, {"date": "2025-10-31", "amount": 21.88}, {"date": "2025-11-01", "amount": 25.82}, {"date": "2025-11-02", "amount": 37.17}, {"date": "2025-11-03", "amount": 59.1}, {"date": "2025-11-04", "amount": 43.58}, {"date": "2025-11-05", "amount": 75.13}, {"date": "2025-11-06", "amount": 22.46}, {"date": "2025-11-07", "amount": 49.05}, {"date": "2025-11-08", "amount": 10.61}, {"date": "2025-11-09", "amount": 16.98}, {"date": "2025-11-10", "amount": 12.3}, {"date": "2025-11-11", "amount": 29.19}, {"date": "2025-11-12", "amount": 12.53}, {"date": "2025-11-13", "amount": 8.15}, {"date": "2025-11-14", "amount": 7.1}, {"date": "2025-11-15", "amount": 1.87}, {"date": "2025-11-16", "amount": 12.92}, {"date": "2025-11-17", "amount": 21.3}, {"date": "2025-11-18", "amount": 57.24}, {"date": "2025-11-19", "amount": 67.75}, {"date": "2025-11-20", "amount": 99.36}, {"date": "2025-11-21", "amount": 99.93}, {"date": "2025-11-22", "amount": 97.12}, {"date": "2025-11-23", "amount": 66.85}, {"date": "2025-11-24", "amount": 94.88}, {"date": "2025-11-25", "amount": 92.78}, {"date": "2025-11-26", "amount": 94.56}, {"date": "2025-11-27", "amount": 99.99}, {"date": "2025-11-28", "amount": 83.8}, {"date": "2025-11-29", "amount": 17.71}, {"date": "2025-11-30", "amount": 8.55}, {"date": "2025-12-01", "amount": 51.2}, {"date": "2025-12-02", "amount": 49.4}, {"date": "2025-12-03", "amount": 54.81}, {"date": "2025-12-04", "amount": 46.89}, {"date": "2025-12-05", "amount": 51.87}, {"date": "2025-12-06", "amount": 51.01}, {"date": "2025-12-07", "amount": 5.57}, {"date": "2025-12-08", "amount": 95.05}, {"date": "2025-12-09", "amount": 50.93}, {"date": "2025-12-10", "amount": 70.61}, {"date": "2025-12-11", "amount": 47.98}, {"date": "2025-12-12", "amount": 56.37}, {"date": "2025-12-13", "amount": 60.65}, {"date": "2025-12-14", "amount": 35.1}, {"date": "2025-12-15", "amount": 79.44}, {"date": "2025-12-16", "amount": 58.69}, {"date": "2025-12-17", "amount": 38.65}];
-
-// Smoke Google spend: uploaded by user (same CSV format), stored in memory
-let SMOKE_GOOGLE_SPEND = []; // populated via CSV upload
-
-// ── WEBCO EXPENSE (inc-GST, hardcoded per month) ──
-// Format: { year, month (1-based), smoke, hws } — amounts inc-GST
-// Jan 2026 Smoke: two payments of $660 each = $1,320 total
-const WEBCO_SCHEDULE = [
-  { year:2025, month:10, smoke:0,      hws:2200 },
-  { year:2025, month:11, smoke:0,      hws:2200 },
-  { year:2025, month:12, smoke:660,    hws:2200 },
-  { year:2026, month:1,  smoke:1320,   hws:2200 },
-  { year:2026, month:2,  smoke:2200,   hws:0    },
-  { year:2026, month:3,  smoke:2200,   hws:0    },
-  // April 2026 onwards: smoke=$2200, hws=$0 (update as needed)
-];
-// For months not in WEBCO_SCHEDULE and >= April 2026:
-const WEBCO_DEFAULT_FROM = { year:2026, month:4, smoke:2200, hws:0 };
+// ── GOOGLE ADS SPEND (uploaded CSV data, inc-GST) ──
+let SMOKE_GOOGLE_SPEND = [];
+let HWS_GOOGLE_SPEND = [];
 
 const SMOKE_ACCOUNT = 'act_1420815159464502';
 const HWS_ACCOUNT   = 'act_716067364534837';
@@ -1180,37 +1162,55 @@ function setView(v){ viewMode=v; document.getElementById('vbtn-w').classList.tog
 // ══════════════════════════════════════════════════════════════
 
 function getWebcoForMonth(year, month, product) {
-  const entry = WEBCO_SCHEDULE.find(e => e.year === year && e.month === month);
-  if (entry) return product === 'smoke' ? entry.smoke : entry.hws;
-  const isAfterDefault = (year > WEBCO_DEFAULT_FROM.year) ||
-    (year === WEBCO_DEFAULT_FROM.year && month >= WEBCO_DEFAULT_FROM.month);
-  if (isAfterDefault) return product === 'smoke' ? WEBCO_DEFAULT_FROM.smoke : WEBCO_DEFAULT_FROM.hws;
-  return 0;
+  const isSmoke = product === 'smoke';
+
+  if (year === 2025 && month === 12) return isSmoke ? 660 : 2200;
+  if (year === 2026 && month === 1)  return isSmoke ? 660 : 2200;
+  if (year === 2026 && month === 3)  return isSmoke ? 0   : 1540;
+
+  const isBeforeApr2026 = year < 2026 || (year === 2026 && month < 4);
+  if (isBeforeApr2026) return isSmoke ? 0 : 2200;
+
+  return isSmoke ? 2200 : 0;
 }
 
-function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+function getDaysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function parseIsoDateParts(isoDate) {
+  const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(isoDate || '');
+  if (!m) return null;
+  return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10) };
+}
 
 function getWebcoForRange(fromStr, toStr, product) {
-  if (!fromStr || !toStr) return 0;
-  const from = new Date(fromStr + 'T00:00:00');
-  const to   = new Date(toStr   + 'T00:00:00');
-  if (from > to) return 0;
+  const from = parseIsoDateParts(fromStr);
+  const to = parseIsoDateParts(toStr);
+  if (!from || !to) return 0;
+
+  const fromUtc = Date.UTC(from.year, from.month - 1, from.day);
+  const toUtc = Date.UTC(to.year, to.month - 1, to.day);
+  if (fromUtc > toUtc) return 0;
+
   let total = 0;
-  let cur = new Date(from.getFullYear(), from.getMonth(), 1);
-  while (cur <= to) {
-    const yr = cur.getFullYear(), mo = cur.getMonth() + 1;
-    const monthlyAmt = getWebcoForMonth(yr, mo, product);
+  let year = from.year;
+  let month = from.month;
+
+  while (year < to.year || (year === to.year && month <= to.month)) {
+    const monthlyAmt = getWebcoForMonth(year, month, product);
     if (monthlyAmt > 0) {
-      const daysInMo   = getDaysInMonth(yr, mo);
-      const monthStart = new Date(yr, mo - 1, 1);
-      const monthEnd   = new Date(yr, mo, 0);
-      const rangeStart = from > monthStart ? from : monthStart;
-      const rangeEnd   = to   < monthEnd   ? to   : monthEnd;
-      const days = Math.round((rangeEnd - rangeStart) / 86400000) + 1;
-      total += (monthlyAmt / daysInMo) * days;
+      const daysInMo = getDaysInMonth(year, month);
+      const rangeStartDay = (year === from.year && month === from.month) ? from.day : 1;
+      const rangeEndDay = (year === to.year && month === to.month) ? to.day : daysInMo;
+      const coveredDays = Math.max(0, rangeEndDay - rangeStartDay + 1);
+      total += (monthlyAmt / daysInMo) * coveredDays;
     }
-    cur.setMonth(cur.getMonth() + 1);
+
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
   }
+
   return total;
 }
 
@@ -1240,11 +1240,19 @@ function parseGoogleCSV(text) {
     if (!dm) continue;
     const mo = MONTHS[dm[1]];
     if (mo === undefined) continue;
-    const d = new Date(parseInt(dm[3]), mo, parseInt(dm[2]));
-    const iso = d.toISOString().slice(0,10);
+    const year = parseInt(dm[3], 10);
+    const day = parseInt(dm[2], 10);
+    const iso = `${year}-${String(mo + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     byDate[iso] = (byDate[iso] || 0) + cost;
   }
   return Object.entries(byDate).map(([date,amount]) => ({date, amount: Math.round(amount*100)/100}));
+}
+
+function mergeGoogleSpend(existingRows, parsedRows) {
+  const existing = {};
+  existingRows.forEach(r => existing[r.date] = r.amount);
+  parsedRows.forEach(r => existing[r.date] = (existing[r.date] || 0) + r.amount);
+  return Object.entries(existing).map(([date, amount]) => ({ date, amount })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function handleSmokeGoogleCSV(file) {
@@ -1254,11 +1262,22 @@ function handleSmokeGoogleCSV(file) {
     try {
       const parsed = parseGoogleCSV(e.target.result);
       if (!parsed.length) { alert('No campaign spend found in this CSV. Check the file format.'); return; }
-      const existing = {};
-      SMOKE_GOOGLE_SPEND.forEach(r => existing[r.date] = r.amount);
-      parsed.forEach(r => existing[r.date] = (existing[r.date]||0) + r.amount);
-      SMOKE_GOOGLE_SPEND = Object.entries(existing).map(([date,amount])=>({date,amount})).sort((a,b)=>a.date.localeCompare(b.date));
+      SMOKE_GOOGLE_SPEND = mergeGoogleSpend(SMOKE_GOOGLE_SPEND, parsed);
       updateGoogleUploadStatus();
+      renderCurrentProduct();
+    } catch(err) { alert('Error parsing CSV. Please use a Google Ads billing activity export.'); }
+  };
+  reader.readAsText(file, 'UTF-16');
+}
+
+function handleHwsGoogleCSV(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = parseGoogleCSV(e.target.result);
+      if (!parsed.length) { alert('No campaign spend found in this CSV. Check the file format.'); return; }
+      HWS_GOOGLE_SPEND = mergeGoogleSpend(HWS_GOOGLE_SPEND, parsed);
       renderCurrentProduct();
     } catch(err) { alert('Error parsing CSV. Please use a Google Ads billing activity export.'); }
   };
@@ -1298,7 +1317,7 @@ function updateGoogleUploadStatus() {
 function getFilteredGoogleSpend(prod) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
-  const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND_HARDCODED;
+  const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND;
   return all.filter(r => {
     if (from && r.date < from) return false;
     if (to   && r.date > to)   return false;
