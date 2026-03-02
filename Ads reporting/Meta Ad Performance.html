@@ -593,7 +593,8 @@ let currentProduct = 'smoke';
 let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 98, costPrice = 25;
 
-// ── GOOGLE ADS SPEND (uploaded CSV data, inc-GST) ──
+// ── GOOGLE ADS SPEND (HWS hardcoded + uploaded CSV data, inc-GST) ──
+const HWS_GOOGLE_SPEND_HARDCODED = [{"date": "2025-09-15", "amount": 1.76}, {"date": "2025-09-16", "amount": 1.27}, {"date": "2025-09-17", "amount": 20.42}, {"date": "2025-09-18", "amount": 55.13}, {"date": "2025-09-19", "amount": 90.28}, {"date": "2025-09-20", "amount": 99.99}, {"date": "2025-09-21", "amount": 84.72}, {"date": "2025-09-22", "amount": 65.39}, {"date": "2025-09-23", "amount": 33.21}, {"date": "2025-09-24", "amount": 44.67}, {"date": "2025-09-25", "amount": 63.18}, {"date": "2025-09-26", "amount": 61.82}, {"date": "2025-09-27", "amount": 46.87}, {"date": "2025-09-28", "amount": 45.76}, {"date": "2025-09-29", "amount": 44.44}, {"date": "2025-09-30", "amount": 39.11}, {"date": "2025-10-01", "amount": 51.65}, {"date": "2025-10-02", "amount": 47.13}, {"date": "2025-10-03", "amount": 13.42}, {"date": "2025-10-04", "amount": 66.93}, {"date": "2025-10-05", "amount": 70.83}, {"date": "2025-10-06", "amount": 85.11}, {"date": "2025-10-07", "amount": 58.56}, {"date": "2025-10-08", "amount": 49.36}, {"date": "2025-10-09", "amount": 52.08}, {"date": "2025-10-10", "amount": 45.26}, {"date": "2025-10-11", "amount": 28.67}, {"date": "2025-10-12", "amount": 42.45}, {"date": "2025-10-13", "amount": 32.52}, {"date": "2025-10-14", "amount": 65.87}, {"date": "2025-10-15", "amount": 27.76}, {"date": "2025-10-16", "amount": 14.26}, {"date": "2025-10-17", "amount": 79.51}, {"date": "2025-10-18", "amount": 95.73}, {"date": "2025-10-19", "amount": 64.02}, {"date": "2025-10-20", "amount": 42.89}, {"date": "2025-10-21", "amount": 22.71}, {"date": "2025-10-22", "amount": 9.98}, {"date": "2025-10-23", "amount": 87.58}, {"date": "2025-10-24", "amount": 33.06}, {"date": "2025-10-25", "amount": 27.81}, {"date": "2025-10-26", "amount": 61.53}, {"date": "2025-10-27", "amount": 72.48}, {"date": "2025-10-28", "amount": 51.61}, {"date": "2025-10-29", "amount": 32.09}, {"date": "2025-10-30", "amount": 48.3}, {"date": "2025-10-31", "amount": 21.88}, {"date": "2025-11-01", "amount": 25.82}, {"date": "2025-11-02", "amount": 37.17}, {"date": "2025-11-03", "amount": 59.1}, {"date": "2025-11-04", "amount": 43.58}, {"date": "2025-11-05", "amount": 75.13}, {"date": "2025-11-06", "amount": 22.46}, {"date": "2025-11-07", "amount": 49.05}, {"date": "2025-11-08", "amount": 10.61}, {"date": "2025-11-09", "amount": 16.98}, {"date": "2025-11-10", "amount": 12.3}, {"date": "2025-11-11", "amount": 29.19}, {"date": "2025-11-12", "amount": 12.53}, {"date": "2025-11-13", "amount": 8.15}, {"date": "2025-11-14", "amount": 7.1}, {"date": "2025-11-15", "amount": 1.87}, {"date": "2025-11-16", "amount": 12.92}, {"date": "2025-11-17", "amount": 21.3}, {"date": "2025-11-18", "amount": 57.24}, {"date": "2025-11-19", "amount": 67.75}, {"date": "2025-11-20", "amount": 99.36}, {"date": "2025-11-21", "amount": 99.93}, {"date": "2025-11-22", "amount": 97.12}, {"date": "2025-11-23", "amount": 66.85}, {"date": "2025-11-24", "amount": 94.88}, {"date": "2025-11-25", "amount": 92.78}, {"date": "2025-11-26", "amount": 94.56}, {"date": "2025-11-27", "amount": 99.99}, {"date": "2025-11-28", "amount": 83.8}, {"date": "2025-11-29", "amount": 17.71}, {"date": "2025-11-30", "amount": 8.55}, {"date": "2025-12-01", "amount": 51.2}, {"date": "2025-12-02", "amount": 49.4}, {"date": "2025-12-03", "amount": 54.81}, {"date": "2025-12-04", "amount": 46.89}, {"date": "2025-12-05", "amount": 51.87}, {"date": "2025-12-06", "amount": 51.01}, {"date": "2025-12-07", "amount": 5.57}, {"date": "2025-12-08", "amount": 95.05}, {"date": "2025-12-09", "amount": 50.93}, {"date": "2025-12-10", "amount": 70.61}, {"date": "2025-12-11", "amount": 47.98}, {"date": "2025-12-12", "amount": 56.37}, {"date": "2025-12-13", "amount": 60.65}, {"date": "2025-12-14", "amount": 35.1}, {"date": "2025-12-15", "amount": 79.44}, {"date": "2025-12-16", "amount": 58.69}, {"date": "2025-12-17", "amount": 38.65}];
 let SMOKE_GOOGLE_SPEND = [];
 let HWS_GOOGLE_SPEND = [];
 
@@ -1317,10 +1318,17 @@ function updateGoogleUploadStatus() {
   }
 }
 
+function getCombinedHwsGoogleSpend() {
+  const merged = {};
+  HWS_GOOGLE_SPEND_HARDCODED.forEach(r => merged[r.date] = (merged[r.date] || 0) + r.amount);
+  HWS_GOOGLE_SPEND.forEach(r => merged[r.date] = (merged[r.date] || 0) + r.amount);
+  return Object.entries(merged).map(([date, amount]) => ({ date, amount }));
+}
+
 function getFilteredGoogleSpend(prod) {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
-  const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND;
+  const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : getCombinedHwsGoogleSpend();
   return all.filter(r => {
     if (from && r.date < from) return false;
     if (to   && r.date > to)   return false;
