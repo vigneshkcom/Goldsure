@@ -338,6 +338,297 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   footer { display: none !important; }
   @page { margin: 15mm 12mm; }
 }
+
+/* ── CONFIG BOX REDESIGN ── */
+.config-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 18px 10px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.config-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 110px;
+}
+.config-field label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.config-field input[type="number"] {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.config-field input[type="number"]:focus { border-color: var(--blue); }
+.config-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  align-self: flex-end;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+.config-csv-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.config-csv-block label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--blue);
+  letter-spacing: 0.4px;
+}
+.config-csv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-upload-csv {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: var(--blue);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-upload-csv:hover { background: #1f56cc; }
+.csv-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.csv-status-pill.empty {
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.csv-status-pill.loaded {
+  background: #eaf7f2;
+  color: var(--green);
+  border: 1px solid #b5e8d5;
+}
+.btn-clear-csv {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.btn-clear-csv:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.config-footer {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+@media (max-width: 700px) {
+  .config-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .config-divider { display: none; }
+  .config-field { min-width: unset; }
+}
+
+/* ── WEBCO EDIT BUTTON ── */
+.btn-webco-edit {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: block;
+  margin: 4px auto 0;
+}
+.btn-webco-edit:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-bg); }
+
+/* ── WEBCO MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 28, 46, 0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.modal-header p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.modal-close {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.modal-close:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.modal-body { padding: 18px 22px; }
+.webco-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.webco-table th {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.4px;
+}
+.webco-table th:not(:first-child) { text-align: right; }
+.webco-table td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--surface2);
+  vertical-align: middle;
+}
+.webco-table td:first-child {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  width: 100px;
+}
+.webco-table td:not(:first-child) { text-align: right; padding-left: 10px; }
+.webco-table tr:last-child td { border-bottom: none; }
+.webco-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  width: 110px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.webco-input:focus { border-color: var(--blue); background: white; }
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+}
+.btn-modal-save {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 20px;
+  background: var(--blue);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-modal-save:hover { background: #1f56cc; }
+.btn-modal-cancel {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-modal-cancel:hover { border-color: var(--text); color: var(--text); }
+.modal-save-feedback {
+  font-size: 11px;
+  color: var(--green);
+  margin-right: auto;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.modal-save-feedback.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -473,22 +764,34 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
     <!-- Smoke KPIs -->
     <div id="smoke-kpis" class="product-kpis" style="display:block;">
-      <div class="assumptions-card">
-        <div class="assumption-item"><label>ALARMS PER JOB</label><input type="number" id="alarmsPerJob" value="5" step="0.1" onchange="updateAssumptions()"></div>
-        <div class="assumption-item"><label>SELL PRICE $ (ex-GST)</label><input type="number" id="sellPrice" value="89.0909" step="0.01" onchange="updateAssumptions()"></div>
-        <div class="assumption-item"><label>COST PRICE $ (ex-GST)</label><input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()"></div>
-        <div class="assumption-item" style="flex-direction:column;align-items:flex-start;gap:6px;">
-          <label style="color:var(--blue);">GOOGLE ADS CSV (SMOKE)</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="document.getElementById('smoke-google-csv-input').click()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              Upload CSV
-            </button>
-            <input type="file" id="smoke-google-csv-input" accept=".csv" style="display:none;" onchange="handleSmokeGoogleCSV(this.files[0])">
+      <div class="config-box">
+        <div class="config-row">
+          <div class="config-field">
+            <label>Alarms per Job</label>
+            <input type="number" id="alarmsPerJob" value="5" step="0.1" onchange="updateAssumptions()">
           </div>
-          <div id="smoke-google-status"><span style="color:var(--muted);font-size:11px;">No file uploaded — Google Spend = $0</span></div>
+          <div class="config-field">
+            <label>Sell Price (ex-GST)</label>
+            <input type="number" id="sellPrice" value="89.0909" step="0.01" onchange="updateAssumptions()">
+          </div>
+          <div class="config-field">
+            <label>Cost Price (ex-GST)</label>
+            <input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()">
+          </div>
+          <div class="config-divider"></div>
+          <div class="config-csv-block">
+            <label>Google Ads CSV (Smoke)</label>
+            <div class="config-csv-row">
+              <button class="btn-upload-csv" onclick="document.getElementById('smoke-google-csv-input').click()">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload CSV
+              </button>
+              <input type="file" id="smoke-google-csv-input" accept=".csv" style="display:none;" onchange="handleSmokeGoogleCSV(this.files[0])">
+              <div id="smoke-google-status"></div>
+            </div>
+          </div>
         </div>
-        <div class="assumption-note">All figures ex-GST · COGS stored and used as ex-GST</div>
+        <div class="config-footer">All figures ex-GST · COGS stored and used as ex-GST</div>
       </div>
       <div class="financial-kpis" style="grid-template-columns:repeat(4,1fr);">
         <div class="fin-card"><div class="fin-label">REVENUE</div><div class="fin-value cg" id="kpi-revenue">$0</div><div class="fin-note" id="revenue-note">Jobs × alarms × sell price ex-GST</div></div>
@@ -500,7 +803,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="fin-card"><div class="fin-label">TOTAL AD SPEND</div><div class="fin-value" id="kpi-spend">$0</div><div class="fin-note">Meta + Google ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ META SPEND</div><div class="fin-value" id="kpi-meta-spend" style="font-size:15px;">$0</div><div class="fin-note">API ÷ 1.1 ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="kpi-google-spend" style="font-size:15px;">$0</div><div class="fin-note">From CSV ÷ 1.1 ex-GST</div></div>
-        <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="kpi-webco">$0</div><div class="fin-note" id="webco-note">Pro-rated ex-GST</div></div>
+        <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="kpi-webco">$0</div><div class="fin-note" id="webco-note">Pro-rated ex-GST</div><button class="btn-webco-edit" onclick="openWebcoModal()">Edit Charges</button></div>
         <div class="fin-card"><div class="fin-label">ROAS</div><div class="fin-value" id="kpi-roas">0.0x</div><div class="fin-note">Revenue ÷ Total Ad Spend (ex-GST)</div></div>
       </div>
       <div class="kpi-row">
@@ -517,7 +820,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="fin-card"><div class="fin-label">TOTAL AD SPEND</div><div class="fin-value" id="hws-spend-val">$0</div><div class="fin-note">Meta + Google ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ META SPEND</div><div class="fin-value" id="hws-meta-spend" style="font-size:15px;">$0</div><div class="fin-note">API ÷ 1.1 ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="hws-google-spend" style="font-size:15px;">$0</div><div class="fin-note">From billing CSVs ÷ 1.1 ex-GST</div></div>
-        <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="hws-webco-val">$0</div><div class="fin-note" id="hws-webco-note">Pro-rated ex-GST</div></div>
+        <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="hws-webco-val">$0</div><div class="fin-note" id="hws-webco-note">Pro-rated ex-GST</div><button class="btn-webco-edit" onclick="openWebcoModal()">Edit Charges</button></div>
         <div class="fin-card"><div class="fin-label">TOTAL LEADS</div><div class="fin-value cb" id="hws-leads-val">0</div><div class="fin-note">Pipeline leads in date range</div></div>
       </div>
       <div class="kpi-row">
@@ -1232,7 +1535,7 @@ function updateGoogleUploadStatus() {
   const el = document.getElementById('smoke-google-status');
   if (!el) return;
   if (!SMOKE_GOOGLE_SPEND.length) {
-    el.innerHTML = '<span style="color:var(--muted);font-size:11px;">No file uploaded — Google Spend = $0</span>';
+    el.innerHTML = '<span class="csv-status-pill empty">No file — Google $0</span>';
   } else {
     const total = SMOKE_GOOGLE_SPEND.reduce((a,b)=>a+b.amount,0);
     const dates = SMOKE_GOOGLE_SPEND.map(r=>r.date).sort();
@@ -1244,9 +1547,8 @@ function updateGoogleUploadStatus() {
       return true;
     });
     const filteredTotal = filtered.reduce((a,b)=>a+b.amount,0);
-    const rangeNote = (from && to) ? ` · <strong>$${filteredTotal.toFixed(2)} in selected range</strong>` : '';
-    el.innerHTML = `<span style="color:var(--green);font-size:11px;">✓ ${SMOKE_GOOGLE_SPEND.length} days loaded · $${total.toFixed(2)} total (${dates[0]} → ${dates[dates.length-1]})${rangeNote}</span>
-      <button onclick="clearSmokeGoogleSpend()" style="margin-left:8px;font-size:10px;padding:3px 9px;border:1px solid var(--red);border-radius:6px;background:white;color:var(--red);cursor:pointer;font-family:'Sora',sans-serif;font-weight:600;">✕ Clear</button>`;
+    const rangeStr = (from && to) ? ` · $${filteredTotal.toFixed(2)} in range` : '';
+    el.innerHTML = `<span class="csv-status-pill loaded">✓ ${SMOKE_GOOGLE_SPEND.length}d · $${total.toFixed(2)}${rangeStr}</span><button class="btn-clear-csv" onclick="clearSmokeGoogleSpend()">✕ Clear</button>`;
   }
 }
 
@@ -1284,6 +1586,172 @@ function generatePDF(){
   const e = document.getElementById('footer-email');
   if(e){ const addr='vignesh'+'@'+'goldsure.com.au'; e.href='mailto:'+addr; e.innerText=addr; }
 })();
+
+// ══════════════════════════════════════════════════════════════
+//  WEBCO MODAL
+// ══════════════════════════════════════════════════════════════
+
+// Months shown in the modal (editable range)
+const WEBCO_MODAL_MONTHS = [
+  { year:2025, month:11, label:'Nov 2025' },
+  { year:2025, month:12, label:'Dec 2025' },
+  { year:2026, month:1,  label:'Jan 2026' },
+  { year:2026, month:2,  label:'Feb 2026' },
+  { year:2026, month:3,  label:'Mar 2026' },
+  { year:2026, month:4,  label:'Apr 2026' },
+  { year:2026, month:5,  label:'May 2026' },
+  { year:2026, month:6,  label:'Jun 2026' },
+];
+
+// Default values pre-filling the modal (ex-GST)
+const WEBCO_MODAL_DEFAULTS = {
+  '2025-11': { smoke: 600,  hws: 2000 },
+  '2025-12': { smoke: 600,  hws: 2000 },
+  '2026-1':  { smoke: 2000, hws: 0    },
+  '2026-2':  { smoke: 2000, hws: 0    },
+  '2026-3':  { smoke: 2000, hws: 0    },
+  '2026-4':  { smoke: 2000, hws: 0    },
+  '2026-5':  { smoke: 2000, hws: 0    },
+  '2026-6':  { smoke: 2000, hws: 0    },
+};
+
+function webcoKey(year, month) { return `${year}-${month}`; }
+
+// Load saved values from localStorage, fall back to defaults
+function getWebcoModalValues() {
+  const saved = localStorage.getItem('gs_webco_schedule');
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) {}
+  }
+  return null;
+}
+
+// Apply saved (or default) values into the live WEBCO_SCHEDULE
+function applyWebcoOverride() {
+  const saved = getWebcoModalValues();
+  if (!saved) return; // nothing saved — use hardcoded WEBCO_SCHEDULE as-is
+
+  // Rebuild WEBCO_SCHEDULE entries for modal months from saved data
+  WEBCO_MODAL_MONTHS.forEach(({ year, month }) => {
+    const key = webcoKey(year, month);
+    if (!saved[key]) return;
+    const existing = WEBCO_SCHEDULE.find(e => e.year === year && e.month === month);
+    if (existing) {
+      existing.smoke = saved[key].smoke;
+      existing.hws   = saved[key].hws;
+    } else {
+      WEBCO_SCHEDULE.push({ year, month, smoke: saved[key].smoke, hws: saved[key].hws });
+    }
+    // Also update WEBCO_DEFAULT_FROM if Apr 2026+
+    if (year === 2026 && month === 4) {
+      WEBCO_DEFAULT_FROM.smoke = saved[key].smoke;
+      WEBCO_DEFAULT_FROM.hws   = saved[key].hws;
+    }
+  });
+}
+
+function openWebcoModal() {
+  const saved = getWebcoModalValues();
+  const tbody = document.getElementById('webco-modal-rows');
+  tbody.innerHTML = WEBCO_MODAL_MONTHS.map(({ year, month, label }) => {
+    const key = webcoKey(year, month);
+    // Use saved → then live schedule → then modal defaults
+    const liveEntry = WEBCO_SCHEDULE.find(e => e.year === year && e.month === month);
+    const smokeVal = saved?.[key]?.smoke ?? liveEntry?.smoke ?? WEBCO_MODAL_DEFAULTS[key]?.smoke ?? 0;
+    const hwsVal   = saved?.[key]?.hws   ?? liveEntry?.hws   ?? WEBCO_MODAL_DEFAULTS[key]?.hws   ?? 0;
+    return `<tr>
+      <td>${label}</td>
+      <td><input class="webco-input" type="number" min="0" step="1" data-key="${key}" data-type="smoke" value="${smokeVal}"></td>
+      <td><input class="webco-input" type="number" min="0" step="1" data-key="${key}" data-type="hws"   value="${hwsVal}"></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('webco-save-feedback').classList.remove('show');
+  document.getElementById('webco-modal').classList.add('open');
+}
+
+function closeWebcoModal() {
+  document.getElementById('webco-modal').classList.remove('open');
+}
+
+function handleModalOverlayClick(e) {
+  if (e.target === document.getElementById('webco-modal')) closeWebcoModal();
+}
+
+function saveWebcoModal() {
+  const inputs = document.querySelectorAll('#webco-modal-rows .webco-input');
+  const newValues = {};
+  inputs.forEach(inp => {
+    const key  = inp.dataset.key;
+    const type = inp.dataset.type;
+    const val  = Math.max(0, parseFloat(inp.value) || 0);
+    if (!newValues[key]) newValues[key] = { smoke: 0, hws: 0 };
+    newValues[key][type] = val;
+  });
+
+  // Persist to localStorage
+  localStorage.setItem('gs_webco_schedule', JSON.stringify(newValues));
+
+  // Apply to live WEBCO_SCHEDULE
+  WEBCO_MODAL_MONTHS.forEach(({ year, month }) => {
+    const key = webcoKey(year, month);
+    const vals = newValues[key];
+    if (!vals) return;
+    const existing = WEBCO_SCHEDULE.find(e => e.year === year && e.month === month);
+    if (existing) {
+      existing.smoke = vals.smoke;
+      existing.hws   = vals.hws;
+    } else {
+      WEBCO_SCHEDULE.push({ year, month, smoke: vals.smoke, hws: vals.hws });
+    }
+    // Keep WEBCO_DEFAULT_FROM in sync with Apr 2026
+    if (year === 2026 && month === 4) {
+      WEBCO_DEFAULT_FROM.smoke = vals.smoke;
+      WEBCO_DEFAULT_FROM.hws   = vals.hws;
+    }
+  });
+
+  // Show feedback then close
+  const fb = document.getElementById('webco-save-feedback');
+  fb.classList.add('show');
+  renderCurrentProduct();
+  setTimeout(() => { fb.classList.remove('show'); closeWebcoModal(); }, 900);
+}
+
+// On page load: apply any saved override
+applyWebcoOverride();
 </script>
+<!-- ══════════════════════════════════════════════
+     WEBCO MODAL
+     ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="webco-modal" onclick="handleModalOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>Webco Monthly Charges</h3>
+        <p>Set ex-GST amounts per product per month. Pro-rata applied automatically.</p>
+      </div>
+      <button class="modal-close" onclick="closeWebcoModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <table class="webco-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Smoke (ex-GST)</th>
+            <th>HWS (ex-GST)</th>
+          </tr>
+        </thead>
+        <tbody id="webco-modal-rows"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <span class="modal-save-feedback" id="webco-save-feedback">✓ Saved</span>
+      <button class="btn-modal-cancel" onclick="closeWebcoModal()">Cancel</button>
+      <button class="btn-modal-save" onclick="saveWebcoModal()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
