@@ -288,8 +288,6 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;">Fieldworker</label>
         <select class="worker-select" id="workerSelect" onchange="renderTable()"></select>
       </div>
-      <!-- NEW BUTTON: Show All Installers (with average smoke alarms) -->
-      <button class="btn no-print" onclick="showAllInstallers()" style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue);">Show All Installers + Avg Smoke Alarms</button>
       <button class="btn no-print" onclick="resetUpload()">Upload New File</button>
       <button class="btn btn-primary no-print" onclick="window.print()">Print / Save PDF</button>
     </div>
@@ -375,30 +373,6 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       </div>
       <div class="table-wrap">
         <div id="tableContainer"></div>
-      </div>
-    </div>
-
-    <!-- NEW SECTION: average smoke alarms (hidden by default, shown only when "Show All Installers" is clicked) -->
-    <div id="allInstallersSummary" style="display:none; margin-top:20px;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">All Installers – Summary & Avg Smoke Alarms ([3430])</div>
-        </div>
-        <div class="table-wrap">
-          <table id="allInstallersTable" style="width:100%;">
-            <thead>
-              <tr>
-                <th class="left">Fieldworker</th>
-                <th>Total Jobs</th>
-                <th>Total [3430] Units</th>
-                <th>Avg Smoke Alarms per Job</th>
-                <th>Pay Ex GST</th>
-                <th>Pay Inc GST</th>
-              </tr>
-            </thead>
-            <tbody id="allInstallersTbody"></tbody>
-          </table>
-        </div>
       </div>
     </div>
 
@@ -561,7 +535,7 @@ function setWeek(offset, btn) {
   renderTable();
 }
 
-/* ── RENDER (single installer) ── */
+/* ── RENDER ── */
 function renderTable() {
   const worker = document.getElementById('workerSelect').value;
   const from   = document.getElementById('dateFrom').value;
@@ -679,76 +653,6 @@ function renderTable() {
   </tr></tfoot>`;
 
   document.getElementById('tableContainer').innerHTML = `<table>${thead}${tbody}${tfoot}</table>`;
-
-  // hide all-installers section when a single installer is shown
-  document.getElementById('allInstallersSummary').style.display = 'none';
-}
-
-/* ── NEW FUNCTION: Show All Installers with Avg Smoke Alarms ── */
-function showAllInstallers() {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  const workers = [...new Set(allRows.map(r => r['Fieldworker']).filter(Boolean))].sort();
-
-  // Build summary per worker
-  const summary = workers.map(worker => {
-    const rows = allRows.filter(r => {
-      const d = r['Completed Date'] || r['Scheduled Date'] || '';
-      return r['Fieldworker'] === worker && (!from || d >= from) && (!to || d <= to);
-    });
-
-    // Group jobs
-    const jobMap = {};
-    rows.forEach(r => {
-      const id = r['Job Id'];
-      if (!jobMap[id]) jobMap[id] = { prods: {} };
-      const p = r['Product Name']||'', q = parseInt(r['Product Quantity'])||0;
-      if (p && q !== 0) jobMap[id].prods[p] = (jobMap[id].prods[p]||0) + q;
-    });
-
-    const jobs = Object.values(jobMap);
-    const totalJobs = jobs.length;
-
-    // Count [3430] units specifically
-    let totalSmoke = 0;
-    let totalEx = 0;
-
-    jobs.forEach(j => {
-      Object.entries(j.prods).forEach(([p,q]) => {
-        const rate = payRate(p);
-        totalEx += q * rate;
-        if (p.startsWith('[3430]')) totalSmoke += q;
-      });
-    });
-
-    const avgSmoke = totalJobs > 0 ? (totalSmoke / totalJobs).toFixed(2) : '0.00';
-    const totalInc = (totalEx * (1+GST)).toFixed(2);
-
-    return {
-      worker,
-      jobs: totalJobs,
-      smokeUnits: totalSmoke,
-      avg: avgSmoke,
-      ex: totalEx.toFixed(2),
-      inc: totalInc
-    };
-  }).filter(s => s.jobs > 0); // only those with jobs in period
-
-  // Build table rows
-  const tbody = summary.map(s => `<tr>
-    <td class="left">${s.worker}</td>
-    <td class="num">${s.jobs}</td>
-    <td class="num">${s.smokeUnits}</td>
-    <td class="num">${s.avg}</td>
-    <td class="pay-ex">$${s.ex}</td>
-    <td class="pay-inc">$${s.inc}</td>
-  </tr>`).join('');
-
-  document.getElementById('allInstallersTbody').innerHTML = tbody || '<tr><td colspan="6" style="text-align:center;padding:20px;">No data for selected period</td></tr>';
-  document.getElementById('allInstallersSummary').style.display = 'block';
-
-  // (Optional) also set the main select to a placeholder, but we keep it as is.
-  // we do not disturb the main table view.
 }
 
 /* ── RESET ── */
