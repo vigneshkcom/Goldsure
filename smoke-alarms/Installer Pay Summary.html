@@ -127,12 +127,12 @@ input[type="date"]:focus { border-color: var(--blue); }
 }
 
 /* ── KPI CARDS ── */
-.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+.kpi-row { display: grid; grid-template-columns: repeat(7,1fr); gap: 14px; margin-bottom: 20px; } /* extended to 7 columns */
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
 .kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
 .kpi-val { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; margin-bottom: 6px; }
 .kpi-sub { font-size: 11px; color: var(--muted); }
-.cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cgold { color: var(--gold); }
+.cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cgold { color: var(--gold); } .cpurple { color: #8b5cf6; }
 
 /* ── TABLE CARD ── */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
@@ -184,22 +184,13 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   #upload-screen { display: none !important; }
   body { background: #fff !important; font-size: 11px; }
-
-  /* Hide screen-only elements */
   .no-print { display: none !important; }
   .filters { display: none !important; }
   .rates-note { display: none !important; }
   .kpi-row { display: none !important; }
-
-  /* Header — static, no sticky */
   header { position: static !important; box-shadow: none !important; border-bottom: 1px solid #e3e7ef !important; padding: 10px 16px !important; }
-
   main { padding: 12px 16px !important; max-width: 100% !important; }
-
-  /* Show print summary */
   .print-only { display: block !important; }
-
-  /* Print summary band */
   .print-summary {
     display: flex !important; align-items: stretch;
     border: 1px solid #e3e7ef; border-radius: 10px;
@@ -214,13 +205,9 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   .pb-value.txt { font-family: 'Sora', sans-serif; font-size: 12px; }
   .pb-value.period { font-family: 'Sora', sans-serif; font-size: 11px; color: #2d6be4; }
   .pb-sub { font-size: 9px; color: #6b7899; margin-top: 2px; }
-
-  /* Table card */
   .card { box-shadow: none !important; border: 1px solid #e3e7ef !important; break-inside: avoid; overflow: visible !important; margin-bottom: 12px !important; }
   .card-header { padding: 10px 12px !important; }
   .table-wrap { overflow: visible !important; }
-
-  /* Table sizing for A4 landscape */
   table { width: 100% !important; font-size: 9px !important; table-layout: fixed; }
   thead th {
     font-size: 8px !important; padding: 6px 5px !important;
@@ -233,15 +220,16 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   td { padding: 6px 5px !important; font-size: 9px !important; white-space: nowrap; }
   td.date-col { font-size: 8.5px !important; }
   tfoot td { font-size: 9px !important; padding: 7px 5px !important; background: #f8f9fc !important; }
-
   footer { page-break-inside: avoid; padding: 12px 16px !important; }
   .footer-brand img { height: 28px !important; }
   .footer-name { font-size: 11px !important; }
   .footer-addr, .footer-contact { font-size: 10px !important; }
-
   @page { margin: 10mm 8mm; size: A4 landscape; }
 }
 
+@media (max-width: 1200px) {
+  .kpi-row { grid-template-columns: repeat(4,1fr); }
+}
 @media (max-width: 900px) {
   .kpi-row { grid-template-columns: repeat(2,1fr); }
   main { padding: 16px; }
@@ -326,15 +314,21 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <span class="rate-tag">All other products — $10.00 / unit</span>
     </div>
 
-    <!-- KPI CARDS — screen only -->
+    <!-- KPI CARDS — screen only (existing + 3 new) -->
     <div class="kpi-row no-print">
+      <!-- original four -->
       <div class="kpi"><div class="kpi-lbl">Total Jobs</div><div class="kpi-val cb" id="kpiJobs">0</div><div class="kpi-sub">in selected period</div></div>
       <div class="kpi"><div class="kpi-lbl">Units Installed</div><div class="kpi-val ca" id="kpiUnits">0</div><div class="kpi-sub">paid product lines</div></div>
       <div class="kpi"><div class="kpi-lbl">Pay Ex GST</div><div class="kpi-val cg" id="kpiPayEx">$0.00</div><div class="kpi-sub">total earnings</div></div>
       <div class="kpi"><div class="kpi-lbl">Pay Inc GST</div><div class="kpi-val cgold" id="kpiPayInc">$0.00</div><div class="kpi-sub">including 10% GST</div></div>
+      
+      <!-- three new cards (exactly as requested) -->
+      <div class="kpi"><div class="kpi-lbl">Smoke Alarms</div><div class="kpi-val cpurple" id="kpiSmoke">0</div><div class="kpi-sub">hardwired + battery</div></div>
+      <div class="kpi"><div class="kpi-lbl">Controllers</div><div class="kpi-val cpurple" id="kpiController">0</div><div class="kpi-sub">units installed</div></div>
+      <div class="kpi"><div class="kpi-lbl">Avg Smoke / Job</div><div class="kpi-val cpurple" id="kpiAvgSmoke">0.00</div><div class="kpi-sub">2 decimal places</div></div>
     </div>
 
-    <!-- PRINT-ONLY SUMMARY BAND -->
+    <!-- PRINT-ONLY SUMMARY BAND (unchanged) -->
     <div class="print-only">
       <div class="print-summary">
         <div class="print-block">
@@ -487,13 +481,17 @@ function csvLine(line) {
   return r;
 }
 
-/* ── LOAD ── */
+/* ── LOAD DASHBOARD (MODIFIED: add "All Fieldworkers") ── */
 function loadDashboard() {
   document.getElementById('upload-screen').style.display = 'none';
   document.getElementById('dashboard').style.display     = 'block';
 
+  // Get unique fieldworkers, sorted
   const workers = [...new Set(allRows.map(r => r['Fieldworker']).filter(Boolean))].sort();
-  document.getElementById('workerSelect').innerHTML = workers.map(w => `<option value="${w}">${w}</option>`).join('');
+  // Insert "All Fieldworkers" as first option with value __ALL__
+  const allOption = '<option value="__ALL__">All Fieldworkers</option>';
+  const workerOptions = workers.map(w => `<option value="${w}">${w}</option>`).join('');
+  document.getElementById('workerSelect').innerHTML = allOption + workerOptions;
 
   const dates = allRows.map(r => r['Completed Date']||r['Scheduled Date']).filter(d => /^\d{4}-\d{2}-\d{2}/.test(d||'')).sort();
   document.getElementById('dateFrom').value = fileDateFrom || dates[0]   || '';
@@ -535,9 +533,9 @@ function setWeek(offset, btn) {
   renderTable();
 }
 
-/* ── RENDER ── */
+/* ── RENDER (MODIFIED: All workers + three new KPIs) ── */
 function renderTable() {
-  const worker = document.getElementById('workerSelect').value;
+  const worker = document.getElementById('workerSelect').value;  // could be "__ALL__" or a name
   const from   = document.getElementById('dateFrom').value;
   const to     = document.getElementById('dateTo').value;
 
@@ -547,12 +545,13 @@ function renderTable() {
     : from ? `From ${friendly(from)}` : 'All dates';
 
   ['activePeriodLabel','tablePeriodLabel'].forEach(id => document.getElementById(id).textContent = periodLabel);
-  document.getElementById('tableWorker').textContent = worker;
+  document.getElementById('tableWorker').textContent = (worker === '__ALL__') ? 'All Fieldworkers' : worker;
 
-  // Filter
+  // Filter rows: if worker == "__ALL__", ignore fieldworker filter; otherwise filter by worker.
   const rows = allRows.filter(r => {
     const d = r['Completed Date'] || r['Scheduled Date'] || '';
-    return r['Fieldworker'] === worker && (!from || d >= from) && (!to || d <= to);
+    const workerMatch = (worker === '__ALL__') ? true : (r['Fieldworker'] === worker);
+    return workerMatch && (!from || d >= from) && (!to || d <= to);
   });
 
   // Group by job
@@ -589,21 +588,43 @@ function renderTable() {
     j.payInc = +(ex * (1+GST)).toFixed(2);
   });
 
+  // --- NEW: smoke & controller counters ---
+  let totalSmoke = 0;
+  let totalControllers = 0;
+  jobs.forEach(j => {
+    Object.entries(j.prods).forEach(([p, qty]) => {
+      // Smoke alarms: product name includes "Hard Wired" OR "Battery"
+      if (p.includes('Hard Wired') || p.includes('Battery')) {
+        totalSmoke += qty;
+      }
+      // Controllers: product name includes "Controller"
+      if (p.includes('Controller')) {
+        totalControllers += qty;
+      }
+    });
+  });
+
   // Totals
   const totJobs  = jobs.length;
   const totUnits = jobs.reduce((s,j) => s + cols.reduce((a,p) => a + (j.prods[p]||0), 0), 0);
   const totEx    = +jobs.reduce((s,j) => s + j.payEx,  0).toFixed(2);
   const totInc   = +jobs.reduce((s,j) => s + j.payInc, 0).toFixed(2);
+  const avgSmoke = totJobs > 0 ? totalSmoke / totJobs : 0;
 
-  // Screen KPIs
+  // Screen KPIs (existing + new)
   document.getElementById('kpiJobs').textContent  = totJobs;
   document.getElementById('kpiUnits').textContent = totUnits;
   document.getElementById('kpiPayEx').textContent  = '$'+totEx.toFixed(2);
   document.getElementById('kpiPayInc').textContent = '$'+totInc.toFixed(2);
+  // new
+  document.getElementById('kpiSmoke').textContent = totalSmoke;
+  document.getElementById('kpiController').textContent = totalControllers;
+  document.getElementById('kpiAvgSmoke').textContent = avgSmoke.toFixed(2);
+  // meta
   document.getElementById('filterMeta').textContent = `${totJobs} job${totJobs!==1?'s':''}`;
 
   // Print summary
-  document.getElementById('pWorker').textContent  = worker;
+  document.getElementById('pWorker').textContent  = (worker === '__ALL__') ? 'All Fieldworkers' : worker;
   document.getElementById('pPeriod').textContent  = periodLabel;
   document.getElementById('pJobs').textContent    = totJobs;
   document.getElementById('pUnits').textContent   = totUnits;
