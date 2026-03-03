@@ -9,19 +9,6 @@ export default async function handler(req, res) {
       GOOGLE_ADS_CUSTOMER_ID
     } = process.env;
 
-    if (
-      !GOOGLE_ADS_DEVELOPER_TOKEN ||
-      !GOOGLE_ADS_CLIENT_ID ||
-      !GOOGLE_ADS_CLIENT_SECRET ||
-      !GOOGLE_ADS_REFRESH_TOKEN ||
-      !GOOGLE_ADS_MANAGER_ID ||
-      !GOOGLE_ADS_CUSTOMER_ID
-    ) {
-      return res.status(500).json({
-        error: "Missing required environment variables"
-      });
-    }
-
     // 1️⃣ Get fresh access token
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -45,14 +32,14 @@ export default async function handler(req, res) {
 
     const accessToken = tokenData.access_token;
 
-    // 2️⃣ Query total lifetime spend
+    // 2️⃣ Use REST search (NOT searchStream)
     const query = `
       SELECT metrics.cost_micros
       FROM customer
     `;
 
     const adsResponse = await fetch(
-      `https://googleads.googleapis.com/v18/customers/${GOOGLE_ADS_CUSTOMER_ID}/googleAds:searchStream`,
+      `https://googleads.googleapis.com/v18/customers/${GOOGLE_ADS_CUSTOMER_ID}/googleAds:search`,
       {
         method: "POST",
         headers: {
@@ -61,39 +48,29 @@ export default async function handler(req, res) {
           "login-customer-id": GOOGLE_ADS_MANAGER_ID,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ query })
+        body: JSON.stringify({
+          query: query
+        })
       }
     );
 
-    const rawText = await adsResponse.text();
+    const responseText = await adsResponse.text();
 
     if (!adsResponse.ok) {
       return res.status(500).json({
         error: "Google Ads API error",
         status: adsResponse.status,
-        response: rawText
+        response: responseText
       });
     }
 
-    let data;
-    try {
-      data = JSON.parse(rawText);
-    } catch (e) {
-      return res.status(500).json({
-        error: "Failed to parse Google Ads response",
-        raw: rawText
-      });
-    }
+    const data = JSON.parse(responseText);
 
     let totalMicros = 0;
 
-    if (Array.isArray(data)) {
-      data.forEach(chunk => {
-        if (chunk.results) {
-          chunk.results.forEach(row => {
-            totalMicros += Number(row.metrics?.cost_micros || 0);
-          });
-        }
+    if (data.results) {
+      data.results.forEach(row => {
+        totalMicros += Number(row.metrics?.costMicros || 0);
       });
     }
 
