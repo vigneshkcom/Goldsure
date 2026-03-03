@@ -5,37 +5,428 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Installer Pay Summary</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
 <style>
-/* ====== YOUR ORIGINAL CSS (UNCHANGED) ====== */
-/* I am keeping this section intact from your original file */
-/* --- For brevity explanation removed here --- */
-/* USE YOUR EXISTING CSS BLOCK EXACTLY AS IS */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --gold: #b8860b;
+  --gold-bg: #fef7e7;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+/* ── UPLOAD ── */
+#upload-screen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 40px 20px;
+}
+.upload-logo { text-align: center; margin-bottom: 36px; }
+.upload-logo img { height: 56px; width: auto; display: block; margin: 0 auto 14px; }
+.upload-logo h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.upload-logo p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.upload-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 40px 44px; max-width: 560px; width: 100%; box-shadow: var(--shadow); text-align: center;
+}
+.upload-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.upload-card p { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 14px; padding: 36px 24px;
+  cursor: pointer; transition: all 0.2s; background: var(--surface2);
+  position: relative; margin-bottom: 16px;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--blue); background: var(--blue-bg); }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-zone-icon { font-size: 32px; margin-bottom: 10px; }
+.drop-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.drop-zone p { font-size: 12px; color: var(--muted); margin: 0; }
+.file-loaded { font-size: 12px; font-weight: 600; color: var(--green); margin-top: 8px; display: none; }
+.btn-load {
+  width: 100%; padding: 14px; background: var(--blue); color: #fff; border: none;
+  border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s; margin-top: 8px;
+}
+.btn-load:hover { background: #1f56cc; }
+.btn-load:disabled { background: #b8c5dd; cursor: not-allowed; }
+
+/* ── DASHBOARD ── */
+#dashboard { display: none; }
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100; gap: 16px; flex-wrap: wrap;
+}
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 40px; width: auto; }
+.header-logo-text { font-size: 15px; font-weight: 700; }
+.header-logo-text span { color: var(--blue); }
+.header-logo-sub { font-size: 11px; color: var(--muted); display: block; margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.worker-select {
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
+  background: var(--surface2); color: var(--text); cursor: pointer; outline: none;
+}
+.worker-select:focus { border-color: var(--blue); }
+.btn {
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+  padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary:hover { background: #1f56cc; color: #fff; }
+main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+/* ── FILTERS ── */
+.filters {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 13px 18px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.fg { display: flex; align-items: center; gap: 7px; }
+.fg label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+input[type="date"] {
+  font-family: 'Sora', sans-serif; font-size: 12px; border: 1px solid var(--border);
+  border-radius: 7px; padding: 6px 10px; background: var(--surface2); color: var(--text); outline: none;
+}
+input[type="date"]:focus { border-color: var(--blue); }
+.fsep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.pbtn {
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); color: var(--muted); cursor: pointer; transition: all 0.12s;
+}
+.pbtn:hover, .pbtn.active { background: var(--blue); color: white; border-color: var(--blue); }
+.filter-meta { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.period-pill {
+  font-size: 12px; font-weight: 600; color: var(--blue); background: var(--blue-bg);
+  padding: 5px 12px; border-radius: 20px; border: 1px solid #c5d3f5; white-space: nowrap;
+}
+
+/* ── PAY RATES NOTE ── */
+.rates-note {
+  background: var(--gold-bg); border: 1px solid #f0dbaa; border-radius: 10px;
+  padding: 12px 20px; font-size: 12px; color: var(--gold);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.rates-note strong { font-weight: 700; white-space: nowrap; }
+.rate-tag {
+  background: #fff8e8; border: 1px solid #f0dbaa; border-radius: 5px;
+  padding: 2px 8px; font-size: 11px; color: var(--gold); white-space: nowrap;
+}
+
+/* ── KPI CARDS ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
+.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
+.kpi-val { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; margin-bottom: 6px; }
+.kpi-sub { font-size: 11px; color: var(--muted); }
+.cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cgold { color: var(--gold); }
+
+/* ── TABLE CARD ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.card-title strong { color: var(--text); font-size: 14px; text-transform: none; letter-spacing: 0; margin-left: 6px; font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: #f8f9fc; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--muted); padding: 10px 12px; text-align: right;
+  white-space: nowrap; border-bottom: 1px solid var(--border);
+}
+thead th.left { text-align: left; }
+tbody tr { border-bottom: 1px solid var(--surface2); transition: background 0.1s; }
+tbody tr:hover { background: var(--blue-bg); }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 9px 12px; font-size: 12px; text-align: right; white-space: nowrap; }
+td.left { text-align: left; }
+td.date-col { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-align: left; }
+td.job-col { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--blue); text-align: left; }
+td.num { font-family: 'JetBrains Mono', monospace; }
+td.zero { color: #cdd2e0; }
+td.pay-ex { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--green); }
+td.pay-inc { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--amber); }
+tfoot tr { background: #f8f9fc; border-top: 2px solid var(--border); }
+tfoot td { font-weight: 700; font-size: 12px; padding: 11px 12px; font-family: 'JetBrains Mono', monospace; }
+tfoot td.left { font-family: 'Sora', sans-serif; font-size: 13px; color: var(--text); }
+tfoot td.pay-ex { color: var(--green); }
+tfoot td.pay-inc { color: var(--amber); }
+
+/* ── FOOTER ── */
+footer { background: var(--surface); border-top: 1px solid var(--border); padding: 20px 28px; margin-top: 8px; }
+.footer-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.footer-brand { display: flex; align-items: center; gap: 14px; }
+.footer-brand img { height: 36px; width: auto; }
+.footer-name { font-size: 13px; font-weight: 700; }
+.footer-addr { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.footer-contact { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.9; }
+.footer-contact a { color: var(--blue); text-decoration: none; }
+
+/* ── PRINT-ONLY SUMMARY BAND ── */
+.print-only { display: none; }
+
+/* ═══════════════════════════════════
+   PRINT / PDF
+═══════════════════════════════════ */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #upload-screen { display: none !important; }
+  body { background: #fff !important; font-size: 11px; }
+
+  /* Hide screen-only elements */
+  .no-print { display: none !important; }
+  .filters { display: none !important; }
+  .rates-note { display: none !important; }
+  .kpi-row { display: none !important; }
+
+  /* Header — static, no sticky */
+  header { position: static !important; box-shadow: none !important; border-bottom: 1px solid #e3e7ef !important; padding: 10px 16px !important; }
+
+  main { padding: 12px 16px !important; max-width: 100% !important; }
+
+  /* Show print summary */
+  .print-only { display: block !important; }
+
+  /* Print summary band */
+  .print-summary {
+    display: flex !important; align-items: stretch;
+    border: 1px solid #e3e7ef; border-radius: 10px;
+    overflow: hidden; margin-bottom: 14px; page-break-inside: avoid;
+  }
+  .print-block {
+    flex: 1; padding: 10px 14px; border-right: 1px solid #e3e7ef;
+  }
+  .print-block:last-child { border-right: none; }
+  .pb-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7899; margin-bottom: 3px; }
+  .pb-value { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1.2; }
+  .pb-value.txt { font-family: 'Sora', sans-serif; font-size: 12px; }
+  .pb-value.period { font-family: 'Sora', sans-serif; font-size: 11px; color: #2d6be4; }
+  .pb-sub { font-size: 9px; color: #6b7899; margin-top: 2px; }
+
+  /* Table card */
+  .card { box-shadow: none !important; border: 1px solid #e3e7ef !important; break-inside: avoid; overflow: visible !important; margin-bottom: 12px !important; }
+  .card-header { padding: 10px 12px !important; }
+  .table-wrap { overflow: visible !important; }
+
+  /* Table sizing for A4 landscape */
+  table { width: 100% !important; font-size: 9px !important; table-layout: fixed; }
+  thead th {
+    font-size: 8px !important; padding: 6px 5px !important;
+    white-space: normal !important; word-break: break-word;
+    background: #f8f9fc !important;
+  }
+  thead th.left { width: 90px; }
+  thead th:nth-child(2) { width: 60px; }
+  thead th:last-child, thead th:nth-last-child(2) { width: 72px; }
+  td { padding: 6px 5px !important; font-size: 9px !important; white-space: nowrap; }
+  td.date-col { font-size: 8.5px !important; }
+  tfoot td { font-size: 9px !important; padding: 7px 5px !important; background: #f8f9fc !important; }
+
+  footer { page-break-inside: avoid; padding: 12px 16px !important; }
+  .footer-brand img { height: 28px !important; }
+  .footer-name { font-size: 11px !important; }
+  .footer-addr, .footer-contact { font-size: 10px !important; }
+
+  @page { margin: 10mm 8mm; size: A4 landscape; }
+}
+
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: repeat(2,1fr); }
+  main { padding: 16px; }
+  header { padding: 12px 16px; }
+}
 </style>
 </head>
-
 <body>
 
-<!-- KEEP YOUR ORIGINAL HTML STRUCTURE EXACTLY AS IS ABOVE MAIN -->
-
-<!-- ADD THIS RIGHT BEFORE YOUR PIVOT TABLE CARD -->
-
-<div id="installerBreakdown" class="card no-print" style="display:none;">
-  <div class="card-header">
-    <div class="card-title">Installer Breakdown Summary</div>
+<!-- ══ UPLOAD ══ -->
+<div id="upload-screen">
+  <div class="upload-logo">
+    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" onerror="this.style.display='none'" alt="Goldsure">
+    <h1>Goldsure Pty Ltd</h1>
+    <p>Installer Pay Summary Dashboard</p>
   </div>
-  <div class="table-wrap">
-    <div id="installerBreakdownTable"></div>
+  <div class="upload-card">
+    <h2>Upload Product Summary CSV</h2>
+    <p>Upload your exported file to generate the weekly installer pay report. The date range is read automatically from the filename.</p>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".csv">
+      <div class="drop-zone-icon">&#128196;</div>
+      <h3>Drop CSV here or click to browse</h3>
+      <p>product-summary-installed_DD-MM-YYYY_DD-MM-YYYY.csv</p>
+      <div class="file-loaded" id="fileLoaded"></div>
+    </div>
+    <button class="btn-load" id="btnLoad" disabled onclick="loadDashboard()">Load Dashboard</button>
   </div>
 </div>
 
-<!-- KEEP YOUR ORIGINAL PIVOT TABLE CARD HERE -->
+<!-- ══ DASHBOARD ══ -->
+<div id="dashboard">
+
+  <header>
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
+      <div>
+        <div class="header-logo-text">Goldsure <span>|</span> Installer Pay</div>
+        <span class="header-logo-sub" id="headerPeriod"></span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="fg no-print">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;">Fieldworker</label>
+        <select class="worker-select" id="workerSelect" onchange="renderTable()"></select>
+      </div>
+      <!-- NEW BUTTON: Show All Installers (with average smoke alarms) -->
+      <button class="btn no-print" onclick="showAllInstallers()" style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue);">Show All Installers + Avg Smoke Alarms</button>
+      <button class="btn no-print" onclick="resetUpload()">Upload New File</button>
+      <button class="btn btn-primary no-print" onclick="window.print()">Print / Save PDF</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- FILTER BAR — screen only -->
+    <div class="filters no-print">
+      <div class="fg">
+        <label>From</label>
+        <input type="date" id="dateFrom" onchange="onDateChange()">
+      </div>
+      <div class="fg">
+        <label>To</label>
+        <input type="date" id="dateTo" onchange="onDateChange()">
+      </div>
+      <div class="fsep"></div>
+      <button class="pbtn" id="btnAll" onclick="setPreset('all',this)">All</button>
+      <button class="pbtn" onclick="setWeek(0,this)">This Week</button>
+      <button class="pbtn" onclick="setWeek(-1,this)">Last Week</button>
+      <button class="pbtn" onclick="setWeek(-2,this)">-2 Weeks</button>
+      <button class="pbtn" onclick="setWeek(-3,this)">-3 Weeks</button>
+      <div class="fsep"></div>
+      <span class="period-pill" id="activePeriodLabel"></span>
+      <div class="filter-meta" id="filterMeta"></div>
+    </div>
+
+    <!-- PAY RATES NOTE — screen only -->
+    <div class="rates-note no-print">
+      <strong>Pay Rates (Ex GST):</strong>
+      <span class="rate-tag">[3429] Booking Fee — $30.00</span>
+      <span class="rate-tag">[3437] Inspection Fees — $60.00</span>
+      <span class="rate-tag">[3439] Booking Fee Discount — $0.00</span>
+      <span class="rate-tag">[3440] Referral Adjustment — $0.00</span>
+      <span class="rate-tag">All other products — $10.00 / unit</span>
+    </div>
+
+    <!-- KPI CARDS — screen only -->
+    <div class="kpi-row no-print">
+      <div class="kpi"><div class="kpi-lbl">Total Jobs</div><div class="kpi-val cb" id="kpiJobs">0</div><div class="kpi-sub">in selected period</div></div>
+      <div class="kpi"><div class="kpi-lbl">Units Installed</div><div class="kpi-val ca" id="kpiUnits">0</div><div class="kpi-sub">paid product lines</div></div>
+      <div class="kpi"><div class="kpi-lbl">Pay Ex GST</div><div class="kpi-val cg" id="kpiPayEx">$0.00</div><div class="kpi-sub">total earnings</div></div>
+      <div class="kpi"><div class="kpi-lbl">Pay Inc GST</div><div class="kpi-val cgold" id="kpiPayInc">$0.00</div><div class="kpi-sub">including 10% GST</div></div>
+    </div>
+
+    <!-- PRINT-ONLY SUMMARY BAND -->
+    <div class="print-only">
+      <div class="print-summary">
+        <div class="print-block">
+          <div class="pb-label">Fieldworker</div>
+          <div class="pb-value txt" id="pWorker">—</div>
+        </div>
+        <div class="print-block">
+          <div class="pb-label">Pay Period</div>
+          <div class="pb-value period" id="pPeriod">—</div>
+        </div>
+        <div class="print-block">
+          <div class="pb-label">Total Jobs</div>
+          <div class="pb-value cb" id="pJobs">0</div>
+        </div>
+        <div class="print-block">
+          <div class="pb-label">Units Installed</div>
+          <div class="pb-value ca" id="pUnits">0</div>
+        </div>
+        <div class="print-block">
+          <div class="pb-label">Pay Ex GST</div>
+          <div class="pb-value cg" id="pPayEx">$0.00</div>
+        </div>
+        <div class="print-block">
+          <div class="pb-label">Pay Inc GST</div>
+          <div class="pb-value cgold" id="pPayInc">$0.00</div>
+          <div class="pb-sub">includes 10% GST</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PIVOT TABLE -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Installed Products by Job <strong id="tableWorker"></strong></div>
+        <span class="period-pill" id="tablePeriodLabel"></span>
+      </div>
+      <div class="table-wrap">
+        <div id="tableContainer"></div>
+      </div>
+    </div>
+
+    <!-- NEW SECTION: average smoke alarms (hidden by default, shown only when "Show All Installers" is clicked) -->
+    <div id="allInstallersSummary" style="display:none; margin-top:20px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All Installers – Summary & Avg Smoke Alarms ([3430])</div>
+        </div>
+        <div class="table-wrap">
+          <table id="allInstallersTable" style="width:100%;">
+            <thead>
+              <tr>
+                <th class="left">Fieldworker</th>
+                <th>Total Jobs</th>
+                <th>Total [3430] Units</th>
+                <th>Avg Smoke Alarms per Job</th>
+                <th>Pay Ex GST</th>
+                <th>Pay Inc GST</th>
+              </tr>
+            </thead>
+            <tbody id="allInstallersTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
+        <div>
+          <div class="footer-name">Goldsure Pty Ltd</div>
+          <div class="footer-addr">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
+        </div>
+      </div>
+      <div class="footer-contact">
+        <div>Phone: <a href="tel:+61451898761">+61 451 898 761</a></div>
+        <div>Email: <a href="mailto:vignesh@goldsure.com.au">vignesh@goldsure.com.au</a></div>
+      </div>
+    </div>
+  </footer>
+
+</div>
 
 <script>
-
-/* ===== ORIGINAL PAY LOGIC (UNCHANGED) ===== */
-
+/* ── PAY RATES ── */
+// Only these product codes appear as columns in the table
 const SHOW_CODES = ['[3429]','[3430]','[3431]','[3434]','[3437]'];
+// These are excluded from columns (zero pay / not relevant to electrician)
 const HIDE_CODES = ['[3439]','[3440]'];
 
 const PAY_MAP = {
@@ -47,7 +438,6 @@ const PAY_MAP = {
   '[3439]': 0,
   '[3440]': 0,
 };
-
 const DEFAULT_PAY = 10;
 const GST = 0.10;
 
@@ -60,163 +450,316 @@ function payRate(name) {
   return (c && PAY_MAP.hasOwnProperty(c)) ? PAY_MAP[c] : DEFAULT_PAY;
 }
 
-/* ===== STATE ===== */
-
+/* ── STATE ── */
 let allRows = [], fileDateFrom = '', fileDateTo = '';
 
-/* ===== LOAD DASHBOARD ===== */
+/* ── FILE UPLOAD ── */
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
 
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change',   e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const m = file.name.match(/(\d{2}-\d{2}-\d{4})_(\d{2}-\d{2}-\d{4})/);
+  fileDateFrom = m ? dmy2iso(m[1]) : '';
+  fileDateTo   = m ? dmy2iso(m[2]) : '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    allRows = parseCSV(e.target.result);
+    const el = document.getElementById('fileLoaded');
+    el.textContent = file.name;
+    el.style.display = 'block';
+    document.getElementById('btnLoad').disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+function dmy2iso(s) {
+  const [d,m,y] = s.split('-');
+  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+
+function friendly(iso) {
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${M[parseInt(m)-1]} ${y}`;
+}
+
+/* ── CSV ── */
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const hdrs  = csvLine(lines[0]).map(h => h.replace(/"/g,'').trim());
+  return lines.slice(1).map(l => {
+    const cols = csvLine(l);
+    if (cols.length < 2) return null;
+    const r = {};
+    hdrs.forEach((h,i) => { r[h] = (cols[i]||'').replace(/^"|"$/g,'').trim(); });
+    return r['Job Id'] ? r : null;
+  }).filter(Boolean);
+}
+
+function csvLine(line) {
+  const r = []; let cur = '', q = false;
+  for (const c of line) {
+    if (c === '"') q = !q;
+    else if (c === ',' && !q) { r.push(cur); cur = ''; }
+    else cur += c;
+  }
+  r.push(cur);
+  return r;
+}
+
+/* ── LOAD ── */
 function loadDashboard() {
-
   document.getElementById('upload-screen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('dashboard').style.display     = 'block';
 
   const workers = [...new Set(allRows.map(r => r['Fieldworker']).filter(Boolean))].sort();
+  document.getElementById('workerSelect').innerHTML = workers.map(w => `<option value="${w}">${w}</option>`).join('');
 
-  const select = document.getElementById('workerSelect');
+  const dates = allRows.map(r => r['Completed Date']||r['Scheduled Date']).filter(d => /^\d{4}-\d{2}-\d{2}/.test(d||'')).sort();
+  document.getElementById('dateFrom').value = fileDateFrom || dates[0]   || '';
+  document.getElementById('dateTo').value   = fileDateTo   || dates[dates.length-1] || '';
 
-  select.innerHTML =
-    `<option value="ALL">All Installers</option>` +
-    workers.map(w => `<option value="${w}">${w}</option>`).join('');
+  if (fileDateFrom && fileDateTo)
+    document.getElementById('headerPeriod').textContent = `${friendly(fileDateFrom)} – ${friendly(fileDateTo)}`;
 
-  select.value = "ALL";
-
+  document.getElementById('btnAll').classList.add('active');
   renderTable();
 }
 
-/* ===== RENDER TABLE ===== */
+/* ── FILTER CONTROLS ── */
+function onDateChange() {
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('active'));
+  renderTable();
+}
 
+function setPreset(p, btn) {
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (p === 'all') {
+    const dates = allRows.map(r => r['Completed Date']||r['Scheduled Date']).filter(d => /^\d{4}-\d{2}-\d{2}/.test(d||'')).sort();
+    document.getElementById('dateFrom').value = fileDateFrom || dates[0]   || '';
+    document.getElementById('dateTo').value   = fileDateTo   || dates[dates.length-1] || '';
+  }
+  renderTable();
+}
+
+function setWeek(offset, btn) {
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const t = new Date(), day = t.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const mon = new Date(t); mon.setDate(t.getDate() + diff + offset * 7);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  document.getElementById('dateFrom').value = mon.toISOString().slice(0,10);
+  document.getElementById('dateTo').value   = sun.toISOString().slice(0,10);
+  renderTable();
+}
+
+/* ── RENDER (single installer) ── */
 function renderTable() {
-
   const worker = document.getElementById('workerSelect').value;
   const from   = document.getElementById('dateFrom').value;
   const to     = document.getElementById('dateTo').value;
 
-  const isAll = worker === "ALL";
-  const workerLabel = isAll ? "All Installers" : worker;
+  // Period label always reflects SELECTED dates
+  const periodLabel = (from && to)
+    ? `${friendly(from)} – ${friendly(to)}`
+    : from ? `From ${friendly(from)}` : 'All dates';
 
-  document.getElementById('tableWorker').textContent = workerLabel;
-  document.getElementById('pWorker').textContent = workerLabel;
+  ['activePeriodLabel','tablePeriodLabel'].forEach(id => document.getElementById(id).textContent = periodLabel);
+  document.getElementById('tableWorker').textContent = worker;
 
+  // Filter
   const rows = allRows.filter(r => {
     const d = r['Completed Date'] || r['Scheduled Date'] || '';
-    const workerMatch = isAll || r['Fieldworker'] === worker;
-    return workerMatch && (!from || d >= from) && (!to || d <= to);
+    return r['Fieldworker'] === worker && (!from || d >= from) && (!to || d <= to);
   });
 
+  // Group by job
   const jobMap = {};
-
   rows.forEach(r => {
-    const id = r['Job Id'];
-    const d  = r['Completed Date']||r['Scheduled Date']||'';
+    const id = r['Job Id'], d = r['Completed Date']||r['Scheduled Date']||'';
     if (!jobMap[id]) jobMap[id] = { id, d, prods: {} };
-
-    const p = r['Product Name']||'';
-    const q = parseInt(r['Product Quantity'])||0;
+    const p = r['Product Name']||'', q = parseInt(r['Product Quantity'])||0;
     if (p && q !== 0) jobMap[id].prods[p] = (jobMap[id].prods[p]||0) + q;
   });
 
-  const jobs = Object.values(jobMap);
+  const jobs = Object.values(jobMap).sort((a,b) => a.d !== b.d ? a.d.localeCompare(b.d) : Number(a.id)-Number(b.id));
 
+  // Build product column list — only SHOW codes, in fixed order
+  const inData = new Set();
+  jobs.forEach(j => Object.keys(j.prods).forEach(p => inData.add(p)));
+
+  // Map each SHOW code to the product name found in data (if present)
+  const cols = SHOW_CODES
+    .map(code => [...inData].find(p => p.startsWith(code)))
+    .filter(Boolean);
+
+  // Add any remaining non-hidden products not already listed
+  [...inData].forEach(p => {
+    const c = codeOf(p);
+    if (c && !SHOW_CODES.includes(c) && !HIDE_CODES.includes(c) && !cols.includes(p)) cols.push(p);
+  });
+
+  // Compute per-job pay
   jobs.forEach(j => {
     let ex = 0;
-    Object.entries(j.prods).forEach(([p,q]) => {
-      ex += q * payRate(p);
-    });
+    Object.entries(j.prods).forEach(([p,q]) => { ex += q * payRate(p); });
     j.payEx  = ex;
     j.payInc = +(ex * (1+GST)).toFixed(2);
   });
 
+  // Totals
   const totJobs  = jobs.length;
-  const totUnits = jobs.reduce((s,j) =>
-    s + Object.values(j.prods).reduce((a,b)=>a+b,0), 0);
+  const totUnits = jobs.reduce((s,j) => s + cols.reduce((a,p) => a + (j.prods[p]||0), 0), 0);
+  const totEx    = +jobs.reduce((s,j) => s + j.payEx,  0).toFixed(2);
+  const totInc   = +jobs.reduce((s,j) => s + j.payInc, 0).toFixed(2);
 
-  const totEx  = +jobs.reduce((s,j)=>s+j.payEx,0).toFixed(2);
-  const totInc = +jobs.reduce((s,j)=>s+j.payInc,0).toFixed(2);
-
+  // Screen KPIs
   document.getElementById('kpiJobs').textContent  = totJobs;
   document.getElementById('kpiUnits').textContent = totUnits;
   document.getElementById('kpiPayEx').textContent  = '$'+totEx.toFixed(2);
   document.getElementById('kpiPayInc').textContent = '$'+totInc.toFixed(2);
+  document.getElementById('filterMeta').textContent = `${totJobs} job${totJobs!==1?'s':''}`;
 
-  document.getElementById('pJobs').textContent   = totJobs;
-  document.getElementById('pUnits').textContent  = totUnits;
-  document.getElementById('pPayEx').textContent  = '$'+totEx.toFixed(2);
-  document.getElementById('pPayInc').textContent = '$'+totInc.toFixed(2);
+  // Print summary
+  document.getElementById('pWorker').textContent  = worker;
+  document.getElementById('pPeriod').textContent  = periodLabel;
+  document.getElementById('pJobs').textContent    = totJobs;
+  document.getElementById('pUnits').textContent   = totUnits;
+  document.getElementById('pPayEx').textContent   = '$'+totEx.toFixed(2);
+  document.getElementById('pPayInc').textContent  = '$'+totInc.toFixed(2);
 
-  /* ===== INSTALLER BREAKDOWN ===== */
-
-  if (isAll) {
-
-    const breakdownMap = {};
-
-    rows.forEach(r => {
-      const name = r['Fieldworker'] || 'Unknown';
-      const jobId = r['Job Id'];
-      const p = r['Product Name'] || '';
-      const q = parseInt(r['Product Quantity']) || 0;
-
-      if (!breakdownMap[name]) {
-        breakdownMap[name] = {
-          jobs: new Set(),
-          units: 0,
-          payEx: 0
-        };
-      }
-
-      breakdownMap[name].jobs.add(jobId);
-
-      if (q > 0) {
-        breakdownMap[name].units += q;
-        breakdownMap[name].payEx += q * payRate(p);
-      }
-    });
-
-    const breakdown = Object.entries(breakdownMap).map(([name,data]) => ({
-      name,
-      jobs: data.jobs.size,
-      units: data.units,
-      payEx: +data.payEx.toFixed(2),
-      payInc: +(data.payEx * (1+GST)).toFixed(2)
-    }))
-    .sort((a,b) => b.payEx - a.payEx);
-
-    const tableHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th class="left">Installer</th>
-            <th>Jobs</th>
-            <th>Units</th>
-            <th>Pay Ex GST</th>
-            <th>Pay Inc GST</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${breakdown.map(b => `
-            <tr>
-              <td class="left">${b.name}</td>
-              <td>${b.jobs}</td>
-              <td>${b.units}</td>
-              <td class="pay-ex">$${b.payEx.toFixed(2)}</td>
-              <td class="pay-inc">$${b.payInc.toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-
-    document.getElementById('installerBreakdownTable').innerHTML = tableHTML;
-    document.getElementById('installerBreakdown').style.display = 'block';
-
-  } else {
-    document.getElementById('installerBreakdown').style.display = 'none';
+  if (!jobs.length) {
+    document.getElementById('tableContainer').innerHTML =
+      '<p style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">No data found for the selected period and fieldworker.</p>';
+    return;
   }
 
-  /* ===== YOUR ORIGINAL PIVOT TABLE LOGIC CONTINUES HERE ===== */
-  /* KEEP YOUR EXISTING COLUMN BUILD + TABLE RENDER CODE BELOW */
+  // Column totals
+  const colTot = {}; cols.forEach(p => { colTot[p] = 0; });
+  jobs.forEach(j => cols.forEach(p => { colTot[p] += j.prods[p]||0; }));
+  const grandQty = cols.reduce((s,p) => s + colTot[p], 0);
+
+  const shortHdr = n => n.replace(/^\[\d+\]\s*/,'');
+
+  const thead = `<thead><tr>
+    <th class="left">Installed Date</th>
+    <th class="left">Job No.</th>
+    ${cols.map(p=>`<th>${shortHdr(p)}</th>`).join('')}
+    <th>Total Qty</th>
+    <th>Pay Ex GST</th>
+    <th>Pay Inc GST</th>
+  </tr></thead>`;
+
+  const tbody = '<tbody>' + jobs.map(j => {
+    const rowQty = cols.reduce((s,p) => s+(j.prods[p]||0), 0);
+    return `<tr>
+      <td class="date-col">${friendly(j.d)}</td>
+      <td class="job-col">${j.id}</td>
+      ${cols.map(p => { const q=j.prods[p]||0; return `<td class="num${q===0?' zero':''}">${q===0?'—':q}</td>`; }).join('')}
+      <td class="num"><strong>${rowQty}</strong></td>
+      <td class="pay-ex">$${j.payEx.toFixed(2)}</td>
+      <td class="pay-inc">$${j.payInc.toFixed(2)}</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+
+  const tfoot = `<tfoot><tr>
+    <td class="left" colspan="2">Grand Total</td>
+    ${cols.map(p=>`<td>${colTot[p]||'—'}</td>`).join('')}
+    <td>${grandQty}</td>
+    <td class="pay-ex">$${totEx.toFixed(2)}</td>
+    <td class="pay-inc">$${totInc.toFixed(2)}</td>
+  </tr></tfoot>`;
+
+  document.getElementById('tableContainer').innerHTML = `<table>${thead}${tbody}${tfoot}</table>`;
+
+  // hide all-installers section when a single installer is shown
+  document.getElementById('allInstallersSummary').style.display = 'none';
 }
 
+/* ── NEW FUNCTION: Show All Installers with Avg Smoke Alarms ── */
+function showAllInstallers() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const workers = [...new Set(allRows.map(r => r['Fieldworker']).filter(Boolean))].sort();
+
+  // Build summary per worker
+  const summary = workers.map(worker => {
+    const rows = allRows.filter(r => {
+      const d = r['Completed Date'] || r['Scheduled Date'] || '';
+      return r['Fieldworker'] === worker && (!from || d >= from) && (!to || d <= to);
+    });
+
+    // Group jobs
+    const jobMap = {};
+    rows.forEach(r => {
+      const id = r['Job Id'];
+      if (!jobMap[id]) jobMap[id] = { prods: {} };
+      const p = r['Product Name']||'', q = parseInt(r['Product Quantity'])||0;
+      if (p && q !== 0) jobMap[id].prods[p] = (jobMap[id].prods[p]||0) + q;
+    });
+
+    const jobs = Object.values(jobMap);
+    const totalJobs = jobs.length;
+
+    // Count [3430] units specifically
+    let totalSmoke = 0;
+    let totalEx = 0;
+
+    jobs.forEach(j => {
+      Object.entries(j.prods).forEach(([p,q]) => {
+        const rate = payRate(p);
+        totalEx += q * rate;
+        if (p.startsWith('[3430]')) totalSmoke += q;
+      });
+    });
+
+    const avgSmoke = totalJobs > 0 ? (totalSmoke / totalJobs).toFixed(2) : '0.00';
+    const totalInc = (totalEx * (1+GST)).toFixed(2);
+
+    return {
+      worker,
+      jobs: totalJobs,
+      smokeUnits: totalSmoke,
+      avg: avgSmoke,
+      ex: totalEx.toFixed(2),
+      inc: totalInc
+    };
+  }).filter(s => s.jobs > 0); // only those with jobs in period
+
+  // Build table rows
+  const tbody = summary.map(s => `<tr>
+    <td class="left">${s.worker}</td>
+    <td class="num">${s.jobs}</td>
+    <td class="num">${s.smokeUnits}</td>
+    <td class="num">${s.avg}</td>
+    <td class="pay-ex">$${s.ex}</td>
+    <td class="pay-inc">$${s.inc}</td>
+  </tr>`).join('');
+
+  document.getElementById('allInstallersTbody').innerHTML = tbody || '<tr><td colspan="6" style="text-align:center;padding:20px;">No data for selected period</td></tr>';
+  document.getElementById('allInstallersSummary').style.display = 'block';
+
+  // (Optional) also set the main select to a placeholder, but we keep it as is.
+  // we do not disturb the main table view.
+}
+
+/* ── RESET ── */
+function resetUpload() {
+  allRows = []; fileDateFrom = fileDateTo = '';
+  fileInput.value = '';
+  document.getElementById('fileLoaded').style.display = 'none';
+  document.getElementById('btnLoad').disabled = true;
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+}
 </script>
 </body>
 </html>
