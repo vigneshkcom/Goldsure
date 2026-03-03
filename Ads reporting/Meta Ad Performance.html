@@ -879,12 +879,12 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="metric-card">
         <div class="metric-lbl">Cost Per Lead (CPL)</div>
         <div class="metric-val cb" id="kpi-cpl">—</div>
-        <div class="metric-sub">Total Ad Spend ÷ Total Leads</div>
+        <div class="metric-sub">Total Ad Spend + Webco ÷ Total Leads</div>
       </div>
       <div class="metric-card green">
         <div class="metric-lbl">Cost Per Installation (CPI)</div>
         <div class="metric-val cg" id="kpi-cpi">—</div>
-        <div class="metric-sub">Total Ad Spend ÷ Installed Jobs</div>
+        <div class="metric-sub">Total Ad Spend + Webco ÷ Installed Jobs</div>
       </div>
       <div class="metric-card gold">
         <div class="metric-lbl">Profit Margin</div>
@@ -898,12 +898,12 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="metric-card">
         <div class="metric-lbl">Cost Per Lead (CPL)</div>
         <div class="metric-val cb" id="hws-kpi-cpl">—</div>
-        <div class="metric-sub">Total Ad Spend ÷ Total Leads</div>
+        <div class="metric-sub">Total Ad Spend + Webco ÷ Total Leads</div>
       </div>
       <div class="metric-card green">
         <div class="metric-lbl">Cost Per Installation (CPI)</div>
         <div class="metric-val cg" id="hws-kpi-cpi">—</div>
-        <div class="metric-sub">Total Ad Spend ÷ Installed Jobs</div>
+        <div class="metric-sub">Total Ad Spend + Webco ÷ Installed Jobs</div>
       </div>
       <div class="metric-card gold">
         <div class="metric-lbl">Conversion Rate</div>
@@ -998,14 +998,16 @@ const SMOKE_CSV_IS_INC_GST = false;
 
 // ── WEBCO EXPENSE (ex-GST per month) ──
 const WEBCO_SCHEDULE = [
-  { year:2025, month:10, smoke:0,    hws:2000 },
-  { year:2025, month:11, smoke:600,  hws:2000 },
+  { year:2025, month:11, smoke:0,    hws:2000 },
   { year:2025, month:12, smoke:600,  hws:2000 },
-  { year:2026, month:1,  smoke:2000, hws:0    },
+  { year:2026, month:1,  smoke:600,  hws:0    },
   { year:2026, month:2,  smoke:2000, hws:0    },
   { year:2026, month:3,  smoke:2000, hws:0    },
+  { year:2026, month:4,  smoke:2000, hws:0    },
+  { year:2026, month:5,  smoke:2000, hws:0    },
+  { year:2026, month:6,  smoke:2000, hws:0    },
 ];
-const WEBCO_DEFAULT_FROM = { year:2026, month:4, smoke:2000, hws:0 };
+const WEBCO_DEFAULT_FROM = { year:2026, month:7, smoke:2000, hws:0 };
 
 const SMOKE_ACCOUNT = 'act_1420815159464502';
 const HWS_ACCOUNT   = 'act_716067364534837';
@@ -1443,8 +1445,9 @@ function renderSmoke(){
   document.getElementById('lead-count').innerHTML      = `<strong>${total}</strong> leads (smoke)`;
 
   // ── NEW METRICS ──
-  const cpl    = total > 0 ? totalAdSpend / total : null;
-  const cpi    = inst  > 0 ? totalAdSpend / inst  : null;
+  const totalCost = totalAdSpend + webcoAmt;
+  const cpl    = total > 0 ? totalCost / total : null;
+  const cpi    = inst  > 0 ? totalCost / inst  : null;
   const margin = revenue > 0 ? (profit / revenue) * 100 : null;
   document.getElementById('kpi-cpl').innerText    = cpl    !== null ? `$${cpl.toFixed(2)}`    : '—';
   document.getElementById('kpi-cpi').innerText    = cpi    !== null ? `$${cpi.toFixed(2)}`    : '—';
@@ -1483,8 +1486,9 @@ function renderHws(){
   document.getElementById('lead-count').innerHTML       = `<strong>${total}</strong> leads (HWS)`;
 
   // ── NEW METRICS ──
-  const hwsCpl  = total > 0 ? totalAdSpend / total : null;
-  const hwsCpi  = inst  > 0 ? totalAdSpend / inst  : null;
+  const hwsTotalCost = totalAdSpend + webcoAmt;
+  const hwsCpl  = total > 0 ? hwsTotalCost / total : null;
+  const hwsCpi  = inst  > 0 ? hwsTotalCost / inst  : null;
   const hwsConv = total > 0 ? (inst / total) * 100  : null;
   document.getElementById('hws-kpi-cpl').innerText  = hwsCpl  !== null ? `$${hwsCpl.toFixed(2)}`   : '—';
   document.getElementById('hws-kpi-cpi').innerText  = hwsCpi  !== null ? `$${hwsCpi.toFixed(2)}`   : '—';
