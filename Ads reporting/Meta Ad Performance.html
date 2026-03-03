@@ -325,18 +325,66 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 .vtbtn.active { background:var(--text); color:#fff; }
 
 @media print {
-  #login-screen { display: none !important; }
+  #login-screen, #password-gate { display: none !important; }
   header { position: static !important; box-shadow: none !important; }
-  .btn-new, .btn-pdf, .product-toggle, .file-chip { display: none !important; }
-  #meta-live-panel { display: none !important; }
-  .filters { page-break-inside: avoid; }
-  .row2 { page-break-inside: avoid; }
-  .card { page-break-inside: avoid; border: 1px solid #ddd !important; box-shadow: none !important; }
-  body { background: white !important; }
-  main { padding: 10px !important; }
+  .btn-new, .btn-pdf, .product-toggle, .file-chip,
+  .btn-upload-csv, .btn-clear-csv, .config-csv-block,
+  #meta-live-panel, .pbtn, .filters select { display: none !important; }
+
+  @page { margin: 15mm 12mm; size: A4; }
+
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  body { background: white !important; font-size: 11px; }
+  main { padding: 6px !important; }
+
+  /* Allow content to reflow — remove fixed heights and overflow hidden */
+  .funnel-wrap, .vtable-wrap, .chart-svg-wrap { overflow: visible !important; max-height: none !important; height: auto !important; }
+
+  /* Cards: avoid breaking mid-card where possible, but allow break if card is tall */
+  .card { 
+    page-break-inside: avoid; 
+    break-inside: avoid;
+    border: 1px solid #ddd !important; 
+    box-shadow: none !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* Force breaks between major sections */
+  .financial-kpis { page-break-inside: avoid; break-inside: avoid; }
+  .kpi-row        { page-break-inside: avoid; break-inside: avoid; }
+  .metrics-row    { page-break-inside: avoid; break-inside: avoid; }
+  .config-box     { page-break-inside: avoid; break-inside: avoid; }
+  .assumptions-card { page-break-inside: avoid; break-inside: avoid; }
+
+  /* row2 (Funnel + Chart): allow break between the two cards */
+  .row2 { 
+    display: block !important; 
+    page-break-inside: auto;
+  }
+  .row2 > .card { 
+    display: block !important; 
+    width: 100% !important; 
+    margin-bottom: 10px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Volume tables: allow clean row-level breaks */
   .vtable-wrap { overflow: visible !important; }
+  .vtable      { width: 100% !important; page-break-inside: auto; }
+  .vtable tr   { page-break-inside: avoid; break-inside: avoid; }
+
+  /* Stage rows */
+  #stage-rows { page-break-inside: auto; }
+
+  /* SVG chart: scale to page width */
+  .chart-svg-wrap svg { width: 100% !important; height: auto !important; }
+
   footer { display: none !important; }
-  @page { margin: 15mm 12mm; }
+
+  /* Webco modal — never print */
+  #webco-modal { display: none !important; }
 }
 
 /* ── CONFIG BOX REDESIGN ── */
@@ -661,7 +709,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 .chart-legend { display:flex; gap:14px; }
 .chart-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--muted); }
 .chart-legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
-.chart-svg-wrap { width:100%; overflow-x:auto; }
+.chart-svg-wrap { width:100%; overflow-x:auto; display:flex; flex-direction:column; align-items:stretch; }
 .chart-empty { text-align:center; padding:40px 0; font-size:13px; color:var(--muted); }
 
 @media (max-width:700px) {
@@ -869,12 +917,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
     </div>
 
-    <div class="row2">
-      <div class="card"><div class="ctitle">STAGE BREAKDOWN</div><div id="stage-rows"></div></div>
-      <div class="card"><div class="ctitle">LEAD SOURCES</div><table class="dtable"><thead><tr><th>SOURCE</th><th>LEADS</th><th>INSTALLED</th><th>CLOSE %</th></tr></thead><tbody id="src-tbody"></tbody></table></div>
-    </div>
-
-    <!-- CPL / CPI / Margin — Smoke -->
+        <!-- CPL / CPI / Margin — Smoke -->
     <div class="metrics-row" id="smoke-metrics-row">
       <div class="metric-card">
         <div class="metric-lbl">Cost Per Lead (CPL)</div>
@@ -882,9 +925,9 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="metric-sub">Total Ad Spend + Webco ÷ Total Leads</div>
       </div>
       <div class="metric-card green">
-        <div class="metric-lbl">Cost Per Installation (CPI)</div>
+        <div class="metric-lbl">Total Cost Per Job</div>
         <div class="metric-val cg" id="kpi-cpi">—</div>
-        <div class="metric-sub">Total Ad Spend + Webco ÷ Installed Jobs</div>
+        <div class="metric-sub">Ad Spend + Webco + COGS + Install ÷ Installed Jobs</div>
       </div>
       <div class="metric-card gold">
         <div class="metric-lbl">Profit Margin</div>
@@ -922,12 +965,17 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="chart-header">
           <span class="ctitle" style="border:none;padding:0;margin:0;">MONTHLY SPEND vs LEADS</span>
           <div class="chart-legend">
-            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--blue)"></div>Ad Spend</div>
+            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--blue)"></div>Total Spend</div>
             <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--green)"></div>Leads</div>
           </div>
         </div>
         <div class="chart-svg-wrap" id="chart-svg-wrap"><div class="chart-empty">No data</div></div>
       </div>
+    </div>
+
+    <div class="row2">
+      <div class="card"><div class="ctitle">STAGE BREAKDOWN</div><div id="stage-rows"></div></div>
+      <div class="card"><div class="ctitle">LEAD SOURCES</div><table class="dtable"><thead><tr><th>SOURCE</th><th>LEADS</th><th>INSTALLED</th><th>CLOSE %</th></tr></thead><tbody id="src-tbody"></tbody></table></div>
     </div>
 
 
@@ -1446,12 +1494,12 @@ function renderSmoke(){
 
   // ── NEW METRICS ──
   const totalCost = totalAdSpend + webcoAmt;
-  const cpl    = total > 0 ? totalCost / total : null;
-  const cpi    = inst  > 0 ? totalCost / inst  : null;
-  const margin = revenue > 0 ? (profit / revenue) * 100 : null;
-  document.getElementById('kpi-cpl').innerText    = cpl    !== null ? `$${cpl.toFixed(2)}`    : '—';
-  document.getElementById('kpi-cpi').innerText    = cpi    !== null ? `$${cpi.toFixed(2)}`    : '—';
-  document.getElementById('kpi-margin').innerText = margin !== null ? `${margin.toFixed(1)}%` : '—';
+  const cpl         = total > 0 ? totalCost / total : null;
+  const totalCostPerJob = inst > 0 ? (totalAdSpend + webcoAmt + cogsIncGST + installCost) / inst : null;
+  const margin      = revenue > 0 ? (profit / revenue) * 100 : null;
+  document.getElementById('kpi-cpl').innerText    = cpl             !== null ? `$${cpl.toFixed(2)}`             : '—';
+  document.getElementById('kpi-cpi').innerText    = totalCostPerJob !== null ? `$${totalCostPerJob.toFixed(2)}` : '—';
+  document.getElementById('kpi-margin').innerText = margin          !== null ? `${margin.toFixed(1)}%`          : '—';
   document.getElementById('kpi-margin').className = margin === null ? 'metric-val cgold' : margin >= 0 ? 'metric-val cgold' : 'metric-val cr';
 
   renderStagesAndSources(leads, total, totalAdSpend, 'smoke');
@@ -1643,6 +1691,19 @@ function renderSpendLeadsChart(leads, product) {
     spendByMonth[key] = (spendByMonth[key] || 0) + amt;
   });
 
+  // Add Webco per month (ex-GST, pro-rated to full month)
+  const allMonthKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
+  allMonthKeys.forEach(key => {
+    const [yr, mo] = key.split('-').map(Number);
+    const daysInMo = new Date(yr, mo, 0).getDate();
+    const monthFrom = `${key}-01`;
+    const monthTo   = `${key}-${String(daysInMo).padStart(2,'0')}`;
+    const rangeFrom = from && from > monthFrom ? from : monthFrom;
+    const rangeTo   = to   && to   < monthTo   ? to   : monthTo;
+    const webcoMonth = getWebcoForRange(rangeFrom, rangeTo, product);
+    spendByMonth[key] = (spendByMonth[key] || 0) + webcoMonth;
+  });
+
   // Union of all months
   const allKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
 
@@ -1658,11 +1719,14 @@ function renderSpendLeadsChart(leads, product) {
   const maxSpend = Math.max(...spendVals, 1);
   const maxLeads = Math.max(...leadVals, 1);
 
-  // Chart dimensions
+  // Chart dimensions — fill full card width
+  const cardEl  = el.closest('.card') || el.parentElement;
+  const cardW   = (cardEl ? cardEl.clientWidth : 600) - 44; // subtract card padding
   const barW    = 28, gap = 16, padL = 58, padR = 16, padT = 16, padB = 48;
-  const chartH  = 180;
+  const chartH  = 200;
   const groupW  = barW * 2 + gap;
-  const totalW  = padL + months.length * (groupW + 10) + padR;
+  const minW    = padL + months.length * (groupW + 10) + padR;
+  const totalW  = Math.max(minW, cardW);
   const plotH   = chartH - padT - padB;
 
   const xOf = i => padL + i * (groupW + 10);
@@ -1700,12 +1764,13 @@ function renderSpendLeadsChart(leads, product) {
     `;
   }).join('');
 
-  el.innerHTML = `<svg width="${totalW}" height="${chartH}" style="display:block;min-width:100%;">
+  el.innerHTML = `<svg width="100%" viewBox="0 0 ${totalW} ${chartH}" preserveAspectRatio="xMidYMid meet" style="display:block;min-width:${minW}px;">
     ${gridLines}
     ${bars}
     <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#e3e7ef" stroke-width="1"/>
     <line x1="${padL}" y1="${padT + plotH}" x2="${totalW - padR}" y2="${padT + plotH}" stroke="#e3e7ef" stroke-width="1"/>
-  </svg>`;
+  </svg>
+  <div style="margin-top:8px;font-size:10px;color:var(--muted);letter-spacing:0.2px;">Monthly Spend = Total Ad Spend (Meta + Google) + Webco (ex-GST)</div>`;
 }
 
 
