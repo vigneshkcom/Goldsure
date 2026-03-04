@@ -3,1321 +3,1345 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Staff Leave Planner — Goldsure</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Goldsure · Sales Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* =====================================================
-   DESIGN TOKENS
-===================================================== */
 :root {
-  --white:      #ffffff;
-  --bg:         #f5f6f8;
-  --gold:       #caa84a;
-  --gold-lt:    rgba(202,168,74,0.10);
-  --gold-dk:    #b8962e;
-  --txt:        #1b1b1b;
-  --txt-s:      #6b7280;
-  --txt-m:      #9ca3af;
-  --bd:         #e5e7eb;
-  --bd-s:       #d1d5db;
-  --hov:        #f3f4f6;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --green-bg: #eaf7f2;
+  --red: #e04f4f;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --gold: #b08d2e;
+  --gold-bg: #fef7e7;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(0,0,0,0.08);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  /* leave colours */
-  --an-bg:#dbeafe; --an-bd:#93c5fd; --an-tx:#1e3a8a;
-  --sk-bg:#fee2e2; --sk-bd:#fca5a5; --sk-tx:#991b1b;
-  --pe-bg:#d1fae5; --pe-bd:#6ee7b7; --pe-tx:#065f46;
-  --ot-bg:#ede9fe; --ot-bd:#c4b5fd; --ot-tx:#4c1d95;
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; background: #000000; padding: 24px;
+}
+.login-card {
+  background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08);
+  border-top: 3px solid var(--gold); border-radius: 20px;
+  padding: 44px 40px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo img { height: 52px; width: auto; margin: 0 auto 14px; display: block; }
+.login-logo h2 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.login-logo p  { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255,255,255,0.4); margin-bottom: 7px; }
+.login-field input {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 14px;
+  padding: 11px 14px; border-radius: 9px; border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.15s;
+}
+.login-field input::placeholder { color: rgba(255,255,255,0.2); }
+.login-field input:focus { border-color: var(--gold); }
+.login-error {
+  font-size: 12px; font-weight: 600; color: var(--red);
+  background: rgba(224,79,79,0.1); border: 1px solid rgba(224,79,79,0.25);
+  border-radius: 7px; padding: 9px 12px; margin-bottom: 14px; display: none;
+}
+.login-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  padding: 13px; border-radius: 9px; border: none; cursor: pointer;
+  background: var(--gold); color: #000; text-transform: uppercase;
+  letter-spacing: 0.5px; transition: background 0.15s; margin-top: 4px;
+}
+.login-btn:hover { background: #caa535; }
+.login-hint { font-size: 11px; color: rgba(255,255,255,0.22); text-align: center; margin-top: 16px; line-height: 1.6; }
 
-  /* QLD = orange */
-  --qph-bg:#fff7ed; --qph-bd:#f97316; --qph-tx:#9a3412;
-  --qsh-bg:#ffedd5; --qsh-bd:#fb923c; --qsh-tx:#7c2d12;
+/* ── APP ── */
+#app { display: none; }
 
-  /* NSW = blue */
-  --nph-bg:#eff6ff; --nph-bd:#3b82f6; --nph-tx:#1e40af;
-  --nsh-bg:#dbeafe; --nsh-bd:#60a5fa; --nsh-tx:#1e3a8a;
+/* ── HEADER ── */
+header {
+  background: #ffffff;
+  border-bottom: 3px solid var(--gold);
+  padding: 0 28px; display: flex; align-items: stretch;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 36px; width: auto; object-fit: contain; }
+.header-logo-text { font-size: 15px; font-weight: 700; color: #141c2e; letter-spacing: -0.3px; }
+.header-logo-text span { color: var(--gold); }
+.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.1); }
+.header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7899; }
+.header-right { display: flex; align-items: center; gap: 8px; }
 
-  /* VIC = red */
-  --vph-bg:#fff1f2; --vph-bd:#f43f5e; --vph-tx:#9f1239;
-  --vsh-bg:#ffe4e6; --vsh-bd:#fb7185; --vsh-tx:#881337;
+.agent-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: #f0f2f5; border: 1px solid #d0d5df;
+  border-radius: 20px; padding: 5px 13px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.agent-name { font-size: 12px; font-weight: 600; color: #141c2e; }
 
-  /* layout */
-  --top-h:  54px;
-  --nav-h:  42px;
-  --sta-h:  26px;
-  --name-w: 200px;
-  --day-w:  36px;
-  --row-h:  46px;
-  --cal-h:  34px;
-}
-
-/* =====================================================
-   BASE
-===================================================== */
-*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--txt);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* =====================================================
-   TOP BAR
-===================================================== */
-.topbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 400;
-  height: var(--top-h);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  background: var(--white);
-  border-bottom: 1px solid var(--bd);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-.tb-left { display: flex; align-items: center; gap: 10px; }
-.logo-link { display: flex; align-items: center; gap: 9px; text-decoration: none; }
-.logo-box {
-  width: 34px; height: 34px; border-radius: 8px;
-  background: var(--gold);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(202,168,74,0.35); flex-shrink: 0;
-}
-.logo-box svg { width: 18px; height: 18px; fill: #fff; }
-.logo-words { display: flex; flex-direction: column; line-height: 1; }
-.logo-name {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 700; color: var(--txt); letter-spacing: -0.01em;
-}
-.logo-name span { color: var(--gold); }
-.logo-sub {
-  font-size: 8.5px; font-weight: 600; color: var(--txt-m);
-  letter-spacing: 0.14em; text-transform: uppercase; margin-top: 2px;
-}
-.tb-div { width: 1px; height: 22px; background: var(--bd); margin: 0 2px; }
-.tb-title { font-size: 13px; font-weight: 500; color: var(--txt-s); }
-.tb-right { display: flex; align-items: center; gap: 12px; }
-.state-key {
-  display: flex; align-items: center; gap: 9px;
-  padding: 4px 11px;
-  background: var(--bg); border: 1px solid var(--bd); border-radius: 20px;
-}
-.sk-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 500; color: var(--txt-s); }
-.sk-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.sk-sep { width: 1px; height: 10px; background: var(--bd); }
-.btn-add {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border: none; border-radius: 8px;
-  background: var(--gold); color: #fff;
-  font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(202,168,74,0.28);
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-add:hover { background: var(--gold-dk); transform: translateY(-1px); }
-.btn-add:active { transform: translateY(0); }
-
-/* =====================================================
-   NAV BAR
-===================================================== */
-.navbar {
-  position: fixed; top: var(--top-h); left: 0; right: 0; z-index: 390;
-  height: var(--nav-h);
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 24px;
-  background: var(--white); border-bottom: 1px solid var(--bd);
-}
 .nav-btn {
-  width: 26px; height: 26px; border-radius: 6px;
-  border: 1px solid var(--bd); background: var(--white);
-  color: var(--txt-s); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-family: inherit; transition: all 0.15s;
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 7px 14px; border: 1px solid #d0d5df; border-radius: 8px;
+  background: transparent; color: #4b5b7a; cursor: pointer;
+  text-decoration: none; transition: all 0.15s; display: inline-flex;
+  align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px;
 }
-.nav-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-lt); }
-.nav-range {
-  font-size: 13px; font-weight: 600; color: var(--txt);
-  min-width: 210px; text-align: center; letter-spacing: -0.01em;
-}
-.btn-today {
-  padding: 4px 11px; border-radius: 6px;
-  border: 1px solid var(--bd); background: var(--white);
-  color: var(--txt-s); font-size: 12px; font-weight: 500;
-  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
-}
-.btn-today:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-lt); }
+.nav-btn:hover { background: #f0f2f5; color: #141c2e; border-color: #b08d2e; }
+.nav-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+.nav-btn.raptor { background: #d3662b; color: #fff; border-color: #d3662b; }
+.nav-btn.raptor:hover { background: #b3521e; }
+.nav-btn.logout { font-size: 10px; padding: 5px 10px; color: #8f9bb3; border-color: #e3e7ef; }
+.nav-btn.logout:hover { color: var(--red); border-color: rgba(224,79,79,0.3); background: rgba(224,79,79,0.06); }
 
-/* =====================================================
-   PLANNER VIEWPORT
-===================================================== */
-.planner-wrap {
-  position: fixed;
-  top: calc(var(--top-h) + var(--nav-h));
-  left: 0; right: 0; bottom: var(--sta-h);
-  overflow: hidden;
+/* ── SUB-NAV ── */
+.sub-nav {
+  background: #ffffff; border-bottom: 1px solid #e3e7ef;
+  padding: 0 28px; display: flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 44px; flex-wrap: wrap;
 }
-.planner-scroll {
-  position: absolute; inset: 0;
-  overflow-x: auto; overflow-y: auto;
+.radio-label {
+  font-size: 11px; font-weight: 600; color: #4b5b7a;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
 }
-.planner-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-.planner-scroll::-webkit-scrollbar-track { background: var(--bg); }
-.planner-scroll::-webkit-scrollbar-thumb { background: var(--bd-s); border-radius: 3px; }
-.planner-scroll::-webkit-scrollbar-thumb:hover { background: var(--txt-m); }
+.radio-label input { accent-color: var(--gold); }
+.radio-label:has(input:checked) { background: #fef7e7; color: var(--gold); }
+.sub-divider { width: 1px; height: 22px; background: #e3e7ef; margin: 0 4px; }
+.sub-link {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 12px; border-radius: 6px;
+  background: #fef7e7; color: var(--gold);
+  border: 1px solid #e8d28a;
+  text-decoration: none; text-transform: uppercase; letter-spacing: 0.4px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.sub-link:hover { background: var(--gold); color: #000; }
 
-/* =====================================================
-   PLANNER INNER
-===================================================== */
-.planner-inner {
-  display: block;
-  min-width: max-content;
-  background: var(--white);
-}
+/* ── MAIN ── */
+main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
 
-/* =====================================================
-   STICKY HEADER — 3 sub-rows
-===================================================== */
-.p-header {
-  position: sticky; top: 0; z-index: 300;
-  display: flex; flex-direction: column;
-  background: var(--white);
+.customer-bar {
+  grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 18px;
+  display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow);
 }
-.h-row { display: flex; flex-direction: row; border-bottom: 1px solid var(--bd); }
-.h-row:last-child { border-bottom: 2px solid var(--bd-s); }
+.customer-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
+.customer-bar input { flex: 1; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
+.customer-bar input::placeholder { color: var(--border); }
 
-/* sticky name column in header */
-.h-name {
-  position: sticky; left: 0; z-index: 310;
-  width: var(--name-w); min-width: var(--name-w); flex-shrink: 0;
-  background: var(--bg); border-right: 2px solid var(--bd);
-  display: flex; align-items: center; padding: 0 14px;
-  font-size: 9px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--txt-m);
-}
+/* ── STEP CARDS ── */
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+.step-card:hover { box-shadow: var(--shadow-lg); }
+.step-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
+.step-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; }
+.step-1 .step-badge { background: #141c2e; color: #fff; }
+.step-2 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-3 .step-badge { background: #141c2e; color: #fff; }
+.step-4 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.step-body { padding: 12px 18px 16px; }
+.script-text { font-size: 13px; font-style: italic; color: var(--text); line-height: 1.7; font-weight: 500; }
+.script-text strong { font-style: normal; color: var(--text); font-weight: 700; }
+.script-text .red { color: var(--red); font-weight: 700; font-style: normal; text-transform: uppercase; }
 
-/* month span cells */
-.h-month {
-  height: 26px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--txt-s);
-  background: var(--bg); border-right: 1px solid var(--bd);
-  white-space: nowrap; overflow: hidden; flex-shrink: 0;
-}
-.h-month.cur { color: var(--gold); border-top: 2.5px solid var(--gold); }
+.input-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 14px 0; }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.field-input { font-family: 'Sora', sans-serif; font-size: 13px; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s; width: 100%; }
+.field-input:focus { border-color: var(--gold); background: var(--surface); }
 
-/* DOW cells */
-.h-dow {
-  width: var(--day-w); min-width: var(--day-w); flex-shrink: 0;
-  height: 22px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 8px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.04em; color: var(--txt-m);
-  background: var(--white); border-right: 1px solid var(--bd);
-}
+.storey-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; display: none; }
+.storey-box.visible { display: block; }
+.storey-box p { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.storey-radio { display: flex; gap: 16px; }
+.storey-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.storey-radio label:has(input:checked) { color: var(--text); }
 
-/* day-number cells */
-.h-day {
-  width: var(--day-w); min-width: var(--day-w); flex-shrink: 0;
-  height: 26px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 500; color: var(--txt-s);
-  background: var(--white); border-right: 1px solid var(--bd);
-  line-height: 1;
-}
-.h-dow.wk, .h-day.wk { background: #f3f3f3; }
-.h-dow.td, .h-day.td { background: var(--gold-lt); color: var(--gold); }
-.h-day.td { font-weight: 700; }
-.h-day.hl { background: #fef9ec; color: #92400e; }
-.dn { font-size: 11px; font-weight: inherit; }
-.da { font-size: 6px; font-weight: 700; text-transform: uppercase; opacity: 0.7; margin-top: 1px; letter-spacing: 0.04em; }
+.controller-box { background: rgba(176,141,46,0.06); border: 1px solid rgba(176,141,46,0.25); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.controller-box p { font-size: 12px; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+.ctrl-radio { display: flex; gap: 16px; margin-bottom: 8px; }
+.ctrl-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.ctrl-radio label:has(input:checked) { color: var(--text); }
+.ctrl-qty-row { display: none; }
+.ctrl-qty-row.visible { display: flex; align-items: center; gap: 10px; }
+.ctrl-qty-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
 
-/* =====================================================
-   GRID BODY
-===================================================== */
-.p-body { display: flex; flex-direction: column; }
+.legislation-box { background: var(--gold-bg); border: 1px solid #e8d28a; border-radius: 8px; padding: 12px 14px; }
+.legislation-box h5 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); margin-bottom: 8px; }
+.legislation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.legislation-item { font-size: 10px; color: #7a6020; display: flex; align-items: center; gap: 5px; }
+.legislation-item::before { content: "✓"; color: var(--gold); font-weight: 700; }
 
-/* ─── Row shell ─── */
-.row { display: flex; flex-direction: row; border-bottom: 1px solid var(--bd); }
-.row.sr { height: var(--row-h); background: var(--white); }
-.row.cr { height: var(--cal-h); background: var(--white); }
-.row.sr:hover .rn { background: var(--hov) !important; }
-.row.sr:hover .rt { background: rgba(202,168,74,0.025) !important; }
+details.step-card summary { list-style: none; cursor: pointer; }
+details.step-card summary::-webkit-details-marker { display: none; }
+details.step-card .step-header { cursor: pointer; padding-bottom: 14px; }
+details.step-card[open] .step-header { padding-bottom: 0; }
+details.step-card .step-hint { font-size: 11px; color: var(--muted); padding: 2px 18px 12px 18px; }
+details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px solid var(--border); }
 
-/* sticky name cell */
-.rn {
-  position: sticky; left: 0; z-index: 50;
-  width: var(--name-w); min-width: var(--name-w); flex-shrink: 0;
-  height: 100%;
-  display: flex; align-items: center; padding: 0 14px;
-  background: var(--white);
-  border-right: 2px solid var(--bd);
-  white-space: nowrap; transition: background 0.1s;
-}
-.rn.staff { font-size: 12.5px; font-weight: 500; color: var(--txt); letter-spacing: -0.01em; }
-.rn.cal   { font-size: 11px; font-weight: 600; color: var(--txt-s); }
-.rn.cal.qld { border-left: 3px solid #f97316; padding-left: 11px; }
-.rn.cal.nsw { border-left: 3px solid #3b82f6; padding-left: 11px; }
-.rn.cal.vic { border-left: 3px solid #f43f5e; padding-left: 11px; }
+.service-block { display: none; }
+.service-block.active { display: block; }
 
-/* ─── Timeline track ─── */
-.rt {
-  position: relative;
-  flex-grow: 1; height: 100%;
-  background: var(--white);
-  overflow: hidden;
-  transition: background 0.08s;
+/* ── SIDEBAR ── */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.price-card {
+  background: #000000; border-radius: var(--r); padding: 22px 20px;
+  border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg);
+  position: sticky; top: 80px;
 }
+.price-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.4); margin-bottom: 16px; text-align: center; }
+.price-line { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.price-line-label { font-size: 12px; color: rgba(255,255,255,0.6); }
+.price-line-val { font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #fff; }
+.price-line.balance .price-line-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+.price-line.balance .price-line-val { font-size: 11px; color: rgba(255,255,255,0.4); }
+.ctrl-summary-row { display: none; }
+.ctrl-summary-row.visible { display: flex; }
+.price-total-block { margin-top: 14px; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,0.15); display: flex; justify-content: space-between; align-items: baseline; }
+.price-total-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.price-total-val { font-size: 26px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--gold); }
 
-/* ─── Day column ghost (grid lines only, no pointer events) ─── */
-.dc {
-  position: absolute; top: 0; bottom: 0;
-  width: var(--day-w);
-  border-right: 1px solid var(--bd);
-  pointer-events: none;
+.action-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
+  padding: 11px 14px; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border: none; transition: all 0.15s; margin-bottom: 6px;
 }
-.dc.wk { background: #f3f3f3; }
-.dc.td { background: rgba(202,168,74,0.07); }
+.action-btn:last-child { margin-bottom: 0; }
+.action-btn.primary { background: var(--gold); color: #000; }
+.action-btn.primary:hover { background: #caa535; }
+.action-btn.secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); }
+.action-btn.secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ─── Day hit targets ─── */
-.dh {
-  position: absolute; top: 0; bottom: 0;
-  width: var(--day-w);
-  cursor: pointer; z-index: 2;
+.docs-accordion { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+.docs-toggle {
+  width: 100%; background: none; border: none; cursor: pointer; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.55);
 }
-.dh:hover { background: rgba(202,168,74,0.09); }
+.docs-toggle .arrow { transition: transform 0.2s; font-size: 9px; color: rgba(255,255,255,0.3); }
+.docs-list { display: none; background: rgba(0,0,0,0.2); }
+.docs-list.open { display: block; }
+.docs-list a {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Sora', sans-serif; font-size: 11px;
+  padding: 10px 14px; color: rgba(255,255,255,0.7); text-decoration: none;
+  border-top: 1px solid rgba(255,255,255,0.05); transition: all 0.15s;
+  background: transparent;
+}
+.docs-list a:hover { background: rgba(176,141,46,0.1); color: var(--gold); }
+.doc-card { cursor: pointer; }
+.doc-icon { font-size: 16px; flex-shrink: 0; }
+.doc-info { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+.doc-info strong { font-size: 11px; font-weight: 700; color: #fff; }
+.doc-info span { font-size: 9px; color: rgba(255,255,255,0.4); }
+.doc-arrow { font-size: 13px; color: rgba(176,141,46,0.5); transition: all 0.15s; }
+.docs-list a:hover .doc-arrow { color: var(--gold); transform: translateX(3px); }
 
-/* =====================================================
-   EVENT BARS
-   ─────────────────────────────────────────────────
-   One element per event, absolutely positioned.
-   left  = startIdx * DAY_W + 2
-   width = (endIdx - startIdx + 1) * DAY_W - 4
-   evPos() clamps to visible window.
-===================================================== */
-.ev {
-  position: absolute;
-  top: 50%; transform: translateY(-50%);
-  border-radius: 5px;
-  display: flex; align-items: center;
-  padding: 0 8px;
-  font-size: 10px; font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  border: 1.5px solid transparent;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-  z-index: 10;
-  letter-spacing: 0.01em;
-  /* left + width set inline */
-}
-
-/* staff leave bars */
-.ev.lv { height: 26px; cursor: pointer; }
-.ev.lv:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); transform: translateY(-50%) scaleY(1.06); z-index: 20; }
-.ev.annual   { background: var(--an-bg); border-color: var(--an-bd); color: var(--an-tx); }
-.ev.sick     { background: var(--sk-bg); border-color: var(--sk-bd); color: var(--sk-tx); }
-.ev.personal { background: var(--pe-bg); border-color: var(--pe-bd); color: var(--pe-tx); }
-.ev.other    { background: var(--ot-bg); border-color: var(--ot-bd); color: var(--ot-tx); }
-
-/* delete button inside leave bar */
-.ev-x { flex-shrink: 0; padding-left: 7px; opacity: 0; font-size: 11px; cursor: pointer; transition: opacity 0.1s; line-height: 1; }
-.ev.lv:hover .ev-x { opacity: 0.45; }
-.ev-x:hover { opacity: 1 !important; }
-
-/* public holiday bars */
-.ev.ph { height: 24px; border-radius: 4px; cursor: default; box-shadow: none; }
-.ev.ph.qld { background: var(--qph-bg); border-color: var(--qph-bd); color: var(--qph-tx); }
-.ev.ph.nsw { background: var(--nph-bg); border-color: var(--nph-bd); color: var(--nph-tx); }
-.ev.ph.vic { background: var(--vph-bg); border-color: var(--vph-bd); color: var(--vph-tx); }
-
-/* public holiday pill — fills the day column(s), centred abbreviation */
-.ev.ph.ph-pill {
-  justify-content: center;
-  align-items: center;
-  padding: 0;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-align: center;
-  display: flex;
-}
-
-/* school holiday bars */
-.ev.sh { height: 24px; border-radius: 4px; cursor: default; box-shadow: none; }
-.ev.sh.qld { background: var(--qsh-bg); border-color: var(--qsh-bd); color: var(--qsh-tx); }
-.ev.sh.nsw { background: var(--nsh-bg); border-color: var(--nsh-bd); color: var(--nsh-tx); }
-.ev.sh.vic { background: var(--vsh-bg); border-color: var(--vsh-bd); color: var(--vsh-tx); }
-
-/* =====================================================
-   SECTION DIVIDER
-===================================================== */
-.sdiv {
-  display: flex; flex-direction: row;
-  height: 24px;
-  background: var(--bg);
-  border-top: 2px solid var(--bd-s);
-  border-bottom: 1px solid var(--bd);
-}
-.sdiv-label {
-  position: sticky; left: 0; z-index: 50;
-  width: var(--name-w); min-width: var(--name-w); flex-shrink: 0;
-  display: flex; align-items: center; padding: 0 14px;
-  font-size: 8.5px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--txt-m);
-  background: var(--bg); border-right: 2px solid var(--bd);
-}
-.sdiv-fill { flex-grow: 1; background: var(--bg); }
-
-/* =====================================================
-   MODAL
-===================================================== */
-.mo-wrap {
-  position: fixed; inset: 0; z-index: 600;
-  background: rgba(15,23,42,0.38);
-  backdrop-filter: blur(3px);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
-}
-.mo-wrap.open { opacity: 1; pointer-events: all; }
-.modal {
-  background: var(--white); border: 1px solid var(--bd); border-radius: 14px;
-  width: 460px; max-width: 95vw; padding: 28px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
-  transform: translateY(10px) scale(0.98);
-  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
-}
-.mo-wrap.open .modal { transform: translateY(0) scale(1); }
-.mo-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--bd);
-}
-.mo-accent { display: inline-block; width: 3px; height: 17px; background: var(--gold); border-radius: 2px; margin-right: 9px; vertical-align: middle; }
-.mo-title { font-size: 15px; font-weight: 700; color: var(--txt); letter-spacing: -0.01em; }
-.mo-close {
-  width: 28px; height: 28px; border-radius: 7px;
-  border: 1px solid var(--bd); background: var(--bg);
-  color: var(--txt-s); cursor: pointer; font-size: 14px;
-  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
-}
-.mo-close:hover { background: var(--hov); color: var(--txt); }
-.fg { margin-bottom: 13px; }
-.fl { display: block; font-size: 11px; font-weight: 600; color: var(--txt-s); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 5px; }
-.fc {
-  width: 100%; padding: 9px 12px;
-  background: var(--white); border: 1px solid var(--bd); border-radius: 8px;
-  color: var(--txt); font-size: 13px; font-family: 'Inter', sans-serif;
-  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
-  appearance: none; -webkit-appearance: none;
-}
-.fc:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(202,168,74,0.12); }
-select.fc {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  padding-right: 30px; cursor: pointer;
-}
-.f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.mo-acts { display: flex; gap: 10px; margin-top: 20px; }
-.btn-cancel {
-  flex: 1; padding: 9px; border-radius: 8px;
-  border: 1px solid var(--bd); background: var(--bg);
-  color: var(--txt-s); font-size: 13px; font-weight: 500;
-  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
-}
-.btn-cancel:hover { background: var(--hov); color: var(--txt); }
-.btn-save {
-  flex: 2; padding: 9px; border-radius: 8px; border: none;
-  background: var(--gold); color: #fff;
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  box-shadow: 0 2px 6px rgba(202,168,74,0.28); transition: background 0.15s;
-}
-.btn-save:hover:not(:disabled) { background: var(--gold-dk); }
-.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* =====================================================
-   TOOLTIP
-===================================================== */
-.tip {
-  position: fixed; z-index: 700;
-  background: var(--white); border: 1px solid var(--bd); border-radius: 10px;
-  padding: 10px 13px; font-size: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-  min-width: 180px; pointer-events: none;
-  opacity: 0; transition: opacity 0.12s;
-}
-.tip.on { opacity: 1; }
-.t-name { font-weight: 700; color: var(--txt); margin-bottom: 4px; font-size: 12px; }
-.t-body { color: var(--txt-s); font-size: 11px; line-height: 1.7; }
-.t-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-top: 4px; }
-
-/* =====================================================
-   TOAST
-===================================================== */
+/* ── TOAST ── */
 .toast {
-  position: fixed; bottom: 34px; right: 22px; z-index: 800;
-  padding: 10px 16px; border-radius: 9px;
-  font-size: 12px; font-weight: 500; font-family: 'Inter', sans-serif;
-  max-width: 340px; border: 1px solid transparent;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  transform: translateY(70px); opacity: 0;
-  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #000000; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
 }
-.toast.on  { transform: translateY(0); opacity: 1; }
-.toast.ok  { background: #f0fdf4; border-color: #86efac; color: #166534; }
-.toast.err { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.toast.show { opacity: 1; }
 
-/* =====================================================
-   STATUS BAR
-===================================================== */
-.statusbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
-  height: var(--sta-h);
-  background: var(--white); border-top: 1px solid var(--bd);
-  display: flex; align-items: center; gap: 20px; padding: 0 18px;
+/* ── MODALS ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--surface); border-radius: 18px; padding: 32px 36px; max-width: 560px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.22); position: relative; max-height: 90vh; overflow-y: auto; }
+.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+.modal-box > p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.modal-close { position: absolute; top: 16px; right: 20px; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--muted); }
+.modal-close:hover { color: var(--text); }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.modal-field input, .modal-field textarea {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
 }
-.si { font-size: 10px; font-weight: 500; color: var(--txt-m); display: flex; align-items: center; gap: 5px; }
-.sd { width: 5px; height: 5px; border-radius: 50%; animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.modal-field input:focus, .modal-field textarea:focus { border-color: var(--gold); background: var(--surface); }
+.modal-field textarea { resize: vertical; min-height: 80px; }
+
+/* ── ADDRESS FIELD STATES ── */
+.address-field-wrap { position: relative; }
+.address-field-wrap input { padding-right: 36px; }
+.address-status {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; pointer-events: none;
+}
+.address-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 4px 9px; border-radius: 20px; margin-top: 5px;
+}
+.address-badge.valid { background: #eaf7f2; color: #18a96e; border: 1px solid #b0e8d2; }
+.address-badge.invalid { background: rgba(224,79,79,0.08); color: var(--red); border: 1px solid rgba(224,79,79,0.25); }
+.address-badge.pending { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+
+.email-preview-box {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 14px; font-size: 11px; color: var(--muted);
+  line-height: 1.7;
+}
+.email-preview-box strong { color: var(--text); }
+.email-preview-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.email-preview-row:last-child { border-bottom: none; font-weight: 700; color: var(--gold); font-size: 12px; }
+.email-preview-row span:first-child { color: var(--muted); }
+.email-preview-row span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+
+.sms-type-tabs { display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: wrap; }
+.sms-type-btn {
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 5px 11px; border-radius: 7px; cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.3px; border: 1.5px solid var(--border);
+  background: var(--surface2); color: var(--muted); transition: all 0.15s;
+}
+.sms-type-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.modal-actions button { flex: 1; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; padding: 11px; border-radius: 9px; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+.modal-actions button.gold { background: var(--gold); color: #000; border-color: var(--gold); }
+.modal-actions button.gold:hover { background: #caa535; }
+.modal-actions button:not(.gold):hover { background: var(--surface); color: var(--text); }
+.modal-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#copy-preview { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
+
+/* Google Maps autocomplete dropdown styling */
+.pac-container {
+  font-family: 'Sora', sans-serif !important;
+  border-radius: 10px !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+  margin-top: 4px !important;
+  overflow: hidden !important;
+}
+.pac-item {
+  font-size: 12px !important;
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  border-top: 1px solid var(--border) !important;
+}
+.pac-item:first-child { border-top: none !important; }
+.pac-item:hover { background: var(--gold-bg) !important; }
+.pac-item-query { font-size: 12px !important; color: var(--text) !important; }
+.pac-matched { color: var(--gold) !important; font-weight: 700 !important; }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { order: -1; }
+  .price-card { position: static; }
+  header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  .sub-nav { padding: 8px 16px; }
+  main { padding: 16px; }
+}
 </style>
 </head>
 <body>
 
-<!-- ══════════════ TOP BAR ══════════════ -->
-<div class="topbar">
-  <div class="tb-left">
-    <a class="logo-link" href="#">
-      <div class="logo-box">
-        <svg viewBox="0 0 24 24"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2zm0 4.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zm4 9.5H8v-.75C8 13.67 10 13 12 13s4 .67 4 2.25V16z"/></svg>
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <h2>Goldsure Sales Portal</h2>
+      <p>Agent Sign In</p>
+    </div>
+    <div class="login-error" id="login-error">Please enter your name.</div>
+    <div class="login-field">
+      <label>Your Name</label>
+      <input type="text" id="login-agent" placeholder="e.g. Vignesh or David" autocomplete="name" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="login-hint">Your name will appear in all scripts and SMS messages.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="header-title">Sales Portal</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip">
+      <div class="agent-dot"></div>
+      <span class="agent-name" id="header-agent-name">Agent</span>
+    </div>
+    <div class="hd"></div>
+    <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/raptor-enquiry-workflow.html" target="_blank" class="nav-btn raptor">Purchase Enquiries</a>
+    <button onclick="setMode('inbound')"  id="btn-inbound"  class="nav-btn">Inbound Call</button>
+    <button onclick="setMode('outbound')" id="btn-outbound" class="nav-btn">Outbound (Missed)</button>
+    <button onclick="setMode('social')"   id="btn-social"   class="nav-btn active">Social / Online</button>
+    <button onclick="doLogout()" class="nav-btn logout">Sign Out</button>
+  </div>
+</header>
+
+<div class="sub-nav">
+  <label class="radio-label"><input type="radio" name="serviceType" value="install" checked onchange="toggleService('install')"> Install Quote</label>
+  <label class="radio-label"><input type="radio" name="serviceType" value="inspection" onchange="toggleService('inspect')"> Inspection ($131)</label>
+  <div class="sub-divider"></div>
+  <a href="https://vigneshkcom.github.io/Goldsure/smoke-alarms/smoke-alarm-troubleshooting.html" target="_blank" class="sub-link">Troubleshooting</a>
+  <a href="https://docs.google.com/spreadsheets/d/17YPF4VnAA0OCyYX-cWuNEWriw5RN8VRTD-PES89EXQ8/edit?gid=1558660794#gid=1558660794" target="_blank" class="sub-link">Active Electricians</a>
+  <a href="https://portal.goldsure.com.au/smoke-alarms/calendar/" target="_blank" class="sub-link">Electrician Calendar</a>
+</div>
+
+<main>
+
+  <div class="customer-bar">
+    <label>Customer Name</label>
+    <input type="text" id="custName" oninput="updateName()" placeholder="Enter customer name…">
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step-card step-1">
+      <div class="step-header"><span class="step-badge">Step 1</span><span class="step-title">Greeting</span></div>
+      <div class="step-body"><p id="script-greeting" class="script-text"></p></div>
+    </div>
+
+    <div id="assessment-box" class="step-card step-2 service-block active">
+      <div class="step-header"><span class="step-badge">Step 2</span><span class="step-title">Property Assessment</span></div>
+      <div class="step-body">
+        <p class="script-text">"Can I please confirm the number of bedrooms? Is it a single or double storey home? Legislation requires one Smoke Alarm in each bedroom and in each hallway that connects the bedrooms, as well as on each level."</p>
+        <div class="input-grid">
+          <div class="field-group"><label>No. of Bedrooms</label><input type="number" id="bedrooms" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
+          <div class="field-group"><label>No. of Storeys</label><input type="number" id="levels" class="field-input" placeholder="1" min="1" oninput="toggleStoreyQ(); calculate();"></div>
+          <div class="field-group"><label>No. of Hallways</label><input type="number" id="hallways" class="field-input" placeholder="0" min="0" oninput="calculate()"></div>
+        </div>
+        <div id="extraStoreyBox" class="storey-box">
+          <p>Does every level have a bedroom?</p>
+          <div class="storey-radio">
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="yes" checked onchange="calculate()"> Yes</label>
+            <label><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()"> No</label>
+          </div>
+        </div>
+        <div class="controller-box">
+          <p>Add Smoke Alarm Controller? ($49)</p>
+          <div class="ctrl-radio">
+            <label><input type="radio" name="wantController" value="no" checked onclick="toggleCtrlQty(false); calculate();"> No</label>
+            <label><input type="radio" name="wantController" value="yes" onclick="toggleCtrlQty(true); calculate();"> Yes</label>
+          </div>
+          <div class="ctrl-qty-row" id="controllerInput">
+            <label>Qty</label>
+            <input type="number" id="controllerQty" class="field-input" value="1" min="1" oninput="calculate()" style="width:80px;">
+          </div>
+        </div>
+        <div class="legislation-box">
+          <h5>Queensland Smoke Alarm Legislation (Effective 01/01/2027)</h5>
+          <div class="legislation-grid">
+            <span class="legislation-item">Photoelectric & Interconnected</span>
+            <span class="legislation-item">In each bedroom & connecting hallway</span>
+            <span class="legislation-item">Installed on each level</span>
+            <span class="legislation-item">10-year backup battery</span>
+            <span class="legislation-item">Less than 10 years old</span>
+            <span class="legislation-item">AS 3786-2014 or AS 3786-2023</span>
+            <span class="legislation-item">Hard-wired replaced with hard-wired</span>
+            <span class="legislation-item">10 Year Warranty included</span>
+          </div>
+        </div>
       </div>
-      <div class="logo-words">
-        <div class="logo-name">Gold<span>sure</span></div>
-        <div class="logo-sub">Sales Portal</div>
+    </div>
+
+    <div id="quote-script-box" class="step-card step-3 service-block active">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Presenting the Quote</span></div>
+      <div class="step-body">
+        <p class="script-text">"Based on your information you have provided, you will need <strong id="script-qty">0</strong> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."</p>
+        <br>
+        <p class="script-text">"The cost is $98 per smoke alarm payable on the day of installation and a $33 electrician fee which I need to take upfront to secure your booking."</p>
       </div>
-    </a>
-    <div class="tb-div"></div>
-    <span class="tb-title">Staff Leave Planner</span>
+    </div>
+
+    <div id="inspect-script-box" class="step-card step-3 service-block">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Inspection Service</span></div>
+      <div class="step-body">
+        <p class="script-text">"The inspection cost is <strong>$131 paid upfront</strong> to secure your booking. The electrician will check all alarms for 2027 QLD compliance."</p>
+        <br>
+        <p class="script-text">"If the home is not compliant and you choose to make it compliant with us today, we <strong>WAIVE the $131 fee</strong>. We only charge the $33 booking fee plus required alarms."</p>
+      </div>
+    </div>
+
+    <details class="step-card step-4" id="step4-details">
+      <summary>
+        <div class="step-header"><span class="step-badge">Step 4</span><span class="step-title">Secure Booking & Payment</span></div>
+        <p class="step-hint" id="step4-hint">Click to expand booking details</p>
+      </summary>
+      <div class="step-body-inner">
+        <p class="script-text">"Can we proceed with your contact details starting with; <strong>Your name, Your address, Your email address, Confirmation of your phone number.</strong>" (Create job in Dataforce).</p>
+        <br>
+        <p class="script-text">"I need to take the $33 call fee to secure your Electrician booking. Let me know when you are ready so I can <span class="red">pause the call recording</span> before we proceed with your card details. Can I please have your card details?"</p>
+      </div>
+    </details>
+
+  </div><!-- /steps -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="price-card">
+      <div class="price-card-title">Pricing Summary</div>
+      <div class="price-line">
+        <span class="price-line-label">Alarms (<span id="res_alarmQty">0</span> × $98.00)</span>
+        <span class="price-line-val" id="res_alarmTotal">$0.00</span>
+      </div>
+      <div class="price-line ctrl-summary-row" id="summary-controller-row">
+        <span class="price-line-label">Controllers (<span id="res_ctrlQty">0</span> × $49.00)</span>
+        <span class="price-line-val" id="res_ctrlTotal">$0.00</span>
+      </div>
+      <div class="price-line">
+        <span class="price-line-label" id="lbl-upfront">Booking Fee</span>
+        <span class="price-line-val" id="res-upfront">$33.00</span>
+      </div>
+      <div class="price-line balance">
+        <span class="price-line-label">Balance Due on Install</span>
+        <span class="price-line-val" id="res-balance">$0.00</span>
+      </div>
+      <div class="price-total-block">
+        <span class="price-total-label">Grand Total</span>
+        <span class="price-total-val" id="res-total">$33.00</span>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:0;">
+        <button class="action-btn primary" onclick="openCopyModal()">Copy SMS Template</button>
+        <button class="action-btn secondary" id="emailBtn" onclick="openEmailModal()">Email Quote to Customer</button>
+        <button class="action-btn primary" onclick="openPdfModal()">Download PDF Quote</button>
+      </div>
+
+      <div class="docs-accordion">
+        <button class="docs-toggle" onclick="toggleDocs(this)">Product & Compliance Docs <span class="arrow">▼</span></button>
+        <div class="docs-list" id="docs-list">
+          <a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" target="_blank" class="doc-card">
+            <span class="doc-icon">📄</span>
+            <span class="doc-info"><strong>Raptor Data Sheet</strong><span>Technical specifications & compliance</span></span>
+            <span class="doc-arrow">→</span>
+          </a>
+          <a href="https://workdrive.zohopublic.com.au/external/3957c15381c36b3e2a8fd20663d311aad4348116167a789c46ba383ef58d53af" target="_blank" class="doc-card">
+            <span class="doc-icon">📘</span>
+            <span class="doc-info"><strong>Raptor Manual</strong><span>Installation & operating guide</span></span>
+            <span class="doc-arrow">→</span>
+          </a>
+          <a href="https://workdrive.zohopublic.com.au/external/2d2ebaa70546a87acbfeacda65bd2d68ce4c0c5ba53b77bce328fe53819797a7" target="_blank" class="doc-card">
+            <span class="doc-icon">🏢</span>
+            <span class="doc-info"><strong>UMS Brochure</strong><span>Product overview & features</span></span>
+            <span class="doc-arrow">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="tb-right">
-    <div class="state-key">
-      <span class="sk-item"><span class="sk-dot" style="background:#f97316;"></span>QLD</span>
-      <span class="sk-sep"></span>
-      <span class="sk-item"><span class="sk-dot" style="background:#3b82f6;"></span>NSW</span>
-      <span class="sk-sep"></span>
-      <span class="sk-item"><span class="sk-dot" style="background:#f43f5e;"></span>VIC</span>
-    </div>
-    <button class="btn-add" onclick="openModal()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Leave
-    </button>
-  </div>
-</div>
 
-<!-- ══════════════ NAV BAR ══════════════ -->
-<div class="navbar">
-  <button class="nav-btn" onclick="shift(-3)" title="Back 3 months">&#171;</button>
-  <button class="nav-btn" onclick="shift(-1)" title="Previous month">&#8249;</button>
-  <span class="nav-range" id="rangeLabel"></span>
-  <button class="nav-btn" onclick="shift(1)"  title="Next month">&#8250;</button>
-  <button class="nav-btn" onclick="shift(3)"  title="Forward 3 months">&#187;</button>
-  <button class="btn-today" onclick="jumpToday()">Today</button>
-</div>
+</main>
 
-<!-- ══════════════ PLANNER ══════════════ -->
-<div class="planner-wrap">
-  <div class="planner-scroll" id="plannerScroll">
-    <div class="planner-inner" id="plannerInner"></div>
-  </div>
-</div>
-
-<!-- ══════════════ STATUS BAR ══════════════ -->
-<div class="statusbar">
-  <span class="si">
-    <span class="sd" id="connDot" style="background:var(--txt-m);"></span>
-    <span id="connLabel">Connecting...</span>
-  </span>
-  <span class="si" id="lvCount">0 leave entries</span>
-  <span class="si" id="calStatus"></span>
-  <span class="si" style="margin-left:auto;" id="todayStr"></span>
-</div>
-
-<!-- ══════════════ MODAL ══════════════ -->
-<div class="mo-wrap" id="moWrap" onclick="moClick(event)">
-  <div class="modal">
-    <div class="mo-head">
-      <div class="mo-title"><span class="mo-accent"></span>Add Leave Entry</div>
-      <button class="mo-close" onclick="closeModal()">&#x2715;</button>
+<footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
+  <div style="max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072 · ABN: 66 683 305 106</div>
+      </div>
     </div>
-    <div class="fg">
-      <label class="fl">Staff Member</label>
-      <select class="fc" id="fStaff">
-        <option value="">Select staff member...</option>
-        <option>Andrew McLeod</option>
-        <option>Adam Sicari</option>
-        <option>Amit Chowdhary</option>
-        <option>Vignesh Kirubakaran</option>
-        <option>David</option>
-      </select>
-    </div>
-    <div class="fg">
-      <label class="fl">Leave Type</label>
-      <input list="leaveTypes" class="fc" id="fType" placeholder="e.g. Custom, Annual..." autocomplete="off">
-      <datalist id="leaveTypes"></datalist>
-    </div>
-    <div class="f2">
-      <div class="fg"><label class="fl">Start Date</label><input type="date" class="fc" id="fStart"></div>
-      <div class="fg"><label class="fl">End Date</label><input type="date" class="fc" id="fEnd"></div>
-    </div>
-    <div class="mo-acts">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" id="saveBtn" onclick="saveLv()">Save Leave</button>
+    <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
+      <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--gold);text-decoration:none;">+61 451 898 761</a></div>
+      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
   </div>
-</div>
+</footer>
 
-<!-- ══════════════ TOOLTIP ══════════════ -->
-<div class="tip" id="tip">
-  <div class="t-name" id="tName"></div>
-  <div class="t-body" id="tBody"></div>
-</div>
+</div><!-- /app -->
 
-<!-- ══════════════ TOAST ══════════════ -->
+<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<!-- SMS COPY MODAL -->
+<div class="modal-overlay" id="copyModal" onclick="if(event.target===this)closeCopyModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeCopyModal()">&times;</button>
+    <h2>Copy message template</h2>
+    <p>Choose type, edit if needed, then copy.</p>
+    <div class="modal-field">
+      <label>Message type</label>
+      <div class="sms-type-tabs" id="copy-type-tabs">
+        <button class="sms-type-btn active"  onclick="setCopyType('quote', this)">Quote</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup1', this)">Missed Call</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup2', this)">Multi-Attempt</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup3', this)">Quote F/U</button>
+        <button class="sms-type-btn"         onclick="setCopyType('followup4', this)">Out of Area</button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label>Message preview (editable)</label>
+      <textarea id="copy-preview"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeCopyModal()">Cancel</button>
+      <button class="gold" onclick="copyPreviewToClipboard()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="modal-overlay" id="emailModal" onclick="if(event.target===this)closeEmailModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeEmailModal()">&times;</button>
+    <h2>Email Quote to Customer</h2>
+    <p>Confirm details and send a branded quote email directly to the customer.</p>
+
+    <div class="modal-field">
+      <label>Customer Name</label>
+      <input type="text" id="emailCustomerName" placeholder="Full name">
+    </div>
+
+    <div class="modal-field">
+      <label>Customer Email Address</label>
+      <input type="email" id="emailCustomerEmail" placeholder="customer@example.com">
+    </div>
+
+    <div class="modal-field">
+      <label>Customer Address <span style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">(Queensland only)</span></label>
+      <div class="address-field-wrap">
+        <input
+          type="text"
+          id="emailCustomerAddress"
+          placeholder="Start typing a Queensland address…"
+          autocomplete="off"
+          oninput="onAddressInput()"
+        >
+        <span class="address-status" id="addressStatus"></span>
+      </div>
+      <div id="addressBadge"></div>
+    </div>
+
+    <div class="modal-field">
+      <label>Quote Summary</label>
+      <div class="email-preview-box" id="emailPreviewBox"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeEmailModal()">Cancel</button>
+      <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF MODAL -->
+<div class="modal-overlay" id="pdfModal" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    <h2>Generate PDF Quote</h2>
+    <p>Enter customer details for the quote document.</p>
+    <div class="modal-field"><label>Customer Name</label><input type="text" id="pdfCustomerName" placeholder="Full Name"></div>
+    <div class="modal-field"><label>Customer Address (Optional)</label><textarea id="pdfCustomerAddress" placeholder="Street Address, Suburb, State, Postcode"></textarea></div>
+    <div class="modal-actions">
+      <button onclick="closePdfModal()">Cancel</button>
+      <button class="gold" onclick="generatePDF()">Generate PDF</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/* =====================================================
-   SUPABASE
-===================================================== */
-const SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
-const SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
-const sb = window.supabase.createClient(SB_URL, SB_KEY);
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let agentName    = '';
+let customerName = '';
+let serviceMode  = 'install';
+let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
+let mapsLoaded = false;
+const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
-/* =====================================================
-   CONFIG
-===================================================== */
-const DAY_W  = 36;   // px — must match CSS --day-w
-const N_MTHS = 3;    // months displayed at once
+// ════════════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════════════
+function doLogin() {
+  const agent = document.getElementById('login-agent').value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!agent) { errEl.style.display='block'; errEl.innerText='Please enter your name.'; return; }
+  errEl.style.display='none';
+  agentName = agent;
+  document.getElementById('header-agent-name').innerText = agentName;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setMode('social');
+  calculate();
+  loadGoogleMaps(); // ← load Maps after login
+}
+function doLogout() {
+  agentName = customerName = '';
+  document.getElementById('login-agent').value='';
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
 
-const STAFF = [
-  'Andrew McLeod',
-  'Adam Sicari',
-  'Amit Chowdhary',
-  'Vignesh Kirubakaran',
-  'David'
-];
+// ════════════════════════════════════════════════════════════
+// GOOGLE MAPS — load via existing API route
+// ════════════════════════════════════════════════════════════
+function loadGoogleMaps() {
+  if (mapsLoaded) return;
+  fetch('/api/smoke-alarms/google-key')
+    .then(r => r.json())
+    .then(data => {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAddressAutocomplete`;
+      script.async = true;
+      document.head.appendChild(script);
+      mapsLoaded = true;
+    })
+    .catch(err => console.warn('Could not load Google Maps:', err));
+}
 
-const AV_COLS = [
-  ['#dbeafe','#1e3a8a'], ['#d1fae5','#065f46'], ['#fee2e2','#991b1b'],
-  ['#fef3c7','#92400e'], ['#ede9fe','#4c1d95'], ['#e0f2fe','#075985']
-];
+// ── Called automatically by the Maps callback param ──
+function initAddressAutocomplete() {
+  const input = document.getElementById('emailCustomerAddress');
+  if (!input || !window.google) return;
 
-// The 6 fixed holiday rows rendered below the staff section
-const CAL_ROWS = [
-  { label: 'QLD Public Holidays', state: 'QLD', type: 'public_holiday', nc: 'qld', bc: 'ph qld' },
-  { label: 'QLD School Holidays', state: 'QLD', type: 'school_holiday',  nc: 'qld', bc: 'sh qld' },
-  { label: 'NSW Public Holidays', state: 'NSW', type: 'public_holiday', nc: 'nsw', bc: 'ph nsw' },
-  { label: 'NSW School Holidays', state: 'NSW', type: 'school_holiday',  nc: 'nsw', bc: 'sh nsw' },
-  { label: 'VIC Public Holidays', state: 'VIC', type: 'public_holiday', nc: 'vic', bc: 'ph vic' },
-  { label: 'VIC School Holidays', state: 'VIC', type: 'school_holiday',  nc: 'vic', bc: 'sh vic' }
-];
-
-/* =====================================================
-   APP STATE
-===================================================== */
-let viewStart = (() => { const d = new Date(); d.setDate(1); return d; })();
-let leaveData  = [];
-let calEvents  = [];  // populated after constants are defined below
-
-/* =====================================================
-   CONSTANTS
-===================================================== */
-const DOWS  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-const MSHRT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MFULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-/* =====================================================
-   PUBLIC HOLIDAYS (hardcoded 2025–2027)
-   ─────────────────────────────────────────────────
-   Each entry is a date range spanning consecutive
-   public holiday days. Adjacent days (regardless of
-   name — e.g. Good Friday → Easter Monday) are
-   merged into a single bar per state so the full
-   Easter cluster renders as ONE continuous span.
-
-   Strategy:
-   1. Collect all individual holiday days per state.
-   2. Sort by date per state.
-   3. Merge any days that are consecutive (next day
-      immediately follows) into a single bar.
-      The bar label = name of the first day in the run.
-===================================================== */
-const PUB_HOL_EVENTS = (() => {
-  // Raw individual days: { date, name, states[] }
-  const days = [];
-  function add(dt, name, states) {
-    days.push({ dt, name, states });
-  }
-
-  // ── 2025 ──
-  add('2025-01-01', "New Year's Day",          ['QLD','NSW','VIC']);
-  add('2025-01-27', 'Australia Day',            ['QLD','NSW','VIC']);
-  add('2025-03-10', 'Labour Day',               ['VIC']);
-  add('2025-04-18', 'Good Friday',              ['QLD','NSW','VIC']);
-  add('2025-04-19', 'Easter Saturday',          ['QLD','NSW','VIC']);
-  add('2025-04-20', 'Easter Sunday',            ['QLD','NSW','VIC']);
-  add('2025-04-21', 'Easter Monday',            ['QLD','NSW','VIC']);
-  add('2025-04-25', 'Anzac Day',                ['QLD','NSW','VIC']);
-  add('2025-05-05', 'Labour Day',               ['QLD']);
-  add('2025-06-09', "King's Birthday",          ['QLD','NSW']);
-  add('2025-09-26', "King's Birthday",          ['VIC']);
-  add('2025-10-06', 'Labour Day',               ['NSW']);
-  add('2025-11-04', 'Melbourne Cup',            ['VIC']);
-  add('2025-12-25', 'Christmas Day',            ['QLD','NSW','VIC']);
-  add('2025-12-26', 'Boxing Day',               ['QLD','NSW','VIC']);
-  add('2025-12-28', 'Boxing Day (Add.)',         ['QLD','NSW','VIC']);
-
-  // ── 2026 ──
-  add('2026-01-01', "New Year's Day",           ['QLD','NSW','VIC']);
-  add('2026-01-26', 'Australia Day',            ['QLD','NSW','VIC']);
-  add('2026-03-09', 'Labour Day',               ['VIC']);
-  add('2026-04-03', 'Good Friday',              ['QLD','NSW','VIC']);
-  add('2026-04-04', 'Easter Saturday',          ['QLD','NSW','VIC']);
-  add('2026-04-05', 'Easter Sunday',            ['QLD','NSW','VIC']);
-  add('2026-04-06', 'Easter Monday',            ['QLD','NSW','VIC']);
-  add('2026-04-25', 'Anzac Day',                ['QLD','NSW','VIC']);
-  add('2026-04-27', 'Anzac Day (Add.)',          ['NSW']);
-  add('2026-05-04', 'Labour Day',               ['QLD']);
-  add('2026-06-08', "King's Birthday",          ['NSW','VIC']);
-  add('2026-10-05', "King's Birthday",          ['QLD']);
-  add('2026-10-05', 'Labour Day',               ['NSW']);
-  add('2026-11-03', 'Melbourne Cup',            ['VIC']);
-  add('2026-12-24', 'Christmas Eve',            ['QLD']);
-  add('2026-12-25', 'Christmas Day',            ['QLD','NSW','VIC']);
-  add('2026-12-26', 'Boxing Day',               ['QLD','NSW','VIC']);
-  add('2026-12-28', 'Boxing Day (Add.)',         ['QLD','NSW','VIC']);
-
-  // ── 2027 ──
-  add('2027-01-01', "New Year's Day",           ['QLD','NSW','VIC']);
-  add('2027-01-26', 'Australia Day',            ['QLD','NSW','VIC']);
-  add('2027-03-08', 'Labour Day',               ['VIC']);
-  add('2027-03-26', 'Good Friday',              ['QLD','NSW','VIC']);
-  add('2027-03-27', 'Easter Saturday',          ['QLD','NSW','VIC']);
-  add('2027-03-28', 'Easter Sunday',            ['QLD','NSW','VIC']);
-  add('2027-03-29', 'Easter Monday',            ['QLD','NSW','VIC']);
-  add('2027-04-26', 'Anzac Day',                ['QLD','NSW','VIC']);
-  add('2027-05-03', 'Labour Day',               ['QLD']);
-  add('2027-06-14', "King's Birthday",          ['QLD','NSW']);
-  add('2027-09-24', "King's Birthday",          ['VIC']);
-  add('2027-10-04', 'Labour Day',               ['NSW']);
-  add('2027-11-02', 'Melbourne Cup',            ['VIC']);
-  add('2027-12-27', 'Christmas Day',            ['QLD','NSW','VIC']);
-  add('2027-12-28', 'Boxing Day',               ['QLD','NSW','VIC']);
-
-  /*
-   * Convert raw day list → per-state event records with merging.
-   * Strategy: sort days per state, then greedily merge any run of
-   * STRICTLY CONSECUTIVE calendar dates into ONE bar.
-   * The cluster name is determined by content:
-   *   - Any run containing Good Friday / Easter* → "Easter"
-   *   - Any run containing Christmas / Boxing    → "Christmas & Boxing Day"
-   *   - Single-day holidays keep their own name
-   */
-  const stateMap = { QLD: [], NSW: [], VIC: [] };
-  days.forEach(({ dt, name, states }) => {
-    states.forEach(st => {
-      if (stateMap[st]) stateMap[st].push({ dt, name });
-    });
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'au' },  // AU only at API level
+    fields: ['formatted_address', 'address_components'],
+    types: ['address']
   });
 
-  function addOneDayStr(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  }
-  function clusterName(names) {
-    const joined = names.join(' ');
-    if (/Good Friday|Easter/.test(joined)) return 'Easter';
-    if (/Christmas|Boxing/.test(joined))   return 'Christmas & Boxing Day';
-    return names[0]; // single-day or unique name
-  }
+  ac.addListener('place_changed', function () {
+    const place = ac.getPlace();
+    selectedQLDAddress = false;
 
-  const result = [];
-  ['QLD','NSW','VIC'].forEach(st => {
-    const sorted = stateMap[st].slice().sort((a, b) => (a.dt < b.dt ? -1 : 1));
-    const merged = []; // [{event_start, event_end, names[], state}]
-
-    sorted.forEach(({ dt, name }) => {
-      const last = merged[merged.length - 1];
-      if (last && addOneDayStr(last.event_end) === dt) {
-        // Consecutive — extend existing cluster
-        last.event_end = dt;
-        last.names.push(name);
-      } else {
-        // Start a new cluster
-        merged.push({ event_start: dt, event_end: dt, names: [name], state: st });
-      }
-    });
-
-    merged.forEach(m => {
-      result.push({
-        event_name:  clusterName(m.names),
-        event_start: m.event_start,
-        event_end:   m.event_end,
-        event_type:  'public_holiday',
-        state:       m.state
-      });
-    });
-  });
-
-  return result;
-})();
-
-/* =====================================================
-   SCHOOL HOLIDAYS — HARDCODED FALLBACK (2025–2027)
-   ─────────────────────────────────────────────────
-   Loaded from Supabase when available.
-   These are used if the DB fetch fails or returns empty.
-===================================================== */
-const SCHOOL_HOL_FALLBACK = [
-  // ── QLD ──
-  { event_name:'Term 1 Break',    event_start:'2025-04-12', event_end:'2025-04-27', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Term 2 Break',    event_start:'2025-06-28', event_end:'2025-07-13', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Term 3 Break',    event_start:'2025-09-20', event_end:'2025-10-05', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Summer Holidays', event_start:'2025-12-13', event_end:'2026-01-25', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Term 1 Break',    event_start:'2026-04-04', event_end:'2026-04-19', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Term 2 Break',    event_start:'2026-06-27', event_end:'2026-07-12', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Term 3 Break',    event_start:'2026-09-19', event_end:'2026-10-04', event_type:'school_holiday', state:'QLD' },
-  { event_name:'Summer Holidays', event_start:'2026-12-12', event_end:'2027-01-24', event_type:'school_holiday', state:'QLD' },
-
-  // ── NSW ──
-  { event_name:'Term 1 Break',    event_start:'2025-04-12', event_end:'2025-04-27', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Term 2 Break',    event_start:'2025-07-05', event_end:'2025-07-20', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Term 3 Break',    event_start:'2025-09-27', event_end:'2025-10-12', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Summer Holidays', event_start:'2025-12-20', event_end:'2026-01-27', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Term 1 Break',    event_start:'2026-04-11', event_end:'2026-04-26', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Term 2 Break',    event_start:'2026-07-04', event_end:'2026-07-19', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Term 3 Break',    event_start:'2026-09-26', event_end:'2026-10-11', event_type:'school_holiday', state:'NSW' },
-  { event_name:'Summer Holidays', event_start:'2026-12-19', event_end:'2027-01-26', event_type:'school_holiday', state:'NSW' },
-
-  // ── VIC ──
-  { event_name:'Term 1 Break',    event_start:'2025-04-05', event_end:'2025-04-22', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Term 2 Break',    event_start:'2025-06-28', event_end:'2025-07-13', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Term 3 Break',    event_start:'2025-09-20', event_end:'2025-10-05', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Summer Holidays', event_start:'2025-12-20', event_end:'2026-01-27', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Term 1 Break',    event_start:'2026-03-28', event_end:'2026-04-14', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Term 2 Break',    event_start:'2026-06-27', event_end:'2026-07-12', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Term 3 Break',    event_start:'2026-09-19', event_end:'2026-10-04', event_type:'school_holiday', state:'VIC' },
-  { event_name:'Summer Holidays', event_start:'2026-12-19', event_end:'2027-01-26', event_type:'school_holiday', state:'VIC' },
-];
-
-// Initialise calEvents with all hardcoded data immediately (before async loads)
-calEvents = [...PUB_HOL_EVENTS, ...SCHOOL_HOL_FALLBACK];
-
-/* Day-key → holiday name lookup (for header day tinting) */
-const HOL_LOOKUP = (() => {
-  const m = {};
-  PUB_HOL_EVENTS.forEach(ev => {
-    let d   = new Date(ev.event_start + 'T00:00:00');
-    const e = new Date(ev.event_end   + 'T00:00:00');
-    while (d <= e) {
-      const k = dkey(d);
-      if (!m[k]) m[k] = ev.event_name;
-      d.setDate(d.getDate() + 1);
+    if (!place || !place.address_components) {
+      setAddressState('invalid', 'No address details found.');
+      input.value = '';
+      return;
     }
+
+    let state = '';
+    place.address_components.forEach(c => {
+      if (c.types.includes('administrative_area_level_1')) state = c.short_name;
+    });
+
+    if (state !== 'QLD') {
+      setAddressState('invalid', `❌ ${state || 'Unknown'} addresses not serviced — Queensland only`);
+      input.value = '';
+      return;
+    }
+
+    selectedQLDAddress = true;
+    input.value = place.formatted_address;
+    setAddressState('valid', '✓ Queensland address confirmed');
   });
-  return m;
-})();
-
-// Short codes shown inside single-day public holiday pills
-const HOL_ABBR = {
-  "New Year's Day":        'NY',
-  'Australia Day':         'AU',
-  'Good Friday':           'GF',
-  'Easter Saturday':       'ES',
-  'Easter Sunday':         'ES',
-  'Easter Monday':         'EM',
-  'Easter':                'EA',
-  'Anzac Day':             'AZ',
-  'Anzac Day (Add.)':      'AZ',
-  'Labour Day':            'LD',
-  "King's Birthday":       'KB',
-  'Melbourne Cup':         'MC',
-  'Christmas Day':         'XM',
-  'Boxing Day':            'BX',
-  'Boxing Day (Add.)':     'BX',
-  'Christmas Eve':         'CE',
-  'Christmas & Boxing Day':'XB',
-};
-function habr(n) {
-  return HOL_ABBR[n] || n.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
 }
 
-/* =====================================================
-   DATE UTILITIES
-===================================================== */
-function dkey(d)   { return d.toISOString().slice(0, 10); }
-function isWk(d)   { const day = d.getDay(); return day === 0 || day === 6; }
-function isTday(d) {
-  const t = new Date();
-  return d.getFullYear() === t.getFullYear()
-      && d.getMonth()    === t.getMonth()
-      && d.getDate()     === t.getDate();
-}
-function getDays() {
-  const days = [];
-  const cur  = new Date(viewStart);
-  cur.setDate(1);
-  const end = new Date(cur);
-  end.setMonth(end.getMonth() + N_MTHS);
-  while (cur < end) {
-    days.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+function onAddressInput() {
+  // If agent clears the field manually, reset the validation state
+  if (!document.getElementById('emailCustomerAddress').value.trim()) {
+    selectedQLDAddress = false;
+    setAddressState('pending', '');
   }
-  return days;
 }
 
-/* =====================================================
-   HTML SAFETY
-===================================================== */
-function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function attr(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+function setAddressState(type, message) {
+  const badge = document.getElementById('addressBadge');
+  const icon  = document.getElementById('addressStatus');
+  if (!message) { badge.innerHTML = ''; icon.innerText = ''; return; }
+  const icons = { valid: '✅', invalid: '🚫', pending: '🔍' };
+  icon.innerText = '';
+  badge.innerHTML = `<span class="address-badge ${type}">${message}</span>`;
+}
 
-/* =====================================================
-   CORE POSITION CALCULATOR
-   ─────────────────────────────────────────────────
-   Maps an event's date range to pixel {left, width}.
-   Clamps to the visible window so bars clip correctly
-   when events start before or end after the viewport.
-
-   Returns null when the event is entirely outside.
-===================================================== */
-function evPos(evStart, evEnd, days, d2i) {
-  const n    = days.length;
-  const visS = dkey(days[0]);
-  const visE = dkey(days[n - 1]);
-
-  // Entirely outside visible window
-  if (evEnd < visS || evStart > visE) return null;
-
-  // Clamp to visible range
-  const clampS = evStart < visS ? visS : evStart;
-  const clampE = evEnd   > visE ? visE : evEnd;
-
-  const si = d2i[clampS];
-  const ei = d2i[clampE];
-  if (si === undefined || ei === undefined) return null;
-
-  const si2 = Math.max(0, si);
-  const ei2 = Math.min(n - 1, ei);
-  if (ei2 < si2) return null;
-
-  return {
-    left:  si2 * DAY_W + 2,
-    width: (ei2 - si2 + 1) * DAY_W - 4,
-    span:  ei2 - si2 + 1
+// ════════════════════════════════════════════════════════════
+// CALL MODE / NAME
+// ════════════════════════════════════════════════════════════
+function setMode(type) {
+  const n = customerName || '(name)';
+  const a = agentName || 'Goldsure';
+  const scripts = {
+    inbound:  `Good morning/afternoon, this is ${a} from Goldsure, how can I help you?`,
+    outbound: `Good morning/afternoon, this is ${a} from Goldsure returning your call. How can I help you?`,
+    social:   `Good morning/afternoon ${n}, this is ${a} from Goldsure calling in regard to your inquiry about your smoke alarm installation.`
   };
+  document.getElementById('script-greeting').innerText = scripts[type];
+  document.querySelectorAll('[id^="btn-"]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+type)?.classList.add('active');
+}
+function updateName() {
+  customerName = document.getElementById('custName').value;
+  if (document.querySelector('header .nav-btn.active')?.id === 'btn-social') setMode('social');
 }
 
-/* =====================================================
-   RENDERER
-   ─────────────────────────────────────────────────
-   Event-based rendering: one .ev element per event.
-   No per-day iteration for event output — only for
-   the structural grid ghost columns (.dc).
-===================================================== */
-let _renderScheduled = false;
-function render() {
-  if (_renderScheduled) return;
-  _renderScheduled = true;
-  requestAnimationFrame(() => {
-    _renderScheduled = false;
-    _doRender();
-  });
+// ════════════════════════════════════════════════════════════
+// SERVICE TOGGLE & CALCULATE
+// ════════════════════════════════════════════════════════════
+function toggleService(type) {
+  serviceMode = type;
+  document.querySelectorAll('.service-block').forEach(el=>el.classList.remove('active'));
+  if (type==='install') {
+    document.getElementById('assessment-box').classList.add('active');
+    document.getElementById('quote-script-box').classList.add('active');
+  } else {
+    document.getElementById('inspect-script-box').classList.add('active');
+  }
+  calculate();
 }
-function _doRender() {
-  const days   = getDays();
-  const n      = days.length;
-  const trackW = n * DAY_W;
-  const curMK  = new Date().getFullYear() + '-' + new Date().getMonth();
+function toggleStoreyQ() {
+  const s = parseInt(document.getElementById('levels').value)||1;
+  document.getElementById('extraStoreyBox').classList.toggle('visible', s>1);
+}
+function toggleCtrlQty(show) {
+  document.getElementById('controllerInput').classList.toggle('visible', show);
+  document.getElementById('summary-controller-row').classList.toggle('visible', show);
+}
+function calculate() {
+  const bedrooms    = parseInt(document.getElementById('bedrooms').value)||0;
+  const hallways    = parseInt(document.getElementById('hallways').value)||0;
+  const storeys     = parseInt(document.getElementById('levels').value)||1;
+  const allHaveBeds = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value==='yes';
+  const wantCtrl    = document.querySelector('input[name="wantController"]:checked')?.value==='yes';
+  const ctrlQty     = wantCtrl ? (parseInt(document.getElementById('controllerQty').value)||1) : 0;
 
-  // Update nav label
-  document.getElementById('rangeLabel').textContent =
-    MFULL[days[0].getMonth()] + ' ' + days[0].getFullYear() +
-    ' \u2013 ' +
-    MFULL[days[n-1].getMonth()] + ' ' + days[n-1].getFullYear();
+  let alarms = bedrooms + hallways;
+  if (storeys>1 && !allHaveBeds) alarms += (storeys-1);
 
-  // Build date → column index map
-  const d2i = {};
-  days.forEach((d, i) => { d2i[dkey(d)] = i; });
+  const ALARM=98, CTRL=49, FEE = serviceMode==='install' ? 33 : 131;
+  const alarmT=alarms*ALARM, ctrlT=ctrlQty*CTRL, grand=alarmT+ctrlT+FEE;
 
-  // Build month groups for the header month row
-  const groups = [];
-  days.forEach(d => {
-    const mk = d.getFullYear() + '-' + d.getMonth();
-    if (!groups.length || groups[groups.length - 1].mk !== mk)
-      groups.push({ mk, yr: d.getFullYear(), mo: d.getMonth(), cnt: 0 });
-    groups[groups.length - 1].cnt++;
-  });
+  document.getElementById('script-qty').innerText   = alarms;
+  document.getElementById('res_alarmQty').innerText = alarms;
+  document.getElementById('res_alarmTotal').innerText = fmt.format(alarmT);
+  document.getElementById('res_ctrlQty').innerText  = ctrlQty;
+  document.getElementById('res_ctrlTotal').innerText = fmt.format(ctrlT);
 
-  // Pre-compute leave positions per staff member
-  const lvMap = {};
-  STAFF.forEach(nm => { lvMap[nm] = []; });
-  leaveData.forEach(lv => {
-    if (!lvMap[lv.staff_name]) return;
-    const pos = evPos(lv.leave_start, lv.leave_end, days, d2i);
-    if (pos) lvMap[lv.staff_name].push({ pos, lv });
-  });
+  if (serviceMode==='install') {
+    document.getElementById('lbl-upfront').innerText  = 'Booking Fee';
+    document.getElementById('res-upfront').innerText  = '$33.00';
+    document.getElementById('res-balance').innerText  = fmt.format(alarmT+ctrlT);
+  } else {
+    document.getElementById('lbl-upfront').innerText  = 'Inspection Fee';
+    document.getElementById('res-upfront').innerText  = '$131.00';
+    document.getElementById('res-balance').innerText  = '$0.00';
+  }
+  document.getElementById('res-total').innerText = fmt.format(grand);
 
-  let h = '';
+  const step4 = document.getElementById('step4-details');
+  const hint  = document.getElementById('step4-hint');
+  if (alarms>0 || serviceMode==='inspect') { hint.style.display='none'; step4.open=true; }
+  else { hint.style.display='block'; }
+}
 
-  /* ── HEADER ── */
-  h += '<div class="p-header">';
+// ════════════════════════════════════════════════════════════
+// SMS BUILDERS
+// ════════════════════════════════════════════════════════════
+function buildQuoteSMS() {
+  const n     = customerName || 'there';
+  const a     = agentName || 'Goldsure';
+  const qty   = document.getElementById('res_alarmQty').innerText;
+  const aT    = document.getElementById('res_alarmTotal').innerText;
+  const grand = document.getElementById('res-total').innerText;
+  const cQty  = document.getElementById('res_ctrlQty').innerText;
+  const cT    = document.getElementById('res_ctrlTotal').innerText;
+  const hasC  = parseInt(cQty)>0;
+  let bd = '';
+  if (serviceMode==='install') {
+    bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${aT}`;
+    if (hasC) bd += `\n- Controllers (${cQty} x $49.00): ${cT}`;
+    bd += `\n- Booking Fee: $33.00\n- Total: ${grand}`;
+  } else {
+    bd = `\n\nLine Item Breakdown:\n- Inspection Fee: $131.00\n- Total: ${grand}`;
+  }
+  return `Hi ${n},\n\nAs discussed, based on the information you provided, your property requires ${qty} interconnected smoke alarms to meet QLD smoke alarm legislation.${bd}\n\nThis is an estimate based on the information provided.\n\nIf you have any questions or would like to proceed, please reply to this SMS or call us on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`;
+}
 
-  // Row 1: month labels
-  h += '<div class="h-row">';
-  h += `<div class="h-name" style="height:26px;">STAFF / DATE</div>`;
-  groups.forEach(g => {
-    const w = g.cnt * DAY_W;
-    h += `<div class="h-month${g.mk === curMK ? ' cur' : ''}" style="width:${w}px;min-width:${w}px;">${MSHRT[g.mo].toUpperCase()} ${g.yr}</div>`;
-  });
-  h += '</div>';
+function buildFollowupSMS(index) {
+  const n = customerName || '[Name]';
+  const a = agentName || 'Goldsure';
+  const msgs = [
+    `Hi ${n}, this is ${a} from Goldsure.\n\nWe tried calling earlier regarding your smoke alarm upgrades enquiry but were not able to reach you.\n\nWe are happy to provide a quick assessment of your home's compliance, particularly around the newer QLD requirements for interconnected alarms in bedrooms.\n\nWhenever you have a moment, give us a call on 07 2145 5155 or reply here with a preferred time.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure. We have tried reaching out regarding your smoke alarm enquiry but have not been able to connect.\n\nIf you are still looking for help with your alarms, let us know a good time to chat. We are here on 07 2145 5155 if you would like to call us back.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is ${a} from Goldsure checking in regarding the quote we sent through for your smoke alarm upgrade.\n\nHappy to answer any questions or help you move forward when it suits.\n\nReply here or give us a call on 07 2145 5155.\n\nRegards,\n${a}\nGoldsure Pty Ltd`,
+    `Hi ${n}, this is Goldsure. Thanks for your enquiry regarding smoke alarm compliance.\n\nUnfortunately, we do not currently service your suburb. We have saved your details and will reach out once we expand into your area.\n\nAppreciate your understanding.\n\nRegards,\n${a}\nGoldsure Pty Ltd`
+  ];
+  return msgs[index-1];
+}
 
-  // Row 2: day-of-week abbreviations
-  h += '<div class="h-row">';
-  h += `<div class="h-name" style="height:22px;"></div>`;
-  days.forEach(d => {
-    const cl = ['h-dow', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : ''].filter(Boolean).join(' ');
-    h += `<div class="${cl}">${DOWS[d.getDay()]}</div>`;
-  });
-  h += '</div>';
+// ════════════════════════════════════════════════════════════
+// SMS MODAL
+// ════════════════════════════════════════════════════════════
+function openCopyModal() {
+  document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.getElementById('copy-preview').value = buildQuoteSMS();
+  document.getElementById('copyModal').classList.add('open');
+}
+function closeCopyModal() { document.getElementById('copyModal').classList.remove('open'); }
+function setCopyType(type, btn) {
+  document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('copy-preview').value = type==='quote'
+    ? buildQuoteSMS()
+    : buildFollowupSMS(parseInt(type.replace('followup','')));
+}
+function copyPreviewToClipboard() {
+  const text = document.getElementById('copy-preview').value;
+  navigator.clipboard.writeText(text).then(()=>{ showToast('Template copied to clipboard!'); closeCopyModal(); }).catch(()=>showToast('Press Ctrl+C to copy'));
+}
 
-  // Row 3: day numbers
-  h += '<div class="h-row">';
-  h += `<div class="h-name" style="height:26px;"></div>`;
-  days.forEach(d => {
-    const k  = dkey(d);
-    const hn = HOL_LOOKUP[k];
-    const ab = hn ? habr(hn) : '';
-    const cl = ['h-day', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : '', hn ? 'hl' : ''].filter(Boolean).join(' ');
-    h += `<div class="${cl}" title="${attr(hn || '')}">`;
-    h += `<span class="dn">${d.getDate()}</span>`;
-    if (ab) h += `<span class="da">${ab}</span>`;
-    h += '</div>';
-  });
-  h += '</div>';
+// ════════════════════════════════════════════════════════════
+// EMAIL MODAL
+// ════════════════════════════════════════════════════════════
+function openEmailModal() {
+  // Reset address state every time modal opens
+  selectedQLDAddress = false;
+  document.getElementById('emailCustomerName').value  = customerName || '';
+  document.getElementById('emailCustomerEmail').value = '';
+  document.getElementById('emailCustomerAddress').value = '';
+  setAddressState('pending', '');
 
-  h += '</div>'; // /p-header
+  const alarmQty   = document.getElementById('res_alarmQty').innerText;
+  const alarmT     = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty    = document.getElementById('res_ctrlQty').innerText;
+  const ctrlT      = document.getElementById('res_ctrlTotal').innerText;
+  const grandTotal = document.getElementById('res-total').innerText;
+  const hasCtrl    = parseInt(ctrlQty) > 0;
 
-  /* ── BODY ── */
-  h += '<div class="p-body">';
+  let previewHTML = '';
+  if (serviceMode === 'install') {
+    previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
+    if (hasCtrl) previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${ctrlT}</span></div>`;
+    previewHTML += `<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>`;
+  } else {
+    previewHTML += `<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>`;
+  }
+  previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${grandTotal}</span></div>`;
+  document.getElementById('emailPreviewBox').innerHTML = previewHTML;
+  document.getElementById('emailModal').classList.add('open');
+}
+function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
 
-  /* ── Staff rows ── */
-  STAFF.forEach((name, idx) => {
-    const [bgC, fgC] = AV_COLS[idx % AV_COLS.length];
-    const ini = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+// ════════════════════════════════════════════════════════════
+// SEND EMAIL
+// ════════════════════════════════════════════════════════════
+async function sendQuoteEmail() {
+  const custName    = document.getElementById('emailCustomerName').value.trim();
+  const custEmail   = document.getElementById('emailCustomerEmail').value.trim();
+  const custAddress = document.getElementById('emailCustomerAddress').value.trim();
 
-    h += '<div class="row sr">';
+  if (!custName)  { showToast('Please enter the customer name.'); return; }
+  if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
 
-    // Name cell — initials badge + name
-    h += `<div class="rn staff">`;
-    h += `<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${bgC};color:${fgC};border:1.5px solid ${fgC}40;font-size:9px;font-weight:700;margin-right:9px;flex-shrink:0;">${ini}</span>`;
-    h += esc(name);
-    h += '</div>';
+  // ── Address validation: must be QLD or left blank ──
+  if (custAddress && !selectedQLDAddress) {
+    showToast('Please select a valid Queensland address from the dropdown.');
+    document.getElementById('emailCustomerAddress').focus();
+    return;
+  }
 
-    // Timeline track
-    h += `<div class="rt" style="width:${trackW}px;">`;
+  const alarmQty   = document.getElementById('res_alarmQty').innerText;
+  const alarmTotal = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const ctrlTotal  = document.getElementById('res_ctrlTotal').innerText;
+  const grandTotal = document.getElementById('res-total').innerText;
+  const agent      = agentName || 'Goldsure';
 
-    // Grid ghost columns (structural — no pointer events)
-    days.forEach((d, di) => {
-      const cl = ['dc', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : ''].filter(Boolean).join(' ');
-      h += `<div class="${cl}" style="left:${di * DAY_W}px;"></div>`;
+  let feeLabel, feeAmount, paymentNote;
+  if (serviceMode === 'install') {
+    feeLabel    = 'Electrician Booking Fee';
+    feeAmount   = '$33.00';
+    const balanceDue = fmt.format((parseInt(alarmQty) * 98) + (ctrlQty * 49));
+    paymentNote = `$33.00 booking fee is payable today to secure your electrician. The remaining balance of ${balanceDue} is payable on the day of installation.`;
+  } else {
+    feeLabel    = 'Smoke Alarm Inspection Service';
+    feeAmount   = '$131.00';
+    paymentNote = 'The $131.00 inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the $131 fee is fully waived — you only pay the $33 booking fee plus required alarms.';
+  }
+
+  const btn = document.getElementById('sendEmailBtn');
+  btn.disabled = true;
+  btn.innerText = 'Sending…';
+
+  try {
+    const res = await fetch('/api/smoke-alarms/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name:    custName,
+        to_email:         custEmail,
+        customer_address: custAddress || null,
+        agent_name:       agent,
+        service_type:     serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
+        alarm_qty:        alarmQty,
+        alarm_total:      alarmTotal,
+        ctrl_qty:         ctrlQty,
+        ctrl_total:       ctrlTotal,
+        fee_label:        feeLabel,
+        fee_amount:       feeAmount,
+        grand_total:      grandTotal,
+        payment_note:     paymentNote,
+      }),
     });
 
-    // Day hit targets (click → open add leave modal)
-    days.forEach((d, di) => {
-      h += `<div class="dh" style="left:${di * DAY_W}px;" onclick="quickAdd('${attr(name)}','${dkey(d)}')"></div>`;
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('API error:', err);
+      showToast('Send failed — check console for details.');
+    } else {
+      showToast(`Quote emailed to ${custEmail}`);
+      closeEmailModal();
+    }
+  } catch (err) {
+    console.error('Network error:', err);
+    showToast('Network error — please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Send Email';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.innerText = m; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ════════════════════════════════════════════════════════════
+// PDF MODAL
+// ════════════════════════════════════════════════════════════
+function openPdfModal() {
+  document.getElementById('pdfCustomerName').value    = customerName || '';
+  document.getElementById('pdfCustomerAddress').value = '';
+  document.getElementById('pdfModal').classList.add('open');
+}
+function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════
+// PDF GENERATION
+// ════════════════════════════════════════════════════════════
+function generatePDF() {
+  const name    = document.getElementById('pdfCustomerName').value.trim();
+  const address = document.getElementById('pdfCustomerAddress').value.trim();
+  if (!name) { showToast('Please enter customer name.'); return; }
+
+  const bedrooms   = parseInt(document.getElementById('bedrooms').value) || 0;
+  const hallways   = parseInt(document.getElementById('hallways').value) || 0;
+  const storeys    = parseInt(document.getElementById('levels').value) || 1;
+  const alarmQty   = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+  const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
+  const grandRaw   = parseFloat(document.getElementById('res-total').innerText.replace(/[^\d.-]/g,''));
+  const subtotalRaw = grandRaw / 1.1;
+  const gstRaw      = grandRaw - subtotalRaw;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  const PW = 210, PH = 297, ML = 18, MR = 18, CW = PW - ML - MR;
+  const GOLD = [176,141,46], DARK = [0,0,0], MUTED = [107,120,153];
+  const LIGHT = [240,242,245], WHITE = [255,255,255], GOLD_BG = [254,247,231];
+
+  function fmtAUD(val) {
+    return '$' + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, PW, 41, 'F');
+
+  const logoUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg';
+  async function loadLogoAndGenerate() {
+    try {
+      const resp = await fetch(logoUrl);
+      const blob = await resp.blob();
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        doc.addImage(e.target.result, 'JPEG', ML, 5, 32, 32);
+        finishPDF();
+      };
+      reader.readAsDataURL(blob);
+    } catch(err) {
+      doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(22);
+      doc.text('GOLDSURE', ML, 22);
+      finishPDF();
+    }
+  }
+
+  doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(28);
+  doc.text('QUOTE', PW - MR, 26, { align: 'right' });
+
+  function finishPDF() {
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+    doc.line(ML, 44, PW - MR, 44);
+
+    let y = 50;
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('Goldsure Pty Ltd', ML, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(8);
+    doc.text('ABN: 66 683 305 106', ML, y+5);
+    doc.text('Suite 4, Level 1, 293 High Street', ML, y+10);
+    doc.text('Preston VIC 3072', ML, y+15);
+    doc.text('Phone: (07) 2145 5155', ML, y+20);
+    doc.setTextColor(...DARK); doc.text('www.goldsure.com.au', ML, y+25);
+
+    const rightX = PW - MR;
+    const dateStr = new Date().toLocaleDateString('en-AU');
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Date:', rightX-50, y, { align:'left' });
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold');
+    doc.text(dateStr, rightX, y, { align:'right' });
+
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(8);
+    doc.text('Prepared for:', rightX-50, y+7, { align:'left' });
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(name, rightX, y+7, { align:'right' });
+
+    if (address) {
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+      address.split('\n').forEach((line,i) => doc.text(line, rightX, y+14+(i*5), { align:'right' }));
+    }
+
+    y = 84;
+    doc.setFillColor(...LIGHT); doc.roundedRect(ML, y, CW, 12, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...DARK);
+    doc.text('PROPERTY DETAILS', ML+4, y+4.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED);
+    doc.text(`Bedrooms: ${bedrooms}   |   Storeys: ${storeys}   |   Hallways: ${hallways}   |   Service: ${serviceMode==='install'?'Installation':'Inspection'}`, ML+4, y+9);
+
+    y = 104;
+    doc.setFillColor(...DARK); doc.rect(ML, y, CW, 9, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...WHITE);
+    doc.text('DESCRIPTION', ML+4, y+6);
+    doc.text('QTY', ML+CW*0.62, y+6, { align:'center' });
+    doc.text('UNIT PRICE', ML+CW*0.78, y+6, { align:'center' });
+    doc.text('TOTAL', ML+CW-3, y+6, { align:'right' });
+    y += 9;
+
+    const items = [];
+    if (serviceMode==='install') {
+      if (alarmQty>0) items.push({ desc:'Raptor Smoke Alarms – Photoelectric, Interconnected, 10-Year Warranty', qty:alarmQty, unit:98, total:alarmQty*98 });
+      if (ctrlQty>0)  items.push({ desc:'Smoke Alarm Controller', qty:ctrlQty, unit:49, total:ctrlQty*49 });
+      items.push({ desc:'Electrician Booking Fee (fully refundable if install cannot be completed)', qty:1, unit:33, total:33 });
+    } else {
+      items.push({ desc:'Smoke Alarm Inspection Service – QLD 2027 Compliance Check', qty:1, unit:131, total:131 });
+    }
+
+    items.forEach((item,idx) => {
+      const rowH = 12;
+      doc.setFillColor(idx%2===0?250:255, idx%2===0?250:255, idx%2===0?252:255);
+      doc.rect(ML, y, CW, rowH, 'F');
+      doc.setDrawColor(230,232,238); doc.setLineWidth(0.3);
+      doc.line(ML, y+rowH, ML+CW, y+rowH);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...DARK);
+      const descLines = doc.splitTextToSize(item.desc, CW*0.55);
+      doc.text(descLines[0], ML+4, y+7.5);
+      doc.setTextColor(...MUTED);
+      doc.text(String(item.qty), ML+CW*0.62, y+7.5, { align:'center' });
+      doc.text(fmtAUD(item.unit), ML+CW*0.78, y+7.5, { align:'center' });
+      doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+      doc.text(fmtAUD(item.total), ML+CW-3, y+7.5, { align:'right' });
+      y += rowH;
     });
 
-    // Leave bars — ONE element per leave record
-    (lvMap[name] || []).forEach(({ pos, lv }) => {
-      const lt   = (lv.leave_type || 'Other').toLowerCase();
-      const ltCl = ['annual','sick','personal','other'].includes(lt) ? lt : 'other';
-      const sN   = lv.staff_name.replace(/'/g, "\\'");
-      const sT   = (lv.leave_type || '').replace(/'/g, "\\'");
-      h += `<div class="ev lv ${ltCl}" style="left:${pos.left}px;width:${pos.width}px;" data-id="${lv.id}"`;
-      h += ` onmouseenter="showTip(event,'${sN}','${sT}','${lv.leave_start}','${lv.leave_end}',${pos.span})"`;
-      h += ` onmouseleave="hideTip()" onclick="event.stopPropagation()">`;
-      if (pos.width > 40) h += esc(lv.leave_type || 'Leave') + ` &ndash; ${pos.span}d`;
-      h += `<span class="ev-x" onclick="delLv('${lv.id}');event.stopPropagation()">&#x2715;</span>`;
-      h += '</div>';
+    y += 8;
+    const totalsX = ML+CW*0.58, totalsW = CW*0.42;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    doc.text('Subtotal (Excl. GST)', totalsX, y);
+    doc.setTextColor(80,80,80); doc.text(fmtAUD(subtotalRaw), totalsX+totalsW, y, { align:'right' });
+    y += 8;
+    doc.setTextColor(...MUTED); doc.text('GST (10%)', totalsX, y);
+    doc.setTextColor(80,80,80); doc.text(fmtAUD(gstRaw), totalsX+totalsW, y, { align:'right' });
+    y += 12;
+    doc.setFillColor(...DARK); doc.roundedRect(totalsX-3, y-5, totalsW+3, 13, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(255,255,255);
+    doc.text('Total (Incl. GST)', totalsX+2, y+3);
+    doc.setTextColor(...GOLD); doc.setFontSize(13);
+    doc.text(fmtAUD(grandRaw), totalsX+totalsW-1, y+4, { align:'right' });
+
+    y += 18;
+    doc.setFillColor(...GOLD_BG); doc.roundedRect(ML, y, CW, 18, 2, 2, 'F');
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5);
+    doc.line(ML, y, ML, y+18);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+    doc.text('PAYMENT STRUCTURE', ML+4, y+6);
+    doc.setFont('helvetica','normal'); doc.setTextColor(122,96,32); doc.setFontSize(8);
+    let payNote = serviceMode==='install'
+      ? `$33.00 booking fee is payable today to secure your electrician. Remaining balance of ${fmtAUD(alarmQty*98+ctrlQty*49)} is payable on the day of installation.`
+      : '$131.00 inspection fee is payable upfront. If alarms are non-compliant and you upgrade with us, the $131 fee is fully waived.';
+    doc.text(doc.splitTextToSize(payNote, CW-10), ML+4, y+12);
+
+    y += 26;
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text(doc.splitTextToSize('* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.', CW-8), ML, y);
+
+    // PAGE 2
+    doc.addPage();
+    doc.setFillColor(...DARK); doc.rect(0,0,PW,14,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('GOLDSURE', ML, 10);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+    doc.text('Quote Terms & Compliance Information', PW-MR, 10, { align:'right' });
+
+    y = 22;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...DARK);
+    doc.text('BOOKING FEE – WHAT IS THE $33 BOOKING FEE?', ML, y);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.4);
+    doc.line(ML, y+2, ML+85, y+2);
+    y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    const bookingLines = doc.splitTextToSize('This fee is required upfront to secure the Electrician on the installation date agreed by you. It is fully refundable if for some unlikely reason the installation cannot be completed.', CW);
+    doc.text(bookingLines, ML, y);
+    y += bookingLines.length*5+8;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...DARK);
+    doc.text('QUEENSLAND SMOKE ALARM LEGISLATION (EFFECTIVE 01/01/2027)', ML, y);
+    doc.setDrawColor(...GOLD); doc.line(ML, y+2, ML+120, y+2);
+    y += 8;
+
+    const legislation = [
+      'Photoelectric and interconnected smoke alarms',
+      'Installed in each bedroom and in hallways connecting bedrooms',
+      'Installed on each level of the dwelling',
+      '10-year sealed lithium backup battery',
+      'Compliant with AS 3786-2014 or AS 3786-2023',
+      'Hard-wired smoke alarms replaced with hard-wired where applicable',
+    ];
+    const colW = CW/2-4;
+    legislation.forEach((item,i) => {
+      const col=i%2, row=Math.floor(i/2);
+      const lx=ML+(col*(colW+8)), ly=y+(row*9);
+      doc.setFillColor(...GOLD); doc.circle(lx+1.5, ly-1, 1.2, 'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...DARK);
+      doc.text(item, lx+5, ly);
     });
+    y += Math.ceil(legislation.length/2)*9+8;
 
-    h += '</div>'; // /rt
-    h += '</div>'; // /row
-  });
+    const frontViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png';
+    const installedViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png';
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+    doc.text('RAPTOR ALARMS', ML, y); y += 6;
+    doc.setFontSize(13); doc.setTextColor(...DARK);
+    doc.text('The Raptor Smoke Alarm', ML, y); y += 6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    const tagLines = doc.splitTextToSize("Purpose-built for Australian Standards and approved for Queensland's fire safety regulatory requirements.", CW);
+    doc.text(tagLines, ML, y);
+    y += tagLines.length*5+6;
 
-  /* ── Section divider ── */
-  h += '<div class="sdiv">';
-  h += '<div class="sdiv-label">Public &amp; School Holidays</div>';
-  h += `<div class="sdiv-fill" style="width:${trackW}px;"></div>`;
-  h += '</div>';
+    const imgY=y, imgH=80, imgW=CW/2-6;
 
-  /* ── Calendar rows (holiday rows) ── */
-  CAL_ROWS.forEach(row => {
-    // Filter events matching this row's state + type
-    const rowEvts = calEvents.filter(e => e.state === row.state && e.event_type === row.type);
-
-    h += '<div class="row cr">';
-    h += `<div class="rn cal ${row.nc}">${esc(row.label)}</div>`;
-    h += `<div class="rt" style="width:${trackW}px;">`;
-
-    // Grid ghost columns
-    days.forEach((d, di) => {
-      const cl = ['dc', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : ''].filter(Boolean).join(' ');
-      h += `<div class="${cl}" style="left:${di * DAY_W}px;"></div>`;
-    });
-
-    /*
-     * Holiday bars — event-based, not day-based.
-     * evPos() clamps and clips to the visible window automatically.
-     * Each event renders as ONE continuous bar from start to end.
-     */
-    rowEvts.forEach(ev => {
-      const pos = evPos(ev.event_start, ev.event_end, days, d2i);
-      if (!pos) return; // outside visible window
-
-      const isPH  = ev.event_type === 'public_holiday';
-      const isSH  = ev.event_type === 'school_holiday';
-
-      // Build tooltip: name + date range
-      const tipText = ev.event_name + '\n' + fmtD(ev.event_start) + (ev.event_end !== ev.event_start ? ' → ' + fmtD(ev.event_end) : '');
-
-      let label = '';
-      let pillLeft = pos.left;
-      let pillWidth = pos.width;
-
-      if (isPH) {
-        // Public holiday pills: fill the day column(s) with 1px gap each side
-        pillLeft  = pos.left - 1;   // undo the +2 inset from evPos, add 1px gap
-        pillWidth = pos.span * DAY_W - 2;  // span full columns minus 2px total gap
-        const abbr = habr(ev.event_name);
-        label = abbr;
-      } else {
-        // School holidays: show full name if enough room
-        label = pos.width >= 60 ? esc(ev.event_name) : '';
+    async function loadProductImages() {
+      const loadImg = (url) => new Promise((resolve) => {
+        if (!url) { resolve(null); return; }
+        fetch(url).then(r=>r.blob()).then(blob => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.readAsDataURL(blob);
+        }).catch(()=>resolve(null));
+      });
+      const [frontData, installedData] = await Promise.all([loadImg(frontViewUrl), loadImg(installedViewUrl)]);
+      if (frontData) {
+        doc.addImage(frontData, 'PNG', ML, imgY, imgW, imgH);
+        doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+        doc.text('Front View', ML+imgW/2, imgY+imgH+4, { align:'center' });
       }
+      if (installedData) {
+        doc.addImage(installedData, 'PNG', ML+imgW+8, imgY, imgW, imgH);
+        doc.setFont('helvetica','italic'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+        doc.text('Installed View', ML+imgW+8+imgW/2, imgY+imgH+4, { align:'center' });
+      }
+      finishProductSection(imgY+imgH+(frontData||installedData?12:0));
+    }
 
-      h += `<div class="ev ${row.bc}${isPH ? ' ph-pill' : ''}" style="left:${pillLeft}px;width:${pillWidth}px;" title="${attr(tipText)}">${label}</div>`;
-    });
+    function finishProductSection(yAfterImages) {
+      let py = yAfterImages+4;
+      doc.setFillColor(...DARK); doc.rect(ML, py, CW, 8, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+      doc.text('KEY FEATURES', ML+4, py+5.5);
+      py += 8;
 
-    h += '</div>'; // /rt
-    h += '</div>'; // /row
-  });
+      const features = [
+        { title:'Photoelectric Sensing', desc:'Reduces nuisance alarms from cooking while ensuring reliable early detection.' },
+        { title:'RF Wireless Interconnect', desc:'When one alarm sounds, all connected alarms sound. Up to 40 units per network.' },
+        { title:'Alarm Memory', desc:'Visual indication of prior activations and end-of-life warning for easy management.' },
+        { title:'10-Year Warranty', desc:'Backed by a full 10-year manufacturer warranty for complete peace of mind.' },
+      ];
+      const fColW = CW/2-2;
+      features.forEach((f,i) => {
+        const col=i%2, row=Math.floor(i/2);
+        const fx=ML+col*(fColW+4), fy=py+row*26;
+        doc.setFillColor(row===0?255:249, row===0?255:249, row===0?255:249);
+        doc.rect(fx, fy, fColW, 24, 'F');
+        doc.setDrawColor(238,238,238); doc.setLineWidth(0.3);
+        doc.line(fx, fy+24, fx+fColW, fy+24);
+        if (col===0) doc.line(fx+fColW, fy, fx+fColW, fy+24);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+        doc.text('\u2713 '+f.title, fx+4, fy+8);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+        doc.text(doc.splitTextToSize(f.desc, fColW-8), fx+4, fy+14);
+      });
+      py += features.length/2*26+2;
 
-  h += '</div>'; // /p-body
+      doc.setFillColor(...DARK); doc.rect(ML, py, CW, 9, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+      doc.text('Certified to ', ML+4, py+6);
+      const certW = doc.getTextWidth('Certified to ');
+      doc.setTextColor(...GOLD); doc.textWithLink('AS3786 2023', ML+4+certW, py+6, { url:'https://www.standards.org.au' });
+      const goldW = doc.getTextWidth('AS3786 2023');
+      doc.setTextColor(255,255,255); doc.text('  |  Approved for All Australian States', ML+4+certW+goldW, py+6);
+      py += 14;
 
-  document.getElementById('plannerInner').innerHTML = h;
-  scrollToToday();
-}  // end _doRender
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+      doc.textWithLink('View the Raptor Smoke Alarm Datasheet →', ML, py, { url:'https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6' });
 
-/* =====================================================
-   SCROLL TO TODAY
-===================================================== */
-function scrollToToday() {
-  const days = getDays();
-  const idx  = days.findIndex(d => dkey(d) === dkey(new Date()));
-  if (idx < 0) return;
-  const sc = document.getElementById('plannerScroll');
-  sc.scrollLeft = Math.max(0, idx * DAY_W - 160);
-}
+      [1,2].forEach(pageNum => {
+        doc.setPage(pageNum);
+        doc.setFillColor(...DARK); doc.rect(0, PH-18, PW, 18, 'F');
+        doc.setFillColor(...GOLD); doc.rect(0, PH-18, PW, 1.5, 'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+        doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH-11, { align:'center' });
+        doc.text('(07) 2145 5155  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH-6, { align:'center' });
+        doc.text(`Page ${pageNum} of 2`, PW-MR, PH-11, { align:'right' });
+      });
 
-/* =====================================================
-   NAVIGATION
-===================================================== */
-function shift(n)    { viewStart.setMonth(viewStart.getMonth() + n); render(); }
-function jumpToday() { viewStart = new Date(); viewStart.setDate(1); render(); setTimeout(scrollToToday, 50); }
+      doc.save(`Goldsure_Quote_${name.replace(/\s+/g,'_')}.pdf`);
+      closePdfModal();
+      showToast('PDF downloaded successfully!');
+    }
 
-/* =====================================================
-   SUPABASE — LEAVE DATA
-===================================================== */
-async function loadLeave() {
-  try {
-    const { data, error } = await sb
-      .from('staff_leave_planner')
-      .select('*')
-      .order('leave_start', { ascending: true });
-    if (error) throw error;
-    leaveData = data || [];
-    document.getElementById('lvCount').textContent     = leaveData.length + ' leave entries';
-    document.getElementById('connDot').style.background = '#22c55e';
-    document.getElementById('connLabel').textContent   = 'Connected to Supabase';
-    render();
-  } catch (e) {
-    document.getElementById('connDot').style.background = '#ef4444';
-    document.getElementById('connLabel').textContent   = 'DB error \u2014 ' + e.message;
-    toast('Error loading leave: ' + e.message, 'err');
-    render();
-  }
-}
-
-/* =====================================================
-   SUPABASE — CALENDAR EVENTS (school holidays)
-===================================================== */
-async function loadCalEvents() {
-  try {
-    const { data, error } = await sb
-      .from('calendar_events')
-      .select('*')
-      .order('event_start', { ascending: true });
-    if (error) throw error;
-    const school = (data || []).filter(e => e.event_type === 'school_holiday');
-    // Use Supabase school holidays if present, else fall back to hardcoded
-    const schoolData = school.length > 0 ? school : SCHOOL_HOL_FALLBACK;
-    calEvents = [...PUB_HOL_EVENTS, ...schoolData];
-    document.getElementById('calStatus').textContent =
-      school.length > 0
-        ? school.length + ' school holiday ranges (Supabase)'
-        : SCHOOL_HOL_FALLBACK.length + ' school holiday ranges (fallback)';
-    render();
-  } catch (e) {
-    // On any error use hardcoded fallback
-    calEvents = [...PUB_HOL_EVENTS, ...SCHOOL_HOL_FALLBACK];
-    document.getElementById('calStatus').textContent = SCHOOL_HOL_FALLBACK.length + ' school holiday ranges (fallback)';
-    render();
-  }
-}
-
-/* =====================================================
-   SAVE LEAVE
-===================================================== */
-async function saveLv() {
-  const staff_name  = document.getElementById('fStaff').value;
-  const leave_type  = document.getElementById('fType').value;
-  const leave_start = document.getElementById('fStart').value;
-  const leave_end   = document.getElementById('fEnd').value;
-
-  if (!staff_name || !leave_type || !leave_start || !leave_end) {
-    toast('Please fill all fields', 'err'); return;
-  }
-  if (leave_end < leave_start) {
-    toast('End date must be after start date', 'err'); return;
+    loadProductImages();
   }
 
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true; btn.textContent = 'Saving...';
-
-  const entry = { staff_name, leave_type, leave_start, leave_end };
-  try {
-    const { data, error } = await sb.from('staff_leave_planner').insert([entry]).select();
-    if (error) throw error;
-    leaveData.push(data[0]);
-    toast('Leave added successfully', 'ok');
-  } catch (e) {
-    entry.id = Date.now(); entry.created_at = new Date().toISOString();
-    leaveData.push(entry);
-    toast('Saved locally (DB error: ' + e.message + ')', 'err');
-  }
-
-  document.getElementById('lvCount').textContent = leaveData.length + ' leave entries';
-  closeModal();
-  render();
-  btn.disabled = false; btn.textContent = 'Save Leave';
+  loadLogoAndGenerate();
 }
 
-/* =====================================================
-   DELETE LEAVE
-===================================================== */
-async function delLv(id) {
-  if (!confirm('Delete this leave entry?')) return;
-  try {
-    const { error } = await sb.from('staff_leave_planner').delete().eq('id', id);
-    if (error) throw error;
-  } catch (e) {
-    toast('Delete failed: ' + e.message, 'err'); return;
-  }
-  leaveData = leaveData.filter(l => l.id !== id);
-  document.getElementById('lvCount').textContent = leaveData.length + ' leave entries';
-  render();
-  toast('Leave entry removed', 'ok');
+// ════════════════════════════════════════════════════════════
+// DOCS ACCORDION
+// ════════════════════════════════════════════════════════════
+function toggleDocs(btn) {
+  document.getElementById('docs-list').classList.toggle('open');
+  btn.querySelector('.arrow').textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
 }
-
-/* =====================================================
-   MODAL
-===================================================== */
-function openModal(name, date) {
-  document.getElementById('fStaff').value = name || '';
-  document.getElementById('fType').value  = '';
-  document.getElementById('fStart').value = date || '';
-  document.getElementById('fEnd').value   = date || '';
-  document.getElementById('moWrap').classList.add('open');
-}
-function closeModal()    { document.getElementById('moWrap').classList.remove('open'); }
-function moClick(e)      { if (e.target === document.getElementById('moWrap')) closeModal(); }
-function quickAdd(nm, d) { openModal(nm, d); }
-
-/* =====================================================
-   TOOLTIP
-===================================================== */
-const TC = {
-  Annual:   ['#dbeafe','#1e3a8a'],
-  Sick:     ['#fee2e2','#991b1b'],
-  Personal: ['#d1fae5','#065f46'],
-  Other:    ['#ede9fe','#4c1d95']
-};
-function fmtD(s) {
-  if (!s) return '';
-  const d = new Date(s + 'T00:00:00');
-  return d.getDate() + ' ' + MSHRT[d.getMonth()] + ' ' + d.getFullYear();
-}
-function showTip(e, nm, tp, st, en, sp) {
-  const [bg, fg] = TC[tp] || ['#f3f4f6','#374151'];
-  document.getElementById('tName').textContent = nm;
-  document.getElementById('tBody').innerHTML =
-    fmtD(st) + ' \u2192 ' + fmtD(en) + '<br>' +
-    sp + ' day' + (sp > 1 ? 's' : '') + '<br>' +
-    `<span class="t-badge" style="background:${bg};color:${fg};">${esc(tp)}</span>`;
-  const tip = document.getElementById('tip');
-  tip.classList.add('on');
-  tip.style.left = (e.clientX + 14) + 'px';
-  tip.style.top  = (e.clientY - 48) + 'px';
-}
-function hideTip() { document.getElementById('tip').classList.remove('on'); }
-
-/* =====================================================
-   TOAST
-===================================================== */
-let toastTmr;
-function toast(msg, type) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className   = 'toast on ' + type;
-  clearTimeout(toastTmr);
-  toastTmr = setTimeout(() => el.classList.remove('on'), 3500);
-}
-
-/* =====================================================
-   STATUS DATE
-===================================================== */
-function setStatusDate() {
-  const n = new Date();
-  const D = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  document.getElementById('todayStr').textContent =
-    D[n.getDay()] + ', ' + n.getDate() + ' ' + MFULL[n.getMonth()] + ' ' + n.getFullYear();
-}
-
-/* =====================================================
-   INIT
-===================================================== */
-window.addEventListener('DOMContentLoaded', () => {
-  setStatusDate();
-  render();          // draw grid immediately (empty data)
-  loadLeave();       // async — populates staff leave bars
-  loadCalEvents();   // async — populates holiday rows
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
-    if (e.key === 'n' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openModal(); }
-  });
-});
 </script>
+
 </body>
 </html>
