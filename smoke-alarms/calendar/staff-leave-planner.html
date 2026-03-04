@@ -197,7 +197,6 @@ body {
   top: 0;
   z-index: 100;
   background: var(--white);
-  border-bottom: 2px solid var(--border);
   display: flex;
   flex-direction: column;
 }
@@ -205,6 +204,11 @@ body {
 .hdr-row {
   display: flex;
   flex-direction: row;
+  border-bottom: 1px solid var(--border);
+}
+/* Last hdr-row gets a stronger bottom border to separate header from body */
+.hdr-row:last-child {
+  border-bottom: 2px solid var(--border);
 }
 
 /* Name column in header — sticky left */
@@ -217,7 +221,7 @@ body {
   flex-shrink: 0;
   background: var(--bg-page);
   border-right: 2px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  /* NO border-bottom — header container owns that */
   display: flex; align-items: center;
   padding: 0 14px;
   font-size: 9px; font-weight: 700; text-transform: uppercase;
@@ -230,7 +234,8 @@ body {
   display: flex; align-items: center; justify-content: center;
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em;
   color: var(--text-secondary); background: var(--bg-page);
-  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  /* NO border-bottom on individual cells */
   white-space: nowrap; overflow: hidden;
 }
 .hdr-month-cell.active-month { color: var(--gold); border-top: 2.5px solid var(--gold); }
@@ -242,9 +247,10 @@ body {
   display: flex; align-items: center; justify-content: center;
   font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--text-muted); background: var(--white);
-  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  /* NO border-bottom on individual cells */
 }
-.hdr-dow-cell.weekend  { background: var(--bg-page); }
+.hdr-dow-cell.weekend  { background: #f1f1f1; }
 .hdr-dow-cell.today    { background: var(--gold-light); color: var(--gold); }
 .hdr-dow-cell.hol-qld  { background: var(--qld-bg); color: var(--qld-text); }
 .hdr-dow-cell.hol-nsw  { background: var(--nsw-bg); color: var(--nsw-text); }
@@ -257,16 +263,17 @@ body {
   height: var(--hdr-day-h);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 500; color: var(--text-secondary); background: var(--white);
-  border-right: 1px solid var(--border); border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border);
+  /* NO border-bottom on individual cells — header container provides the bottom border */
   position: relative; overflow: visible;
   line-height: 1;
 }
-.hdr-day-cell.weekend  { background: var(--bg-page); color: var(--text-muted); }
-.hdr-day-cell.today    { background: var(--gold-light); color: var(--gold); font-weight: 700; border-bottom-color: var(--gold); }
-.hdr-day-cell.hol-qld  { background: var(--qld-bg); color: var(--qld-text); border-bottom-color: var(--qld-border); }
-.hdr-day-cell.hol-nsw  { background: var(--nsw-bg); color: var(--nsw-text); border-bottom-color: var(--nsw-border); }
-.hdr-day-cell.hol-vic  { background: var(--vic-bg); color: var(--vic-text); border-bottom-color: var(--vic-border); }
-.hdr-day-cell.hol-all  { background: var(--hol-bg); color: var(--hol-text); border-bottom-color: var(--hol-border); }
+.hdr-day-cell.weekend  { background: #f1f1f1; color: var(--text-muted); }
+.hdr-day-cell.today    { background: var(--gold-light); color: var(--gold); font-weight: 700; }
+.hdr-day-cell.hol-qld  { background: var(--qld-bg); color: var(--qld-text); }
+.hdr-day-cell.hol-nsw  { background: var(--nsw-bg); color: var(--nsw-text); }
+.hdr-day-cell.hol-vic  { background: var(--vic-bg); color: var(--vic-text); }
+.hdr-day-cell.hol-all  { background: var(--hol-bg); color: var(--hol-text); }
 
 .hdr-day-num { font-size: 11px; font-weight: 500; }
 .hdr-day-hol {
@@ -281,16 +288,16 @@ body {
   flex-direction: column;
 }
 
-/* Each staff row */
+/* Each staff row — border ONLY on the row container, never on cells */
 .staff-row {
   display: flex;
   flex-direction: row;
   height: var(--row-h);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;            /* Issue 2: uniform white — no zebra */
 }
-.staff-row:nth-child(even) .staff-track { background: rgba(0,0,0,0.013); }
 .staff-row:hover .staff-name  { background: var(--hover-bg) !important; }
-.staff-row:hover .staff-track { background: rgba(202,168,74,0.03) !important; }
+.staff-row:hover .staff-track { background: rgba(202,168,74,0.04) !important; }
 
 /* Sticky name cell */
 .staff-name {
@@ -298,7 +305,7 @@ body {
   width: var(--name-col-w); min-width: var(--name-col-w); flex-shrink: 0;
   height: var(--row-h);
   display: flex; align-items: center;
-  padding: 0 14px; background: var(--white);
+  padding: 0 14px; background: #ffffff;
   border-right: 2px solid var(--border);
   font-size: 12.5px; font-weight: 500; color: var(--text-primary);
   white-space: nowrap; letter-spacing: -0.01em;
@@ -310,26 +317,27 @@ body {
   font-size: 10px; font-weight: 700; margin-right: 10px; flex-shrink: 0;
 }
 
-/* Timeline track — this is the key element */
+/* Timeline track */
 .staff-track {
   position: relative;
   flex-grow: 1;
   height: var(--row-h);
-  background: var(--white);
+  background: #ffffff;            /* Issue 2: always white */
   transition: background 0.08s;
-  /* width is set inline via style="width: Xpx" */
 }
 
-/* Day background columns inside the track — for shading, borders, and click */
+/* Day background columns — NO border-bottom, vertical dividers only */
 .day-bg {
   position: absolute;
   top: 0; bottom: 0;
   width: var(--day-w);
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border);  /* vertical column divider only */
   cursor: pointer;
   transition: background 0.08s;
+  /* NO border-bottom — row border comes from .staff-row */
 }
-.day-bg.weekend  { background: rgba(0,0,0,0.018); }
+/* Issue 3: weekends slightly darker, no extra borders */
+.day-bg.weekend  { background: #f1f1f1; }
 .day-bg.today    { background: rgba(202,168,74,0.09); }
 .day-bg.hol-qld  { background: var(--qld-bg); border-right-color: var(--qld-border); }
 .day-bg.hol-nsw  { background: var(--nsw-bg); border-right-color: var(--nsw-border); }
@@ -739,7 +747,7 @@ const MON_FULL  = ['January','February','March','April','May','June','July','Aug
 async function loadLeave() {
   try {
     const { data, error } = await sbClient
-      .from('staff_leave_planner').select('*').order('leave_start', { ascending: true });
+      .from('staff_leave').select('*').order('leave_start', { ascending: true });
     if (error) throw error;
     leaveData = data || [];
     document.getElementById('leaveCountStatus').textContent = leaveData.length + ' leave entries';
@@ -769,7 +777,7 @@ async function saveLeave() {
   const entry = { staff_name, leave_type, leave_start, leave_end };
 
   try {
-    const { data, error } = await sbClient.from('staff_leave_planner').insert([entry]).select();
+    const { data, error } = await sbClient.from('staff_leave').insert([entry]).select();
     if (error) throw error;
     leaveData.push(data[0]);
     showToast('Leave added successfully ✓','success');
@@ -788,7 +796,7 @@ async function saveLeave() {
 async function deleteLeave(id) {
   if (!confirm('Delete this leave entry?')) return;
   try {
-    const { error } = await sbClient.from('staff_leave_planner').delete().eq('id', id);
+    const { error } = await sbClient.from('staff_leave').delete().eq('id', id);
     if (error) throw error;
   } catch(e) {
     showToast('Delete failed: '+e.message,'error'); return;
