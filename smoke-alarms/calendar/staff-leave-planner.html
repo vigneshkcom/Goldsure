@@ -747,7 +747,7 @@ const MON_FULL  = ['January','February','March','April','May','June','July','Aug
 async function loadLeave() {
   try {
     const { data, error } = await sbClient
-      .from('staff_leave').select('*').order('leave_start', { ascending: true });
+      .from('staff_leave_planner').select('*').order('leave_start', { ascending: true });
     if (error) throw error;
     leaveData = data || [];
     document.getElementById('leaveCountStatus').textContent = leaveData.length + ' leave entries';
@@ -777,7 +777,7 @@ async function saveLeave() {
   const entry = { staff_name, leave_type, leave_start, leave_end };
 
   try {
-    const { data, error } = await sbClient.from('staff_leave').insert([entry]).select();
+    const { data, error } = await sbClient.from('staff_leave_planner').insert([entry]).select();
     if (error) throw error;
     leaveData.push(data[0]);
     showToast('Leave added successfully ✓','success');
@@ -796,7 +796,7 @@ async function saveLeave() {
 async function deleteLeave(id) {
   if (!confirm('Delete this leave entry?')) return;
   try {
-    const { error } = await sbClient.from('staff_leave').delete().eq('id', id);
+    const { error } = await sbClient.from('staff_leave_planner').delete().eq('id', id);
     if (error) throw error;
   } catch(e) {
     showToast('Delete failed: '+e.message,'error'); return;
