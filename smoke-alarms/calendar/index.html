@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Electrician Calendar</title>
-<!-- Supabase REST API used directly via fetch -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
@@ -229,6 +229,18 @@ header {
 .pill-2 { background: var(--p2-bg); color: var(--p2-t); }
 .pill-3 { background: var(--p3-bg); color: var(--p3-t); }
 .pill-4 { background: var(--p4-bg); color: var(--p4-t); }
+
+/* ── AVAILABILITY PILLS — shown in admin view ── */
+.pill-avail {
+  background: #dcfce7; color: #166534;
+  border: 1px dashed #86efac;
+  font-style: italic;
+}
+.pill-unavail {
+  background: #fee2e2; color: #991b1b;
+  border: 1px dashed #fca5a5;
+  font-style: italic;
+}
 
 /* ── HOLIDAYS ── */
 .holiday-day { background: #fffbe6; border: 2px solid #e8c93a; }
@@ -813,41 +825,30 @@ header {
 
 <script>
 // ════════════════════════════════════════════════════════════
-// SUPABASE — direct REST fetch (no library dependency)
+// SUPABASE
 // ════════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
 const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
-const SB_HEADERS = {
-  "apikey": SUPABASE_KEY,
-  "Authorization": "Bearer " + SUPABASE_KEY,
-  "Content-Type": "application/json",
-  "Prefer": "return=representation"
-}
+const _sb = (window.supabase || supabase).createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const db = {
-  async select(table, query = "") {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, { headers: SB_HEADERS })
-    if (!r.ok) throw new Error(`GET ${table} failed: ${r.status} ${await r.text()}`)
-    return r.json()
+  async select(table) {
+    const { data, error } = await _sb.from(table).select('*')
+    if (error) throw new Error(error.message)
+    return data || []
   },
   async insert(table, rows) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-      method: "POST", headers: SB_HEADERS, body: JSON.stringify(rows)
-    })
-    if (!r.ok) throw new Error(`INSERT ${table} failed: ${r.status} ${await r.text()}`)
-    return r.json()
+    const { error } = await _sb.from(table).insert(rows)
+    if (error) throw new Error(error.message)
   },
   async delete(table, filters) {
-    // filters = { col: val } or { col: { in: [vals] } }
-    const parts = Object.entries(filters).map(([k, v]) => {
-      if (v && typeof v === 'object' && v.in) return `${k}=in.(${v.in.map(encodeURIComponent).join(',')})`
-      return `${k}=eq.${encodeURIComponent(v)}`
-    })
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${parts.join('&')}`, {
-      method: "DELETE", headers: SB_HEADERS
-    })
-    if (!r.ok) throw new Error(`DELETE ${table} failed: ${r.status} ${await r.text()}`)
-    return true
+    let q = _sb.from(table).delete()
+    for (const [k, v] of Object.entries(filters)) {
+      if (v && typeof v === 'object' && v.in) q = q.in(k, v.in)
+      else q = q.eq(k, v)
+    }
+    const { error } = await q
+    if (error) throw new Error(error.message)
   }
 }
 
@@ -908,7 +909,7 @@ async function loadCalendar() {
     `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
 
   try {
-    const data = await db.select("electrician_calendar", "select=*")
+    const data = await db.select("electrician_calendar")
     cachedEvents = data || []
     renderCalendar(cachedEvents)
   } catch(e) {
@@ -982,36 +983,67 @@ function renderCalendar(events) {
 
     const dayWorkers = filteredRows.filter(e => e.work_date === dateStr)
 
-    // Desktop: full pills (skip avail markers)
-    dayWorkers.filter(e =>
-      !(e.electrician || '').toLowerCase().startsWith('avail:') &&
-      !(e.electrician || '').toLowerCase().startsWith('unavail:')
-    ).forEach(e => {
+    // Desktop: full pills
+    dayWorkers.forEach(e => {
+      const raw = (e.electrician || '').toLowerCase()
       const pill = document.createElement('span')
-      pill.className = `pill ${getPillClass(e.electrician || '')}`
-      const pillName = (e.electrician || '').replace(/\[.*?\]/g, '').trim()
-      pill.textContent = pillName.split(' ')[0] || '—'
-      pill.title = pillName
+
+      if (raw.startsWith('avail:')) {
+        // Only show in admin view (no workerFilter)
+        if (workerFilter) return
+        const name = raw.replace('avail:', '')
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1)
+        pill.className = 'pill pill-avail'
+        pill.textContent = displayName + ' ✓'
+        pill.title = displayName + ' — marked available'
+      } else if (raw.startsWith('unavail:')) {
+        // Only show in admin view
+        if (workerFilter) return
+        const name = raw.replace('unavail:', '')
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1)
+        pill.className = 'pill pill-unavail'
+        pill.textContent = displayName + ' ✗'
+        pill.title = displayName + ' — marked unavailable'
+      } else {
+        pill.className = `pill ${getPillClass(e.electrician || '')}`
+        const pillName = (e.electrician || '').replace(/\[.*?\]/g, '').trim()
+        pill.textContent = pillName.split(' ')[0] || '—'
+        pill.title = pillName
+      }
       dayBox.appendChild(pill)
     })
 
     // Mobile: name labels (shown via CSS on small screens)
-    // Filter out avail/unavail markers from display workers
-    const displayWorkers = dayWorkers.filter(e =>
-      !(e.electrician || '').toLowerCase().startsWith('avail:') &&
-      !(e.electrician || '').toLowerCase().startsWith('unavail:')
-    )
-    if (displayWorkers.length > 0) {
+    const mobileWorkers = workerFilter
+      ? dayWorkers.filter(e =>
+          !(e.electrician || '').toLowerCase().startsWith('avail:') &&
+          !(e.electrician || '').toLowerCase().startsWith('unavail:')
+        )
+      : dayWorkers // admin sees all including avail markers
+
+    if (mobileWorkers.length > 0) {
       const namesCol = document.createElement('div')
       namesCol.className = 'mobile-names'
-      displayWorkers.forEach(e => {
+      mobileWorkers.forEach(e => {
+        const raw = (e.electrician || '').toLowerCase()
         const lbl = document.createElement('span')
-        const cls = getPillClass(e.electrician || '').replace('pill-', 'dot-')
-        lbl.className = `mobile-name ${cls}`
-        const cleanName = (e.electrician || '').replace(/\[.*?\]/g, '').trim()
-        const firstName = cleanName.split(' ').filter(Boolean)[0] || '—'
-        lbl.textContent = firstName
-        lbl.title = e.electrician || ''
+        if (raw.startsWith('avail:')) {
+          const name = raw.replace('avail:', '')
+          lbl.className = 'mobile-name'
+          lbl.style.cssText = 'background:#dcfce7;color:#166534;border:1px dashed #86efac;font-style:italic'
+          lbl.textContent = name.charAt(0).toUpperCase() + name.slice(1) + ' ✓'
+        } else if (raw.startsWith('unavail:')) {
+          const name = raw.replace('unavail:', '')
+          lbl.className = 'mobile-name'
+          lbl.style.cssText = 'background:#fee2e2;color:#991b1b;border:1px dashed #fca5a5;font-style:italic'
+          lbl.textContent = name.charAt(0).toUpperCase() + name.slice(1) + ' ✗'
+        } else {
+          const cls = getPillClass(e.electrician || '').replace('pill-', 'dot-')
+          lbl.className = `mobile-name ${cls}`
+          const cleanName = (e.electrician || '').replace(/\[.*?\]/g, '').trim()
+          lbl.textContent = cleanName.split(' ').filter(Boolean)[0] || '—'
+          lbl.title = e.electrician || ''
+        }
         namesCol.appendChild(lbl)
       })
       dayBox.appendChild(namesCol)
