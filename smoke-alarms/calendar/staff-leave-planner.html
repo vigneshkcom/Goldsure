@@ -196,9 +196,12 @@ body {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.09em; color: var(--txt-s);
   background: var(--bg); border-right: 1px solid var(--bd);
+  border-left: 2px solid var(--bd-s);
   white-space: nowrap; overflow: hidden; flex-shrink: 0;
 }
-.h-month.cur { color: var(--gold); border-top: 2.5px solid var(--gold); }
+.h-month:first-child { border-left: none; }
+.h-month.mo-alt { background: #e8eaf0; color: #4b5b7a; }
+.h-month.cur { color: var(--gold); border-top: 2.5px solid var(--gold); background: var(--gold-lt); }
 
 /* DOW cells */
 .h-dow {
@@ -963,6 +966,17 @@ function _doRender() {
     groups[groups.length - 1].cnt++;
   });
 
+  // Build per-date mo-alt flag (matches alternating month header tint)
+  const dateAlt = {};
+  groups.forEach((g, gi) => {
+    if (gi % 2 !== 1) return; // only odd-index groups get alt tint
+    // walk through days and mark those belonging to this group
+    days.forEach(d => {
+      const mk = d.getFullYear() + '-' + d.getMonth();
+      if (mk === g.mk) dateAlt[dkey(d)] = true;
+    });
+  });
+
   // Pre-compute leave positions per staff member
   const lvMap = {};
   STAFF.forEach(nm => { lvMap[nm] = []; });
@@ -980,9 +994,11 @@ function _doRender() {
   // Row 1: month labels
   h += '<div class="h-row">';
   h += `<div class="h-name" style="height:26px;">STAFF / DATE</div>`;
-  groups.forEach(g => {
-    const w = g.cnt * DAY_W;
-    h += `<div class="h-month${g.mk === curMK ? ' cur' : ''}" style="width:${w}px;min-width:${w}px;">${MSHRT[g.mo].toUpperCase()} ${g.yr}</div>`;
+  groups.forEach((g, gi) => {
+    const w   = g.cnt * DAY_W;
+    const alt = gi % 2 === 1 ? ' mo-alt' : '';
+    const cur = g.mk === curMK ? ' cur' : '';
+    h += `<div class="h-month${cur}${alt}" style="width:${w}px;min-width:${w}px;">${MSHRT[g.mo].toUpperCase()} ${g.yr}</div>`;
   });
   h += '</div>';
 
@@ -990,7 +1006,7 @@ function _doRender() {
   h += '<div class="h-row">';
   h += `<div class="h-name" style="height:22px;"></div>`;
   days.forEach(d => {
-    const cl = ['h-dow', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : ''].filter(Boolean).join(' ');
+    const cl = ['h-dow', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : '', dateAlt[dkey(d)] ? 'mo-alt' : ''].filter(Boolean).join(' ');
     h += `<div class="${cl}">${DOWS[d.getDay()]}</div>`;
   });
   h += '</div>';
@@ -1002,7 +1018,7 @@ function _doRender() {
     const k  = dkey(d);
     const hn = HOL_LOOKUP[k];
     const ab = hn ? habr(hn) : '';
-    const cl = ['h-day', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : '', hn ? 'hl' : ''].filter(Boolean).join(' ');
+    const cl = ['h-day', isWk(d) ? 'wk' : '', isTday(d) ? 'td' : '', hn ? 'hl' : '', dateAlt[k] ? 'mo-alt' : ''].filter(Boolean).join(' ');
     h += `<div class="${cl}" title="${attr(hn || '')}">`;
     h += `<span class="dn">${d.getDate()}</span>`;
     if (ab) h += `<span class="da">${ab}</span>`;
