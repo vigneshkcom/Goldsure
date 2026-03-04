@@ -343,7 +343,104 @@ function showToast(msg) {
 }
 
 const policySections = [
-  ['PRIVACY POLICY', 'The explanations and information provided on this page and the raptoralarms.com.au website are only general and high-level explanations and information and subject to change. Product developments, product pricing, product delivery and general services offered by Raptor Alarms may change from time to time. Raptor Alarms reserves the right to accept or deny wholesale terms and or direct sales to Wholesalers, Distributors, Electrical Installation, Smoke Alarm installation and the like and or Electrical sole traders and business (on-sellers). A \'terms of trade agreement\' seeking personal and business information may be requested from on-sellers and any information Raptor Alarms collect in relation to on-sellers or consumers is strictly kept secured. Raptor Alarms does not pass on, sell, or exchange personal information with anyone, unless instructed to do so by law. Confidential information, including client lists, trade secrets, pricing structures and all documents created by staff in the course of employment remain the sole property of Raptor Alarms. Raptor Alarms reserves the right to variable menu-based terms of trade based on volumes, risk and reciprocal agreements.'],
+  ['PRIVACY POLICY', 'The explanations and information provided on this page and the raptoralarms.com.au website are only general and high-level explanations and information and subject to change. Product developments, product pricing, product delivery and general services offered by Raptor Alarms may change from time to time. Raptor Alarms reserves the right to accept or deny wholesale terms and or direct sales to Wholesalers, Distributors, Electrical Installation, Smoke Alarm installation and the like and or Electrical sole traders and business (on-sellers). A terms of trade agreement seeking personal and business information may be requested from on-sellers and any information Raptor Alarms collect in relation to on-sellers or consumers is strictly kept secured. Raptor Alarms does not pass on, sell, or exchange personal information with anyone, unless instructed to do so by law. Confidential information, including client lists, trade secrets, pricing structures and all documents created by staff in the course of employment remain the sole property of Raptor Alarms. Raptor Alarms reserves the right to variable menu-based terms of trade based on volumes, risk and reciprocal agreements.'],
+  ['DISCLAIMER', 'For on seller enquiries, you warrant that: You are aged 18 or over; You have the appropriate authority to provide Personal, Director and Business information, accept the Terms and you will meet your obligations in relation to the Terms; The information supplied by you is true and correct.'],
+  ['WARRANTY POLICY', 'Raptor Alarms takes customer complaints seriously, from both a customer service perspective and to ensure that all of its installations are safe and compliant. A warranty job can result from a variety of complaints ranging from: Faulty product(s), Delivery discrepancies, Delivery service, Packaging. All complaints are respected and investigated with diligence and when Raptor Alarms are verified as being wholly responsible for the complaint an appropriate make good commitment will be met. Warranty jobs pertaining to Faulty installation(s), Damage caused from installation(s), or, Poor installation service / end user customer engagement remain the responsibility of the on-seller.'],
+  ['PRODUCT WARRANTY', 'A product warranty is exercised if a product has been installed compliantly and in accordance with the installation guidelines / operating manual and is not fit for purpose or fails to perform to the product performance specifications, within the product warranty period. All products installed come with a minimum of a 1-year product warranty provided the product has not been tampered with in any way.'],
+  ['SERVICE WARRANTY', 'Service warranties are defined as damage and or poor workmanship because of works completed at installation or consumer engagement and remain the responsibility of the on seller.'],
+];
+
+function buildFooterHTML() {
+  let rows = '';
+  policySections.forEach(function(sec, i) {
+    if (i > 0) {
+      rows += '<tr><td style="padding:6px 0 0 0;border-top:1px solid #e0e0e0;font-size:1px;line-height:1px;">&nbsp;</td></tr>';
+      rows += '<tr><td style="padding:4px 0 0 0;"></td></tr>';
+    }
+    rows += '<tr><td style="padding:0 0 2px 0;font-family:Verdana,sans-serif;font-size:9px;font-weight:bold;color:#333333;letter-spacing:0.4px;">' + sec[0] + '</td></tr>';
+    rows += '<tr><td style="padding:0 0 8px 0;font-family:Verdana,sans-serif;font-size:9px;color:#666666;line-height:14px;">' + sec[1] + '</td></tr>';
+  });
+  return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #cccccc;margin-top:18px;"><tr><td style="padding-top:10px;"></td></tr>' + rows + '</table>';
+}
+
+function buildFullEmailHTML() {
+  var footer = buildFooterHTML();
+  var bulletRow = function(label) {
+    return '<tr><td style="padding:3px 0;font-family:Verdana,sans-serif;font-size:13px;color:#222222;line-height:1.6;">&bull;&nbsp;&nbsp;<strong>' + label + '</strong></td></tr>';
+  };
+  return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Verdana,sans-serif;font-size:13px;color:#222222;">'
+    + '<tr><td style="padding-bottom:14px;line-height:1.6;">Hi [Contact Name],</td></tr>'
+    + '<tr><td style="padding-bottom:14px;line-height:1.6;">Thank you for reaching out to us about <strong>Raptor Alarms</strong>. We appreciate your interest.</td></tr>'
+    + '<tr><td style="padding-bottom:14px;line-height:1.6;"><strong>Goldsure is the authorised distributor of Raptor Alarms.</strong> Please note that Raptor products are supplied exclusively on a wholesale basis to registered businesses and are not sold directly to the general public.</td></tr>'
+    + '<tr><td style="padding-bottom:8px;line-height:1.6;">To get started, could you please share the following business details with us:</td></tr>'
+    + '<tr><td style="padding-bottom:14px;padding-left:12px;"><table cellpadding="0" cellspacing="0" border="0">'
+    + bulletRow('Business and Trading Name')
+    + bulletRow("Director's Name")
+    + bulletRow('Nature of Business')
+    + bulletRow('Business Address')
+    + bulletRow('ABN')
+    + '</table></td></tr>'
+    + '<tr><td style="padding-bottom:14px;line-height:1.6;">Once we have these details we will review them and let you know the next steps.</td></tr>'
+    + '<tr><td style="padding-bottom:18px;line-height:1.6;">If you have any questions or need assistance, please feel free to reply to this email.</td></tr>'
+    + '<tr><td style="padding-bottom:4px;line-height:1.6;">Kind regards,</td></tr>'
+    + '<tr><td style="padding-bottom:2px;line-height:1.6;"><strong>[Your Name]</strong></td></tr>'
+    + '<tr><td style="padding-bottom:2px;line-height:1.6;">Goldsure Pty Ltd</td></tr>'
+    + '<tr><td style="line-height:1.6;">(07) 2145 5155 &nbsp;|&nbsp; info@goldsure.com.au</td></tr>'
+    + '<tr><td>' + footer + '</td></tr>'
+    + '</table>';
+}
+
+async function copyHTML(html, successMsg, btnId, defaultLabel) {
+  try {
+    var blob = new Blob([html], { type: 'text/html' });
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+    var btn = document.getElementById(btnId);
+    btn.innerText = '\u2713 Copied!';
+    setTimeout(function() { btn.innerText = defaultLabel; }, 2200);
+    showToast(successMsg);
+  } catch (e) {
+    // Fallback: create a temporary element and use execCommand
+    try {
+      var el = document.createElement('div');
+      el.innerHTML = html;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand('copy');
+      sel.removeAllRanges();
+      document.body.removeChild(el);
+      var btn2 = document.getElementById(btnId);
+      btn2.innerText = '\u2713 Copied!';
+      setTimeout(function() { btn2.innerText = defaultLabel; }, 2200);
+      showToast(successMsg);
+    } catch (e2) {
+      showToast('Copy failed — please try Chrome or Edge.');
+    }
+  }
+}
+
+function copyFullEmail() {
+  copyHTML(buildFullEmailHTML(), 'Full email template copied!', 'fullEmailBtn', 'Copy Full Email Template');
+}
+
+function copyEmailFooter() {
+  copyHTML(buildFooterHTML(), 'Policy footer copied!', 'footerOnlyBtn', 'Copy Footer Only');
+}
+</script><script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+const policySections = [
+  ['PRIVACY POLICY', 'The explanations and information provided on this page and the raptoralarms.com.au website are only general and high-level explanations and information and subject to change. Product developments, product pricing, product delivery and general services offered by Raptor Alarms may change from time to time. Raptor Alarms reserves the right to accept or deny wholesale terms and or direct sales to Wholesalers, Distributors, Electrical Installation, Smoke Alarm installation and the like and or Electrical sole traders and business (on-sellers). A terms of trade agreement seeking personal and business information may be requested from on-sellers and any information Raptor Alarms collect in relation to on-sellers or consumers is strictly kept secured. Raptor Alarms does not pass on, sell, or exchange personal information with anyone, unless instructed to do so by law. Confidential information, including client lists, trade secrets, pricing structures and all documents created by staff in the course of employment remain the sole property of Raptor Alarms. Raptor Alarms reserves the right to variable menu-based terms of trade based on volumes, risk and reciprocal agreements.'],
   ['DISCLAIMER', 'For on seller enquires, you warrant that: You are aged 18 or over; You have the appropriate authority to provide Personal, Director and Business information, accept the Terms and you will meet your obligations in relation to the Terms; The information supplied by you is true and correct.'],
   ['WARRANTY POLICY', 'Raptor Alarms takes customer complaints seriously, from both a customer service perspective and to ensure that all of its installations are safe and compliant. A warranty job can result from a variety of complaints ranging from: Faulty product(s), Delivery discrepancies, Delivery service, Packaging. All complaints are respected and investigated with diligence and when Raptor Alarms are verified as being wholly responsible for the complaint an appropriate make good commitment will be met. Warranty jobs pertaining to Faulty installation(s), Damage caused from installation(s), or, Poor installation service / end user customer engagement remain the responsibility of the on-seller.'],
   ['PRODUCT WARRANTY', 'A product warranty is exercised if a product has been installed compliantly and in accordance with the installation guidelines / operating manual and is not fit for purpose or fails to perform to the product performance specifications, within the product warranty period. All products installed come with a minimum of a 1-year product warranty provided the product has not been tampered with in any way.'],
