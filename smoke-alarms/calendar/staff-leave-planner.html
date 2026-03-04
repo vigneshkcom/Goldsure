@@ -7,288 +7,541 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* =====================================================
+   DESIGN TOKENS
+===================================================== */
 :root {
-  --white:           #ffffff;
-  --bg-page:         #f5f6f8;
-  --gold:            #caa84a;
-  --gold-light:      rgba(202,168,74,0.10);
-  --gold-hover:      #b8962e;
-  --text-primary:    #1b1b1b;
-  --text-secondary:  #6b7280;
-  --text-muted:      #9ca3af;
-  --border:          #e5e7eb;
-  --border-strong:   #d1d5db;
-  --hover-bg:        #f3f4f6;
-  --annual-bg:       #dbeafe; --annual-text:     #1e3a8a; --annual-border:   #93c5fd;
-  --sick-bg:         #fee2e2; --sick-text:       #991b1b; --sick-border:     #fca5a5;
-  --personal-bg:     #d1fae5; --personal-text:   #065f46; --personal-border: #6ee7b7;
-  --other-bg:        #ede9fe; --other-text:      #4c1d95; --other-border:    #c4b5fd;
-  --topbar-h:        58px;
-  --controls-h:      46px;
-  --status-h:        28px;
-  --name-col-w:      200px;
-  --day-w:           36px;
-  --row-h:           48px;
-  --cal-row-h:       38px;
-  --hdr-month-h:     28px;
-  --hdr-dow-h:       24px;
-  --hdr-day-h:       28px;
+  --white:        #ffffff;
+  --bg:           #f5f6f8;
+  --gold:         #caa84a;
+  --gold-lt:      rgba(202,168,74,0.10);
+  --gold-dk:      #b8962e;
+  --txt:          #1b1b1b;
+  --txt-s:        #6b7280;
+  --txt-m:        #9ca3af;
+  --bd:           #e5e7eb;
+  --bd-s:         #d1d5db;
+  --hov:          #f3f4f6;
+
+  /* leave colours */
+  --an-bg:#dbeafe; --an-bd:#93c5fd; --an-tx:#1e3a8a;
+  --sk-bg:#fee2e2; --sk-bd:#fca5a5; --sk-tx:#991b1b;
+  --pe-bg:#d1fae5; --pe-bd:#6ee7b7; --pe-tx:#065f46;
+  --ot-bg:#ede9fe; --ot-bd:#c4b5fd; --ot-tx:#4c1d95;
+
+  /* state: public holiday */
+  --qph-bg:#fff7ed; --qph-bd:#f97316; --qph-tx:#9a3412;
+  --nph-bg:#eff6ff; --nph-bd:#3b82f6; --nph-tx:#1e40af;
+  --vph-bg:#fff1f2; --vph-bd:#f43f5e; --vph-tx:#9f1239;
+
+  /* state: school holiday */
+  --qsh-bg:#ffedd5; --qsh-bd:#fb923c; --qsh-tx:#7c2d12;
+  --nsh-bg:#dbeafe; --nsh-bd:#60a5fa; --nsh-tx:#1e3a8a;
+  --vsh-bg:#ffe4e6; --vsh-bd:#fb7185; --vsh-tx:#881337;
+
+  /* layout */
+  --top-h:   54px;
+  --nav-h:   42px;
+  --sta-h:   26px;
+  --name-w:  200px;
+  --day-w:   36px;
+  --row-h:   46px;
+  --cal-h:   34px;
+  --h-mo-h:  26px;
+  --h-dw-h:  22px;
+  --h-dn-h:  26px;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Inter',sans-serif; background:var(--bg-page); color:var(--text-primary); min-height:100vh; -webkit-font-smoothing:antialiased; overflow:hidden; }
 
-/* TOP BAR */
-.topbar { display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:var(--topbar-h); background:var(--white); border-bottom:1px solid var(--border); position:fixed; top:0; left:0; right:0; z-index:200; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
-.topbar-left { display:flex; align-items:center; gap:12px; }
-.gs-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
-.gs-logo-icon { width:36px; height:36px; background:var(--gold); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 8px rgba(202,168,74,0.35); }
-.gs-logo-icon svg { width:20px; height:20px; fill:#fff; }
-.gs-wordmark { display:flex; flex-direction:column; line-height:1; }
-.gs-wordmark-top { font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; color:var(--text-primary); letter-spacing:-0.01em; }
-.gs-wordmark-top span { color:var(--gold); }
-.gs-wordmark-sub { font-size:9px; font-weight:600; color:var(--text-muted); letter-spacing:0.14em; text-transform:uppercase; margin-top:2px; }
-.topbar-divider { width:1px; height:26px; background:var(--border); margin:0 4px; }
-.topbar-page-title { font-size:13px; font-weight:500; color:var(--text-secondary); }
-.topbar-right { display:flex; align-items:center; gap:12px; }
-.state-key { display:flex; align-items:center; gap:10px; padding:4px 12px; background:var(--bg-page); border:1px solid var(--border); border-radius:20px; }
-.state-key-item { display:flex; align-items:center; gap:4px; font-size:10.5px; font-weight:500; color:var(--text-secondary); }
-.state-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
-.state-sep { width:1px; height:10px; background:var(--border); }
-.user-pill { display:flex; align-items:center; gap:8px; padding:5px 12px 5px 6px; background:var(--bg-page); border:1px solid var(--border); border-radius:20px; cursor:default; transition:border-color 0.15s; }
-.user-pill:hover { border-color:var(--gold); }
-.user-avatar { width:26px; height:26px; background:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; flex-shrink:0; }
-.user-name { font-size:12px; font-weight:600; color:var(--text-primary); }
-.btn-add-leave { display:flex; align-items:center; gap:6px; padding:7px 16px; background:var(--gold); color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.15s,box-shadow 0.15s,transform 0.1s; box-shadow:0 2px 6px rgba(202,168,74,0.30); }
-.btn-add-leave:hover { background:var(--gold-hover); box-shadow:0 4px 12px rgba(202,168,74,0.35); transform:translateY(-1px); }
-.btn-add-leave:active { transform:translateY(0); }
+/* =====================================================
+   BASE
+===================================================== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;-webkit-font-smoothing:antialiased;}
 
-/* CONTROLS BAR */
-.controls-bar { display:flex; align-items:center; gap:14px; padding:0 28px; height:var(--controls-h); background:var(--white); border-bottom:1px solid var(--border); position:fixed; top:var(--topbar-h); left:0; right:0; z-index:190; }
-.month-nav { display:flex; align-items:center; gap:4px; }
-.month-nav-btn { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--white); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all 0.15s; font-family:inherit; }
-.month-nav-btn:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
-.month-range-label { font-size:13px; font-weight:600; color:var(--text-primary); min-width:230px; text-align:center; letter-spacing:-0.01em; }
-.btn-today { padding:5px 13px; border-radius:6px; border:1px solid var(--border); background:var(--white); color:var(--text-secondary); font-size:12px; font-weight:500; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
-.btn-today:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
-.legend { display:flex; align-items:center; gap:12px; margin-left:auto; flex-wrap:wrap; }
-.legend-item { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:500; color:var(--text-secondary); }
-.legend-pip { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+/* =====================================================
+   TOP BAR
+===================================================== */
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  height:var(--top-h);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;
+  background:var(--white);border-bottom:1px solid var(--bd);
+  box-shadow:0 1px 4px rgba(0,0,0,0.05);
+}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.logo-link{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-box{
+  width:34px;height:34px;border-radius:8px;
+  background:var(--gold);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(202,168,74,0.35);flex-shrink:0;
+}
+.logo-box svg{width:18px;height:18px;fill:#fff;}
+.logo-words{display:flex;flex-direction:column;line-height:1;}
+.logo-name{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--txt);letter-spacing:-0.01em;}
+.logo-name span{color:var(--gold);}
+.logo-sub{font-size:8.5px;font-weight:600;color:var(--txt-m);letter-spacing:0.14em;text-transform:uppercase;margin-top:2px;}
+.tb-div{width:1px;height:22px;background:var(--bd);margin:0 2px;}
+.tb-title{font-size:13px;font-weight:500;color:var(--txt-s);}
+.tb-right{display:flex;align-items:center;gap:12px;}
+.state-key{
+  display:flex;align-items:center;gap:9px;
+  padding:4px 11px;background:var(--bg);
+  border:1px solid var(--bd);border-radius:20px;
+}
+.sk-item{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;color:var(--txt-s);}
+.sk-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.sk-sep{width:1px;height:10px;background:var(--bd);}
+.btn-add{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border:none;border-radius:8px;
+  background:var(--gold);color:#fff;
+  font-size:12px;font-weight:600;font-family:'Inter',sans-serif;
+  cursor:pointer;
+  box-shadow:0 2px 6px rgba(202,168,74,0.28);
+  transition:background 0.15s,transform 0.1s;
+}
+.btn-add:hover{background:var(--gold-dk);transform:translateY(-1px);}
+.btn-add:active{transform:translateY(0);}
 
-/* PLANNER OUTER */
-.planner-outer { position:fixed; top:calc(var(--topbar-h) + var(--controls-h)); left:0; right:0; bottom:var(--status-h); overflow:hidden; }
-.planner-scroll { position:absolute; inset:0; overflow-x:auto; overflow-y:auto; }
-.planner-scroll::-webkit-scrollbar { width:7px; height:7px; }
-.planner-scroll::-webkit-scrollbar-track { background:var(--bg-page); }
-.planner-scroll::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:4px; }
-.planner-scroll::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
-.planner-inner { display:block; min-width:max-content; background:var(--white); }
+/* =====================================================
+   NAV BAR
+===================================================== */
+.navbar{
+  position:fixed;top:var(--top-h);left:0;right:0;z-index:390;
+  height:var(--nav-h);
+  display:flex;align-items:center;gap:8px;
+  padding:0 24px;
+  background:var(--white);border-bottom:1px solid var(--bd);
+}
+.nav-btn{
+  width:26px;height:26px;border-radius:6px;
+  border:1px solid var(--bd);background:var(--white);
+  color:var(--txt-s);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-family:inherit;transition:all 0.15s;
+}
+.nav-btn:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-lt);}
+.nav-range{
+  font-size:13px;font-weight:600;color:var(--txt);
+  min-width:210px;text-align:center;letter-spacing:-0.01em;
+}
+.btn-today{
+  padding:4px 11px;border-radius:6px;
+  border:1px solid var(--bd);background:var(--white);
+  color:var(--txt-s);font-size:12px;font-weight:500;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;
+}
+.btn-today:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-lt);}
 
-/* HEADER */
-.planner-header { position:sticky; top:0; z-index:100; background:var(--white); display:flex; flex-direction:column; }
-.hdr-row { display:flex; flex-direction:row; border-bottom:1px solid var(--border); }
-.hdr-row:last-child { border-bottom:2px solid var(--border-strong); }
-.hdr-name { position:sticky; left:0; z-index:110; width:var(--name-col-w); min-width:var(--name-col-w); flex-shrink:0; background:var(--bg-page); border-right:2px solid var(--border); display:flex; align-items:center; padding:0 14px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-muted); }
-.hdr-month-cell { height:var(--hdr-month-h); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-secondary); background:var(--bg-page); border-right:1px solid var(--border); white-space:nowrap; overflow:hidden; }
-.hdr-month-cell.active-month { color:var(--gold); border-top:2.5px solid var(--gold); }
-.hdr-dow-cell { width:var(--day-w); min-width:var(--day-w); flex-shrink:0; height:var(--hdr-dow-h); display:flex; align-items:center; justify-content:center; font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); background:var(--white); border-right:1px solid var(--border); }
-.hdr-dow-cell.weekend { background:#f1f1f1; }
-.hdr-dow-cell.today   { background:var(--gold-light); color:var(--gold); }
-.hdr-day-cell { width:var(--day-w); min-width:var(--day-w); flex-shrink:0; height:var(--hdr-day-h); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:var(--text-secondary); background:var(--white); border-right:1px solid var(--border); position:relative; overflow:visible; line-height:1; }
-.hdr-day-cell.weekend { background:#f1f1f1; color:var(--text-muted); }
-.hdr-day-cell.today   { background:var(--gold-light); color:var(--gold); font-weight:700; }
-.hdr-day-cell.hol-any { background:#fef9ec; color:#92400e; }
-.hdr-day-num { font-size:11px; font-weight:500; }
-.hdr-day-hol { font-size:6px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; opacity:0.75; margin-top:1px; white-space:nowrap; max-width:34px; overflow:hidden; text-overflow:ellipsis; }
+/* =====================================================
+   PLANNER VIEWPORT
+===================================================== */
+.planner-wrap{
+  position:fixed;
+  top:calc(var(--top-h) + var(--nav-h));
+  left:0;right:0;bottom:var(--sta-h);
+  overflow:hidden;
+}
+.planner-scroll{
+  position:absolute;inset:0;
+  overflow-x:auto;overflow-y:auto;
+}
+.planner-scroll::-webkit-scrollbar{width:6px;height:6px;}
+.planner-scroll::-webkit-scrollbar-track{background:var(--bg);}
+.planner-scroll::-webkit-scrollbar-thumb{background:var(--bd-s);border-radius:3px;}
+.planner-scroll::-webkit-scrollbar-thumb:hover{background:var(--txt-m);}
 
-/* BODY */
-.planner-body { display:flex; flex-direction:column; }
+/* =====================================================
+   PLANNER INNER
+   All rows and header live inside this single
+   min-width container so every column aligns.
+===================================================== */
+.planner-inner{
+  display:block;
+  min-width:max-content;
+  background:var(--white);
+}
 
-/* Staff rows */
-.staff-row { display:flex; flex-direction:row; height:var(--row-h); border-bottom:1px solid var(--border); background:var(--white); }
-.staff-row:hover .staff-name  { background:var(--hover-bg) !important; }
-.staff-row:hover .staff-track { background:rgba(202,168,74,0.04) !important; }
+/* =====================================================
+   STICKY HEADER  (3 sub-rows)
+===================================================== */
+.p-header{
+  position:sticky;top:0;z-index:300;
+  display:flex;flex-direction:column;
+  background:var(--white);
+}
+.h-row{display:flex;flex-direction:row;border-bottom:1px solid var(--bd);}
+.h-row:last-child{border-bottom:2px solid var(--bd-s);}
 
-/* Section divider */
-.section-divider { display:flex; flex-direction:row; height:28px; background:var(--bg-page); border-top:2px solid var(--border-strong); border-bottom:1px solid var(--border); }
-.section-divider-label { position:sticky; left:0; z-index:50; width:var(--name-col-w); min-width:var(--name-col-w); flex-shrink:0; display:flex; align-items:center; padding:0 14px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-muted); background:var(--bg-page); border-right:2px solid var(--border); }
-.section-divider-track { flex-grow:1; background:var(--bg-page); }
+/* sticky name column in header */
+.h-name{
+  position:sticky;left:0;z-index:310;
+  width:var(--name-w);min-width:var(--name-w);flex-shrink:0;
+  background:var(--bg);border-right:2px solid var(--bd);
+  display:flex;align-items:center;padding:0 14px;
+  font-size:9px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.12em;color:var(--txt-m);
+}
 
-/* Calendar event rows */
-.cal-row { display:flex; flex-direction:row; height:var(--cal-row-h); border-bottom:1px solid var(--border); background:var(--white); }
+/* month span cells */
+.h-month{
+  height:var(--h-mo-h);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;
+  color:var(--txt-s);background:var(--bg);
+  border-right:1px solid var(--bd);
+  white-space:nowrap;overflow:hidden;flex-shrink:0;
+}
+.h-month.cur{color:var(--gold);border-top:2.5px solid var(--gold);}
 
-/* Name / label cells */
-.staff-name { position:sticky; left:0; z-index:50; width:var(--name-col-w); min-width:var(--name-col-w); flex-shrink:0; height:var(--row-h); display:flex; align-items:center; padding:0 14px; background:var(--white); border-right:2px solid var(--border); font-size:12.5px; font-weight:500; color:var(--text-primary); white-space:nowrap; letter-spacing:-0.01em; transition:background 0.1s; }
-.cal-row-label { position:sticky; left:0; z-index:50; width:var(--name-col-w); min-width:var(--name-col-w); flex-shrink:0; height:var(--cal-row-h); display:flex; align-items:center; padding:0 14px 0 11px; background:var(--white); border-right:2px solid var(--border); font-size:11.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap; }
-.cal-row-label.qld { border-left:3px solid #f97316; }
-.cal-row-label.nsw { border-left:3px solid #3b82f6; }
-.cal-row-label.vic { border-left:3px solid #f43f5e; }
+/* DOW cells */
+.h-dow{
+  width:var(--day-w);min-width:var(--day-w);flex-shrink:0;
+  height:var(--h-dw-h);
+  display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+  color:var(--txt-m);background:var(--white);
+  border-right:1px solid var(--bd);
+}
 
-.staff-avatar { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; font-size:10px; font-weight:700; margin-right:10px; flex-shrink:0; }
+/* day-number cells */
+.h-day{
+  width:var(--day-w);min-width:var(--day-w);flex-shrink:0;
+  height:var(--h-dn-h);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:11px;font-weight:500;color:var(--txt-s);
+  background:var(--white);
+  border-right:1px solid var(--bd);
+  line-height:1;
+}
+.h-dow.wk,.h-day.wk{background:#f3f3f3;}
+.h-dow.td,.h-day.td{background:var(--gold-lt);color:var(--gold);}
+.h-day.td{font-weight:700;}
+.h-day.hl{background:#fef9ec;color:#92400e;}
+.dn{font-size:11px;font-weight:inherit;}
+.da{font-size:6px;font-weight:700;text-transform:uppercase;opacity:0.7;margin-top:1px;letter-spacing:0.04em;}
 
-/* Timeline tracks */
-.staff-track { position:relative; flex-grow:1; height:var(--row-h); background:var(--white); transition:background 0.08s; }
-.cal-track   { position:relative; flex-grow:1; height:var(--cal-row-h); background:var(--white); }
+/* =====================================================
+   GRID BODY
+===================================================== */
+.p-body{display:flex;flex-direction:column;}
 
-/* Day background columns */
-.day-bg { position:absolute; top:0; bottom:0; width:var(--day-w); border-right:1px solid var(--border); cursor:pointer; transition:background 0.08s; }
-.day-bg.weekend { background:#f1f1f1; }
-.day-bg.today   { background:rgba(202,168,74,0.09); }
-.day-bg:hover   { background:var(--gold-light) !important; }
-.cal-day-bg { position:absolute; top:0; bottom:0; width:var(--day-w); border-right:1px solid var(--border); cursor:default; }
-.cal-day-bg.weekend { background:#f1f1f1; }
-.cal-day-bg.today   { background:rgba(202,168,74,0.09); }
+/* ─── Row shell ───
+   Every row (staff + cal) uses the same layout:
+     sticky .rn  |  relative .rt (holds grid lines + event bars)
+*/
+.row{display:flex;flex-direction:row;border-bottom:1px solid var(--bd);}
+.row.sr{height:var(--row-h);background:var(--white);}
+.row.cr{height:var(--cal-h);background:var(--white);}
+.row.sr:hover .rn{background:var(--hov)!important;}
+.row.sr:hover .rt{background:rgba(202,168,74,0.025)!important;}
 
-/* LEAVE BARS */
-.leave-bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:5px; display:flex; align-items:center; font-size:10px; font-weight:600; font-family:'Inter',sans-serif; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; z-index:20; cursor:pointer; letter-spacing:0.01em; border:1px solid transparent; box-shadow:0 1px 3px rgba(0,0,0,0.07); transition:box-shadow 0.15s,transform 0.12s; }
-.leave-bar:hover { box-shadow:0 2px 8px rgba(0,0,0,0.12); transform:translateY(-50%) scaleY(1.06); z-index:30; }
-.leave-bar.annual   { background:var(--annual-bg);   color:var(--annual-text);   border-color:var(--annual-border); }
-.leave-bar.sick     { background:var(--sick-bg);     color:var(--sick-text);     border-color:var(--sick-border); }
-.leave-bar.personal { background:var(--personal-bg); color:var(--personal-text); border-color:var(--personal-border); }
-.leave-bar.other    { background:var(--other-bg);    color:var(--other-text);    border-color:var(--other-border); }
-.leave-bar-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-.leave-bar-delete { flex-shrink:0; padding-left:8px; opacity:0; font-size:11px; cursor:pointer; transition:opacity 0.1s; }
-.leave-bar:hover .leave-bar-delete { opacity:0.55; }
-.leave-bar-delete:hover { opacity:1 !important; }
+/* sticky name cell */
+.rn{
+  position:sticky;left:0;z-index:50;
+  width:var(--name-w);min-width:var(--name-w);flex-shrink:0;
+  height:100%;
+  display:flex;align-items:center;padding:0 14px;
+  background:var(--white);
+  border-right:2px solid var(--bd);
+  white-space:nowrap;transition:background 0.1s;
+}
+.rn.staff{font-size:12.5px;font-weight:500;color:var(--txt);letter-spacing:-0.01em;}
+.rn.cal  {font-size:11px;font-weight:600;color:var(--txt-s);}
+.rn.cal.qld{border-left:3px solid #f97316;padding-left:11px;}
+.rn.cal.nsw{border-left:3px solid #3b82f6;padding-left:11px;}
+.rn.cal.vic{border-left:3px solid #f43f5e;padding-left:11px;}
 
-/* CALENDAR EVENT BARS — multi-day spanning pills */
-.cal-bar { position:absolute; top:50%; transform:translateY(-50%); height:24px; border-radius:4px; display:flex; align-items:center; font-size:10px; font-weight:600; font-family:'Inter',sans-serif; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; z-index:10; cursor:default; letter-spacing:0.01em; border:1.5px solid transparent; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-/* Public holiday — solid, bolder */
-.cal-bar.pub-qld { background:#fff7ed; border-color:#f97316; color:#9a3412; }
-.cal-bar.pub-nsw { background:#eff6ff; border-color:#3b82f6; color:#1e40af; }
-.cal-bar.pub-vic { background:#fff1f2; border-color:#f43f5e; color:#9f1239; }
-/* School holiday — softer tint */
-.cal-bar.sch-qld { background:#ffedd5; border-color:#fb923c; color:#7c2d12; }
-.cal-bar.sch-nsw { background:#dbeafe; border-color:#60a5fa; color:#1e3a8a; }
-.cal-bar.sch-vic { background:#ffe4e6; border-color:#fb7185; color:#881337; }
+/* ─── Timeline track ───
+   position:relative container.
+   Children use absolute positioning.
+   overflow:hidden clips events at the edge.
+*/
+.rt{
+  position:relative;
+  flex-grow:1;height:100%;
+  background:var(--white);
+  overflow:hidden;
+  transition:background 0.08s;
+}
 
-/* MODAL */
-.modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.38); z-index:500; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity 0.2s; }
-.modal-overlay.open { opacity:1; pointer-events:all; }
-.modal { background:var(--white); border:1px solid var(--border); border-radius:14px; width:460px; max-width:95vw; padding:28px; transform:translateY(10px) scale(0.98); transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 20px 60px rgba(0,0,0,0.11),0 4px 16px rgba(0,0,0,0.06); }
-.modal-overlay.open .modal { transform:translateY(0) scale(1); }
-.modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-.modal-gold-accent { display:inline-block; width:3px; height:18px; background:var(--gold); border-radius:2px; margin-right:10px; vertical-align:middle; }
-.modal-title { font-size:15px; font-weight:700; color:var(--text-primary); letter-spacing:-0.01em; }
-.modal-close { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--bg-page); color:var(--text-secondary); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
-.modal-close:hover { background:var(--hover-bg); border-color:var(--border-strong); color:var(--text-primary); }
-.form-group { margin-bottom:14px; }
-.form-label { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.09em; margin-bottom:5px; }
-.form-control { width:100%; padding:9px 12px; background:var(--white); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.15s,box-shadow 0.15s; appearance:none; -webkit-appearance:none; }
-.form-control:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(202,168,74,0.12); }
-select.form-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; cursor:pointer; }
-select.form-control option { background:var(--white); }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.modal-actions { display:flex; gap:10px; margin-top:22px; }
-.btn-cancel { flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-page); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
-.btn-cancel:hover { background:var(--hover-bg); border-color:var(--border-strong); color:var(--text-primary); }
-.btn-save { flex:2; padding:10px; border-radius:8px; border:none; background:var(--gold); color:#fff; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.15s,box-shadow 0.15s; box-shadow:0 2px 6px rgba(202,168,74,0.28); }
-.btn-save:hover:not(:disabled) { background:var(--gold-hover); box-shadow:0 4px 12px rgba(202,168,74,0.35); }
-.btn-save:disabled { opacity:0.5; cursor:not-allowed; }
+/* ─── Day column ghosts ───
+   One per day. Pure visual grid — pointer-events:none.
+   Background only for wknd/today variants.
+*/
+.dc{
+  position:absolute;top:0;bottom:0;
+  width:var(--day-w);
+  border-right:1px solid var(--bd);
+  pointer-events:none;
+}
+.dc.wk{background:#f3f3f3;}
+.dc.td{background:rgba(202,168,74,0.07);}
 
-/* TOOLTIP */
-.tooltip { position:fixed; background:var(--white); border:1px solid var(--border); border-radius:10px; padding:11px 14px; font-size:12px; z-index:600; pointer-events:none; opacity:0; transition:opacity 0.15s; box-shadow:0 8px 24px rgba(0,0,0,0.10); min-width:190px; }
-.tooltip.visible { opacity:1; }
-.tooltip-name   { font-weight:700; color:var(--text-primary); margin-bottom:4px; font-size:12.5px; }
-.tooltip-detail { color:var(--text-secondary); font-size:11px; line-height:1.7; }
-.tooltip-type   { display:inline-block; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; margin-top:5px; }
+/* ─── Day hit targets ───
+   Transparent layer that receives clicks.
+   Sits above .dc but below .ev.
+*/
+.dh{
+  position:absolute;top:0;bottom:0;
+  width:var(--day-w);
+  cursor:pointer;z-index:2;
+}
+.dh:hover{background:rgba(202,168,74,0.09);}
 
-/* TOAST */
-.toast { position:fixed; bottom:36px; right:24px; padding:11px 16px; border-radius:9px; font-size:12.5px; font-weight:500; z-index:700; transform:translateY(70px); opacity:0; transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); border:1px solid transparent; max-width:340px; box-shadow:0 4px 16px rgba(0,0,0,0.08); font-family:'Inter',sans-serif; }
-.toast.show    { transform:translateY(0); opacity:1; }
-.toast.success { background:#f0fdf4; border-color:#86efac; color:#166534; }
-.toast.error   { background:#fef2f2; border-color:#fca5a5; color:#991b1b; }
+/* =====================================================
+   EVENT BARS
+   ─────────────────────────────────────────────────
+   ONE element per event.
+   left  = startIndex * DAY_W + 2
+   width = (endIndex - startIndex + 1) * DAY_W - 4
 
-/* STATUS BAR */
-.statusbar { position:fixed; bottom:0; left:0; right:0; height:var(--status-h); background:var(--white); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 20px; gap:20px; z-index:200; }
-.status-item { font-size:10.5px; color:var(--text-muted); display:flex; align-items:center; gap:6px; font-weight:500; }
-.status-dot  { width:6px; height:6px; border-radius:50%; animation:pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+   evPos() in JS returns {left, width, span} or null.
+   No per-day rendering anywhere.
+===================================================== */
+.ev{
+  position:absolute;
+  top:50%;transform:translateY(-50%);
+  border-radius:5px;
+  display:flex;align-items:center;
+  padding:0 8px;
+  font-size:10px;font-weight:600;font-family:'Inter',sans-serif;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border:1.5px solid transparent;
+  box-shadow:0 1px 3px rgba(0,0,0,0.07);
+  z-index:10;
+  letter-spacing:0.01em;
+  /* left + width set inline */
+}
+
+/* staff leave bars */
+.ev.lv{height:26px;cursor:pointer;}
+.ev.lv:hover{box-shadow:0 2px 8px rgba(0,0,0,0.12);transform:translateY(-50%) scaleY(1.06);z-index:20;}
+.ev.annual  {background:var(--an-bg);border-color:var(--an-bd);color:var(--an-tx);}
+.ev.sick    {background:var(--sk-bg);border-color:var(--sk-bd);color:var(--sk-tx);}
+.ev.personal{background:var(--pe-bg);border-color:var(--pe-bd);color:var(--pe-tx);}
+.ev.other   {background:var(--ot-bg);border-color:var(--ot-bd);color:var(--ot-tx);}
+
+/* delete button inside leave bar */
+.ev-x{flex-shrink:0;padding-left:7px;opacity:0;font-size:11px;cursor:pointer;transition:opacity 0.1s;line-height:1;}
+.ev.lv:hover .ev-x{opacity:0.45;}
+.ev-x:hover{opacity:1!important;}
+
+/* public holiday bars */
+.ev.ph{height:20px;border-radius:4px;cursor:default;box-shadow:none;}
+.ev.ph.qld{background:var(--qph-bg);border-color:var(--qph-bd);color:var(--qph-tx);}
+.ev.ph.nsw{background:var(--nph-bg);border-color:var(--nph-bd);color:var(--nph-tx);}
+.ev.ph.vic{background:var(--vph-bg);border-color:var(--vph-bd);color:var(--vph-tx);}
+
+/* school holiday bars */
+.ev.sh{height:20px;border-radius:4px;cursor:default;box-shadow:none;}
+.ev.sh.qld{background:var(--qsh-bg);border-color:var(--qsh-bd);color:var(--qsh-tx);}
+.ev.sh.nsw{background:var(--nsh-bg);border-color:var(--nsh-bd);color:var(--nsh-tx);}
+.ev.sh.vic{background:var(--vsh-bg);border-color:var(--vsh-bd);color:var(--vsh-tx);}
+
+/* =====================================================
+   SECTION DIVIDER (between staff + holiday sections)
+===================================================== */
+.sdiv{
+  display:flex;flex-direction:row;
+  height:24px;
+  background:var(--bg);
+  border-top:2px solid var(--bd-s);
+  border-bottom:1px solid var(--bd);
+}
+.sdiv-label{
+  position:sticky;left:0;z-index:50;
+  width:var(--name-w);min-width:var(--name-w);flex-shrink:0;
+  display:flex;align-items:center;padding:0 14px;
+  font-size:8.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.12em;color:var(--txt-m);
+  background:var(--bg);border-right:2px solid var(--bd);
+}
+.sdiv-fill{flex-grow:1;background:var(--bg);}
+
+/* =====================================================
+   MODAL
+===================================================== */
+.mo-wrap{
+  position:fixed;inset:0;z-index:600;
+  background:rgba(15,23,42,0.38);
+  backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.2s;
+}
+.mo-wrap.open{opacity:1;pointer-events:all;}
+.modal{
+  background:var(--white);border:1px solid var(--bd);border-radius:14px;
+  width:460px;max-width:95vw;padding:28px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.12),0 4px 16px rgba(0,0,0,0.06);
+  transform:translateY(10px) scale(0.98);
+  transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+}
+.mo-wrap.open .modal{transform:translateY(0) scale(1);}
+.mo-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--bd);
+}
+.mo-accent{display:inline-block;width:3px;height:17px;background:var(--gold);border-radius:2px;margin-right:9px;vertical-align:middle;}
+.mo-title{font-size:15px;font-weight:700;color:var(--txt);letter-spacing:-0.01em;}
+.mo-close{
+  width:28px;height:28px;border-radius:7px;
+  border:1px solid var(--bd);background:var(--bg);
+  color:var(--txt-s);cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s;
+}
+.mo-close:hover{background:var(--hov);color:var(--txt);}
+.fg{margin-bottom:13px;}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--txt-s);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:5px;}
+.fc{
+  width:100%;padding:9px 12px;
+  background:var(--white);border:1px solid var(--bd);border-radius:8px;
+  color:var(--txt);font-size:13px;font-family:'Inter',sans-serif;
+  outline:none;transition:border-color 0.15s,box-shadow 0.15s;
+  appearance:none;-webkit-appearance:none;
+}
+.fc:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(202,168,74,0.12);}
+select.fc{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  padding-right:30px;cursor:pointer;
+}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.mo-acts{display:flex;gap:10px;margin-top:20px;}
+.btn-cancel{
+  flex:1;padding:9px;border-radius:8px;
+  border:1px solid var(--bd);background:var(--bg);
+  color:var(--txt-s);font-size:13px;font-weight:500;
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s;
+}
+.btn-cancel:hover{background:var(--hov);color:var(--txt);}
+.btn-save{
+  flex:2;padding:9px;border-radius:8px;border:none;
+  background:var(--gold);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;
+  font-family:'Inter',sans-serif;
+  box-shadow:0 2px 6px rgba(202,168,74,0.28);transition:background 0.15s;
+}
+.btn-save:hover:not(:disabled){background:var(--gold-dk);}
+.btn-save:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* =====================================================
+   TOOLTIP
+===================================================== */
+.tip{
+  position:fixed;z-index:700;
+  background:var(--white);border:1px solid var(--bd);border-radius:10px;
+  padding:10px 13px;font-size:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.10);
+  min-width:180px;pointer-events:none;
+  opacity:0;transition:opacity 0.12s;
+}
+.tip.on{opacity:1;}
+.t-name{font-weight:700;color:var(--txt);margin-bottom:4px;font-size:12px;}
+.t-body{color:var(--txt-s);font-size:11px;line-height:1.7;}
+.t-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;margin-top:4px;}
+
+/* =====================================================
+   TOAST
+===================================================== */
+.toast{
+  position:fixed;bottom:34px;right:22px;z-index:800;
+  padding:10px 16px;border-radius:9px;
+  font-size:12px;font-weight:500;font-family:'Inter',sans-serif;
+  max-width:340px;border:1px solid transparent;
+  box-shadow:0 4px 16px rgba(0,0,0,0.08);
+  transform:translateY(70px);opacity:0;
+  transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.on{transform:translateY(0);opacity:1;}
+.toast.ok {background:#f0fdf4;border-color:#86efac;color:#166534;}
+.toast.err{background:#fef2f2;border-color:#fca5a5;color:#991b1b;}
+
+/* =====================================================
+   STATUS BAR
+===================================================== */
+.statusbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:400;
+  height:var(--sta-h);
+  background:var(--white);border-top:1px solid var(--bd);
+  display:flex;align-items:center;gap:20px;padding:0 18px;
+}
+.si{font-size:10px;font-weight:500;color:var(--txt-m);display:flex;align-items:center;gap:5px;}
+.sd{width:5px;height:5px;border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
+<!-- ══════════════ TOP BAR ══════════════ -->
 <div class="topbar">
-  <div class="topbar-left">
-    <a class="gs-logo" href="#">
-      <div class="gs-logo-icon">
+  <div class="tb-left">
+    <a class="logo-link" href="#">
+      <div class="logo-box">
         <svg viewBox="0 0 24 24"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2zm0 4.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zm4 9.5H8v-.75C8 13.67 10 13 12 13s4 .67 4 2.25V16z"/></svg>
       </div>
-      <div class="gs-wordmark">
-        <div class="gs-wordmark-top">Gold<span>sure</span></div>
-        <div class="gs-wordmark-sub">Sales Portal</div>
+      <div class="logo-words">
+        <div class="logo-name">Gold<span>sure</span></div>
+        <div class="logo-sub">Sales Portal</div>
       </div>
     </a>
-    <div class="topbar-divider"></div>
-    <span class="topbar-page-title">Staff Leave Planner</span>
+    <div class="tb-div"></div>
+    <span class="tb-title">Staff Leave Planner</span>
   </div>
-  <div class="topbar-right">
+  <div class="tb-right">
     <div class="state-key">
-      <span class="state-key-item"><span class="state-dot" style="background:#f97316;"></span>QLD</span>
-      <span class="state-sep"></span>
-      <span class="state-key-item"><span class="state-dot" style="background:#3b82f6;"></span>NSW</span>
-      <span class="state-sep"></span>
-      <span class="state-key-item"><span class="state-dot" style="background:#f43f5e;"></span>VIC</span>
+      <span class="sk-item"><span class="sk-dot" style="background:#f97316;"></span>QLD</span>
+      <span class="sk-sep"></span>
+      <span class="sk-item"><span class="sk-dot" style="background:#3b82f6;"></span>NSW</span>
+      <span class="sk-sep"></span>
+      <span class="sk-item"><span class="sk-dot" style="background:#f43f5e;"></span>VIC</span>
     </div>
-    <div class="user-pill">
-      <div class="user-avatar">V</div>
-      <span class="user-name">Vignesh</span>
-    </div>
-    <button class="btn-add-leave" onclick="openAddModal()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <button class="btn-add" onclick="openModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Leave
     </button>
   </div>
 </div>
 
-<!-- CONTROLS BAR -->
-<div class="controls-bar">
-  <div class="month-nav">
-    <button class="month-nav-btn" onclick="shiftMonths(-3)">&#171;</button>
-    <button class="month-nav-btn" onclick="shiftMonths(-1)">&#8249;</button>
-    <span class="month-range-label" id="monthRangeLabel"></span>
-    <button class="month-nav-btn" onclick="shiftMonths(1)">&#8250;</button>
-    <button class="month-nav-btn" onclick="shiftMonths(3)">&#187;</button>
-  </div>
-  <button class="btn-today" onclick="goToToday()">Today</button>
-  <div class="legend">
-    <span class="legend-item"><span class="legend-pip" style="background:#dbeafe;border:1px solid #93c5fd;"></span>Annual</span>
-    <span class="legend-item"><span class="legend-pip" style="background:#fee2e2;border:1px solid #fca5a5;"></span>Sick</span>
-    <span class="legend-item"><span class="legend-pip" style="background:#d1fae5;border:1px solid #6ee7b7;"></span>Personal</span>
-    <span class="legend-item"><span class="legend-pip" style="background:#ede9fe;border:1px solid #c4b5fd;"></span>Other</span>
-    <span class="legend-item"><span class="legend-pip" style="background:#fff7ed;border:1.5px solid #f97316;"></span>Public Hol</span>
-    <span class="legend-item"><span class="legend-pip" style="background:#ffedd5;border:1.5px solid #fb923c;"></span>School Hol</span>
-  </div>
+<!-- ══════════════ NAV BAR ══════════════ -->
+<div class="navbar">
+  <button class="nav-btn" onclick="shift(-3)" title="Back 3 months">&#171;</button>
+  <button class="nav-btn" onclick="shift(-1)" title="Previous month">&#8249;</button>
+  <span class="nav-range" id="rangeLabel"></span>
+  <button class="nav-btn" onclick="shift(1)"  title="Next month">&#8250;</button>
+  <button class="nav-btn" onclick="shift(3)"  title="Forward 3 months">&#187;</button>
+  <button class="btn-today" onclick="jumpToday()">Today</button>
 </div>
 
-<!-- PLANNER -->
-<div class="planner-outer">
+<!-- ══════════════ PLANNER ══════════════ -->
+<div class="planner-wrap">
   <div class="planner-scroll" id="plannerScroll">
     <div class="planner-inner" id="plannerInner"></div>
   </div>
 </div>
 
-<!-- STATUS BAR -->
+<!-- ══════════════ STATUS BAR ══════════════ -->
 <div class="statusbar">
-  <span class="status-item">
-    <span class="status-dot" id="connDot" style="background:var(--text-muted);"></span>
+  <span class="si">
+    <span class="sd" id="connDot" style="background:var(--txt-m);"></span>
     <span id="connLabel">Connecting...</span>
   </span>
-  <span class="status-item" id="leaveCountStatus">0 leave entries</span>
-  <span class="status-item" id="calEventStatus"></span>
-  <span class="status-item" style="margin-left:auto;" id="todayStatus"></span>
+  <span class="si" id="lvCount">0 leave entries</span>
+  <span class="si" id="calStatus"></span>
+  <span class="si" style="margin-left:auto;" id="todayStr"></span>
 </div>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+<!-- ══════════════ MODAL ══════════════ -->
+<div class="mo-wrap" id="moWrap" onclick="moClick(event)">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title"><span class="modal-gold-accent"></span>Add Leave Entry</div>
-      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    <div class="mo-head">
+      <div class="mo-title"><span class="mo-accent"></span>Add Leave Entry</div>
+      <button class="mo-close" onclick="closeModal()">&#x2715;</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Staff Member</label>
-      <select class="form-control" id="f_staff">
+    <div class="fg">
+      <label class="fl">Staff Member</label>
+      <select class="fc" id="fStaff">
         <option value="">Select staff member...</option>
         <option>Andrew McLeod</option>
         <option>Adam Sicari</option>
@@ -298,9 +551,9 @@ select.form-control option { background:var(--white); }
         <option>David</option>
       </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Leave Type</label>
-      <select class="form-control" id="f_type">
+    <div class="fg">
+      <label class="fl">Leave Type</label>
+      <select class="fc" id="fType">
         <option value="">Select leave type...</option>
         <option value="Annual">Annual Leave</option>
         <option value="Sick">Sick Leave</option>
@@ -308,505 +561,621 @@ select.form-control option { background:var(--white); }
         <option value="Other">Other</option>
       </select>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Start Date</label>
-        <input type="date" class="form-control" id="f_start" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">End Date</label>
-        <input type="date" class="form-control" id="f_end" />
-      </div>
+    <div class="f2">
+      <div class="fg"><label class="fl">Start Date</label><input type="date" class="fc" id="fStart"></div>
+      <div class="fg"><label class="fl">End Date</label><input type="date" class="fc" id="fEnd"></div>
     </div>
-    <div class="modal-actions">
+    <div class="mo-acts">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" id="saveBtn" onclick="saveLeave()">Save Leave</button>
+      <button class="btn-save" id="saveBtn" onclick="saveLv()">Save Leave</button>
     </div>
   </div>
 </div>
 
-<!-- TOOLTIP -->
-<div class="tooltip" id="tooltip">
-  <div class="tooltip-name" id="tt-name"></div>
-  <div class="tooltip-detail" id="tt-detail"></div>
+<!-- ══════════════ TOOLTIP ══════════════ -->
+<div class="tip" id="tip">
+  <div class="t-name" id="tName"></div>
+  <div class="t-body" id="tBody"></div>
 </div>
 
-<!-- TOAST -->
+<!-- ══════════════ TOAST ══════════════ -->
 <div class="toast" id="toast"></div>
 
 <script>
-/* ══ SUPABASE ══ */
-const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co";
-const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47";
-const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+/* =====================================================
+   SUPABASE
+===================================================== */
+const SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-/* ══ CONFIG ══ */
+/* =====================================================
+   CONFIG
+===================================================== */
+const DAY_W  = 36;   // must match CSS --day-w
+const N_MTHS = 3;
+
 const STAFF = [
-  "Andrew McLeod",
-  "Adam Sicari",
-  "Amit Chowdhary",
-  "Vignesh Kirubakaran",
-  "Shanira Gonzalez",
-  "David"
+  'Andrew McLeod',
+  'Adam Sicari',
+  'Amit Chowdhary',
+  'Vignesh Kirubakaran',
+  'Shanira Gonzalez',
+  'David'
 ];
 
 const STAFF_STATE = {
-  "Andrew McLeod":       "VIC",
-  "Adam Sicari":         "VIC",
-  "Amit Chowdhary":      "VIC",
-  "David":               "VIC",
-  "Shanira Gonzalez":    "QLD",
-  "Vignesh Kirubakaran": "NSW"
+  'Andrew McLeod':       'VIC',
+  'Adam Sicari':         'VIC',
+  'Amit Chowdhary':      'VIC',
+  'David':               'VIC',
+  'Shanira Gonzalez':    'QLD',
+  'Vignesh Kirubakaran': 'NSW'
 };
 
-const AVATAR_COLORS = [
-  ['#dbeafe','#1e3a8a'],
-  ['#d1fae5','#065f46'],
-  ['#fee2e2','#991b1b'],
-  ['#fef3c7','#92400e'],
-  ['#ede9fe','#4c1d95'],
-  ['#e0f2fe','#075985']
+const AV_COLS = [
+  ['#dbeafe','#1e3a8a'],['#d1fae5','#065f46'],['#fee2e2','#991b1b'],
+  ['#fef3c7','#92400e'],['#ede9fe','#4c1d95'],['#e0f2fe','#075985']
 ];
 
-/* Six fixed rows below the staff section */
+// The 6 fixed holiday rows rendered below staff section
 const CAL_ROWS = [
-  { label:'QLD Public Holidays', state:'QLD', type:'public_holiday', stateClass:'qld', barClass:'pub-qld' },
-  { label:'QLD School Holidays',  state:'QLD', type:'school_holiday', stateClass:'qld', barClass:'sch-qld' },
-  { label:'NSW Public Holidays', state:'NSW', type:'public_holiday', stateClass:'nsw', barClass:'pub-nsw' },
-  { label:'NSW School Holidays',  state:'NSW', type:'school_holiday', stateClass:'nsw', barClass:'sch-nsw' },
-  { label:'VIC Public Holidays', state:'VIC', type:'public_holiday', stateClass:'vic', barClass:'pub-vic' },
-  { label:'VIC School Holidays',  state:'VIC', type:'school_holiday', stateClass:'vic', barClass:'sch-vic' }
+  { label:'QLD Public Holidays', state:'QLD', type:'public_holiday', nc:'qld', bc:'ph qld' },
+  { label:'QLD School Holidays',  state:'QLD', type:'school_holiday',  nc:'qld', bc:'sh qld' },
+  { label:'NSW Public Holidays', state:'NSW', type:'public_holiday', nc:'nsw', bc:'ph nsw' },
+  { label:'NSW School Holidays',  state:'NSW', type:'school_holiday',  nc:'nsw', bc:'sh nsw' },
+  { label:'VIC Public Holidays', state:'VIC', type:'public_holiday', nc:'vic', bc:'ph vic' },
+  { label:'VIC School Holidays',  state:'VIC', type:'school_holiday',  nc:'vic', bc:'sh vic' }
 ];
 
-const DAY_W          = 36;
-const DISPLAY_MONTHS = 3;
+/* =====================================================
+   STATE
+===================================================== */
+let viewStart = (function(){ const d = new Date(); d.setDate(1); return d; })();
+let leaveData  = [];
+let calEvents  = [];  // merged: hardcoded pub hols + Supabase school hols
 
-let startMonth   = new Date(); startMonth.setDate(1);
-let leaveData    = [];
-let calEventData = [];   /* merged: hardcoded pub hols + Supabase school hols */
-
-/* ══ PUBLIC HOLIDAYS — hardcoded 2025/2026/2027 ══ */
-const PUB_HOLIDAYS = (function() {
-  const H = {};
-  function add(date, name, states) {
-    if (!date) return;
-    if (!H[date]) H[date] = { name, states: [] };
-    states.forEach(s => { if (!H[date].states.includes(s)) H[date].states.push(s); });
+/* =====================================================
+   PUBLIC HOLIDAYS (hardcoded 2025-2027)
+   Stored as individual day entries, then merged into
+   spanning bars by buildPubHolEvents().
+===================================================== */
+const PUB_HOL_EVENTS = (function() {
+  const raw = {};
+  function add(dt, name, states) {
+    if (!raw[dt]) raw[dt] = { name, states: [] };
+    states.forEach(s => { if (!raw[dt].states.includes(s)) raw[dt].states.push(s); });
   }
-  /* 2025 */
-  add('2025-01-01',"New Year's Day",          ['QLD','NSW','VIC']);
-  add('2025-01-27',"Australia Day",            ['QLD','NSW','VIC']);
-  add('2025-04-18',"Good Friday",              ['QLD','NSW','VIC']);
-  add('2025-04-19',"Easter Saturday",          ['QLD','NSW']);
-  add('2025-04-19',"Sat before Easter Sunday", ['VIC']);
-  add('2025-04-20',"Easter Sunday",            ['QLD','NSW','VIC']);
-  add('2025-04-21',"Easter Monday",            ['QLD','NSW','VIC']);
-  add('2025-04-25',"Anzac Day",                ['QLD','NSW','VIC']);
-  add('2025-05-05',"Labour Day",               ['QLD']);
-  add('2025-06-09',"King's Birthday",          ['QLD','NSW']);
-  add('2025-03-10',"Labour Day",               ['VIC']);
-  add('2025-09-26',"King's Birthday",          ['VIC']);
-  add('2025-10-06',"Labour Day",               ['NSW']);
-  add('2025-11-04',"Melbourne Cup",            ['VIC']);
-  add('2025-12-25',"Christmas Day",            ['QLD','NSW','VIC']);
-  add('2025-12-26',"Boxing Day",               ['QLD','NSW','VIC']);
-  add('2025-12-28',"Add. Holiday Boxing Day",  ['QLD','NSW','VIC']);
-  /* 2026 */
-  add('2026-01-01',"New Year's Day",           ['QLD','NSW','VIC']);
-  add('2026-01-26',"Australia Day",            ['QLD','NSW','VIC']);
-  add('2026-03-09',"Labour Day",               ['VIC']);
-  add('2026-04-03',"Good Friday",              ['QLD','NSW','VIC']);
-  add('2026-04-04',"Easter Saturday",          ['QLD','NSW']);
-  add('2026-04-04',"Sat before Easter Sunday", ['VIC']);
-  add('2026-04-05',"Easter Sunday",            ['QLD','NSW','VIC']);
-  add('2026-04-06',"Easter Monday",            ['QLD','NSW','VIC']);
-  add('2026-04-25',"Anzac Day",                ['QLD','NSW','VIC']);
-  add('2026-04-27',"Add. Holiday Anzac Day",   ['NSW']);
-  add('2026-05-04',"Labour Day",               ['QLD']);
-  add('2026-06-08',"King's Birthday",          ['NSW','VIC']);
-  add('2026-10-05',"King's Birthday",          ['QLD']);
-  add('2026-10-05',"Labour Day",               ['NSW']);
-  add('2026-11-03',"Melbourne Cup",            ['VIC']);
-  add('2026-12-24',"Christmas Eve (from 6pm)", ['QLD']);
-  add('2026-12-25',"Christmas Day",            ['QLD','NSW','VIC']);
-  add('2026-12-26',"Boxing Day",               ['QLD','NSW','VIC']);
-  add('2026-12-28',"Add. Holiday Boxing Day",  ['QLD','NSW','VIC']);
-  /* 2027 */
-  add('2027-01-01',"New Year's Day",           ['QLD','NSW','VIC']);
-  add('2027-01-26',"Australia Day",            ['QLD','NSW','VIC']);
-  add('2027-03-08',"Labour Day",               ['VIC']);
-  add('2027-03-26',"Good Friday",              ['QLD','NSW','VIC']);
-  add('2027-03-27',"Easter Saturday",          ['QLD','NSW']);
-  add('2027-03-27',"Sat before Easter Sunday", ['VIC']);
-  add('2027-03-28',"Easter Sunday",            ['QLD','NSW','VIC']);
-  add('2027-03-29',"Easter Monday",            ['QLD','NSW','VIC']);
-  add('2027-04-26',"Anzac Day",                ['QLD','NSW','VIC']);
-  add('2027-05-03',"Labour Day",               ['QLD']);
-  add('2027-06-14',"King's Birthday",          ['QLD','NSW']);
-  add('2027-09-24',"King's Birthday",          ['VIC']);
-  add('2027-10-04',"Labour Day",               ['NSW']);
-  add('2027-11-02',"Melbourne Cup",            ['VIC']);
-  add('2027-12-27',"Christmas Day",            ['QLD','NSW','VIC']);
-  add('2027-12-28',"Boxing Day",               ['QLD','NSW','VIC']);
-  return H;
+
+  // 2025
+  add('2025-01-01', "New Year's Day",          ['QLD','NSW','VIC']);
+  add('2025-01-27', 'Australia Day',            ['QLD','NSW','VIC']);
+  add('2025-03-10', 'Labour Day',               ['VIC']);
+  add('2025-04-18', 'Good Friday',              ['QLD','NSW','VIC']);
+  add('2025-04-19', 'Easter Saturday',          ['QLD','NSW','VIC']);
+  add('2025-04-20', 'Easter Sunday',            ['QLD','NSW','VIC']);
+  add('2025-04-21', 'Easter Monday',            ['QLD','NSW','VIC']);
+  add('2025-04-25', 'Anzac Day',                ['QLD','NSW','VIC']);
+  add('2025-05-05', 'Labour Day',               ['QLD']);
+  add('2025-06-09', "King's Birthday",          ['QLD','NSW']);
+  add('2025-09-26', "King's Birthday",          ['VIC']);
+  add('2025-10-06', 'Labour Day',               ['NSW']);
+  add('2025-11-04', 'Melbourne Cup',            ['VIC']);
+  add('2025-12-25', 'Christmas Day',            ['QLD','NSW','VIC']);
+  add('2025-12-26', 'Boxing Day',               ['QLD','NSW','VIC']);
+  add('2025-12-28', 'Add. Holiday Boxing Day',  ['QLD','NSW','VIC']);
+
+  // 2026
+  add('2026-01-01', "New Year's Day",           ['QLD','NSW','VIC']);
+  add('2026-01-26', 'Australia Day',            ['QLD','NSW','VIC']);
+  add('2026-03-09', 'Labour Day',               ['VIC']);
+  add('2026-04-03', 'Good Friday',              ['QLD','NSW','VIC']);
+  add('2026-04-04', 'Easter Saturday',          ['QLD','NSW','VIC']);
+  add('2026-04-05', 'Easter Sunday',            ['QLD','NSW','VIC']);
+  add('2026-04-06', 'Easter Monday',            ['QLD','NSW','VIC']);
+  add('2026-04-25', 'Anzac Day',                ['QLD','NSW','VIC']);
+  add('2026-04-27', 'Add. Holiday Anzac Day',   ['NSW']);
+  add('2026-05-04', 'Labour Day',               ['QLD']);
+  add('2026-06-08', "King's Birthday",          ['NSW','VIC']);
+  add('2026-10-05', "King's Birthday",          ['QLD']);
+  add('2026-10-05', 'Labour Day',               ['NSW']);
+  add('2026-11-03', 'Melbourne Cup',            ['VIC']);
+  add('2026-12-24', 'Christmas Eve (from 6pm)', ['QLD']);
+  add('2026-12-25', 'Christmas Day',            ['QLD','NSW','VIC']);
+  add('2026-12-26', 'Boxing Day',               ['QLD','NSW','VIC']);
+  add('2026-12-28', 'Add. Holiday Boxing Day',  ['QLD','NSW','VIC']);
+
+  // 2027
+  add('2027-01-01', "New Year's Day",           ['QLD','NSW','VIC']);
+  add('2027-01-26', 'Australia Day',            ['QLD','NSW','VIC']);
+  add('2027-03-08', 'Labour Day',               ['VIC']);
+  add('2027-03-26', 'Good Friday',              ['QLD','NSW','VIC']);
+  add('2027-03-27', 'Easter Saturday',          ['QLD','NSW','VIC']);
+  add('2027-03-28', 'Easter Sunday',            ['QLD','NSW','VIC']);
+  add('2027-03-29', 'Easter Monday',            ['QLD','NSW','VIC']);
+  add('2027-04-26', 'Anzac Day',                ['QLD','NSW','VIC']);
+  add('2027-05-03', 'Labour Day',               ['QLD']);
+  add('2027-06-14', "King's Birthday",          ['QLD','NSW']);
+  add('2027-09-24', "King's Birthday",          ['VIC']);
+  add('2027-10-04', 'Labour Day',               ['NSW']);
+  add('2027-11-02', 'Melbourne Cup',            ['VIC']);
+  add('2027-12-27', 'Christmas Day',            ['QLD','NSW','VIC']);
+  add('2027-12-28', 'Boxing Day',               ['QLD','NSW','VIC']);
+
+  /*
+   * Convert individual day entries into spanning event objects.
+   * Consecutive days sharing the same name for the same state
+   * are merged into a single record with event_start / event_end.
+   * This guarantees each holiday renders as ONE continuous bar.
+   */
+  const byState = { QLD: [], NSW: [], VIC: [] };
+  Object.keys(raw).sort().forEach(dk => {
+    raw[dk].states.forEach(st => {
+      if (!byState[st]) return;
+      const arr  = byState[st];
+      const last = arr[arr.length - 1];
+      if (last && last.event_name === raw[dk].name) {
+        const nxt = new Date(last.event_end + 'T00:00:00');
+        nxt.setDate(nxt.getDate() + 1);
+        if (nxt.toISOString().slice(0, 10) === dk) {
+          last.event_end = dk;
+          return;
+        }
+      }
+      arr.push({
+        event_name:  raw[dk].name,
+        event_start: dk,
+        event_end:   dk,
+        event_type:  'public_holiday',
+        state: st
+      });
+    });
+  });
+
+  return [...byState.QLD, ...byState.NSW, ...byState.VIC];
 })();
 
-/* Convert PUB_HOLIDAYS object into calendar_events-shaped rows, one per state */
-function buildPubHolEvents() {
-  const byState = { QLD:[], NSW:[], VIC:[] };
-  Object.entries(PUB_HOLIDAYS).sort(([a],[b]) => a < b ? -1 : 1).forEach(([dk, h]) => {
-    h.states.forEach(state => {
-      if (!byState[state]) return;
-      const arr  = byState[state];
-      const last = arr[arr.length - 1];
-      /* Merge consecutive dates with the same name into one spanning bar */
-      if (last && last.event_name === h.name) {
-        const nextDay = new Date(last.event_end + 'T00:00:00');
-        nextDay.setDate(nextDay.getDate() + 1);
-        if (nextDay.toISOString().slice(0,10) === dk) { last.event_end = dk; return; }
-      }
-      arr.push({ event_name: h.name, event_start: dk, event_end: dk, event_type:'public_holiday', state });
-    });
+/* Day-key → holiday name (for header tint) */
+const HOL_LOOKUP = (function() {
+  const m = {};
+  PUB_HOL_EVENTS.forEach(ev => {
+    let d   = new Date(ev.event_start + 'T00:00:00');
+    const e = new Date(ev.event_end   + 'T00:00:00');
+    while (d <= e) {
+      const k = dkey(d);
+      if (!m[k]) m[k] = ev.event_name;
+      d.setDate(d.getDate() + 1);
+    }
   });
-  return [...byState.QLD, ...byState.NSW, ...byState.VIC];
-}
+  return m;
+})();
 
-/* ══ HOLIDAY HEADER HELPERS ══ */
 const HOL_ABBR = {
-  "New Year's Day":"NY","Australia Day":"AU","Good Friday":"GF",
-  "Easter Saturday":"ES","Sat before Easter Sunday":"ES","Easter Sunday":"ES",
-  "Easter Monday":"EM","Anzac Day":"AN","Add. Holiday Anzac Day":"AN",
-  "Labour Day":"LD","King's Birthday":"KB","Melbourne Cup":"MC",
-  "Christmas Day":"XM","Boxing Day":"BX","Add. Holiday Boxing Day":"BX",
-  "Christmas Eve (from 6pm)":"CE"
+  "New Year's Day":'NY', 'Australia Day':'AU', 'Good Friday':'GF',
+  'Easter Saturday':'ES', 'Easter Sunday':'ES', 'Easter Monday':'EM',
+  'Anzac Day':'AN', 'Add. Holiday Anzac Day':'AN', 'Labour Day':'LD',
+  "King's Birthday":'KB', 'Melbourne Cup':'MC', 'Christmas Day':'XM',
+  'Boxing Day':'BX', 'Add. Holiday Boxing Day':'BX',
+  'Christmas Eve (from 6pm)':'CE'
 };
-function holidayClass(dk) { return PUB_HOLIDAYS[dk] ? 'hol-any' : ''; }
-function holidayShort(dk) { const h=PUB_HOLIDAYS[dk]; if(!h) return ''; return HOL_ABBR[h.name]||h.name.split(' ').map(w=>w[0]).join('').slice(0,3).toUpperCase(); }
-function holidayName(dk)  { return PUB_HOLIDAYS[dk] ? PUB_HOLIDAYS[dk].name : ''; }
+function habr(n) { return HOL_ABBR[n] || n.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase(); }
 
-/* ══ DATE HELPERS ══ */
-function dateKey(d)   { return d.toISOString().slice(0,10); }
-function isWeekend(d) { return d.getDay()===0||d.getDay()===6; }
-function isToday(d)   { const t=new Date(); return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate(); }
+/* =====================================================
+   DATE UTILITIES
+===================================================== */
+function dkey(d)   { return d.toISOString().slice(0, 10); }
+function isWk(d)   { return d.getDay() === 0 || d.getDay() === 6; }
+function isTday(d) {
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear()
+      && d.getMonth()    === t.getMonth()
+      && d.getDate()     === t.getDate();
+}
 function getDays() {
-  const days=[],cur=new Date(startMonth); cur.setDate(1);
-  const end=new Date(cur); end.setMonth(end.getMonth()+DISPLAY_MONTHS);
-  while(cur<end){days.push(new Date(cur));cur.setDate(cur.getDate()+1);}
+  const days = [], cur = new Date(viewStart);
+  cur.setDate(1);
+  const end = new Date(cur);
+  end.setMonth(end.getMonth() + N_MTHS);
+  while (cur < end) { days.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
   return days;
 }
-const DOW_ABB   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MON_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-/* ══ SAFE HTML ══ */
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function escAttr(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
-function CSS_VAR(n) { return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--'+n))||28; }
+const DOWS  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const MSHRT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MFULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-/* ══ SUPABASE LOADERS ══ */
-async function loadLeave() {
-  try {
-    const {data,error} = await sbClient.from('staff_leave_planner').select('*').order('leave_start',{ascending:true});
-    if(error) throw error;
-    leaveData = data||[];
-    document.getElementById('leaveCountStatus').textContent = leaveData.length+' leave entries';
-    document.getElementById('connDot').style.background = '#22c55e';
-    document.getElementById('connLabel').textContent = 'Connected to Supabase';
-    renderPlanner();
-  } catch(e) {
-    document.getElementById('connDot').style.background = '#ef4444';
-    document.getElementById('connLabel').textContent = 'DB error — '+e.message;
-    showToast('Error loading leave: '+e.message,'error');
-    renderPlanner();
-  }
+/* =====================================================
+   HTML SAFETY
+===================================================== */
+function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function attr(s) { return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+/* =====================================================
+   CORE POSITION CALCULATOR
+   ─────────────────────────────────────────────────
+   Given an event's start/end date strings and the
+   current visible days array + dateToIdx map,
+   returns { left, width, span } in pixels or null
+   if the event is outside the visible window.
+
+   Clamping is done here so callers never need to
+   worry about overflow — just render the element.
+===================================================== */
+function evPos(evStart, evEnd, days, d2i) {
+  const n    = days.length;
+  const visS = dkey(days[0]);
+  const visE = dkey(days[n - 1]);
+
+  if (evEnd < visS || evStart > visE) return null;
+
+  const clampS = evStart < visS ? visS : evStart;
+  const clampE = evEnd   > visE ? visE : evEnd;
+
+  const si = d2i[clampS];
+  const ei = d2i[clampE];
+  if (si === undefined || ei === undefined) return null;
+
+  const si2 = Math.max(0, si);
+  const ei2 = Math.min(n - 1, ei);
+  if (ei2 < si2) return null;
+
+  return {
+    left:  si2 * DAY_W + 2,
+    width: (ei2 - si2 + 1) * DAY_W - 4,
+    span:  ei2 - si2 + 1
+  };
 }
 
-async function loadCalendarEvents() {
-  try {
-    const {data,error} = await sbClient.from('calendar_events').select('*').order('event_start',{ascending:true});
-    if(error) throw error;
-    const schoolRows = (data||[]).filter(e=>e.event_type==='school_holiday');
-    calEventData = [...buildPubHolEvents(), ...schoolRows];
-    document.getElementById('calEventStatus').textContent = schoolRows.length+' school holiday ranges loaded';
-    renderPlanner();
-  } catch(e) {
-    calEventData = buildPubHolEvents();
-    showToast('School holidays unavailable: '+e.message,'error');
-    renderPlanner();
-  }
-}
-
-async function saveLeave() {
-  const staff_name  = document.getElementById('f_staff').value;
-  const leave_type  = document.getElementById('f_type').value;
-  const leave_start = document.getElementById('f_start').value;
-  const leave_end   = document.getElementById('f_end').value;
-  if(!staff_name||!leave_type||!leave_start||!leave_end){showToast('Please fill all fields','error');return;}
-  if(leave_end<leave_start){showToast('End date must be after start date','error');return;}
-  const btn=document.getElementById('saveBtn');
-  btn.disabled=true; btn.textContent='Saving...';
-  const entry={staff_name,leave_type,leave_start,leave_end};
-  try {
-    const {data,error}=await sbClient.from('staff_leave_planner').insert([entry]).select();
-    if(error) throw error;
-    leaveData.push(data[0]);
-    showToast('Leave added successfully','success');
-  } catch(e) {
-    entry.id=Date.now(); entry.created_at=new Date().toISOString();
-    leaveData.push(entry);
-    showToast('Saved locally (DB error: '+e.message+')','error');
-  }
-  document.getElementById('leaveCountStatus').textContent=leaveData.length+' leave entries';
-  closeModal(); renderPlanner();
-  btn.disabled=false; btn.textContent='Save Leave';
-}
-
-async function deleteLeave(id) {
-  if(!confirm('Delete this leave entry?')) return;
-  try {
-    const {error}=await sbClient.from('staff_leave_planner').delete().eq('id',id);
-    if(error) throw error;
-  } catch(e) { showToast('Delete failed: '+e.message,'error'); return; }
-  leaveData=leaveData.filter(l=>l.id!==id);
-  document.getElementById('leaveCountStatus').textContent=leaveData.length+' leave entries';
-  renderPlanner();
-  showToast('Leave entry removed','success');
-}
-
-/* ══ RENDER A SINGLE CALENDAR BAR ══ */
-function renderCalBar(event, days, dateToIdx, nDays, barClass) {
-  const visStart = dateKey(days[0]);
-  const visEnd   = dateKey(days[nDays-1]);
-  if(event.event_end < visStart || event.event_start > visEnd) return '';
-  const clampStart = event.event_start < visStart ? visStart : event.event_start;
-  const clampEnd   = event.event_end   > visEnd   ? visEnd   : event.event_end;
-  let si = dateToIdx[clampStart];
-  let ei = dateToIdx[clampEnd];
-  if(si===undefined||ei===undefined) return '';
-  si=Math.max(0,si); ei=Math.min(nDays-1,ei);
-  if(ei<si) return '';
-  const spanDays = ei-si+1;
-  const left     = si*DAY_W+2;
-  const width    = spanDays*DAY_W-4;
-  const label    = width>=50 ? escHtml(event.event_name) : '';
-  return `<div class="cal-bar ${barClass}" style="left:${left}px;width:${width}px;" title="${escAttr(event.event_name)}">${label}</div>`;
-}
-
-/* ══ MAIN RENDERER ══ */
-function renderPlanner() {
+/* =====================================================
+   RENDERER
+===================================================== */
+function render() {
   const days   = getDays();
-  const nDays  = days.length;
-  const trackW = nDays * DAY_W;
-  const todayMK = new Date().getFullYear()+'-'+new Date().getMonth();
+  const n      = days.length;
+  const trackW = n * DAY_W;
+  const curMK  = new Date().getFullYear() + '-' + new Date().getMonth();
 
-  const fl=days[0], ll=days[nDays-1];
-  document.getElementById('monthRangeLabel').textContent =
-    `${MON_FULL[fl.getMonth()]} ${fl.getFullYear()} \u2013 ${MON_FULL[ll.getMonth()]} ${ll.getFullYear()}`;
+  // Update nav label
+  document.getElementById('rangeLabel').textContent =
+    MFULL[days[0].getMonth()] + ' ' + days[0].getFullYear() +
+    ' \u2013 ' +
+    MFULL[days[n-1].getMonth()] + ' ' + days[n-1].getFullYear();
 
-  /* Month groups */
-  const groups=[];
-  days.forEach((d,i)=>{
-    const mk=d.getFullYear()+'-'+d.getMonth();
-    if(!groups.length||groups[groups.length-1].mk!==mk)
-      groups.push({mk,year:d.getFullYear(),month:d.getMonth(),start:i,count:0});
-    groups[groups.length-1].count++;
+  // Date → column index
+  const d2i = {};
+  days.forEach((d, i) => { d2i[dkey(d)] = i; });
+
+  // Month groups for header row 1
+  const groups = [];
+  days.forEach(d => {
+    const mk = d.getFullYear() + '-' + d.getMonth();
+    if (!groups.length || groups[groups.length-1].mk !== mk)
+      groups.push({ mk, yr: d.getFullYear(), mo: d.getMonth(), cnt: 0 });
+    groups[groups.length-1].cnt++;
   });
 
-  /* Date to index map */
-  const dateToIdx={};
-  days.forEach((d,i)=>{ dateToIdx[dateKey(d)]=i; });
-
-  /* Leave map per staff */
-  const leaveMap={};
-  STAFF.forEach(n=>{ leaveMap[n]=[]; });
-  leaveData.forEach(leave=>{
-    if(!leaveMap[leave.staff_name]) return;
-    let si=dateToIdx[leave.leave_start];
-    let ei=dateToIdx[leave.leave_end];
-    if(si===undefined && leave.leave_start<dateKey(days[0]))        si=0;
-    if(ei===undefined && leave.leave_end>=dateKey(days[nDays-1]))   ei=nDays-1;
-    if(si===undefined||ei===undefined) return;
-    si=Math.max(0,si); ei=Math.min(nDays-1,ei);
-    if(ei<si) return;
-    leaveMap[leave.staff_name].push({si,ei,leave});
+  // Leave map: name → [{pos, lv}]
+  const lvMap = {};
+  STAFF.forEach(nm => { lvMap[nm] = []; });
+  leaveData.forEach(lv => {
+    if (!lvMap[lv.staff_name]) return;
+    const pos = evPos(lv.leave_start, lv.leave_end, days, d2i);
+    if (pos) lvMap[lv.staff_name].push({ pos, lv });
   });
 
-  let html='';
+  let h = '';
 
-  /* ─ HEADER ─ */
-  html+=`<div class="planner-header">`;
+  /* ── HEADER ── */
+  h += '<div class="p-header">';
 
-  /* Row 1: months */
-  html+=`<div class="hdr-row">`;
-  html+=`<div class="hdr-name" style="height:${CSS_VAR('hdr-month-h')}px;">STAFF / DATE</div>`;
-  groups.forEach(g=>{
-    const w=g.count*DAY_W;
-    html+=`<div class="hdr-month-cell${g.mk===todayMK?' active-month':''}" style="width:${w}px;min-width:${w}px;flex-shrink:0;">${MON_SHORT[g.month].toUpperCase()} ${g.year}</div>`;
+  // Row 1: month spans
+  h += '<div class="h-row">';
+  h += '<div class="h-name" style="height:26px;">STAFF / DATE</div>';
+  groups.forEach(g => {
+    const w = g.cnt * DAY_W;
+    h += `<div class="h-month${g.mk===curMK?' cur':''}" style="width:${w}px;min-width:${w}px;">${MSHRT[g.mo].toUpperCase()} ${g.yr}</div>`;
   });
-  html+=`</div>`;
+  h += '</div>';
 
-  /* Row 2: DOW */
-  html+=`<div class="hdr-row">`;
-  html+=`<div class="hdr-name" style="height:${CSS_VAR('hdr-dow-h')}px;"></div>`;
-  days.forEach(d=>{
-    const dk=dateKey(d);
-    const cls=['hdr-dow-cell',isWeekend(d)?'weekend':'',isToday(d)?'today':'',holidayClass(dk)].filter(Boolean).join(' ');
-    html+=`<div class="${cls}">${DOW_ABB[d.getDay()]}</div>`;
+  // Row 2: day-of-week
+  h += '<div class="h-row">';
+  h += '<div class="h-name" style="height:22px;"></div>';
+  days.forEach(d => {
+    const cl = ['h-dow', isWk(d)?'wk':'', isTday(d)?'td':''].filter(Boolean).join(' ');
+    h += `<div class="${cl}">${DOWS[d.getDay()]}</div>`;
   });
-  html+=`</div>`;
+  h += '</div>';
 
-  /* Row 3: day numbers */
-  html+=`<div class="hdr-row">`;
-  html+=`<div class="hdr-name" style="height:${CSS_VAR('hdr-day-h')}px;"></div>`;
-  days.forEach(d=>{
-    const dk=dateKey(d);
-    const hs=holidayShort(dk), hn=holidayName(dk);
-    const cls=['hdr-day-cell',isWeekend(d)?'weekend':'',isToday(d)?'today':'',holidayClass(dk)].filter(Boolean).join(' ');
-    html+=`<div class="${cls}" title="${hn||''}"><span class="hdr-day-num">${d.getDate()}</span>`;
-    if(hs) html+=`<span class="hdr-day-hol">${hs}</span>`;
-    html+=`</div>`;
+  // Row 3: day numbers
+  h += '<div class="h-row">';
+  h += '<div class="h-name" style="height:26px;"></div>';
+  days.forEach(d => {
+    const k  = dkey(d);
+    const hn = HOL_LOOKUP[k];
+    const ab = hn ? habr(hn) : '';
+    const cl = ['h-day', isWk(d)?'wk':'', isTday(d)?'td':'', hn?'hl':''].filter(Boolean).join(' ');
+    h += `<div class="${cl}" title="${attr(hn||'')}">`;
+    h += `<span class="dn">${d.getDate()}</span>`;
+    if (ab) h += `<span class="da">${ab}</span>`;
+    h += '</div>';
   });
-  html+=`</div>`;
-  html+=`</div>`; /* /planner-header */
+  h += '</div>';
 
-  /* ─ BODY ─ */
-  html+=`<div class="planner-body">`;
+  h += '</div>'; // /p-header
 
-  /* ── Staff rows ── */
-  STAFF.forEach((name,si)=>{
-    const [bgC,fgC]=AVATAR_COLORS[si%AVATAR_COLORS.length];
-    const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const staffLeaves=leaveMap[name]||[];
+  /* ── BODY ── */
+  h += '<div class="p-body">';
 
-    html+=`<div class="staff-row">`;
-    html+=`<div class="staff-name"><span class="staff-avatar" style="background:${bgC};color:${fgC};border:1.5px solid ${fgC}40;">${initials}</span>${escHtml(name)}</div>`;
-    html+=`<div class="staff-track" style="width:${trackW}px;">`;
+  /* Staff rows */
+  STAFF.forEach((name, idx) => {
+    const [bgC, fgC] = AV_COLS[idx % AV_COLS.length];
+    const ini = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-    /* Day BG columns */
-    days.forEach((d,di)=>{
-      const dk=dateKey(d);
-      const cls=['day-bg',isWeekend(d)?'weekend':'',isToday(d)?'today':''].filter(Boolean).join(' ');
-      html+=`<div class="${cls}" style="left:${di*DAY_W}px;" onclick="quickAddLeave('${escAttr(name)}','${dk}')"></div>`;
+    h += '<div class="row sr">';
+
+    // Name cell — no avatar, just initials badge
+    h += `<div class="rn staff">`;
+    h += `<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${bgC};color:${fgC};border:1.5px solid ${fgC}40;font-size:9px;font-weight:700;margin-right:9px;flex-shrink:0;">${ini}</span>`;
+    h += esc(name);
+    h += '</div>';
+
+    // Track
+    h += `<div class="rt" style="width:${trackW}px;">`;
+
+    // Day column ghosts (grid lines)
+    days.forEach((d, di) => {
+      const cl = ['dc', isWk(d)?'wk':'', isTday(d)?'td':''].filter(Boolean).join(' ');
+      h += `<div class="${cl}" style="left:${di*DAY_W}px;"></div>`;
     });
 
-    /* Leave bars */
-    staffLeaves.forEach(({si:startIdx,ei:endIdx,leave})=>{
-      const spanDays=endIdx-startIdx+1;
-      const left=startIdx*DAY_W+2, width=spanDays*DAY_W-4;
-      const lt=(leave.leave_type||'Other').toLowerCase();
-      const ltCls=['annual','sick','personal','other'].includes(lt)?lt:'other';
-      const label=leave.leave_type||'Leave';
-      const safeN=leave.staff_name.replace(/'/g,"\\'");
-      const safeT=(leave.leave_type||'').replace(/'/g,"\\'");
-      html+=`<div class="leave-bar ${ltCls}" style="left:${left}px;width:${width}px;" data-id="${leave.id}"
-        onmouseenter="showTooltip(event,'${safeN}','${safeT}','${leave.leave_start}','${leave.leave_end}',${spanDays})"
-        onmouseleave="hideTooltip()" onclick="event.stopPropagation()">`;
-      html+=`<span class="leave-bar-label">${escHtml(label)} &ndash; ${spanDays}d</span>`;
-      html+=`<span class="leave-bar-delete" onclick="deleteLeave('${leave.id}');event.stopPropagation()">&#x2715;</span>`;
-      html+=`</div>`;
+    // Day hit targets (click to add leave)
+    days.forEach((d, di) => {
+      h += `<div class="dh" style="left:${di*DAY_W}px;" onclick="quickAdd('${attr(name)}','${dkey(d)}')"></div>`;
     });
 
-    html+=`</div></div>`; /* /staff-track /staff-row */
+    // Leave event bars — ONE element per leave record
+    (lvMap[name] || []).forEach(({ pos, lv }) => {
+      const lt   = (lv.leave_type || 'Other').toLowerCase();
+      const ltCl = ['annual','sick','personal','other'].includes(lt) ? lt : 'other';
+      const sN   = lv.staff_name.replace(/'/g, "\\'");
+      const sT   = (lv.leave_type || '').replace(/'/g, "\\'");
+      h += `<div class="ev lv ${ltCl}" style="left:${pos.left}px;width:${pos.width}px;" data-id="${lv.id}"`;
+      h += ` onmouseenter="showTip(event,'${sN}','${sT}','${lv.leave_start}','${lv.leave_end}',${pos.span})"`;
+      h += ` onmouseleave="hideTip()" onclick="event.stopPropagation()">`;
+      if (pos.width > 40) h += esc(lv.leave_type || 'Leave') + ` &ndash; ${pos.span}d`;
+      h += `<span class="ev-x" onclick="delLv('${lv.id}');event.stopPropagation()">&#x2715;</span>`;
+      h += '</div>';
+    });
+
+    h += '</div>'; // /rt
+    h += '</div>'; // /row
   });
 
-  /* ── Section divider ── */
-  html+=`<div class="section-divider">`;
-  html+=`<div class="section-divider-label">Public &amp; School Holidays</div>`;
-  html+=`<div class="section-divider-track" style="width:${trackW}px;"></div>`;
-  html+=`</div>`;
+  /* Section divider */
+  h += '<div class="sdiv">';
+  h += '<div class="sdiv-label">Public &amp; School Holidays</div>';
+  h += `<div class="sdiv-fill" style="width:${trackW}px;"></div>`;
+  h += '</div>';
 
-  /* ── Calendar event rows ── */
-  CAL_ROWS.forEach(row=>{
-    const rowEvents=calEventData.filter(e=>e.state===row.state && e.event_type===row.type);
+  /* Calendar rows */
+  CAL_ROWS.forEach(row => {
+    const rowEvts = calEvents.filter(e => e.state === row.state && e.event_type === row.type);
 
-    html+=`<div class="cal-row">`;
-    html+=`<div class="cal-row-label ${row.stateClass}">${escHtml(row.label)}</div>`;
-    html+=`<div class="cal-track" style="width:${trackW}px;">`;
+    h += '<div class="row cr">';
+    h += `<div class="rn cal ${row.nc}">${esc(row.label)}</div>`;
+    h += `<div class="rt" style="width:${trackW}px;">`;
 
-    /* Day BG columns */
-    days.forEach((d,di)=>{
-      const cls=['cal-day-bg',isWeekend(d)?'weekend':'',isToday(d)?'today':''].filter(Boolean).join(' ');
-      html+=`<div class="${cls}" style="left:${di*DAY_W}px;"></div>`;
+    // Day column ghosts
+    days.forEach((d, di) => {
+      const cl = ['dc', isWk(d)?'wk':'', isTday(d)?'td':''].filter(Boolean).join(' ');
+      h += `<div class="${cl}" style="left:${di*DAY_W}px;"></div>`;
     });
 
-    /* Event bars */
-    rowEvents.forEach(event=>{
-      html+=renderCalBar(event,days,dateToIdx,nDays,row.barClass);
+    /*
+     * Render each event as a single spanning bar.
+     * evPos() clamps to visible window automatically.
+     * No per-day iteration here — pure event-based rendering.
+     */
+    rowEvts.forEach(ev => {
+      const pos = evPos(ev.event_start, ev.event_end, days, d2i);
+      if (!pos) return;
+      const label = pos.width >= 48 ? esc(ev.event_name) : '';
+      h += `<div class="ev ${row.bc}" style="left:${pos.left}px;width:${pos.width}px;" title="${attr(ev.event_name)}">${label}</div>`;
     });
 
-    html+=`</div></div>`; /* /cal-track /cal-row */
+    h += '</div>'; // /rt
+    h += '</div>'; // /row
   });
 
-  html+=`</div>`; /* /planner-body */
-  document.getElementById('plannerInner').innerHTML=html;
+  h += '</div>'; // /p-body
+
+  document.getElementById('plannerInner').innerHTML = h;
   scrollToToday();
 }
 
-/* ══ SCROLL TO TODAY ══ */
+/* =====================================================
+   SCROLL TO TODAY
+===================================================== */
 function scrollToToday() {
-  const days=getDays(), todayStr=dateKey(new Date());
-  const idx=days.findIndex(d=>dateKey(d)===todayStr);
-  if(idx<0) return;
-  const scroller=document.getElementById('plannerScroll');
-  const target=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--name-col-w'))+idx*DAY_W-160;
-  scroller.scrollLeft=Math.max(0,target);
+  const days = getDays();
+  const idx  = days.findIndex(d => dkey(d) === dkey(new Date()));
+  if (idx < 0) return;
+  const sc = document.getElementById('plannerScroll');
+  sc.scrollLeft = Math.max(0, idx * DAY_W - 160);
 }
 
-/* ══ NAVIGATION ══ */
-function shiftMonths(n) { startMonth.setMonth(startMonth.getMonth()+n); renderPlanner(); }
-function goToToday()    { startMonth=new Date(); startMonth.setDate(1); renderPlanner(); setTimeout(scrollToToday,50); }
+/* =====================================================
+   NAVIGATION
+===================================================== */
+function shift(n)    { viewStart.setMonth(viewStart.getMonth() + n); render(); }
+function jumpToday() { viewStart = new Date(); viewStart.setDate(1); render(); setTimeout(scrollToToday, 50); }
 
-/* ══ MODAL ══ */
-function openAddModal(name,date) {
-  document.getElementById('f_staff').value=name||'';
-  document.getElementById('f_type').value='';
-  document.getElementById('f_start').value=date||'';
-  document.getElementById('f_end').value=date||'';
-  document.getElementById('modalOverlay').classList.add('open');
-}
-function closeModal()           { document.getElementById('modalOverlay').classList.remove('open'); }
-function handleOverlayClick(e)  { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
-function quickAddLeave(name,dk) { openAddModal(name,dk); }
-
-/* ══ TOOLTIP ══ */
-function showTooltip(e,name,type,start,end,days) {
-  document.getElementById('tt-name').textContent=name;
-  const [tbg,tfg]=typeColors(type);
-  document.getElementById('tt-detail').innerHTML=
-    `${fmtDate(start)} \u2192 ${fmtDate(end)}<br>${days} day${days>1?'s':''}<br>`+
-    `<span class="tooltip-type" style="background:${tbg};color:${tfg};">${escHtml(type)}</span>`;
-  document.getElementById('tooltip').classList.add('visible');
-  moveTooltip(e);
-}
-function moveTooltip(e) { const tt=document.getElementById('tooltip'); tt.style.left=(e.clientX+14)+'px'; tt.style.top=(e.clientY-44)+'px'; }
-function hideTooltip()  { document.getElementById('tooltip').classList.remove('visible'); }
-function typeColors(t)  { const m={Annual:['#dbeafe','#1e3a8a'],Sick:['#fee2e2','#991b1b'],Personal:['#d1fae5','#065f46'],Other:['#ede9fe','#4c1d95']}; return m[t]||['#f3f4f6','#374151']; }
-function fmtDate(s)     { if(!s) return ''; const d=new Date(s+'T00:00:00'); return `${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`; }
-
-/* ══ TOAST ══ */
-let toastTimer;
-function showToast(msg,type='success') {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+/* =====================================================
+   SUPABASE — LEAVE DATA
+===================================================== */
+async function loadLeave() {
+  try {
+    const { data, error } = await sb
+      .from('staff_leave_planner').select('*').order('leave_start', { ascending: true });
+    if (error) throw error;
+    leaveData = data || [];
+    document.getElementById('lvCount').textContent    = leaveData.length + ' leave entries';
+    document.getElementById('connDot').style.background = '#22c55e';
+    document.getElementById('connLabel').textContent  = 'Connected to Supabase';
+    render();
+  } catch(e) {
+    document.getElementById('connDot').style.background = '#ef4444';
+    document.getElementById('connLabel').textContent  = 'DB error \u2014 ' + e.message;
+    toast('Error loading leave: ' + e.message, 'err');
+    render();
+  }
 }
 
-/* ══ STATUS ══ */
-function updateStatus() {
-  const n=new Date(), d=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  document.getElementById('todayStatus').textContent=`${d[n.getDay()]}, ${n.getDate()} ${MON_FULL[n.getMonth()]} ${n.getFullYear()}`;
+/* =====================================================
+   SUPABASE — CALENDAR EVENTS (school holidays)
+===================================================== */
+async function loadCalEvents() {
+  try {
+    const { data, error } = await sb
+      .from('calendar_events').select('*').order('event_start', { ascending: true });
+    if (error) throw error;
+    const school = (data || []).filter(e => e.event_type === 'school_holiday');
+    calEvents = [...PUB_HOL_EVENTS, ...school];
+    document.getElementById('calStatus').textContent = school.length + ' school holiday ranges';
+    render();
+  } catch(e) {
+    calEvents = [...PUB_HOL_EVENTS];
+    toast('School holidays unavailable: ' + e.message, 'err');
+    render();
+  }
 }
 
-/* ══ INIT ══ */
-window.addEventListener('DOMContentLoaded',()=>{
-  updateStatus();
-  renderPlanner();
-  loadLeave();
-  loadCalendarEvents();
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape') closeModal();
-    if(e.key==='n'&&(e.metaKey||e.ctrlKey)){e.preventDefault();openAddModal();}
+/* =====================================================
+   SAVE LEAVE
+===================================================== */
+async function saveLv() {
+  const staff_name  = document.getElementById('fStaff').value;
+  const leave_type  = document.getElementById('fType').value;
+  const leave_start = document.getElementById('fStart').value;
+  const leave_end   = document.getElementById('fEnd').value;
+
+  if (!staff_name || !leave_type || !leave_start || !leave_end) {
+    toast('Please fill all fields', 'err'); return;
+  }
+  if (leave_end < leave_start) { toast('End date must be after start date', 'err'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const entry = { staff_name, leave_type, leave_start, leave_end };
+  try {
+    const { data, error } = await sb.from('staff_leave_planner').insert([entry]).select();
+    if (error) throw error;
+    leaveData.push(data[0]);
+    toast('Leave added successfully', 'ok');
+  } catch(e) {
+    entry.id = Date.now(); entry.created_at = new Date().toISOString();
+    leaveData.push(entry);
+    toast('Saved locally (DB error: ' + e.message + ')', 'err');
+  }
+
+  document.getElementById('lvCount').textContent = leaveData.length + ' leave entries';
+  closeModal();
+  render();
+  btn.disabled = false; btn.textContent = 'Save Leave';
+}
+
+/* =====================================================
+   DELETE LEAVE
+===================================================== */
+async function delLv(id) {
+  if (!confirm('Delete this leave entry?')) return;
+  try {
+    const { error } = await sb.from('staff_leave_planner').delete().eq('id', id);
+    if (error) throw error;
+  } catch(e) { toast('Delete failed: ' + e.message, 'err'); return; }
+  leaveData = leaveData.filter(l => l.id !== id);
+  document.getElementById('lvCount').textContent = leaveData.length + ' leave entries';
+  render();
+  toast('Leave entry removed', 'ok');
+}
+
+/* =====================================================
+   MODAL
+===================================================== */
+function openModal(name, date) {
+  document.getElementById('fStaff').value = name || '';
+  document.getElementById('fType').value  = '';
+  document.getElementById('fStart').value = date || '';
+  document.getElementById('fEnd').value   = date || '';
+  document.getElementById('moWrap').classList.add('open');
+}
+function closeModal()    { document.getElementById('moWrap').classList.remove('open'); }
+function moClick(e)      { if (e.target === document.getElementById('moWrap')) closeModal(); }
+function quickAdd(nm, d) { openModal(nm, d); }
+
+/* =====================================================
+   TOOLTIP
+===================================================== */
+const TC = {
+  Annual:   ['#dbeafe','#1e3a8a'],
+  Sick:     ['#fee2e2','#991b1b'],
+  Personal: ['#d1fae5','#065f46'],
+  Other:    ['#ede9fe','#4c1d95']
+};
+function fmtD(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T00:00:00');
+  return d.getDate() + ' ' + MSHRT[d.getMonth()] + ' ' + d.getFullYear();
+}
+function showTip(e, nm, tp, st, en, sp) {
+  const [bg, fg] = TC[tp] || ['#f3f4f6','#374151'];
+  document.getElementById('tName').textContent = nm;
+  document.getElementById('tBody').innerHTML =
+    fmtD(st) + ' \u2192 ' + fmtD(en) + '<br>' +
+    sp + ' day' + (sp > 1 ? 's' : '') + '<br>' +
+    `<span class="t-badge" style="background:${bg};color:${fg};">${esc(tp)}</span>`;
+  const tip = document.getElementById('tip');
+  tip.classList.add('on');
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 48) + 'px';
+}
+function hideTip() { document.getElementById('tip').classList.remove('on'); }
+
+/* =====================================================
+   TOAST
+===================================================== */
+let toastTmr;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast on ' + type;
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => el.classList.remove('on'), 3500);
+}
+
+/* =====================================================
+   STATUS DATE
+===================================================== */
+function setStatusDate() {
+  const n = new Date();
+  const D = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('todayStr').textContent =
+    D[n.getDay()] + ', ' + n.getDate() + ' ' + MFULL[n.getMonth()] + ' ' + n.getFullYear();
+}
+
+/* =====================================================
+   INIT
+===================================================== */
+window.addEventListener('DOMContentLoaded', () => {
+  setStatusDate();
+  render();          // draw grid immediately with empty data
+  loadLeave();       // async — populates staff leave bars
+  loadCalEvents();   // async — populates holiday rows
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'n' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openModal(); }
   });
 });
 </script>
