@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Electrician Calendar</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
@@ -803,8 +803,8 @@ header {
       <a href="tel:0721455155" class="footer-link">
         <span class="footer-icon">📞</span>(07) 2145 5155
       </a>
-      <a href="/cdn-cgi/l/email-protection#771e1911183710181b13040205125914181a591602" class="footer-link">
-        <span class="footer-icon">✉️</span><span class="__cf_email__" data-cfemail="f39a9d959cb3949c9f9780868196dd909c9edd9286">[email&#160;protected]</span>
+      <a href="mailto:info@goldsure.com.au" data-orig="771e1911183710181b13040205125914181a591602" class="footer-link">
+        <span class="footer-icon">✉️</span>info@goldsure.com.au
       </a>
     </div>
   </div>
@@ -817,6 +817,15 @@ header {
 // ════════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
 const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+
+if (typeof supabase === 'undefined' && typeof window.supabase === 'undefined') {
+  document.getElementById('calendar').innerHTML =
+    `<div class="loading-state" style="color:var(--red)">
+      ⚠️ Supabase library failed to load.<br>
+      <small style="margin-top:8px;display:block;">Check your internet connection or ad-blocker settings.</small>
+    </div>`
+  throw new Error('Supabase library not loaded')
+}
 const supabaseClient = (window.supabase || supabase).createClient(SUPABASE_URL, SUPABASE_KEY)
 
 // ════════════════════════════════════════════════════════════
@@ -868,18 +877,31 @@ async function loadCalendar() {
   document.getElementById('calendar').innerHTML =
     `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
 
-  const { data, error } = await supabaseClient
-    .from("electrician_calendar")
-    .select("*")
+  try {
+    const { data, error } = await supabaseClient
+      .from("electrician_calendar")
+      .select("*")
 
-  if (error) {
+    if (error) {
+      console.error("Supabase error:", error)
+      document.getElementById('calendar').innerHTML =
+        `<div class="loading-state" style="color:var(--red)">
+          Error: ${error.message || error.code || JSON.stringify(error)}<br>
+          <small style="margin-top:8px;display:block;">Check console for details</small>
+        </div>`
+      return
+    }
+
+    cachedEvents = data || []
+    renderCalendar(cachedEvents)
+  } catch(e) {
+    console.error("Load failed:", e)
     document.getElementById('calendar').innerHTML =
-      `<div class="loading-state" style="color:var(--red)">Failed to load data. Please try again.</div>`
-    return
+      `<div class="loading-state" style="color:var(--red)">
+        Connection error: ${e.message}<br>
+        <small style="margin-top:8px;display:block;">Check console for details</small>
+      </div>`
   }
-
-  cachedEvents = data || []
-  renderCalendar(cachedEvents)
 }
 
 // ════════════════════════════════════════════════════════════
