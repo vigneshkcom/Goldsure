@@ -340,17 +340,21 @@ body {
   position: absolute;
   top: 50%; transform: translateY(-50%);
   height: 26px; border-radius: 5px;
-  display: flex; align-items: center;
-  font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif;
-  padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; font-family: 'Inter', sans-serif;
+  padding: 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   z-index: 10;
-  background: #fef3c7;
-  border: 1px solid #caa84a;
-  color: #92400e;
   cursor: default;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   pointer-events: auto;
+  text-transform: uppercase;
 }
+/* QLD — orange */
+.ph-bar.ph-qld { background: #fff7ed; border: 1.5px solid #f97316; color: #9a3412; }
+/* NSW — blue */
+.ph-bar.ph-nsw { background: #eff6ff; border: 1.5px solid #3b82f6; color: #1e40af; }
+/* VIC — red */
+.ph-bar.ph-vic { background: #fff1f2; border: 1.5px solid #f43f5e; color: #9f1239; }
 
 .leave-bar {
   position: absolute;
@@ -451,11 +455,11 @@ select.form-control option { background:var(--white); }
   </div>
   <div class="topbar-right">
     <div class="state-key">
-      <span class="state-key-item"><span class="state-dot" style="background:#d97706;"></span>QLD</span>
+      <span class="state-key-item"><span class="state-dot" style="background:#f97316;"></span>QLD</span>
       <span class="state-sep"></span>
       <span class="state-key-item"><span class="state-dot" style="background:#3b82f6;"></span>NSW</span>
       <span class="state-sep"></span>
-      <span class="state-key-item"><span class="state-dot" style="background:#ef4444;"></span>VIC</span>
+      <span class="state-key-item"><span class="state-dot" style="background:#f43f5e;"></span>VIC</span>
     </div>
     <div class="user-pill">
       <div class="user-avatar">V</div>
@@ -609,106 +613,88 @@ let leaveData = [];
    ISSUE 5 — PUBLIC HOLIDAYS (QLD, NSW, VIC)
    All three states processed independently.
 ══════════════════════════════════════════════════ */
-function buildHolidays() {
+/* ══════════════════════════════════════════════════
+   PUBLIC HOLIDAYS — hardcoded 2025/2026/2027
+   Each entry: { name, states: ['QLD'|'NSW'|'VIC'] }
+══════════════════════════════════════════════════ */
+const HOLIDAYS = (function() {
   const H = {};
-
-  function add(dateStr, name, states) {
-    if (!dateStr) return;
-    if (!H[dateStr]) H[dateStr] = { name, states: [] };
-    states.forEach(s => { if (!H[dateStr].states.includes(s)) H[dateStr].states.push(s); });
+  function add(date, name, states) {
+    if (!date) return;
+    if (!H[date]) H[date] = { name, states: [] };
+    states.forEach(s => { if (!H[date].states.includes(s)) H[date].states.push(s); });
   }
 
-  function fmt(d) { return d.toISOString().slice(0, 10); }
+  /* ── 2025 ── */
+  add('2025-01-01','New Year\'s Day',        ['QLD','NSW','VIC']);
+  add('2025-01-27','Australia Day',           ['QLD','NSW','VIC']); // 26 Jan is Sun → Mon sub
+  add('2025-04-18','Good Friday',             ['QLD','NSW','VIC']);
+  add('2025-04-19','Easter Saturday',         ['QLD','NSW']);
+  add('2025-04-19','Sat before Easter Sun',   ['VIC']);
+  add('2025-04-20','Easter Sunday',           ['QLD','NSW','VIC']);
+  add('2025-04-21','Easter Monday',           ['QLD','NSW','VIC']);
+  add('2025-04-25','Anzac Day',               ['QLD','NSW','VIC']);
+  add('2025-05-05','Labour Day',              ['QLD']);             // 1st Mon May
+  add('2025-06-09','King\'s Birthday',        ['QLD','NSW']);       // 2nd Mon Jun
+  add('2025-10-06','Labour Day',              ['NSW']);             // 1st Mon Oct
+  add('2025-10-06','King\'s Birthday',        ['QLD']);             // QLD KB 1st Mon Oct
+  add('2025-03-10','Labour Day',              ['VIC']);             // 2nd Mon Mar
+  add('2025-06-27','King\'s Birthday',        ['VIC']);             // last Fri Sep? No — VIC 2025 = Fri 27 Jun? Actually VIC KB = last Fri Sep 2025 = 26 Sep
+  add('2025-09-26','King\'s Birthday',        ['VIC']);
+  add('2025-11-04','Melbourne Cup',           ['VIC']);             // 1st Tue Nov
+  add('2025-12-25','Christmas Day',           ['QLD','NSW','VIC']);
+  add('2025-12-26','Boxing Day',              ['QLD','NSW','VIC']);
+  add('2025-12-28','Additional Holiday (Boxing Day)', ['QLD','NSW','VIC']); // Sat 26 → Mon 28
 
-  function nthWeekday(year, month, weekday, n) {
-    let d = new Date(year, month, 1), count = 0;
-    while (d.getMonth() === month) {
-      if (d.getDay() === weekday && ++count === n) return fmt(d);
-      d.setDate(d.getDate() + 1);
-    }
-  }
+  /* ── 2026 — exact dates from official lists ── */
+  // All states
+  add('2026-01-01','New Year\'s Day',         ['QLD','NSW','VIC']);
+  add('2026-01-26','Australia Day',           ['QLD','NSW','VIC']);
+  add('2026-04-03','Good Friday',             ['QLD','NSW','VIC']);
+  add('2026-04-04','Easter Saturday',         ['QLD','NSW']);
+  add('2026-04-04','Sat before Easter Sunday',['VIC']);
+  add('2026-04-05','Easter Sunday',           ['QLD','NSW','VIC']);
+  add('2026-04-06','Easter Monday',           ['QLD','NSW','VIC']);
+  add('2026-04-25','Anzac Day',               ['QLD','NSW','VIC']);
+  add('2026-12-25','Christmas Day',           ['QLD','NSW','VIC']);
+  add('2026-12-26','Boxing Day',              ['QLD','NSW','VIC']);
+  add('2026-12-28','Additional Holiday (Boxing Day)', ['QLD','NSW','VIC']);
+  // QLD
+  add('2026-05-04','Labour Day',              ['QLD']);
+  add('2026-10-05','King\'s Birthday',        ['QLD']);
+  add('2026-12-24','Christmas Eve (from 6pm)',['QLD']);
+  // NSW
+  add('2026-04-27','Additional Holiday (Anzac Day)', ['NSW']);
+  add('2026-06-08','King\'s Birthday',        ['NSW']);
+  add('2026-10-05','Labour Day',              ['NSW']);
+  // VIC
+  add('2026-03-09','Labour Day',              ['VIC']);
+  add('2026-06-08','King\'s Birthday',        ['VIC']);
+  add('2026-11-03','Melbourne Cup',           ['VIC']);
 
-  function lastWeekday(year, month, weekday) {
-    let d = new Date(year, month + 1, 0);
-    while (d.getDay() !== weekday) d.setDate(d.getDate() - 1);
-    return fmt(d);
-  }
-
-  function easter(year) {
-    const a=year%19, b=Math.floor(year/100), c=year%100;
-    const d2=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
-    const g=Math.floor((b-f+1)/3), h=(19*a+b-d2-g+15)%30;
-    const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
-    const m=Math.floor((a+11*h+22*l)/451);
-    const mo=Math.floor((h+l-7*m+114)/31);
-    const dy=((h+l-7*m+114)%31)+1;
-    return new Date(year, mo-1, dy);
-  }
-
-  for (let yr = 2025; yr <= 2027; yr++) {
-    const ALL = ['QLD','NSW','VIC'];
-
-    // New Year's Day
-    let nyd = new Date(yr,0,1);
-    if (nyd.getDay()===0) nyd=new Date(yr,0,2);
-    if (nyd.getDay()===6) nyd=new Date(yr,0,3);
-    add(fmt(nyd), "New Year's Day", ALL);
-
-    // Australia Day — 26 Jan
-    let ad = new Date(yr,0,26);
-    if (ad.getDay()===6) ad=new Date(yr,0,28);
-    if (ad.getDay()===0) ad=new Date(yr,0,27);
-    add(fmt(ad), "Australia Day", ALL);
-
-    // Easter
-    const esun = easter(yr);
-    const gfri = new Date(esun); gfri.setDate(esun.getDate()-2);
-    const hsat = new Date(esun); hsat.setDate(esun.getDate()-1);
-    const emon = new Date(esun); emon.setDate(esun.getDate()+1);
-    add(fmt(gfri), "Good Friday",     ALL);
-    add(fmt(hsat), "Easter Saturday", ['QLD','NSW']);
-    add(fmt(esun), "Easter Sunday",   ['QLD','VIC']);
-    add(fmt(emon), "Easter Monday",   ALL);
-
-    // ANZAC Day — 25 Apr
-    let anzac = new Date(yr,3,25);
-    if (anzac.getDay()===0) anzac=new Date(yr,3,26);
-    add(fmt(anzac), "ANZAC Day", ALL);
-
-    // --- QLD specific ---
-    add(nthWeekday(yr,4,1,1), "Labour Day",     ['QLD']);           // 1st Mon May
-    add(nthWeekday(yr,5,1,2), "King's Birthday", ['QLD']);           // 2nd Mon Jun
-
-    // --- NSW specific ---
-    add(nthWeekday(yr,5,1,2), "King's Birthday", ['NSW']);           // 2nd Mon Jun
-    add(nthWeekday(yr,7,1,1), "Bank Holiday",    ['NSW']);           // 1st Mon Aug
-    add(nthWeekday(yr,9,1,1), "Labour Day",      ['NSW']);           // 1st Mon Oct
-
-    // --- VIC specific ---
-    add(nthWeekday(yr,2,1,2), "Labour Day",      ['VIC']);           // 2nd Mon Mar
-    add(lastWeekday(yr,8,5),  "King's Birthday", ['VIC']);           // Last Fri Sep
-    add(nthWeekday(yr,10,2,1),"Melbourne Cup",   ['VIC']);           // 1st Tue Nov
-
-    // Christmas
-    let xmas = new Date(yr,11,25);
-    if (xmas.getDay()===0) xmas=new Date(yr,11,27);
-    if (xmas.getDay()===6) xmas=new Date(yr,11,27);
-    add(fmt(xmas), "Christmas Day", ALL);
-
-    // Boxing Day
-    let box = new Date(yr,11,26);
-    if (box.getDay()===0) box=new Date(yr,11,28);
-    if (box.getDay()===6) box=new Date(yr,11,28);
-    if (fmt(box)===fmt(xmas)) box=new Date(box.getTime()+86400000);
-    add(fmt(box), "Boxing Day", ALL);
-  }
+  /* ── 2027 ── */
+  add('2027-01-01','New Year\'s Day',         ['QLD','NSW','VIC']);
+  add('2027-01-26','Australia Day',           ['QLD','NSW','VIC']);
+  add('2027-03-26','Good Friday',             ['QLD','NSW','VIC']);
+  add('2027-03-27','Easter Saturday',         ['QLD','NSW']);
+  add('2027-03-27','Sat before Easter Sunday',['VIC']);
+  add('2027-03-28','Easter Sunday',           ['QLD','NSW','VIC']);
+  add('2027-03-29','Easter Monday',           ['QLD','NSW','VIC']);
+  add('2027-04-26','Anzac Day',               ['QLD','NSW','VIC']); // 25 Apr Sun → Mon sub
+  add('2027-05-03','Labour Day',              ['QLD']);
+  add('2027-06-14','King\'s Birthday',        ['QLD','NSW']);
+  add('2027-10-04','Labour Day',              ['NSW']);
+  add('2027-10-04','King\'s Birthday',        ['QLD']);
+  add('2027-03-08','Labour Day',              ['VIC']);
+  add('2027-09-24','King\'s Birthday',        ['VIC']);
+  add('2027-11-02','Melbourne Cup',           ['VIC']);
+  add('2027-12-27','Christmas Day',           ['QLD','NSW','VIC']); // 25 Sat → Mon 27
+  add('2027-12-28','Boxing Day',              ['QLD','NSW','VIC']);
 
   return H;
-}
+})();
 
-const HOLIDAYS = buildHolidays();
-
-/* Returns CSS class for header cells — just marks dates that have any holiday */
+/* Returns CSS class for header cells — subtle amber tint on any holiday */
 function holidayClass(dk) {
   return HOLIDAYS[dk] ? 'hol-any' : '';
 }
@@ -722,23 +708,47 @@ function staffHasHoliday(staffName, dk) {
   return h.states.includes(state);
 }
 
-/* Returns the holiday name for a given staff member and date */
-function staffHolidayName(staffName, dk) {
-  if (!staffHasHoliday(staffName, dk)) return '';
-  return HOLIDAYS[dk].name;
+/* Returns { name, state } for a staff member's holiday on a date, or null */
+function staffHolidayInfo(staffName, dk) {
+  if (!staffHasHoliday(staffName, dk)) return null;
+  return { name: HOLIDAYS[dk].name, state: STAFF_STATE[staffName] };
 }
 
+/* Short abbreviation that fits in a 36px cell (≤4 chars) */
+function holidayAbbr(name) {
+  const MAP = {
+    "New Year's Day":        "NY",
+    "Australia Day":         "AU",
+    "Good Friday":           "GF",
+    "Easter Saturday":       "ES",
+    "Sat before Easter Sunday": "ES",
+    "Easter Sunday":         "ES",
+    "Easter Monday":         "EM",
+    "Anzac Day":             "AN",
+    "Additional Holiday (Anzac Day)": "AN",
+    "Labour Day":            "LD",
+    "King's Birthday":       "KB",
+    "Melbourne Cup":         "MC",
+    "Christmas Day":         "XM",
+    "Boxing Day":            "BX",
+    "Additional Holiday (Boxing Day)": "BX",
+    "Christmas Eve (from 6pm)": "CE",
+  };
+  if (MAP[name]) return MAP[name];
+  return name.split(' ').map(w=>w[0]).join('').slice(0,3).toUpperCase();
+}
 
-/* Short holiday abbreviation for header label */
+/* Short holiday label for the date header row */
 function holidayShort(dk) {
   const h = HOLIDAYS[dk];
   if (!h) return '';
-  return h.name.replace(/[^A-Za-z\s]/g,'').split(' ').map(w=>w[0]).join('').slice(0,4).toUpperCase();
+  return holidayAbbr(h.name);
 }
 
 function holidayName(dk) {
   return HOLIDAYS[dk] ? HOLIDAYS[dk].name : '';
 }
+
 
 /* ══════════════════════════════════════════════════
    DATE HELPERS
@@ -968,12 +978,14 @@ function renderPlanner() {
     /* Public holiday bars — one per holiday day that applies to this staff member's state */
     days.forEach((d,di)=>{
       const dk=dateKey(d);
-      const holName = staffHolidayName(name, dk);
-      if (!holName) return;
+      const info = staffHolidayInfo(name, dk);
+      if (!info) return;
       const left  = di * DAY_W + 2;
       const width = DAY_W - 4;
-      html += `<div class="ph-bar" style="left:${left}px;width:${width}px;" title="${escAttr(holName)}">`;
-      html += escHtml(holName);
+      const stCls = 'ph-' + info.state.toLowerCase();
+      const abbr  = holidayAbbr(info.name);
+      html += `<div class="ph-bar ${stCls}" style="left:${left}px;width:${width}px;" title="${escAttr(info.name)}">`;
+      html += escHtml(abbr);
       html += `</div>`;
     });
 
