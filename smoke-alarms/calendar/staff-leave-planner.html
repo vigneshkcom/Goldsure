@@ -330,15 +330,16 @@ body {
 .ev.ph.nsw { background: var(--nph-bg); border-color: var(--nph-bd); color: var(--nph-tx); }
 .ev.ph.vic { background: var(--vph-bg); border-color: var(--vph-bd); color: var(--vph-tx); }
 
-/* single-day public holiday pill — fills the day column, centred abbr */
+/* public holiday pill — fills the day column(s), centred abbreviation */
 .ev.ph.ph-pill {
-  left: calc(var(--left, 0px) + 1px);
   justify-content: center;
-  padding: 0 2px;
+  align-items: center;
+  padding: 0;
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-align: center;
+  display: flex;
 }
 
 /* school holiday bars */
@@ -560,18 +561,7 @@ select.fc {
     <div class="fg">
       <label class="fl">Leave Type</label>
       <input list="leaveTypes" class="fc" id="fType" placeholder="e.g. Annual, Sick, Paternity..." autocomplete="off">
-      <datalist id="leaveTypes">
-        <option value="Annual Leave">
-        <option value="Sick Leave">
-        <option value="Personal Leave">
-        <option value="Paternity Leave">
-        <option value="Maternity Leave">
-        <option value="Unpaid Leave">
-        <option value="Study Leave">
-        <option value="Compassionate Leave">
-        <option value="Long Service Leave">
-        <option value="Other">
-      </datalist>
+      <datalist id="leaveTypes"></datalist>
     </div>
     <div class="f2">
       <div class="fg"><label class="fl">Start Date</label><input type="date" class="fc" id="fStart"></div>
@@ -723,10 +713,13 @@ const PUB_HOL_EVENTS = (() => {
   add('2027-12-28', 'Boxing Day',               ['QLD','NSW','VIC']);
 
   /*
-   * Build per-state sorted day lists, then merge consecutive
-   * dates (any name) into one spanning bar.
-   * The bar label is the name of the FIRST day in the cluster.
-   * e.g. Good Fri + Easter Sat + Easter Sun + Easter Mon → one bar "Easter"
+   * Convert raw day list → per-state event records with merging.
+   * Strategy: sort days per state, then greedily merge any run of
+   * STRICTLY CONSECUTIVE calendar dates into ONE bar.
+   * The cluster name is determined by content:
+   *   - Any run containing Good Friday / Easter* → "Easter"
+   *   - Any run containing Christmas / Boxing    → "Christmas & Boxing Day"
+   *   - Single-day holidays keep their own name
    */
   const stateMap = { QLD: [], NSW: [], VIC: [] };
   days.forEach(({ dt, name, states }) => {
@@ -735,43 +728,44 @@ const PUB_HOL_EVENTS = (() => {
     });
   });
 
+  function addOneDayStr(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  function clusterName(names) {
+    const joined = names.join(' ');
+    if (/Good Friday|Easter/.test(joined)) return 'Easter';
+    if (/Christmas|Boxing/.test(joined))   return 'Christmas & Boxing Day';
+    return names[0]; // single-day or unique name
+  }
+
   const result = [];
   ['QLD','NSW','VIC'].forEach(st => {
-    // Sort by date
-    const sorted = stateMap[st].slice().sort((a, b) => a.dt < b.dt ? -1 : 1);
-    const merged = [];
+    const sorted = stateMap[st].slice().sort((a, b) => (a.dt < b.dt ? -1 : 1));
+    const merged = []; // [{event_start, event_end, names[], state}]
+
     sorted.forEach(({ dt, name }) => {
       const last = merged[merged.length - 1];
-      if (last) {
-        const nextDay = new Date(last.event_end + 'T00:00:00');
-        nextDay.setDate(nextDay.getDate() + 1);
-        // If this day is the very next calendar day, extend the bar
-        if (nextDay.toISOString().slice(0, 10) === dt) {
-          last.event_end = dt;
-          // Append this holiday's name to the label if different
-          if (!last.event_name.includes(name)) {
-            // For Easter cluster use a friendly combined label
-            if (last._isEaster || name.startsWith('Easter') || last.event_name.startsWith('Good Friday')) {
-              last._isEaster = true;
-              last.event_name = 'Easter';
-            } else if (last._isXmas || name.startsWith('Christmas') || name.startsWith('Boxing') || last.event_name.startsWith('Christmas') || last.event_name.startsWith('Boxing')) {
-              last._isXmas = true;
-              last.event_name = 'Christmas & Boxing Day';
-            }
-          }
-          return;
-        }
+      if (last && addOneDayStr(last.event_end) === dt) {
+        // Consecutive — extend existing cluster
+        last.event_end = dt;
+        last.names.push(name);
+      } else {
+        // Start a new cluster
+        merged.push({ event_start: dt, event_end: dt, names: [name], state: st });
       }
-      merged.push({
-        event_name:  name,
-        event_start: dt,
-        event_end:   dt,
+    });
+
+    merged.forEach(m => {
+      result.push({
+        event_name:  clusterName(m.names),
+        event_start: m.event_start,
+        event_end:   m.event_end,
         event_type:  'public_holiday',
-        state: st
+        state:       m.state
       });
     });
-    merged.forEach(e => { delete e._isEaster; delete e._isXmas; });
-    result.push(...merged);
   });
 
   return result;
@@ -930,7 +924,16 @@ function evPos(evStart, evEnd, days, d2i) {
    No per-day iteration for event output — only for
    the structural grid ghost columns (.dc).
 ===================================================== */
+let _renderScheduled = false;
 function render() {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => {
+    _renderScheduled = false;
+    _doRender();
+  });
+}
+function _doRender() {
   const days   = getDays();
   const n      = days.length;
   const trackW = n * DAY_W;
@@ -1114,7 +1117,7 @@ function render() {
 
   document.getElementById('plannerInner').innerHTML = h;
   scrollToToday();
-}
+}  // end _doRender
 
 /* =====================================================
    SCROLL TO TODAY
