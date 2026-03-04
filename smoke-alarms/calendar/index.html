@@ -359,6 +359,31 @@ header {
 .toast.error { border-left-color: var(--red); }
 
 /* ══════════════════════════════════════════════════════════
+   SHARE MENU DROPDOWN
+══════════════════════════════════════════════════════════ */
+.share-menu {
+  position: absolute; z-index: 500;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-lg);
+  min-width: 180px; padding: 6px 0;
+  animation: popIn 0.15s ease;
+}
+.share-menu-item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; padding: 9px 16px;
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+  color: var(--text); cursor: pointer;
+  transition: background 0.1s;
+}
+.share-menu-item:hover { background: var(--gold-bg); color: var(--gold-dark); }
+.share-menu-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--muted);
+  padding: 8px 16px 4px;
+}
+.share-menu-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+/* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
@@ -421,6 +446,9 @@ header {
       ↑ <span class="upload-label">Upload CSV</span>
     </button>
     <input type="file" id="csvInput" accept=".csv,text/csv" onchange="handleCSV(event)">
+    <button class="upload-btn" id="shareLinkBtn" onclick="showShareMenu(event)" title="Copy electrician calendar link">
+      🔗 <span class="upload-label">Share Link</span>
+    </button>
   </div>
 </div>
 
@@ -472,12 +500,12 @@ header {
     </div>
     <div style="font-size:10px;color:var(--muted);text-align:right;line-height:2;">
       <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a></div>
-      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a></div>
+      <div>Email: <a href="/cdn-cgi/l/email-protection#97fef9f1f8d7f0f8fbf3e4e2e5f2b9f4f8fab9f6e2" style="color:var(--gold);text-decoration:none;"><span class="__cf_email__" data-cfemail="93fafdf5fcd3f4fcfff7e0e6e1f6bdf0fcfebdf2e6">[email&#160;protected]</span></a></div>
     </div>
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ════════════════════════════════════════════════════════════
 // SUPABASE (unchanged)
 // ════════════════════════════════════════════════════════════
@@ -488,7 +516,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 // ════════════════════════════════════════════════════════════
 // ELECTRICIANS
 // ════════════════════════════════════════════════════════════
-const electricians = ["Corey", "Adam", "William", "Daniel"]
+const electricians = ["Corey", "Adam", "William"]
 
 // ════════════════════════════════════════════════════════════
 // STATE
@@ -501,7 +529,7 @@ let cachedEvents   = []
 
 // ── URL worker filter ──────────────────────────────────────
 const params       = new URLSearchParams(window.location.search)
-const workerFilter = (params.get('worker') || '').trim().toLowerCase()
+const workerFilter = (params.get('electrician') || '').trim().toLowerCase()
 
 if (workerFilter) {
   const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
@@ -768,7 +796,19 @@ async function handleCSV(event) {
   const rows = [...dedupMap.values()]
   if (!rows.length) { showToast('No valid rows found in CSV', true); return }
 
+  // Collect affected dates
+  const affectedDates = [...new Set(rows.map(r => r.work_date))]
+
   showToast(`Uploading ${rows.length} unique row${rows.length !== 1 ? 's' : ''}…`)
+
+  // Step 4: Delete existing rows for those dates first
+  const { error: delErr } = await supabaseClient
+    .from('electrician_calendar')
+    .delete()
+    .in('work_date', affectedDates)
+  if (delErr) { showToast('CSV delete failed: ' + delErr.message, true); return }
+
+  // Step 5: Insert new rows
   const { error } = await supabaseClient.from('electrician_calendar').insert(rows)
   if (error) { showToast('CSV upload failed: ' + error.message, true); return }
 
@@ -907,6 +947,86 @@ function showToast(msg, isError = false) {
 // ════════════════════════════════════════════════════════════
 updateMonthDisplay()
 loadCalendar()
+
+// ════════════════════════════════════════════════════════════
+// SHARE LINK HELPER — dynamically from electricians array
+// ════════════════════════════════════════════════════════════
+let _shareMenuEl = null
+
+function showShareMenu(event) {
+  // Close if already open
+  if (_shareMenuEl) { _shareMenuEl.remove(); _shareMenuEl = null; return }
+
+  const btn = document.getElementById('shareLinkBtn')
+  const rect = btn.getBoundingClientRect()
+
+  const menu = document.createElement('div')
+  menu.className = 'share-menu'
+  menu.style.top  = (rect.bottom + window.scrollY + 6) + 'px'
+  menu.style.right = (window.innerWidth - rect.right) + 'px'
+
+  const lbl = document.createElement('div')
+  lbl.className = 'share-menu-label'
+  lbl.textContent = 'Copy link for…'
+  menu.appendChild(lbl)
+
+  // Generate one link per active electrician — from const electricians only
+  electricians.forEach(name => {
+    const item = document.createElement('button')
+    item.className = 'share-menu-item'
+    item.textContent = name
+    item.addEventListener('click', () => {
+      const url = new URL(window.location.href.split('?')[0])
+      url.searchParams.set('electrician', name.toLowerCase())
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        showToast(`✓ Copied link for ${name}`)
+      }).catch(() => {
+        showToast('Could not copy — please copy manually: ' + url.toString(), true)
+      })
+      closeShareMenu()
+    })
+    menu.appendChild(item)
+  })
+
+  const div = document.createElement('hr')
+  div.className = 'share-menu-divider'
+  menu.appendChild(div)
+
+  // All electricians link (no filter)
+  const allItem = document.createElement('button')
+  allItem.className = 'share-menu-item'
+  allItem.textContent = 'All electricians'
+  allItem.style.color = 'var(--muted)'
+  allItem.addEventListener('click', () => {
+    const url = new URL(window.location.href.split('?')[0])
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      showToast('✓ Copied full calendar link')
+    }).catch(() => {
+      showToast('Could not copy — please copy manually: ' + url.toString(), true)
+    })
+    closeShareMenu()
+  })
+  menu.appendChild(allItem)
+
+  document.body.appendChild(menu)
+  _shareMenuEl = menu
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', closeShareMenuOutside)
+  }, 0)
+}
+
+function closeShareMenu() {
+  if (_shareMenuEl) { _shareMenuEl.remove(); _shareMenuEl = null }
+  document.removeEventListener('click', closeShareMenuOutside)
+}
+
+function closeShareMenuOutside(e) {
+  if (_shareMenuEl && !_shareMenuEl.contains(e.target) && e.target.id !== 'shareLinkBtn') {
+    closeShareMenu()
+  }
+}
 </script>
 </body>
 </html>
