@@ -3,284 +3,420 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Goldsure Electrician Calendar</title>
+<title>Goldsure · Electrician Calendar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
-  :root {
-    --bg:            #f4f1eb;
-    --surface:       #ffffff;
-    --surface2:      #faf8f3;
-    --border:        #e0d9cc;
-    --border-strong: #c8bfa8;
-    --accent:        #b8960c;
-    --accent-dark:   #8a6e00;
-    --accent-light:  #f5e9b8;
-    --accent-btn:    #c9a820;
-    --text:          #1a1612;
-    --text-muted:    #7a7060;
-    --text-dim:      #b0a898;
-    --today-bg:      #fffbee;
-    --today-border:  #c9a820;
-    --danger:        #c0392b;
+/* ══════════════════════════════════════════════════════════
+   DESIGN TOKENS — matches Goldsure Sales Portal exactly
+══════════════════════════════════════════════════════════ */
+:root {
+  --bg:        #f5f6f8;
+  --surface:   #ffffff;
+  --surface2:  #f0f2f5;
+  --border:    #e3e7ef;
+  --text:      #141c2e;
+  --muted:     #6b7899;
+  --gold:      #b08d2e;
+  --gold-dark: #8a6900;
+  --gold-bg:   #fef7e7;
+  --gold-btn:  #b08d2e;
+  --red:       #e04f4f;
+  --shadow:    0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.10), 0 12px 32px rgba(0,0,0,0.08);
+  --r:         12px;
 
-    --pill-0-bg: #dbeafe; --pill-0-t: #1e40af;
-    --pill-1-bg: #dcfce7; --pill-1-t: #166534;
-    --pill-2-bg: #fce7f3; --pill-2-t: #9d174d;
-    --pill-3-bg: #ffedd5; --pill-3-t: #9a3412;
-    --pill-4-bg: #f3e8ff; --pill-4-t: #6b21a8;
+  /* Electrician pill palette */
+  --p0-bg: #dbeafe; --p0-t: #1e40af;
+  --p1-bg: #dcfce7; --p1-t: #166534;
+  --p2-bg: #fce7f3; --p2-t: #9d174d;
+  --p3-bg: #ffedd5; --p3-t: #9a3412;
+  --p4-bg: #f3e8ff; --p4-t: #6b21a8;
+}
 
-    --radius: 10px;
-    --radius-sm: 7px;
-    --shadow: 0 1px 4px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 20px rgba(0,0,0,0.14);
-  }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+/* ══════════════════════════════════════════════════════════
+   HEADER
+══════════════════════════════════════════════════════════ */
+header {
+  background: var(--surface);
+  border-bottom: 3px solid var(--gold);
+  padding: 0 28px;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  min-height: 60px;
+  box-shadow: var(--shadow);
+}
 
-  /* HEADER */
-  .header {
-    background: var(--surface);
-    border-bottom: 2px solid var(--accent);
-    padding: 14px 20px;
-    position: sticky; top: 0; z-index: 200;
-    box-shadow: var(--shadow);
-  }
-  .header-inner {
-    max-width: 1200px; margin: 0 auto;
-    display: flex; align-items: center;
-    justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), #e6b800);
-    border-radius: 8px; display: flex; align-items: center;
-    justify-content: center; font-size: 18px; flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(184,150,12,.35);
-  }
-  .logo-text { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
-  .logo-sub  { font-size: 11px; color: var(--text-muted); font-weight: 400; display: block; margin-top: -2px; }
+.header-left  { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
 
-  .filter-badge {
-    background: var(--accent-light); border: 1px solid var(--accent);
-    border-radius: 20px; padding: 5px 12px 5px 8px;
-    display: none; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--accent-dark); font-weight: 600;
-  }
-  .filter-badge.visible { display: flex; }
-  .filter-dot { width:8px; height:8px; background:var(--accent); border-radius:50%; animation:pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 34px; width: auto; object-fit: contain; }
+.header-logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.header-logo-text span { color: var(--gold); }
 
-  /* TOOLBAR */
-  .toolbar {
-    max-width: 1200px; margin: 0 auto;
-    padding: 18px 20px 12px;
-    display: flex; align-items: center;
-    justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  }
-  .toolbar-left { display: flex; align-items: center; gap: 8px; }
+.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.1); }
+.header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
 
-  .nav-btn {
-    background: var(--surface); border: 1px solid var(--border-strong);
-    color: var(--text); border-radius: var(--radius-sm);
-    padding: 9px 16px; font-family: 'DM Sans', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-    transition: all .15s; -webkit-tap-highlight-color: transparent;
-    white-space: nowrap; box-shadow: var(--shadow);
-  }
-  .nav-btn:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent-dark); }
+/* Worker filter badge */
+.agent-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 13px;
+}
+.agent-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--gold); animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+.agent-name { font-size: 12px; font-weight: 600; color: var(--text); }
 
-  .month-display {
-    font-size: 22px; font-weight: 700; color: var(--text);
-    letter-spacing: -.5px; text-align: center;
-  }
-  .month-display span { color: var(--accent-dark); }
+/* Back button */
+.nav-btn {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 600;
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px;
+  background: transparent; color: #4b5b7a; cursor: pointer;
+  text-decoration: none; transition: all 0.15s; display: inline-flex;
+  align-items: center; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--gold); }
 
-  .today-link {
-    background: none; border: none; color: var(--text-muted);
-    font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer;
-    padding: 3px 8px; border-radius: 4px; transition: color .15s;
-    display: block; text-align: center; margin-top: 2px;
-  }
-  .today-link:hover { color: var(--accent-dark); }
+/* ══════════════════════════════════════════════════════════
+   SUB-NAV / TOOLBAR
+══════════════════════════════════════════════════════════ */
+.sub-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 12px; min-height: 52px; flex-wrap: wrap;
+}
 
-  .upload-btn {
-    background: var(--surface); border: 1px dashed var(--border-strong);
-    color: var(--text-muted); border-radius: var(--radius-sm);
-    padding: 9px 16px; font-family: 'DM Sans', sans-serif;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-    transition: all .15s; white-space: nowrap;
-  }
-  .upload-btn:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-light); }
-  #csvInput { display: none; }
+.sub-nav-left  { display: flex; align-items: center; gap: 8px; }
+.sub-nav-right { display: flex; align-items: center; gap: 8px; }
 
-  /* CALENDAR */
-  .calendar-wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px 48px; }
-  .weekday-labels { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; margin-bottom: 5px; }
-  .weekday-label {
-    text-align: center; font-size: 11px; font-weight: 700;
-    letter-spacing: .08em; text-transform: uppercase;
-    color: var(--text-muted); padding: 4px 0;
-  }
-  .calendar { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
+/* Month nav buttons */
+.month-nav-btn {
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; font-weight: 700;
+  padding: 7px 16px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface2); color: var(--text); cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+}
+.month-nav-btn:hover { background: var(--gold-bg); border-color: var(--gold); color: var(--gold-dark); }
+.month-nav-btn:active { transform: scale(0.97); }
 
-  .day {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 8px 7px; min-height: 88px;
-    position: relative; cursor: pointer;
-    transition: border-color .15s, box-shadow .15s;
-    box-shadow: var(--shadow);
-  }
-  .day:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(184,150,12,.18); }
-  .day.empty { background: transparent; border-color: transparent; pointer-events: none; box-shadow: none; }
-  .day.today { background: var(--today-bg); border-color: var(--today-border); box-shadow: 0 0 0 2px rgba(201,168,32,.2); }
+.month-display {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.3px;
+  text-align: center; white-space: nowrap;
+}
+.month-display span { color: var(--gold); }
 
-  .day-num { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:5px; display:block; line-height:1; }
-  .day.today .day-num { color: var(--accent-dark); font-weight: 700; }
-  .today-dot { display:none; width:5px; height:5px; background:var(--accent); border-radius:50%; position:absolute; top:8px; right:8px; }
-  .day.today .today-dot { display: block; }
+.today-btn {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 20px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.today-btn:hover { border-color: var(--gold); color: var(--gold-dark); background: var(--gold-bg); }
 
-  .pill { display:block; border-radius:5px; padding:3px 6px; font-size:11px; font-weight:600; margin-top:3px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.01em; }
-  .pill-0 { background:var(--pill-0-bg); color:var(--pill-0-t); }
-  .pill-1 { background:var(--pill-1-bg); color:var(--pill-1-t); }
-  .pill-2 { background:var(--pill-2-bg); color:var(--pill-2-t); }
-  .pill-3 { background:var(--pill-3-bg); color:var(--pill-3-t); }
-  .pill-4 { background:var(--pill-4-bg); color:var(--pill-4-t); }
+/* Upload CSV */
+.upload-btn {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 700;
+  padding: 7px 14px; border: 1px dashed #c8bfa8; border-radius: 8px;
+  background: var(--surface2); color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.15s; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.upload-btn:hover { border-color: var(--gold); color: var(--gold-dark); background: var(--gold-bg); }
+#csvInput { display: none; }
 
-  .loading-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:14px; color:var(--text-muted); font-size:14px; }
-  .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
-  @keyframes spin { to{transform:rotate(360deg)} }
+/* ══════════════════════════════════════════════════════════
+   MAIN / CALENDAR
+══════════════════════════════════════════════════════════ */
+.main { max-width: 1280px; margin: 0 auto; padding: 20px 28px 48px; }
 
-  /* HOLIDAYS */
-  .holiday-day { background: #fff2cc !important; border: 2px solid #f0b400 !important; }
-  .holiday-label { display:block; font-size:10px; font-weight:600; color:#b8860b; margin-top:4px; line-height:1.3; white-space:normal; }
+.weekday-labels {
+  display: grid; grid-template-columns: repeat(7,1fr);
+  gap: 5px; margin-bottom: 5px;
+}
+.weekday-label {
+  text-align: center; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 5px 0;
+}
 
-  /* MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,22,18,.45);
-    backdrop-filter: blur(3px);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 999; opacity: 0; pointer-events: none;
-    transition: opacity .2s;
-  }
-  .modal-overlay.open { opacity:1; pointer-events:all; }
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7,1fr);
+  gap: 5px;
+}
 
-  .modal {
-    background: var(--surface); border-radius: var(--radius);
-    box-shadow: var(--shadow-md); padding: 28px 24px 22px;
-    width: 100%; max-width: 360px; margin: 16px;
-    transform: translateY(12px); transition: transform .2s;
-    border-top: 4px solid var(--accent);
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
+/* ── DAY CELL ── */
+.day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 8px;
+  min-height: 96px;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  box-shadow: var(--shadow);
+}
+.day:hover {
+  border-color: var(--gold);
+  box-shadow: 0 2px 12px rgba(176,141,46,0.18);
+  transform: translateY(-1px);
+}
+.day.empty {
+  background: transparent; border-color: transparent;
+  pointer-events: none; box-shadow: none;
+}
+.day.today {
+  background: var(--gold-bg);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(176,141,46,0.2);
+}
+.day.weekend { background: #fafbfd; }
+.day.weekend.today { background: var(--gold-bg); }
 
-  .modal-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px; }
-  .modal-date  { font-size:12px; color:var(--text-muted); margin-bottom:18px; font-family:'DM Mono',monospace; }
+.day-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 5px; display: block; line-height: 1;
+}
+.day.today .day-num  { color: var(--gold-dark); font-weight: 700; }
+.day.weekend .day-num { color: #9baac0; }
 
-  .checklist { display:flex; flex-direction:column; gap:10px; margin-bottom:22px; }
+/* today dot */
+.today-dot {
+  display: none; width: 6px; height: 6px;
+  background: var(--gold); border-radius: 50%;
+  position: absolute; top: 9px; right: 9px;
+}
+.day.today .today-dot { display: block; }
 
-  .check-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); cursor: pointer;
-    transition: border-color .12s, background .12s;
-  }
-  .check-item:hover { border-color: var(--accent); background: var(--accent-light); }
-  .check-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
-  .check-item .check-label { font-size:14px; font-weight:600; color:var(--text); cursor:pointer; flex:1; }
+/* ── PILLS ── */
+.pill {
+  display: block; border-radius: 5px;
+  padding: 3px 6px; font-size: 10px; font-weight: 600;
+  margin-top: 3px; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: 0.01em; font-family: 'Sora', sans-serif;
+}
+.pill-0 { background: var(--p0-bg); color: var(--p0-t); }
+.pill-1 { background: var(--p1-bg); color: var(--p1-t); }
+.pill-2 { background: var(--p2-bg); color: var(--p2-t); }
+.pill-3 { background: var(--p3-bg); color: var(--p3-t); }
+.pill-4 { background: var(--p4-bg); color: var(--p4-t); }
 
-  .modal-actions { display:flex; gap:10px; }
-  .btn-save {
-    flex:1; background:var(--accent-btn); color:#1a1612;
-    border:none; border-radius:var(--radius-sm); padding:11px 0;
-    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700;
-    cursor:pointer; transition:background .15s; letter-spacing:.02em;
-  }
-  .btn-save:hover { background:var(--accent-dark); color:#fff; }
-  .btn-save:disabled { opacity:.55; cursor:not-allowed; }
-  .btn-cancel {
-    background:var(--surface2); border:1px solid var(--border-strong);
-    color:var(--text-muted); border-radius:var(--radius-sm); padding:11px 18px;
-    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
-    cursor:pointer; transition:background .15s;
-  }
-  .btn-cancel:hover { background:var(--border); }
+/* ── HOLIDAYS ── */
+.holiday-day { background: #fffbe6 !important; border: 2px solid #e8c93a !important; }
+.holiday-label {
+  display: block; font-size: 9px; font-weight: 700;
+  color: #8a6900; margin-top: 4px; line-height: 1.3;
+  white-space: normal; letter-spacing: 0.01em;
+  font-family: 'Sora', sans-serif;
+}
 
-  /* TOAST */
-  .toast {
-    position:fixed; bottom:24px; left:50%;
-    transform:translateX(-50%) translateY(80px);
-    background:#1a1612; color:#fff;
-    padding:10px 20px; border-radius:8px;
-    font-size:13px; font-weight:600;
-    z-index:9999; transition:transform .3s;
-    white-space:nowrap; border-left:4px solid var(--accent);
-    pointer-events:none;
-  }
-  .toast.show { transform:translateX(-50%) translateY(0); }
-  .toast.error { border-left-color:var(--danger); }
+/* ── LOADING ── */
+.loading-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 72px 20px; gap: 14px;
+  color: var(--muted); font-size: 13px;
+  grid-column: 1 / -1;
+}
+.spinner {
+  width: 30px; height: 30px;
+  border: 3px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-  /* RESPONSIVE */
-  @media (max-width:640px) {
-    .toolbar { padding:12px 12px 8px; gap:8px; }
-    .nav-btn { padding:8px 12px; font-size:13px; }
-    .month-display { font-size:18px; }
-    .calendar-wrap { padding:0 8px 32px; }
-    .weekday-label { font-size:10px; letter-spacing:0; }
-    .calendar, .weekday-labels { gap:4px; }
-    .day { padding:6px 5px; min-height:70px; }
-    .day-num { font-size:12px; }
-    .pill { font-size:10px; padding:2px 5px; }
-    .upload-btn .upload-label { display:none; }
-  }
-  @media (max-width:380px) {
-    .nav-btn .btn-label { display:none; }
-    .month-display { font-size:16px; }
-    .day { min-height:58px; }
-  }
+/* ══════════════════════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 999; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 30px 28px 24px;
+  max-width: 400px; width: 92%;
+  box-shadow: var(--shadow-lg);
+  border-top: 3px solid var(--gold);
+  position: relative;
+  animation: popIn 0.2s ease;
+}
+@keyframes popIn { from { transform: scale(0.96) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+.modal-close {
+  position: absolute; top: 14px; right: 18px;
+  font-size: 20px; background: none; border: none;
+  cursor: pointer; color: var(--muted); line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+
+.modal-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text); margin-bottom: 3px; letter-spacing: -0.3px;
+}
+.modal-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--muted); margin-bottom: 18px;
+}
+
+.checklist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+
+.check-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 9px; cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.check-item:hover { border-color: var(--gold); background: var(--gold-bg); }
+.check-item input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--gold); cursor: pointer; flex-shrink: 0;
+}
+.check-item .check-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--text); cursor: pointer; flex: 1;
+}
+
+.modal-actions { display: flex; gap: 10px; }
+
+.btn-save {
+  flex: 1; background: var(--gold-btn); color: #000;
+  border: none; border-radius: 9px; padding: 11px 0;
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.btn-save:hover { background: #caa535; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-cancel {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  color: var(--muted); border-radius: 9px; padding: 11px 18px;
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.btn-cancel:hover { background: var(--border); color: var(--text); }
+
+/* ══════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════ */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #000000; color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px;
+  border-left: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  opacity: 0; transition: opacity 0.25s, transform 0.3s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { border-left-color: var(--red); }
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  .sub-nav { padding: 8px 16px; min-height: auto; flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .main { padding: 14px 12px 36px; }
+  .weekday-label { font-size: 9px; letter-spacing: 0; }
+}
+@media (max-width: 640px) {
+  .calendar, .weekday-labels { gap: 4px; }
+  .day { padding: 6px 5px; min-height: 72px; border-radius: 7px; }
+  .day-num { font-size: 11px; }
+  .pill { font-size: 9px; padding: 2px 5px; }
+  .month-nav-btn .btn-label { display: none; }
+  .month-display { font-size: 13px; }
+  .upload-btn .upload-label { display: none; }
+}
+@media (max-width: 420px) {
+  .day { min-height: 58px; }
+}
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-icon">⚡</div>
-      <div>
-        <div class="logo-text">Goldsure</div>
-        <span class="logo-sub">Team Calendar</span>
-      </div>
+<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
     </div>
-    <div class="filter-badge" id="filterBadge">
-      <div class="filter-dot"></div>
-      <span id="filterName"></span>
+    <div class="hd"></div>
+    <span class="header-title">Electrician Calendar</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip" id="workerChip" style="display:none;">
+      <div class="agent-dot"></div>
+      <span class="agent-name" id="workerChipName"></span>
     </div>
+    <a href="https://portal.goldsure.com.au/smoke-alarms/" class="nav-btn">← Portal</a>
   </div>
 </header>
 
-<div class="toolbar">
-  <div class="toolbar-left">
-    <button class="nav-btn" onclick="changeMonth(-1)">◀ <span class="btn-label">Prev</span></button>
-    <div>
+<!-- ══ SUB-NAV / TOOLBAR ═══════════════════════════════════ -->
+<div class="sub-nav">
+  <div class="sub-nav-left">
+    <button class="month-nav-btn" onclick="changeMonth(-1)">
+      ◀ <span class="btn-label">Prev</span>
+    </button>
+    <div style="text-align:center;">
       <div class="month-display" id="monthDisplay"></div>
-      <button class="today-link" onclick="goToToday()">Today</button>
+      <button class="today-btn" onclick="goToToday()" style="margin-top:3px;">Today</button>
     </div>
-    <button class="nav-btn" onclick="changeMonth(1)"><span class="btn-label">Next</span> ▶</button>
+    <button class="month-nav-btn" onclick="changeMonth(1)">
+      <span class="btn-label">Next</span> ▶
+    </button>
   </div>
-  <div>
+  <div class="sub-nav-right">
     <button class="upload-btn" onclick="document.getElementById('csvInput').click()">
       ↑ <span class="upload-label">Upload CSV</span>
     </button>
@@ -288,7 +424,8 @@
   </div>
 </div>
 
-<div class="calendar-wrap">
+<!-- ══ CALENDAR ════════════════════════════════════════════ -->
+<div class="main">
   <div class="weekday-labels">
     <div class="weekday-label">Sun</div>
     <div class="weekday-label">Mon</div>
@@ -299,16 +436,17 @@
     <div class="weekday-label">Sat</div>
   </div>
   <div id="calendar" class="calendar">
-    <div class="loading-state" style="grid-column:1/-1">
+    <div class="loading-state">
       <div class="spinner"></div>
       <span>Loading schedule…</span>
     </div>
   </div>
 </div>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal" role="dialog" aria-modal="true">
+<!-- ══ MODAL ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <button class="modal-close" onclick="closeModal()">×</button>
     <div class="modal-title">Select electricians working</div>
     <div class="modal-date" id="modalDate"></div>
     <div class="checklist" id="checklist"></div>
@@ -319,451 +457,456 @@
   </div>
 </div>
 
+<!-- ══ TOAST ════════════════════════════════════════════════ -->
 <div class="toast" id="toast"></div>
 
+<!-- ══ FOOTER ═══════════════════════════════════════════════ -->
+<footer style="background:var(--surface);border-top:1px solid var(--border);padding:18px 28px;margin-top:auto;">
+  <div style="max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:36px;width:auto;object-fit:contain;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072 · ABN: 66 683 305 106</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);text-align:right;line-height:2;">
+      <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a></div>
+      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a></div>
+    </div>
+  </div>
+</footer>
+
 <script>
-  // ── Supabase setup (unchanged) ──────────────────────────────────────────────
-  const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
-  const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+// ════════════════════════════════════════════════════════════
+// SUPABASE (unchanged)
+// ════════════════════════════════════════════════════════════
+const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
+const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // ── Electricians ──────────────────────────────────────────────────────────────
-  const electricians = ["Corey", "Adam", "William", "Daniel"]
+// ════════════════════════════════════════════════════════════
+// ELECTRICIANS
+// ════════════════════════════════════════════════════════════
+const electricians = ["Corey", "Adam", "William", "Daniel"]
 
-  // ── State ─────────────────────────────────────────────────────────────────────
-  const now = new Date()
-  let currentYear  = now.getFullYear()
-  let currentMonth = now.getMonth()
-  let selectedDate = null
-  let cachedEvents = []   // hold latest data for modal pre-checks
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+const _now         = new Date()
+let currentYear    = _now.getFullYear()
+let currentMonth   = _now.getMonth()    // 0-indexed
+let selectedDate   = null
+let cachedEvents   = []
 
-  // URL worker filter
-  const params       = new URLSearchParams(window.location.search)
-  const workerFilter = (params.get('worker') || '').trim().toLowerCase()
+// ── URL worker filter ──────────────────────────────────────
+const params       = new URLSearchParams(window.location.search)
+const workerFilter = (params.get('worker') || '').trim().toLowerCase()
 
-  // Stable pill colour
-  const workerColorMap = {}
-  let colorCounter = 0
-  function getPillClass(name) {
-    const key = name.toLowerCase()
-    if (workerColorMap[key] === undefined) workerColorMap[key] = colorCounter++ % 5
-    return `pill-${workerColorMap[key]}`
-  }
+if (workerFilter) {
+  const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
+  document.getElementById('workerChip').style.display = 'flex'
+  document.getElementById('workerChipName').textContent = display
+}
 
-  // ── Filter badge ──────────────────────────────────────────────────────────────
-  if (workerFilter) {
-    document.getElementById('filterBadge').classList.add('visible')
-    document.getElementById('filterName').textContent =
-      workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
-  }
+// ── Stable pill colour per worker name ────────────────────
+const workerColorMap = {}
+let colorCounter = 0
+function getPillClass(name) {
+  const key = name.toLowerCase()
+  if (workerColorMap[key] === undefined) workerColorMap[key] = colorCounter++ % 5
+  return `pill-${workerColorMap[key]}`
+}
 
-  // ── Month display ─────────────────────────────────────────────────────────────
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December']
-  function updateMonthDisplay() {
-    document.getElementById('monthDisplay').innerHTML =
-      `${MONTHS[currentMonth]} <span>${currentYear}</span>`
-  }
+// ════════════════════════════════════════════════════════════
+// MONTH DISPLAY
+// ════════════════════════════════════════════════════════════
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December']
 
-  // ── Supabase load (unchanged logic) ──────────────────────────────────────────
-  async function loadCalendar() {
+function updateMonthDisplay() {
+  document.getElementById('monthDisplay').innerHTML =
+    `${MONTHS[currentMonth]} <span>${currentYear}</span>`
+}
+
+// ════════════════════════════════════════════════════════════
+// SUPABASE LOAD (unchanged logic)
+// ════════════════════════════════════════════════════════════
+async function loadCalendar() {
+  document.getElementById('calendar').innerHTML =
+    `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
+
+  const { data, error } = await supabaseClient
+    .from("electrician_calendar")
+    .select("*")
+
+  if (error) {
     document.getElementById('calendar').innerHTML =
-      `<div class="loading-state" style="grid-column:1/-1"><div class="spinner"></div><span>Loading schedule…</span></div>`
-
-    const { data, error } = await supabaseClient
-      .from("electrician_calendar")
-      .select("*")
-
-    if (error) {
-      document.getElementById('calendar').innerHTML =
-        `<div class="loading-state" style="grid-column:1/-1;color:#c0392b">Failed to load data.</div>`
-      return
-    }
-    cachedEvents = data || []
-    renderCalendar(cachedEvents)
+      `<div class="loading-state" style="color:var(--red)">Failed to load data. Please try again.</div>`
+    return
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-  function renderCalendar(events) {
-    const calendar = document.getElementById('calendar')
-    calendar.innerHTML = ''
+  cachedEvents = data || []
+  renderCalendar(cachedEvents)
+}
 
-    const todayStr = new Date().toISOString().split('T')[0]
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay()
-    const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate()
+// ════════════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════════════
+function renderCalendar(events) {
+  const calendar = document.getElementById('calendar')
+  calendar.innerHTML = ''
 
-    // Build holiday map for current year (+ next year for Dec-Jan edge cases)
-    const holidayMap = buildHolidayMap(currentYear)
+  const todayStr  = new Date().toISOString().split('T')[0]
+  const firstDay  = new Date(currentYear, currentMonth, 1).getDay()
+  const lastDate  = new Date(currentYear, currentMonth + 1, 0).getDate()
+  const holidayMap = buildHolidayMap(currentYear)
 
-    const filtered = workerFilter
-      ? events.filter(e => (e.electrician || '').toLowerCase().includes(workerFilter))
-      : events
-
-    // Empty cells before month start
-    for (let i = 0; i < firstDay; i++) {
-      const empty = document.createElement('div')
-      empty.className = 'day empty'
-      calendar.appendChild(empty)
-    }
-
-    for (let d = 1; d <= lastDate; d++) {
-      const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-      const isToday = dateStr === todayStr
-      const dayHolidays = holidayMap.get(dateStr) || []
-
-      const dayBox = document.createElement('div')
-      let cls = 'day' + (isToday ? ' today' : '')
-      if (dayHolidays.length) cls += ' holiday-day'
-      dayBox.className = cls
-      dayBox.dataset.date = dateStr
-      dayBox.addEventListener('click', () => openModal(dateStr))
-
-      const dot = document.createElement('div')
-      dot.className = 'today-dot'
-      dayBox.appendChild(dot)
-
-      const num = document.createElement('span')
-      num.className = 'day-num'
-      num.textContent = d
-      dayBox.appendChild(num)
-
-      // Holiday labels (stacked)
-      dayHolidays.forEach(label => {
-        const hl = document.createElement('span')
-        hl.className = 'holiday-label'
-        hl.textContent = label
-        dayBox.appendChild(hl)
-      })
-
-      // Electrician pills (unchanged)
-      filtered.filter(e => e.work_date === dateStr).forEach(e => {
-        const pill = document.createElement('span')
-        pill.className = `pill ${getPillClass(e.electrician || '')}`
-        pill.textContent = e.electrician || '—'
-        dayBox.appendChild(pill)
-      })
-
-      calendar.appendChild(dayBox)
-    }
+  // Apply worker filter
+  let filteredRows = events
+  if (workerFilter) {
+    filteredRows = events.filter(r =>
+      (r.electrician || '').toLowerCase().includes(workerFilter)
+    )
   }
 
-  // ── Navigation (unchanged) ────────────────────────────────────────────────────
-  function changeMonth(delta) {
-    currentMonth += delta
-    if (currentMonth > 11) { currentMonth = 0; currentYear++ }
-    if (currentMonth < 0)  { currentMonth = 11; currentYear-- }
-    updateMonthDisplay()
-    loadCalendar()
-  }
-  function goToToday() {
-    const n = new Date()
-    currentYear = n.getFullYear(); currentMonth = n.getMonth()
-    updateMonthDisplay(); loadCalendar()
+  // Empty offset cells
+  for (let i = 0; i < firstDay; i++) {
+    const e = document.createElement('div')
+    e.className = 'day empty'
+    calendar.appendChild(e)
   }
 
-  // ── MODAL ─────────────────────────────────────────────────────────────────────
-  function openModal(dateStr) {
-    selectedDate = dateStr
-    document.getElementById('modalDate').textContent = formatDate(dateStr)
+  for (let d = 1; d <= lastDate; d++) {
+    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const isToday   = dateStr === todayStr
+    const dayOfWeek = new Date(currentYear, currentMonth, d).getDay()
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    const dayHols   = holidayMap.get(dateStr) || []
 
-    const scheduled = cachedEvents
-      .filter(e => e.work_date === dateStr)
-      .map(e => (e.electrician || '').toLowerCase())
+    const dayBox = document.createElement('div')
+    let cls = 'day'
+    if (isToday)   cls += ' today'
+    if (isWeekend) cls += ' weekend'
+    if (dayHols.length) cls += ' holiday-day'
+    dayBox.className = cls
+    dayBox.dataset.date = dateStr
+    dayBox.addEventListener('click', () => openModal(dateStr))
 
-    const list = document.getElementById('checklist')
-    list.innerHTML = ''
-    electricians.forEach((name, i) => {
-      const id = `chk-${i}`
-      const item = document.createElement('div')
-      item.className = 'check-item'
-      item.addEventListener('click', (ev) => {
-        if (ev.target.tagName !== 'INPUT') {
-          const cb = item.querySelector('input')
-          cb.checked = !cb.checked
-        }
-      })
-      const cb = document.createElement('input')
-      cb.type = 'checkbox'; cb.id = id; cb.value = name
-      cb.checked = scheduled.includes(name.toLowerCase())
-      const lbl = document.createElement('span')
-      lbl.className = 'check-label'; lbl.textContent = name
-      item.appendChild(cb); item.appendChild(lbl)
-      list.appendChild(item)
+    // Today dot
+    const dot = document.createElement('div')
+    dot.className = 'today-dot'
+    dayBox.appendChild(dot)
+
+    // Date number
+    const num = document.createElement('span')
+    num.className = 'day-num'
+    num.textContent = d
+    dayBox.appendChild(num)
+
+    // Holiday labels
+    dayHols.forEach(label => {
+      const hl = document.createElement('span')
+      hl.className = 'holiday-label'
+      hl.textContent = label
+      dayBox.appendChild(hl)
     })
 
-    const btn = document.getElementById('saveBtn')
-    btn.disabled = false; btn.textContent = 'Save'
-    document.getElementById('modalOverlay').classList.add('open')
-  }
-
-  function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('open')
-    selectedDate = null
-  }
-
-  document.getElementById('modalOverlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('modalOverlay')) closeModal()
-  })
-
-  // ── SAVE ──────────────────────────────────────────────────────────────────────
-  async function saveElectricians() {
-    if (!selectedDate) return
-    const btn = document.getElementById('saveBtn')
-    btn.disabled = true; btn.textContent = 'Saving…'
-
-    const checked = [...document.querySelectorAll('#checklist input:checked')].map(cb => cb.value)
-
-    const { error: delErr } = await supabaseClient
-      .from('electrician_calendar')
-      .delete()
-      .eq('work_date', selectedDate)
-
-    if (delErr) {
-      showToast('Delete failed: ' + delErr.message, true)
-      btn.disabled = false; btn.textContent = 'Save'; return
-    }
-
-    if (checked.length > 0) {
-      const rows = checked.map(name => ({ work_date: selectedDate, electrician: name }))
-      const { error: insErr } = await supabaseClient.from('electrician_calendar').insert(rows)
-      if (insErr) {
-        showToast('Save failed: ' + insErr.message, true)
-        btn.disabled = false; btn.textContent = 'Save'; return
-      }
-    }
-
-    closeModal()
-    showToast(`✓ Saved ${checked.length} electrician${checked.length !== 1 ? 's' : ''} for ${formatDate(selectedDate)}`)
-    loadCalendar()
-  }
-
-  // ── CSV UPLOAD (with deduplication + portal format support) ──────────────────
-  async function handleCSV(event) {
-    const file = event.target.files[0]
-    event.target.value = ''
-    if (!file) return
-
-    const text = await file.text()
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-    if (!lines.length) { showToast('CSV is empty', true); return }
-
-    // Parse header row to find column indices (case-insensitive)
-    const headerLine = lines[0]
-    const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim())
-
-    // Support portal format: "Scheduled Datetime" + "Field Worker"
-    // Also support simple format: "work_date" + "electrician"
-    const dtIdx   = headers.indexOf('scheduled datetime')
-    const fwIdx   = headers.indexOf('field worker')
-    const wdIdx   = headers.indexOf('work_date')
-    const elIdx   = headers.indexOf('electrician')
-
-    const isPortalFormat = dtIdx !== -1 && fwIdx !== -1
-    const isSimpleFormat = wdIdx !== -1 && elIdx !== -1
-
-    if (!isPortalFormat && !isSimpleFormat) {
-      showToast('CSV columns not recognised. Need "Scheduled Datetime"+"Field Worker" or "work_date"+"electrician"', true)
-      return
-    }
-
-    // Deduplicate using a Map keyed by "date|name"
-    const dedupMap = new Map()
-
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i])
-      if (!cols.length) continue
-
-      let work_date = '', electrician = ''
-
-      if (isPortalFormat) {
-        const raw = (cols[dtIdx] || '').trim()       // e.g. "09-Mar-2026 8:00AM"
-        const name = (cols[fwIdx] || '').trim()
-        if (!raw || !name) continue
-        work_date  = parsePortalDate(raw)
-        electrician = name
-      } else {
-        work_date  = (cols[wdIdx] || '').trim()
-        electrician = (cols[elIdx] || '').trim()
-      }
-
-      if (!work_date || !electrician) continue
-
-      const key = `${work_date}|${electrician.toLowerCase()}`
-      if (!dedupMap.has(key)) {
-        dedupMap.set(key, { work_date, electrician })
-      }
-    }
-
-    const rows = [...dedupMap.values()]
-    if (!rows.length) { showToast('No valid rows found in CSV', true); return }
-
-    showToast(`Uploading ${rows.length} unique row${rows.length !== 1 ? 's' : ''}…`)
-    const { error } = await supabaseClient.from('electrician_calendar').insert(rows)
-    if (error) { showToast('CSV upload failed: ' + error.message, true); return }
-
-    showToast(`✓ Inserted ${rows.length} unique row${rows.length !== 1 ? 's' : ''} from CSV`)
-    loadCalendar()
-  }
-
-  // Parse a single CSV line respecting quoted fields
-  function parseCSVLine(line) {
-    const result = []
-    let cur = '', inQuote = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (ch === '"') { inQuote = !inQuote }
-      else if (ch === ',' && !inQuote) { result.push(cur); cur = '' }
-      else { cur += ch }
-    }
-    result.push(cur)
-    return result
-  }
-
-  // Convert "09-Mar-2026 8:00AM" → "2026-03-09"
-  function parsePortalDate(raw) {
-    const MONTH_MAP = {
-      jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
-      jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'
-    }
-    // Matches: 09-Mar-2026 or 9-Mar-2026 (with optional time)
-    const m = raw.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/)
-    if (!m) return ''
-    const day  = String(m[1]).padStart(2,'0')
-    const mon  = MONTH_MAP[m[2].toLowerCase()] || ''
-    const year = m[3]
-    if (!mon) return ''
-    return `${year}-${mon}-${day}`
-  }
-
-  // ── PUBLIC HOLIDAYS (NSW, QLD, VIC) ──────────────────────────────────────────
-  // Returns array of { date: 'YYYY-MM-DD', name: string, states: string[] }
-  function getPublicHolidays(year) {
-    const holidays = []
-
-    function add(dateStr, name, states) {
-      holidays.push({ date: dateStr, name, states })
-    }
-
-    // Helper: format date to YYYY-MM-DD
-    function fmt(d) {
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    }
-
-    // Nth weekday of a month: nthWeekday(year, month 0-indexed, weekday 0=Sun, n 1-based)
-    function nthWeekday(y, m, wd, n) {
-      let count = 0
-      for (let d = 1; d <= 31; d++) {
-        const dt = new Date(y, m, d)
-        if (dt.getMonth() !== m) break
-        if (dt.getDay() === wd) { count++; if (count === n) return dt }
-      }
-    }
-
-    // Easter Sunday calculation (Anonymous Gregorian algorithm)
-    function easterSunday(y) {
-      const a = y % 19, b = Math.floor(y/100), c = y % 100
-      const d = Math.floor(b/4), e = b % 4
-      const f = Math.floor((b+8)/25), g = Math.floor((b-f+1)/3)
-      const h = (19*a + b - d - g + 15) % 30
-      const i = Math.floor(c/4), k = c % 4
-      const l = (32 + 2*e + 2*i - h - k) % 7
-      const mm = Math.floor((a + 11*h + 22*l) / 451)
-      const month = Math.floor((h + l - 7*mm + 114) / 31) - 1  // 0-indexed
-      const day   = ((h + l - 7*mm + 114) % 31) + 1
-      return new Date(y, month, day)
-    }
-
-    const allStates = ['NSW','QLD','VIC']
-
-    // ── National holidays ──
-    add(`${year}-01-01`, "New Year's Day", allStates)
-
-    // Australia Day: 26 Jan (observed Mon if weekend)
-    let ausDay = new Date(year, 0, 26)
-    if (ausDay.getDay() === 6) ausDay = new Date(year, 0, 28)
-    else if (ausDay.getDay() === 0) ausDay = new Date(year, 0, 27)
-    add(fmt(ausDay), 'Australia Day', allStates)
-
-    // Easter
-    const easter = easterSunday(year)
-    const goodFriday    = new Date(easter); goodFriday.setDate(easter.getDate() - 2)
-    const easterSat     = new Date(easter); easterSat.setDate(easter.getDate() - 1)
-    const easterMon     = new Date(easter); easterMon.setDate(easter.getDate() + 1)
-    add(fmt(goodFriday), 'Good Friday',    allStates)
-    add(fmt(easterSat),  'Easter Saturday', allStates)
-    add(fmt(easter),     'Easter Sunday',   allStates)
-    add(fmt(easterMon),  'Easter Monday',   allStates)
-
-    // ANZAC Day: 25 Apr
-    add(`${year}-04-25`, 'ANZAC Day', allStates)
-
-    // Christmas Day: 25 Dec
-    let xmas = new Date(year, 11, 25)
-    if (xmas.getDay() === 6) xmas = new Date(year, 11, 27)       // Sat → Mon
-    else if (xmas.getDay() === 0) xmas = new Date(year, 11, 27)  // Sun → Mon (Boxing takes Tue)
-    add(fmt(xmas), 'Christmas Day', allStates)
-
-    // Boxing Day: 26 Dec
-    let boxing = new Date(year, 11, 26)
-    if (boxing.getDay() === 6) boxing = new Date(year, 11, 28)
-    else if (boxing.getDay() === 0) boxing = new Date(year, 11, 28)
-    else if (boxing.getDay() === 1 && xmas.getDate() === 27) boxing = new Date(year, 11, 28)
-    add(fmt(boxing), 'Boxing Day', allStates)
-
-    // ── NSW specific ──
-    // Labour Day NSW: first Monday in October
-    add(fmt(nthWeekday(year, 9, 1, 1)), 'Labour Day', ['NSW'])
-
-    // ── QLD specific ──
-    // Labour Day QLD: first Monday in May
-    add(fmt(nthWeekday(year, 4, 1, 1)), 'Labour Day', ['QLD'])
-    // Royal Queensland Show: second Wednesday in August (Brisbane — widely observed)
-    add(fmt(nthWeekday(year, 7, 3, 2)), 'Royal Queensland Show', ['QLD'])
-
-    // ── VIC specific ──
-    // Labour Day VIC: second Monday in March
-    add(fmt(nthWeekday(year, 2, 1, 2)), 'Labour Day', ['VIC'])
-    // Melbourne Cup Day: first Tuesday in November
-    add(fmt(nthWeekday(year, 10, 2, 1)), 'Melbourne Cup Day', ['VIC'])
-
-    return holidays
-  }
-
-  // Build a lookup map: dateStr → [ { name, state } ]
-  function buildHolidayMap(year) {
-    const map = new Map()
-    getPublicHolidays(year).forEach(h => {
-      h.states.forEach(state => {
-        const label = h.states.length === allStatesCount ? `${h.name} (All States)` : `${h.name} (${state})`
-        if (!map.has(h.date)) map.set(h.date, [])
-        map.get(h.date).push(label)
-      })
+    // Electrician pills
+    filteredRows.filter(e => e.work_date === dateStr).forEach(e => {
+      const pill = document.createElement('span')
+      pill.className = `pill ${getPillClass(e.electrician || '')}`
+      pill.textContent = e.electrician || '—'
+      pill.title = e.electrician || ''
+      dayBox.appendChild(pill)
     })
-    return map
-  }
-  const allStatesCount = 3   // NSW, QLD, VIC
 
-  // ── HELPERS ───────────────────────────────────────────────────────────────────
-  function formatDate(str) {
-    const [y,m,d] = str.split('-')
-    return new Date(+y, +m-1, +d)
-      .toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'long', year:'numeric' })
+    calendar.appendChild(dayBox)
   }
+}
 
-  let toastTimer
-  function showToast(msg, isError = false) {
-    const el = document.getElementById('toast')
-    el.textContent = msg
-    el.className = 'toast' + (isError ? ' error' : '')
-    void el.offsetWidth
-    el.classList.add('show')
-    clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => el.classList.remove('show'), 3200)
-  }
-
-  // ── INIT ──────────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// NAVIGATION (unchanged logic)
+// ════════════════════════════════════════════════════════════
+function changeMonth(delta) {
+  currentMonth += delta
+  if (currentMonth > 11) { currentMonth = 0;  currentYear++ }
+  if (currentMonth < 0)  { currentMonth = 11; currentYear-- }
   updateMonthDisplay()
   loadCalendar()
+}
+
+function goToToday() {
+  const n = new Date()
+  currentYear  = n.getFullYear()
+  currentMonth = n.getMonth()
+  updateMonthDisplay()
+  loadCalendar()
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL
+// ════════════════════════════════════════════════════════════
+function openModal(dateStr) {
+  selectedDate = dateStr
+  document.getElementById('modalDate').textContent = formatDate(dateStr)
+
+  const scheduled = cachedEvents
+    .filter(e => e.work_date === dateStr)
+    .map(e => (e.electrician || '').toLowerCase())
+
+  const list = document.getElementById('checklist')
+  list.innerHTML = ''
+  electricians.forEach((name, i) => {
+    const id   = `chk-${i}`
+    const item = document.createElement('div')
+    item.className = 'check-item'
+    item.addEventListener('click', ev => {
+      if (ev.target.tagName !== 'INPUT') {
+        item.querySelector('input').checked = !item.querySelector('input').checked
+      }
+    })
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'; cb.id = id; cb.value = name
+    cb.checked = scheduled.includes(name.toLowerCase())
+    const lbl = document.createElement('span')
+    lbl.className = 'check-label'; lbl.textContent = name
+    item.appendChild(cb); item.appendChild(lbl)
+    list.appendChild(item)
+  })
+
+  const btn = document.getElementById('saveBtn')
+  btn.disabled = false; btn.textContent = 'Save'
+  document.getElementById('modalOverlay').classList.add('open')
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open')
+  selectedDate = null
+}
+
+// ════════════════════════════════════════════════════════════
+// SAVE
+// ════════════════════════════════════════════════════════════
+async function saveElectricians() {
+  if (!selectedDate) return
+  const btn = document.getElementById('saveBtn')
+  btn.disabled = true; btn.textContent = 'Saving…'
+
+  const checked = [...document.querySelectorAll('#checklist input:checked')].map(cb => cb.value)
+
+  const { error: delErr } = await supabaseClient
+    .from('electrician_calendar')
+    .delete()
+    .eq('work_date', selectedDate)
+
+  if (delErr) {
+    showToast('Delete failed: ' + delErr.message, true)
+    btn.disabled = false; btn.textContent = 'Save'; return
+  }
+
+  if (checked.length > 0) {
+    const rows = checked.map(name => ({ work_date: selectedDate, electrician: name }))
+    const { error: insErr } = await supabaseClient.from('electrician_calendar').insert(rows)
+    if (insErr) {
+      showToast('Save failed: ' + insErr.message, true)
+      btn.disabled = false; btn.textContent = 'Save'; return
+    }
+  }
+
+  closeModal()
+  showToast(`✓ Saved ${checked.length} electrician${checked.length !== 1 ? 's' : ''} for ${formatDate(selectedDate)}`)
+  loadCalendar()
+}
+
+// ════════════════════════════════════════════════════════════
+// CSV UPLOAD — deduplicated, portal format aware
+// ════════════════════════════════════════════════════════════
+async function handleCSV(event) {
+  const file = event.target.files[0]
+  event.target.value = ''
+  if (!file) return
+
+  const text = await file.text()
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  if (!lines.length) { showToast('CSV is empty', true); return }
+
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim())
+  const dtIdx   = headers.indexOf('scheduled datetime')
+  const fwIdx   = headers.indexOf('field worker')
+  const wdIdx   = headers.indexOf('work_date')
+  const elIdx   = headers.indexOf('electrician')
+
+  const isPortal = dtIdx !== -1 && fwIdx !== -1
+  const isSimple = wdIdx !== -1 && elIdx !== -1
+
+  if (!isPortal && !isSimple) {
+    showToast('CSV columns not recognised. Need "Scheduled Datetime"+"Field Worker" or "work_date"+"electrician"', true)
+    return
+  }
+
+  const dedupMap = new Map()
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i])
+    if (!cols.length) continue
+    let work_date = '', electrician = ''
+    if (isPortal) {
+      const raw = (cols[dtIdx] || '').trim()
+      const name = (cols[fwIdx] || '').trim()
+      if (!raw || !name) continue
+      work_date   = parsePortalDate(raw)
+      electrician = name
+    } else {
+      work_date   = (cols[wdIdx] || '').trim()
+      electrician = (cols[elIdx] || '').trim()
+    }
+    if (!work_date || !electrician) continue
+    const key = `${work_date}|${electrician.toLowerCase()}`
+    if (!dedupMap.has(key)) dedupMap.set(key, { work_date, electrician })
+  }
+
+  const rows = [...dedupMap.values()]
+  if (!rows.length) { showToast('No valid rows found in CSV', true); return }
+
+  showToast(`Uploading ${rows.length} unique row${rows.length !== 1 ? 's' : ''}…`)
+  const { error } = await supabaseClient.from('electrician_calendar').insert(rows)
+  if (error) { showToast('CSV upload failed: ' + error.message, true); return }
+
+  showToast(`✓ Inserted ${rows.length} unique row${rows.length !== 1 ? 's' : ''} from CSV`)
+  loadCalendar()
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = '', inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') { inQ = !inQ }
+    else if (ch === ',' && !inQ) { result.push(cur); cur = '' }
+    else { cur += ch }
+  }
+  result.push(cur)
+  return result
+}
+
+function parsePortalDate(raw) {
+  const MM = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'}
+  const m  = raw.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/)
+  if (!m) return ''
+  return `${m[3]}-${MM[m[2].toLowerCase()]||''}-${String(m[1]).padStart(2,'0')}`
+}
+
+// ════════════════════════════════════════════════════════════
+// PUBLIC HOLIDAYS — NSW, QLD, VIC — any year
+// ════════════════════════════════════════════════════════════
+function getPublicHolidays(year) {
+  const hols = []
+  const ALL  = ['NSW','QLD','VIC']
+
+  function add(ds, name, states) { hols.push({ date: ds, name, states }) }
+  function fmt(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+  function nth(y, m, wd, n) {
+    let count = 0
+    for (let d = 1; d <= 31; d++) {
+      const dt = new Date(y, m, d)
+      if (dt.getMonth() !== m) break
+      if (dt.getDay() === wd && ++count === n) return dt
+    }
+  }
+  function easterSunday(y) {
+    const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4
+    const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3)
+    const h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4
+    const l=(32+2*e+2*i-h-k)%7, mm=Math.floor((a+11*h+22*l)/451)
+    return new Date(y, Math.floor((h+l-7*mm+114)/31)-1, ((h+l-7*mm+114)%31)+1)
+  }
+
+  // New Year's Day
+  add(`${year}-01-01`, "New Year's Day", ALL)
+
+  // Australia Day 26 Jan (substitute if weekend)
+  let ad = new Date(year, 0, 26)
+  if (ad.getDay()===6) ad = new Date(year,0,28)
+  else if (ad.getDay()===0) ad = new Date(year,0,27)
+  add(fmt(ad), 'Australia Day', ALL)
+
+  // Easter
+  const es = easterSunday(year)
+  const gf = new Date(es); gf.setDate(es.getDate()-2)
+  const esa= new Date(es); esa.setDate(es.getDate()-1)
+  const em = new Date(es); em.setDate(es.getDate()+1)
+  add(fmt(gf), 'Good Friday', ALL)
+  add(fmt(esa),'Easter Saturday', ALL)
+  add(fmt(es), 'Easter Sunday', ALL)
+  add(fmt(em), 'Easter Monday', ALL)
+
+  // ANZAC Day
+  add(`${year}-04-25`, 'ANZAC Day', ALL)
+
+  // Christmas (substitute if weekend)
+  let xd = new Date(year,11,25)
+  if (xd.getDay()===6) xd=new Date(year,11,27)
+  else if (xd.getDay()===0) xd=new Date(year,11,27)
+  add(fmt(xd), 'Christmas Day', ALL)
+
+  // Boxing Day
+  let bd = new Date(year,11,26)
+  if (bd.getDay()===6||bd.getDay()===0) bd=new Date(year,11,28)
+  else if (bd.getTime()===xd.getTime()) bd=new Date(year,11,28)
+  add(fmt(bd), 'Boxing Day', ALL)
+
+  // NSW Labour Day: 1st Monday October
+  add(fmt(nth(year,9,1,1)), 'Labour Day', ['NSW'])
+  // QLD Labour Day: 1st Monday May
+  add(fmt(nth(year,4,1,1)), 'Labour Day', ['QLD'])
+  // QLD Royal Queensland Show: 2nd Wednesday August
+  add(fmt(nth(year,7,3,2)), 'Royal Queensland Show', ['QLD'])
+  // VIC Labour Day: 2nd Monday March
+  add(fmt(nth(year,2,1,2)), 'Labour Day', ['VIC'])
+  // VIC Melbourne Cup: 1st Tuesday November
+  add(fmt(nth(year,10,2,1)), 'Melbourne Cup Day', ['VIC'])
+
+  return hols
+}
+
+function buildHolidayMap(year) {
+  const map = new Map()
+  getPublicHolidays(year).forEach(h => {
+    const isAll = h.states.length === 3
+    h.states.forEach(state => {
+      const label = isAll ? `${h.name} (All States)` : `${h.name} (${state})`
+      if (!map.has(h.date)) map.set(h.date, [])
+      // Avoid duplicate "All States" entries
+      if (!map.get(h.date).includes(label)) map.get(h.date).push(label)
+    })
+  })
+  return map
+}
+
+// ════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════
+function formatDate(str) {
+  const [y,m,d] = str.split('-')
+  return new Date(+y,+m-1,+d)
+    .toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'long', year:'numeric' })
+}
+
+let _toastTimer
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = 'toast' + (isError ? ' error' : '')
+  void el.offsetWidth
+  el.classList.add('show')
+  clearTimeout(_toastTimer)
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200)
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+updateMonthDisplay()
+loadCalendar()
 </script>
 </body>
 </html>
