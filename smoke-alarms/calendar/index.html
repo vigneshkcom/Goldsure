@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Goldsure Electrician Calendar</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+margin:30px;
+background:#f7f7f7;
+}
+
+h1{
+margin-bottom:20px;
+}
+
+.calendar{
+display:grid;
+grid-template-columns:repeat(7,1fr);
+gap:10px;
+}
+
+.day{
+background:white;
+border-radius:6px;
+padding:10px;
+min-height:90px;
+box-shadow:0 1px 3px rgba(0,0,0,0.1);
+}
+
+.date{
+font-weight:bold;
+margin-bottom:5px;
+}
+
+.worker{
+background:#e7f3ff;
+padding:4px 6px;
+margin-top:4px;
+border-radius:4px;
+font-size:12px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Goldsure Team Calendar</h1>
+
+<div id="calendar" class="calendar"></div>
+
+<script>
+
+const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
+const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+async function loadCalendar(){
+
+const { data } = await supabaseClient
+.from("electrician_calendar")
+.select("*")
+
+renderCalendar(data)
+
+}
+
+function renderCalendar(events){
+
+const calendar = document.getElementById("calendar")
+
+const today = new Date()
+const year = today.getFullYear()
+const month = today.getMonth()
+
+const lastDay = new Date(year,month+1,0)
+
+for(let d=1; d<=lastDay.getDate(); d++){
+
+const date = new Date(year,month,d)
+const dateStr = date.toISOString().split("T")[0]
+
+const dayBox = document.createElement("div")
+dayBox.className="day"
+
+const dateLabel = document.createElement("div")
+dateLabel.className="date"
+dateLabel.innerText=d
+
+dayBox.appendChild(dateLabel)
+
+events
+.filter(e=>e.work_date===dateStr)
+.forEach(e=>{
+
+const worker=document.createElement("div")
+worker.className="worker"
+worker.innerText=e.electrician
+
+dayBox.appendChild(worker)
+
+})
+
+calendar.appendChild(dayBox)
+
+}
+
+}
+
+loadCalendar()
+
+</script>
+
+</body>
+</html>
