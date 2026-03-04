@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Electrician Calendar</title>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
@@ -299,15 +299,17 @@ header {
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .avail-btn.yes {
-  background: var(--surface2); border-color: var(--border); color: var(--text);
+  background: #dcfce7; border-color: #86efac; color: #166534;
 }
-.avail-btn.yes:hover { background: #f0fdf4; border-color: #86efac; color: #166534; }
-.avail-btn.yes.active { background: #166534; border-color: #166534; color: #fff; }
+.avail-btn.yes:hover, .avail-btn.yes.active {
+  background: #16a34a; border-color: #16a34a; color: #fff;
+}
 .avail-btn.no {
-  background: var(--surface2); border-color: var(--border); color: var(--text);
+  background: #fee2e2; border-color: #fca5a5; color: #991b1b;
 }
-.avail-btn.no:hover { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
-.avail-btn.no.active { background: #991b1b; border-color: #991b1b; color: #fff; }
+.avail-btn.no:hover, .avail-btn.no.active {
+  background: #dc2626; border-color: #dc2626; color: #fff;
+}
 
 /* ══════════════════════════════════════════════════════════
    MODAL
@@ -669,16 +671,20 @@ header {
   font-size: 11px; color: var(--muted); line-height: 1.7;
 }
 .footer-contact {
-  display: flex; flex-direction: row; align-items: center;
-  gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
 }
-.footer-sep { color: var(--muted); font-size: 12px; }
 .footer-link {
-  color: var(--gold-dark); text-decoration: none;
-  font-size: 12px; font-weight: 600;
-  transition: color 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text); text-decoration: none;
+  font-size: 13px; font-weight: 600;
+  transition: color 0.15s;
 }
-.footer-link:hover { color: var(--gold); text-decoration: underline; }
+.footer-link:hover { color: var(--gold); }
+.footer-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; background: var(--gold-bg);
+  border-radius: 50%; font-size: 14px; flex-shrink: 0;
+}
 .footer-copy {
   max-width: 1280px; margin: 16px auto 0;
   padding-top: 12px; border-top: 1px solid var(--border);
@@ -686,13 +692,10 @@ header {
   text-align: center; letter-spacing: 0.3px;
 }
 @media (max-width: 640px) {
-  .site-footer { padding: 16px 14px 12px; }
-  .footer-inner { flex-direction: column; gap: 10px; }
-  .footer-contact { justify-content: flex-start; gap: 6px; }
-  .footer-link { font-size: 11px; }
-  .footer-sep { font-size: 11px; }
-  .footer-company { font-size: 12px; }
-  .footer-address { font-size: 10px; line-height: 1.5; }
+  .site-footer { padding: 20px 16px 14px; }
+  .footer-inner { flex-direction: column; gap: 16px; }
+  .footer-contact { align-items: flex-start; }
+  .footer-link { font-size: 12px; }
 }
 </style>
 </head>
@@ -784,8 +787,8 @@ header {
         <span id="availStatusText">What is your availability?</span>
       </div>
       <div class="avail-btns" id="availBtns">
-        <button class="avail-btn yes" id="availYes" onclick="setAvailability(true)">Available</button>
-        <button class="avail-btn no"  id="availNo"  onclick="setAvailability(false)">Not Available</button>
+        <button class="avail-btn yes" id="availYes" onclick="setAvailability(true)">✓ Available</button>
+        <button class="avail-btn no"  id="availNo"  onclick="setAvailability(false)">✗ Not Available</button>
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()" style="flex:1;">Close</button>
@@ -809,9 +812,12 @@ header {
       </div>
     </div>
     <div class="footer-contact">
-      <a href="tel:0721455155" class="footer-link">(07) 2145 5155</a>
-      <span class="footer-sep">·</span>
-      <a href="mailto:info@goldsure.com.au" class="footer-link">info@goldsure.com.au</a>
+      <a href="tel:0721455155" class="footer-link">
+        <span class="footer-icon">📞</span>(07) 2145 5155
+      </a>
+      <a href="mailto:info@goldsure.com.au" data-orig="771e1911183710181b13040205125914181a591602" class="footer-link">
+        <span class="footer-icon">✉️</span>info@goldsure.com.au
+      </a>
     </div>
   </div>
   <div class="footer-copy">© 2025 Goldsure Pty Ltd · All rights reserved</div>
@@ -823,34 +829,26 @@ header {
 // ════════════════════════════════════════════════════════════
 const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
 const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+const _sb = (window.supabase || supabase).createClient(SUPABASE_URL, SUPABASE_KEY)
+
 const db = {
-  _h: () => ({
-    'apikey': SUPABASE_KEY,
-    'Authorization': 'Bearer ' + SUPABASE_KEY,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=minimal'
-  }),
   async select(table) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, { headers: db._h() })
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
-    return r.json()
+    const { data, error } = await _sb.from(table).select('*')
+    if (error) throw new Error(error.message)
+    return data || []
   },
   async insert(table, rows) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-      method: 'POST', headers: db._h(), body: JSON.stringify(rows)
-    })
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
+    const { error } = await _sb.from(table).insert(rows)
+    if (error) throw new Error(error.message)
   },
   async delete(table, filters) {
-    const qs = Object.entries(filters).map(([k, v]) =>
-      v && v.in
-        ? `${k}=in.(${v.in.map(x => encodeURIComponent(x)).join(',')})`
-        : `${k}=eq.${encodeURIComponent(v)}`
-    ).join('&')
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`, {
-      method: 'DELETE', headers: db._h()
-    })
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
+    let q = _sb.from(table).delete()
+    for (const [k, v] of Object.entries(filters)) {
+      if (v && typeof v === 'object' && v.in) q = q.in(k, v.in)
+      else q = q.eq(k, v)
+    }
+    const { error } = await q
+    if (error) throw new Error(error.message)
   }
 }
 
@@ -1238,14 +1236,9 @@ async function setAvailability(isAvailable) {
   const statusEl   = document.getElementById('availStatus')
   const statusText = document.getElementById('availStatusText')
 
-  // If tapping the already-active choice, clear it entirely (toggle off)
-  const isClearingYes = isAvailable  && _workerAvailChoice === true
-  const isClearingNo  = !isAvailable && _workerAvailChoice === false
-  const isClearing    = isClearingYes || isClearingNo
-
   yesBtn.disabled = true; noBtn.disabled = true
 
-  // Always remove existing markers first
+  // Remove any existing avail/unavail markers for this worker+date
   const toDelete = cachedEvents
     .filter(e => e.work_date === selectedDate &&
       (
@@ -1261,42 +1254,30 @@ async function setAvailability(isAvailable) {
     })
   }
 
-  if (!isClearing) {
-    // Insert new marker only if not toggling off
-    const marker = isAvailable ? availKey : unavailKey
-    await db.insert('electrician_calendar', [{ work_date: selectedDate, electrician: marker }])
-  }
+  // Insert new marker
+  const marker = isAvailable ? availKey : unavailKey
+  await db.insert('electrician_calendar', [{ work_date: selectedDate, electrician: marker }])
 
   yesBtn.disabled = false; noBtn.disabled = false
 
-  if (isClearing) {
-    // Reset to blank
-    _workerAvailChoice = null
-    yesBtn.classList.remove('active')
-    noBtn.classList.remove('active')
-    statusEl.className = 'avail-status open'
-    statusEl.querySelector('.avail-icon').textContent = '📅'
-    statusText.textContent = `Let the scheduler know your availability.`
-    showToast(`✓ ${workerName}: Availability cleared for ${formatDate(selectedDate)}`)
-  } else {
-    yesBtn.classList.toggle('active', isAvailable)
-    noBtn.classList.toggle('active', !isAvailable)
-    _workerAvailChoice = isAvailable
+  // Update UI
+  yesBtn.classList.toggle('active', isAvailable)
+  noBtn.classList.toggle('active', !isAvailable)
+  _workerAvailChoice = isAvailable
 
-    if (isAvailable) {
-      statusEl.className = 'avail-status available'
-      statusEl.querySelector('.avail-icon').textContent = '✅'
-      statusText.textContent = `Marked as available — the scheduler can now book you.`
-      showToast(`✓ ${workerName}: Available on ${formatDate(selectedDate)}`)
-    } else {
-      statusEl.className = 'avail-status unavailable'
-      statusEl.querySelector('.avail-icon').textContent = '❌'
-      statusText.textContent = `Marked as unavailable for this day.`
-      showToast(`✓ ${workerName}: Unavailable on ${formatDate(selectedDate)}`)
-    }
+  if (isAvailable) {
+    statusEl.className = 'avail-status available'
+    statusEl.querySelector('.avail-icon').textContent = '✅'
+    statusText.textContent = `Marked as available — the scheduler can now book you.`
+    showToast(`✓ ${workerName}: Available on ${formatDate(selectedDate)}`)
+  } else {
+    statusEl.className = 'avail-status unavailable'
+    statusEl.querySelector('.avail-icon').textContent = '❌'
+    statusText.textContent = `Marked as unavailable for this day.`
+    showToast(`✓ ${workerName}: Unavailable on ${formatDate(selectedDate)}`)
   }
 
-  // Refresh cache
+  // Refresh cache without full reload
   loadCalendar()
 }
 
@@ -1580,3 +1561,14 @@ function showShareMenu(event) {
 
 function closeShareMenu() {
   if (_shareMenuEl) { _shareMenuEl.remove(); _shareMenuEl = null }
+  document.removeEventListener('click', closeShareMenuOutside)
+}
+
+function closeShareMenuOutside(e) {
+  if (_shareMenuEl && !_shareMenuEl.contains(e.target) && e.target.id !== 'shareLinkBtn') {
+    closeShareMenu()
+  }
+}
+</script>
+</body>
+</html>
