@@ -162,6 +162,10 @@
   .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
 
+  /* HOLIDAYS */
+  .holiday-day { background: #fff2cc !important; border: 2px solid #f0b400 !important; }
+  .holiday-label { display:block; font-size:10px; font-weight:600; color:#b8860b; margin-top:4px; line-height:1.3; white-space:normal; }
+
   /* MODAL */
   .modal-overlay {
     position: fixed; inset: 0;
@@ -324,7 +328,7 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
   // ── Electricians ──────────────────────────────────────────────────────────────
-  const electricians = ["Corey Roussow", "Adam Pearl", "William Openshaw"]
+  const electricians = ["Corey", "Adam", "William", "Daniel"]
 
   // ── State ─────────────────────────────────────────────────────────────────────
   const now = new Date()
@@ -388,6 +392,9 @@
     const firstDay = new Date(currentYear, currentMonth, 1).getDay()
     const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate()
 
+    // Build holiday map for current year (+ next year for Dec-Jan edge cases)
+    const holidayMap = buildHolidayMap(currentYear)
+
     const filtered = workerFilter
       ? events.filter(e => (e.electrician || '').toLowerCase().includes(workerFilter))
       : events
@@ -402,9 +409,12 @@
     for (let d = 1; d <= lastDate; d++) {
       const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       const isToday = dateStr === todayStr
+      const dayHolidays = holidayMap.get(dateStr) || []
 
       const dayBox = document.createElement('div')
-      dayBox.className = 'day' + (isToday ? ' today' : '')
+      let cls = 'day' + (isToday ? ' today' : '')
+      if (dayHolidays.length) cls += ' holiday-day'
+      dayBox.className = cls
       dayBox.dataset.date = dateStr
       dayBox.addEventListener('click', () => openModal(dateStr))
 
@@ -417,6 +427,15 @@
       num.textContent = d
       dayBox.appendChild(num)
 
+      // Holiday labels (stacked)
+      dayHolidays.forEach(label => {
+        const hl = document.createElement('span')
+        hl.className = 'holiday-label'
+        hl.textContent = label
+        dayBox.appendChild(hl)
+      })
+
+      // Electrician pills (unchanged)
       filtered.filter(e => e.work_date === dateStr).forEach(e => {
         const pill = document.createElement('span')
         pill.className = `pill ${getPillClass(e.electrician || '')}`
@@ -518,7 +537,7 @@
     loadCalendar()
   }
 
-  // ── CSV UPLOAD ────────────────────────────────────────────────────────────────
+  // ── CSV UPLOAD (with deduplication + portal format support) ──────────────────
   async function handleCSV(event) {
     const file = event.target.files[0]
     event.target.value = ''
@@ -526,23 +545,203 @@
 
     const text = await file.text()
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-    const dataLines = lines[0].toLowerCase().startsWith('work_date') ? lines.slice(1) : lines
+    if (!lines.length) { showToast('CSV is empty', true); return }
 
-    const rows = []
-    for (const line of dataLines) {
-      const [work_date, electrician] = line.split(',').map(s => s.trim())
-      if (work_date && electrician) rows.push({ work_date, electrician })
+    // Parse header row to find column indices (case-insensitive)
+    const headerLine = lines[0]
+    const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim())
+
+    // Support portal format: "Scheduled Datetime" + "Field Worker"
+    // Also support simple format: "work_date" + "electrician"
+    const dtIdx   = headers.indexOf('scheduled datetime')
+    const fwIdx   = headers.indexOf('field worker')
+    const wdIdx   = headers.indexOf('work_date')
+    const elIdx   = headers.indexOf('electrician')
+
+    const isPortalFormat = dtIdx !== -1 && fwIdx !== -1
+    const isSimpleFormat = wdIdx !== -1 && elIdx !== -1
+
+    if (!isPortalFormat && !isSimpleFormat) {
+      showToast('CSV columns not recognised. Need "Scheduled Datetime"+"Field Worker" or "work_date"+"electrician"', true)
+      return
     }
 
+    // Deduplicate using a Map keyed by "date|name"
+    const dedupMap = new Map()
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i])
+      if (!cols.length) continue
+
+      let work_date = '', electrician = ''
+
+      if (isPortalFormat) {
+        const raw = (cols[dtIdx] || '').trim()       // e.g. "09-Mar-2026 8:00AM"
+        const name = (cols[fwIdx] || '').trim()
+        if (!raw || !name) continue
+        work_date  = parsePortalDate(raw)
+        electrician = name
+      } else {
+        work_date  = (cols[wdIdx] || '').trim()
+        electrician = (cols[elIdx] || '').trim()
+      }
+
+      if (!work_date || !electrician) continue
+
+      const key = `${work_date}|${electrician.toLowerCase()}`
+      if (!dedupMap.has(key)) {
+        dedupMap.set(key, { work_date, electrician })
+      }
+    }
+
+    const rows = [...dedupMap.values()]
     if (!rows.length) { showToast('No valid rows found in CSV', true); return }
 
-    showToast(`Uploading ${rows.length} row${rows.length !== 1 ? 's' : ''}…`)
+    showToast(`Uploading ${rows.length} unique row${rows.length !== 1 ? 's' : ''}…`)
     const { error } = await supabaseClient.from('electrician_calendar').insert(rows)
     if (error) { showToast('CSV upload failed: ' + error.message, true); return }
 
-    showToast(`✓ Inserted ${rows.length} row${rows.length !== 1 ? 's' : ''} from CSV`)
+    showToast(`✓ Inserted ${rows.length} unique row${rows.length !== 1 ? 's' : ''} from CSV`)
     loadCalendar()
   }
+
+  // Parse a single CSV line respecting quoted fields
+  function parseCSVLine(line) {
+    const result = []
+    let cur = '', inQuote = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') { inQuote = !inQuote }
+      else if (ch === ',' && !inQuote) { result.push(cur); cur = '' }
+      else { cur += ch }
+    }
+    result.push(cur)
+    return result
+  }
+
+  // Convert "09-Mar-2026 8:00AM" → "2026-03-09"
+  function parsePortalDate(raw) {
+    const MONTH_MAP = {
+      jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
+      jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'
+    }
+    // Matches: 09-Mar-2026 or 9-Mar-2026 (with optional time)
+    const m = raw.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/)
+    if (!m) return ''
+    const day  = String(m[1]).padStart(2,'0')
+    const mon  = MONTH_MAP[m[2].toLowerCase()] || ''
+    const year = m[3]
+    if (!mon) return ''
+    return `${year}-${mon}-${day}`
+  }
+
+  // ── PUBLIC HOLIDAYS (NSW, QLD, VIC) ──────────────────────────────────────────
+  // Returns array of { date: 'YYYY-MM-DD', name: string, states: string[] }
+  function getPublicHolidays(year) {
+    const holidays = []
+
+    function add(dateStr, name, states) {
+      holidays.push({ date: dateStr, name, states })
+    }
+
+    // Helper: format date to YYYY-MM-DD
+    function fmt(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    }
+
+    // Nth weekday of a month: nthWeekday(year, month 0-indexed, weekday 0=Sun, n 1-based)
+    function nthWeekday(y, m, wd, n) {
+      let count = 0
+      for (let d = 1; d <= 31; d++) {
+        const dt = new Date(y, m, d)
+        if (dt.getMonth() !== m) break
+        if (dt.getDay() === wd) { count++; if (count === n) return dt }
+      }
+    }
+
+    // Easter Sunday calculation (Anonymous Gregorian algorithm)
+    function easterSunday(y) {
+      const a = y % 19, b = Math.floor(y/100), c = y % 100
+      const d = Math.floor(b/4), e = b % 4
+      const f = Math.floor((b+8)/25), g = Math.floor((b-f+1)/3)
+      const h = (19*a + b - d - g + 15) % 30
+      const i = Math.floor(c/4), k = c % 4
+      const l = (32 + 2*e + 2*i - h - k) % 7
+      const mm = Math.floor((a + 11*h + 22*l) / 451)
+      const month = Math.floor((h + l - 7*mm + 114) / 31) - 1  // 0-indexed
+      const day   = ((h + l - 7*mm + 114) % 31) + 1
+      return new Date(y, month, day)
+    }
+
+    const allStates = ['NSW','QLD','VIC']
+
+    // ── National holidays ──
+    add(`${year}-01-01`, "New Year's Day", allStates)
+
+    // Australia Day: 26 Jan (observed Mon if weekend)
+    let ausDay = new Date(year, 0, 26)
+    if (ausDay.getDay() === 6) ausDay = new Date(year, 0, 28)
+    else if (ausDay.getDay() === 0) ausDay = new Date(year, 0, 27)
+    add(fmt(ausDay), 'Australia Day', allStates)
+
+    // Easter
+    const easter = easterSunday(year)
+    const goodFriday    = new Date(easter); goodFriday.setDate(easter.getDate() - 2)
+    const easterSat     = new Date(easter); easterSat.setDate(easter.getDate() - 1)
+    const easterMon     = new Date(easter); easterMon.setDate(easter.getDate() + 1)
+    add(fmt(goodFriday), 'Good Friday',    allStates)
+    add(fmt(easterSat),  'Easter Saturday', allStates)
+    add(fmt(easter),     'Easter Sunday',   allStates)
+    add(fmt(easterMon),  'Easter Monday',   allStates)
+
+    // ANZAC Day: 25 Apr
+    add(`${year}-04-25`, 'ANZAC Day', allStates)
+
+    // Christmas Day: 25 Dec
+    let xmas = new Date(year, 11, 25)
+    if (xmas.getDay() === 6) xmas = new Date(year, 11, 27)       // Sat → Mon
+    else if (xmas.getDay() === 0) xmas = new Date(year, 11, 27)  // Sun → Mon (Boxing takes Tue)
+    add(fmt(xmas), 'Christmas Day', allStates)
+
+    // Boxing Day: 26 Dec
+    let boxing = new Date(year, 11, 26)
+    if (boxing.getDay() === 6) boxing = new Date(year, 11, 28)
+    else if (boxing.getDay() === 0) boxing = new Date(year, 11, 28)
+    else if (boxing.getDay() === 1 && xmas.getDate() === 27) boxing = new Date(year, 11, 28)
+    add(fmt(boxing), 'Boxing Day', allStates)
+
+    // ── NSW specific ──
+    // Labour Day NSW: first Monday in October
+    add(fmt(nthWeekday(year, 9, 1, 1)), 'Labour Day', ['NSW'])
+
+    // ── QLD specific ──
+    // Labour Day QLD: first Monday in May
+    add(fmt(nthWeekday(year, 4, 1, 1)), 'Labour Day', ['QLD'])
+    // Royal Queensland Show: second Wednesday in August (Brisbane — widely observed)
+    add(fmt(nthWeekday(year, 7, 3, 2)), 'Royal Queensland Show', ['QLD'])
+
+    // ── VIC specific ──
+    // Labour Day VIC: second Monday in March
+    add(fmt(nthWeekday(year, 2, 1, 2)), 'Labour Day', ['VIC'])
+    // Melbourne Cup Day: first Tuesday in November
+    add(fmt(nthWeekday(year, 10, 2, 1)), 'Melbourne Cup Day', ['VIC'])
+
+    return holidays
+  }
+
+  // Build a lookup map: dateStr → [ { name, state } ]
+  function buildHolidayMap(year) {
+    const map = new Map()
+    getPublicHolidays(year).forEach(h => {
+      h.states.forEach(state => {
+        const label = h.states.length === allStatesCount ? `${h.name} (All States)` : `${h.name} (${state})`
+        if (!map.has(h.date)) map.set(h.date, [])
+        map.get(h.date).push(label)
+      })
+    })
+    return map
+  }
+  const allStatesCount = 3   // NSW, QLD, VIC
 
   // ── HELPERS ───────────────────────────────────────────────────────────────────
   function formatDate(str) {
