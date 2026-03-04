@@ -252,10 +252,6 @@ body {
 }
 .hdr-dow-cell.weekend  { background: #f1f1f1; }
 .hdr-dow-cell.today    { background: var(--gold-light); color: var(--gold); }
-.hdr-dow-cell.hol-qld  { background: var(--qld-bg); color: var(--qld-text); }
-.hdr-dow-cell.hol-nsw  { background: var(--nsw-bg); color: var(--nsw-text); }
-.hdr-dow-cell.hol-vic  { background: var(--vic-bg); color: var(--vic-text); }
-.hdr-dow-cell.hol-all  { background: var(--hol-bg); color: var(--hol-text); }
 
 /* Day-number cells */
 .hdr-day-cell {
@@ -270,10 +266,8 @@ body {
 }
 .hdr-day-cell.weekend  { background: #f1f1f1; color: var(--text-muted); }
 .hdr-day-cell.today    { background: var(--gold-light); color: var(--gold); font-weight: 700; }
-.hdr-day-cell.hol-qld  { background: var(--qld-bg); color: var(--qld-text); }
-.hdr-day-cell.hol-nsw  { background: var(--nsw-bg); color: var(--nsw-text); }
-.hdr-day-cell.hol-vic  { background: var(--vic-bg); color: var(--vic-text); }
-.hdr-day-cell.hol-all  { background: var(--hol-bg); color: var(--hol-text); }
+/* holiday header — subtle amber tint to mark the date without colouring staff rows */
+.hdr-day-cell.hol-any  { background: #fef9ec; color: var(--hol-text); }
 
 .hdr-day-num { font-size: 11px; font-weight: 500; }
 .hdr-day-hol {
@@ -336,16 +330,28 @@ body {
   transition: background 0.08s;
   /* NO border-bottom — row border comes from .staff-row */
 }
-/* Issue 3: weekends slightly darker, no extra borders */
+/* Weekends slightly darker, no holiday column colouring */
 .day-bg.weekend  { background: #f1f1f1; }
 .day-bg.today    { background: rgba(202,168,74,0.09); }
-.day-bg.hol-qld  { background: var(--qld-bg); border-right-color: var(--qld-border); }
-.day-bg.hol-nsw  { background: var(--nsw-bg); border-right-color: var(--nsw-border); }
-.day-bg.hol-vic  { background: var(--vic-bg); border-right-color: var(--vic-border); }
-.day-bg.hol-all  { background: var(--hol-bg); border-right-color: var(--hol-border); }
 .day-bg:hover    { background: var(--gold-light) !important; }
 
-/* ══ LEAVE BARS ══ */
+/* ══ PUBLIC HOLIDAY BARS ══ */
+.ph-bar {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  height: 26px; border-radius: 5px;
+  display: flex; align-items: center;
+  font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif;
+  padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  z-index: 10;
+  background: #fef3c7;
+  border: 1px solid #caa84a;
+  color: #92400e;
+  cursor: default;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+}
+
 .leave-bar {
   position: absolute;
   top: 50%; transform: translateY(-50%);
@@ -574,6 +580,15 @@ const STAFF = [
   "David"
 ];
 
+/* State assignment per staff member */
+const STAFF_STATE = {
+  "Andrew McLeod":       "VIC",
+  "Adam Sicari":         "VIC",
+  "Amit Chowdhary":      "VIC",
+  "David":               "VIC",
+  "Vignesh Kirubakaran": "NSW"
+};
+
 const AVATAR_COLORS = [
   ['#dbeafe','#1e3a8a'],
   ['#d1fae5','#065f46'],
@@ -693,20 +708,26 @@ function buildHolidays() {
 
 const HOLIDAYS = buildHolidays();
 
-/* Returns a CSS class string based on which states observe the holiday */
+/* Returns CSS class for header cells — just marks dates that have any holiday */
 function holidayClass(dk) {
-  const h = HOLIDAYS[dk];
-  if (!h) return '';
-  const q = h.states.includes('QLD');
-  const n = h.states.includes('NSW');
-  const v = h.states.includes('VIC');
-  if (q && n && v) return 'hol-all';
-  if ((q&&n)||(q&&v)||(n&&v)) return 'hol-all';
-  if (q) return 'hol-qld';
-  if (n) return 'hol-nsw';
-  if (v) return 'hol-vic';
-  return '';
+  return HOLIDAYS[dk] ? 'hol-any' : '';
 }
+
+/* Returns true if a staff member observes the holiday on a given date */
+function staffHasHoliday(staffName, dk) {
+  const h = HOLIDAYS[dk];
+  if (!h) return false;
+  const state = STAFF_STATE[staffName];
+  if (!state) return false;
+  return h.states.includes(state);
+}
+
+/* Returns the holiday name for a given staff member and date */
+function staffHolidayName(staffName, dk) {
+  if (!staffHasHoliday(staffName, dk)) return '';
+  return HOLIDAYS[dk].name;
+}
+
 
 /* Short holiday abbreviation for header label */
 function holidayShort(dk) {
@@ -940,8 +961,20 @@ function renderPlanner() {
     /* Day background columns — shading + click targets */
     days.forEach((d,di)=>{
       const dk=dateKey(d);
-      const cls=['day-bg',isWeekend(d)?'weekend':'',isToday(d)?'today':'',holidayClass(dk)].filter(Boolean).join(' ');
+      const cls=['day-bg',isWeekend(d)?'weekend':'',isToday(d)?'today':''].filter(Boolean).join(' ');
       html += `<div class="${cls}" style="left:${di*DAY_W}px;" onclick="quickAddLeave('${escAttr(name)}','${dk}')"></div>`;
+    });
+
+    /* Public holiday bars — one per holiday day that applies to this staff member's state */
+    days.forEach((d,di)=>{
+      const dk=dateKey(d);
+      const holName = staffHolidayName(name, dk);
+      if (!holName) return;
+      const left  = di * DAY_W + 2;
+      const width = DAY_W - 4;
+      html += `<div class="ph-bar" style="left:${left}px;width:${width}px;" title="${escAttr(holName)}">`;
+      html += escHtml(holName);
+      html += `</div>`;
     });
 
     /* Leave bars — spans multiple days via pixel width */
