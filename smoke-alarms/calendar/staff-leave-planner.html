@@ -324,14 +324,25 @@ body {
 .ev.lv:hover .ev-x { opacity: 0.45; }
 .ev-x:hover { opacity: 1 !important; }
 
-/* public holiday bars — single-day wide, compact */
-.ev.ph { height: 20px; border-radius: 4px; cursor: default; box-shadow: none; }
+/* public holiday bars */
+.ev.ph { height: 24px; border-radius: 4px; cursor: default; box-shadow: none; }
 .ev.ph.qld { background: var(--qph-bg); border-color: var(--qph-bd); color: var(--qph-tx); }
 .ev.ph.nsw { background: var(--nph-bg); border-color: var(--nph-bd); color: var(--nph-tx); }
 .ev.ph.vic { background: var(--vph-bg); border-color: var(--vph-bd); color: var(--vph-tx); }
 
+/* single-day public holiday pill — fills the day column, centred abbr */
+.ev.ph.ph-pill {
+  left: calc(var(--left, 0px) + 1px);
+  justify-content: center;
+  padding: 0 2px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
 /* school holiday bars */
-.ev.sh { height: 20px; border-radius: 4px; cursor: default; box-shadow: none; }
+.ev.sh { height: 24px; border-radius: 4px; cursor: default; box-shadow: none; }
 .ev.sh.qld { background: var(--qsh-bg); border-color: var(--qsh-bd); color: var(--qsh-tx); }
 .ev.sh.nsw { background: var(--nsh-bg); border-color: var(--nsh-bd); color: var(--nsh-tx); }
 .ev.sh.vic { background: var(--vsh-bg); border-color: var(--vsh-bd); color: var(--vsh-tx); }
@@ -543,19 +554,24 @@ select.fc {
         <option>Adam Sicari</option>
         <option>Amit Chowdhary</option>
         <option>Vignesh Kirubakaran</option>
-        <option>Shanira Gonzalez</option>
         <option>David</option>
       </select>
     </div>
     <div class="fg">
       <label class="fl">Leave Type</label>
-      <select class="fc" id="fType">
-        <option value="">Select leave type...</option>
-        <option value="Annual">Annual Leave</option>
-        <option value="Sick">Sick Leave</option>
-        <option value="Personal">Personal Leave</option>
-        <option value="Other">Other</option>
-      </select>
+      <input list="leaveTypes" class="fc" id="fType" placeholder="e.g. Annual, Sick, Paternity..." autocomplete="off">
+      <datalist id="leaveTypes">
+        <option value="Annual Leave">
+        <option value="Sick Leave">
+        <option value="Personal Leave">
+        <option value="Paternity Leave">
+        <option value="Maternity Leave">
+        <option value="Unpaid Leave">
+        <option value="Study Leave">
+        <option value="Compassionate Leave">
+        <option value="Long Service Leave">
+        <option value="Other">
+      </datalist>
     </div>
     <div class="f2">
       <div class="fg"><label class="fl">Start Date</label><input type="date" class="fc" id="fStart"></div>
@@ -596,7 +612,6 @@ const STAFF = [
   'Adam Sicari',
   'Amit Chowdhary',
   'Vignesh Kirubakaran',
-  'Shanira Gonzalez',
   'David'
 ];
 
@@ -818,13 +833,25 @@ const HOL_LOOKUP = (() => {
   return m;
 })();
 
+// Short codes shown inside single-day public holiday pills
 const HOL_ABBR = {
-  "New Year's Day":'NY', 'Australia Day':'AU', 'Good Friday':'GF',
-  'Easter Saturday':'ES', 'Easter Sunday':'ES', 'Easter Monday':'EM',
-  'Anzac Day':'AN', 'Add. Holiday Anzac Day':'AN', 'Labour Day':'LD',
-  "King's Birthday":'KB', 'Melbourne Cup':'MC', 'Christmas Day':'XM',
-  'Boxing Day':'BX', 'Add. Holiday Boxing Day':'BX',
-  'Christmas Eve (from 6pm)':'CE'
+  "New Year's Day":        'NY',
+  'Australia Day':         'AU',
+  'Good Friday':           'GF',
+  'Easter Saturday':       'ES',
+  'Easter Sunday':         'ES',
+  'Easter Monday':         'EM',
+  'Easter':                'EA',
+  'Anzac Day':             'AZ',
+  'Anzac Day (Add.)':      'AZ',
+  'Labour Day':            'LD',
+  "King's Birthday":       'KB',
+  'Melbourne Cup':         'MC',
+  'Christmas Day':         'XM',
+  'Boxing Day':            'BX',
+  'Boxing Day (Add.)':     'BX',
+  'Christmas Eve':         'CE',
+  'Christmas & Boxing Day':'XB',
 };
 function habr(n) {
   return HOL_ABBR[n] || n.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
@@ -1054,8 +1081,29 @@ function render() {
     rowEvts.forEach(ev => {
       const pos = evPos(ev.event_start, ev.event_end, days, d2i);
       if (!pos) return; // outside visible window
-      const label = pos.width >= 48 ? esc(ev.event_name) : '';
-      h += `<div class="ev ${row.bc}" style="left:${pos.left}px;width:${pos.width}px;" title="${attr(ev.event_name)}">${label}</div>`;
+
+      const isPH  = ev.event_type === 'public_holiday';
+      const isSH  = ev.event_type === 'school_holiday';
+
+      // Build tooltip: name + date range
+      const tipText = ev.event_name + '\n' + fmtD(ev.event_start) + (ev.event_end !== ev.event_start ? ' → ' + fmtD(ev.event_end) : '');
+
+      let label = '';
+      let pillLeft = pos.left;
+      let pillWidth = pos.width;
+
+      if (isPH) {
+        // Public holiday pills: fill the day column(s) with 1px gap each side
+        pillLeft  = pos.left - 1;   // undo the +2 inset from evPos, add 1px gap
+        pillWidth = pos.span * DAY_W - 2;  // span full columns minus 2px total gap
+        const abbr = habr(ev.event_name);
+        label = abbr;
+      } else {
+        // School holidays: show full name if enough room
+        label = pos.width >= 60 ? esc(ev.event_name) : '';
+      }
+
+      h += `<div class="ev ${row.bc}${isPH ? ' ph-pill' : ''}" style="left:${pillLeft}px;width:${pillWidth}px;" title="${attr(tipText)}">${label}</div>`;
     });
 
     h += '</div>'; // /rt
