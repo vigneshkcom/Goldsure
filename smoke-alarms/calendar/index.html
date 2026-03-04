@@ -1,123 +1,547 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure Electrician Calendar</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 
 <style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --accent: #f5a623;
+    --accent2: #ff6b35;
+    --text: #e8eaf0;
+    --text-muted: #7a7f9a;
+    --text-dim: #4a4f6a;
+    --today-bg: #1e2a42;
+    --today-border: #3b82f6;
+    --pill-1: #1a3a5c;
+    --pill-1t: #60a5fa;
+    --pill-2: #1a3d2b;
+    --pill-2t: #4ade80;
+    --pill-3: #3d1a2b;
+    --pill-3t: #f472b6;
+    --pill-4: #3d2e1a;
+    --pill-4t: #fb923c;
+    --pill-5: #2a1a3d;
+    --pill-5t: #c084fc;
+    --radius: 12px;
+    --radius-sm: 7px;
+  }
 
-body{
-font-family:Arial;
-margin:30px;
-background:#f7f7f7;
-}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-h1{
-margin-bottom:20px;
-}
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
 
-.calendar{
-display:grid;
-grid-template-columns:repeat(7,1fr);
-gap:10px;
-}
+  /* Header */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
 
-.day{
-background:white;
-border-radius:6px;
-padding:10px;
-min-height:90px;
-box-shadow:0 1px 3px rgba(0,0,0,0.1);
-}
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
-.date{
-font-weight:bold;
-margin-bottom:5px;
-}
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-.worker{
-background:#e7f3ff;
-padding:4px 6px;
-margin-top:4px;
-border-radius:4px;
-font-size:12px;
-}
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
 
+  .logo-text {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    display: block;
+    margin-top: -2px;
+  }
+
+  /* Worker filter badge */
+  .filter-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px 5px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    display: none;
+  }
+
+  .filter-badge.visible { display: flex; }
+
+  .filter-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Nav */
+  .nav-bar {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+  }
+
+  .nav-btn:active, .nav-btn:hover {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .month-display {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    text-align: center;
+    flex: 1;
+  }
+
+  .month-display span {
+    color: var(--accent);
+  }
+
+  /* Calendar grid */
+  .calendar-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+  }
+
+  .weekday-labels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .weekday-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 0;
+  }
+
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 7px;
+    min-height: 80px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+
+  .day.empty {
+    background: transparent;
+    border-color: transparent;
+    pointer-events: none;
+  }
+
+  .day.today {
+    background: var(--today-bg);
+    border-color: var(--today-border);
+  }
+
+  .day-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    display: block;
+    line-height: 1;
+  }
+
+  .day.today .day-num {
+    color: #60a5fa;
+  }
+
+  .today-dot {
+    display: none;
+    width: 5px;
+    height: 5px;
+    background: #3b82f6;
+    border-radius: 50%;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .day.today .today-dot { display: block; }
+
+  /* Electrician pills */
+  .pill {
+    display: block;
+    border-radius: 5px;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 3px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+
+  /* Rotate through pill colors by index */
+  .pill-0 { background: var(--pill-1); color: var(--pill-1t); }
+  .pill-1 { background: var(--pill-2); color: var(--pill-2t); }
+  .pill-2 { background: var(--pill-3); color: var(--pill-3t); }
+  .pill-3 { background: var(--pill-4); color: var(--pill-4t); }
+  .pill-4 { background: var(--pill-5); color: var(--pill-5t); }
+
+  /* Loading state */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Empty state per day */
+  .no-events {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .header-inner { gap: 8px; }
+    .logo-text { font-size: 15px; }
+
+    .nav-btn { padding: 9px 12px; font-size: 13px; }
+    .month-display { font-size: 18px; }
+
+    .calendar-wrap { padding: 0 10px 30px; }
+
+    .weekday-label { font-size: 10px; letter-spacing: 0; }
+
+    .calendar { gap: 4px; }
+    .weekday-labels { gap: 4px; }
+
+    .day {
+      padding: 6px 5px;
+      min-height: 68px;
+      border-radius: 6px;
+    }
+
+    .day-num { font-size: 12px; }
+
+    .pill {
+      font-size: 10px;
+      padding: 2px 5px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .nav-btn .btn-label { display: none; }
+    .month-display { font-size: 16px; }
+    .day { min-height: 58px; }
+  }
+
+  /* Today highlight in nav */
+  .today-link {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    display: block;
+    text-align: center;
+    margin-top: 2px;
+  }
+  .today-link:hover { color: var(--accent); }
 </style>
-
 </head>
-
 <body>
 
-<h1>Goldsure Team Calendar</h1>
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">Goldsure</div>
+        <span class="logo-sub">Team Calendar</span>
+      </div>
+    </div>
+    <div class="filter-badge" id="filterBadge">
+      <div class="filter-dot"></div>
+      <span id="filterName"></span>
+    </div>
+  </div>
+</header>
 
-<div id="calendar" class="calendar"></div>
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" onclick="changeMonth(-1)">
+    ◀ <span class="btn-label">Prev</span>
+  </button>
+  <div>
+    <div class="month-display" id="monthDisplay"></div>
+    <button class="today-link" onclick="goToToday()">Today</button>
+  </div>
+  <button class="nav-btn" id="nextBtn" onclick="changeMonth(1)">
+    <span class="btn-label">Next</span> ▶
+  </button>
+</div>
+
+<div class="calendar-wrap">
+  <div class="weekday-labels">
+    <div class="weekday-label">Sun</div>
+    <div class="weekday-label">Mon</div>
+    <div class="weekday-label">Tue</div>
+    <div class="weekday-label">Wed</div>
+    <div class="weekday-label">Thu</div>
+    <div class="weekday-label">Fri</div>
+    <div class="weekday-label">Sat</div>
+  </div>
+  <div id="calendar" class="calendar">
+    <div class="loading-state" style="grid-column:1/-1">
+      <div class="spinner"></div>
+      <span>Loading schedule…</span>
+    </div>
+  </div>
+</div>
 
 <script>
+  // ── Supabase setup (unchanged) ──────────────────────────────────────────────
+  const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
+  const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
-const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
+  // ── State ───────────────────────────────────────────────────────────────────
+  const now = new Date()
+  let currentYear  = now.getFullYear()
+  let currentMonth = now.getMonth()      // 0-indexed
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  // URL worker filter
+  const params     = new URLSearchParams(window.location.search)
+  const workerFilter = (params.get('worker') || '').trim().toLowerCase()
 
-async function loadCalendar(){
+  // Assign stable color index per worker name
+  const workerColorMap = {}
+  let colorCounter = 0
 
-const { data } = await supabaseClient
-.from("electrician_calendar")
-.select("*")
+  function getPillClass(name) {
+    const key = name.toLowerCase()
+    if (workerColorMap[key] === undefined) {
+      workerColorMap[key] = colorCounter % 5
+      colorCounter++
+    }
+    return `pill-${workerColorMap[key]}`
+  }
 
-renderCalendar(data)
+  // ── Filter badge ─────────────────────────────────────────────────────────────
+  if (workerFilter) {
+    const badge = document.getElementById('filterBadge')
+    const nameEl = document.getElementById('filterName')
+    const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
+    nameEl.textContent = display
+    badge.classList.add('visible')
+  }
 
-}
+  // ── Month display ─────────────────────────────────────────────────────────────
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December']
 
-function renderCalendar(events){
+  function updateMonthDisplay() {
+    const el = document.getElementById('monthDisplay')
+    el.innerHTML = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
+  }
 
-const calendar = document.getElementById("calendar")
+  // ── Supabase load (unchanged logic) ─────────────────────────────────────────
+  async function loadCalendar() {
+    document.getElementById('calendar').innerHTML =
+      `<div class="loading-state" style="grid-column:1/-1"><div class="spinner"></div><span>Loading schedule…</span></div>`
 
-const today = new Date()
-const year = today.getFullYear()
-const month = today.getMonth()
+    const { data, error } = await supabaseClient
+      .from("electrician_calendar")
+      .select("*")
 
-const lastDay = new Date(year,month+1,0)
+    if (error) {
+      document.getElementById('calendar').innerHTML =
+        `<div class="loading-state" style="grid-column:1/-1;color:#f87171">Failed to load data.</div>`
+      return
+    }
 
-for(let d=1; d<=lastDay.getDate(); d++){
+    renderCalendar(data || [])
+  }
 
-const date = new Date(year,month,d)
-const dateStr = date.toISOString().split("T")[0]
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function renderCalendar(events) {
+    const calendar  = document.getElementById('calendar')
+    calendar.innerHTML = ''
 
-const dayBox = document.createElement("div")
-dayBox.className="day"
+    const todayStr  = new Date().toISOString().split('T')[0]
+    const firstDay  = new Date(currentYear, currentMonth, 1).getDay()   // 0=Sun
+    const lastDate  = new Date(currentYear, currentMonth + 1, 0).getDate()
 
-const dateLabel = document.createElement("div")
-dateLabel.className="date"
-dateLabel.innerText=d
+    // Filter by worker if param present
+    const filtered = workerFilter
+      ? events.filter(e => (e.electrician || '').toLowerCase().includes(workerFilter))
+      : events
 
-dayBox.appendChild(dateLabel)
+    // Empty cells before month start
+    for (let i = 0; i < firstDay; i++) {
+      const empty = document.createElement('div')
+      empty.className = 'day empty'
+      calendar.appendChild(empty)
+    }
 
-events
-.filter(e=>e.work_date===dateStr)
-.forEach(e=>{
+    for (let d = 1; d <= lastDate; d++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+      const isToday = dateStr === todayStr
 
-const worker=document.createElement("div")
-worker.className="worker"
-worker.innerText=e.electrician
+      const dayBox = document.createElement('div')
+      dayBox.className = 'day' + (isToday ? ' today' : '')
 
-dayBox.appendChild(worker)
+      const dot = document.createElement('div')
+      dot.className = 'today-dot'
+      dayBox.appendChild(dot)
 
-})
+      const num = document.createElement('span')
+      num.className = 'day-num'
+      num.textContent = d
+      dayBox.appendChild(num)
 
-calendar.appendChild(dayBox)
+      const dayEvents = filtered.filter(e => e.work_date === dateStr)
 
-}
+      dayEvents.forEach(e => {
+        const pill = document.createElement('span')
+        pill.className = `pill ${getPillClass(e.electrician || '')}`
+        pill.textContent = e.electrician || '—'
+        pill.title = e.electrician || ''
+        dayBox.appendChild(pill)
+      })
 
-}
+      calendar.appendChild(dayBox)
+    }
+  }
 
-loadCalendar()
+  // ── Navigation ────────────────────────────────────────────────────────────────
+  function changeMonth(delta) {
+    currentMonth += delta
+    if (currentMonth > 11) { currentMonth = 0;  currentYear++ }
+    if (currentMonth < 0)  { currentMonth = 11; currentYear-- }
+    updateMonthDisplay()
+    loadCalendar()
+  }
 
+  function goToToday() {
+    const n = new Date()
+    currentYear  = n.getFullYear()
+    currentMonth = n.getMonth()
+    updateMonthDisplay()
+    loadCalendar()
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  updateMonthDisplay()
+  loadCalendar()
 </script>
-
 </body>
 </html>
