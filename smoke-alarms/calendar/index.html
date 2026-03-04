@@ -1055,7 +1055,10 @@ function renderCalendar(events) {
       const myUnavail = dayWorkers.find(e => (e.electrician||'').toLowerCase() === `unavail:${workerFilter}`)
       const myBooked  = dayWorkers.find(e => {
         const n = (e.electrician||'').toLowerCase()
-        return n.includes(workerFilter) && !n.startsWith('avail:') && !n.startsWith('unavail:')
+        // Only count as booked if it's a real admin booking (not an avail/unavail marker)
+        return n.includes(workerFilter) &&
+          !n.startsWith('avail:') &&
+          !n.startsWith('unavail:')
       })
       if (myBooked) {
         const tag = document.createElement('span')
@@ -1160,10 +1163,14 @@ function openWorkerModal(dateStr) {
   document.getElementById('modalTitle').textContent = 'Your Availability'
 
   // Check if admin has already booked this worker on this date
-  const bookedEntry = cachedEvents.find(e =>
-    e.work_date === dateStr &&
-    (e.electrician || '').toLowerCase().includes(workerFilter)
-  )
+  // Must NOT match avail:/unavail: markers — only real bookings count
+  const bookedEntry = cachedEvents.find(e => {
+    const el = (e.electrician || '').toLowerCase()
+    return e.work_date === dateStr &&
+      el.includes(workerFilter) &&
+      !el.startsWith('avail:') &&
+      !el.startsWith('unavail:')
+  })
 
   // Check if worker has already marked availability (stored with prefix "avail:")
   const availEntry = cachedEvents.find(e =>
