@@ -9,29 +9,32 @@
 
 <style>
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22263a;
-    --border: #2e3248;
-    --accent: #f5a623;
-    --accent2: #ff6b35;
-    --text: #e8eaf0;
-    --text-muted: #7a7f9a;
-    --text-dim: #4a4f6a;
-    --today-bg: #1e2a42;
-    --today-border: #3b82f6;
-    --pill-1: #1a3a5c;
-    --pill-1t: #60a5fa;
-    --pill-2: #1a3d2b;
-    --pill-2t: #4ade80;
-    --pill-3: #3d1a2b;
-    --pill-3t: #f472b6;
-    --pill-4: #3d2e1a;
-    --pill-4t: #fb923c;
-    --pill-5: #2a1a3d;
-    --pill-5t: #c084fc;
-    --radius: 12px;
+    --bg:            #f4f1eb;
+    --surface:       #ffffff;
+    --surface2:      #faf8f3;
+    --border:        #e0d9cc;
+    --border-strong: #c8bfa8;
+    --accent:        #b8960c;
+    --accent-dark:   #8a6e00;
+    --accent-light:  #f5e9b8;
+    --accent-btn:    #c9a820;
+    --text:          #1a1612;
+    --text-muted:    #7a7060;
+    --text-dim:      #b0a898;
+    --today-bg:      #fffbee;
+    --today-border:  #c9a820;
+    --danger:        #c0392b;
+
+    --pill-0-bg: #dbeafe; --pill-0-t: #1e40af;
+    --pill-1-bg: #dcfce7; --pill-1-t: #166534;
+    --pill-2-bg: #fce7f3; --pill-2-t: #9d174d;
+    --pill-3-bg: #ffedd5; --pill-3-t: #9a3412;
+    --pill-4-bg: #f3e8ff; --pill-4-t: #6b21a8;
+
+    --radius: 10px;
     --radius-sm: 7px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.14);
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,321 +44,209 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 0;
   }
 
-  /* Header */
+  /* HEADER */
   .header {
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 16px 20px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    border-bottom: 2px solid var(--accent);
+    padding: 14px 20px;
+    position: sticky; top: 0; z-index: 200;
+    box-shadow: var(--shadow);
   }
-
   .header-inner {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
+  .logo { display: flex; align-items: center; gap: 10px; }
   .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #e6b800);
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(184,150,12,.35);
   }
+  .logo-text { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+  .logo-sub  { font-size: 11px; color: var(--text-muted); font-weight: 400; display: block; margin-top: -2px; }
 
-  .logo-text {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.3px;
-  }
-
-  .logo-sub {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 400;
-    display: block;
-    margin-top: -2px;
-  }
-
-  /* Worker filter badge */
   .filter-badge {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 12px 5px 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--accent);
-    font-weight: 600;
-    display: none;
+    background: var(--accent-light); border: 1px solid var(--accent);
+    border-radius: 20px; padding: 5px 12px 5px 8px;
+    display: none; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--accent-dark); font-weight: 600;
   }
-
   .filter-badge.visible { display: flex; }
+  .filter-dot { width:8px; height:8px; background:var(--accent); border-radius:50%; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  .filter-dot {
-    width: 8px;
-    height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+  /* TOOLBAR */
+  .toolbar {
+    max-width: 1200px; margin: 0 auto;
+    padding: 18px 20px 12px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* Nav */
-  .nav-bar {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px 20px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; }
 
   .nav-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: var(--radius-sm);
-    padding: 10px 16px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.15s ease;
-    -webkit-tap-highlight-color: transparent;
-    white-space: nowrap;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 9px 16px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all .15s; -webkit-tap-highlight-color: transparent;
+    white-space: nowrap; box-shadow: var(--shadow);
   }
-
-  .nav-btn:active, .nav-btn:hover {
-    background: var(--surface2);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
+  .nav-btn:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent-dark); }
 
   .month-display {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.5px;
-    text-align: center;
-    flex: 1;
+    font-size: 22px; font-weight: 700; color: var(--text);
+    letter-spacing: -.5px; text-align: center;
   }
+  .month-display span { color: var(--accent-dark); }
 
-  .month-display span {
-    color: var(--accent);
+  .today-link {
+    background: none; border: none; color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer;
+    padding: 3px 8px; border-radius: 4px; transition: color .15s;
+    display: block; text-align: center; margin-top: 2px;
   }
+  .today-link:hover { color: var(--accent-dark); }
 
-  /* Calendar grid */
-  .calendar-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px 40px;
+  .upload-btn {
+    background: var(--surface); border: 1px dashed var(--border-strong);
+    color: var(--text-muted); border-radius: var(--radius-sm);
+    padding: 9px 16px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all .15s; white-space: nowrap;
   }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-light); }
+  #csvInput { display: none; }
 
-  .weekday-labels {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-
+  /* CALENDAR */
+  .calendar-wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px 48px; }
+  .weekday-labels { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; margin-bottom: 5px; }
   .weekday-label {
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    padding: 4px 0;
+    text-align: center; font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-muted); padding: 4px 0;
   }
-
-  .calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-  }
+  .calendar { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
 
   .day {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 8px 7px;
-    min-height: 80px;
-    position: relative;
-    transition: border-color 0.15s;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 7px; min-height: 88px;
+    position: relative; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+    box-shadow: var(--shadow);
   }
+  .day:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(184,150,12,.18); }
+  .day.empty { background: transparent; border-color: transparent; pointer-events: none; box-shadow: none; }
+  .day.today { background: var(--today-bg); border-color: var(--today-border); box-shadow: 0 0 0 2px rgba(201,168,32,.2); }
 
-  .day.empty {
-    background: transparent;
-    border-color: transparent;
-    pointer-events: none;
-  }
-
-  .day.today {
-    background: var(--today-bg);
-    border-color: var(--today-border);
-  }
-
-  .day-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-bottom: 5px;
-    display: block;
-    line-height: 1;
-  }
-
-  .day.today .day-num {
-    color: #60a5fa;
-  }
-
-  .today-dot {
-    display: none;
-    width: 5px;
-    height: 5px;
-    background: #3b82f6;
-    border-radius: 50%;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-  }
-
+  .day-num { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:5px; display:block; line-height:1; }
+  .day.today .day-num { color: var(--accent-dark); font-weight: 700; }
+  .today-dot { display:none; width:5px; height:5px; background:var(--accent); border-radius:50%; position:absolute; top:8px; right:8px; }
   .day.today .today-dot { display: block; }
 
-  /* Electrician pills */
-  .pill {
-    display: block;
-    border-radius: 5px;
-    padding: 3px 6px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-top: 3px;
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    letter-spacing: 0.01em;
+  .pill { display:block; border-radius:5px; padding:3px 6px; font-size:11px; font-weight:600; margin-top:3px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:.01em; }
+  .pill-0 { background:var(--pill-0-bg); color:var(--pill-0-t); }
+  .pill-1 { background:var(--pill-1-bg); color:var(--pill-1-t); }
+  .pill-2 { background:var(--pill-2-bg); color:var(--pill-2-t); }
+  .pill-3 { background:var(--pill-3-bg); color:var(--pill-3-t); }
+  .pill-4 { background:var(--pill-4-bg); color:var(--pill-4-t); }
+
+  .loading-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:14px; color:var(--text-muted); font-size:14px; }
+  .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,22,18,.45);
+    backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; opacity: 0; pointer-events: none;
+    transition: opacity .2s;
   }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
 
-  /* Rotate through pill colors by index */
-  .pill-0 { background: var(--pill-1); color: var(--pill-1t); }
-  .pill-1 { background: var(--pill-2); color: var(--pill-2t); }
-  .pill-2 { background: var(--pill-3); color: var(--pill-3t); }
-  .pill-3 { background: var(--pill-4); color: var(--pill-4t); }
-  .pill-4 { background: var(--pill-5); color: var(--pill-5t); }
-
-  /* Loading state */
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    gap: 14px;
-    color: var(--text-muted);
-    font-size: 14px;
+  .modal {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-md); padding: 28px 24px 22px;
+    width: 100%; max-width: 360px; margin: 16px;
+    transform: translateY(12px); transition: transform .2s;
+    border-top: 4px solid var(--accent);
   }
+  .modal-overlay.open .modal { transform: translateY(0); }
 
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+  .modal-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .modal-date  { font-size:12px; color:var(--text-muted); margin-bottom:18px; font-family:'DM Mono',monospace; }
+
+  .checklist { display:flex; flex-direction:column; gap:10px; margin-bottom:22px; }
+
+  .check-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: border-color .12s, background .12s;
   }
+  .check-item:hover { border-color: var(--accent); background: var(--accent-light); }
+  .check-item input[type="checkbox"] { width:17px; height:17px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+  .check-item .check-label { font-size:14px; font-weight:600; color:var(--text); cursor:pointer; flex:1; }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Empty state per day */
-  .no-events {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 4px;
+  .modal-actions { display:flex; gap:10px; }
+  .btn-save {
+    flex:1; background:var(--accent-btn); color:#1a1612;
+    border:none; border-radius:var(--radius-sm); padding:11px 0;
+    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700;
+    cursor:pointer; transition:background .15s; letter-spacing:.02em;
   }
-
-  /* Responsive */
-  @media (max-width: 600px) {
-    .header-inner { gap: 8px; }
-    .logo-text { font-size: 15px; }
-
-    .nav-btn { padding: 9px 12px; font-size: 13px; }
-    .month-display { font-size: 18px; }
-
-    .calendar-wrap { padding: 0 10px 30px; }
-
-    .weekday-label { font-size: 10px; letter-spacing: 0; }
-
-    .calendar { gap: 4px; }
-    .weekday-labels { gap: 4px; }
-
-    .day {
-      padding: 6px 5px;
-      min-height: 68px;
-      border-radius: 6px;
-    }
-
-    .day-num { font-size: 12px; }
-
-    .pill {
-      font-size: 10px;
-      padding: 2px 5px;
-    }
+  .btn-save:hover { background:var(--accent-dark); color:#fff; }
+  .btn-save:disabled { opacity:.55; cursor:not-allowed; }
+  .btn-cancel {
+    background:var(--surface2); border:1px solid var(--border-strong);
+    color:var(--text-muted); border-radius:var(--radius-sm); padding:11px 18px;
+    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; transition:background .15s;
   }
+  .btn-cancel:hover { background:var(--border); }
 
-  @media (max-width: 380px) {
-    .nav-btn .btn-label { display: none; }
-    .month-display { font-size: 16px; }
-    .day { min-height: 58px; }
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:24px; left:50%;
+    transform:translateX(-50%) translateY(80px);
+    background:#1a1612; color:#fff;
+    padding:10px 20px; border-radius:8px;
+    font-size:13px; font-weight:600;
+    z-index:9999; transition:transform .3s;
+    white-space:nowrap; border-left:4px solid var(--accent);
+    pointer-events:none;
   }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.error { border-left-color:var(--danger); }
 
-  /* Today highlight in nav */
-  .today-link {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: color 0.15s;
-    display: block;
-    text-align: center;
-    margin-top: 2px;
+  /* RESPONSIVE */
+  @media (max-width:640px) {
+    .toolbar { padding:12px 12px 8px; gap:8px; }
+    .nav-btn { padding:8px 12px; font-size:13px; }
+    .month-display { font-size:18px; }
+    .calendar-wrap { padding:0 8px 32px; }
+    .weekday-label { font-size:10px; letter-spacing:0; }
+    .calendar, .weekday-labels { gap:4px; }
+    .day { padding:6px 5px; min-height:70px; }
+    .day-num { font-size:12px; }
+    .pill { font-size:10px; padding:2px 5px; }
+    .upload-btn .upload-label { display:none; }
   }
-  .today-link:hover { color: var(--accent); }
+  @media (max-width:380px) {
+    .nav-btn .btn-label { display:none; }
+    .month-display { font-size:16px; }
+    .day { min-height:58px; }
+  }
 </style>
 </head>
 <body>
@@ -376,17 +267,21 @@
   </div>
 </header>
 
-<div class="nav-bar">
-  <button class="nav-btn" id="prevBtn" onclick="changeMonth(-1)">
-    ◀ <span class="btn-label">Prev</span>
-  </button>
-  <div>
-    <div class="month-display" id="monthDisplay"></div>
-    <button class="today-link" onclick="goToToday()">Today</button>
+<div class="toolbar">
+  <div class="toolbar-left">
+    <button class="nav-btn" onclick="changeMonth(-1)">◀ <span class="btn-label">Prev</span></button>
+    <div>
+      <div class="month-display" id="monthDisplay"></div>
+      <button class="today-link" onclick="goToToday()">Today</button>
+    </div>
+    <button class="nav-btn" onclick="changeMonth(1)"><span class="btn-label">Next</span> ▶</button>
   </div>
-  <button class="nav-btn" id="nextBtn" onclick="changeMonth(1)">
-    <span class="btn-label">Next</span> ▶
-  </button>
+  <div>
+    <button class="upload-btn" onclick="document.getElementById('csvInput').click()">
+      ↑ <span class="upload-label">Upload CSV</span>
+    </button>
+    <input type="file" id="csvInput" accept=".csv,text/csv" onchange="handleCSV(event)">
+  </div>
 </div>
 
 <div class="calendar-wrap">
@@ -407,53 +302,66 @@
   </div>
 </div>
 
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title">Select electricians working</div>
+    <div class="modal-date" id="modalDate"></div>
+    <div class="checklist" id="checklist"></div>
+    <div class="modal-actions">
+      <button class="btn-save" id="saveBtn" onclick="saveElectricians()">Save</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
   // ── Supabase setup (unchanged) ──────────────────────────────────────────────
   const SUPABASE_URL = "https://yxgdixwneprhjxzdlaqw.supabase.co"
   const SUPABASE_KEY = "sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47"
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // ── State ───────────────────────────────────────────────────────────────────
+  // ── Electricians ──────────────────────────────────────────────────────────────
+  const electricians = ["Corey Roussow", "Adam Pearl", "William Openshaw"]
+
+  // ── State ─────────────────────────────────────────────────────────────────────
   const now = new Date()
   let currentYear  = now.getFullYear()
-  let currentMonth = now.getMonth()      // 0-indexed
+  let currentMonth = now.getMonth()
+  let selectedDate = null
+  let cachedEvents = []   // hold latest data for modal pre-checks
 
   // URL worker filter
-  const params     = new URLSearchParams(window.location.search)
+  const params       = new URLSearchParams(window.location.search)
   const workerFilter = (params.get('worker') || '').trim().toLowerCase()
 
-  // Assign stable color index per worker name
+  // Stable pill colour
   const workerColorMap = {}
   let colorCounter = 0
-
   function getPillClass(name) {
     const key = name.toLowerCase()
-    if (workerColorMap[key] === undefined) {
-      workerColorMap[key] = colorCounter % 5
-      colorCounter++
-    }
+    if (workerColorMap[key] === undefined) workerColorMap[key] = colorCounter++ % 5
     return `pill-${workerColorMap[key]}`
   }
 
-  // ── Filter badge ─────────────────────────────────────────────────────────────
+  // ── Filter badge ──────────────────────────────────────────────────────────────
   if (workerFilter) {
-    const badge = document.getElementById('filterBadge')
-    const nameEl = document.getElementById('filterName')
-    const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
-    nameEl.textContent = display
-    badge.classList.add('visible')
+    document.getElementById('filterBadge').classList.add('visible')
+    document.getElementById('filterName').textContent =
+      workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
   }
 
   // ── Month display ─────────────────────────────────────────────────────────────
   const MONTHS = ['January','February','March','April','May','June',
                   'July','August','September','October','November','December']
-
   function updateMonthDisplay() {
-    const el = document.getElementById('monthDisplay')
-    el.innerHTML = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
+    document.getElementById('monthDisplay').innerHTML =
+      `${MONTHS[currentMonth]} <span>${currentYear}</span>`
   }
 
-  // ── Supabase load (unchanged logic) ─────────────────────────────────────────
+  // ── Supabase load (unchanged logic) ──────────────────────────────────────────
   async function loadCalendar() {
     document.getElementById('calendar').innerHTML =
       `<div class="loading-state" style="grid-column:1/-1"><div class="spinner"></div><span>Loading schedule…</span></div>`
@@ -464,23 +372,22 @@
 
     if (error) {
       document.getElementById('calendar').innerHTML =
-        `<div class="loading-state" style="grid-column:1/-1;color:#f87171">Failed to load data.</div>`
+        `<div class="loading-state" style="grid-column:1/-1;color:#c0392b">Failed to load data.</div>`
       return
     }
-
-    renderCalendar(data || [])
+    cachedEvents = data || []
+    renderCalendar(cachedEvents)
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
   function renderCalendar(events) {
-    const calendar  = document.getElementById('calendar')
+    const calendar = document.getElementById('calendar')
     calendar.innerHTML = ''
 
-    const todayStr  = new Date().toISOString().split('T')[0]
-    const firstDay  = new Date(currentYear, currentMonth, 1).getDay()   // 0=Sun
-    const lastDate  = new Date(currentYear, currentMonth + 1, 0).getDate()
+    const todayStr = new Date().toISOString().split('T')[0]
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay()
+    const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate()
 
-    // Filter by worker if param present
     const filtered = workerFilter
       ? events.filter(e => (e.electrician || '').toLowerCase().includes(workerFilter))
       : events
@@ -493,11 +400,13 @@
     }
 
     for (let d = 1; d <= lastDate; d++) {
-      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+      const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       const isToday = dateStr === todayStr
 
       const dayBox = document.createElement('div')
       dayBox.className = 'day' + (isToday ? ' today' : '')
+      dayBox.dataset.date = dateStr
+      dayBox.addEventListener('click', () => openModal(dateStr))
 
       const dot = document.createElement('div')
       dot.className = 'today-dot'
@@ -508,13 +417,10 @@
       num.textContent = d
       dayBox.appendChild(num)
 
-      const dayEvents = filtered.filter(e => e.work_date === dateStr)
-
-      dayEvents.forEach(e => {
+      filtered.filter(e => e.work_date === dateStr).forEach(e => {
         const pill = document.createElement('span')
         pill.className = `pill ${getPillClass(e.electrician || '')}`
         pill.textContent = e.electrician || '—'
-        pill.title = e.electrician || ''
         dayBox.appendChild(pill)
       })
 
@@ -522,24 +428,141 @@
     }
   }
 
-  // ── Navigation ────────────────────────────────────────────────────────────────
+  // ── Navigation (unchanged) ────────────────────────────────────────────────────
   function changeMonth(delta) {
     currentMonth += delta
-    if (currentMonth > 11) { currentMonth = 0;  currentYear++ }
+    if (currentMonth > 11) { currentMonth = 0; currentYear++ }
     if (currentMonth < 0)  { currentMonth = 11; currentYear-- }
     updateMonthDisplay()
     loadCalendar()
   }
-
   function goToToday() {
     const n = new Date()
-    currentYear  = n.getFullYear()
-    currentMonth = n.getMonth()
-    updateMonthDisplay()
+    currentYear = n.getFullYear(); currentMonth = n.getMonth()
+    updateMonthDisplay(); loadCalendar()
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────────────────────
+  function openModal(dateStr) {
+    selectedDate = dateStr
+    document.getElementById('modalDate').textContent = formatDate(dateStr)
+
+    const scheduled = cachedEvents
+      .filter(e => e.work_date === dateStr)
+      .map(e => (e.electrician || '').toLowerCase())
+
+    const list = document.getElementById('checklist')
+    list.innerHTML = ''
+    electricians.forEach((name, i) => {
+      const id = `chk-${i}`
+      const item = document.createElement('div')
+      item.className = 'check-item'
+      item.addEventListener('click', (ev) => {
+        if (ev.target.tagName !== 'INPUT') {
+          const cb = item.querySelector('input')
+          cb.checked = !cb.checked
+        }
+      })
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'; cb.id = id; cb.value = name
+      cb.checked = scheduled.includes(name.toLowerCase())
+      const lbl = document.createElement('span')
+      lbl.className = 'check-label'; lbl.textContent = name
+      item.appendChild(cb); item.appendChild(lbl)
+      list.appendChild(item)
+    })
+
+    const btn = document.getElementById('saveBtn')
+    btn.disabled = false; btn.textContent = 'Save'
+    document.getElementById('modalOverlay').classList.add('open')
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open')
+    selectedDate = null
+  }
+
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal()
+  })
+
+  // ── SAVE ──────────────────────────────────────────────────────────────────────
+  async function saveElectricians() {
+    if (!selectedDate) return
+    const btn = document.getElementById('saveBtn')
+    btn.disabled = true; btn.textContent = 'Saving…'
+
+    const checked = [...document.querySelectorAll('#checklist input:checked')].map(cb => cb.value)
+
+    const { error: delErr } = await supabaseClient
+      .from('electrician_calendar')
+      .delete()
+      .eq('work_date', selectedDate)
+
+    if (delErr) {
+      showToast('Delete failed: ' + delErr.message, true)
+      btn.disabled = false; btn.textContent = 'Save'; return
+    }
+
+    if (checked.length > 0) {
+      const rows = checked.map(name => ({ work_date: selectedDate, electrician: name }))
+      const { error: insErr } = await supabaseClient.from('electrician_calendar').insert(rows)
+      if (insErr) {
+        showToast('Save failed: ' + insErr.message, true)
+        btn.disabled = false; btn.textContent = 'Save'; return
+      }
+    }
+
+    closeModal()
+    showToast(`✓ Saved ${checked.length} electrician${checked.length !== 1 ? 's' : ''} for ${formatDate(selectedDate)}`)
     loadCalendar()
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────────
+  // ── CSV UPLOAD ────────────────────────────────────────────────────────────────
+  async function handleCSV(event) {
+    const file = event.target.files[0]
+    event.target.value = ''
+    if (!file) return
+
+    const text = await file.text()
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    const dataLines = lines[0].toLowerCase().startsWith('work_date') ? lines.slice(1) : lines
+
+    const rows = []
+    for (const line of dataLines) {
+      const [work_date, electrician] = line.split(',').map(s => s.trim())
+      if (work_date && electrician) rows.push({ work_date, electrician })
+    }
+
+    if (!rows.length) { showToast('No valid rows found in CSV', true); return }
+
+    showToast(`Uploading ${rows.length} row${rows.length !== 1 ? 's' : ''}…`)
+    const { error } = await supabaseClient.from('electrician_calendar').insert(rows)
+    if (error) { showToast('CSV upload failed: ' + error.message, true); return }
+
+    showToast(`✓ Inserted ${rows.length} row${rows.length !== 1 ? 's' : ''} from CSV`)
+    loadCalendar()
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────────
+  function formatDate(str) {
+    const [y,m,d] = str.split('-')
+    return new Date(+y, +m-1, +d)
+      .toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'long', year:'numeric' })
+  }
+
+  let toastTimer
+  function showToast(msg, isError = false) {
+    const el = document.getElementById('toast')
+    el.textContent = msg
+    el.className = 'toast' + (isError ? ' error' : '')
+    void el.offsetWidth
+    el.classList.add('show')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3200)
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────────
   updateMonthDisplay()
   loadCalendar()
 </script>
