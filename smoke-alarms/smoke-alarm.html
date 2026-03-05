@@ -52,6 +52,17 @@ body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text
   background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.15s;
 }
 .login-field input::placeholder { color: rgba(255,255,255,0.2); }
+.login-field select {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 14px;
+  background: #2a2a2a; color: #fff; border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 13px 16px; outline: none;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b08d2e' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.login-field select:focus { border-color: var(--gold); }
+.login-field select option { background: #2a2a2a; color: #fff; }
 .login-field input:focus { border-color: var(--gold); }
 .login-error {
   font-size: 12px; font-weight: 600; color: var(--red);
@@ -386,9 +397,15 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 function doLogin() {
   var agent = document.getElementById('login-agent').value.trim();
   var errEl = document.getElementById('login-error');
+  var allowed = ['Vignesh', 'David', 'Amit', 'Andrew', 'Adam'];
   if (!agent) {
     errEl.style.display = 'block';
-    errEl.innerText = 'Please enter your name.';
+    errEl.innerText = 'Please select your name.';
+    return;
+  }
+  if (!allowed.includes(agent)) {
+    errEl.style.display = 'block';
+    errEl.innerText = 'Unauthorised. Please select your name from the list.';
     return;
   }
   errEl.style.display = 'none';
@@ -423,7 +440,14 @@ function doLogout() {
     <div class="login-error" id="login-error">Please enter your name.</div>
     <div class="login-field">
       <label>Your Name</label>
-      <input type="text" id="login-agent" placeholder="e.g. Vignesh or David" autocomplete="name" onkeydown="if(event.key==='Enter')doLogin()">
+      <select id="login-agent">
+        <option value="">— Select your name —</option>
+        <option value="Vignesh">Vignesh</option>
+        <option value="David">David</option>
+        <option value="Amit">Amit</option>
+        <option value="Andrew">Andrew</option>
+        <option value="Adam">Adam</option>
+      </select>
     </div>
     <button class="login-btn" onclick="doLogin()">Sign In</button>
     <p class="login-hint">Your name will appear in all scripts and SMS messages.</p>
