@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   // ── Build Accept Quote URL using token ──
   const baseUrl   = process.env.SITE_URL || 'https://www.goldsure.com.au';
   const token     = quote_token || crypto.randomUUID();
-  const acceptUrl = `${baseUrl}/accept-quote.html?token=${token}`;
+  const acceptUrl = `${baseUrl}/smoke-alarms/accept-quote.html?token=${token}`;
 
   // ── Phone display in email ──
   const phoneDisplay = customer_phone
