@@ -951,14 +951,22 @@ function buildPDF(custName) {
 
   const PW=210, PH=297, ML=14, MR=14, CW=PW-ML-MR;
   const GOLD=[176,141,46], DARK=[20,28,46], MUTED=[107,120,153], WHITE=[255,255,255];
+  const LINE_H = 5.2;
+
+  function sectionBar(label, sx, sw, sy) {
+    doc.setFillColor(...DARK); doc.rect(sx, sy, sw, 7, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+    doc.text(label, sx+4, sy+5);
+    return sy + 7;
+  }
 
   doc.setProperties({
-    title: `Goldsure Battery ROI – ${custName}`,
+    title: 'Goldsure Battery ROI - ' + custName,
     subject: 'Battery & Solar Investment Analysis',
     author: 'Goldsure Pty Ltd'
   });
 
-  // Header bar
+  // HEADER BAR
   doc.setFillColor(...DARK); doc.rect(0,0,PW,14,'F');
   doc.setFillColor(...GOLD); doc.rect(0,0,PW,2,'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...GOLD);
@@ -968,134 +976,130 @@ function buildPDF(custName) {
 
   let y = 22;
 
-  // Report meta
-  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+  // REPORT META
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...DARK);
   doc.text('Battery & Solar Investment Report', ML, y); y += 6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
-  doc.text(`Prepared for: ${custName}  |  Report ID: ${c.reportId}  |  Date: ${c.timestamp}`, ML, y); y += 10;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+  doc.text('Prepared for: ' + custName + '   |   Report ID: ' + c.reportId + '   |   Date: ' + c.timestamp, ML, y); y += 10;
 
-  // Key results boxes
-  doc.setFillColor(...DARK); doc.rect(ML, y, CW, 8, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
-  doc.text('KEY RESULTS', ML+4, y+5.5); y += 8;
-
+  // KEY RESULTS BOXES
+  y = sectionBar('KEY RESULTS', ML, CW, y);
   const boxW = (CW-8)/3;
   const boxes = [
-    { label:'YEAR 1 SAVINGS', val: fmt$(c.yr1TotalSavings) },
-    { label:'ANNUAL ROI', val: fmtPct(c.roiPct) },
-    { label:'PAYBACK PERIOD', val: c.payback ? c.payback.toFixed(1)+' years' : 'N/A' }
+    { label:'YEAR 1 SAVINGS',  val: fmt$(c.yr1TotalSavings) },
+    { label:'ANNUAL ROI',      val: fmtPct(c.roiPct) },
+    { label:'PAYBACK PERIOD',  val: c.payback ? c.payback.toFixed(1)+' years' : 'N/A' }
   ];
-  boxes.forEach((b,i) => {
+  const boxY = y;
+  boxes.forEach(function(b,i) {
     const bx = ML + i*(boxW+4);
-    doc.setFillColor(255,248,225); doc.rect(bx, y, boxW, 22, 'F');
-    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5); doc.rect(bx, y, boxW, 22, 'S');
-    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...MUTED);
-    doc.text(b.label, bx+boxW/2, y+6, { align:'center' });
+    doc.setFillColor(255,248,225); doc.rect(bx, boxY, boxW, 22, 'F');
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.4); doc.rect(bx, boxY, boxW, 22, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
+    doc.text(b.label, bx+boxW/2, boxY+6, { align:'center' });
     doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
-    doc.text(b.val, bx+boxW/2, y+16, { align:'center' });
+    doc.text(b.val, bx+boxW/2, boxY+16, { align:'center' });
   });
-  y += 26;
+  y = boxY + 26;
 
-  // Two-column layout
-  const colW = (CW-8)/2;
-  const leftX = ML, rightX = ML+colW+8;
+  // TWO-COLUMN: Investment Summary + Input Details
+  const colW = (CW-6)/2;
+  const leftX = ML, rightX = ML+colW+6;
+  const colStartY = y;
 
-  // Investment Summary
-  doc.setFillColor(...DARK); doc.rect(leftX, y, colW, 7, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
-  doc.text('INVESTMENT SUMMARY', leftX+4, y+5); y += 7;
-
+  // Left column
+  let ly = sectionBar('INVESTMENT SUMMARY', leftX, colW, colStartY);
   const summaryRows = [
-    ['System Cost', fmt$(c.systemCost)],
-    ['Battery Size', c.batterySize + ' kWh'],
+    ['System Cost',    fmt$(c.systemCost)],
+    ['Battery Size',   c.batterySize + ' kWh'],
     ['Existing Solar', c.hasSolar==='yes' ? c.currentSolar+' kW' : 'None'],
-    ['Planned Solar', c.addSolar==='yes' ? c.plannedSolar+' kW' : 'None'],
-    ['10-Year Total Savings', fmt$(c.tenYrTotal)],
+    ['Planned Solar',  c.addSolar==='yes' ? c.plannedSolar+' kW' : 'None'],
+    ['10-Year Total',  fmt$(c.tenYrTotal)],
   ];
-  const summaryStartY = y;
-  summaryRows.forEach((row,i) => {
-    const ry = summaryStartY + i*8;
-    if(i%2===0) { doc.setFillColor(250,250,250); doc.rect(leftX, ry, colW, 8, 'F'); }
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+  summaryRows.forEach(function(row,i) {
+    const ry = ly + i*8;
+    doc.setFillColor(i%2===0?250:255, i%2===0?250:255, i%2===0?250:255);
+    doc.rect(leftX, ry, colW, 8, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
     doc.text(row[0], leftX+4, ry+5.5);
     doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
     doc.text(row[1], leftX+colW-4, ry+5.5, { align:'right' });
   });
 
-  // Input Details
-  let rightY = y - 7;
-  doc.setFillColor(...DARK); doc.rect(rightX, rightY, colW, 7, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
-  doc.text('YOUR INPUT DETAILS', rightX+4, rightY+5); rightY += 7;
-
+  // Right column
+  let ry2 = sectionBar('YOUR INPUT DETAILS', rightX, colW, colStartY);
   const inputRows = [
-    ['Quarterly Use', c.quarterlyUse.toLocaleString()+' kWh'],
-    ['Usage Rate', '$'+c.usageRate.toFixed(4)+'/kWh'],
-    ['Tariff Type', c.tariff==='tou'?'Time of Use':'Flat Rate'],
+    ['Quarterly Use',  c.quarterlyUse.toLocaleString()+' kWh'],
+    ['Usage Rate',     '$'+c.usageRate.toFixed(4)+'/kWh'],
+    ['Tariff Type',    c.tariff==='tou'?'Time of Use':'Flat Rate'],
     ['Feed-in Tariff', c.feedInTariff>0?'$'+c.feedInTariff.toFixed(4)+'/kWh':'N/A'],
-    ['FiT Opp. Cost', c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A'],
+    ['FiT Opp. Cost',  c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A'],
   ];
-  inputRows.forEach((row,i) => {
-    const ry = rightY + i*8;
-    if(i%2===0) { doc.setFillColor(250,250,250); doc.rect(rightX, ry, colW, 8, 'F'); }
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+  inputRows.forEach(function(row,i) {
+    const ry = ry2 + i*8;
+    doc.setFillColor(i%2===0?250:255, i%2===0?250:255, i%2===0?250:255);
+    doc.rect(rightX, ry, colW, 8, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
     doc.text(row[0], rightX+4, ry+5.5);
     doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
     doc.text(row[1], rightX+colW-4, ry+5.5, { align:'right' });
   });
 
-  y += summaryRows.length*8 + 10;
+  y = Math.max(ly + summaryRows.length*8, ry2 + inputRows.length*8) + 10;
 
-  // Savings breakdown
-  doc.setFillColor(...DARK); doc.rect(ML, y, CW, 7, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
-  doc.text('SAVINGS BREAKDOWN', ML+4, y+5); y += 7;
-
+  // SAVINGS BREAKDOWN
+  y = sectionBar('SAVINGS BREAKDOWN', ML, CW, y);
   const breakdownRows = [
-    ['Battery grid savings (gross)', fmt$(c.yr1BatterySavings + c.fitOpportunityCost)],
-    ['FiT opportunity cost (deducted)', c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A'],
-    ['New solar savings', c.yr1SolarSavings>0?fmt$(c.yr1SolarSavings):'N/A'],
-    ['Net Year 1 Annual Savings', fmt$(c.yr1TotalSavings)],
+    ['Battery grid savings (gross)',    fmt$(c.yr1BatterySavings + c.fitOpportunityCost), false],
+    ['FiT opportunity cost (deducted)', c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A', false],
+    ['New solar savings',               c.yr1SolarSavings>0?fmt$(c.yr1SolarSavings):'N/A', false],
+    ['Net Year 1 Annual Savings',       fmt$(c.yr1TotalSavings), true],
   ];
-  breakdownRows.forEach((row,i) => {
+  breakdownRows.forEach(function(row,i) {
     const ry = y + i*8;
-    const isTotal = i === breakdownRows.length-1;
-    if(isTotal) { doc.setFillColor(255,248,225); } else if(i%2===0) { doc.setFillColor(250,250,250); } else { doc.setFillColor(255,255,255); }
+    const isTotal = row[2];
+    if(isTotal){ doc.setFillColor(255,248,225); } else if(i%2===0){ doc.setFillColor(250,250,250); } else { doc.setFillColor(255,255,255); }
     doc.rect(ML, ry, CW, 8, 'F');
-    doc.setFont('helvetica', isTotal?'bold':'normal'); doc.setFontSize(8);
+    doc.setFont('helvetica', isTotal?'bold':'normal'); doc.setFontSize(7.5);
     doc.setTextColor(...(isTotal ? GOLD : MUTED));
     doc.text(row[0], ML+4, ry+5.5);
     doc.setTextColor(...(isTotal ? GOLD : DARK)); doc.setFont('helvetica','bold');
     doc.text(row[1], ML+CW-4, ry+5.5, { align:'right' });
   });
-  y += breakdownRows.length*8 + 10;
+  y += breakdownRows.length*8 + 8;
 
-  // Methodology note
-  doc.setFillColor(237,242,253); doc.rect(ML, y, CW, 20, 'F');
+  // METHODOLOGY NOTE - auto height
+  const methBody = 'Savings = (min(annual grid use, battery output) x usage rate x tariff multiplier) - FiT opportunity cost + new solar savings. Battery output = battery size x 365 x 1 cycle/day x 85% efficiency. FiT opportunity cost = energy diverted from solar export x FiT rate. Degradation is applied as a compounding annual factor. The 10-year total sums each years savings with compounding efficiency loss applied.';
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  const methLines = doc.splitTextToSize(methBody, CW-8);
+  const methH = methLines.length * LINE_H + 13;
+  doc.setFillColor(237,242,253); doc.rect(ML, y, CW, methH, 'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(45,107,228);
   doc.text('METHODOLOGY NOTE', ML+4, y+6);
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(26,61,138);
-  const methText = 'Savings = (min(annual use, battery output) × usage rate × tariff factor) − FiT opportunity cost + solar savings. Degradation compounded annually. 10-year model uses compounding battery efficiency loss.';
-  doc.text(doc.splitTextToSize(methText, CW-8), ML+4, y+12);
-  y += 24;
+  doc.text(methLines, ML+4, y+12);
+  y += methH + 6;
 
-  // Disclaimer
-  doc.setFillColor(255,245,245); doc.rect(ML, y, CW, 18, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(180,50,50);
-  doc.text('DISCLAIMER', ML+4, y+5);
-  doc.setFont('helvetica','normal'); doc.setTextColor(100,50,50);
-  const disc = 'This report provides estimates only and is based on information provided. Actual savings may vary significantly based on usage patterns, weather, rate changes, and battery degradation. This is not financial advice. Consult a qualified financial or energy advisor before making investment decisions.';
-  doc.text(doc.splitTextToSize(disc, CW-8), ML+4, y+10);
-  y += 22;
+  // DISCLAIMER - auto height
+  const discBody = 'This report provides estimates only and is based on information provided. Actual savings may vary significantly based on usage patterns, weather conditions, electricity rate changes, and battery degradation over time. This is not financial advice. We recommend consulting a qualified financial or energy advisor before making any investment decisions. Goldsure Pty Ltd does not guarantee any specific savings or financial returns.';
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  const discLines = doc.splitTextToSize(discBody, CW-8);
+  const discH = discLines.length * LINE_H + 13;
+  doc.setFillColor(255,245,245); doc.rect(ML, y, CW, discH, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(180,50,50);
+  doc.text('DISCLAIMER', ML+4, y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(100,50,50);
+  doc.text(discLines, ML+4, y+12);
+  y += discH + 4;
 
-  // Footer
+  // FOOTER
   doc.setFillColor(...DARK); doc.rect(0, PH-18, PW, 18, 'F');
   doc.setFillColor(...GOLD); doc.rect(0, PH-18, PW, 1.5, 'F');
   doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...WHITE);
   doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH-11, { align:'center' });
   doc.text('03 7050 2846  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH-6, { align:'center' });
 
-  doc.save(`Goldsure_ROI_${c.postcode}_${c.reportId}.pdf`);
+  doc.save('Goldsure_ROI_' + c.postcode + '_' + c.reportId + '.pdf');
   showToast('PDF downloaded!');
 }
 
