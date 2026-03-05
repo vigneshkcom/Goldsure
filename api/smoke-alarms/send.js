@@ -196,56 +196,106 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('Resend error:', error);
+      console.error('[Resend] Send failed:', error);
       return res.status(500).json({ error: 'Failed to send email.', detail: error });
     }
 
     emailSuccess = true;
   } catch (err) {
-    console.error('Server error:', err);
+    console.error('[Resend] Server error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 
   // ════════════════════════════════════════════════════════════
-  // LOG TO SUPABASE — non-blocking, email already sent
+  // LOG TO SUPABASE — non-blocking, email already sent above
+  //
+  // FIX: previously the fetch response was never read or checked.
+  // fetch() only throws on network failure — it does NOT throw on
+  // HTTP 4xx/5xx. The silent failure was swallowed by the catch
+  // because there was nothing to catch. Now we:
+  //   1. Await and store the response
+  //   2. Read the response body with .text() regardless of status
+  //   3. Check response.ok and log the full error body if it failed
+  //   4. Log a success confirmation when the row is inserted
+  // This ensures every failure appears in Vercel function logs.
   // ════════════════════════════════════════════════════════════
   if (emailSuccess) {
     try {
-      const grandNumeric = parseFloat((grand_total || '0').replace(/[^\d.]/g, '')) || 0;
+      // Parse "$1,254.00" → 1254.00
+      // Strip everything except digits and dots, then remove any
+      // extra leading dots to avoid parseFloat returning NaN.
+      const grandNumeric = parseFloat(
+        (grand_total || '0')
+          .replace(/[^0-9.]/g, '')          // keep only digits and dots
+          .replace(/^\.+/, '')              // remove any leading dots
+          .replace(/\.(?=.*\.)/g, '')       // keep only the last dot
+      ) || 0;
 
-      await fetch(`${process.env.SUPABASE_URL}/rest/v1/quote_emails`, {
-        method: 'POST',
-        headers: {
-          'apikey':        process.env.SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-          'Content-Type':  'application/json',
-          'Prefer':        'return=minimal',
-        },
-        body: JSON.stringify({
-          quote_token:         token,
-          customer_name:       customer_name    || null,
-          customer_email:      to_email         || null,
-          customer_phone:      customer_phone   || null,
-          customer_address:    customer_address || null,
-          customer_type:       customer_type    || 'digital',
-          agent_name:          agent_name       || null,
-          service_type:        service_type     || null,
-          alarm_qty:           parseInt(alarm_qty) || 0,
-          alarm_total:         alarm_total      || null,
-          alarm_unit_price:    98,
-          ctrl_qty:            parseInt(ctrl_qty) || 0,
-          ctrl_total:          ctrl_total       || null,
-          fee_label:           fee_label        || null,
-          fee_amount:          fee_amount       || null,
-          grand_total:         grand_total      || null,
-          grand_total_numeric: grandNumeric,
-          status:              'sent',
-          accepted:            false,
-          sent_at:             new Date().toISOString(),
-        }),
-      });
+      console.log('[Supabase] Attempting insert for quote_token:', token);
+      console.log('[Supabase] Using URL:', process.env.SUPABASE_URL ? process.env.SUPABASE_URL.slice(0, 40) + '…' : 'MISSING');
+      console.log('[Supabase] Anon key present:', !!process.env.SUPABASE_ANON_KEY);
+
+      const supabaseRes = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/quote_emails`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey':        process.env.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+            'Content-Type':  'application/json',
+            // return=representation tells Supabase to return the inserted
+            // row so we can confirm exactly what was written
+            'Prefer':        'return=representation',
+          },
+          body: JSON.stringify({
+            quote_token:         token,
+            customer_name:       customer_name    || null,
+            customer_email:      to_email         || null,
+            customer_phone:      customer_phone   || null,
+            customer_address:    customer_address || null,
+            customer_type:       customer_type    || 'digital',
+            agent_name:          agent_name       || null,
+            service_type:        service_type     || null,
+            alarm_qty:           parseInt(alarm_qty, 10) || 0,
+            alarm_total:         alarm_total      || null,
+            alarm_unit_price:    98,
+            ctrl_qty:            parseInt(ctrl_qty, 10) || 0,
+            ctrl_total:          ctrl_total       || null,
+            fee_label:           fee_label        || null,
+            fee_amount:          fee_amount       || null,
+            grand_total:         grand_total      || null,
+            grand_total_numeric: grandNumeric,
+            status:              'sent',
+            accepted:            false,
+            sent_at:             new Date().toISOString(),
+          }),
+        }
+      );
+
+      // ALWAYS read the response body — required to free the connection
+      // and to get the actual error message from Supabase on failure
+      const supaBody = await supabaseRes.text();
+
+      if (!supabaseRes.ok) {
+        // Log HTTP status + full Supabase error payload to Vercel logs
+        console.error(
+          `[Supabase] INSERT FAILED — HTTP ${supabaseRes.status} ${supabaseRes.statusText}`
+        );
+        console.error('[Supabase] Error body:', supaBody);
+      } else {
+        // Confirm the row was written — log the returned id for traceability
+        let insertedId = '(unknown)';
+        try {
+          const parsed = JSON.parse(supaBody);
+          if (Array.isArray(parsed) && parsed[0]) insertedId = parsed[0].id;
+        } catch (_) { /* body may be empty on some Prefer modes */ }
+        console.log(
+          `[Supabase] INSERT OK — HTTP ${supabaseRes.status} — row id: ${insertedId} — token: ${token}`
+        );
+      }
     } catch (supaErr) {
-      console.error('Supabase log error (non-fatal):', supaErr);
+      // Only reaches here on network-level failure (DNS, timeout, etc.)
+      console.error('[Supabase] Network error during insert (non-fatal):', supaErr);
     }
 
     return res.status(200).json({ success: true });
