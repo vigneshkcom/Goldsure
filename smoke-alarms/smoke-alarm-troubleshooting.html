@@ -1,587 +1,718 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raptor Smoke Alarm Troubleshooting Guide</title>
-    <style>
-        :root {
-            --black: #000000;
-            --gold: #D4AF37;
-            --dark-gray: #333333;
-            --medium-gray: #666666;
-            --light-gray: #f5f5f5;
-            --border-gray: #dddddd;
-            --warning-red: #cc0000;
-            --success-green: #28a745;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raptor Smoke Alarm - Agent Troubleshooting Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f4f2;
+    --surface: #ffffff;
+    --surface2: #f8f8f6;
+    --border: #e2e2de;
+    --border-bright: #d0d0cc;
+    --accent: #1a1a1a;
+    --accent-light: rgba(26,26,26,0.06);
+    --red: #c0392b; --red-dim: rgba(192,57,43,0.08); --red-border: rgba(192,57,43,0.25);
+    --green: #1e7a4e; --green-dim: rgba(30,122,78,0.08); --green-border: rgba(30,122,78,0.25);
+    --yellow: #9a6e00; --yellow-dim: rgba(154,110,0,0.08); --yellow-border: rgba(154,110,0,0.25);
+    --blue: #1a5fa8; --blue-dim: rgba(26,95,168,0.08); --blue-border: rgba(26,95,168,0.25);
+    --orange: #b85c00; --orange-dim: rgba(184,92,0,0.08); --orange-border: rgba(184,92,0,0.25);
+    --text: #1a1a1a; --text-dim: #555; --text-muted: #999;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+  .shell { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 52px 1fr; height: 100vh; overflow: hidden; }
 
-        body { 
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
-            background: var(--light-gray); 
-            color: var(--dark-gray); 
-            margin: 0; 
-            padding: 20px; 
-            font-size: 14px; 
-            line-height: 1.5; 
-        }
-        
-        .container { 
-            max-width: 1100px; 
-            margin: auto; 
-            background: #ffffff; 
-            border: 1px solid var(--border-gray); 
-            padding: 0; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            border-radius: 4px; 
-        }
-        
-        .alert-banner {
-            background: var(--warning-red);
-            color: white;
-            padding: 12px 20px;
-            text-align: center;
-            font-weight: 600;
-            border-bottom: 2px solid #990000;
-            font-size: 13px;
-        }
-        
-        header { 
-            border-bottom: 2px solid var(--gold); 
-            margin-bottom: 0;
-            padding: 20px 30px 15px 30px; 
-        }
-        
-        h1 { 
-            margin: 0; 
-            font-size: 22px; 
-            color: var(--black); 
-            font-weight: 700; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .section-header { 
-            background: var(--black); 
-            color: var(--gold); 
-            padding: 10px 15px; 
-            font-size: 13px; 
-            text-transform: uppercase; 
-            margin-top: 25px; 
-            font-weight: 600; 
-            border-radius: 2px; 
-            margin-left: 30px;
-            margin-right: 30px;
-        }
-        
-        .diagnostic-flow { 
-            background: #f9f9f9; 
-            border: 1px solid var(--border-gray); 
-            padding: 20px; 
-            margin: 25px 30px; 
-            border-radius: 4px; 
-        }
-        
-        .agent-script { 
-            background: white; 
-            border-left: 4px solid var(--gold); 
-            padding: 15px; 
-            margin: 15px 0; 
-            font-weight: 600; 
-            font-style: italic; 
-            color: #000; 
-        }
-        
-        .agent-logic { 
-            background: #eef6ff; 
-            border: 1px solid #b6d9ff; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border-radius: 4px; 
-            font-size: 13px; 
-            color: #004085; 
-        }
-        
-        .agent-note {
-            padding: 10px; 
-            background: #fff3cd; 
-            border: 1px solid #ffeeba; 
-            margin-top: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        
-        .response-box { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-            margin: 15px 0; 
-        }
-        
-        .response-option { 
-            padding: 15px; 
-            background: white; 
-            border: 1px solid var(--border-gray); 
-            border-radius: 4px; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            display: flex; 
-            align-items: center; 
-        }
-        
-        .response-option:hover { 
-            border-color: var(--gold); 
-            background: #fffdf5; 
-        }
-        
-        .next-steps { 
-            display: none; 
-            padding-top: 10px; 
-            border-top: 1px solid #eee; 
-            margin-top: 20px; 
-        }
-        
-        .show { 
-            display: block; 
-        }
-        
-        table { 
-            width: calc(100% - 60px); 
-            border-collapse: collapse; 
-            margin: 15px 30px; 
-            background: white; 
-        }
-        
-        th { 
-            background: #f4f4f4; 
-            border: 1px solid var(--border-gray); 
-            padding: 10px; 
-            text-align: left; 
-            font-size: 12px; 
-            text-transform: uppercase; 
-        }
-        
-        td { 
-            border: 1px solid var(--border-gray); 
-            padding: 12px; 
-            font-size: 13px; 
-            vertical-align: top;
-        }
+  .topbar { grid-column: 1/-1; background: var(--accent); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .brand { font-family: var(--mono); font-size: 13px; font-weight: 500; color: #fff; letter-spacing: 0.1em; text-transform: uppercase; }
+  .divider-v { width: 1px; height: 18px; background: rgba(255,255,255,0.2); }
+  .topbar-title { font-size: 13px; color: rgba(255,255,255,0.5); }
+  .wip-badge { font-family: var(--mono); font-size: 10px; background: rgba(192,57,43,0.3); color: #ff8a80; border: 1px solid rgba(255,138,128,0.35); padding: 3px 10px; border-radius: 2px; letter-spacing: 0.1em; text-transform: uppercase; }
 
-        .action-btn { 
-            background: var(--black); 
-            color: white; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 3px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            margin: 10px 5px 0 0; 
-        }
-        
-        .de-escalate-btn { 
-            background: var(--success-green); 
-            color: white; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 3px; 
-            cursor: pointer; 
-            font-weight: 600; 
-        }
-        
-        .reset-btn {
-            background: var(--black);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 600;
-            display: block;
-            margin: 20px auto;
-        }
-        
-        .table-container {
-            margin: 0 30px 30px 30px;
-        }
-        
-        .warning-box {
-            border: 2px solid var(--warning-red); 
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
-        
-        .success-box {
-            border: 2px solid var(--success-green); 
-            padding: 15px;
-            margin: 15px 0;
-            background: #f0fff4;
-            border-radius: 4px;
-        }
-    </style>
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 0; }
+  .sidebar-section { padding: 8px 16px 4px; font-family: var(--mono); font-size: 10px; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; font-size: 13px; color: var(--text-dim); }
+  .sidebar-item:hover { background: var(--bg); color: var(--text); }
+  .sidebar-item.active { border-left-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .sidebar-item .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-red { background: var(--red); } .dot-yellow { background: var(--yellow); }
+  .dot-green { background: var(--green); } .dot-blue { background: var(--blue); }
+  .dot-dark { background: var(--accent); }
+
+  .main { overflow-y: auto; padding: 28px 36px; background: var(--bg); }
+  .panel { display: none; } .panel.active { display: block; }
+  .panel-header { margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .panel-header h2 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .panel-header p { font-size: 13px; color: var(--text-dim); }
+
+  .flow-step { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+  .flow-step.current { border-color: var(--accent); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+  .flow-step.resolved { border-color: var(--green); opacity: 0.5; }
+  .step-head { display: flex; align-items: center; gap: 14px; padding: 13px 18px; }
+  .step-num { font-family: var(--mono); font-size: 11px; color: var(--text-muted); width: 22px; flex-shrink: 0; }
+  .step-label { font-size: 13px; font-weight: 500; flex: 1; }
+  .step-status { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .status-active { background: var(--accent); color: #fff; }
+  .status-done { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+  .step-body { padding: 0 18px 18px; display: none; }
+  .step-body.open { display: block; }
+
+  .script-box { background: #fffdf5; border-left: 3px solid #c9a84c; border-top: 1px solid #f0e8c8; border-right: 1px solid #f0e8c8; border-bottom: 1px solid #f0e8c8; padding: 12px 16px; font-size: 13px; font-style: italic; color: var(--text); margin-bottom: 14px; border-radius: 0 4px 4px 0; }
+  .script-label { font-family: var(--mono); font-size: 10px; color: #9a7a20; font-style: normal; display: block; margin-bottom: 5px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .info-note { background: var(--blue-dim); border: 1px solid var(--blue-border); border-radius: 4px; padding: 10px 14px; font-size: 12px; color: var(--blue); margin-bottom: 14px; }
+  .info-note strong { color: var(--blue); }
+
+  .options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 12px; }
+  .opt-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 12px 14px; cursor: pointer; text-align: left; transition: all 0.15s; color: var(--text); font-family: var(--sans); font-size: 13px; }
+  .opt-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .opt-btn .opt-title { font-weight: 500; display: block; margin-bottom: 2px; }
+  .opt-btn .opt-sub { font-size: 11px; color: var(--text-muted); display: block; }
+
+  .resolution { border-radius: 5px; padding: 13px 16px; margin-top: 12px; }
+  .res-alarm  { background: var(--red-dim);    border: 1px solid var(--red-border); }
+  .res-ok     { background: var(--green-dim);  border: 1px solid var(--green-border); }
+  .res-warn   { background: var(--yellow-dim); border: 1px solid var(--yellow-border); }
+  .res-info   { background: var(--blue-dim);   border: 1px solid var(--blue-border); }
+  .res-orange { background: var(--orange-dim); border: 1px solid var(--orange-border); }
+  .res-title { font-family: var(--mono); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 7px; }
+  .res-alarm .res-title { color: var(--red); } .res-ok .res-title { color: var(--green); }
+  .res-warn .res-title { color: var(--yellow); } .res-info .res-title { color: var(--blue); }
+  .res-orange .res-title { color: var(--orange); }
+  .res-body { font-size: 13px; color: var(--text); line-height: 1.7; }
+
+  .action-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn { font-family: var(--sans); font-size: 12px; font-weight: 500; padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; letter-spacing: 0.02em; transition: all 0.15s; }
+  .btn-dark  { background: var(--accent); color: #fff; } .btn-dark:hover { background: #333; }
+  .btn-green { background: var(--green); color: #fff; } .btn-green:hover { background: #186040; }
+  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border-bright); } .btn-ghost:hover { color: var(--text); border-color: #aaa; }
+  .btn-red   { background: var(--red); color: #fff; } .btn-red:hover { background: #a93226; }
+
+  .breadcrumb { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 16px; flex-wrap: wrap; }
+  .breadcrumb .crumb-active { color: var(--accent); font-weight: 500; }
+  .breadcrumb .sep { color: var(--border-bright); }
+  .reset-bar { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 10px 16px; margin-bottom: 16px; font-size: 12px; color: var(--text-dim); }
+
+  .closing-card { background: var(--green-dim); border: 1px solid var(--green-border); border-radius: 6px; padding: 20px; margin-top: 16px; }
+  .closing-card h3 { color: var(--green); font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .closing-card p { font-size: 13px; font-style: italic; color: var(--text); line-height: 1.7; margin-bottom: 10px; }
+  .closing-card .note { font-size: 12px; color: var(--text-dim); font-style: normal; border-top: 1px solid var(--green-border); padding-top: 10px; margin-top: 10px; }
+
+  .section-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); margin-bottom: 10px; margin-top: 22px; }
+
+  .ref-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .ref-table th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); padding: 8px 14px; text-align: left; border-bottom: 2px solid var(--border); background: var(--surface2); font-weight: 500; }
+  .ref-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); line-height: 1.5; }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: var(--surface2); }
+
+  .led-pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .led-green  { background: var(--green-dim);  color: var(--green);  border: 1px solid var(--green-border); }
+  .led-red    { background: var(--red-dim);    color: var(--red);    border: 1px solid var(--red-border); }
+  .led-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .led-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .led-green .led-dot { background: var(--green); }
+  .led-red .led-dot { background: var(--red); }
+  .led-yellow .led-dot { background: var(--yellow); }
+
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 2px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; }
+  .tag-esc  { background: var(--red-dim);    color: var(--red);    border: 1px solid var(--red-border); }
+  .tag-fix  { background: var(--green-dim);  color: var(--green);  border: 1px solid var(--green-border); }
+  .tag-mon  { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .tag-info { background: var(--blue-dim);   color: var(--blue);   border: 1px solid var(--blue-border); }
+
+  ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+</style>
 </head>
 <body>
+<div class="shell">
 
-<div class="container">
-    <!-- Alert Banner -->
-    <div class="alert-banner">
-        WORK IN PROGRESS - ESCALATE TO VIGNESH FOR NOW
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="brand">Raptor</span>
+      <div class="divider-v"></div>
+      <span class="topbar-title">Smoke Alarm - Agent Troubleshooting Guide</span>
     </div>
-    
-    <!-- Main Header -->
-    <header>
-        <h1>Raptor Smoke Alarm Troubleshooting Guide</h1>
-    </header>
+    <span class="wip-badge">WIP - Escalate to Vignesh</span>
+  </div>
 
-    <!-- Diagnostic Flow Section -->
-    <div class="diagnostic-flow">
-        <div class="section-header">Step 1: Identify Triggering Unit</div>
-        <div class="agent-script">"Could you walk around and check the alarms? Does any unit have a fast-flashing red light right now?"</div>
-        
-        <div class="response-box">
-            <div class="response-option" onclick="showBranch('fast-red')">
-                <div>
-                    <strong>YES - Fast-flashing red found</strong><br>
-                    <span style="font-size:12px; color:var(--medium-gray);">Rapid red flashing detected</span>
-                </div>
-            </div>
-            <div class="response-option" onclick="showBranch('no-fast-red')">
-                <div>
-                    <strong>NO - No fast-flashing red</strong><br>
-                    <span style="font-size:12px; color:var(--medium-gray);">No rapid flashing detected on any unit</span>
-                </div>
-            </div>
+  <nav class="sidebar">
+    <div class="sidebar-section">Diagnostic</div>
+    <div class="sidebar-item active" data-panel="diag" onclick="showPanel('diag',this)"><div class="dot dot-dark"></div> Live Diagnosis</div>
+    <div class="sidebar-section">Reference</div>
+    <div class="sidebar-item" data-panel="indicators" onclick="showPanel('indicators',this)"><div class="dot dot-green"></div> LED &amp; Sound Indicators</div>
+    <div class="sidebar-item" data-panel="networking" onclick="showPanel('networking',this)"><div class="dot dot-blue"></div> Networking / Pairing</div>
+    <div class="sidebar-item" data-panel="matrix" onclick="showPanel('matrix',this)"><div class="dot dot-yellow"></div> Diagnostic Matrix</div>
+    <div class="sidebar-item" data-panel="locations" onclick="showPanel('locations',this)"><div class="dot dot-red"></div> Install Locations</div>
+  </nav>
+
+  <main class="main">
+
+    <!-- LIVE DIAGNOSIS -->
+    <div id="panel-diag" class="panel active">
+      <div class="panel-header">
+        <h2>Live Diagnosis</h2>
+        <p>Walk through each step with the customer. Click an answer to reveal the next question.</p>
+      </div>
+      <div class="reset-bar">
+        <span>Follow steps in order - each answer reveals the next question.</span>
+        <button class="btn btn-ghost" onclick="resetDiag()">↺ New Diagnosis</button>
+      </div>
+      <div id="breadcrumb" class="breadcrumb"><span class="crumb-active">Step 1</span></div>
+
+      <!-- STEP 1 -->
+      <div class="flow-step current" id="step1">
+        <div class="step-head"><span class="step-num">01</span><span class="step-label">Is the Alarm Currently Sounding or Flashing Red Rapidly?</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Could you walk around and check each alarm? Is there any unit with a <strong>fast-flashing red light</strong>, or is any alarm actively beeping loudly right now?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep1('alarm')">
+              <span class="opt-title">YES - Fast red flash / loud beeping</span>
+              <span class="opt-sub">Alarm is actively sounding or rapidly flashing red</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep1('no-alarm')">
+              <span class="opt-title">NO - No active alarm</span>
+              <span class="opt-sub">All units are quiet, no rapid red flashing</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <!-- Fast Red Found -->
-        <div id="branch-fast-red" class="next-steps">
-            <div class="agent-logic"><strong>Logic:</strong> ACTIVE ALARM - Smoke detected.</div>
-            <div class="agent-script">"That unit has detected a nuisance. Please press the center button once to silence it (Hush). Then, use a vacuum or soft brush to clean the perimeter vents."</div>
-            <button class="action-btn" onclick="showSection('step-4-id')">Proceed to Model ID</button>
+      <!-- STEP 1 → ACTIVE ALARM -->
+      <div class="flow-step" id="step1-alarm" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Active Alarm - Smoke or Nuisance</span><span class="step-status" style="background:var(--red);color:#fff">ALARM</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm">
+            <div class="res-title">⚠ Active Alarm Detected</div>
+            <div class="res-body">Before treating as a nuisance, the customer must confirm there is no actual fire or smoke source first.</div>
+          </div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "First - please quickly check there's no actual fire or smoke in your home. If everything's clear and it's a nuisance alarm from steam, dust, or cooking, press the <strong>Test/Hush button once</strong> to silence it for up to 10 minutes. Then use a soft brush or vacuum to gently clean the vent slots around the outside of that unit."
+          </div>
+          <div class="options-grid" style="margin-top:12px">
+            <button class="opt-btn" onclick="chooseStep1('alarm-cleaned')">
+              <span class="opt-title">Cleaned - alarm silenced</span>
+              <span class="opt-sub">Customer pressed Hush &amp; cleaned the vents</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep1('alarm-persists')">
+              <span class="opt-title">Alarm keeps re-sounding</span>
+              <span class="opt-sub">Alarm returned after the hush period expired</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <!-- No Fast Red -->
-        <div id="branch-no-fast-red" class="next-steps">
-            <div class="section-header">Step 2: Fault & Memory Check</div>
-            <div class="agent-script">"Is there a red light flashing every 20 seconds, a yellow light, or a red flash with a beep?"</div>
-            <div class="response-box">
-                <div class="response-option" onclick="showBranch('alarm-memory')">
-                    <div>
-                        <strong>Red flash (every 20s)</strong><br>
-                        <span style="font-size:12px; color:var(--medium-gray);">Alarm Memory - Triggered recently</span>
-                    </div>
-                </div>
-                <div class="response-option" onclick="showBranch('fault-found')">
-                    <div>
-                        <strong>Yellow or Red+Beep</strong><br>
-                        <span style="font-size:12px; color:var(--medium-gray);">Fault indicators detected</span>
-                    </div>
-                </div>
-                <div class="response-option" onclick="showBranch('no-fault')">
-                    <div>
-                        <strong>No Faults/Memory</strong><br>
-                        <span style="font-size:12px; color:var(--medium-gray);">No fault lights or beeping patterns</span>
-                    </div>
-                </div>
-            </div>
+      <div class="flow-step" id="step1-alarm-cleaned" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Post-Clean - Run Radio Link Test</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Let's confirm the whole system is still linked. Press and hold the button on any one alarm for about 1 second, then release. After a short delay, every other paired alarm should flash green and beep 6 times. Did all the others respond?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="showClose('nuisance')">
+              <span class="opt-title">Yes - all alarms responded</span>
+              <span class="opt-sub">Green flash + 6 beeps on all other units</span>
+            </button>
+            <button class="opt-btn" onclick="bumpTo('step4-partial')">
+              <span class="opt-title">Some alarms didn't respond</span>
+              <span class="opt-sub">One or more units were silent</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <!-- Alarm Memory -->
-        <div id="branch-alarm-memory" class="next-steps">
-            <div class="agent-logic"><strong>Logic:</strong> ALARM MEMORY - Unit was triggered recently.</div>
-            <div class="agent-script">"This means the unit was recently triggered by a nuisance like steam or dust. To reset the light, we need to perform a test. I also recommend cleaning the vents now to prevent it from happening again."</div>
-            <button class="action-btn" onclick="showSection('step-4-id')">Proceed to Model ID</button>
+      <div class="flow-step" id="step1-alarm-persists" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Persistent Alarm - Escalate</span><span class="step-status" style="background:var(--red);color:#fff">ESCALATE</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm">
+            <div class="res-title">Escalate - Alarm Persists After Cleaning</div>
+            <div class="res-body">If the alarm keeps re-sounding after the 10-minute hush expires even with no smoke source, the sensor may be contaminated or faulty. <strong>Do not advise the customer to disconnect power.</strong><br><br>Log as: <em>Persistent nuisance alarm - cleaning ineffective.</em></div>
+          </div>
+          <div class="action-row"><button class="btn btn-red" onclick="logEscalate('Persistent Nuisance Alarm – Cleaning ineffective. Escalate for inspection/replacement.')">Log &amp; Escalate</button></div>
         </div>
+      </div>
 
-        <!-- Fault Found -->
-        <div id="branch-fault-found" class="next-steps">
-            <div class="agent-logic">
-                <strong>Logic:</strong><br>
-                • Red+Beep = Low Battery (Escalate)<br>
-                • Yellow 2x = Sensor Fault (Clean)<br>
-                • Yellow 1x = Low Battery Hush Mode (Escalate)<br>
-                • Yellow 3x = System Fault (Escalate)
-            </div>
+      <!-- STEP 2 - NO ACTIVE ALARM: WHAT IS THE CONCERN? -->
+      <div class="flow-step" id="step2" style="display:none">
+        <div class="step-head"><span class="step-num">02</span><span class="step-label">What Is the Customer's Concern?</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="info-note">
+            <strong>Note for agent:</strong> No fast-flashing red simply means no alarm is currently triggered - this is <strong>completely normal</strong>. The alarms are not faulty. Now find out what the customer is actually seeing or experiencing.
+          </div>
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "That's fine - none of the alarms are in active alarm mode right now, which is perfectly normal. To help you further, could you tell me: are any of the alarms showing any kind of light, or making an occasional beeping or chirping sound? Even if it only happens every minute or so?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep2('memory')">
+              <span class="opt-title">Slow red flash (~every 20 sec)</span>
+              <span class="opt-sub">One red blink every ~20 seconds, no beep</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('low-bat')">
+              <span class="opt-title">Yellow 1× flash + 1 chirp (every 54 sec)</span>
+              <span class="opt-sub">Single yellow blink with a single beep</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('malfunction')">
+              <span class="opt-title">Yellow 2× flash + 2 chirps (every 54 sec)</span>
+              <span class="opt-sub">Double yellow blink with two beeps</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('eol')">
+              <span class="opt-title">Yellow 3× flash + 3 chirps (every 54 sec)</span>
+              <span class="opt-sub">Triple yellow blink with three beeps</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('went-off')">
+              <span class="opt-title">Alarm went off earlier / not sure why</span>
+              <span class="opt-sub">No current lights or sounds but it alarmed recently</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('no-fault')">
+              <span class="opt-title">No lights or beeping at all</span>
+              <span class="opt-sub">Everything appears silent - customer is doing a check</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <!-- No Fault -->
-        <div id="branch-no-fault" class="next-steps">
-            <div class="section-header">Step 3: Cleaning & Power Verification</div>
-            <div class="agent-script">"Is the unit hardwired (AC) or 10-year battery only (DC)?"</div>
-            
-            <div class="response-box" id="step-4-id">
-                <div class="response-option" onclick="showPower('ac')">
-                    <div>
-                        <strong>AC / Hardwired</strong><br>
-                        <span style="font-size:12px; color:var(--medium-gray);">Green light should be solid</span>
-                    </div>
-                </div>
-                <div class="response-option" onclick="showPower('dc')">
-                    <div>
-                        <strong>10-Year Battery</strong><br>
-                        <span style="font-size:12px; color:var(--medium-gray);">Battery-only model</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- AC Power -->
-            <div id="power-ac" class="next-steps">
-                <div class="agent-script">"Understood. On the front of the alarms, do you see a solid, constant Green light, or is that light completely off?"</div>
-                <div class="response-box">
-                    <div class="response-option" onclick="showSection('full-test')">
-                        <div>
-                            <strong>Green light ON (Solid)</strong><br>
-                            <span style="font-size:12px; color:var(--medium-gray);">AC/Hardwired Model - Power confirmed</span>
-                        </div>
-                    </div>
-                    <div class="response-option" onclick="showSection('power-issue')">
-                        <div>
-                            <strong>Green light OFF</strong><br>
-                            <span style="font-size:12px; color:var(--medium-gray);">No power to the alarm</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- DC Power -->
-            <div id="power-dc" class="next-steps">
-                <div class="agent-logic">Battery unit. Tap test button to confirm a green flash (Power OK).</div>
-                <button class="action-btn" onclick="showSection('full-test')">Proceed to Full System Test</button>
-            </div>
+      <!-- WENT OFF EARLIER -->
+      <div class="flow-step" id="step2-went-off" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Alarm Triggered Earlier - Check for Memory Indicator</span><span class="step-status" style="background:var(--blue);color:#fff">INVESTIGATE</span></div>
+        <div class="step-body open">
+          <div class="info-note"><strong>Note for agent:</strong> When an alarm triggers and then returns to normal, it leaves a memory indicator - a slow red flash every 20 seconds. Check if this is visible.</div>
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Is any alarm showing a slow red flash - one blink roughly every 20 seconds? That would be the alarm memory indicator, letting you know it was triggered recently."
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep2('memory')">
+              <span class="opt-title">Yes - slow red flash visible</span>
+              <span class="opt-sub">One blink every ~20 seconds</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('no-fault')">
+              <span class="opt-title">No - no lights showing now</span>
+              <span class="opt-sub">Memory may have already cleared (12hr auto-clear)</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <!-- Power Issue -->
-        <div id="power-issue" class="next-steps warning-box">
-            <div class="section-header" style="background:var(--warning-red); color:white; margin-top:0;">Power Issue Detected</div>
-            <div class="agent-script">"That usually means the power to the alarms is off. Please check your circuit breaker or fuse box and let me know once power is restored."</div>
-            <div class="agent-logic">
-                1. <strong>Check circuit breaker:</strong> Locate smoke alarm circuit.<br>
-                2. <strong>Reset if tripped:</strong> Flip OFF then back ON.<br>
-                3. <strong>Verify power:</strong> Check for green light on AC units.<br>
-                4. <strong>If no power:</strong> May need electrician if breaker continues to trip.
-            </div>
+      <!-- ALARM MEMORY -->
+      <div class="flow-step" id="step2-memory" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Alarm Memory - Not a Fault</span><span class="step-status" style="background:var(--blue);color:#fff">INFO</span></div>
+        <div class="step-body open">
+          <div class="resolution res-info">
+            <div class="res-title">Alarm Memory Indicator - Unit Is Working Correctly</div>
+            <div class="res-body">Red LED flashing once every 20 seconds means this unit <strong>was triggered recently but has since returned to normal standby.</strong> It is a reminder only - there is no current fault.<br><br><strong>To clear:</strong> Press the Test/Hush button <em>once</em>. The slow red flash stops immediately. Memory also clears automatically after 12 hours.</div>
+          </div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "That slow red flash every 20 seconds is just a memory reminder - it means the alarm was triggered recently but it's fully back to normal now. There is nothing wrong with the unit. To clear that light, just press the button on that alarm once. I'd also suggest cleaning the vent slots with a soft brush to reduce the chance of nuisance triggers in future."
+          </div>
+          <div class="action-row">
+            <button class="btn btn-green" onclick="showClose('memory')">Cleared - De-escalate</button>
+            <button class="btn btn-ghost" onclick="bumpTo('step1-alarm-cleaned')">Also run Radio Link Test</button>
+          </div>
         </div>
+      </div>
 
-        <!-- Full System Test -->
-        <div id="full-test" class="next-steps">
-            <div class="section-header" style="margin-top:0;">Full System Test (Radio Link Test)</div>
-            <div class="agent-script">"Press and hold the button for 1 second. This tests the whole network."</div>
-            <div class="agent-logic">
-                1. One unit is held for 1s.<br>
-                2. After a delay, <strong>ALL</strong> other units flash Green and beep 6 times.
-            </div>
-            <button class="de-escalate-btn" onclick="showSection('closing')">System Working? De-escalate Case</button>
+      <!-- LOW BATTERY -->
+      <div class="flow-step" id="step2-low-bat" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Low Battery - Unit Replacement Needed</span><span class="step-status" style="background:var(--yellow);color:#fff">ESCALATE</span></div>
+        <div class="step-body open">
+          <div class="resolution res-warn">
+            <div class="res-title">Low Battery - Full Unit Replacement Required</div>
+            <div class="res-body"><strong>Yellow LED flashing once every 54 seconds + 1 beep every 54 seconds</strong> = internal 10-year lithium battery is running low.<br><br>The battery is sealed and non-replaceable. <strong>The entire unit must be replaced.</strong><br><br>Interim: Customer can press Test/Hush once to silence chirping for <strong>12 hours</strong>. Yellow LED will continue flashing silently.</div>
+          </div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "That yellow light flashing once with a single beep every 54 seconds means the internal battery is running low. The battery in this unit is sealed and can't be replaced on its own - we'll need to arrange a full replacement unit for you. In the meantime, press the button once to silence the chirping for up to 12 hours."
+          </div>
+          <div class="action-row"><button class="btn btn-red" onclick="logEscalate('Low Battery – Internal battery low. Full unit replacement required.')">Log &amp; Escalate</button></div>
         </div>
+      </div>
 
-        <!-- Closing -->
-        <div id="closing" class="next-steps success-box">
-            <div class="section-header" style="background:var(--success-green); color:white; margin-top:0;">Case De-escalation & Closing</div>
-            <div class="agent-script">
-                "It looks like the system is powered and communicating correctly now. Cleaning the unit should prevent those nuisance alarms. <br><br>
-                We will monitor this for you. If the alarm sounds again without a reason, please call us back immediately so we can look at replacing the unit."
-            </div>
-            <div class="agent-logic"><strong>Internal Note:</strong> Log as 'Nuisance Alarm - Cleaned & Tested'. Do not replace unit unless issue persists.</div>
+      <!-- MALFUNCTION -->
+      <div class="flow-step" id="step2-malfunction" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Sensor Malfunction - Clean First, Then Monitor</span><span class="step-status" style="background:var(--orange);color:#fff">CLEAN FIRST</span></div>
+        <div class="step-body open">
+          <div class="resolution res-warn">
+            <div class="res-title">Sensor Malfunction - Clean Unit Then Monitor</div>
+            <div class="res-body"><strong>Yellow LED flashing twice every 54 seconds + 2 beeps every 54 seconds</strong> = sensor fault detected.<br><br>Often caused by dust, debris, or insects. <strong>Clean first before escalating.</strong><br><br>Customer can press Test/Hush once to silence for <strong>12 hours</strong>. If fault persists more than 1 hour after cleaning, escalate.</div>
+          </div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "That double yellow flash and double beep every 54 seconds means the sensor has detected a fault - this is often just dust or debris inside the unit. Please clean all the vent slots with a soft brush or vacuum. You can also press the button once to silence the beeping for 12 hours. If the double yellow flash is still showing after about an hour, please call us back."
+          </div>
+          <div class="options-grid" style="margin-top:12px">
+            <button class="opt-btn" onclick="showClose('malfunction-cleared')">
+              <span class="opt-title">Fault cleared after cleaning</span>
+              <span class="opt-sub">Yellow double-flash has stopped</span>
+            </button>
+            <button class="opt-btn" onclick="chooseStep2('malfunction-esc')">
+              <span class="opt-title">Fault still showing after 1+ hour</span>
+              <span class="opt-sub">Double yellow flash persists</span>
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div class="flow-step" id="step2-malfunction-esc" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Persistent Malfunction - Escalate</span><span class="step-status" style="background:var(--red);color:#fff">ESCALATE</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm">
+            <div class="res-title">Escalate - Sensor Fault Not Cleared By Cleaning</div>
+            <div class="res-body">Cleaning did not resolve the fault after more than 1 hour. The sensor component may have failed. Arrange unit replacement.</div>
+          </div>
+          <div class="action-row"><button class="btn btn-red" onclick="logEscalate('Sensor Malfunction – Cleaning ineffective after 1hr. Escalate for replacement.')">Log &amp; Escalate</button></div>
+        </div>
+      </div>
+
+      <!-- END OF LIFE -->
+      <div class="flow-step" id="step2-eol" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">End of Life - 10-Year Service Life Reached</span><span class="step-status" style="background:var(--red);color:#fff">REPLACE</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm">
+            <div class="res-title">End of Life - Unit Must Be Replaced Immediately</div>
+            <div class="res-body"><strong>Yellow LED flashing 3 times every 54 seconds + 3 beeps every 54 seconds</strong> = the unit has reached its <strong>10-year end of service life.</strong><br><br>This is not fixable. <strong>Unit must be replaced.</strong><br><br>Interim: Press Test/Hush once to silence for up to <strong>24 hours</strong> - but only within the first 30 days past EOL. After 30 days, hush stops working entirely.</div>
+          </div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "That pattern - yellow flashing 3 times every 54 seconds with 3 beeps - means this alarm has reached its end of service life after 10 years. This one needs to be replaced. You can press the button once to silence it for up to 24 hours, but we do need to arrange a replacement as soon as possible."
+          </div>
+          <div class="action-row"><button class="btn btn-red" onclick="logEscalate('End of Life – 10-year service life reached. Urgent replacement required.')">Log &amp; Escalate</button></div>
+        </div>
+      </div>
+
+      <!-- STEP 3 - POWER CHECK -->
+      <div class="flow-step" id="step3" style="display:none">
+        <div class="step-head"><span class="step-num">03</span><span class="step-label">Check Power Supply</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Is this unit hardwired to mains power, or is it a battery-only model?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep3('ac')"><span class="opt-title">AC / Hardwired (mains)</span><span class="opt-sub">Model: RH638-AC-RF</span></button>
+            <button class="opt-btn" onclick="chooseStep3('dc')"><span class="opt-title">10-Year Battery Only</span><span class="opt-sub">Model: RH638-B-RF</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step" id="step3-ac" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">AC Model - Verify Green Power Light</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "On the front face of the alarm, do you see a <strong>solid, constant green light</strong>? Or is the green light off?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep3('power-ok')"><span class="opt-title">Solid green light ON</span><span class="opt-sub">Mains power confirmed</span></button>
+            <button class="opt-btn" onclick="chooseStep3('ac-nopower')"><span class="opt-title">Green light OFF</span><span class="opt-sub">No power to the unit</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step" id="step3-ac-nopower" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">No Mains Power - Check Breaker</span><span class="step-status" style="background:var(--red);color:#fff">CHECK POWER</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm"><div class="res-title">No Mains Power Detected</div><div class="res-body">The green light should be solid and constant when AC power is present. No green light means the unit has lost mains power.</div></div>
+          <div class="script-box" style="margin-top:14px">
+            <span class="script-label">Say to customer</span>
+            "The alarm isn't receiving mains power. Please check your circuit breaker or fuse box and see if the circuit for the smoke alarms has tripped. Reset it by flipping it fully off then back on, and let me know if the green light comes back on."
+          </div>
+          <div class="options-grid" style="margin-top:12px">
+            <button class="opt-btn" onclick="chooseStep3('power-ok')"><span class="opt-title">Power restored - green light on</span><span class="opt-sub">Breaker reset worked</span></button>
+            <button class="opt-btn" onclick="chooseStep3('dead-unit')"><span class="opt-title">Still no green light</span><span class="opt-sub">Breaker OK but unit still dark</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step" id="step3-dead-unit" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Dead Unit - Escalate</span><span class="step-status" style="background:var(--red);color:#fff">ESCALATE</span></div>
+        <div class="step-body open">
+          <div class="resolution res-alarm"><div class="res-title">Escalate - Power Present But Unit Unresponsive</div><div class="res-body">Circuit breaker is on but the alarm still shows no green light. A licensed electrician may need to inspect the wiring first. Escalate accordingly.</div></div>
+          <div class="action-row"><button class="btn btn-red" onclick="logEscalate('AC Power – No power to unit after breaker check. Escalate for electrical inspection.')">Log &amp; Escalate</button></div>
+        </div>
+      </div>
+
+      <div class="flow-step" id="step3-dc" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Battery Model - Confirm Power</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Please tap the test button once quickly. You should see a single green flash - that confirms the battery has power. Did you see a green flash?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="chooseStep3('power-ok')"><span class="opt-title">Yes - green flash seen</span><span class="opt-sub">Battery power confirmed</span></button>
+            <button class="opt-btn" onclick="chooseStep2('low-bat')"><span class="opt-title">No flash at all</span><span class="opt-sub">Battery may be fully dead</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 - RADIO LINK TEST -->
+      <div class="flow-step" id="step4" style="display:none">
+        <div class="step-head"><span class="step-num">04</span><span class="step-label">Full Radio Link Test</span><span class="step-status status-active">ACTIVE</span></div>
+        <div class="step-body open">
+          <div class="script-box">
+            <span class="script-label">Say to customer</span>
+            "Great. Now let's confirm all the alarms are talking to each other. Press and hold the button on any one alarm for about 1 second, then release. After a short delay, every other paired alarm should flash green and beep 6 times. Did all the other alarms respond?"
+          </div>
+          <div class="options-grid">
+            <button class="opt-btn" onclick="showClose('nuisance')"><span class="opt-title">Yes - all alarms responded</span><span class="opt-sub">Green flash + 6 beeps on all other units</span></button>
+            <button class="opt-btn" onclick="chooseStep4('partial')"><span class="opt-title">Some alarms didn't respond</span><span class="opt-sub">One or more units were silent</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step" id="step4-partial" style="display:none">
+        <div class="step-head"><span class="step-num">↳</span><span class="step-label">Pairing Issue - Re-pair or Escalate</span><span class="step-status" style="background:var(--yellow);color:#fff">ACTION NEEDED</span></div>
+        <div class="step-body open">
+          <div class="resolution res-warn">
+            <div class="res-title">One or More Alarms Not Responding to Link Test</div>
+            <div class="res-body">A unit not responding is either not paired, or out of wireless range. Max range is ~150m in open air - walls and steel reduce this significantly.<br><br>See the <strong>Networking / Pairing</strong> tab for re-pairing steps. If range is the issue, the host device should be moved to the centre of the building.</div>
+          </div>
+          <div class="action-row">
+            <button class="btn btn-dark" onclick="showPanel('networking', document.querySelector('[data-panel=networking]'))">Go to Pairing Guide</button>
+            <button class="btn btn-ghost" onclick="logEscalate('Radio Link Failure – Unit(s) not responding. Re-pair attempted. Escalate if unresolved.')">Escalate if Re-pair Fails</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLOSING -->
+      <div id="closing-panel" style="display:none">
+        <div class="closing-card">
+          <h3>✓ Case De-escalated</h3>
+          <p id="closing-script"></p>
+          <div class="note" id="closing-note"></div>
+        </div>
+        <div class="action-row" style="margin-top:16px">
+          <button class="btn btn-ghost" onclick="resetDiag()">↺ Start New Diagnosis</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Additional Tables -->
-    <div class="table-container">
-        <!-- Visible and Audible Indications Table -->
-        <div class="section-header">Visible and Audible Indications</div>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 15%;">Condition</th>
-                    <th style="width: 30%;">Operation</th>
-                    <th style="width: 30%;">LED</th>
-                    <th style="width: 25%;">Horn</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Standby</td>
-                    <td>AC power supply</td>
-                    <td>Green LED keep on.</td>
-                    <td>None</td>
-                </tr>
-                <tr>
-                    <td>Standby</td>
-                    <td>Battery-powered</td>
-                    <td>Green LED flashes once every 54 seconds.</td>
-                    <td>None</td>
-                </tr>
-                <tr>
-                    <td>Test</td>
-                    <td>Press the Test/Hush/Networking button to check whether alarm works normally.</td>
-                    <td>Red LED flashes rapidly</td>
-                    <td>3 short quick beeps.</td>
-                </tr>
-                <tr>
-                    <td>Alarm</td>
-                    <td>When the alarm detects that the smoke concentration is greater than the alarm threshold.</td>
-                    <td>Red LED flashes rapidly</td>
-                    <td>3 short quick beeps.</td>
-                </tr>
-                <tr>
-                    <td>Hush</td>
-                    <td>In alarm mode, press the Test/Hush/Networking button.</td>
-                    <td>Red LED flashes once every 10 seconds.</td>
-                    <td>None (Duration: about 10 minutes).</td>
-                </tr>
-                <tr>
-                    <td>Low battery</td>
-                    <td>None</td>
-                    <td>Yellow LED flashes once every 54 seconds.</td>
-                    <td>1 beep every 54 seconds.</td>
-                </tr>
-                <tr>
-                    <td>Malfunction</td>
-                    <td>None</td>
-                    <td>Yellow LED flashes twice every 54 seconds.</td>
-                    <td>2 beep every 54 seconds.</td>
-                </tr>
-                <tr>
-                    <td>End of life</td>
-                    <td>None</td>
-                    <td>Yellow LED flashes 3 times every 54 seconds.</td>
-                    <td>3 beep every 54 seconds.</td>
-                </tr>
-                <tr>
-                    <td>Alarm memory</td>
-                    <td>When a alarm has occurred in user's absence.</td>
-                    <td>Red LED flashes once every 20 seconds (to remind the user).</td>
-                    <td>None</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Diagnostic & Resolution Matrix -->
-        <div class="section-header">Diagnostic & Resolution Matrix</div>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 20%;">Scenario</th>
-                    <th style="width: 40%;">Diagnostic Questions</th>
-                    <th style="width: 40%;">Resolution Logic</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>False Alarm / Nuisance</strong></td>
-                    <td>
-                        "Is the unit near a bathroom, kitchen, or AC vent?"<br>
-                        "Has it been cleaned in the last 30 days?"
-                    </td>
-                    <td>
-                        <strong>Fix:</strong> Instruct to clean perimeter vents. Use the push-to-open hinge to access.<br>
-                        <strong>If persists:</strong> Escalate.
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>Single Beep (54s)</strong></td>
-                    <td>"Count the seconds between beeps. Is it exactly 54 seconds?"</td>
-                    <td>
-                        <strong>Fix:</strong> Low Battery. Internal 10-year lithium.<br>
-                        <strong>Action:</strong> Escalate.
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>Double Beep (54s)</strong></td>
-                    <td>"Is it two short beeps together every 54 seconds?"</td>
-                    <td>
-                        <strong>Fix:</strong> Sensor Fault. Clean vents thoroughly.<br>
-                        <strong>If continues > 1 hour:</strong> Escalate.
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>No Power / Dead</strong></td>
-                    <td>"Is the small green light glowing on the face?"</td>
-                    <td>
-                        <strong>Fix:</strong> AC Power Loss. Check breaker.<br>
-                        <strong>If power on but unit dead:</strong> Escalate.
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Networking Modes -->
-        <div class="section-header">Networking Modes</div>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 25%;">Desired Action</th>
-                    <th style="width: 25%;">Mode Name</th>
-                    <th style="width: 50%;">Button Sequence</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>Pairing (Existing)</strong></td>
-                    <td>Code Receiving</td>
-                    <td>Press button 3x quickly + Long-press 1s</td>
-                </tr>
-                <tr>
-                    <td><strong>Pairing (New Unit)</strong></td>
-                    <td>Code Sending</td>
-                    <td>Press button 2x quickly + Long-press 1s</td>
-                </tr>
-                <tr>
-                    <td><strong>Clear Network</strong></td>
-                    <td>Memory Wipe</td>
-                    <td>Press button 4x quickly + Long-press 1s</td>
-                </tr>
-                <tr>
-                    <td><strong>Full System Test</strong></td>
-                    <td>Radio Link Test</td>
-                    <td>Press and hold button for 1s</td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- LED INDICATORS -->
+    <div id="panel-indicators" class="panel">
+      <div class="panel-header"><h2>LED &amp; Sound Indicators</h2><p>Full reference - Raptor AS3786:2023 - RH638-AC-RF / RH638-B-RF</p></div>
+      <table class="ref-table">
+        <thead><tr><th>Condition</th><th>LED</th><th>Sound</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Standby - AC mains</strong></td><td><span class="led-pill led-green"><span class="led-dot"></span>Green solid</span></td><td>None</td><td><span class="tag tag-fix">NORMAL</span></td></tr>
+          <tr><td><strong>Standby - Battery</strong></td><td><span class="led-pill led-green"><span class="led-dot"></span>Green 1× / 54 sec</span></td><td>None</td><td><span class="tag tag-fix">NORMAL</span></td></tr>
+          <tr><td><strong>Test Mode</strong></td><td><span class="led-pill led-red"><span class="led-dot"></span>Red rapid flash</span></td><td>3 short quick beeps</td><td><span class="tag tag-info">TEST</span></td></tr>
+          <tr><td><strong>Alarm - Smoke detected</strong></td><td><span class="led-pill led-red"><span class="led-dot"></span>Red rapid flash</span></td><td>3 short quick beeps (loud, repeating)</td><td><span class="tag tag-esc">URGENT</span></td></tr>
+          <tr><td><strong>Hush Mode</strong><br><small>Button pressed during alarm</small></td><td><span class="led-pill led-red"><span class="led-dot"></span>Red 1× / 10 sec</span></td><td>None - silenced ~10 min</td><td><span class="tag tag-mon">MONITOR</span></td></tr>
+          <tr><td><strong>Alarm Memory</strong><br><small>Triggered while absent - not a fault</small></td><td><span class="led-pill led-red"><span class="led-dot"></span>Red 1× / 20 sec</span></td><td>None</td><td><span class="tag tag-info">CLEAR</span> - Press button once</td></tr>
+          <tr><td><strong>Low Battery</strong></td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 1× / 54 sec</span></td><td>1 beep / 54 sec</td><td><span class="tag tag-esc">REPLACE UNIT</span></td></tr>
+          <tr><td><strong>Sensor Malfunction</strong></td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 2× / 54 sec</span></td><td>2 beeps / 54 sec</td><td><span class="tag tag-mon">CLEAN FIRST</span> - escalate if &gt;1hr</td></tr>
+          <tr><td><strong>End of Life</strong><br><small>Unit is 10+ years old</small></td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 3× / 54 sec</span></td><td>3 beeps / 54 sec</td><td><span class="tag tag-esc">REPLACE UNIT</span></td></tr>
+        </tbody>
+      </table>
+      <div class="section-label">Hush / Silence Options</div>
+      <table class="ref-table">
+        <thead><tr><th>Condition</th><th>How to Hush</th><th>Duration</th><th>LED During Hush</th></tr></thead>
+        <tbody>
+          <tr><td>Active Alarm (nuisance)</td><td>Press Test/Hush once</td><td>~10 min, then auto-rearms</td><td><span class="led-pill led-red"><span class="led-dot"></span>Red 1× / 10 sec</span></td></tr>
+          <tr><td>Low Battery chirp</td><td>Press Test/Hush once</td><td>12 hours</td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 1× / 54 sec (silent)</span></td></tr>
+          <tr><td>Malfunction chirp</td><td>Press Test/Hush once</td><td>12 hours</td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 2× / 54 sec (silent)</span></td></tr>
+          <tr><td>End of Life chirp</td><td>Press Test/Hush once<br><small>Within 30 days of EOL only - after 30 days hush stops</small></td><td>~24 hours</td><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 3× / 54 sec (silent)</span></td></tr>
+        </tbody>
+      </table>
     </div>
 
-    <button class="reset-btn" onclick="location.reload()">Start New Diagnosis</button>
+    <!-- NETWORKING -->
+    <div id="panel-networking" class="panel">
+      <div class="panel-header"><h2>Networking &amp; Pairing</h2><p>Wireless interconnection - up to 40 alarms via RF433 (RH638-AC-RF / RH638-B-RF)</p></div>
+      <div class="section-label">Button Sequences</div>
+      <table class="ref-table">
+        <thead><tr><th>Action</th><th>Mode</th><th>Button Sequence</th><th>LED Indication</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Enter pairing receive</strong><br><small>On the HOST (existing) device</small></td><td>Code Receiving</td><td>Press 3× quickly (within 2 sec) → Long press 1 sec</td><td><span class="led-pill led-green"><span class="led-dot"></span>Green flash ~1 min</span> - 1 beep per sub-device added</td></tr>
+          <tr><td><strong>Enter pairing send</strong><br><small>On the NEW (sub) device</small></td><td>Code Sending</td><td>Press 2× quickly (within 1 sec) → Long press 1 sec</td><td><span class="led-pill led-green"><span class="led-dot"></span>Green flash ~8 sec</span>, then on 3 sec + 1 beep = paired</td></tr>
+          <tr><td><strong>Remove unit from group</strong></td><td>Network Exclusion</td><td>Press 4× quickly (within 2 sec) → Long press 1 sec</td><td><span class="led-pill led-green"><span class="led-dot"></span>Green flash 3 sec (2×/sec)</span> then off</td></tr>
+          <tr><td><strong>Full System Test</strong></td><td>Radio Link Test</td><td>Press and hold 1 sec, then release</td><td>All paired alarms: <span class="led-pill led-green"><span class="led-dot"></span>Green flash</span> + 6 beeps</td></tr>
+        </tbody>
+      </table>
+      <div class="section-label">Important Notes</div>
+      <div class="resolution res-info" style="display:block;margin-top:8px">
+        <div class="res-title">Wireless Limits &amp; Placement</div>
+        <div class="res-body"><strong>Max wireless:</strong> 40 alarms - exceeding this may cause permanent damage.<br><strong>Max wired:</strong> 20 alarms over 250 metres.<br><strong>Open air range:</strong> ~150 metres between any two units. Steel and thick walls reduce range significantly.<br><strong>Host placement:</strong> Centre of building acts as repeater. 2-storey: centre of main floor. 3-storey: centre of middle floor.<br><strong>Pair one at a time:</strong> Do not run code learning on multiple units simultaneously.</div>
+      </div>
+    </div>
+
+    <!-- DIAGNOSTIC MATRIX -->
+    <div id="panel-matrix" class="panel">
+      <div class="panel-header"><h2>Diagnostic Matrix</h2><p>Quick-reference symptom → resolution lookup</p></div>
+      <table class="ref-table">
+        <thead><tr><th>Symptom</th><th>Diagnosis</th><th>First Action</th><th>If Persists</th></tr></thead>
+        <tbody>
+          <tr><td><span class="led-pill led-red"><span class="led-dot"></span>Red rapid flash</span> + loud beeping</td><td>Active alarm - smoke or nuisance</td><td><span class="tag tag-fix">HUSH</span> Press once. Clean vents. Verify no fire.</td><td><span class="tag tag-esc">ESCALATE</span> If re-sounds after hush</td></tr>
+          <tr><td><span class="led-pill led-red"><span class="led-dot"></span>Red 1× / 20 sec</span> - no beep</td><td>Alarm memory - triggered recently, now normal. <em>Not a fault.</em></td><td><span class="tag tag-fix">CLEAR</span> Press button once</td><td>Auto-clears after 12 hours</td></tr>
+          <tr><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 1× / 54 sec</span> + 1 beep</td><td>Low battery - sealed 10-yr lithium low</td><td><span class="tag tag-esc">REPLACE</span> Full unit replacement needed</td><td>N/A - hush 12hr interim only</td></tr>
+          <tr><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 2× / 54 sec</span> + 2 beeps</td><td>Sensor malfunction - often dust/debris</td><td><span class="tag tag-mon">CLEAN</span> Vacuum/brush all vent slots</td><td><span class="tag tag-esc">ESCALATE</span> If fault after 1hr</td></tr>
+          <tr><td><span class="led-pill led-yellow"><span class="led-dot"></span>Yellow 3× / 54 sec</span> + 3 beeps</td><td>End of life - 10+ years old</td><td><span class="tag tag-esc">REPLACE</span> Cannot be fixed. Hush 24hr interim.</td><td>N/A - replacement only</td></tr>
+          <tr><td>AC unit: no green light</td><td>Loss of mains power</td><td><span class="tag tag-fix">BREAKER</span> Check/reset circuit breaker</td><td><span class="tag tag-esc">ESCALATE</span> Electrician if breaker OK but no power</td></tr>
+          <tr><td>Alarm not responding to link test</td><td>Not paired or out of wireless range</td><td><span class="tag tag-fix">RE-PAIR</span> See networking guide</td><td><span class="tag tag-esc">ESCALATE</span> Reposition host or replace unit</td></tr>
+          <tr><td>Frequent nuisance alarms</td><td>Poor placement or dirty sensor</td><td><span class="tag tag-fix">CLEAN</span> Clean vents. Review install location.</td><td><span class="tag tag-esc">RELOCATE</span> Too close to kitchen/bathroom/AC</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- LOCATIONS -->
+    <div id="panel-locations" class="panel">
+      <div class="panel-header"><h2>Installation Locations</h2><p>Reference for nuisance alarm relocation advice - AS3786:2023 manual</p></div>
+      <div class="section-label">Where to Install</div>
+      <div class="resolution res-ok" style="display:block">
+        <div class="res-title">Recommended Locations</div>
+        <div class="res-body">
+          • Between sleeping areas and potential fire sources (living rooms, kitchens)<br>
+          • Hallway within 3m of any bedroom door<br>
+          • Every level of a multi-storey home<br>
+          • No more than 7.5m from the farthest wall, any room door, or the next alarm<br>
+          • Centre of ceiling is ideal; if wall-mounted, 300mm below ceiling<br>
+          • On sloped/peaked ceilings: 900mm from the highest point
+        </div>
+      </div>
+      <div class="section-label" style="margin-top:20px">Where NOT to Install</div>
+      <div class="resolution res-alarm" style="display:block">
+        <div class="res-title">Avoid These Locations</div>
+        <div class="res-body">
+          • Within 400mm of an air-conditioning vent or ceiling fan blades<br>
+          • In kitchens, boiler rooms, laundry rooms, or garages<br>
+          • In very dusty or dirty areas<br>
+          • Within 300mm (12 inches) of light fittings or room corners<br>
+          • Within 1500mm (5 feet) of fluorescent light fittings<br>
+          • At the peak of an A-frame ceiling ("dead air" zone)<br>
+          • In insect-infested areas<br>
+          • Near ceiling decorations that block the smoke path<br>
+          • On poorly insulated walls or ceilings<br>
+          • Over stairwells or locations that make testing hazardous
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
 <script>
-    function showBranch(id) {
-        // Hide all branches
-        document.querySelectorAll('.next-steps').forEach(el => {
-            el.classList.remove('show');
-        });
-        
-        // Show selected branch
-        const target = document.getElementById('branch-' + id);
-        if(target) target.classList.add('show');
-        
-        // Scroll to the shown branch
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  function showPanel(name, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    if (el) el.classList.add('active');
+    else document.querySelectorAll('.sidebar-item').forEach(s => { if (s.dataset.panel === name) s.classList.add('active'); });
+  }
 
-    function showPower(type) {
-        // Hide power steps
-        document.getElementById('power-ac').classList.remove('show');
-        document.getElementById('power-dc').classList.remove('show');
-        
-        // Show selected power step
-        document.getElementById('power-' + type).classList.add('show');
-        
-        // Scroll to the shown step
-        document.getElementById('power-' + type).scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  function markDone(id) {
+    const el = document.getElementById(id);
+    if (!el || el.style.display === 'none') return;
+    el.classList.remove('current'); el.classList.add('resolved');
+    const ss = el.querySelector('.step-status');
+    if (ss) { ss.className = 'step-status status-done'; ss.textContent = 'DONE'; }
+    const sb = el.querySelector('.step-body');
+    if (sb) sb.classList.remove('open');
+  }
 
-    function showSection(id) {
-        // Hide all sections
-        document.querySelectorAll('.next-steps').forEach(el => {
-            el.classList.remove('show');
-        });
-        
-        // Show selected section
-        const el = document.getElementById(id);
-        el.classList.add('show');
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function showStep(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'block'; el.classList.add('current');
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  }
+
+  function bumpTo(id) { showStep(id); }
+
+  function updateBreadcrumb(items) {
+    document.getElementById('breadcrumb').innerHTML = items.map((item, i) =>
+      i === items.length - 1
+        ? `<span class="crumb-active">${item}</span>`
+        : `<span>${item}</span><span class="sep"> › </span>`
+    ).join('');
+  }
+
+  function chooseStep1(val) {
+    markDone('step1');
+    if (val === 'alarm')         { showStep('step1-alarm');         updateBreadcrumb(['Step 1', 'Active Alarm']); }
+    else if (val === 'no-alarm') { showStep('step2');               updateBreadcrumb(['Step 1', 'Step 2: Identify Concern']); }
+    else if (val === 'alarm-cleaned') { markDone('step1-alarm'); showStep('step1-alarm-cleaned'); updateBreadcrumb(['Step 1', 'Active Alarm', 'Post-Clean Check']); }
+    else if (val === 'alarm-persists') { markDone('step1-alarm'); showStep('step1-alarm-persists'); updateBreadcrumb(['Step 1', 'Active Alarm', 'Escalate']); }
+  }
+
+  function chooseStep2(val) {
+    ['step2','step2-went-off'].forEach(id => markDone(id));
+    if (val === 'memory')           { showStep('step2-memory');         updateBreadcrumb(['Step 1', 'Step 2', 'Alarm Memory']); }
+    else if (val === 'low-bat')     { showStep('step2-low-bat');        updateBreadcrumb(['Step 1', 'Step 2', 'Low Battery']); }
+    else if (val === 'malfunction') { showStep('step2-malfunction');    updateBreadcrumb(['Step 1', 'Step 2', 'Sensor Malfunction']); }
+    else if (val === 'malfunction-esc') { markDone('step2-malfunction'); showStep('step2-malfunction-esc'); updateBreadcrumb(['Step 1', 'Step 2', 'Malfunction', 'Escalate']); }
+    else if (val === 'eol')         { showStep('step2-eol');            updateBreadcrumb(['Step 1', 'Step 2', 'End of Life']); }
+    else if (val === 'no-fault')    { showStep('step3');                updateBreadcrumb(['Step 1', 'Step 2', 'Step 3: Power Check']); }
+    else if (val === 'went-off')    { showStep('step2-went-off');       updateBreadcrumb(['Step 1', 'Step 2', 'Alarm Triggered Earlier']); }
+  }
+
+  function chooseStep3(val) {
+    ['step3','step3-ac','step3-dc','step3-ac-nopower'].forEach(id => markDone(id));
+    if (val === 'ac')           { showStep('step3-ac');          updateBreadcrumb(['Step 1','Step 2','Step 3','AC - Verify Green Light']); }
+    else if (val === 'dc')      { showStep('step3-dc');          updateBreadcrumb(['Step 1','Step 2','Step 3','Battery - Tap Test']); }
+    else if (val === 'power-ok') { showStep('step4');            updateBreadcrumb(['Step 1','Step 2','Step 3: Power ✓','Step 4: Link Test']); }
+    else if (val === 'ac-nopower') { showStep('step3-ac-nopower'); updateBreadcrumb(['Step 1','Step 2','Step 3','No Mains Power']); }
+    else if (val === 'dead-unit')  { showStep('step3-dead-unit'); updateBreadcrumb(['Step 1','Step 2','Step 3','Dead Unit - Escalate']); }
+  }
+
+  function chooseStep4(val) {
+    if (val === 'partial') { markDone('step4'); showStep('step4-partial'); updateBreadcrumb(['Step 1','Step 2','Step 3','Step 4','Pairing Issue']); }
+  }
+
+  const closingData = {
+    nuisance: {
+      script: '"The system is powered and all alarms are communicating correctly. Cleaning the unit should prevent further nuisance alarms. We\'ll keep monitoring - if it goes off again without a clear reason, please call us back so we can look at replacing that unit."',
+      note: 'Log as: Nuisance Alarm - Cleaned & Tested. Do not replace unless issue recurs.'
+    },
+    memory: {
+      script: '"The alarm memory has been cleared - that was just a reminder that the alarm went off recently, but the unit is perfectly fine. We recommend cleaning the vent slots regularly to reduce nuisance triggers."',
+      note: 'Log as: Alarm Memory - Cleared by customer. No fault present. Cleaning advised.'
+    },
+    'malfunction-cleared': {
+      script: '"The malfunction indicator has cleared - cleaning fixed the issue. Please keep an eye on it over the next 24 hours and call us if the yellow double-flash comes back."',
+      note: 'Log as: Sensor Malfunction - Resolved by cleaning. Monitor 24hr.'
     }
+  };
+
+  function showClose(type) {
+    ['step4','step1-alarm-cleaned','step2-memory','step2-malfunction'].forEach(id => markDone(id));
+    const d = closingData[type] || closingData.nuisance;
+    document.getElementById('closing-script').textContent = d.script;
+    document.getElementById('closing-note').textContent = d.note;
+    const cp = document.getElementById('closing-panel');
+    cp.style.display = 'block';
+    updateBreadcrumb(['Step 1','Step 2','Step 3','Step 4','✓ De-escalated']);
+    setTimeout(() => cp.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+
+  function logEscalate(msg) { alert('Logged: ' + msg + '\n\nEscalate to Vignesh.'); }
+
+  function resetDiag() {
+    ['step1-alarm','step1-alarm-cleaned','step1-alarm-persists',
+     'step2','step2-went-off','step2-memory','step2-low-bat',
+     'step2-malfunction','step2-malfunction-esc','step2-eol',
+     'step3','step3-ac','step3-ac-nopower','step3-dead-unit','step3-dc',
+     'step4','step4-partial','closing-panel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.display='none'; el.classList.remove('current','resolved'); }
+    });
+    const s1 = document.getElementById('step1');
+    s1.classList.remove('resolved'); s1.classList.add('current');
+    const ss = s1.querySelector('.step-status'); ss.className='step-status status-active'; ss.textContent='ACTIVE';
+    s1.querySelector('.step-body').classList.add('open');
+    updateBreadcrumb(['Step 1']);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 </script>
-
 </body>
 </html>
