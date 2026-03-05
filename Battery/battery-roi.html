@@ -2,1104 +2,1127 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Your Battery ROI | Goldsure</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<!-- Libraries for Excel and PDF generation -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Battery ROI Calculator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --gold: #D4AF37;
-  --black: #000;
-  --gray: #333;
-  --light-gray: #f5f5f5;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --green-bg: #eaf7f2;
+  --red: #e04f4f;
+  --blue: #2d6be4;
+  --blue-bg: #edf2fd;
+  --amber: #d98c1e;
+  --gold: #b08d2e;
+  --gold-bg: #fef7e7;
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(0,0,0,0.08);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── HEADER ── */
+header {
+  background: #ffffff;
+  border-bottom: 3px solid var(--gold);
+  padding: 0 28px; display: flex; align-items: stretch;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 36px; width: auto; object-fit: contain; }
+.header-logo-text { font-size: 15px; font-weight: 700; color: #141c2e; letter-spacing: -0.3px; }
+.header-logo-text span { color: var(--gold); }
+.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.1); }
+.header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7899; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.agent-chip {
+  display: flex; align-items: center; gap: 7px;
+  background: #f0f2f5; border: 1px solid #d0d5df;
+  border-radius: 20px; padding: 5px 13px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.agent-name { font-size: 12px; font-weight: 600; color: #141c2e; }
+
+/* ── MAIN LAYOUT ── */
+main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+/* ── CUSTOMER BAR ── */
+.customer-bar {
+  grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 18px;
+  display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow);
+}
+.customer-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
+.customer-bar input { flex: 1; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
+.customer-bar input::placeholder { color: var(--border); }
+
+/* ── STEP CARDS ── */
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+.step-card:hover { box-shadow: var(--shadow-lg); }
+.step-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
+.step-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; }
+.step-1 .step-badge { background: #141c2e; color: #fff; }
+.step-2 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-3 .step-badge { background: #141c2e; color: #fff; }
+.step-4 .step-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid #e8d28a; }
+.step-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.step-body { padding: 12px 18px 16px; }
+
+/* ── INPUTS ── */
+.input-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 14px 0; }
+.input-grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin: 14px 0; }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.field-group .helper { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.field-input {
+  font-family: 'Sora', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; background: var(--surface2); color: var(--text);
+  outline: none; transition: border-color 0.15s; width: 100%;
+}
+.field-input:focus { border-color: var(--gold); background: var(--surface); }
+.field-input-wrap { position: relative; }
+.field-input-wrap .unit {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 600; color: var(--muted); pointer-events: none;
+  font-family: 'JetBrains Mono', monospace;
+}
+.field-input-wrap .field-input { padding-right: 44px; }
+
+/* ── RADIO TOGGLE ── */
+.toggle-row { display: flex; gap: 8px; margin-top: 6px; }
+.toggle-label {
+  flex: 1; display: flex; align-items: center; gap: 7px; cursor: pointer;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; background: var(--surface2); transition: all 0.15s;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+}
+.toggle-label input { accent-color: var(--gold); }
+.toggle-label:has(input:checked) { border-color: var(--gold); background: var(--gold-bg); color: var(--text); }
+
+/* ── INFO BOX ── */
+.info-box {
+  background: var(--gold-bg); border: 1px solid #e8d28a;
+  border-radius: 8px; padding: 12px 14px; margin-top: 12px;
+}
+.info-box h5 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold); margin-bottom: 8px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.info-item { font-size: 10px; color: #7a6020; display: flex; align-items: center; gap: 5px; }
+.info-item::before { content: "✓"; color: var(--gold); font-weight: 700; }
+
+.note-box {
+  background: var(--blue-bg); border: 1px solid rgba(45,107,228,0.25);
+  border-radius: 8px; padding: 10px 14px; margin-top: 10px;
+  font-size: 11px; color: #1a3d8a; line-height: 1.5;
+}
+.note-box strong { font-weight: 700; }
+
+.warn-box {
+  background: rgba(224,79,79,0.07); border: 1px solid rgba(224,79,79,0.25);
+  border-radius: 8px; padding: 10px 14px; margin-top: 10px;
+  font-size: 11px; color: #8b1a1a; line-height: 1.5;
 }
 
-* { box-sizing: border-box; }
-
-body {
-  font-family: Inter, sans-serif;
-  background:#f4f4f4;
-  padding:30px;
-  color:var(--gray);
+.section-divider {
+  grid-column: 1 / -1;
+  height: 1px; background: var(--border); margin: 4px 0 0;
+}
+.section-label {
+  grid-column: 1 / -1;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--muted); margin-bottom: -4px; margin-top: 4px;
 }
 
-.container {
-  max-width:1100px;
-  margin:auto;
-  background:#fff;
-  border-radius:20px;
-  padding:40px;
-  box-shadow:0 10px 30px rgba(0,0,0,.08);
+/* ── SIDEBAR / PRICE CARD ── */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.price-card {
+  background: #000000; border-radius: var(--r); padding: 22px 20px;
+  border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg);
+  position: sticky; top: 80px;
 }
+.price-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.4); margin-bottom: 16px; text-align: center; }
+.price-line { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.price-line-label { font-size: 12px; color: rgba(255,255,255,0.6); }
+.price-line-val { font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #fff; }
+.price-line.muted-row .price-line-label { color: rgba(255,255,255,0.35); font-size: 11px; }
+.price-line.muted-row .price-line-val { color: rgba(255,255,255,0.35); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+.price-total-block { margin-top: 14px; padding: 14px 0 0; border-top: 1px solid rgba(255,255,255,0.15); }
+.price-total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.price-total-row:last-child { margin-bottom: 0; }
+.price-total-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.4px; }
+.price-total-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: rgba(255,255,255,0.45); }
+.price-main-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; }
+.price-main-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+.price-main-val { font-size: 28px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--gold); }
 
-.header h1 {
-  margin:0;
-  font-size:32px;
+.roi-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(24,169,110,0.15); border: 1px solid rgba(24,169,110,0.3);
+  border-radius: 20px; padding: 4px 12px; margin-top: 8px;
+  font-size: 11px; font-weight: 700; color: #18a96e; font-family: 'JetBrains Mono', monospace;
 }
+.roi-pill.warning { background: rgba(209,140,30,0.15); border-color: rgba(209,140,30,0.3); color: var(--amber); }
+.roi-pill.bad { background: rgba(224,79,79,0.12); border-color: rgba(224,79,79,0.25); color: var(--red); }
 
-.subtitle {
-  margin-top:6px;
-  color:#666;
+.action-btn {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
+  padding: 11px 14px; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border: none; transition: all 0.15s; margin-bottom: 6px;
 }
+.action-btn:last-child { margin-bottom: 0; }
+.action-btn.primary { background: var(--gold); color: #000; }
+.action-btn.primary:hover { background: #caa535; }
+.action-btn.secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); }
+.action-btn.secondary:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.section-header {
-  background:#000;
-  color:var(--gold);
-  padding:16px 24px;
-  border-radius:12px 12px 0 0;
-  font-weight:700;
-  margin-top:30px;
+.docs-accordion { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+.docs-toggle {
+  width: 100%; background: none; border: none; cursor: pointer; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.55);
 }
-
-.section {
-  background:#fafafa;
-  padding:32px;
-  border:1px solid #eaeaea;
-  border-top:none;
+.docs-toggle .arrow { transition: transform 0.2s; font-size: 9px; color: rgba(255,255,255,0.3); }
+.docs-list { display: none; background: rgba(0,0,0,0.2); }
+.docs-list.open { display: block; }
+.docs-list a {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Sora', sans-serif; font-size: 11px;
+  padding: 10px 14px; color: rgba(255,255,255,0.7); text-decoration: none;
+  border-top: 1px solid rgba(255,255,255,0.05); transition: all 0.15s;
 }
+.docs-list a:hover { background: rgba(176,141,46,0.1); color: var(--gold); }
+.doc-icon { font-size: 16px; flex-shrink: 0; }
+.doc-info { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+.doc-info strong { font-size: 11px; font-weight: 700; color: #fff; }
+.doc-info span { font-size: 9px; color: rgba(255,255,255,0.4); }
+.doc-arrow { font-size: 13px; color: rgba(176,141,46,0.5); transition: all 0.15s; }
+.docs-list a:hover .doc-arrow { color: var(--gold); transform: translateX(3px); }
 
-.grid {
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:28px 36px;
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #000; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 10px 22px; border-radius: 30px; border-left: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
 }
+.toast.show { opacity: 1; }
 
-.field {
-  position:relative;
+/* ── MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--surface); border-radius: 18px; padding: 32px 36px; max-width: 520px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.22); position: relative; max-height: 90vh; overflow-y: auto; }
+.modal-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+.modal-box > p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.modal-close { position: absolute; top: 16px; right: 20px; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--muted); }
+.modal-close:hover { color: var(--text); }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.modal-field input, .modal-field textarea {
+  width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
 }
+.modal-field input:focus, .modal-field textarea:focus { border-color: var(--gold); background: var(--surface); }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.modal-actions button { flex: 1; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; padding: 11px; border-radius: 9px; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+.modal-actions button.gold { background: var(--gold); color: #000; border-color: var(--gold); }
+.modal-actions button.gold:hover { background: #caa535; }
+.modal-actions button:not(.gold):hover { background: var(--surface); color: var(--text); }
 
-label {
-  font-weight:600;
-  display:flex;
-  align-items:center;
-  gap:8px;
+/* ── RESULTS SUMMARY in modal ── */
+.result-summary {
+  background: #000; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px;
+  border-top: 2px solid var(--gold);
 }
+.result-summary-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.result-box { text-align: center; }
+.result-box .result-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--gold); }
+.result-box .result-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(255,255,255,0.4); margin-top: 3px; }
+.result-breakdown { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; }
+.result-breakdown-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.result-breakdown-row span:first-child { font-size: 11px; color: rgba(255,255,255,0.5); }
+.result-breakdown-row span:last-child { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,0.8); }
 
-.helper {
-  font-size:13px;
-  color:#777;
-  margin-top:6px;
+/* ── FOOTER ── */
+footer {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 20px 28px; margin-top: 8px;
 }
+footer .inner { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+footer .footer-brand { display: flex; align-items: center; gap: 16px; }
+footer img { height: 40px; width: auto; object-fit: contain; }
+footer .brand-name { font-size: 13px; font-weight: 700; color: var(--text); }
+footer .brand-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+footer .footer-contact { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.9; }
+footer a { color: var(--gold); text-decoration: none; }
 
-.input-wrap {
-  position:relative;
-  display:flex;
-  align-items:center;
-  margin-top:8px;
-}
+/* ── COLLAPSED SECTION ── */
+details.step-card summary { list-style: none; cursor: pointer; }
+details.step-card summary::-webkit-details-marker { display: none; }
+details.step-card .step-header { cursor: pointer; padding-bottom: 14px; }
+details.step-card[open] .step-header { padding-bottom: 0; }
+details.step-card .step-hint { font-size: 11px; color: var(--muted); padding: 2px 18px 12px 18px; }
+details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px solid var(--border); }
 
-.input-wrap input {
-  width:100%;
-  padding:16px 48px 16px 20px;
-  border-radius:10px;
-  border:1px solid #ddd;
-  font-size:15px;
-}
-
-.unit {
-  position:absolute;
-  right:16px;
-  font-size:14px;
-  color:#777;
-  pointer-events:none;
-}
-
-.radio-group {
-  margin-top:12px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  font-size:14px;
-}
-
-.radio-group input {
-  accent-color:var(--gold);
-}
-
-.divider {
-  grid-column:1/-1;
-  height:1px;
-  background:linear-gradient(90deg,transparent,var(--gold),transparent);
-  margin:20px 0;
-}
-
-.button-container {
-  text-align:center;
-  margin-top:40px;
-  display:flex;
-  flex-direction:column;
-  gap:15px;
-  align-items:center;
-}
-
-.main-button {
-  background:#000;
-  color:var(--gold);
-  border:none;
-  border-radius:12px;
-  padding:18px 40px;
-  font-size:18px;
-  font-weight:700;
-  cursor:pointer;
-  width:100%;
-  max-width:400px;
-}
-
-.download-buttons {
-  display:none;
-  flex-wrap:wrap;
-  gap:15px;
-  justify-content:center;
-  margin-top:20px;
-  width:100%;
-  max-width:400px;
-}
-
-.download-btn {
-  background:#fff;
-  color:#000;
-  border:2px solid #000;
-  border-radius:10px;
-  padding:14px 25px;
-  font-size:16px;
-  font-weight:600;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  transition:all 0.3s ease;
-  flex:1;
-  min-width:180px;
-  justify-content:center;
-}
-
-.download-btn:hover {
-  background:#000;
-  color:var(--gold);
-  transform:translateY(-2px);
-  box-shadow:0 5px 15px rgba(0,0,0,0.1);
-}
-
-.download-btn.excel {
-  border-color:#217346;
-  color:#217346;
-}
-
-.download-btn.excel:hover {
-  background:#217346;
-  color:white;
-}
-
-.download-btn.pdf {
-  border-color:#d32f2f;
-  color:#d32f2f;
-}
-
-.download-btn.pdf:hover {
-  background:#d32f2f;
-  color:white;
-}
-
-.results {
-  display:none;
-  margin-top:40px;
-  border:2px solid var(--gold);
-  border-radius:16px;
-  padding:32px;
-  background:#fffdf5;
-}
-
-.result-row {
-  display:flex;
-  justify-content:space-between;
-  padding:18px 0;
-  border-bottom:1px solid #eee;
-  font-size:17px;
-}
-
-.result-row:last-child { border-bottom:none; }
-
-.result-value {
-  font-weight:700;
-  font-size:22px;
-  background:rgba(212,175,55,0.15);
-  padding:8px 18px;
-  border-radius:10px;
-}
-
-/* PDF Template Styles */
-.pdf-template {
-  position:fixed;
-  left:-9999px;
-  top:0;
-  width:794px; /* A4 width in pixels */
-  background:white;
-  padding:0;
-  font-family:Inter, sans-serif;
-  box-sizing:border-box;
-  color:#333;
-  line-height:1.4;
-  font-size:12px;
-  display:none;
-}
-
-.pdf-page {
-  width:794px;
-  height:1123px; /* Fixed A4 height */
-  padding:30px 40px;
-  margin:0;
-  background:white;
-  box-sizing:border-box;
-}
-
-.pdf-header {
-  text-align:center;
-  margin-bottom:15px;
-  padding-bottom:10px;
-  border-bottom:2px solid var(--gold);
-}
-
-.pdf-logo {
-  font-size:28px;
-  font-weight:800;
-  color:#000;
-  margin-bottom:3px;
-  letter-spacing:1px;
-}
-
-.pdf-subtitle {
-  color:#666;
-  font-size:16px;
-  font-weight:600;
-  margin-bottom:3px;
-}
-
-.pdf-date {
-  font-size:11px;
-  color:#777;
-  margin-bottom:3px;
-}
-
-.pdf-results-grid {
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:12px;
-  margin:20px 0;
-}
-
-.pdf-result-box {
-  background:#fff8e1;
-  border:2px solid var(--gold);
-  border-radius:6px;
-  padding:12px;
-  text-align:center;
-  min-height:85px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-}
-
-.pdf-result-value {
-  font-size:20px;
-  font-weight:800;
-  color:#000;
-  margin:3px 0;
-}
-
-.pdf-result-label {
-  font-size:11px;
-  color:#666;
-  font-weight:600;
-}
-
-.pdf-section {
-  margin:15px 0;
-}
-
-.pdf-section-title {
-  background:#000;
-  color:var(--gold);
-  padding:8px 12px;
-  font-weight:700;
-  border-radius:4px 4px 0 0;
-  margin-bottom:0;
-  font-size:13px;
-}
-
-.pdf-section-content {
-  padding:12px;
-  border:1px solid #e0e0e0;
-  border-top:none;
-  border-radius:0 0 4px 4px;
-  background:#fafafa;
-}
-
-.pdf-side-by-side {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
-  margin:12px 0;
-}
-
-.pdf-input-table {
-  width:100%;
-  border-collapse:collapse;
-  margin:3px 0;
-}
-
-.pdf-input-table td {
-  padding:6px 0;
-  border-bottom:1px solid #eee;
-  vertical-align:top;
-  font-size:12px;
-}
-
-.pdf-input-table td:first-child {
-  font-weight:600;
-  width:55%;
-}
-
-.pdf-highlight-box {
-  background:#f0f7ff;
-  padding:10px;
-  border-radius:4px;
-  margin:8px 0;
-  border-left:3px solid #4a90e2;
-  font-size:12px;
-  line-height:1.4;
-}
-
-.pdf-company-details {
-  background:#f5f5f5;
-  padding:12px;
-  border-radius:4px;
-  margin-top:12px;
-  border:1px solid #ddd;
-  font-size:12px;
-}
-
-.pdf-disclaimer {
-  background:#fff5f5;
-  padding:10px;
-  border-radius:4px;
-  margin-top:10px;
-  border:1px solid #ffcdd2;
-  font-size:9px;
-  line-height:1.3;
-  color:#666;
-}
-
-.pdf-footer {
-  text-align:center;
-  margin-top:12px;
-  padding-top:8px;
-  border-top:1px solid #eee;
-  font-size:9px;
-  color:#999;
-  position:absolute;
-  bottom:30px;
-  left:40px;
-  right:40px;
-}
-
-@media(max-width:900px){
-  .grid{grid-template-columns:1fr;}
-  .download-buttons{flex-direction:column;}
-  .download-btn{width:100%;}
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { order: -1; }
+  .price-card { position: static; }
+  header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
+  main { padding: 16px; }
+  .input-grid { grid-template-columns: 1fr 1fr; }
+  .input-grid-2 { grid-template-columns: 1fr; }
+  .result-summary-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
-
 <body>
 
-<div class="container">
-
-<div class="header">
-  <h1>Your Battery ROI Calculator</h1>
-  <div class="subtitle">Estimate savings based on your household energy usage.</div>
-</div>
-
-<div class="section-header">YOUR HOME ENERGY USE</div>
-<div class="section">
-
-<div class="grid">
-
-<div class="field">
-  <label><i class="fas fa-map-marker-alt"></i> Your Postcode *</label>
-  <div class="helper">Your postcode is used to estimate battery's ROI based on local energy rates and solar conditions.</div>
-  <div class="input-wrap">
-    <input type="text" placeholder="Enter Your 4 Digit Postcode" id="postcode">
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-chart-line"></i> Quarterly Grid Electricity Use (kWh) *</label>
-  <div class="helper">Your total grid electricity use over a quarter.</div>
-  <div class="input-wrap">
-    <input id="quarterlyUse" type="number" placeholder="Enter Grid Electricity Use">
-    <span class="unit">kWh</span>
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-money-bill-wave"></i> Your Usage Rate *</label>
-  <div class="helper">What you pay per kilowatt-hour from the grid.</div>
-  <div class="input-wrap">
-    <input id="usageRate" type="number" step="0.01" placeholder="0.00">
-    <span class="unit">/kWh</span>
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-plug"></i> Daily Supply Charge *</label>
-  <div class="helper">Daily fee you pay to stay connected to the grid.</div>
-  <div class="input-wrap">
-    <input id="supplyCharge" type="number" step="0.01" placeholder="0.00">
-    <span class="unit">/day</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="field">
-  <label><i class="fas fa-solar-panel"></i> Do You Already Have Solar? *</label>
-  <div class="helper">Your current solar system size in kilowatts.</div>
-  <div class="input-wrap">
-    <input id="currentSolar" type="number" step="0.1" placeholder="Enter Solar System Size">
-    <span class="unit">kW</span>
-  </div>
-  <div class="radio-group">
-    <label><input type="radio" name="hasSolar" value="no" checked> I do not have solar</label>
-    <label><input type="radio" name="hasSolar" value="yes"> I have a solar system</label>
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-upload"></i> Your Solar Feed-in Tariff *</label>
-  <div class="helper">What you're paid per kilowatt-hour exported to the grid.</div>
-  <div class="input-wrap">
-    <input id="feedInTariff" type="number" step="0.01" placeholder="0.00">
-    <span class="unit">/kWh</span>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="field">
-  <label><i class="fas fa-tools"></i> Planning To Add Solar? *</label>
-  <div class="helper">System size you plan to install in kilowatts.</div>
-  <div class="input-wrap">
-    <input id="plannedSolar" type="number" step="0.1" placeholder="Enter Solar System Size">
-    <span class="unit">kW</span>
-  </div>
-  <div class="radio-group">
-    <label><input type="radio" name="addSolar" value="no" checked> I am not planning to add solar</label>
-    <label><input type="radio" name="addSolar" value="yes"> I plan to install solar</label>
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-car-battery"></i> Planning To Buy A Battery? *</label>
-  <div class="helper">Battery size you're considering in kilowatt-hours.</div>
-  <div class="input-wrap">
-    <input id="batterySize" type="number" step="0.1" placeholder="Enter Battery Capacity">
-    <span class="unit">kWh</span>
-  </div>
-</div>
-
-<div class="field">
-  <label><i class="fas fa-calculator"></i> Total System Cost *</label>
-  <div class="helper">Estimated costs for solar, battery or both.</div>
-  <div class="input-wrap">
-    <input id="systemCost" type="number" step="0.01" placeholder="Enter System Total Cost">
-    <span class="unit">$</span>
-  </div>
-</div>
-
-</div>
-</div>
-
-<div class="button-container">
-<button class="main-button" onclick="calculateROI()">
-<i class="fas fa-calculator"></i> CALCULATE YOUR ROI
-</button>
-
-<div class="download-buttons" id="downloadButtons">
-  <button class="download-btn excel" onclick="downloadExcel()">
-    <i class="fas fa-file-excel"></i> Download Excel
-  </button>
-  <button class="download-btn pdf" onclick="generatePDF()">
-    <i class="fas fa-file-pdf"></i> Download PDF Report
-  </button>
-</div>
-</div>
-
-<div class="results" id="results">
-<div class="result-row">
-  <span>Estimated Annual Savings</span>
-  <span class="result-value" id="savings">$0</span>
-</div>
-<div class="result-row">
-  <span>Estimated Annual ROI</span>
-  <span class="result-value" id="roi">0%</span>
-</div>
-<div class="result-row">
-  <span>Estimated Payback Period</span>
-  <span class="result-value" id="payback">–</span>
-</div>
-</div>
-
-</div>
-
-<!-- PDF Template (hidden) -->
-<div id="pdfTemplate" class="pdf-template">
-  <!-- PAGE 1 -->
-  <div class="pdf-page" style="position:relative;">
-    <div class="pdf-header">
-      <div class="pdf-logo">GOLDSURE</div>
-      <div class="pdf-subtitle">Battery & Solar Investment Analysis</div>
-      <div class="pdf-date">Report generated: <span id="pdfDate">19 December 2025 at 06:34 pm</span></div>
-      <div style="font-size:11px; margin-top:2px;">Report ID: <span id="pdfReportId">GS-549478</span></div>
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" onerror="this.style.display='none'">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
     </div>
+    <div class="hd"></div>
+    <span class="header-title">Battery & Solar ROI Calculator</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip">
+      <div class="agent-dot"></div>
+      <span class="agent-name">Battery Tool</span>
+    </div>
+  </div>
+</header>
 
-    <div class="pdf-results-grid">
-      <div class="pdf-result-box">
-        <div class="pdf-result-label">ANNUAL SAVINGS</div>
-        <div class="pdf-result-value" id="pdfSavings">$4,375</div>
-        <div>Estimated yearly savings</div>
-      </div>
-      <div class="pdf-result-box">
-        <div class="pdf-result-label">ANNUAL ROI</div>
-        <div class="pdf-result-value" id="pdfROI">79.5%</div>
-        <div>Return on investment</div>
-      </div>
-      <div class="pdf-result-box">
-        <div class="pdf-result-label">PAYBACK PERIOD</div>
-        <div class="pdf-result-value" id="pdfPayback">1.3 yrs</div>
-        <div>Years to break even</div>
+<main>
+
+  <!-- Customer bar -->
+  <div class="customer-bar">
+    <label>Customer Name</label>
+    <input type="text" id="custName" placeholder="Enter customer name…" oninput="calculate()">
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps">
+
+    <!-- Step 1: Current Energy Usage -->
+    <div class="step-card step-1">
+      <div class="step-header"><span class="step-badge">Step 1</span><span class="step-title">Current Energy Usage</span></div>
+      <div class="step-body">
+        <div class="input-grid">
+          <div class="field-group">
+            <label>Postcode</label>
+            <div class="helper">Used for report ID only</div>
+            <input type="text" id="postcode" class="field-input" placeholder="e.g. 3072" maxlength="4" oninput="calculate()">
+          </div>
+          <div class="field-group">
+            <label>Quarterly Grid Use</label>
+            <div class="helper">kWh from electricity bill</div>
+            <div class="field-input-wrap">
+              <input type="number" id="quarterlyUse" class="field-input" placeholder="0" min="0" oninput="calculate()">
+              <span class="unit">kWh</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Usage Rate</label>
+            <div class="helper">$/kWh from bill</div>
+            <div class="field-input-wrap">
+              <input type="number" id="usageRate" class="field-input" placeholder="0.30" step="0.001" min="0" oninput="calculate()">
+              <span class="unit">$/kWh</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Daily Supply Charge</label>
+            <div class="helper">Daily connection fee</div>
+            <div class="field-input-wrap">
+              <input type="number" id="supplyCharge" class="field-input" placeholder="1.10" step="0.01" min="0" oninput="calculate()">
+              <span class="unit">$/day</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Tariff Type</label>
+            <div class="helper">Affects battery value estimate</div>
+            <select id="tariffType" class="field-input" onchange="calculate()">
+              <option value="flat">Flat Rate</option>
+              <option value="tou">Time of Use (ToU)</option>
+            </select>
+          </div>
+          <div class="field-group" id="peakRateGroup" style="display:none;">
+            <label>Peak Rate</label>
+            <div class="helper">Peak $/kWh (ToU)</div>
+            <div class="field-input-wrap">
+              <input type="number" id="peakRate" class="field-input" placeholder="0.45" step="0.001" min="0" oninput="calculate()">
+              <span class="unit">$/kWh</span>
+            </div>
+          </div>
+        </div>
+        <div class="info-box">
+          <h5>Where to Find These Numbers</h5>
+          <div class="info-grid">
+            <span class="info-item">Usage rate on electricity bill</span>
+            <span class="info-item">Quarterly kWh total on bill</span>
+            <span class="info-item">Supply/service/daily charge</span>
+            <span class="info-item">Check bill for flat vs ToU tariff</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Side by side layout for Investment Summary and Input Details -->
-    <div class="pdf-side-by-side">
-      <!-- Left Column: Investment Summary -->
-      <div class="pdf-section">
-        <div class="pdf-section-title">INVESTMENT SUMMARY</div>
-        <div class="pdf-section-content">
-          <table class="pdf-input-table">
-            <tr>
-              <td>Total System Cost:</td>
-              <td id="pdfSystemCost">$5,500</td>
-            </tr>
-            <tr>
-              <td>Battery Size:</td>
-              <td id="pdfBatterySize">30 kWh</td>
-            </tr>
-            <tr>
-              <td>Solar System:</td>
-              <td id="pdfSolarSystem">13 kW (existing)</td>
-            </tr>
-            <tr>
-              <td>Investment Type:</td>
-              <td id="pdfInvestmentType">Battery + Existing Solar</td>
-            </tr>
-          </table>
-          
-          <div class="pdf-highlight-box">
-            <strong>What This Means For You:</strong><br>
-            <span id="pdfExplanation1">Based on your inputs, a 30kWh battery system could save you approximately $4,375 annually. This represents a 79.5% return on your investment, with the system paying for itself in about 1.3 years.</span>
+    <!-- Step 2: Solar Details -->
+    <div class="step-card step-2">
+      <div class="step-header"><span class="step-badge">Step 2</span><span class="step-title">Solar Details</span></div>
+      <div class="step-body">
+
+        <div class="field-group" style="margin-bottom:12px;">
+          <label>Does the customer currently have solar?</label>
+          <div class="toggle-row">
+            <label class="toggle-label"><input type="radio" name="hasSolar" value="no" checked onchange="toggleSolarFields()"> No solar</label>
+            <label class="toggle-label"><input type="radio" name="hasSolar" value="yes" onchange="toggleSolarFields()"> Has solar system</label>
+          </div>
+        </div>
+
+        <div id="existingSolarFields" style="display:none;">
+          <div class="input-grid-2">
+            <div class="field-group">
+              <label>Existing Solar Size</label>
+              <div class="helper">System size in kW</div>
+              <div class="field-input-wrap">
+                <input type="number" id="currentSolar" class="field-input" placeholder="6.6" step="0.1" min="0" oninput="calculate()">
+                <span class="unit">kW</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Feed-in Tariff (FiT)</label>
+              <div class="helper">Paid per kWh exported to grid</div>
+              <div class="field-input-wrap">
+                <input type="number" id="feedInTariff" class="field-input" placeholder="0.06" step="0.001" min="0" oninput="calculate()">
+                <span class="unit">$/kWh</span>
+              </div>
+            </div>
+          </div>
+          <div class="note-box">
+            <strong>Note:</strong> When a battery stores solar energy instead of exporting it, the customer <em>loses</em> their FiT income on that energy. This is factored into the savings calculation below.
+          </div>
+        </div>
+
+        <div class="field-group" style="margin-top:14px; margin-bottom:12px;">
+          <label>Is the customer planning to add solar?</label>
+          <div class="toggle-row">
+            <label class="toggle-label"><input type="radio" name="addSolar" value="no" checked onchange="togglePlannedSolar()"> Not adding solar</label>
+            <label class="toggle-label"><input type="radio" name="addSolar" value="yes" onchange="togglePlannedSolar()"> Adding new solar</label>
+          </div>
+        </div>
+
+        <div id="plannedSolarFields" style="display:none;">
+          <div class="input-grid-2">
+            <div class="field-group">
+              <label>Planned Solar Size</label>
+              <div class="helper">New system to be installed</div>
+              <div class="field-input-wrap">
+                <input type="number" id="plannedSolar" class="field-input" placeholder="6.6" step="0.1" min="0" oninput="calculate()">
+                <span class="unit">kW</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label>State / Location</label>
+              <div class="helper">Affects solar generation estimate</div>
+              <select id="stateSelect" class="field-input" onchange="calculate()">
+                <option value="4.0">VIC / TAS (4.0 kWh/kW/day)</option>
+                <option value="4.5" selected>NSW / ACT / SA (4.5)</option>
+                <option value="5.0">QLD / WA (5.0)</option>
+                <option value="5.5">NT (5.5)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Step 3: Battery & System Cost -->
+    <div class="step-card step-3">
+      <div class="step-header"><span class="step-badge">Step 3</span><span class="step-title">Battery & System Cost</span></div>
+      <div class="step-body">
+        <div class="input-grid">
+          <div class="field-group">
+            <label>Battery Capacity</label>
+            <div class="helper">Size of battery in kWh</div>
+            <div class="field-input-wrap">
+              <input type="number" id="batterySize" class="field-input" placeholder="10" step="0.1" min="0" oninput="calculate()">
+              <span class="unit">kWh</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Total System Cost</label>
+            <div class="helper">Battery + solar (if applicable)</div>
+            <div class="field-input-wrap">
+              <input type="number" id="systemCost" class="field-input" placeholder="10000" step="100" min="0" oninput="calculate()">
+              <span class="unit">$</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Battery Degradation</label>
+            <div class="helper">Performance loss per year</div>
+            <select id="degradation" class="field-input" onchange="calculate()">
+              <option value="0.005">0.5% / year (high quality)</option>
+              <option value="0.01" selected>1.0% / year (typical)</option>
+              <option value="0.02">2.0% / year (conservative)</option>
+            </select>
+          </div>
+        </div>
+        <div class="info-box">
+          <h5>Calculation Assumptions</h5>
+          <div class="info-grid">
+            <span class="info-item">1 full cycle per day</span>
+            <span class="info-item">85% round-trip efficiency</span>
+            <span class="info-item">10-year payback horizon</span>
+            <span class="info-item">FiT opportunity cost included</span>
+            <span class="info-item">Degradation applied year-on-year</span>
+            <span class="info-item">Solar: state-adjusted generation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Results (collapsible) -->
+    <details class="step-card step-4" id="resultsCard">
+      <summary>
+        <div class="step-header"><span class="step-badge">Step 4</span><span class="step-title">ROI Results</span></div>
+        <p class="step-hint" id="resultsHint">Complete steps 1–3 to see results</p>
+      </summary>
+      <div class="step-body-inner" id="resultsBody">
+        <div id="resultsContent">
+          <p style="font-size:13px;color:var(--muted);">Fill in the required fields above to calculate ROI.</p>
+        </div>
+      </div>
+    </details>
+
+  </div><!-- /steps -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="price-card">
+      <div class="price-card-title">ROI Summary</div>
+
+      <div class="price-line">
+        <span class="price-line-label">System Cost</span>
+        <span class="price-line-val" id="sum-cost">$–</span>
+      </div>
+      <div class="price-line">
+        <span class="price-line-label">Yr 1 Annual Savings</span>
+        <span class="price-line-val" id="sum-savings">$–</span>
+      </div>
+      <div class="price-line">
+        <span class="price-line-label">Battery Savings</span>
+        <span class="price-line-val" id="sum-batt-savings">$–</span>
+      </div>
+      <div class="price-line" id="sum-solar-row" style="display:none;">
+        <span class="price-line-label">Solar Savings</span>
+        <span class="price-line-val" id="sum-solar-savings">$–</span>
+      </div>
+      <div class="price-line" id="sum-fit-row" style="display:none;">
+        <span class="price-line-label">FiT Opp. Cost</span>
+        <span class="price-line-val" id="sum-fit-cost" style="color:#e04f4f;">$–</span>
+      </div>
+      <div class="price-line muted-row">
+        <span class="price-line-label">10-Yr Total Savings</span>
+        <span class="price-line-val" id="sum-10yr">$–</span>
+      </div>
+
+      <div class="price-total-block">
+        <div class="price-total-row">
+          <span class="price-total-label">Payback Period</span>
+          <span class="price-total-val" id="sum-payback">–</span>
+        </div>
+        <div class="price-main-row">
+          <span class="price-main-label">Annual ROI</span>
+          <span class="price-main-val" id="sum-roi">–%</span>
+        </div>
+        <div id="roi-pill-wrap" style="margin-top:6px;"></div>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:0;">
+        <button class="action-btn primary" id="btnExcel" onclick="downloadExcel()" disabled>Download Excel</button>
+        <button class="action-btn secondary" id="btnPdf" onclick="generatePDF()" disabled>Download PDF Report</button>
+      </div>
+
+      <div class="docs-accordion" style="margin-top:14px;">
+        <button class="docs-toggle" onclick="toggleDocs()">Assumptions & Methodology <span class="arrow">▼</span></button>
+        <div class="docs-list" id="docsList">
+          <div style="padding:12px 14px;font-size:10px;color:rgba(255,255,255,0.5);line-height:1.8;">
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">Battery savings</strong> = Energy offset × usage rate<br>
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">Energy offset</strong> = min(annual use, battery output)<br>
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">FiT cost</strong> = Energy diverted from export × FiT rate<br>
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">Solar savings</strong> = Solar gen × usage rate (net of FiT)<br>
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">Degradation</strong> applied compounding per year<br>
+            <strong style="color:rgba(255,255,255,0.7);font-size:10px;">10-yr total</strong> uses compounding degradation model
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Input Details -->
-      <div class="pdf-section">
-        <div class="pdf-section-title">YOUR INPUT DETAILS</div>
-        <div class="pdf-section-content">
-          <table class="pdf-input-table">
-            <tr>
-              <td>Location (Postcode):</td>
-              <td id="pdfPostcode">3752</td>
-            </tr>
-            <tr>
-              <td>Quarterly Electricity Use:</td>
-              <td id="pdfQuarterlyUse">2,520 kWh</td>
-            </tr>
-            <tr>
-              <td>Electricity Rate:</td>
-              <td id="pdfUsageRate">$0.4700/kWh</td>
-            </tr>
-            <tr>
-              <td>Daily Supply Charge:</td>
-              <td id="pdfSupplyCharge">$1.19/day</td>
-            </tr>
-            <tr>
-              <td>Current Solar:</td>
-              <td id="pdfCurrentSolar">13 kW</td>
-            </tr>
-            <tr>
-              <td>Feed-in Tariff:</td>
-              <td id="pdfFeedInTariff">Not applicable</td>
-            </tr>
-            <tr>
-              <td>Planned Solar Addition:</td>
-              <td id="pdfPlannedSolar">None</td>
-            </tr>
-            <tr>
-              <td>Calculation Date:</td>
-              <td id="pdfCalcDate">19 December 2025</td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- How We Calculated This Section -->
-    <div class="pdf-section">
-      <div class="pdf-section-title">HOW WE CALCULATED THIS</div>
-      <div class="pdf-section-content">
-        <div style="margin-bottom:8px;">
-          <strong>Calculation Methodology:</strong><br>
-          <ul style="margin:5px 0 5px 18px; font-size:11px; padding-left:12px;">
-            <li>Annual grid electricity use = Quarterly use × 4</li>
-            <li>Battery energy output = Size × 365 days × 1 cycle/day × 85% efficiency</li>
-            <li>Savings = (Energy offset by battery × electricity rate) + (Solar generation × electricity rate)</li>
-            <li>ROI = (Annual savings ÷ System cost) × 100%</li>
-            <li>Payback period = System cost ÷ Annual savings</li>
-          </ul>
-        </div>
-        
-        <div class="pdf-highlight-box">
-          <strong>💡 Simple Explanation:</strong><br>
-          Your battery stores energy when electricity is cheap (or from solar) and releases it when electricity is expensive, reducing your grid consumption and saving you money. Think of it as a piggy bank for your solar energy!
-        </div>
-      </div>
-    </div>
-    
-    <div class="pdf-footer">
-      Page 1 of 2
     </div>
   </div>
 
-  <!-- PAGE 2 -->
-  <div class="pdf-page" style="position:relative;">
-    <div class="pdf-header">
-      <div class="pdf-logo" style="font-size: 26px;">GOLDSURE</div>
-      <div class="pdf-subtitle" style="font-size: 15px;">Battery & Solar Investment Analysis</div>
-      <div class="pdf-date" style="font-size: 10px;">Report ID: <span id="pdfReportId2">GS-549478</span> | Page 2 of 2</div>
-    </div>
+</main>
 
-    <!-- Disclaimer Section -->
-    <div class="pdf-section" style="margin: 10px 0;">
-      <div class="pdf-section-title" style="padding: 6px 10px; font-size: 12px;">IMPORTANT DISCLAIMER</div>
-      <div class="pdf-section-content" style="padding: 10px;">
-        <div class="pdf-disclaimer">
-          <strong>DISCLAIMER:</strong> This report provides estimates only and is based on the information you have provided. The calculations are illustrative and for informational purposes. Actual savings and returns may vary significantly based on various factors including:<br><br>
-          
-          • Your actual energy consumption patterns and behaviors<br>
-          • Local weather conditions and solar irradiance<br>
-          • Future changes in electricity rates and feed-in tariffs<br>
-          • Battery performance degradation over time (typically 0.5-2% per year)<br>
-          • Maintenance requirements and potential system issues<br>
-          • Government policy changes and incentive programs<br>
-          • Installation quality and component performance<br>
-          • Your specific usage patterns and energy habits<br><br>
-          
-          <strong>Key Assumptions in This Calculation:</strong><br>
-          • Battery cycles: 1 full cycle per day<br>
-          • Battery efficiency: 85% (round-trip)<br>
-          • Solar generation: Based on Australian average of 4kWh per kW per day<br>
-          • Electricity rates: Remain constant throughout the year<br>
-          • No significant changes to energy consumption patterns<br><br>
-          
-          <strong>This is not financial advice.</strong> We recommend:<br>
-          • Consulting with a qualified financial advisor before making investment decisions<br>
-          • Obtaining multiple quotes from accredited installers<br>
-          • Considering all available government rebates and incentives<br>
-          • Reviewing product warranties and performance guarantees<br>
-          • Conducting a professional energy audit of your property<br><br>
-          
-          Goldsure Pty Ltd does not guarantee any specific financial returns or savings. All figures are estimates only and should be verified with professional assessment. Your actual results may differ from these estimates.
-        </div>
+<footer>
+  <div class="inner">
+    <div class="footer-brand">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" onerror="this.style.display='none'">
+      <div>
+        <div class="brand-name">Goldsure Pty Ltd</div>
+        <div class="brand-sub">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072 · ABN: 66 683 305 106</div>
       </div>
     </div>
-
-    <!-- Contact Goldsure Section -->
-    <div class="pdf-section" style="margin: 10px 0;">
-      <div class="pdf-section-title" style="padding: 6px 10px; font-size: 12px;">CONTACT GOLDSURE</div>
-      <div class="pdf-section-content" style="padding: 8px;">
-        <div style="text-align: center; margin-bottom: 8px;">
-          <strong style="font-size: 13px;">GOLDSURE PTY LTD</strong>
-        </div>
-        
-        <table style="width:100%; font-size: 11px; margin-bottom: 8px;">
-          <tr>
-            <td style="padding: 4px 0; width: 80px;"><strong>Phone:</strong></td>
-            <td style="padding: 4px 0;">03 7050 2846</td>
-          </tr>
-          <tr>
-            <td style="padding: 4px 0;"><strong>Email:</strong></td>
-            <td style="padding: 4px 0;">info@goldsure.com.au</td>
-          </tr>
-          <tr>
-            <td style="padding: 4px 0; vertical-align: top;"><strong>Address:</strong></td>
-            <td style="padding: 4px 0;">
-              Suite 4, Level 1, 293 High Street<br>
-              Preston, Victoria 3072
-            </td>
-          </tr>
-        </table>
-        
-        <div style="text-align: center; font-style: italic; color: #555; font-size: 11px; padding: 6px; background: #fff; border-radius: 4px; border: 1px solid #eee;">
-          <strong>Ready to make the switch?</strong><br>
-          Contact us for a free, no-obligation consultation.
-        </div>
-      </div>
+    <div class="footer-contact">
+      <div>Phone: <a href="tel:0370502846">03 7050 2846</a></div>
+      <div>Email: <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank">www.goldsure.com.au</a></div>
     </div>
+  </div>
+</footer>
 
-    <div class="pdf-footer">
-      Goldsure Pty Ltd | ABN: 66 683 305 106<br>
-      This document is confidential and intended only for the recipient.
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- PDF MODAL (simple confirm) -->
+<div class="modal-overlay" id="pdfModal" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePdfModal()">&times;</button>
+    <h2>Download PDF Report</h2>
+    <p>Review the calculation summary before generating the PDF.</p>
+    <div id="pdfPreviewContent"></div>
+    <div class="modal-field">
+      <label>Customer Name (for report)</label>
+      <input type="text" id="pdfCustName" placeholder="Enter customer full name">
+    </div>
+    <div class="modal-actions">
+      <button onclick="closePdfModal()">Cancel</button>
+      <button class="gold" onclick="confirmPDF()">Generate & Download PDF</button>
     </div>
   </div>
 </div>
 
 <script>
-// Global variables to store calculation results
-let lastCalculation = null;
+// ═══════════════════════════════
+// STATE
+// ═══════════════════════════════
+let lastCalc = null;
 
-function calculateROI() {
-  const postcode = document.getElementById("postcode").value;
-  const quarterlyUse = +document.getElementById("quarterlyUse").value || 0;
-  const usageRate = +document.getElementById("usageRate").value || 0;
-  const supplyCharge = +document.getElementById("supplyCharge").value || 0;
-  const currentSolar = +document.getElementById("currentSolar").value || 0;
-  const feedInTariff = +document.getElementById("feedInTariff").value || 0;
-  const plannedSolar = +document.getElementById("plannedSolar").value || 0;
-  const batterySize = +document.getElementById("batterySize").value || 0;
-  const systemCost = +document.getElementById("systemCost").value || 0;
-
-  // Get radio button values
+// ═══════════════════════════════
+// TOGGLE HELPERS
+// ═══════════════════════════════
+function toggleSolarFields() {
   const hasSolar = document.querySelector('input[name="hasSolar"]:checked').value;
+  document.getElementById('existingSolarFields').style.display = hasSolar === 'yes' ? 'block' : 'none';
+  if (hasSolar === 'no') {
+    document.getElementById('currentSolar').value = '';
+    document.getElementById('feedInTariff').value = '';
+  }
+  calculate();
+}
+
+function togglePlannedSolar() {
   const addSolar = document.querySelector('input[name="addSolar"]:checked').value;
+  document.getElementById('plannedSolarFields').style.display = addSolar === 'yes' ? 'block' : 'none';
+  if (addSolar === 'no') document.getElementById('plannedSolar').value = '';
+  calculate();
+}
 
-  // Basic validation
+function toggleTariff() {
+  const tariff = document.getElementById('tariffType').value;
+  document.getElementById('peakRateGroup').style.display = tariff === 'tou' ? 'flex' : 'none';
+}
+
+document.getElementById('tariffType').addEventListener('change', function() {
+  document.getElementById('peakRateGroup').style.display = this.value === 'tou' ? 'block' : 'none';
+  calculate();
+});
+
+// ═══════════════════════════════
+// CORE CALCULATION
+// ═══════════════════════════════
+function calculate() {
+  const quarterlyUse = +document.getElementById('quarterlyUse').value || 0;
+  const usageRate    = +document.getElementById('usageRate').value || 0;
+  const batterySize  = +document.getElementById('batterySize').value || 0;
+  const systemCost   = +document.getElementById('systemCost').value || 0;
+  const currentSolar = +document.getElementById('currentSolar').value || 0;
+  const feedInTariff = +document.getElementById('feedInTariff').value || 0;
+  const plannedSolar = +document.getElementById('plannedSolar').value || 0;
+  const degradation  = +document.getElementById('degradation').value;
+  const tariff       = document.getElementById('tariffType').value;
+  const solarFactor  = +document.getElementById('stateSelect').value;
+  const hasSolar     = document.querySelector('input[name="hasSolar"]:checked').value;
+  const addSolar     = document.querySelector('input[name="addSolar"]:checked').value;
+
+  // Peak/off-peak weighting for ToU — battery is more valuable on ToU
+  const touMultiplier = (tariff === 'tou') ? 1.25 : 1.0;
+
   if (!quarterlyUse || !usageRate || !batterySize || !systemCost) {
-    alert("Please fill in all required fields marked with *.");
+    resetSidebar();
     return;
   }
 
-  if (!postcode || postcode.length < 4) {
-    alert("Please enter a valid 4-digit postcode.");
-    return;
-  }
-
-  const cyclesPerDay = 1.0;
-  const efficiency = 0.85;
-  const solarGenerationFactor = 4; // kWh per kW of solar per day
-
-  // Calculate savings
+  const cyclesPerDay  = 1.0;
+  const efficiency    = 0.85;
   const annualGridUse = quarterlyUse * 4;
-  const annualBatteryEnergy = batterySize * 365 * cyclesPerDay * efficiency;
-  const offsetEnergy = Math.min(annualGridUse, annualBatteryEnergy);
-  
-  // Additional solar savings if planning to add solar
-  let solarSavings = 0;
-  let solarGeneration = 0;
-  if (plannedSolar > 0) {
-    solarGeneration = plannedSolar * solarGenerationFactor * 365;
-    solarSavings = Math.min(annualGridUse - offsetEnergy, solarGeneration) * usageRate;
+
+  // Battery energy output year 1
+  const batteryAnnual = batterySize * 365 * cyclesPerDay * efficiency;
+
+  // Energy the battery can offset from grid
+  const rawOffset = Math.min(annualGridUse, batteryAnnual);
+
+  // If customer has solar, some battery charge comes from solar (not grid draw),
+  // meaning that energy would have been exported → opportunity cost
+  let fitOpportunityCost = 0;
+  if (hasSolar === 'yes' && currentSolar > 0 && feedInTariff > 0) {
+    const solarGenExisting = currentSolar * solarFactor * 365;
+    // Proportion of battery charge sourced from solar (simplified: min solar gen vs battery capacity)
+    const solarChargeProportion = Math.min(1, solarGenExisting / (batteryAnnual / efficiency));
+    const energyDivertedFromExport = batteryAnnual * solarChargeProportion;
+    fitOpportunityCost = energyDivertedFromExport * feedInTariff;
   }
 
-  const annualSavings = (offsetEnergy * usageRate) + solarSavings;
-  const roi = (annualSavings / systemCost) * 100;
-  const payback = annualSavings > 0 ? systemCost / annualSavings : 0;
+  const yr1BatterySavings = (rawOffset * usageRate * touMultiplier) - fitOpportunityCost;
 
-  // Update display
-  document.getElementById("savings").textContent =
-    "$" + Math.round(annualSavings).toLocaleString();
+  // Solar savings from new planned solar
+  let yr1SolarSavings = 0;
+  if (addSolar === 'yes' && plannedSolar > 0) {
+    const solarGenNew = plannedSolar * solarFactor * 365;
+    // Net savings: self-consumption at usage rate (not FiT since battery stores/uses it)
+    yr1SolarSavings = Math.min(annualGridUse - rawOffset, solarGenNew) * usageRate;
+  }
 
-  document.getElementById("roi").textContent =
-    roi.toFixed(1) + "%";
+  const yr1TotalSavings = yr1BatterySavings + yr1SolarSavings;
+  const roiPct = systemCost > 0 ? (yr1TotalSavings / systemCost) * 100 : 0;
+  const payback = yr1TotalSavings > 0 ? systemCost / yr1TotalSavings : null;
 
-  document.getElementById("payback").textContent =
-    payback > 0 ? payback.toFixed(1) + " years" : "Never";
+  // 10-year total with compounding degradation
+  let tenYrTotal = 0;
+  for (let y = 1; y <= 10; y++) {
+    const degradFactor = Math.pow(1 - degradation, y - 1);
+    tenYrTotal += yr1TotalSavings * degradFactor;
+  }
 
-  // Show results
-  const results = document.getElementById("results");
-  results.style.display = "block";
-  
-  // Show download buttons
-  const downloadButtons = document.getElementById("downloadButtons");
-  downloadButtons.style.display = "flex";
-  
-  // Scroll to results
-  results.scrollIntoView({ behavior: "smooth", block: "center" });
-
-  // Store calculation for export
-  lastCalculation = {
-    postcode,
-    quarterlyUse,
-    usageRate,
-    supplyCharge,
-    currentSolar,
-    feedInTariff,
-    plannedSolar,
-    batterySize,
-    systemCost,
-    hasSolar,
-    addSolar,
-    annualSavings,
-    roi,
-    payback,
-    offsetEnergy,
-    solarSavings,
-    solarGeneration,
-    timestamp: new Date().toLocaleString('en-AU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }),
-    reportId: 'GS-' + Math.floor(100000 + Math.random() * 900000)
+  lastCalc = {
+    quarterlyUse, usageRate, batterySize, systemCost, currentSolar,
+    feedInTariff, plannedSolar, hasSolar, addSolar, solarFactor,
+    yr1BatterySavings, yr1SolarSavings, fitOpportunityCost,
+    yr1TotalSavings, roiPct, payback, tenYrTotal,
+    tariff, touMultiplier, rawOffset,
+    postcode: document.getElementById('postcode').value || '—',
+    custName: document.getElementById('custName').value || 'Customer',
+    timestamp: new Date().toLocaleString('en-AU', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    reportId: 'GS-ROI-' + Math.floor(100000 + Math.random() * 900000)
   };
+
+  updateSidebar(lastCalc);
+  updateResultsCard(lastCalc);
+  document.getElementById('btnExcel').disabled = false;
+  document.getElementById('btnPdf').disabled = false;
 }
 
+// ═══════════════════════════════
+// SIDEBAR UPDATE
+// ═══════════════════════════════
+function fmt$(n) { return '$' + Math.round(n).toLocaleString('en-AU'); }
+function fmtPct(n) { return n.toFixed(1) + '%'; }
+
+function resetSidebar() {
+  ['sum-cost','sum-savings','sum-batt-savings','sum-solar-savings','sum-fit-cost','sum-10yr'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = '$–';
+  });
+  document.getElementById('sum-payback').textContent = '–';
+  document.getElementById('sum-roi').textContent = '–%';
+  document.getElementById('roi-pill-wrap').innerHTML = '';
+  document.getElementById('sum-solar-row').style.display = 'none';
+  document.getElementById('sum-fit-row').style.display = 'none';
+  document.getElementById('btnExcel').disabled = true;
+  document.getElementById('btnPdf').disabled = true;
+}
+
+function updateSidebar(c) {
+  document.getElementById('sum-cost').textContent = fmt$(c.systemCost);
+  document.getElementById('sum-savings').textContent = fmt$(c.yr1TotalSavings);
+  document.getElementById('sum-batt-savings').textContent = fmt$(c.yr1BatterySavings);
+  document.getElementById('sum-10yr').textContent = fmt$(c.tenYrTotal);
+
+  if (c.yr1SolarSavings > 0) {
+    document.getElementById('sum-solar-row').style.display = 'flex';
+    document.getElementById('sum-solar-savings').textContent = fmt$(c.yr1SolarSavings);
+  } else {
+    document.getElementById('sum-solar-row').style.display = 'none';
+  }
+
+  if (c.fitOpportunityCost > 0) {
+    document.getElementById('sum-fit-row').style.display = 'flex';
+    document.getElementById('sum-fit-cost').textContent = '-' + fmt$(c.fitOpportunityCost);
+  } else {
+    document.getElementById('sum-fit-row').style.display = 'none';
+  }
+
+  document.getElementById('sum-payback').textContent = c.payback ? c.payback.toFixed(1) + ' yrs' : 'Never';
+  document.getElementById('sum-roi').textContent = fmtPct(c.roiPct);
+
+  // ROI pill
+  let pillClass = 'roi-pill';
+  let pillText = '✓ Good ROI';
+  if (c.roiPct < 5) { pillClass += ' bad'; pillText = '✗ Low ROI'; }
+  else if (c.roiPct < 10) { pillClass += ' warning'; pillText = '⚡ Moderate ROI'; }
+  document.getElementById('roi-pill-wrap').innerHTML = `<span class="${pillClass}">${pillText} · ${fmtPct(c.roiPct)}</span>`;
+}
+
+// ═══════════════════════════════
+// RESULTS CARD
+// ═══════════════════════════════
+function updateResultsCard(c) {
+  const card = document.getElementById('resultsCard');
+  card.open = true;
+  document.getElementById('resultsHint').textContent = `Yr 1 savings: ${fmt$(c.yr1TotalSavings)} · Payback: ${c.payback ? c.payback.toFixed(1) + ' yrs' : 'Never'}`;
+
+  const fitRow = c.fitOpportunityCost > 0
+    ? `<div class="result-breakdown-row"><span>FiT opportunity cost</span><span style="color:#e04f4f;">-${fmt$(c.fitOpportunityCost)}</span></div>` : '';
+  const solarRow = c.yr1SolarSavings > 0
+    ? `<div class="result-breakdown-row"><span>New solar savings</span><span>${fmt$(c.yr1SolarSavings)}</span></div>` : '';
+  const touNote = c.touMultiplier > 1
+    ? `<div class="note-box" style="margin-top:10px;"><strong>ToU tariff applied:</strong> Battery value is estimated 25% higher due to peak-rate arbitrage.</div>` : '';
+  const warn = c.yr1TotalSavings < 0
+    ? `<div class="warn-box" style="margin-top:10px;"><strong>Warning:</strong> At current inputs, the feed-in tariff lost exceeds battery savings. Consider a lower-FiT retailer or reviewing system sizing.</div>` : '';
+
+  document.getElementById('resultsContent').innerHTML = `
+    <div class="result-summary">
+      <div class="result-summary-grid">
+        <div class="result-box">
+          <div class="result-val">${fmt$(c.yr1TotalSavings)}</div>
+          <div class="result-lbl">Yr 1 Annual Savings</div>
+        </div>
+        <div class="result-box">
+          <div class="result-val">${fmtPct(c.roiPct)}</div>
+          <div class="result-lbl">Annual ROI</div>
+        </div>
+        <div class="result-box">
+          <div class="result-val">${c.payback ? c.payback.toFixed(1) + ' yrs' : '–'}</div>
+          <div class="result-lbl">Payback Period</div>
+        </div>
+      </div>
+      <div class="result-breakdown">
+        <div class="result-breakdown-row"><span>Battery grid savings</span><span>${fmt$(c.yr1BatterySavings + c.fitOpportunityCost)}</span></div>
+        ${fitRow}
+        ${solarRow}
+        <div class="result-breakdown-row" style="border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;margin-top:4px;">
+          <span style="color:rgba(255,255,255,0.7);font-weight:700;">10-Year Total Savings</span>
+          <span style="color:var(--gold);font-weight:700;">${fmt$(c.tenYrTotal)}</span>
+        </div>
+      </div>
+    </div>
+    ${touNote}
+    ${warn}
+    <div class="note-box" style="margin-top:10px;">
+      <strong>Disclaimer:</strong> Estimates only. Actual savings vary with usage patterns, weather, and rate changes. Not financial advice.
+    </div>
+  `;
+}
+
+// ═══════════════════════════════
+// EXCEL EXPORT
+// ═══════════════════════════════
 function downloadExcel() {
-  if (!lastCalculation) {
-    alert("Please calculate your ROI first.");
-    return;
-  }
-
-  // Prepare data for Excel
+  if (!lastCalc) { showToast('Run the calculation first.'); return; }
+  const c = lastCalc;
   const data = [
-    ["GOLDSURE BATTERY & SOLAR INVESTMENT ANALYSIS", "", ""],
-    ["Report ID:", lastCalculation.reportId, ""],
-    ["Generated on:", lastCalculation.timestamp, ""],
-    ["", "", ""],
-    ["YOUR INPUT DETAILS", "", ""],
-    ["Postcode:", lastCalculation.postcode, ""],
-    ["Quarterly Grid Electricity Use (kWh):", lastCalculation.quarterlyUse, ""],
-    ["Usage Rate ($/kWh):", lastCalculation.usageRate.toFixed(4), ""],
-    ["Daily Supply Charge ($/day):", lastCalculation.supplyCharge.toFixed(2), ""],
-    ["Current Solar System (kW):", lastCalculation.currentSolar, lastCalculation.hasSolar === 'yes' ? "Yes" : "No"],
-    ["Feed-in Tariff ($/kWh):", lastCalculation.feedInTariff.toFixed(4), ""],
-    ["Planning to Add Solar:", lastCalculation.plannedSolar, lastCalculation.addSolar === 'yes' ? "Yes" : "No"],
-    ["Battery Size (kWh):", lastCalculation.batterySize, ""],
-    ["Total System Cost ($):", lastCalculation.systemCost, ""],
-    ["", "", ""],
-    ["INVESTMENT RESULTS", "", ""],
-    ["Estimated Annual Savings ($):", Math.round(lastCalculation.annualSavings), ""],
-    ["Estimated Annual ROI (%):", lastCalculation.roi.toFixed(1), ""],
-    ["Estimated Payback Period (years):", lastCalculation.payback.toFixed(1), ""],
-    ["Energy Offset by Battery (kWh/year):", Math.round(lastCalculation.offsetEnergy), ""],
-    ["Additional Solar Savings ($/year):", Math.round(lastCalculation.solarSavings), ""],
-    ["", "", ""],
-    ["GOLDSURE CONTACT INFORMATION", "", ""],
-    ["Phone:", "03 7050 2846", ""],
-    ["Email:", "info@goldsure.com.au", ""],
-    ["Head Office:", "Suite 4, Level 1, 293 High Street", ""],
-    ["", "Preston, Victoria 3072", ""],
-    ["", "", ""],
-    ["DISCLAIMER", "", ""],
-    ["This report provides estimates only.", "", ""],
-    ["Actual savings may vary based on usage patterns,", "", ""],
-    ["weather conditions, and electricity rate changes.", "", ""],
-    ["This is not financial advice.", "", ""]
+    ['GOLDSURE BATTERY & SOLAR ROI ANALYSIS', '', ''],
+    ['Report ID:', c.reportId, ''],
+    ['Generated:', c.timestamp, ''],
+    ['Customer:', c.custName, ''],
+    ['Postcode:', c.postcode, ''],
+    ['', '', ''],
+    ['INPUT DETAILS', '', ''],
+    ['Quarterly Grid Use (kWh):', c.quarterlyUse, ''],
+    ['Usage Rate ($/kWh):', c.usageRate.toFixed(4), ''],
+    ['Daily Supply Charge ($/day):', document.getElementById('supplyCharge').value || '—', ''],
+    ['Tariff Type:', c.tariff === 'tou' ? 'Time of Use' : 'Flat Rate', ''],
+    ['Battery Size (kWh):', c.batterySize, ''],
+    ['Total System Cost ($):', c.systemCost, ''],
+    ['Has Existing Solar:', c.hasSolar === 'yes' ? 'Yes – ' + c.currentSolar + ' kW' : 'No', ''],
+    ['Feed-in Tariff ($/kWh):', c.feedInTariff.toFixed(4), ''],
+    ['Planned New Solar:', c.addSolar === 'yes' ? 'Yes – ' + c.plannedSolar + ' kW' : 'No', ''],
+    ['', '', ''],
+    ['RESULTS', '', ''],
+    ['Year 1 Battery Savings ($):', Math.round(c.yr1BatterySavings + c.fitOpportunityCost), ''],
+    ['FiT Opportunity Cost ($):', Math.round(c.fitOpportunityCost), ''],
+    ['Year 1 Solar Savings ($):', Math.round(c.yr1SolarSavings), ''],
+    ['NET Year 1 Annual Savings ($):', Math.round(c.yr1TotalSavings), ''],
+    ['Annual ROI (%):', c.roiPct.toFixed(1), ''],
+    ['Payback Period (yrs):', c.payback ? c.payback.toFixed(1) : 'N/A', ''],
+    ['10-Year Total Savings ($):', Math.round(c.tenYrTotal), ''],
+    ['', '', ''],
+    ['CONTACT', '', ''],
+    ['Goldsure Pty Ltd', '', ''],
+    ['Phone:', '03 7050 2846', ''],
+    ['Email:', 'info@goldsure.com.au', ''],
+    ['Address:', 'Suite 4, Level 1, 293 High Street, Preston VIC 3072', ''],
+    ['', '', ''],
+    ['DISCLAIMER', '', ''],
+    ['Estimates only. Not financial advice.', '', ''],
+    ['Actual savings may vary with usage, weather, and rate changes.', '', ''],
   ];
-
-  // Create worksheet
   const ws = XLSX.utils.aoa_to_sheet(data);
-  
-  // Set column widths
-  const wscols = [
-    {wch: 40},
-    {wch: 25},
-    {wch: 20}
-  ];
-  ws['!cols'] = wscols;
-
-  // Create workbook
+  ws['!cols'] = [{wch:40},{wch:28},{wch:15}];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "ROI Analysis");
-
-  // Generate and download file
-  XLSX.writeFile(wb, `Goldsure_ROI_Analysis_${lastCalculation.postcode}_${new Date().getTime()}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, 'ROI Analysis');
+  XLSX.writeFile(wb, `Goldsure_ROI_${c.postcode}_${Date.now()}.xlsx`);
+  showToast('Excel downloaded!');
 }
 
+// ═══════════════════════════════
+// PDF GENERATION
+// ═══════════════════════════════
 function generatePDF() {
-  if (!lastCalculation) {
-    alert("Please calculate your ROI first.");
-    return;
-  }
+  if (!lastCalc) { showToast('Run the calculation first.'); return; }
+  document.getElementById('pdfCustName').value = lastCalc.custName;
 
-  // Update PDF template content
-  document.getElementById("pdfDate").textContent = lastCalculation.timestamp;
-  document.getElementById("pdfReportId").textContent = lastCalculation.reportId;
-  document.getElementById("pdfReportId2").textContent = lastCalculation.reportId;
-  document.getElementById("pdfCalcDate").textContent = lastCalculation.timestamp.split(' at ')[0];
-  
-  // Results section
-  document.getElementById("pdfSavings").textContent = "$" + Math.round(lastCalculation.annualSavings).toLocaleString();
-  document.getElementById("pdfROI").textContent = lastCalculation.roi.toFixed(1) + "%";
-  document.getElementById("pdfPayback").textContent = lastCalculation.payback.toFixed(1) + " yrs";
-  
-  // Investment summary
-  document.getElementById("pdfSystemCost").textContent = "$" + lastCalculation.systemCost.toLocaleString();
-  document.getElementById("pdfBatterySize").textContent = lastCalculation.batterySize + " kWh";
-  
-  // Determine investment type and solar info
-  let investmentType = "Battery Only";
-  let solarSystemInfo = "None";
-  
-  if (lastCalculation.currentSolar > 0 && lastCalculation.plannedSolar > 0) {
-    investmentType = "Battery + Existing Solar + Additional Solar";
-    solarSystemInfo = lastCalculation.currentSolar + " kW (existing) + " + lastCalculation.plannedSolar + " kW (planned)";
-  } else if (lastCalculation.currentSolar > 0) {
-    investmentType = "Battery + Existing Solar";
-    solarSystemInfo = lastCalculation.currentSolar + " kW (existing)";
-  } else if (lastCalculation.plannedSolar > 0) {
-    investmentType = "Battery + New Solar";
-    solarSystemInfo = lastCalculation.plannedSolar + " kW (planned)";
-  }
-  
-  document.getElementById("pdfInvestmentType").textContent = investmentType;
-  document.getElementById("pdfSolarSystem").textContent = solarSystemInfo;
-  
-  // Explanation
-  let explanation = `Based on your inputs, a ${lastCalculation.batterySize}kWh battery system `;
-  if (lastCalculation.plannedSolar > 0) {
-    explanation += `combined with ${lastCalculation.plannedSolar}kW of solar `;
-  }
-  explanation += `could save you approximately $${Math.round(lastCalculation.annualSavings)} annually. `;
-  explanation += `This represents a ${lastCalculation.roi.toFixed(1)}% return on your investment, `;
-  explanation += `with the system paying for itself in about ${lastCalculation.payback.toFixed(1)} years.`;
-  document.getElementById("pdfExplanation1").textContent = explanation;
-  
-  // Input details
-  document.getElementById("pdfPostcode").textContent = lastCalculation.postcode;
-  document.getElementById("pdfQuarterlyUse").textContent = lastCalculation.quarterlyUse.toLocaleString() + " kWh";
-  document.getElementById("pdfUsageRate").textContent = "$" + lastCalculation.usageRate.toFixed(4) + "/kWh";
-  document.getElementById("pdfSupplyCharge").textContent = "$" + lastCalculation.supplyCharge.toFixed(2) + "/day";
-  document.getElementById("pdfCurrentSolar").textContent = lastCalculation.currentSolar > 0 ? lastCalculation.currentSolar + " kW" : "None";
-  document.getElementById("pdfFeedInTariff").textContent = lastCalculation.feedInTariff > 0 ? "$" + lastCalculation.feedInTariff.toFixed(4) + "/kWh" : "Not applicable";
-  document.getElementById("pdfPlannedSolar").textContent = lastCalculation.plannedSolar > 0 ? lastCalculation.plannedSolar + " kW" : "None";
+  const c = lastCalc;
+  const fitRow = c.fitOpportunityCost > 0
+    ? `<div class="result-breakdown-row"><span>FiT opportunity cost</span><span style="color:#e04f4f;">-${fmt$(c.fitOpportunityCost)}</span></div>` : '';
+  const solarRow = c.yr1SolarSavings > 0
+    ? `<div class="result-breakdown-row"><span>New solar savings</span><span>${fmt$(c.yr1SolarSavings)}</span></div>` : '';
 
-  // Show the PDF template
-  const pdfTemplate = document.getElementById('pdfTemplate');
-  pdfTemplate.style.display = 'block';
-  
-  // Generate PDF - Capture each page separately
-  const { jsPDF } = window.jspdf;
-  
-  // Create a new PDF document
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
-  // Set document properties
-  pdf.setProperties({
-    title: `Goldsure ROI Report - ${lastCalculation.postcode}`,
-    subject: 'Battery & Solar Investment Analysis',
-    author: 'Goldsure Pty Ltd',
-    keywords: 'solar, battery, roi, investment, savings'
-  });
-  
-  // Get both pages from the template
-  const pages = pdfTemplate.querySelectorAll('.pdf-page');
-  
-  // Function to capture a single page and add it to the PDF
-  const capturePage = (pageElement, pageNumber) => {
-    return new Promise((resolve) => {
-      html2canvas(pageElement, {
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: pageElement.offsetWidth,
-        height: pageElement.offsetHeight
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const imgWidth = 210; // A4 width in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        if (pageNumber > 1) {
-          pdf.addPage();
-        }
-        
-        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-        resolve();
-      });
-    });
-  };
-  
-  // Capture and add both pages sequentially
-  Promise.all([
-    capturePage(pages[0], 1),
-    capturePage(pages[1], 2)
-  ]).then(() => {
-    // Save the PDF
-    pdf.save(`Goldsure_ROI_Report_${lastCalculation.postcode}_${lastCalculation.reportId}.pdf`);
-    
-    // Hide the template again
-    pdfTemplate.style.display = 'none';
-  }).catch(error => {
-    console.error('Error generating PDF:', error);
-    alert('Error generating PDF. Please try again.');
-    pdfTemplate.style.display = 'none';
-  });
+  document.getElementById('pdfPreviewContent').innerHTML = `
+    <div class="result-summary">
+      <div class="result-summary-grid">
+        <div class="result-box">
+          <div class="result-val">${fmt$(c.yr1TotalSavings)}</div>
+          <div class="result-lbl">Yr 1 Savings</div>
+        </div>
+        <div class="result-box">
+          <div class="result-val">${fmtPct(c.roiPct)}</div>
+          <div class="result-lbl">Annual ROI</div>
+        </div>
+        <div class="result-box">
+          <div class="result-val">${c.payback ? c.payback.toFixed(1) + ' yrs' : '–'}</div>
+          <div class="result-lbl">Payback</div>
+        </div>
+      </div>
+      <div class="result-breakdown">
+        ${fitRow}${solarRow}
+        <div class="result-breakdown-row">
+          <span style="color:rgba(255,255,255,0.6);font-weight:600;">10-Year Total</span>
+          <span style="color:var(--gold);font-weight:700;">${fmt$(c.tenYrTotal)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('pdfModal').classList.add('open');
 }
 
-// Add some event listeners for better UX
-document.addEventListener('DOMContentLoaded', function() {
-  // Add input validation
-  const numberInputs = document.querySelectorAll('input[type="number"]');
-  numberInputs.forEach(input => {
-    input.addEventListener('input', function() {
-      if (this.value < 0) this.value = 0;
-    });
+function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); }
+
+function confirmPDF() {
+  if (!lastCalc) return;
+  const custName = document.getElementById('pdfCustName').value.trim() || lastCalc.custName;
+  closePdfModal();
+  buildPDF(custName);
+}
+
+function buildPDF(custName) {
+  const { jsPDF } = window.jspdf;
+  const c = lastCalc;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  const PW=210, PH=297, ML=14, MR=14, CW=PW-ML-MR;
+  const GOLD=[176,141,46], DARK=[20,28,46], MUTED=[107,120,153], WHITE=[255,255,255];
+
+  doc.setProperties({
+    title: `Goldsure Battery ROI – ${custName}`,
+    subject: 'Battery & Solar Investment Analysis',
+    author: 'Goldsure Pty Ltd'
   });
-  
-  // Radio button toggles
-  document.querySelectorAll('input[name="hasSolar"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-      const solarInput = document.getElementById('currentSolar');
-      const feedInput = document.getElementById('feedInTariff');
-      if (this.value === 'no') {
-        solarInput.value = '';
-        feedInput.value = '';
-        solarInput.disabled = true;
-        feedInput.disabled = true;
-      } else {
-        solarInput.disabled = false;
-        feedInput.disabled = false;
-      }
-    });
+
+  // Header bar
+  doc.setFillColor(...DARK); doc.rect(0,0,PW,14,'F');
+  doc.setFillColor(...GOLD); doc.rect(0,0,PW,2,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...GOLD);
+  doc.text('GOLDSURE', ML, 10);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...WHITE);
+  doc.text('Battery & Solar ROI Analysis', PW-MR, 10, { align:'right' });
+
+  let y = 22;
+
+  // Report meta
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+  doc.text('Battery & Solar Investment Report', ML, y); y += 6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+  doc.text(`Prepared for: ${custName}  |  Report ID: ${c.reportId}  |  Date: ${c.timestamp}`, ML, y); y += 10;
+
+  // Key results boxes
+  doc.setFillColor(...DARK); doc.rect(ML, y, CW, 8, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GOLD);
+  doc.text('KEY RESULTS', ML+4, y+5.5); y += 8;
+
+  const boxW = (CW-8)/3;
+  const boxes = [
+    { label:'YEAR 1 SAVINGS', val: fmt$(c.yr1TotalSavings) },
+    { label:'ANNUAL ROI', val: fmtPct(c.roiPct) },
+    { label:'PAYBACK PERIOD', val: c.payback ? c.payback.toFixed(1)+' years' : 'N/A' }
+  ];
+  boxes.forEach((b,i) => {
+    const bx = ML + i*(boxW+4);
+    doc.setFillColor(255,248,225); doc.rect(bx, y, boxW, 22, 'F');
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5); doc.rect(bx, y, boxW, 22, 'S');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+    doc.text(b.label, bx+boxW/2, y+6, { align:'center' });
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...DARK);
+    doc.text(b.val, bx+boxW/2, y+16, { align:'center' });
   });
-  
-  document.querySelectorAll('input[name="addSolar"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-      const solarInput = document.getElementById('plannedSolar');
-      solarInput.disabled = this.value === 'no';
-      if (this.value === 'no') solarInput.value = '';
-    });
+  y += 26;
+
+  // Two-column layout
+  const colW = (CW-8)/2;
+  const leftX = ML, rightX = ML+colW+8;
+
+  // Investment Summary
+  doc.setFillColor(...DARK); doc.rect(leftX, y, colW, 7, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+  doc.text('INVESTMENT SUMMARY', leftX+4, y+5); y += 7;
+
+  const summaryRows = [
+    ['System Cost', fmt$(c.systemCost)],
+    ['Battery Size', c.batterySize + ' kWh'],
+    ['Existing Solar', c.hasSolar==='yes' ? c.currentSolar+' kW' : 'None'],
+    ['Planned Solar', c.addSolar==='yes' ? c.plannedSolar+' kW' : 'None'],
+    ['10-Year Total Savings', fmt$(c.tenYrTotal)],
+  ];
+  const summaryStartY = y;
+  summaryRows.forEach((row,i) => {
+    const ry = summaryStartY + i*8;
+    if(i%2===0) { doc.setFillColor(250,250,250); doc.rect(leftX, ry, colW, 8, 'F'); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text(row[0], leftX+4, ry+5.5);
+    doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+    doc.text(row[1], leftX+colW-4, ry+5.5, { align:'right' });
   });
-  
-  // Initialize disabled states
-  document.getElementById('currentSolar').disabled = true;
-  document.getElementById('feedInTariff').disabled = true;
+
+  // Input Details
+  let rightY = y - 7;
+  doc.setFillColor(...DARK); doc.rect(rightX, rightY, colW, 7, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+  doc.text('YOUR INPUT DETAILS', rightX+4, rightY+5); rightY += 7;
+
+  const inputRows = [
+    ['Quarterly Use', c.quarterlyUse.toLocaleString()+' kWh'],
+    ['Usage Rate', '$'+c.usageRate.toFixed(4)+'/kWh'],
+    ['Tariff Type', c.tariff==='tou'?'Time of Use':'Flat Rate'],
+    ['Feed-in Tariff', c.feedInTariff>0?'$'+c.feedInTariff.toFixed(4)+'/kWh':'N/A'],
+    ['FiT Opp. Cost', c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A'],
+  ];
+  inputRows.forEach((row,i) => {
+    const ry = rightY + i*8;
+    if(i%2===0) { doc.setFillColor(250,250,250); doc.rect(rightX, ry, colW, 8, 'F'); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text(row[0], rightX+4, ry+5.5);
+    doc.setFont('helvetica','bold'); doc.setTextColor(...DARK);
+    doc.text(row[1], rightX+colW-4, ry+5.5, { align:'right' });
+  });
+
+  y += summaryRows.length*8 + 10;
+
+  // Savings breakdown
+  doc.setFillColor(...DARK); doc.rect(ML, y, CW, 7, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
+  doc.text('SAVINGS BREAKDOWN', ML+4, y+5); y += 7;
+
+  const breakdownRows = [
+    ['Battery grid savings (gross)', fmt$(c.yr1BatterySavings + c.fitOpportunityCost)],
+    ['FiT opportunity cost (deducted)', c.fitOpportunityCost>0?'-'+fmt$(c.fitOpportunityCost):'N/A'],
+    ['New solar savings', c.yr1SolarSavings>0?fmt$(c.yr1SolarSavings):'N/A'],
+    ['Net Year 1 Annual Savings', fmt$(c.yr1TotalSavings)],
+  ];
+  breakdownRows.forEach((row,i) => {
+    const ry = y + i*8;
+    const isTotal = i === breakdownRows.length-1;
+    if(isTotal) { doc.setFillColor(255,248,225); } else if(i%2===0) { doc.setFillColor(250,250,250); } else { doc.setFillColor(255,255,255); }
+    doc.rect(ML, ry, CW, 8, 'F');
+    doc.setFont('helvetica', isTotal?'bold':'normal'); doc.setFontSize(8);
+    doc.setTextColor(isTotal?...GOLD:...MUTED);
+    doc.text(row[0], ML+4, ry+5.5);
+    doc.setTextColor(isTotal?...GOLD:...DARK); doc.setFont('helvetica','bold');
+    doc.text(row[1], ML+CW-4, ry+5.5, { align:'right' });
+  });
+  y += breakdownRows.length*8 + 10;
+
+  // Methodology note
+  doc.setFillColor(237,242,253); doc.rect(ML, y, CW, 20, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(45,107,228);
+  doc.text('METHODOLOGY NOTE', ML+4, y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(26,61,138);
+  const methText = 'Savings = (min(annual use, battery output) × usage rate × tariff factor) − FiT opportunity cost + solar savings. Degradation compounded annually. 10-year model uses compounding battery efficiency loss.';
+  doc.text(doc.splitTextToSize(methText, CW-8), ML+4, y+12);
+  y += 24;
+
+  // Disclaimer
+  doc.setFillColor(255,245,245); doc.rect(ML, y, CW, 18, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(180,50,50);
+  doc.text('DISCLAIMER', ML+4, y+5);
+  doc.setFont('helvetica','normal'); doc.setTextColor(100,50,50);
+  const disc = 'This report provides estimates only and is based on information provided. Actual savings may vary significantly based on usage patterns, weather, rate changes, and battery degradation. This is not financial advice. Consult a qualified financial or energy advisor before making investment decisions.';
+  doc.text(doc.splitTextToSize(disc, CW-8), ML+4, y+10);
+  y += 22;
+
+  // Footer
+  doc.setFillColor(...DARK); doc.rect(0, PH-18, PW, 18, 'F');
+  doc.setFillColor(...GOLD); doc.rect(0, PH-18, PW, 1.5, 'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...WHITE);
+  doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072', PW/2, PH-11, { align:'center' });
+  doc.text('03 7050 2846  |  info@goldsure.com.au  |  www.goldsure.com.au', PW/2, PH-6, { align:'center' });
+
+  doc.save(`Goldsure_ROI_${c.postcode}_${c.reportId}.pdf`);
+  showToast('PDF downloaded!');
+}
+
+// ═══════════════════════════════
+// TOAST
+// ═══════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════
+// DOCS ACCORDION
+// ═══════════════════════════════
+function toggleDocs() {
+  const list = document.getElementById('docsList');
+  const arrow = document.querySelector('.docs-toggle .arrow');
+  const isOpen = list.classList.toggle('open');
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(180deg)' : '';
+}
+
+// Prevent negatives
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input[type="number"]').forEach(inp => {
+    inp.addEventListener('input', function() { if (+this.value < 0) this.value = 0; });
+  });
 });
 </script>
-
 </body>
 </html>
