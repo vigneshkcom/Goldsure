@@ -14,7 +14,377 @@
   --amber: #d98c1e; --blue: #2d6be4; --blue-bg: #edf2fd;
   --red: #e04f4f; --red-bg: rgba(224,79,79,0.08);
   --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --r: 12px;<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Quote Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface2: #f0f2f5; --surface3: #e8eaf0;
+  --border: #e3e7ef; --border2: #d0d5df; --text: #141c2e; --muted: #6b7899;
+  --gold: #b08d2e; --gold-light: #caa535; --gold-bg: #fef7e7; --gold-border: #e8d28a;
+  --green: #18a96e; --green-bg: #eaf7f2; --green-border: #b0e8d2;
+  --amber: #d98c1e; --blue: #2d6be4; --blue-bg: #edf2fd;
+  --red: #e04f4f; --red-bg: rgba(224,79,79,0.08);
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
   --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+header { background: #fff; border-bottom: 3px solid var(--gold); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; min-height: 60px; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { height: 34px; width: auto; object-fit: contain; }
+.logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.logo-text span { color: var(--gold); }
+.hd { width: 1px; height: 26px; background: rgba(0,0,0,0.1); }
+.page-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.nav-btn { font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 600; padding: 7px 14px; border: 1px solid var(--border2); border-radius: 8px; background: transparent; color: #4b5b7a; cursor: pointer; text-decoration: none; transition: all 0.15s; display: inline-flex; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px; }
+.nav-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--gold); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-icon { display: inline-block; margin-right: 5px; }
+.spinning .spin-icon { animation: spin 0.7s linear infinite; }
+main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.kpi-card.gold::before { background: var(--gold); }
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.amber::before { background: var(--amber); }
+.kpi-card.blue::before { background: var(--blue); }
+.kpi-card.dark::before { background: #141c2e; }
+.kpi-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
+.kpi-val { font-size: 26px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); line-height: 1; }
+.kpi-card.gold .kpi-val { color: var(--gold); }
+.kpi-card.green .kpi-val { color: var(--green); }
+.kpi-sub { font-size: 10px; color: var(--muted); margin-top: 5px; }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
+.chart-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 16px; }
+.agent-bars { display: flex; flex-direction: column; gap: 10px; }
+.agent-bar-row { display: flex; align-items: center; gap: 12px; }
+.agent-bar-name { font-size: 12px; font-weight: 600; width: 100px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-bar-track { flex: 1; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+.agent-bar-fill { height: 100%; background: var(--gold); border-radius: 4px; transition: width 0.6s ease; }
+.agent-bar-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); width: 28px; text-align: right; }
+.day-grid { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+.day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.day-bar-track { width: 100%; background: var(--surface2); border-radius: 3px; display: flex; flex-direction: column; justify-content: flex-end; height: 60px; overflow: hidden; border: 1px solid var(--border); }
+.day-bar-fill { background: var(--gold); width: 100%; border-radius: 2px; transition: height 0.5s ease; min-height: 2px; }
+.day-label { font-size: 8px; color: var(--muted); }
+.filters-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 18px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; box-shadow: var(--shadow); }
+.filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
+.filter-input, .filter-select { font-family: 'Sora', sans-serif; font-size: 12px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 12px; color: var(--text); outline: none; transition: border-color 0.15s; }
+.filter-input { min-width: 200px; }
+.filter-input::placeholder { color: var(--muted); }
+.filter-input:focus, .filter-select:focus { border-color: var(--gold); background: var(--surface); }
+.filter-divider { width: 1px; height: 22px; background: var(--border); }
+.clear-btn { font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700; padding: 6px 12px; border-radius: 7px; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; transition: all 0.15s; }
+.clear-btn:hover { color: var(--red); border-color: rgba(224,79,79,0.4); background: var(--red-bg); }
+.results-count { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.results-count strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
+.table-header-bar { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.table-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 940px; }
+thead tr { background: var(--surface2); }
+th { padding: 10px 14px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: color 0.15s; }
+th:hover { color: var(--gold); }
+th.sorted { color: var(--gold); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--gold-bg); }
+td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: middle; }
+.td-name { font-weight: 600; }
+.td-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.td-mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 11px; }
+.td-gold { color: var(--gold); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.td-date { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.badge::before { content: '●'; font-size: 6px; }
+.badge-sent { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(45,107,228,0.25); }
+.badge-accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.lead-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 8px; border-radius: 4px; }
+.lead-digital { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
+.lead-letterbox { background: var(--surface2); color: #141c2e; border: 1px solid var(--border2); }
+.svc-badge { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 8px; border-radius: 4px; }
+.svc-install { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
+.svc-inspection { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(45,107,228,0.25); }
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.3; }
+.empty-state h3 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.empty-state p { font-size: 12px; color: var(--muted); }
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; height: 12px; display: block; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton.w-20{width:20%}.skeleton.w-30{width:30%}.skeleton.w-40{width:40%}.skeleton.w-60{width:60%}.skeleton.w-80{width:80%}
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #141c2e; color: #fff; font-size: 12px; font-weight: 600; padding: 10px 22px; border-radius: 30px; border-left: 3px solid var(--gold); box-shadow: 0 4px 20px rgba(0,0,0,0.15); opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+.toast.show { opacity: 1; }
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.charts-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}header{padding:0 16px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px;gap:8px;min-height:auto}main{padding:16px}.filters-bar{flex-direction:column;align-items:flex-start}.filter-input{min-width:auto;width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure">
+      <span class="logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="page-label">Quote Tracker</span>
+  </div>
+  <div class="header-right">
+    <a href="https://portal.goldsure.com.au/smoke-alarms/smoke-alarm.html" class="nav-btn">← Sales Portal</a>
+    <button class="nav-btn" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="nav-btn" id="refreshBtn" onclick="loadQuotes()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div class="kpi-grid">
+    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Gross pipeline value</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Total Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Quotes Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Avg Smoke Alarms</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote sent</div></div>
+    <div class="kpi-card dark"><div class="kpi-label">Total Alarm Units</div><div class="kpi-val" id="kpi-alarms">—</div><div class="kpi-sub">Across all quotes</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Quotes by Agent</div>
+      <div class="agent-bars" id="agent-bars"><div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>Loading…</p></div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Last 14 Days Activity</div>
+      <div class="day-grid" id="day-grid"></div>
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <span class="filter-label">Filter</span>
+    <input type="search" class="filter-input" id="searchInput" placeholder="Search name, email, phone, agent…" oninput="applyFilters()">
+    <div class="filter-divider"></div>
+    <select class="filter-select" id="filterService" onchange="applyFilters()"><option value="">All Services</option><option value="Installation">Installation Quote</option><option value="Inspection">Inspection Quote</option></select>
+    <select class="filter-select" id="filterLeadType" onchange="applyFilters()"><option value="">All Lead Types</option><option value="digital">Digital</option><option value="letterbox">Letterbox</option></select>
+    <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
+    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option></select>
+    <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
+    <button class="clear-btn" onclick="clearFilters()">Clear</button>
+    <span class="results-count"><strong id="results-count">0</strong> quotes shown</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header-bar"><span class="table-title">Sent Quotes</span></div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Date ↕</th>
+            <th onclick="sortBy('customer_name')" data-col="customer_name">Customer ↕</th>
+            <th>Phone</th>
+            <th>Lead Type</th>
+            <th onclick="sortBy('agent_name')" data-col="agent_name">Agent ↕</th>
+            <th>Service</th>
+            <th onclick="sortBy('alarm_qty')" data-col="alarm_qty">Alarms ↕</th>
+            <th onclick="sortBy('grand_total_numeric')" data-col="grand_total_numeric">Total ↕</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+
+let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
+
+window.addEventListener('DOMContentLoaded', loadQuotes);
+
+async function loadQuotes() {
+  const btn  = document.getElementById('refreshBtn');
+  const spin = document.getElementById('spinIcon');
+  btn.classList.add('spinning');
+  spin.style.animation = 'spin 0.7s linear infinite';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/quote_emails?select=*&order=sent_at.desc&limit=1000`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) { showEmptyTable('Could not load data. Check Supabase credentials.'); showToast('Error loading data.'); return; }
+    allQuotes = await res.json();
+    renderKPIs(); renderCharts(); populateAgentFilter(); applyFilters();
+    showToast(`Loaded ${allQuotes.length} quote${allQuotes.length !== 1 ? 's' : ''}`);
+  } catch(e) {
+    console.error(e); showEmptyTable('Network error.'); showToast('Network error.');
+  } finally {
+    btn.classList.remove('spinning'); spin.style.animation = '';
+  }
+}
+
+function applyFilters() {
+  const search  = document.getElementById('searchInput').value.toLowerCase();
+  const service = document.getElementById('filterService').value.toLowerCase();
+  const lead    = document.getElementById('filterLeadType').value.toLowerCase();
+  const agent   = document.getElementById('filterAgent').value.toLowerCase();
+  const status  = document.getElementById('filterStatus').value.toLowerCase();
+  const period  = document.getElementById('filterPeriod').value;
+  const now     = new Date();
+  filtered = allQuotes.filter(q => {
+    const sentAt = new Date(q.sent_at);
+    if (search) { const hay = `${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); if (!hay.includes(search)) return false; }
+    if (service && !(q.service_type||'').toLowerCase().includes(service)) return false;
+    if (lead   && (q.customer_type||'').toLowerCase() !== lead) return false;
+    if (agent  && (q.agent_name||'').toLowerCase() !== agent) return false;
+    if (status && (q.status||'').toLowerCase() !== status) return false;
+    if (period === 'today') { const t = new Date(); t.setHours(0,0,0,0); if (sentAt < t) return false; }
+    else if (period === 'week')  { if (sentAt < new Date(now - 7*864e5)) return false; }
+    else if (period === 'month') { if (sentAt < new Date(now - 30*864e5)) return false; }
+    return true;
+  });
+  filtered.sort((a,b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (sortCol === 'sent_at') { av = new Date(av); bv = new Date(bv); }
+    if (sortCol === 'alarm_qty' || sortCol === 'grand_total_numeric') { av = parseFloat(av)||0; bv = parseFloat(bv)||0; }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+  document.getElementById('results-count').innerText = filtered.length;
+  renderTable();
+}
+
+function sortBy(col) {
+  sortDir = (sortCol === col && sortDir === 'desc') ? 'asc' : 'desc';
+  sortCol = col;
+  document.querySelectorAll('th').forEach(th => th.classList.toggle('sorted', th.dataset.col === col));
+  applyFilters();
+}
+
+function clearFilters() {
+  ['searchInput','filterService','filterLeadType','filterAgent','filterStatus','filterPeriod'].forEach(id => { document.getElementById(id).value = ''; });
+  applyFilters();
+}
+
+function populateAgentFilter() {
+  const agents = [...new Set(allQuotes.map(q=>q.agent_name).filter(Boolean))].sort();
+  const sel = document.getElementById('filterAgent'); const cur = sel.value;
+  sel.innerHTML = '<option value="">All Agents</option>';
+  agents.forEach(a => { const o = document.createElement('option'); o.value = a.toLowerCase(); o.text = a; sel.appendChild(o); });
+  sel.value = cur;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Try adjusting your filters or send your first quote from the Sales Portal.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(q => {
+    const date = q.sent_at ? new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const svcLabel = (q.service_type||'').includes('Installation') ? 'Install' : 'Inspect';
+    const svcClass = svcLabel === 'Install' ? 'svc-install' : 'svc-inspection';
+    const statusClass = q.status === 'accepted' ? 'badge-accepted' : 'badge-sent';
+    const leadType = (q.customer_type||'digital').toLowerCase();
+    const leadClass = leadType === 'letterbox' ? 'lead-letterbox' : 'lead-digital';
+    const leadLabel = leadType === 'letterbox' ? '📬 Letterbox' : '📱 Digital';
+    return `<tr>
+      <td class="td-date">${date}</td>
+      <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}</td>
+      <td class="td-mono">${esc(q.customer_phone||'—')}</td>
+      <td><span class="lead-badge ${leadClass}">${leadLabel}</span></td>
+      <td style="font-size:11px;">${esc(q.agent_name||'—')}</td>
+      <td><span class="svc-badge ${svcClass}">${svcLabel}</span></td>
+      <td class="td-mono">${q.alarm_qty||0}</td>
+      <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
+      <td><span class="badge ${statusClass}">${q.status||'sent'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function showEmptyTable(msg) {
+  document.getElementById('results-count').innerText = '0';
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`;
+}
+
+function renderKPIs() {
+  const total    = allQuotes.length;
+  const accepted = allQuotes.filter(q => q.status === 'accepted' || q.accepted === true).length;
+  const revenue  = allQuotes.reduce((s,q) => s + (parseFloat(q.grand_total_numeric)||0), 0);
+  const alarms   = allQuotes.reduce((s,q) => s + (parseInt(q.alarm_qty)||0), 0);
+  const avg      = total ? revenue / total : 0;   // avg quote VALUE per quote sent
+  const rate     = total ? Math.round(accepted/total*100) : 0;
+  document.getElementById('kpi-revenue').innerText  = '$' + Math.round(revenue).toLocaleString('en-AU');
+  document.getElementById('kpi-total').innerText    = total;
+  document.getElementById('kpi-accepted').innerText = accepted;
+  document.getElementById('kpi-rate').innerText     = `${rate}% conversion rate`;
+  document.getElementById('kpi-avg').innerText      = '$' + Math.round(avg).toLocaleString('en-AU');
+  document.getElementById('kpi-alarms').innerText   = alarms;
+}
+
+function renderCharts() {
+  const agentMap = {};
+  allQuotes.forEach(q => { const a = q.agent_name||'Unknown'; agentMap[a] = (agentMap[a]||0)+1; });
+  const agents = Object.entries(agentMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxA   = agents.length ? agents[0][1] : 1;
+  document.getElementById('agent-bars').innerHTML = agents.length
+    ? agents.map(([n,c]) => `<div class="agent-bar-row"><div class="agent-bar-name" title="${esc(n)}">${esc(n)}</div><div class="agent-bar-track"><div class="agent-bar-fill" style="width:${Math.round(c/maxA*100)}%"></div></div><div class="agent-bar-val">${c}</div></div>`).join('')
+    : '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>No data yet</p></div>';
+  const dayMap = {}, now = new Date();
+  for (let i=13;i>=0;i--) { const d = new Date(now-i*864e5); dayMap[d.toISOString().slice(0,10)]=0; }
+  allQuotes.forEach(q => { const k = q.sent_at?.slice(0,10); if (k && k in dayMap) dayMap[k]++; });
+  const days = Object.entries(dayMap); const maxD = Math.max(...days.map(d=>d[1]),1);
+  document.getElementById('day-grid').innerHTML = days.map(([date,cnt]) => {
+    const label = new Date(date+'T12:00:00').toLocaleDateString('en-AU',{weekday:'narrow'});
+    return `<div class="day-col"><div class="day-bar-track"><div class="day-bar-fill" style="height:${Math.round(cnt/maxD*100)}%"></div></div><div class="day-label">${label}</div></div>`;
+  }).join('');
+}
+
+function exportCSV() {
+  if (!filtered.length) { showToast('No quotes to export.'); return; }
+  const headers = ['Date Sent','Customer Name','Email','Phone','Lead Type','Agent','Service','Alarms','Total','Status'];
+  const rows = filtered.map(q => {
+    const date = q.sent_at ? new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    return [
+      date,
+      q.customer_name || '',
+      q.customer_email || '',
+      q.customer_phone || '',
+      q.customer_type || 'digital',
+      q.agent_name || '',
+      q.service_type || '',
+      q.alarm_qty || 0,
+      q.grand_total || '',
+      q.status || 'sent',
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `goldsure-quotes-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${filtered.length} quotes to CSV`);
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+</script>
+</body>
+</html>
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
