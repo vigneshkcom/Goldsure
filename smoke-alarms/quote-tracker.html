@@ -123,7 +123,7 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
     <span class="page-label">Quote Tracker</span>
   </div>
   <div class="header-right">
-    <a href="/smoke-alarms/" class="nav-btn">← Sales Portal</a>
+    <a href="https://portal.goldsure.com.au/smoke-alarms/smoke-alarm.html" class="nav-btn">← Sales Portal</a>
     <button class="nav-btn" id="refreshBtn" onclick="loadQuotes()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
   </div>
 </header>
@@ -133,7 +133,7 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
     <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Gross pipeline value</div></div>
     <div class="kpi-card green"><div class="kpi-label">Total Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
     <div class="kpi-card amber"><div class="kpi-label">Quotes Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Avg Quote Value</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote sent</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Avg Smoke Alarms</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote sent</div></div>
     <div class="kpi-card dark"><div class="kpi-label">Total Alarm Units</div><div class="kpi-val" id="kpi-alarms">—</div><div class="kpi-sub">Across all quotes</div></div>
   </div>
 
@@ -305,14 +305,14 @@ function renderKPIs() {
   const total    = allQuotes.length;
   const accepted = allQuotes.filter(q => q.status === 'accepted' || q.accepted === true).length;
   const revenue  = allQuotes.reduce((s,q) => s + (parseFloat(q.grand_total_numeric)||0), 0);
-  const avg      = total ? revenue/total : 0;
+  const avg      = total ? alarms/total : 0;
   const alarms   = allQuotes.reduce((s,q) => s + (parseInt(q.alarm_qty)||0), 0);
   const rate     = total ? Math.round(accepted/total*100) : 0;
   document.getElementById('kpi-revenue').innerText  = '$' + Math.round(revenue).toLocaleString('en-AU');
   document.getElementById('kpi-total').innerText    = total;
   document.getElementById('kpi-accepted').innerText = accepted;
   document.getElementById('kpi-rate').innerText     = `${rate}% conversion rate`;
-  document.getElementById('kpi-avg').innerText      = '$' + Math.round(avg).toLocaleString('en-AU');
+  document.getElementById('kpi-avg').innerText      = avg.toFixed(1);
   document.getElementById('kpi-alarms').innerText   = alarms;
 }
 
