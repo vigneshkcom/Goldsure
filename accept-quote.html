@@ -163,7 +163,6 @@ footer a { color: var(--gold); text-decoration: none; }
 
       <div class="info-block" id="quoteInfoBlock">
         <div class="info-block-title">Your Quote Summary</div>
-        <!-- populated by JS -->
       </div>
 
       <div class="next-steps">
@@ -174,9 +173,9 @@ footer a { color: var(--gold); text-decoration: none; }
       </div>
 
       <div class="contact-strip">
-        <div class="contact-item">📞 <a href="tel:0721455155">(07) 2145 5155</a></div>
-        <div class="contact-item">✉️ <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></div>
-        <div class="contact-item">🌐 <a href="https://www.goldsure.com.au" target="_blank">goldsure.com.au</a></div>
+        <div class="contact-item"> <a href="tel:0721455155">(07) 2145 5155</a></div>
+        <div class="contact-item"> <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></div>
+        <div class="contact-item"> <a href="https://www.goldsure.com.au" target="_blank">goldsure.com.au</a></div>
       </div>
     </div>
 
@@ -224,28 +223,41 @@ function showState(id) {
 function fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-AU', {
-    day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
   });
 }
 
-function buildQuoteInfo(row) {
+// Format a numeric DB value (e.g. 572 or 572.00) as "$572.00"
+// Leaves already-formatted strings like "$572.00" untouched
+function fmtCurrency(val) {
+  if (val === null || val === undefined || val === '') return '—';
+  const n = parseFloat(val);
+  return isNaN(n) ? String(val) : '$' + n.toFixed(2);
+}
+
+function buildQuoteInfo(row, acceptedAt) {
   const el = document.getElementById('quoteInfoBlock');
-  const rows = [
-    ['Customer',   row.customer_name  || '—'],
-    ['Service',    row.service_type   || '—'],
-    ['Alarms',     row.alarm_qty      || 0],
-    ['Quote Total', row.grand_total   || '—'],
-    ['Agent',      row.agent_name     || '—'],
-    ['Accepted',   fmtDate(row.accepted_at)],
+  const infoRows = [
+    ['Customer',    row.customer_name || '—'],
+    ['Service',     row.service_type  || '—'],
+    ['Alarms',      row.alarm_qty     || 0],
+    ['Quote Total', fmtCurrency(row.grand_total)],   // FIX: format numeric as $xxx.xx
+    ['Agent',       row.agent_name    || '—'],
+    ['Accepted',    fmtDate(acceptedAt)],             // FIX: use the timestamp we set ourselves
   ];
-  el.innerHTML = `<div class="info-block-title">Your Quote Summary</div>` +
-    rows.map(([l,v]) =>
-      `<div class="info-row"><span class="info-row-label">${l}</span><span class="info-row-val">${v}</span></div>`
+  el.innerHTML =
+    '<div class="info-block-title">Your Quote Summary</div>' +
+    infoRows.map(([l, v]) =>
+      `<div class="info-row">` +
+        `<span class="info-row-label">${l}</span>` +
+        `<span class="info-row-val">${v}</span>` +
+      `</div>`
     ).join('');
 }
 
 // ══════════════════════════════════════════════════════
-// Main: read token → update Supabase → show result
+// Main: read token → update Supabase → send notification → show result
 // ══════════════════════════════════════════════════════
 async function processAcceptance() {
   const params = new URLSearchParams(window.location.search);
@@ -259,7 +271,7 @@ async function processAcceptance() {
   }
 
   try {
-    // 1. Check current state of the quote
+    // ── 1. Fetch the current quote row ──
     const getResp = await fetch(
       `${SUPABASE_URL}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`,
       {
@@ -292,7 +304,12 @@ async function processAcceptance() {
       return;
     }
 
-    // 2. Update the row to accepted
+    // ── 2. Mark the quote as accepted in Supabase ──
+    // We set accepted_at here so we know the exact timestamp to display
+    // and pass to the notification email — don't rely on the PATCH response
+    // returning it (depends on RLS SELECT policy).
+    const acceptedAt = new Date().toISOString();
+
     const updateResp = await fetch(
       `${SUPABASE_URL}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}`,
       {
@@ -306,23 +323,57 @@ async function processAcceptance() {
         body: JSON.stringify({
           accepted:    true,
           status:      'accepted',
-          accepted_at: new Date().toISOString(),
+          accepted_at: acceptedAt,
         }),
       }
     );
 
     if (!updateResp.ok) {
-      throw new Error(`Supabase PATCH failed: ${updateResp.status}`);
+      const errBody = await updateResp.text();
+      throw new Error(`Supabase PATCH failed: ${updateResp.status} — ${errBody}`);
     }
 
+    // Use the returned row if available, otherwise fall back to the original row
     const updatedRows = await updateResp.json();
     const updatedRow  = (updatedRows && updatedRows[0]) ? updatedRows[0] : row;
 
-    buildQuoteInfo(updatedRow);
+    // ── 3. Send internal notification email to vignesh@goldsure.com.au ──
+    // This is the call that was previously MISSING — without it no email was sent.
+    // Non-blocking: if the email fails, the page still shows success because
+    // the Supabase update already succeeded.
+    try {
+      await fetch('/api/smoke-alarms/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name:    updatedRow.customer_name    || row.customer_name    || '',
+          customer_email:   updatedRow.customer_email   || row.customer_email   || '',
+          customer_phone:   updatedRow.customer_phone   || row.customer_phone   || '',
+          customer_address: updatedRow.customer_address || row.customer_address || '',
+          agent_name:       updatedRow.agent_name       || row.agent_name       || '',
+          service_type:     updatedRow.service_type     || row.service_type     || '',
+          alarm_qty:        updatedRow.alarm_qty        || row.alarm_qty        || 0,
+          // These are numeric in Supabase — reformat as "$x.xx" for the email template
+          alarm_total:      fmtCurrency(updatedRow.alarm_total  ?? row.alarm_total),
+          ctrl_qty:         updatedRow.ctrl_qty         || row.ctrl_qty         || 0,
+          ctrl_total:       fmtCurrency(updatedRow.ctrl_total   ?? row.ctrl_total),
+          fee_label:        updatedRow.fee_label        || row.fee_label        || '',
+          fee_amount:       fmtCurrency(updatedRow.fee_amount   ?? row.fee_amount),
+          grand_total:      fmtCurrency(updatedRow.grand_total  ?? row.grand_total),
+          accepted_at:      acceptedAt,   // use the timestamp we set above — always reliable
+        }),
+      });
+    } catch (emailErr) {
+      // Non-fatal — Supabase update already succeeded
+      console.error('[accept-quote] Notification email error (non-fatal):', emailErr);
+    }
+
+    // ── 4. Show success UI ──
+    buildQuoteInfo(updatedRow.id ? updatedRow : row, acceptedAt);
     showState('stateSuccess');
 
   } catch (err) {
-    console.error('Accept quote error:', err);
+    console.error('[accept-quote] Error:', err);
     showState('stateError');
     document.getElementById('errorMsg').innerText =
       'An error occurred while confirming your quote. Please call us on (07) 2145 5155 and we will sort it out right away.';
