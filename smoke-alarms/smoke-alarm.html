@@ -330,6 +330,21 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 
 #copy-preview { resize: vertical; min-height: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; }
 
+/* ── CUSTOMER TYPE RADIO ── */
+.ctype-row { display: flex; gap: 10px; margin-top: 2px; }
+.ctype-label {
+  flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; background: var(--surface2); transition: all 0.15s;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.ctype-label input { accent-color: var(--gold); }
+.ctype-label:has(input:checked) {
+  border-color: var(--gold); background: var(--gold-bg); color: var(--text);
+}
+.modal-field input:required:placeholder-shown { border-color: var(--border); }
+.phone-required-hint { font-size: 10px; color: var(--red); margin-top: 4px; display: none; }
+
 /* Google Maps autocomplete dropdown styling */
 .pac-container {
   font-family: 'Sora', sans-serif !important;
@@ -571,7 +586,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </div>
     <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
       <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--gold);text-decoration:none;">+61 451 898 761</a></div>
-      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
+      <div>Email: <a href="/cdn-cgi/l/email-protection#98f1f6fef7d8fff7f4fcebedeafdb6fbf7f5b6f9ed" style="color:var(--gold);text-decoration:none;"><span class="__cf_email__" data-cfemail="7b12151d143b1c14171f080e091e55181416551a0e">[email&#160;protected]</span></a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
   </div>
 </footer>
@@ -621,6 +636,20 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
     </div>
 
     <div class="modal-field">
+      <label>Customer Phone Number <span style="color:var(--red);font-weight:700;">*</span></label>
+      <input type="tel" id="emailCustomerPhone" placeholder="e.g. 0412 345 678" oninput="onPhoneInput()">
+      <div class="phone-required-hint" id="phoneHint">Phone number is required before sending.</div>
+    </div>
+
+    <div class="modal-field">
+      <label>Customer Type <span style="color:var(--red);font-weight:700;">*</span></label>
+      <div class="ctype-row">
+        <label class="ctype-label"><input type="radio" name="custType" value="digital" checked> 📱 Digital Lead</label>
+        <label class="ctype-label"><input type="radio" name="custType" value="letterbox"> 📬 Letterbox Lead</label>
+      </div>
+    </div>
+
+    <div class="modal-field">
       <label>Customer Email Address</label>
       <input type="email" id="emailCustomerEmail" placeholder="customer@example.com">
     </div>
@@ -647,7 +676,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 
     <div class="modal-actions">
       <button onclick="closeEmailModal()">Cancel</button>
-      <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()">Send Email</button>
+      <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()" disabled>Send Email</button>
     </div>
   </div>
 </div>
@@ -667,7 +696,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════
@@ -676,6 +705,7 @@ let customerName = '';
 let serviceMode  = 'install';
 let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
 let mapsLoaded = false;
+let currentQuoteToken = null;     // ← unique token per quote send
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
 // ════════════════════════════════════════════════════════════
@@ -908,15 +938,37 @@ function copyPreviewToClipboard() {
   navigator.clipboard.writeText(text).then(()=>{ showToast('Template copied to clipboard!'); closeCopyModal(); }).catch(()=>showToast('Press Ctrl+C to copy'));
 }
 
+function onPhoneInput() {
+  const phone = document.getElementById('emailCustomerPhone').value.trim();
+  const btn   = document.getElementById('sendEmailBtn');
+  const hint  = document.getElementById('phoneHint');
+  const hasPhone = phone.length >= 8;
+  btn.disabled = !hasPhone;
+  hint.style.display = hasPhone ? 'none' : 'block';
+}
+
 // ════════════════════════════════════════════════════════════
 // EMAIL MODAL
 // ════════════════════════════════════════════════════════════
 function openEmailModal() {
   // Reset address state every time modal opens
   selectedQLDAddress = false;
+  currentQuoteToken  = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random()*16|0;
+        return (c==='x'?r:(r&0x3|0x8)).toString(16);
+      });
+
   document.getElementById('emailCustomerName').value  = customerName || '';
+  document.getElementById('emailCustomerPhone').value = '';
   document.getElementById('emailCustomerEmail').value = '';
   document.getElementById('emailCustomerAddress').value = '';
+  document.getElementById('sendEmailBtn').disabled = true;
+  document.getElementById('phoneHint').style.display = 'none';
+  // Reset customer type to digital
+  const firstRadio = document.querySelector('input[name="custType"][value="digital"]');
+  if (firstRadio) firstRadio.checked = true;
   setAddressState('pending', '');
 
   const alarmQty   = document.getElementById('res_alarmQty').innerText;
@@ -945,10 +997,13 @@ function closeEmailModal() { document.getElementById('emailModal').classList.rem
 // ════════════════════════════════════════════════════════════
 async function sendQuoteEmail() {
   const custName    = document.getElementById('emailCustomerName').value.trim();
+  const custPhone   = document.getElementById('emailCustomerPhone').value.trim();
   const custEmail   = document.getElementById('emailCustomerEmail').value.trim();
   const custAddress = document.getElementById('emailCustomerAddress').value.trim();
+  const custType    = document.querySelector('input[name="custType"]:checked')?.value || 'digital';
 
   if (!custName)  { showToast('Please enter the customer name.'); return; }
+  if (!custPhone || custPhone.length < 8) { showToast('Please enter the customer phone number.'); return; }
   if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
 
   // ── Address validation: must be QLD or left blank ──
@@ -986,7 +1041,10 @@ async function sendQuoteEmail() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        quote_token:      currentQuoteToken,
         customer_name:    custName,
+        customer_phone:   custPhone,
+        customer_type:    custType,
         to_email:         custEmail,
         customer_address: custAddress || null,
         agent_name:       agent,
@@ -1337,11 +1395,4 @@ function generatePDF() {
 // ════════════════════════════════════════════════════════════
 // DOCS ACCORDION
 // ════════════════════════════════════════════════════════════
-function toggleDocs(btn) {
-  document.getElementById('docs-list').classList.toggle('open');
-  btn.querySelector('.arrow').textContent = document.getElementById('docs-list').classList.contains('open') ? '▲' : '▼';
-}
-</script>
-
-</body>
-</html>
+f
