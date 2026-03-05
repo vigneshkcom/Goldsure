@@ -298,6 +298,100 @@ header {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* ── ESCALATION MODAL ── */
+.esc-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 999;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.esc-overlay.open { display: flex; }
+.esc-modal {
+  background: var(--surface); border-radius: 16px;
+  padding: 0; width: 94%; max-width: 580px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+  overflow: hidden; position: relative;
+  max-height: 92vh; display: flex; flex-direction: column;
+}
+.esc-modal-head {
+  background: #000; padding: 20px 24px;
+  border-bottom: 3px solid var(--red);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.esc-modal-head h2 { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+.esc-modal-head p  { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+.esc-close-btn {
+  background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.6);
+  font-size: 18px; cursor: pointer; width: 32px; height: 32px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.esc-close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.esc-modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+
+.esc-field { margin-bottom: 14px; }
+.esc-field label {
+  display: block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px;
+  font-family: var(--mono);
+}
+.esc-field input {
+  width: 100%; font-family: var(--font); font-size: 13px;
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.esc-field input:focus { border-color: var(--gold); background: var(--surface); }
+
+.esc-summary-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; margin-bottom: 14px;
+}
+.esc-summary-row {
+  display: flex; gap: 12px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.esc-summary-row:last-child { border-bottom: none; }
+.esc-summary-label {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+  width: 120px; flex-shrink: 0; padding-top: 2px;
+}
+.esc-summary-value { color: var(--text); font-size: 12px; flex: 1; line-height: 1.6; }
+.esc-summary-value.issue { color: var(--red); font-weight: 700; }
+
+.esc-dataforce-box {
+  border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.esc-dataforce-label {
+  background: var(--surface2); padding: 8px 14px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;
+}
+.esc-dataforce-text {
+  width: 100%; font-family: var(--mono); font-size: 11px;
+  line-height: 1.7; padding: 12px 14px; border: none; outline: none;
+  background: var(--surface); color: var(--text); resize: vertical; min-height: 140px;
+}
+
+.esc-modal-footer {
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; flex-shrink: 0; background: var(--surface);
+}
+.esc-modal-footer button {
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  padding: 10px 18px; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.3px; border: none; transition: all 0.15s;
+}
+.esc-btn-copy { background: var(--gold); color: #000; flex: 1; }
+.esc-btn-copy:hover { background: #caa535; }
+.esc-btn-copy.copied { background: var(--green); color: #fff; }
+.esc-btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border) !important; }
+.esc-btn-cancel:hover { color: var(--text); border-color: var(--gold) !important; }
+
+.esc-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }
@@ -972,6 +1066,47 @@ header {
   </main>
 </div>
 
+<!-- ESCALATION MODAL -->
+<div class="esc-overlay" id="escModal" onclick="if(event.target===this)closeEscModal()">
+  <div class="esc-modal">
+    <div class="esc-modal-head">
+      <div>
+        <h2>🚨 Log &amp; Escalate to Vignesh</h2>
+        <p>Review the summary, add customer details, then copy to Dataforce.</p>
+      </div>
+      <button class="esc-close-btn" onclick="closeEscModal()">✕</button>
+    </div>
+    <div class="esc-modal-body">
+
+      <div class="esc-field">
+        <label>Customer Name (optional)</label>
+        <input type="text" id="esc-customer-name" placeholder="e.g. John Smith">
+      </div>
+      <div class="esc-field">
+        <label>Customer Address (optional)</label>
+        <input type="text" id="esc-customer-addr" placeholder="e.g. 12 Example St, Brisbane QLD">
+      </div>
+
+      <div class="esc-summary-box" id="esc-summary-rows">
+        <!-- populated by JS -->
+      </div>
+
+      <div class="esc-dataforce-box">
+        <div class="esc-dataforce-label">
+          <span>Dataforce Note — Ready to Paste</span>
+          <span style="font-size:9px;color:var(--muted);font-weight:400;font-family:var(--font)">Editable below</span>
+        </div>
+        <textarea class="esc-dataforce-text" id="esc-dataforce-text"></textarea>
+      </div>
+      <p class="esc-hint">Edit the note above if needed, then copy to clipboard.</p>
+    </div>
+    <div class="esc-modal-footer">
+      <button class="esc-btn-cancel" onclick="closeEscModal()">Cancel</button>
+      <button class="esc-btn-copy" id="esc-copy-btn" onclick="copyEscNote()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;">
   <div style="max-width:1300px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -984,12 +1119,12 @@ header {
     </div>
     <div style="font-size:11px;color:var(--muted);text-align:right;line-height:1.9;">
       <div>Phone: <a href="tel:0721455155" style="color:var(--gold);text-decoration:none;">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761" style="color:var(--gold);text-decoration:none;">+61 451 898 761</a></div>
-      <div>Email: <a href="mailto:info@goldsure.com.au" style="color:var(--gold);text-decoration:none;">info@goldsure.com.au</a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
+      <div>Email: <a href="/cdn-cgi/l/email-protection#0c65626a634c6b6360687f797e69226f6361226d79" style="color:var(--gold);text-decoration:none;"><span class="__cf_email__" data-cfemail="3d54535b527d5a5251594e484f58135e5250135c48">[email&#160;protected]</span></a> · <a href="https://www.goldsure.com.au" target="_blank" style="color:var(--gold);text-decoration:none;">www.goldsure.com.au</a></div>
     </div>
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── PANEL SWITCHING ──
 function showPanel(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -1083,9 +1218,155 @@ function showClose(type) {
   setTimeout(() => cp.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 }
 
-// ── ESCALATE LOG ──
+// ── ESCALATION MODAL ──
+
+// Map issue codes to human-readable labels and recommended actions
+const escalateData = {
+  'Persistent Nuisance Alarm – Cleaning ineffective. Escalate for inspection/replacement.': {
+    issue: 'Persistent Nuisance Alarm',
+    detail: 'Alarm continued to re-sound after hush period expired. Vent cleaning was performed but did not resolve the issue.',
+    action: 'Sensor may be contaminated or faulty. Arrange on-site inspection or unit replacement.',
+    severity: 'Medium'
+  },
+  'Low Battery – Internal battery low. Full unit replacement required.': {
+    issue: 'Low Battery — End of Battery Life',
+    detail: 'Unit showing yellow LED 1× flash + 1 beep every 54 seconds. Internal 10-year sealed lithium battery is running low.',
+    action: 'Battery is non-replaceable. Full unit replacement required. Customer advised to press Hush for 12-hour interim silence.',
+    severity: 'Medium'
+  },
+  'Sensor Malfunction – Cleaning ineffective after 1hr. Escalate for replacement.': {
+    issue: 'Sensor Malfunction — Cleaning Ineffective',
+    detail: 'Unit showing yellow LED 2× flash + 2 beeps every 54 seconds. Vent cleaning was performed but fault indicator persisted after 1+ hour.',
+    action: 'Sensor component likely failed. Unit replacement required.',
+    severity: 'High'
+  },
+  'End of Life – 10-year service life reached. Urgent replacement required.': {
+    issue: 'End of Life — 10-Year Service Limit Reached',
+    detail: 'Unit showing yellow LED 3× flash + 3 beeps every 54 seconds. Unit has reached its 10-year end of service life.',
+    action: 'Unit cannot be repaired or restored. Urgent replacement required. Customer advised to press Hush for up to 24-hour interim silence (only valid within first 30 days past EOL).',
+    severity: 'Urgent'
+  },
+  'AC Power – No power to unit after breaker check. Escalate for electrical inspection.': {
+    issue: 'No Mains Power — Unit Unresponsive',
+    detail: 'AC model showing no green power LED. Circuit breaker was checked and reset but unit still shows no power.',
+    action: 'Wiring fault suspected. Licensed electrician inspection required before unit replacement.',
+    severity: 'High'
+  },
+  'Radio Link Failure – Unit(s) not responding. Re-pair attempted. Escalate if unresolved.': {
+    issue: 'Radio Link Failure — Units Not Responding',
+    detail: 'One or more units did not respond to the full system radio link test (press-hold 1 sec). Re-pairing was attempted.',
+    action: 'Check wireless range (~150m max open air). Reposition host unit to building centre. If re-pair fails, inspect unit for faults or replace.',
+    severity: 'Medium'
+  }
+};
+
+const severityColor = { Urgent: '#e04f4f', High: '#d3662b', Medium: '#b07d10' };
+
 function logEscalate(msg) {
-  alert('Logged: ' + msg + '\n\nEscalate to Vignesh.');
+  const data = escalateData[msg] || {
+    issue: 'Escalation Required',
+    detail: msg,
+    action: 'Review with Vignesh and arrange follow-up.',
+    severity: 'Medium'
+  };
+
+  // Build summary rows
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric' });
+  const timeStr = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+
+  // Get breadcrumb path as "steps taken"
+  const crumbs = [...document.querySelectorAll('#breadcrumb span:not(.sep)')].map(s => s.textContent).join(' › ');
+
+  document.getElementById('esc-summary-rows').innerHTML = `
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Date / Time</span>
+      <span class="esc-summary-value">${dateStr} at ${timeStr}</span>
+    </div>
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Issue</span>
+      <span class="esc-summary-value issue">${data.issue}</span>
+    </div>
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Severity</span>
+      <span class="esc-summary-value" style="color:${severityColor[data.severity]||'var(--text)'};font-weight:700">${data.severity}</span>
+    </div>
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Steps Taken</span>
+      <span class="esc-summary-value">${crumbs || 'Live Diagnosis'}</span>
+    </div>
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Finding</span>
+      <span class="esc-summary-value">${data.detail}</span>
+    </div>
+    <div class="esc-summary-row">
+      <span class="esc-summary-label">Recommended Action</span>
+      <span class="esc-summary-value">${data.action}</span>
+    </div>
+  `;
+
+  // Pre-fill the Dataforce note — will refresh if customer fields are filled in
+  buildDataforceNote(data, dateStr, timeStr, crumbs);
+
+  // Re-build note live as agent types customer details
+  document.getElementById('esc-customer-name').oninput = () => buildDataforceNote(data, dateStr, timeStr, crumbs);
+  document.getElementById('esc-customer-addr').oninput = () => buildDataforceNote(data, dateStr, timeStr, crumbs);
+
+  document.getElementById('escModal').classList.add('open');
+  document.getElementById('esc-copy-btn').textContent = 'Copy to Clipboard';
+  document.getElementById('esc-copy-btn').classList.remove('copied');
+}
+
+function buildDataforceNote(data, dateStr, timeStr, crumbs) {
+  const custName = document.getElementById('esc-customer-name').value.trim();
+  const custAddr = document.getElementById('esc-customer-addr').value.trim();
+
+  const lines = [
+    `RAPTOR SMOKE ALARM — ESCALATION NOTE`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Date/Time   : ${dateStr} at ${timeStr}`,
+    custName ? `Customer    : ${custName}` : null,
+    custAddr ? `Address     : ${custAddr}` : null,
+    ``,
+    `ISSUE       : ${data.issue}`,
+    `SEVERITY    : ${data.severity}`,
+    ``,
+    `FINDING`,
+    data.detail,
+    ``,
+    `RECOMMENDED ACTION`,
+    data.action,
+    ``,
+    `DIAGNOSIS PATH`,
+    crumbs || 'Live Diagnosis',
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Escalate to: Vignesh`,
+    `Tool: Raptor Troubleshooting Guide`,
+  ].filter(l => l !== null).join('\n');
+
+  document.getElementById('esc-dataforce-text').value = lines;
+}
+
+function closeEscModal() {
+  document.getElementById('escModal').classList.remove('open');
+  document.getElementById('esc-customer-name').value = '';
+  document.getElementById('esc-customer-addr').value = '';
+}
+
+function copyEscNote() {
+  const text = document.getElementById('esc-dataforce-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('esc-copy-btn');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy to Clipboard';
+      btn.classList.remove('copied');
+    }, 2500);
+  }).catch(() => {
+    document.getElementById('esc-dataforce-text').select();
+  });
 }
 
 // ── RESET ──
@@ -1100,12 +1381,4 @@ function resetDiag() {
   });
   const s1 = document.getElementById('step1');
   s1.classList.remove('resolved'); s1.classList.add('current');
-  const ss = s1.querySelector('.step-status');
-  ss.className = 'step-status status-active'; ss.textContent = 'Active';
-  s1.querySelector('.step-body').classList.add('open');
-  updateBreadcrumb(['Step 1']);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-</script>
-</body>
-</html>
+  const ss = s1.querySelector('.step-statu
