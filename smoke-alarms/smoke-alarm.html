@@ -377,6 +377,41 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════
+     GLOBAL LOGIN — plain script, no defer, no modules,
+     placed here so Cloudflare email-decode cannot interfere.
+     This is the authoritative doLogin() the button calls.
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+function doLogin() {
+  var agent = document.getElementById('login-agent').value.trim();
+  var errEl = document.getElementById('login-error');
+  if (!agent) {
+    errEl.style.display = 'block';
+    errEl.innerText = 'Please enter your name.';
+    return;
+  }
+  errEl.style.display = 'none';
+  // Persist for session
+  try { localStorage.setItem('agentName', agent); } catch(e) {}
+  // Update runtime state (agentName let is in the lower script block)
+  if (typeof window._setAgentName === 'function') window._setAgentName(agent);
+  // Show app
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // Trigger post-login setup if the main script has already loaded
+  if (typeof setMode === 'function') setMode('social');
+  if (typeof calculate === 'function') calculate();
+  if (typeof loadGoogleMaps === 'function') loadGoogleMaps();
+}
+function doLogout() {
+  try { localStorage.removeItem('agentName'); } catch(e) {}
+  document.getElementById('login-agent').value = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+</script>
+
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
   <div class="login-card">
@@ -708,8 +743,16 @@ let mapsLoaded = false;
 let currentQuoteToken = null;     // ← unique token per quote send
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
+// Hook so the early global doLogin() can update agentName in this scope
+window._setAgentName = function(name) {
+  agentName = name;
+  var el = document.getElementById('header-agent-name');
+  if (el) el.innerText = agentName;
+};
+
 // ════════════════════════════════════════════════════════════
-// LOGIN
+// LOGIN (kept here for completeness — authoritative copy is
+// the plain <script> block above the login screen)
 // ════════════════════════════════════════════════════════════
 function doLogin() {
   const agent = document.getElementById('login-agent').value.trim();
@@ -1395,4 +1438,15 @@ function generatePDF() {
 // ════════════════════════════════════════════════════════════
 // DOCS ACCORDION
 // ════════════════════════════════════════════════════════════
-f
+// ════════════════════════════════════════════════════════════
+// DOCS ACCORDION
+// ════════════════════════════════════════════════════════════
+function toggleDocs() {
+  const list = document.getElementById('docsList');
+  const arrow = document.querySelector('.docs-toggle .arrow');
+  const isOpen = list.classList.toggle('open');
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(180deg)' : '';
+}
+</script>
+</body>
+</html>
