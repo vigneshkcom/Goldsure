@@ -331,7 +331,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   .btn-upload-csv, .btn-clear-csv, .config-csv-block,
   #meta-live-panel, .pbtn, .filters select { display: none !important; }
 
-  @page { margin: 10mm 8mm; size: A4 landscape; }
+  @page { margin: 10mm 8mm; size: A4 portrait; }
 
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
@@ -381,22 +381,22 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
     box-shadow: none !important;
   }
 
-  /* Scale vtable to fit landscape page — all columns visible, no clipping */
+  /* Scale vtable to fit portrait page — JS in generatePDF() applies exact transform */
   .vtable-wrap {
     overflow: visible !important;
     display: block !important;
     width: 100% !important;
   }
   .vtable {
-    width: 100% !important;
+    width: auto !important;
     page-break-inside: auto;
     table-layout: auto !important;
     border-collapse: collapse !important;
   }
   .vtable th,
   .vtable td {
-    font-size: 9px !important;
-    padding: 4px 5px !important;
+    font-size: 10px !important;
+    padding: 4px 6px !important;
     white-space: nowrap !important;
   }
   .vtable tr { page-break-inside: avoid; break-inside: avoid; }
@@ -2177,11 +2177,37 @@ function generatePDF(){
   const cover=document.createElement('div');
   cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
   document.querySelector('#dashboard main').prepend(cover);
+
+  // Scale vol-card tables to fit portrait printable width (194mm ≈ 733px at 96dpi)
+  // Measure actual table width and scale down if it overflows.
+  const PORTRAIT_PX = 733; // ~194mm printable width at 96dpi
+  const scaledWraps = [];
+  document.querySelectorAll('.vtable-wrap').forEach(wrap => {
+    const tbl = wrap.querySelector('.vtable');
+    if (!tbl) return;
+    const naturalW = tbl.scrollWidth;
+    if (naturalW > PORTRAIT_PX) {
+      const scale = PORTRAIT_PX / naturalW;
+      const scaledH = wrap.scrollHeight * scale;
+      wrap.style.transformOrigin = 'top left';
+      wrap.style.transform = `scale(${scale})`;
+      wrap.style.marginBottom = `-${wrap.scrollHeight - scaledH}px`;
+      scaledWraps.push(wrap);
+    }
+  });
+
   const t=document.title;
   document.title=`Goldsure – ${product} Report ${from} to ${to}`;
   window.print();
   document.title=t;
   cover.remove();
+
+  // Restore table wraps
+  scaledWraps.forEach(wrap => {
+    wrap.style.transform = '';
+    wrap.style.transformOrigin = '';
+    wrap.style.marginBottom = '';
+  });
 }
 
 // Set email via JS
