@@ -1904,53 +1904,200 @@ function getWebcoForRange(fromStr, toStr, product) {
 
 // ══════════════════════════════════════════════════════════════
 //  GOOGLE CSV PARSING (Smoke Alarm uploads)
+//  Supports both old (UTF-16, tab-delimited, "Mar 3, 2026" dates, A$)
+//  and new (UTF-8, comma-delimited, "7 Mar 2026" dates, $) formats.
 // ══════════════════════════════════════════════════════════════
+
+// Parse a flexible date string into YYYY-MM-DD.
+// Supports: "Mar 3, 2026" and "7 Mar 2026"
+function _parseGoogleDate(raw) {
+  const MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  const s = raw.replace(/"/g,'').trim();
+  // Old style: "Mar 3, 2026"
+  let m = s.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})$/);
+  if (m) {
+    const mo = MONTHS[m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()];
+    if (!mo) return null;
+    return `${m[3]}-${String(mo).padStart(2,'0')}-${String(parseInt(m[2],10)).padStart(2,'0')}`;
+  }
+  // New style: "7 Mar 2026"
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+  if (m) {
+    const mo = MONTHS[m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()];
+    if (!mo) return null;
+    return `${m[3]}-${String(mo).padStart(2,'0')}-${String(parseInt(m[1],10)).padStart(2,'0')}`;
+  }
+  return null;
+}
+
+// Parse currency string: strips A$, $, commas, dashes. Returns float or NaN.
+function _parseGoogleCurrency(raw) {
+  const s = raw.replace(/"/g,'').trim();
+  if (!s || s === '--' || s === '-' || s === '') return NaN;
+  const cleaned = s.replace(/A\$/g,'').replace(/\$/g,'').replace(/,/g,'').replace(/-/g,'').trim();
+  return parseFloat(cleaned);
+}
+
+// Parse a single CSV/TSV row, respecting quoted fields (which may contain the delimiter or newlines).
+// Returns an array of field strings.
+function _parseCSVRow(row, delim) {
+  const fields = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (row[i+1] === '"') { cur += '"'; i++; } // escaped quote
+        else { inQ = false; }
+      } else {
+        cur += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === delim) {
+        fields.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+  }
+  fields.push(cur.trim());
+  return fields;
+}
+
+// Rebuild logical rows from raw text lines, handling quoted multi-line fields.
+function _rebuildLogicalRows(text, delim) {
+  const rawLines = text.split('\n');
+  const logicalRows = [];
+  let buf = '';
+  let openQuotes = 0;
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    // Count unescaped quotes
+    for (let j = 0; j < line.length; j++) {
+      if (line[j] === '"') {
+        if (line[j+1] === '"') { j++; } // skip escaped
+        else { openQuotes++; }
+      }
+    }
+    buf = buf ? buf + '\n' + line : line;
+    if (openQuotes % 2 === 0) {
+      // Balanced quotes — complete logical row
+      logicalRows.push(buf);
+      buf = '';
+      openQuotes = 0;
+    }
+  }
+  if (buf) logicalRows.push(buf);
+  return logicalRows;
+}
+
 function parseGoogleCSV(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Auto-detect delimiter from the header row
+  // Find the line that starts with "Date"
+  const linesForDetect = text.split('\n');
+  let detectedDelim = '\t'; // default to tab (old format)
+  for (const l of linesForDetect) {
+    const t = l.replace(/"/g,'').trim();
+    if (/^Date[,\t]/.test(t)) {
+      detectedDelim = t.includes('\t') ? '\t' : ',';
+      break;
+    }
+  }
+
+  const logicalRows = _rebuildLogicalRows(text, detectedDelim);
+
   let inData = false;
+  let dateIdx = 0, typeIdx = 1, costsIdx = 4;
   const byDate = {};
-  const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
-  for (const line of lines) {
-    if (line.startsWith('Date\t')) { inData = true; continue; }
-    if (!inData) continue;
-    const parts = line.split('\t');
-    if (parts.length < 5) continue;
-    const dateRaw = parts[0].replace(/"/g,'').trim();
-    const type    = parts[1].trim();
-    const costRaw = parts[4].replace(/"/g,'').trim();
+
+  for (const row of logicalRows) {
+    const trimmed = row.trim();
+    if (!trimmed) continue;
+
+    const fields = _parseCSVRow(trimmed, detectedDelim);
+    if (!fields.length) continue;
+
+    // Detect the header row dynamically
+    if (!inData) {
+      const f0 = fields[0].replace(/"/g,'').trim().toLowerCase();
+      if (f0 === 'date') {
+        // Map column indices
+        const headers = fields.map(f => f.replace(/"/g,'').trim().toLowerCase());
+        dateIdx  = headers.findIndex(h => h === 'date');
+        typeIdx  = headers.findIndex(h => h === 'type');
+        costsIdx = headers.findIndex(h => h === 'costs');
+        if (dateIdx < 0) dateIdx = 0;
+        if (typeIdx < 0) typeIdx = 1;
+        if (costsIdx < 0) costsIdx = 4;
+        inData = true;
+        continue;
+      }
+      continue;
+    }
+
+    if (fields.length <= Math.max(dateIdx, typeIdx, costsIdx)) continue;
+
+    const type    = fields[typeIdx].replace(/"/g,'').trim();
     if (type !== 'Campaigns') continue;
-    const costStr = costRaw.replace('A$','').replace(/,/g,'').trim();
-    if (!costStr || costStr === '--') continue;
-    const cost = parseFloat(costStr);
+
+    const dateRaw = fields[dateIdx].replace(/"/g,'').trim();
+    const costRaw = fields[costsIdx].replace(/"/g,'').trim();
+
+    const iso = _parseGoogleDate(dateRaw);
+    if (!iso) continue;
+
+    const cost = _parseGoogleCurrency(costRaw);
     if (isNaN(cost) || cost <= 0) continue;
-    const dm = dateRaw.match(/^(\w{3})\s+(\d{1,2}),\s+(\d{4})$/);
-    if (!dm) continue;
-    const mo = MONTHS[dm[1]];
-    if (mo === undefined) continue;
-    const year = parseInt(dm[3], 10);
-    const day = parseInt(dm[2], 10);
-    const iso = `${year}-${String(mo + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
     byDate[iso] = (byDate[iso] || 0) + cost;
   }
+
   return Object.entries(byDate).map(([date,amount]) => ({date, amount: Math.round(amount*100)/100}));
+}
+
+// Read a file with encoding auto-detection: try UTF-8 first, fall back to UTF-16.
+function _readFileWithEncodingDetection(file, onSuccess, onError) {
+  // Check for UTF-16 BOM (0xFF 0xFE or 0xFE 0xFF)
+  const sniffer = new FileReader();
+  sniffer.onload = function(e) {
+    const arr = new Uint8Array(e.target.result);
+    const hasUTF16BOM = (arr[0] === 0xFF && arr[1] === 0xFE) || (arr[0] === 0xFE && arr[1] === 0xFF);
+    const hasUTF8BOM  = (arr[0] === 0xEF && arr[1] === 0xBB && arr[2] === 0xBF);
+    const encoding = hasUTF16BOM ? 'UTF-16' : 'UTF-8';
+    const reader2 = new FileReader();
+    reader2.onload = function(e2) {
+      try { onSuccess(e2.target.result); }
+      catch(err) { onError(err); }
+    };
+    reader2.onerror = onError;
+    reader2.readAsText(file, encoding);
+  };
+  sniffer.onerror = onError;
+  sniffer.readAsArrayBuffer(file.slice(0, 4));
 }
 
 function handleSmokeGoogleCSV(file) {
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const parsed = parseGoogleCSV(e.target.result);
-      if (!parsed.length) { alert('No campaign spend found in this CSV. Check the file format.'); return; }
-      const existing = {};
-      SMOKE_GOOGLE_SPEND.forEach(r => existing[r.date] = r.amount);
-      parsed.forEach(r => existing[r.date] = (existing[r.date]||0) + r.amount);
-      SMOKE_GOOGLE_SPEND = Object.entries(existing).map(([date,amount])=>({date,amount})).sort((a,b)=>a.date.localeCompare(b.date));
-      updateGoogleUploadStatus();
-      renderCurrentProduct();
-    } catch(err) { alert('Error parsing CSV. Please use a Google Ads billing activity export.'); }
-  };
-  reader.readAsText(file, 'UTF-16');
+  _readFileWithEncodingDetection(
+    file,
+    function(text) {
+      try {
+        const parsed = parseGoogleCSV(text);
+        if (!parsed.length) { alert('No campaign spend found in this CSV. Check the file format.'); return; }
+        const existing = {};
+        SMOKE_GOOGLE_SPEND.forEach(r => existing[r.date] = r.amount);
+        parsed.forEach(r => existing[r.date] = (existing[r.date]||0) + r.amount);
+        SMOKE_GOOGLE_SPEND = Object.entries(existing).map(([date,amount])=>({date,amount})).sort((a,b)=>a.date.localeCompare(b.date));
+        updateGoogleUploadStatus();
+        renderCurrentProduct();
+      } catch(err) { alert('Error parsing CSV. Please use a Google Ads billing activity export.'); }
+    },
+    function(err) { alert('Error reading CSV file. Please try again.'); }
+  );
 }
 
 function clearSmokeGoogleSpend() {
