@@ -1,1646 +1,667 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AUX Mini VRF Product Costs Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Add jsPDF and html2canvas libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <style>
-        /* ============================================
-           DESIGN SYSTEM — Light & Subtle
-           Soft slate primary, warm whites, gentle accents
-           ============================================ */
-        :root {
-            --blue:       #3d6b8e;
-            --blue-dark:  #2d5270;
-            --blue-light: #f0f5f9;
-            --blue-mid:   #dde8f0;
-            --teal:       #3d8e7a;
-            --teal-dark:  #2d6e5f;
-            --teal-light: #f0f7f5;
-            --red:        #c0392b;
-            --red-dark:   #922b21;
-            --red-light:  #fdf0ef;
-            --green:      #27774e;
-            --green-light:#eef7f2;
-            --amber:      #c97d1a;
-            --amber-light:#fdf6ea;
-            --text:       #2c3e50;
-            --text-muted: #7f8c9a;
-            --border:     #e8edf2;
-            --bg:         #f5f7f9;
-            --surface:    #ffffff;
-            --sidebar-bg: #fafbfc;
-            --radius:     8px;
-            --radius-lg:  12px;
-            --shadow-sm:  0 1px 3px rgba(0,0,0,0.05);
-            --shadow:     0 3px 12px rgba(0,0,0,0.06);
-            --shadow-lg:  0 6px 24px rgba(0,0,0,0.08);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · AUX Mini VRF Pricing</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e3e7ef;
+  --text: #141c2e;
+  --muted: #6b7899;
+  --green: #18a96e;
+  --red: #e04f4f;
+  --gold: #b08d2e;
+  --gold-bg: #fef7e7;
+  --teal: #1a9e82;
+  --teal-bg: #eaf7f4;
+  --amber: #d98c1e;
+  /* Sidebar — dark slate, not pure black */
+  --sb: #1c2333;
+  --sb2: #242d42;
+  --sb-border: rgba(255,255,255,0.08);
+  --sb-muted: rgba(255,255,255,0.38);
+  --sb-text: rgba(255,255,255,0.82);
+  --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1), 0 12px 32px rgba(0,0,0,0.08);
+  --r: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+/* ── HEADER ── */
+header { background:#fff; border-bottom:3px solid var(--gold); padding:0 28px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; min-height:56px; }
+.header-left { display:flex; align-items:center; gap:14px; }
+.header-logo { display:flex; align-items:center; gap:10px; }
+.header-logo img { height:32px; width:auto; }
+.header-logo-text { font-size:14px; font-weight:700; color:var(--text); }
+.header-logo-text span { color:var(--gold); }
+.hd { width:1px; height:24px; background:rgba(0,0,0,0.1); }
+.header-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); }
+.agent-chip { display:flex; align-items:center; gap:6px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; }
+.agent-dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.agent-name-chip { font-size:11px; font-weight:600; color:var(--text); }
 
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 24px 20px;
-            line-height: 1.6;
-        }
+/* ── SUB-NAV ── */
+.sub-nav { background:#fff; border-bottom:1px solid var(--border); padding:0 28px; display:flex; align-items:center; gap:5px; min-height:40px; flex-wrap:wrap; }
+.radio-label { font-size:11px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:5px; cursor:pointer; padding:5px 10px; border-radius:6px; transition:all 0.15s; }
+.radio-label input { accent-color:var(--gold); }
+.radio-label:has(input:checked) { background:var(--gold-bg); color:var(--gold); }
+.sub-divider { width:1px; height:20px; background:var(--border); margin:0 3px; }
+.sub-link { font-size:10px; font-weight:700; padding:4px 11px; border-radius:6px; background:var(--gold-bg); color:var(--gold); border:1px solid #e8d28a; text-decoration:none; text-transform:uppercase; letter-spacing:0.4px; transition:all 0.15s; white-space:nowrap; }
+.sub-link:hover { background:var(--gold); color:#000; }
 
-        /* ── Page Header ─────────────────────────────── */
-        /* ── Page Footer ─────────────────────────────── */
-        .page-footer {
-            max-width: 1500px;
-            margin: 20px auto 0;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 18px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-            box-shadow: var(--shadow-sm);
-        }
-        .page-footer-brand { display: flex; align-items: center; gap: 14px; }
-        .page-footer-brand img { height: 36px; width: auto; }
-        .page-footer-name { font-size: 13px; font-weight: 700; color: var(--text); }
-        .page-footer-addr { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-        .page-footer-contact { font-size: 11px; color: var(--text-muted); text-align: right; line-height: 1.9; }
-        .page-footer-contact a { color: var(--blue); text-decoration: none; }
-        @media (max-width: 768px) {
-            .page-footer { flex-direction: column; align-items: flex-start; }
-            .page-footer-contact { text-align: left; }
-        }
+/* ── LAYOUT ── */
+main { padding:16px 22px; max-width:1340px; margin:0 auto; display:grid; grid-template-columns:1fr 330px; gap:16px; align-items:start; }
 
-        .page-header {
-            max-width: 1500px;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 16px 24px;
-            box-shadow: var(--shadow-sm);
-        }
-        .page-header-logo img {
-            height: 48px;
-            width: auto;
-            display: block;
-            flex-shrink: 0;
-        }
-        .page-header-text h1 {
-            font-size: 20px; font-weight: 700;
-            color: var(--blue); line-height: 1.2;
-            margin: 0; padding: 0; border: none; width: auto;
-        }
-        .page-header-text h1::after { display: none; }
-        .page-header-text p {
-            font-size: 12px; color: var(--text-muted); margin-top: 3px;
-        }
+/* ── TABLE CARD ── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; }
+.card-header { padding:11px 15px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); }
+.card-badge { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:20px; }
+.badge-dark { background:#141c2e; color:#fff; }
+.badge-gold { background:var(--gold-bg); color:var(--gold); border:1px solid #e8d28a; }
+.badge-teal { background:var(--teal-bg); color:var(--teal); border:1px solid #b0e0d8; }
+.card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
+.card-body { padding:13px 15px; }
 
-        /* ── Main container ──────────────────────────── */
-        .dashboard-container {
-            background: var(--surface);
-            max-width: 1500px;
-            margin: 0 auto;
-            padding: 32px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 32px;
-        }
-        .dashboard-container::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--blue) 0%, #14a085 100%);
-            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        }
+/* ── TABLE — compact ── */
+.table-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:11px; background:var(--surface); }
+thead th { background:#141c2e; color:rgba(255,255,255,0.65); padding:7px 9px; text-align:center; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+thead th:first-child { text-align:left; padding-left:11px; }
+tbody td { padding:6px 9px; text-align:center; border-bottom:1px solid var(--border); }
+tbody td:first-child { text-align:left; padding-left:11px; }
+tbody tr:last-child td { border-bottom:none; }
+tbody tr:hover td { background:#fafbfc; }
+tr.odu-row td { background:#fef7e7; font-weight:600; border-left:3px solid var(--gold); }
+tr.odu-row:hover td { background:#fef0d0; }
+.brand-cell { font-weight:700; color:var(--gold); }
+.veec-val { font-family:'JetBrains Mono',monospace; font-weight:700; color:#2d6be4; }
+.p-c { font-family:'JetBrains Mono',monospace; font-weight:500; }
+.p-hi { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--teal); }
 
-        .main-content { flex: 1; min-width: 300px; }
+.install-highlight { background:var(--gold-bg); border:1px solid #e8d28a; border-left:4px solid var(--gold); border-radius:8px; padding:9px 13px; margin-bottom:11px; font-size:12px; font-weight:700; color:var(--text); }
+.install-highlight span { font-family:'JetBrains Mono',monospace; color:var(--gold); font-size:13px; }
+.footnote { font-size:10px; color:var(--muted); padding:7px 11px; background:var(--surface2); border-radius:6px; border-left:2px solid var(--border); margin-top:9px; }
 
-        /* ── Sidebar ─────────────────────────────────── */
-        .calculator-sidebar {
-            width: 320px;
-            min-width: 300px;
-            background: var(--sidebar-bg);
-            border-radius: var(--radius-lg);
-            padding: 0;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
-            align-self: flex-start;
-            position: sticky;
-            top: 24px;
-            max-height: calc(100vh - 48px);
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border) transparent;
-        }
-        .calculator-sidebar::-webkit-scrollbar { width: 5px; }
-        .calculator-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+/* ════════════════════════════════════
+   CALCULATOR SIDEBAR
+════════════════════════════════════ */
+.calc-card { background:var(--sb); border-radius:var(--r); border-top:3px solid var(--gold); box-shadow:var(--shadow-lg); position:sticky; top:72px; overflow:hidden; }
 
-        .sidebar-header {
-            background: var(--surface);
-            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 2px solid var(--blue);
-        }
-        .sidebar-header svg { color: var(--blue); flex-shrink: 0; }
-        .sidebar-header-text { color: var(--text); }
-        .sidebar-header-text .title { font-size: 14px; font-weight: 600; color: var(--blue); }
-        .sidebar-header-text .subtitle { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+/* Tab bar */
+.calc-tabs { display:flex; background:var(--sb2); border-bottom:1px solid var(--sb-border); }
+.calc-tab { flex:1; font-family:'Sora',sans-serif; font-size:9.5px; font-weight:700; padding:9px 4px; text-align:center; text-transform:uppercase; letter-spacing:0.4px; background:none; border:none; color:var(--sb-muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.15s; margin-bottom:-1px; }
+.calc-tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(176,141,46,0.06); }
+.calc-tab:hover:not(.active) { color:var(--sb-text); }
 
-        .sidebar-body { padding: 14px 16px; }
+/* Panels */
+.calc-panel { display:none; padding:13px 15px; }
+.calc-panel.active { display:block; }
 
-        /* Section dividers in sidebar */
-        .sidebar-section {
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-        .sidebar-section:last-of-type { border-bottom: none; }
-        .sidebar-section-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-        }
-        .sidebar-section-label .dot {
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: var(--blue);
-            flex-shrink: 0;
-        }
-        .sidebar-section-label.teal .dot { background: var(--teal); }
-        .sidebar-section-label.amber .dot { background: var(--amber); }
+/* Inputs */
+.cf { margin-bottom:9px; }
+.cl { display:block; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--sb-muted); margin-bottom:4px; }
+.ci,.cs { width:100%; font-family:'Sora',sans-serif; font-size:12px; padding:7px 10px; border-radius:7px; border:1.5px solid var(--sb-border); background:var(--sb2); color:var(--sb-text); outline:none; transition:border-color 0.15s; }
+.cs { appearance:none; -webkit-appearance:none; cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b08d2e' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
+.cs option { background:#1c2333; color:#fff; }
+.ci:focus,.cs:focus { border-color:var(--gold); }
+.ci::placeholder { color:rgba(255,255,255,0.18); }
 
-        /* ── Heading styles ──────────────────────────── */
-        h1 {
-            font-size: 24px; font-weight: 700;
-            color: var(--blue);
-            margin-bottom: 24px; padding-bottom: 14px;
-            position: relative; width: 100%;
-        }
-        h1::after {
-            content: '';
-            position: absolute; bottom: 0; left: 0;
-            width: 48px; height: 3px;
-            background: var(--blue);
-            border-radius: 2px;
-        }
-        h2 {
-            font-size: 18px; font-weight: 600;
-            color: var(--text);
-            margin-bottom: 16px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-        }
+/* Unit rows */
+.unit-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--sb-border); }
+.unit-row:last-child { border-bottom:none; }
+.ul { font-size:11px; color:var(--sb-text); flex:1; }
+.ul small { color:var(--sb-muted); font-size:9.5px; }
+.uq { width:46px; font-family:'Sora',sans-serif; font-size:12px; padding:4px 5px; text-align:center; border:1.5px solid var(--sb-border); border-radius:6px; background:var(--sb2); color:#fff; outline:none; }
+.uq:focus { border-color:var(--gold); }
 
-        /* ── Navigation bar ──────────────────────────── */
-        .main-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            gap: 12px;
-            background: var(--bg);
-            padding: 10px 12px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-        }
-        .year-tabs { display: flex; gap: 6px; }
-        .doc-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Install rows */
+.ir { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; background:var(--sb2); margin-bottom:4px; border:1px solid var(--sb-border); }
+.il { flex:2; font-size:10px; color:var(--sb-muted); }
+.ip { font-size:10px; font-weight:700; color:var(--teal); font-family:'JetBrains Mono',monospace; min-width:44px; text-align:center; }
+.iq { width:46px; font-family:'Sora',sans-serif; font-size:11px; padding:3px 5px; text-align:center; border:1.5px solid var(--sb-border); border-radius:5px; background:rgba(255,255,255,0.07); color:#fff; outline:none; }
+.iq:focus { border-color:var(--teal); }
 
-        /* Unified button base */
-        .nav-btn, .doc-btn, .inst-btn {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 500;
-            font-size: 13px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            transition: all 0.18s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            text-decoration: none;
-            border: 1.5px solid transparent;
-            padding: 8px 16px;
-            white-space: nowrap;
-        }
+/* Section label */
+.slbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--sb-muted); margin:10px 0 6px; display:flex; align-items:center; gap:5px; }
+.slbl::before { content:''; width:4px; height:4px; border-radius:50%; background:var(--gold); flex-shrink:0; }
+.slbl.t::before { background:var(--teal); }
+.slbl.a::before { background:var(--amber); }
 
-        /* Year tab buttons — outlined style */
-        .nav-btn {
-            background: var(--surface);
-            color: var(--text-muted);
-            border-color: var(--border);
-            box-shadow: var(--shadow-sm);
-        }
-        .nav-btn:hover {
-            border-color: var(--blue);
-            color: var(--blue);
-            background: var(--blue-light);
-        }
-        .year-btn.active {
-            background: var(--blue);
-            color: white;
-            border-color: var(--blue);
-            box-shadow: 0 2px 6px rgba(61,107,142,0.2);
-        }
+/* Base install info */
+.bi { background:rgba(26,158,130,0.12); border:1px solid rgba(26,158,130,0.2); border-radius:7px; padding:8px 11px; margin-bottom:8px; }
+.bi-l { font-size:11px; font-weight:700; color:var(--teal); }
+.bi-s { font-size:9.5px; color:var(--sb-muted); margin-top:2px; }
 
-        /* Doc link buttons — subtle outlined */
-        .doc-btn {
-            background: var(--surface);
-            color: var(--blue);
-            border-color: var(--blue-mid);
-            box-shadow: var(--shadow-sm);
-        }
-        .doc-btn:hover {
-            background: var(--blue-light);
-            border-color: var(--blue);
-            transform: translateY(-1px);
-        }
-        .doc-btn.eco {
-            color: var(--teal);
-            border-color: #c8e0d8;
-        }
-        .doc-btn.eco:hover {
-            background: var(--teal-light);
-            border-color: var(--teal);
-        }
+/* VEEC box */
+.vbox { background:rgba(217,140,30,0.1); border:1px solid rgba(217,140,30,0.2); border-radius:7px; padding:9px 11px; margin-top:8px; }
+.vr { display:flex; justify-content:space-between; font-size:10px; padding:2px 0; color:var(--sb-muted); }
+.vv { font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--amber); }
+.vr.tot { border-top:1px solid rgba(217,140,30,0.25); margin-top:4px; padding-top:5px; font-weight:700; }
+.vr.tot .vv { color:var(--sb-text); }
 
-        /* Install costs button */
-        .inst-btn {
-            margin-top: 20px;
-            background: var(--surface);
-            color: var(--blue);
-            border-color: var(--blue-mid);
-            padding: 10px 20px;
-            font-size: 13px;
-        }
-        .inst-btn:hover {
-            background: var(--blue-light);
-            transform: translateY(-1px);
-        }
-        .inst-btn.active {
-            background: var(--blue);
-            color: white;
-        }
+/* Results */
+.rline { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--sb-border); }
+.rl { font-size:11px; color:var(--sb-muted); }
+.rv { font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--sb-text); }
+.rv.pos { color:var(--green); }
+.rsub { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:1px solid rgba(255,255,255,0.12); margin-top:1px; }
+.rsl { font-size:11px; font-weight:700; color:var(--sb-text); }
+.rsv { font-size:13px; font-family:'JetBrains Mono',monospace; font-weight:700; color:#fff; }
 
-        /* ── Tables ──────────────────────────────────── */
-        .content-section { margin-bottom: 28px; }
+/* Y override */
+.y-row { display:flex; align-items:center; gap:8px; padding:3px 0 7px; }
+.y-row label { font-size:10px; color:var(--sb-muted); display:flex; align-items:center; gap:4px; cursor:pointer; }
+.y-row input[type=checkbox] { accent-color:var(--gold); cursor:pointer; }
 
-        table {
-            width: 100%; border-collapse: collapse;
-            margin-top: 4px; font-size: 13px;
-            border: 1px solid var(--border);
-            background: var(--surface);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-        th {
-            background: #f8fafc;
-            color: var(--text-muted);
-            padding: 11px 10px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 11px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            border: none;
-            border-bottom: 1px solid var(--border);
-        }
-        th:first-child { border-radius: 0; }
-        td {
-            padding: 10px 10px;
-            text-align: center;
-            border-bottom: 1px solid var(--border);
-            border-right: 1px solid var(--border);
-        }
-        td:last-child { border-right: none; }
+/* Grand total + profit — always visible */
+.calc-bottom { border-top:1px solid var(--sb-border); }
+.grand-strip { padding:11px 15px; display:flex; justify-content:space-between; align-items:center; }
+.grand-lbl { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--sb-muted); }
+.grand-val { font-size:21px; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--gold); }
 
-        /* ODU rows — very subtle left accent */
-        tr.odu-row td {
-            background: #f8fbfe;
-            font-weight: 600;
-            border-left: 3px solid var(--blue);
-        }
-        tr.odu-row td:first-child { border-left: 3px solid var(--blue); }
+.profit-strip { padding:0 15px 13px; }
+.pb { border-radius:8px; padding:10px 13px; display:flex; justify-content:space-between; align-items:center; background:rgba(24,169,110,0.12); border:1.5px solid rgba(24,169,110,0.25); transition:all 0.2s; }
+.pb.loss { background:rgba(224,79,79,0.1); border-color:rgba(224,79,79,0.25); }
+.pl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--green); }
+.pb.loss .pl { color:var(--red); }
+.pa { font-size:17px; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--green); }
+.pb.loss .pa { color:var(--red); }
 
-        tr:hover td { background: #fbfcfd; }
-        tr.odu-row:hover td { background: #f0f6fb; }
+.calc-actions { padding:0 15px 14px; }
+.action-btn { width:100%; font-family:'Sora',sans-serif; font-size:11px; font-weight:700; padding:10px 14px; border-radius:8px; cursor:pointer; text-transform:uppercase; letter-spacing:0.4px; border:none; transition:all 0.15s; background:var(--gold); color:#000; }
+.action-btn:hover { background:#caa535; }
+.action-btn.next { background:var(--sb2); color:var(--gold); border:1px solid rgba(176,141,46,0.4); }
+.action-btn.next:hover { background:rgba(176,141,46,0.1); border-color:var(--gold); }
 
-        .brand-cell { font-weight: 700; font-size: 13px; color: var(--blue); }
+.expand-btn { width:100%; display:flex; justify-content:space-between; align-items:center; background:var(--sb2); border:1px solid var(--sb-border); border-radius:7px; padding:7px 11px; cursor:pointer; font-family:'Sora',sans-serif; font-size:10px; font-weight:700; color:var(--sb-muted); text-transform:uppercase; letter-spacing:0.5px; transition:all 0.15s; margin-top:2px; }
+.expand-btn:hover { border-color:rgba(176,141,46,0.4); color:var(--gold); }
+.expand-icon { font-size:14px; line-height:1; color:var(--sb-muted); transition:transform 0.2s; }
+.expand-btn.open .expand-icon { transform:rotate(45deg); color:var(--gold); }
+.expand-btn.open { border-color:rgba(176,141,46,0.35); color:var(--gold); }
+.cnote { font-size:9px; color:var(--sb-muted); line-height:1.8; padding:7px 9px; background:rgba(255,255,255,0.03); border-radius:5px; margin-top:10px; }
 
-        .combinations-header {
-            background: var(--blue-light);
-            color: var(--blue);
-            font-weight: 700;
-            font-size: 13px;
-            padding: 12px 16px;
-            text-align: center;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            font-size: 11px;
-        }
+/* ── TOAST ── */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#141c2e; color:#fff; font-size:12px; font-weight:600; padding:10px 22px; border-radius:30px; border-left:3px solid var(--gold); box-shadow:0 4px 20px rgba(0,0,0,0.2); opacity:0; transition:opacity 0.25s; pointer-events:none; z-index:9999; white-space:nowrap; }
+.toast.show { opacity:1; }
 
-        /* VEEC badge — pill style */
-        .veec-highlight {
-            vertical-align: middle;
-        }
-        .veec-badge {
-            display: inline-block;
-            background: var(--blue);
-            color: white;
-            font-weight: 700;
-            font-size: 13px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            letter-spacing: 0.02em;
-        }
+/* ── FOOTER ── */
+footer { background:var(--surface); border-top:1px solid var(--border); padding:16px 28px; margin-top:8px; }
+.footer-inner { max-width:1340px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.footer-brand { display:flex; align-items:center; gap:12px; }
+.footer-brand img { height:34px; width:auto; }
+.footer-name { font-size:12px; font-weight:700; color:var(--text); }
+.footer-addr { font-size:10px; color:var(--muted); margin-top:2px; }
+.footer-contact { font-size:10px; color:var(--muted); text-align:right; line-height:1.9; }
+.footer-contact a { color:var(--gold); text-decoration:none; }
 
-        .align-left {
-            text-align: left;
-            padding-left: 20px;
-            font-weight: 500;
-        }
+.hidden { display:none; }
 
-        /* Installation table */
-        .inst-table td { text-align: left; padding-left: 20px; }
-        .inst-table .price-col {
-            text-align: center; width: 28%;
-            font-weight: 600; color: var(--teal);
-        }
-        .price-highlight {
-            font-size: 17px; font-weight: 600; color: var(--blue);
-            margin-bottom: 18px; background: var(--blue-light);
-            padding: 14px 20px; border-radius: var(--radius);
-            display: inline-block; border-left: 4px solid var(--blue);
-        }
-
-        /* ── Calculator input styles ─────────────────── */
-        .calculator-title { display: none; } /* replaced by sidebar-header */
-
-        .calc-input-group { margin-bottom: 9px; }
-        .calc-label {
-            display: block; font-weight: 500;
-            margin-bottom: 3px; color: var(--text-muted); font-size: 12px;
-        }
-        .calc-select, .calc-input {
-            width: 100%; padding: 7px 10px;
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            font-family: 'Poppins', sans-serif;
-            font-size: 12px; background: var(--surface);
-            color: var(--text);
-            transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .calc-input:focus, .calc-select:focus {
-            outline: none;
-            border-color: var(--blue);
-            box-shadow: 0 0 0 3px rgba(61,107,142,0.15);
-        }
-
-        .calc-unit-row {
-            display: flex; justify-content: space-between;
-            align-items: center; padding: 5px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .calc-unit-info { flex: 1; text-align: left; font-size: 12px; }
-        .calc-unit-qty {
-            width: 52px; padding: 4px;
-            text-align: center; border: 1.5px solid var(--border);
-            border-radius: 6px; font-size: 12px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .calc-unit-qty:focus { outline: none; border-color: var(--blue); }
-
-        /* Installation fee rows */
-        .calc-installation-fee-row {
-            display: flex; align-items: center;
-            justify-content: space-between;
-            margin-bottom: 5px; padding: 5px 8px;
-            background: var(--surface);
-            border-radius: 6px; border: 1px solid var(--border);
-        }
-        .calc-installation-label { flex: 2; font-size: 11px; color: var(--text-muted); }
-        .calc-installation-price {
-            flex: 1; text-align: center;
-            font-weight: 600; color: var(--teal); font-size: 11px;
-        }
-        .calc-installation-qty {
-            width: 56px; padding: 4px; text-align: center;
-            border: 1.5px solid var(--border); border-radius: 6px; font-size: 11px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .calc-installation-qty:focus { outline: none; border-color: var(--blue); }
-
-        /* Financial inputs block */
-        .calc-financial-inputs {
-            background: var(--blue-light);
-            border-radius: var(--radius); padding: 10px;
-            margin: 0 0 4px; border: 1px solid var(--blue-mid);
-        }
-        .calc-financial-title {
-            font-weight: 600; margin-bottom: 8px;
-            color: var(--blue); font-size: 13px;
-        }
-        .calc-financial-group {
-            display: flex; gap: 8px; margin-bottom: 8px;
-        }
-        .calc-financial-group .calc-input { flex: 1; }
-
-        /* VEEC fees block */
-        .calc-veec-fees {
-            background: var(--amber-light);
-            border-radius: var(--radius); padding: 10px;
-            margin: 0; border: 1px solid #ffe082;
-        }
-        .calc-veec-fee-row {
-            display: flex; justify-content: space-between;
-            padding: 4px 0; font-size: 11.5px;
-        }
-        .calc-veec-fee-title {
-            font-weight: 600; color: #5d4037;
-            margin-bottom: 6px; font-size: 12px;
-        }
-
-        /* ── Results panel ───────────────────────────── */
-        .calc-results {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 12px; border: 1px solid var(--border);
-            margin-top: 0;
-        }
-        .calc-results-title {
-            font-size: 12px; font-weight: 600; color: var(--blue);
-            margin-bottom: 8px; padding-bottom: 6px;
-            border-bottom: 2px solid var(--blue-mid);
-        }
-        .calc-result-row {
-            display: flex; justify-content: space-between;
-            align-items: center;
-            padding: 5px 0; border-bottom: 1px solid var(--border);
-            font-size: 12px;
-        }
-        .calc-result-row .label { color: var(--text-muted); }
-        .calc-subtotal-row {
-            display: flex; justify-content: space-between;
-            align-items: center;
-            padding: 7px 0; border-top: 2px solid var(--border);
-            font-weight: 600; font-size: 12.5px;
-        }
-        .calc-total-row {
-            display: flex; justify-content: space-between;
-            align-items: center;
-            padding: 7px 0; border-top: 2px solid var(--blue);
-            font-weight: 600; font-size: 13px; color: var(--blue);
-        }
-        .calc-financial-row {
-            display: flex; justify-content: space-between;
-            align-items: center;
-            padding: 5px 0; border-bottom: 1px dashed var(--border);
-            font-size: 12px;
-        }
-
-        /* Profit/Loss card */
-        .profit-card {
-            margin-top: 10px;
-            border-radius: var(--radius);
-            padding: 10px 14px;
-            display: flex; justify-content: space-between; align-items: center;
-            background: var(--green-light);
-            border: 1.5px solid #a5d6a7;
-            transition: background 0.2s, border-color 0.2s;
-        }
-        .profit-card.loss {
-            background: var(--red-light);
-            border-color: #ef9a9a;
-        }
-        .profit-card-label {
-            font-size: 12px; font-weight: 600;
-            color: var(--green);
-            display: flex; align-items: center; gap: 6px;
-        }
-        .profit-card.loss .profit-card-label { color: var(--red); }
-        .profit-card-amount {
-            font-size: 18px; font-weight: 700; color: var(--green);
-        }
-        .profit-card.loss .profit-card-amount { color: var(--red); }
-
-        .calc-note {
-            font-size: 10.5px; color: var(--text-muted);
-            margin-top: 8px; line-height: 1.6;
-            padding: 8px 10px;
-            background: var(--bg);
-            border-radius: 6px;
-        }
-
-        /* Sign colours */
-        .neg-expense { color: var(--red); font-weight: 500; }
-        .pos-revenue { color: var(--green); font-weight: 500; }
-
-        /* Footer note */
-        .footer-note {
-            font-size: 12.5px; color: var(--text-muted);
-            margin-top: 24px; padding: 12px 16px;
-            background: var(--bg); border-radius: var(--radius);
-            border-left: 3px solid var(--blue-mid);
-        }
-
-        .hidden { display: none; }
-
-        /* PDF button */
-        .pdf-btn {
-            margin-top: 16px; padding: 13px 20px;
-            border: none; background: var(--red);
-            color: white; cursor: pointer;
-            border-radius: var(--radius); font-weight: 600;
-            font-size: 14px; font-family: 'Poppins', sans-serif;
-            transition: all 0.18s ease;
-            box-shadow: 0 3px 8px rgba(229,57,53,0.25);
-            display: flex; align-items: center;
-            justify-content: center; gap: 8px; width: 100%;
-        }
-        .pdf-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(229,57,53,0.35);
-            background: var(--red-dark);
-        }
-        .pdf-btn:active { transform: translateY(0); }
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(10,20,40,0.75);
-            display: none; justify-content: center;
-            align-items: center; z-index: 1000;
-            flex-direction: column; color: white; font-size: 16px;
-            backdrop-filter: blur(3px);
-        }
-        .loading-spinner {
-            border: 3px solid rgba(255,255,255,0.2);
-            border-top: 3px solid white;
-            border-radius: 50%; width: 44px; height: 44px;
-            animation: spin 0.9s linear infinite;
-            margin-bottom: 16px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ── Responsive ──────────────────────────────── */
-        @media (max-width: 1200px) {
-            .dashboard-container { padding: 24px; flex-direction: column; }
-            .calculator-sidebar { width: 100%; min-width: unset; order: 2; position: static; max-height: none; }
-            .main-content { order: 1; }
-            table { font-size: 12px; }
-            th, td { padding: 10px 8px; }
-        }
-        @media (max-width: 992px) {
-            .main-nav { flex-direction: column; gap: 10px; align-items: stretch; }
-            .year-tabs, .doc-buttons { width: 100%; justify-content: center; flex-wrap: wrap; }
-            h1 { font-size: 22px; }
-            .nav-btn, .doc-btn { font-size: 13px; flex: 1; }
-        }
-        @media (max-width: 768px) {
-            body { padding: 12px 10px; }
-            .dashboard-container { padding: 18px; border-radius: var(--radius); }
-            h1 { font-size: 20px; margin-bottom: 20px; }
-            h2 { font-size: 16px; }
-            table { font-size: 11px; }
-            th, td { padding: 8px 5px; }
-            .nav-btn, .doc-btn { padding: 8px 12px; font-size: 12px; }
-            .calculator-sidebar { padding: 0; }
-        }
-        @media (max-width: 480px) {
-            table { display: block; overflow-x: auto; white-space: nowrap; }
-            th, td { padding: 6px 4px; }
-        }
-        @media print {
-            body { background: white; padding: 0; }
-            .dashboard-container { box-shadow: none; padding: 0; }
-            .main-nav, .inst-btn, .doc-buttons, .calculator-sidebar, .page-header { display: none; }
-            table { break-inside: avoid; }
-        }
-    </style>
+@media (max-width:1024px) { main { grid-template-columns:1fr; } .calc-card { position:static; } }
+@media (max-width:768px) { header { flex-wrap:wrap; padding:10px 16px; } .sub-nav { padding:6px 14px; } main { padding:12px 14px; } }
+</style>
 </head>
 <body>
 
-<!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div>Generating PDF Report...</div>
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure">
+      <span class="header-logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="header-title">AUX Mini VRF Pricing</span>
+  </div>
+  <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name-chip">Goldsure</span></div>
+</header>
+
+<div class="sub-nav">
+  <label class="radio-label"><input type="radio" name="yv" value="2026" checked onchange="switchView('2026')"> 2026 Costs</label>
+  <label class="radio-label"><input type="radio" name="yv" value="2025" onchange="switchView('2025')"> 2025 Costs</label>
+  <label class="radio-label"><input type="radio" name="yv" value="inst" onchange="switchView('inst')"> Installation Costs</label>
+  <div class="sub-divider"></div>
+  <a href="https://workdrive.zohopublic.com.au/external/f7bc90c140af4f5c1d92465a8808c499f1e090e585e670bf390fee5254b8be81" target="_blank" class="sub-link">VRF Mini Brochure</a>
+  <a href="https://workdrive.zohopublic.com.au/external/bf9569148bb45c1e16fa0a5074de5d8d2ecd223d444f2caf396b097d9947f718" target="_blank" class="sub-link">Warranty Card</a>
+  <a href="https://workdrive.zohopublic.com.au/external/79fd3eba73ca83ba671d15a33b083a624ed74e4bb673374f1d5b730d54a50697" target="_blank" class="sub-link">Eco Care Agreement</a>
 </div>
 
-<!-- Page Header -->
-<div class="page-header">
-    <div class="page-header-logo">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
+<main>
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- 2026 -->
+    <div class="card" id="card2026">
+      <div class="card-header"><span class="card-badge badge-dark">2026</span><span class="card-title">Product Costs — 2026</span></div>
+      <div class="card-body">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Brand</th><th>Product Type</th><th>Model Number</th><th>Capacity</th><th>VEEC</th><th>Container 36</th><th>Local 10+</th><th>Local 5–10</th></tr></thead>
+          <tbody>
+            <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td class="veec-val">94</td><td class="p-c">$1,540</td><td class="p-c">$1,586</td><td class="p-c">$1,632</td></tr>
+            <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td class="veec-val">107</td><td class="p-c">$1,760</td><td class="p-c">$1,813</td><td class="p-c">$1,866</td></tr>
+            <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>—</td><td class="p-hi">$363</td><td class="p-c">$374</td><td class="p-c">$385</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>—</td><td class="p-hi">$385</td><td class="p-c">$397</td><td class="p-c">$408</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>—</td><td class="p-hi">$418</td><td class="p-c">$431</td><td class="p-c">$443</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>—</td><td class="p-hi">$440</td><td class="p-c">$453</td><td class="p-c">$466</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>—</td><td class="p-hi">$462</td><td class="p-c">$476</td><td class="p-c">$490</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>—</td><td class="p-hi">$495</td><td class="p-c">$510</td><td class="p-c">$525</td></tr>
+            <tr><td></td><td>EEV Box</td><td>—</td><td>One per IDU</td><td>—</td><td class="p-c">$55</td><td class="p-c">$57</td><td class="p-c">$58</td></tr>
+            <tr><td></td><td>Y Shape Branch</td><td>—</td><td>e.g. 3 sets for 4 IDUs</td><td>—</td><td class="p-c">$20</td><td class="p-c">$21</td><td class="p-c">$21</td></tr>
+            <tr><td></td><td>3 Heads Branch</td><td>—</td><td>—</td><td>—</td><td class="p-c">$95</td><td class="p-c">$98</td><td class="p-c">$101</td></tr>
+            <tr><td></td><td>4 Heads Branch</td><td>—</td><td>—</td><td>—</td><td class="p-c">$100</td><td class="p-c">$103</td><td class="p-c">$106</td></tr>
+            <tr><td></td><td>5 Heads Branch</td><td>—</td><td>—</td><td>—</td><td class="p-c">$105</td><td class="p-c">$108</td><td class="p-c">$111</td></tr>
+            <tr><td></td><td>6 Heads Branch</td><td>—</td><td>—</td><td>—</td><td class="p-c">$110</td><td class="p-c">$113</td><td class="p-c">$117</td></tr>
+          </tbody>
+        </table></div>
+        <p class="footnote">Prices exclude GST and local freight. All amounts AUD.</p>
+      </div>
     </div>
-    <div class="page-header-text">
-        <h1>Goldsure Pty Ltd <span style="color:var(--text-muted); font-weight:400; font-size:16px;">|</span> AUX Mini VRF</h1>
-        <p>Product Costs Dashboard &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072 &nbsp;·&nbsp; <a href="tel:+61451898761" style="color:var(--blue); text-decoration:none;">+61 451 898 761</a> &nbsp;·&nbsp; <a href="mailto:vignesh@goldsure.com.au" style="color:var(--blue); text-decoration:none;">vignesh@goldsure.com.au</a></p>
+
+    <!-- 2025 -->
+    <div class="card hidden" id="card2025">
+      <div class="card-header"><span class="card-badge badge-gold">2025</span><span class="card-title">Product Costs — 2025</span></div>
+      <div class="card-body">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Brand</th><th>Product Type</th><th>Model Number</th><th>Capacity</th><th>VEEC</th><th>Container 33</th><th>Local 10+</th><th>Local 5–10</th></tr></thead>
+          <tbody>
+            <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td class="veec-val">94</td><td class="p-c">$1,499</td><td class="p-c">$1,544</td><td class="p-c">$1,590</td></tr>
+            <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td class="veec-val">107</td><td class="p-c">$1,899</td><td class="p-c">$1,956</td><td class="p-c">$2,015</td></tr>
+            <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>—</td><td class="p-hi">$380</td><td class="p-c">$391</td><td class="p-c">$403</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>—</td><td class="p-hi">$409</td><td class="p-c">$421</td><td class="p-c">$434</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>—</td><td class="p-hi">$450</td><td class="p-c">$464</td><td class="p-c">$477</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>—</td><td class="p-hi">$470</td><td class="p-c">$484</td><td class="p-c">$499</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>—</td><td class="p-hi">$488</td><td class="p-c">$503</td><td class="p-c">$518</td></tr>
+            <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>—</td><td class="p-hi">$519</td><td class="p-c">$535</td><td class="p-c">$551</td></tr>
+            <tr><td></td><td>EEV Box</td><td>—</td><td>One per IDU</td><td>—</td><td class="p-c">$55</td><td class="p-c">$57</td><td class="p-c">$58</td></tr>
+          </tbody>
+        </table></div>
+        <p class="footnote">Prices exclude GST and local freight. All amounts AUD.</p>
+      </div>
     </div>
-</div>
 
-<div class="dashboard-container">
-    <div class="main-content">
-        <h1 style="display:none">AUX Mini VRF Product Costs Dashboard</h1>
-        
-        <div class="main-nav">
-            <div class="year-tabs">
-                <button class="nav-btn year-btn" id="btn2025" onclick="switchYear('2025')">
-                    2025 Costs
-                </button>
-                <button class="nav-btn year-btn active" id="btn2026" onclick="switchYear('2026')">
-                    2026 Costs
-                </button>
-            </div>
-            
-            <div class="doc-buttons">
-                <a href="https://workdrive.zohopublic.com.au/external/f7bc90c140af4f5c1d92465a8808c499f1e090e585e670bf390fee5254b8be81" target="_blank" class="doc-btn">
-                    VRF Mini Brochure
-                </a>
-
-                <a href="https://workdrive.zohopublic.com.au/external/bf9569148bb45c1e16fa0a5074de5d8d2ecd223d444f2caf396b097d9947f718" target="_blank" class="doc-btn eco">
-                    Warranty Card
-                </a>
-
-                <a href="https://workdrive.zohopublic.com.au/external/79fd3eba73ca83ba671d15a33b083a624ed74e4bb673374f1d5b730d54a50697" target="_blank" class="doc-btn eco">
-                    Eco Care Agreement
-                </a>
-            </div>
-        </div>
-
-        <div id="section2025" class="content-section hidden">
-            <h2>2025 Product Costs</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">Brand</th>
-                        <th>Product Type</th>
-                        <th>Model Number</th>
-                        <th>Capacity (Cooling/Heating)</th>
-                        <th style="width: 50px;">VEEC Value</th>
-                        <th>Container 33</th>
-                        <th>Local Stock 10+</th>
-                        <th>Local Stock 5-10</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,499</td><td>$1,544</td><td>$1,590</td></tr>
-                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,899</td><td>$1,956</td><td>$2,015</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$380</td><td>$391</td><td>$403</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$409</td><td>$421</td><td>$434</td></tr>
-                    <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$450</td><td>$464</td><td>$477</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$470</td><td>$484</td><td>$499</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$488</td><td>$503</td><td>$518</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$519</td><td>$535</td><td>$551</td></tr>
-                    <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div id="section2026" class="content-section">
-            <h2>2026 Product Costs</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">Brand</th>
-                        <th>Product Type</th>
-                        <th>Model Number</th>
-                        <th>Capacity (Cooling/Heating)</th>
-                        <th style="width: 50px;">VEEC Value</th>
-                        <th>Container 36</th>
-                        <th>Local Stock 10+</th>
-                        <th>Local Stock 5-10</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H180/NR1B-AU</td><td>18.1/21.5 KW</td><td>94</td><td>$1,540</td><td>$1,586</td><td>$1,632</td></tr>
-                    <tr class="odu-row"><td></td><td>R410A Mini VRF (ODU)</td><td>ARV-H200/NR1B-AU</td><td>20/24.1 KW</td><td>107</td><td>$1,760</td><td>$1,813</td><td>$1,866</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H028/NR1DC2</td><td>2.8/3.4 KW</td><td>/</td><td>$363</td><td>$374</td><td>$385</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H036/NR1DC2</td><td>3.6/4.2 KW</td><td>/</td><td>$385</td><td>$397</td><td>$408</td></tr>
-                    <tr><td class="brand-cell">AUX</td><td>IDU</td><td>ARVWM-H045/NR1DC2</td><td>4.5/5.2 KW</td><td>/</td><td>$418</td><td>$431</td><td>$443</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H056/NR1DC2</td><td>5.6/6.4 KW</td><td>/</td><td>$440</td><td>$453</td><td>$466</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H071/NR1DC2</td><td>7.1/8.3 KW</td><td>/</td><td>$462</td><td>$476</td><td>$490</td></tr>
-                    <tr><td></td><td>IDU</td><td>ARVWM-H080/NR1DC2</td><td>8.0/9.3 KW</td><td>/</td><td>$495</td><td>$510</td><td>$525</td></tr>
-                    <tr><td></td><td>EEV BOX</td><td>/</td><td>One EEV box for each IDU</td><td>/</td><td>$55</td><td>$57</td><td>$58</td></tr>
-                    <tr><td></td><td>Y Shape Branch (welding)</td><td>/</td><td>e.g. 3 sets Y Branchs for 4 IDU</td><td>/</td><td>$20</td><td>$21</td><td>$21</td></tr>
-                    <tr><td></td><td>3 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$95</td><td>$98</td><td>$101</td></tr>
-                    <tr><td></td><td>4 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$100</td><td>$103</td><td>$106</td></tr>
-                    <tr><td></td><td>5 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$105</td><td>$108</td><td>$111</td></tr>
-                    <tr><td></td><td>6 Heads Branch</td><td>/</td><td>/</td><td>/</td><td>$110</td><td>$113</td><td>$117</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div id="sectionInst" class="content-section hidden">
-            <h2>INSTALLATION COSTS</h2>
-            <div class="price-highlight">$900 per IDU (VRF & Multi system)</div>
-            <table class="inst-table">
-                <thead>
-                    <tr>
-                        <th>Installation Service / Requirement</th>
-                        <th class="price-col">Cost (AUD)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Extra labour for difficult ODU access</td><td class="price-col">$300</td></tr>
-                    <tr><td>Disconnecting existing gas heater (inc. VBA certificate)</td><td class="price-col">$200 per heater</td></tr>
-                    <tr><td>Second-storey installation (normal two-storey)</td><td class="price-col">$150 per IDU</td></tr>
-                    <tr><td>Installation on metal roof (e.g. Colourbond roof)</td><td class="price-col">$150 per IDU</td></tr>
-                    <tr><td>Installation on double brick wall</td><td class="price-col">$150 per IDU</td></tr>
-                    <tr><td>Removal and disposal of existing air conditioner</td><td class="price-col">$150 per unit</td></tr>
-                    <tr><td>Switchboard work</td><td class="price-col">$200 per mini switchbox</td></tr>
-                    <tr><td>Special installation (Extra-long pipe runs, custom covers, etc.)</td><td class="price-col">Price quoted on inspection</td></tr>
-                </tbody>
-            </table>
-            <div class="footer-note">
-                * All prices above are GST exclusive. Special installations by Goldsure Pty Ltd.
-            </div>
-        </div>
-
-        <div class="footer-note">
-            <strong>Note:</strong> Prices above are GST and local freight excluded. All amounts are in AUD.
-        </div>
-        
-        <button class="inst-btn" id="btnInst" onclick="switchYear('Inst')">View Installation Costs</button>
+    <!-- Installation -->
+    <div class="card hidden" id="cardInst">
+      <div class="card-header"><span class="card-badge badge-teal">Install</span><span class="card-title">Installation Costs</span></div>
+      <div class="card-body">
+        <div class="install-highlight">Base Rate: <span>$900</span> per IDU &nbsp;·&nbsp; VRF &amp; Multi Systems</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th style="text-align:left;padding-left:11px;">Installation Service / Requirement</th><th style="width:150px;">Cost (AUD)</th></tr></thead>
+          <tbody>
+            <tr><td>Extra labour for difficult ODU access</td><td class="p-c">$300</td></tr>
+            <tr><td>Disconnecting existing gas heater (incl. VBA cert.)</td><td class="p-c">$200 per heater</td></tr>
+            <tr><td>Second-storey installation</td><td class="p-c">$150 per IDU</td></tr>
+            <tr><td>Installation on metal roof (e.g. Colorbond)</td><td class="p-c">$150 per IDU</td></tr>
+            <tr><td>Installation on double brick wall</td><td class="p-c">$150 per IDU</td></tr>
+            <tr><td>Removal and disposal of existing AC unit</td><td class="p-c">$150 per unit</td></tr>
+            <tr><td>Switchboard work</td><td class="p-c">$200 per switchbox</td></tr>
+            <tr><td>Special installation (long runs, custom covers, etc.)</td><td class="p-c">Quoted on inspection</td></tr>
+          </tbody>
+        </table></div>
+        <p class="footnote">* All prices GST exclusive. Special installations by Goldsure Pty Ltd.</p>
+      </div>
     </div>
-    
-    <div class="calculator-sidebar">
-        <div class="sidebar-header">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
-            </svg>
-            <div class="sidebar-header-text">
-                <div class="title">VRF System Calculator</div>
-                <div class="subtitle">2026 pricing · All amounts ex-GST</div>
-            </div>
-        </div>
-        <div class="sidebar-body">
-        <div class="calculator-title">VRF System Calculator</div>
-        
-        <div class="sidebar-section">
-        <div class="sidebar-section-label"><span class="dot"></span> Quote Configuration</div>
-        <div class="calc-input-group" style="background:var(--blue-light); border-radius:6px; padding:6px 10px; border-left:3px solid var(--blue); margin-bottom:9px; font-size:11px; color:var(--blue); font-weight:500;">
-            Prices based on 2026 cost table
-        </div>
 
-        <div class="calc-input-group">
-            <label class="calc-label">Quote Name <span style="font-weight:400; color:#999;">(optional)</span></label>
-            <input type="text" class="calc-input" id="quoteName" placeholder="e.g. Smith Residence – 5 IDU System">
-        </div>
+  </div>
 
-        <div class="calc-input-group">
-            <label class="calc-label">Stock Level</label>
-            <select class="calc-select" id="calcStock">
-                <option value="container">Container</option>
-                <option value="local10">Local Stock 10+</option>
-                <option value="local5">Local Stock 5-10</option>
-            </select>
-        </div>
-        
-        </div><!-- end config section -->
-
-        <div class="sidebar-section">
-        <div class="sidebar-section-label"><span class="dot"></span> Equipment Selection</div>
-        <div style="margin-bottom:13px;">
-            <label class="calc-label">ODU Model</label>
-            <select class="calc-select" id="calcODU">
-                <option value="ARV-H180/NR1B-AU">ARV-H180/NR1B-AU (18.1/21.5 KW)</option>
-                <option value="ARV-H200/NR1B-AU">ARV-H200/NR1B-AU (20/24.1 KW)</option>
-            </select>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <div style="font-weight: 500; margin-bottom: 10px;">Indoor Units (IDUs)</div>
-            <div id="iduList">
-                <!-- IDU rows will be generated here -->
-            </div>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <div style="font-weight: 500; margin-bottom: 10px;">Branches</div>
-            
-            <div class="calc-unit-row" style="align-items:flex-start; flex-direction:column; gap:6px; padding:10px 0;">
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <div class="calc-unit-info">Y Shape Branches</div>
-                    <div id="yBranchesCost">$0</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px; width:100%; font-size:12px; color:#777;">
-                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
-                        <input type="checkbox" id="yBranchOverride" style="cursor:pointer;"> Override auto-calculate
-                    </label>
-                    <span id="yBranchAutoLabel">(auto: IDUs − 1 × $20)</span>
-                </div>
-                <input type="number" class="calc-installation-qty" id="yBranchManualQty" value="0" min="0" style="display:none; width:80px;">
-            </div>
-            
-            <div class="calc-unit-row">
-                <div class="calc-unit-info">3 Heads Branch</div>
-                <input type="number" class="calc-unit-qty" id="branch3" value="0" min="0">
-            </div>
-            
-            <div class="calc-unit-row">
-                <div class="calc-unit-info">4 Heads Branch</div>
-                <input type="number" class="calc-unit-qty" id="branch4" value="0" min="0">
-            </div>
-            
-            <div class="calc-unit-row">
-                <div class="calc-unit-info">5 Heads Branch</div>
-                <input type="number" class="calc-unit-qty" id="branch5" value="0" min="0">
-            </div>
-            
-            <div class="calc-unit-row">
-                <div class="calc-unit-info">6 Heads Branch</div>
-                <input type="number" class="calc-unit-qty" id="branch6" value="0" min="0">
-            </div>
-        </div>
-        
-        </div><!-- end equipment section -->
-
-        <div class="sidebar-section">
-        <div class="sidebar-section-label teal"><span class="dot"></span> Installation Options</div>
-            
-            <div style="margin-bottom: 8px; padding: 7px 10px; background: var(--teal-light); border-radius: 6px; border-left:3px solid var(--teal);">
-                <div style="font-weight:600; color:var(--teal); font-size:12px;">Base Installation: $900 per IDU</div>
-                <div id="baseInstallation" style="font-size:11px; color:var(--text-muted); margin-top:1px;">Total: $0</div>
-            </div>
-            
-            <!-- Installation Fee Rows with Quantity Inputs -->
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Extra labour for difficult ODU access</div>
-                <div class="calc-installation-price">$300</div>
-                <input type="number" class="calc-installation-qty" id="instDifficultQty" value="0" min="0" max="1">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Disconnecting existing gas heater</div>
-                <div class="calc-installation-price">$200 each</div>
-                <input type="number" class="calc-installation-qty" id="instGasHeaterQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Second-storey installation</div>
-                <div class="calc-installation-price">$150 per IDU</div>
-                <input type="number" class="calc-installation-qty" id="instSecondFloorQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Installation on metal roof</div>
-                <div class="calc-installation-price">$150 per IDU</div>
-                <input type="number" class="calc-installation-qty" id="instMetalRoofQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Installation on double brick wall</div>
-                <div class="calc-installation-price">$150 per IDU</div>
-                <input type="number" class="calc-installation-qty" id="instDoubleBrickQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Removal/disposal existing AC</div>
-                <div class="calc-installation-price">$150 per unit</div>
-                <input type="number" class="calc-installation-qty" id="instRemovalQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Switchboard work</div>
-                <div class="calc-installation-price">$200 per switchbox</div>
-                <input type="number" class="calc-installation-qty" id="instSwitchboardQty" value="0" min="0">
-            </div>
-            
-            <div class="calc-installation-fee-row">
-                <div class="calc-installation-label">Special installation fees</div>
-                <div class="calc-installation-price">Custom $</div>
-                <input type="number" class="calc-installation-qty" id="instSpecialQty" value="0" min="0" step="0.01" placeholder="$0">
-            </div>
-        </div><!-- end installation section -->
-        
-        <div class="sidebar-section">
-        <div class="sidebar-section-label amber"><span class="dot"></span> VEEC &amp; Revenue</div>
-        <div class="calc-financial-inputs">
-            <div class="calc-financial-title">VEEC & Customer Details</div>
-            
-            <div class="calc-financial-group">
-                <div style="flex: 1;">
-                    <label class="calc-label">VEEC Quantity</label>
-                    <input type="number" class="calc-input" id="veecQuantity" value="0" min="0" placeholder="Qty">
-                </div>
-                <div style="flex: 1;">
-                    <label class="calc-label">VEEC Price Each</label>
-                    <input type="number" class="calc-input" id="veecPrice" value="0" min="0" step="0.01" placeholder="$">
-                </div>
-            </div>
-            
-            <div class="calc-financial-group">
-                <div style="flex: 1;">
-                    <label class="calc-label">Customer Contribution</label>
-                    <input type="number" class="calc-input" id="customerContribution" value="0" min="0" step="0.01" placeholder="$">
-                </div>
-            </div>
-        </div>
-        
-        <div class="calc-veec-fees">
-            <div class="calc-veec-fee-title">VEEC Registration Fees (2026)</div>
-            <div class="calc-veec-fee-row">
-                <div>VEEC Service Fee ($5.00 per VEEC):</div>
-                <div id="veecServiceFee">$0.00</div>
-            </div>
-            <div class="calc-veec-fee-row">
-                <div>VEEC Registration Fee ($4.35 per VEEC):</div>
-                <div id="veecRegistrationFee">$0.00</div>
-            </div>
-            <div class="calc-veec-fee-row" style="font-weight: 600; border-top: 1px solid #ffd54f; padding-top: 8px;">
-                <div>Total VEEC Registration Fees:</div>
-                <div id="totalVeecFees">$0.00</div>
-            </div>
-        </div>
-        
-        </div><!-- end financial section -->
-
-        <div class="sidebar-section">
-        <div class="sidebar-section-label"><span class="dot"></span> Quote Summary</div>
-        <div class="calc-results">
-            <div class="calc-results-title">Cost Breakdown</div>
-            
-            <div class="calc-result-row">
-                <div>ODU Cost:</div>
-                <div id="resultOdu">$0</div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>IDU Cost:</div>
-                <div id="resultIdu">$0</div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>EEV Boxes:</div>
-                <div id="resultEev">$0</div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>Branches:</div>
-                <div id="resultBranches">$0</div>
-            </div>
-            
-            <div class="calc-subtotal-row">
-                <div><strong>Equipment Total:</strong></div>
-                <div><strong id="resultEquipment">$0</strong></div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>Base Installation:</div>
-                <div id="resultInstallation">$0</div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>Additional Installation:</div>
-                <div id="resultAdditional">$0</div>
-            </div>
-            
-            <div class="calc-result-row">
-                <div>VEEC Registration Fees:</div>
-                <div id="resultVeecRegFees">$0</div>
-            </div>
-            
-            <div class="calc-subtotal-row">
-                <div><strong>Installation & Registration Total:</strong></div>
-                <div><strong id="resultInstallTotal">$0</strong></div>
-            </div>
-            
-            <div class="calc-total-row">
-                <div>Total Costs:</div>
-                <div id="resultSubtotal" class="neg-expense">−$0</div>
-            </div>
-            
-            <div class="calc-financial-row">
-                <div class="label">VEEC Proceeds:</div>
-                <div id="resultVeecProceeds" class="pos-revenue">+$0</div>
-            </div>
-            
-            <div class="calc-financial-row">
-                <div class="label">Customer Contribution:</div>
-                <div id="resultCustomerContribution" class="pos-revenue">+$0</div>
-            </div>
-            
-            <div class="calc-financial-row" style="font-weight:600;">
-                <div>Total Revenue:</div>
-                <div id="resultTotalRevenue" class="pos-revenue">+$0</div>
-            </div>
-        </div>
-
-        <!-- Profit / Loss Card -->
-        <div class="profit-card" id="profitCard">
-            <div class="profit-card-label">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                <span id="profitLabel">Profit</span>
-            </div>
-            <div class="profit-card-amount" id="resultFinalTotal">$0</div>
-        </div>
-
-            <div class="calc-note">
-                * Prices exclude GST and local freight
-                <br>* Y Branches auto-calculated as (IDUs − 1) × $20 unless overridden
-                <br>* VEEC Registration Fees = VEEC Qty × ($5.00 + $4.35)
-                <br>* Special installation entered as a total dollar amount
-            </div>
-        </div><!-- end results section -->
-
-        <!-- PDF Download Button -->
-        <button class="pdf-btn" onclick="generatePDFReport()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-            Download PDF Quote
-        </button>
-
-        </div><!-- end sidebar-body -->
-    </div><!-- end sidebar -->
-</div><!-- end dashboard-container -->
-
-<!-- Page Footer -->
-<footer class="page-footer">
-    <div class="page-footer-brand">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" onerror="this.style.display='none'" alt="Goldsure">
-        <div>
-            <div class="page-footer-name">Goldsure Pty Ltd</div>
-            <div class="page-footer-addr">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
-        </div>
+  <!-- ── CALCULATOR ── -->
+  <div class="calc-card">
+    <div class="calc-tabs">
+      <button class="calc-tab active" data-tab="equipment" onclick="switchTab('equipment',this)">Equipment</button>
+      <button class="calc-tab" data-tab="install" onclick="switchTab('install',this)">Install</button>
+      <button class="calc-tab" data-tab="veec" onclick="switchTab('veec',this)">VEEC</button>
+      <button class="calc-tab" data-tab="results" onclick="switchTab('results',this)">Results</button>
     </div>
-    <div class="page-footer-contact">
-        <a href="tel:+61451898761">Phone: +61 451 898 761</a><br>
-        <a href="mailto:vignesh@goldsure.com.au">Email: vignesh@goldsure.com.au</a>
+
+    <!-- Equipment tab -->
+    <div class="calc-panel active" id="tab-equipment">
+      <div class="cf">
+        <label class="cl">Quote Name <span style="font-weight:400;opacity:0.5;">(optional)</span></label>
+        <input type="text" class="ci" id="quoteName" placeholder="e.g. Smith – 5 IDU System">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div class="cf" style="flex:1;"><label class="cl">Stock Level</label>
+          <select class="cs" id="calcStock" onchange="calculateTotals()">
+            <option value="container">Container (36)</option>
+            <option value="local10">Local 10+</option>
+            <option value="local5">Local 5–10</option>
+          </select>
+        </div>
+        <div class="cf" style="flex:1;"><label class="cl">ODU Model</label>
+          <select class="cs" id="calcODU" onchange="calculateTotals()">
+            <option value="ARV-H180/NR1B-AU">H180 — 18.1KW</option>
+            <option value="ARV-H200/NR1B-AU">H200 — 20KW</option>
+          </select>
+        </div>
+      </div>
+      <div class="slbl">Indoor Units (IDUs)</div>
+      <div id="iduList"></div>
+      <div class="slbl" style="margin-top:11px;">Branches</div>
+      <div class="unit-row">
+        <span class="ul">Y Shape Branches <small id="yAutoLbl">(auto)</small></span>
+        <span id="yBranchCost" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sb-muted);">$0</span>
+      </div>
+      <div class="y-row">
+        <label><input type="checkbox" id="yOverride" onchange="toggleY()"> Override auto</label>
+        <input type="number" class="uq" id="yManualQty" value="0" min="0" style="display:none;" oninput="calculateTotals()">
+      </div>
+      <button class="expand-btn" id="multiBranchToggle" onclick="toggleMultiBranch()">
+        <span>Multi-Head Branches</span>
+        <span class="expand-icon" id="multiBranchIcon">＋</span>
+      </button>
+      <div id="multiBranchRows" style="display:none;">
+        <div class="unit-row"><span class="ul">3 Heads Branch</span><input type="number" class="uq" id="branch3" value="0" min="0" oninput="calculateTotals()"></div>
+        <div class="unit-row"><span class="ul">4 Heads Branch</span><input type="number" class="uq" id="branch4" value="0" min="0" oninput="calculateTotals()"></div>
+        <div class="unit-row"><span class="ul">5 Heads Branch</span><input type="number" class="uq" id="branch5" value="0" min="0" oninput="calculateTotals()"></div>
+        <div class="unit-row"><span class="ul">6 Heads Branch</span><input type="number" class="uq" id="branch6" value="0" min="0" oninput="calculateTotals()"></div>
+      </div>
     </div>
+
+    <!-- Install tab -->
+    <div class="calc-panel" id="tab-install">
+      <div class="bi">
+        <div class="bi-l">Base Installation: $900 per IDU</div>
+        <div class="bi-s" id="baseInstTotal">Total: $0 (0 IDUs)</div>
+      </div>
+      <div class="ir"><span class="il">Difficult ODU access</span><span class="ip">$300</span><input type="number" class="iq" id="instDiff" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Gas heater disconnection</span><span class="ip">$200 ea</span><input type="number" class="iq" id="instGas" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Second-storey install</span><span class="ip">$150/IDU</span><input type="number" class="iq" id="instFloor" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Metal roof install</span><span class="ip">$150/IDU</span><input type="number" class="iq" id="instRoof" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Double brick wall</span><span class="ip">$150/IDU</span><input type="number" class="iq" id="instBrick" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">AC removal &amp; disposal</span><span class="ip">$150/unit</span><input type="number" class="iq" id="instRemoval" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Switchboard work</span><span class="ip">$200</span><input type="number" class="iq" id="instSwitch" value="0" min="0" oninput="calculateTotals()"></div>
+      <div class="ir"><span class="il">Special install ($)</span><span class="ip">Custom</span><input type="number" class="iq" id="instSpecial" value="0" min="0" step="0.01" oninput="calculateTotals()"></div>
+    </div>
+
+    <!-- VEEC tab -->
+    <div class="calc-panel" id="tab-veec">
+      <div style="display:flex;gap:8px;">
+        <div class="cf" style="flex:1;"><label class="cl">VEEC Qty</label><input type="number" class="ci" id="veecQty" value="0" min="0" oninput="calculateTotals()"></div>
+        <div class="cf" style="flex:1;"><label class="cl">VEEC Price $</label><input type="number" class="ci" id="veecPrice" value="0" min="0" step="0.01" oninput="calculateTotals()"></div>
+      </div>
+      <div class="cf"><label class="cl">Customer Contribution $</label><input type="number" class="ci" id="custContrib" value="0" min="0" step="0.01" oninput="calculateTotals()"></div>
+      <div class="vbox">
+        <div class="vr"><span>VEEC Service Fee ($5.00/VEEC)</span><span class="vv" id="veecSvcFee">$0.00</span></div>
+        <div class="vr"><span>VEEC Reg. Fee ($4.35/VEEC)</span><span class="vv" id="veecRegFee">$0.00</span></div>
+        <div class="vr tot"><span>Total VEEC Fees</span><span class="vv" id="veecTotalFees">$0.00</span></div>
+      </div>
+    </div>
+
+    <!-- Results tab -->
+    <div class="calc-panel" id="tab-results">
+      <div class="slbl">Equipment</div>
+      <div class="rline"><span class="rl">ODU</span><span class="rv" id="resODU">$0</span></div>
+      <div class="rline"><span class="rl">IDUs</span><span class="rv" id="resIDU">$0</span></div>
+      <div class="rline"><span class="rl">EEV Boxes</span><span class="rv" id="resEEV">$0</span></div>
+      <div class="rline"><span class="rl">Branches</span><span class="rv" id="resBranches">$0</span></div>
+      <div class="rsub"><span class="rsl">Equipment Total</span><span class="rsv" id="resEquip">$0</span></div>
+      <div class="slbl t" style="margin-top:8px;">Installation</div>
+      <div class="rline"><span class="rl">Base Installation</span><span class="rv" id="resBaseInst">$0</span></div>
+      <div class="rline"><span class="rl">Additional Fees</span><span class="rv" id="resAddInst">$0</span></div>
+      <div class="rline"><span class="rl">VEEC Reg. Fees</span><span class="rv" id="resVeecFees">$0</span></div>
+      <div class="rsub"><span class="rsl">Install Total</span><span class="rsv" id="resInstTotal">$0</span></div>
+      <div class="slbl a" style="margin-top:8px;">Revenue</div>
+      <div class="rline"><span class="rl">VEEC Proceeds</span><span class="rv pos" id="resVeecProc">+$0</span></div>
+      <div class="rline"><span class="rl">Customer Contribution</span><span class="rv pos" id="resCustContrib">+$0</span></div>
+      <div class="rsub"><span class="rsl">Total Revenue</span><span class="rsv" id="resTotalRev">+$0</span></div>
+      <div class="cnote">* Ex-GST &amp; local freight &nbsp;·&nbsp; Y branches auto=(IDUs−1)×$20 &nbsp;·&nbsp; VEEC Fees=Qty×$9.35</div>
+    </div>
+
+    <!-- Always-visible bottom -->
+    <div class="calc-bottom">
+      <div class="grand-strip">
+        <span class="grand-lbl">Total Costs</span>
+        <span class="grand-val" id="grandTotal">$0</span>
+      </div>
+      <div class="profit-strip">
+        <div class="pb" id="profitBlock">
+          <span class="pl" id="profitLbl">Profit</span>
+          <span class="pa" id="profitAmt">$0</span>
+        </div>
+      </div>
+      <div class="calc-actions">
+        <button class="action-btn next" id="mainActionBtn" onclick="handleAction()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure">
+      <div>
+        <div class="footer-name">Goldsure Pty Ltd</div>
+        <div class="footer-addr">Suite 4, Level 1, 293 High Street, Preston VIC 3072 · ABN: 66 683 305 106</div>
+      </div>
+    </div>
+    <div class="footer-contact">
+      <div>Phone: <a href="tel:0721455155">(07) 2145 5155</a> · Mobile: <a href="tel:+61451898761">+61 451 898 761</a></div>
+      <div>Email: <a href="/cdn-cgi/l/email-protection#d9afb0beb7bcaab199beb6b5bdaaacabbcf7bab6b4f7b8ac"><span class="__cf_email__" data-cfemail="fb8d929c959e8893bb9c94979f888e899ed5989496d59a8e">[email&#160;protected]</span></a> · <a href="https://www.goldsure.com.au" target="_blank">www.goldsure.com.au</a></div>
+    </div>
+  </div>
 </footer>
+<div class="toast" id="toast"></div>
 
-<script>
-    const { jsPDF } = window.jspdf;
-    const iduModels = [
-        { model: 'ARVWM-H028/NR1DC2', capacity: '2.8/3.4 KW', label: '2.8KW IDU' },
-        { model: 'ARVWM-H036/NR1DC2', capacity: '3.6/4.2 KW', label: '3.6KW IDU' },
-        { model: 'ARVWM-H045/NR1DC2', capacity: '4.5/5.2 KW', label: '4.5KW IDU' },
-        { model: 'ARVWM-H056/NR1DC2', capacity: '5.6/6.4 KW', label: '5.6KW IDU' },
-        { model: 'ARVWM-H071/NR1DC2', capacity: '7.1/8.3 KW', label: '7.1KW IDU' },
-        { model: 'ARVWM-H080/NR1DC2', capacity: '8.0/9.3 KW', label: '8.0KW IDU' }
-    ];
-    
-    const VEEC_SERVICE_FEE = 5.00;
-    const VEEC_REGISTRATION_FEE = 4.35;
-    
-    // Store current calculation data for PDF
-    let currentCalculation = {
-        year: '2026',
-        stockLevel: 'container',
-        oduModel: '',
-        idus: [],
-        branches: {},
-        installation: {},
-        financial: {},
-        results: {}
-    };
-    
-    function initCalculator() {
-        generateIDUList();
-        calculateTotals();
-        
-        const inputs = [
-            'calcStock', 'calcODU', 'veecQuantity', 'veecPrice', 
-            'customerContribution', 'branch3', 'branch4', 'branch5', 'branch6',
-            'instDifficultQty', 'instGasHeaterQty', 'instSecondFloorQty',
-            'instMetalRoofQty', 'instDoubleBrickQty', 'instRemovalQty',
-            'instSwitchboardQty', 'instSpecialQty', 'yBranchManualQty'
-        ];
-        
-        inputs.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('input', calculateTotals);
-        });
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+const IDU_MODELS=[
+  {model:'ARVWM-H028/NR1DC2',cap:'2.8/3.4KW',lbl:'2.8KW'},
+  {model:'ARVWM-H036/NR1DC2',cap:'3.6/4.2KW',lbl:'3.6KW'},
+  {model:'ARVWM-H045/NR1DC2',cap:'4.5/5.2KW',lbl:'4.5KW'},
+  {model:'ARVWM-H056/NR1DC2',cap:'5.6/6.4KW',lbl:'5.6KW'},
+  {model:'ARVWM-H071/NR1DC2',cap:'7.1/8.3KW',lbl:'7.1KW'},
+  {model:'ARVWM-H080/NR1DC2',cap:'8.0/9.3KW',lbl:'8.0KW'}
+];
+const P={
+  'ARV-H180/NR1B-AU':{c:1540,l10:1586,l5:1632},
+  'ARV-H200/NR1B-AU':{c:1760,l10:1813,l5:1866},
+  'ARVWM-H028/NR1DC2':{c:363,l10:374,l5:385},
+  'ARVWM-H036/NR1DC2':{c:385,l10:397,l5:408},
+  'ARVWM-H045/NR1DC2':{c:418,l10:431,l5:443},
+  'ARVWM-H056/NR1DC2':{c:440,l10:453,l5:466},
+  'ARVWM-H071/NR1DC2':{c:462,l10:476,l5:490},
+  'ARVWM-H080/NR1DC2':{c:495,l10:510,l5:525},
+  EEV:{c:55,l10:57,l5:58},Y:{c:20,l10:21,l5:21},
+  B3:{c:95,l10:98,l5:101},B4:{c:100,l10:103,l5:106},
+  B5:{c:105,l10:108,l5:111},B6:{c:110,l10:113,l5:117}
+};
+const VSVC=5,VREG=4.35;
+let cc={};
 
-        document.getElementById('yBranchOverride').addEventListener('change', function() {
-            const manualInput = document.getElementById('yBranchManualQty');
-            const autoLabel = document.getElementById('yBranchAutoLabel');
-            if (this.checked) {
-                manualInput.style.display = 'inline-block';
-                autoLabel.style.display = 'none';
-            } else {
-                manualInput.style.display = 'none';
-                autoLabel.style.display = 'inline';
-            }
-            calculateTotals();
-        });
+function gp(k,s){const p=P[k];if(!p)return 0;return({container:p.c,local10:p.l10,local5:p.l5}[s]||p.c);}
+function fm(n){return'$'+Math.round(n).toLocaleString('en-AU');}
+function fm2(n){return'$'+Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
 
-        // Single delegated listener for dynamically generated IDU inputs
-        document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('calc-unit-qty')) {
-                calculateTotals();
-            }
-        });
+function initIDUs(){
+  const d=document.getElementById('iduList');
+  d.innerHTML=IDU_MODELS.map((m,i)=>`<div class="unit-row"><span class="ul">${m.lbl} IDU <small>(${m.cap})</small></span><input type="number" class="uq" id="idu${i}" value="0" min="0" oninput="calculateTotals()"></div>`).join('');
+}
+
+function toggleY(){
+  const on=document.getElementById('yOverride').checked;
+  document.getElementById('yManualQty').style.display=on?'inline-block':'none';
+  document.getElementById('yAutoLbl').style.display=on?'none':'inline';
+  calculateTotals();
+}
+
+const TAB_ORDER = ['equipment','install','veec','results'];
+let currentTab = 'equipment';
+
+function switchTab(name, btn){
+  document.querySelectorAll('.calc-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.calc-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  else document.querySelector(`.calc-tab[data-tab="${name}"]`)?.classList.add('active');
+  currentTab = name;
+  updateActionBtn();
+}
+
+function updateActionBtn(){
+  const btn = document.getElementById('mainActionBtn');
+  if(currentTab === 'results'){
+    btn.textContent = 'Download PDF Quote';
+    btn.classList.remove('next');
+  } else {
+    btn.textContent = 'Next →';
+    btn.classList.add('next');
+  }
+}
+
+function handleAction(){
+  if(currentTab === 'results'){
+    generatePDF();
+  } else {
+    const idx = TAB_ORDER.indexOf(currentTab);
+    const next = TAB_ORDER[idx+1];
+    if(next){
+      const nextBtn = document.querySelector(`.calc-tab:nth-child(${TAB_ORDER.indexOf(next)+1})`);
+      switchTab(next, nextBtn);
     }
-    
-    function generateIDUList() {
-        const iduListDiv = document.getElementById('iduList');
-        iduListDiv.innerHTML = '';
-        iduModels.forEach((idu, index) => {
-            const row = document.createElement('div');
-            row.className = 'calc-unit-row';
-            row.innerHTML = `
-                <div class="calc-unit-info">${idu.label} (${idu.capacity})</div>
-                <input type="number" class="calc-unit-qty" id="idu${index}" value="0" min="0">
-            `;
-            iduListDiv.appendChild(row);
-        });
-    }
+  }
+}
 
-    function getPriceFromTable(productType, model, stockLevel) {
-        const table = document.querySelector('#section2026 tbody');
-        const rows = table.querySelectorAll('tr');
-        let price = 0;
+function toggleMultiBranch(){
+  const rows = document.getElementById('multiBranchRows');
+  const btn = document.getElementById('multiBranchToggle');
+  const open = rows.style.display === 'none';
+  rows.style.display = open ? 'block' : 'none';
+  btn.classList.toggle('open', open);
+}
 
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 2) {
-                const cellType = cells[1].innerText.trim();
-                const cellModel = cells[2].innerText.trim();
+function switchView(v){
+  document.getElementById('card2026').classList.add('hidden');
+  document.getElementById('card2025').classList.add('hidden');
+  document.getElementById('cardInst').classList.add('hidden');
+  document.getElementById(v==='inst'?'cardInst':v==='2025'?'card2025':'card2026').classList.remove('hidden');
+}
 
-                if ((model !== '/' && cellModel === model) || 
-                    (model === '/' && cellType.toLowerCase().includes(productType.toLowerCase()))) {
-                    
-                    let colIndex = 5; // Container
-                    if (stockLevel === 'local10') colIndex = 6;
-                    if (stockLevel === 'local5') colIndex = 7;
-                    
-                    const priceText = cells[colIndex].innerText.replace(/[^\d.-]/g, '');
-                    price = parseFloat(priceText) || 0;
-                }
-            }
-        });
-        return price;
-    }
+function calculateTotals(){
+  const s=document.getElementById('calcStock').value;
+  const om=document.getElementById('calcODU').value;
+  let nIDU=0,iduC=0,iduD=[];
+  IDU_MODELS.forEach((m,i)=>{
+    const q=parseInt(document.getElementById('idu'+i).value)||0;
+    if(q>0){nIDU+=q;const up=gp(m.model,s);iduC+=q*up;iduD.push({...m,q,up,tot:q*up});}
+  });
+  const oduC=gp(om,s),eevC=nIDU*gp('EEV',s);
+  const yOn=document.getElementById('yOverride').checked;
+  const yQ=yOn?parseInt(document.getElementById('yManualQty').value)||0:Math.max(0,nIDU-1);
+  const yC=yQ*gp('Y',s);
+  document.getElementById('yBranchCost').textContent=fm(yC)+(yOn?` (${yQ})`:'');
+  const bC=(parseInt(document.getElementById('branch3').value)||0)*gp('B3',s)
+          +(parseInt(document.getElementById('branch4').value)||0)*gp('B4',s)
+          +(parseInt(document.getElementById('branch5').value)||0)*gp('B5',s)
+          +(parseInt(document.getElementById('branch6').value)||0)*gp('B6',s);
+  const branchC=yC+bC,equipT=oduC+iduC+eevC+branchC;
+  const baseI=nIDU*900;
+  let addI=(parseInt(document.getElementById('instDiff').value)||0)*300
+          +(parseInt(document.getElementById('instGas').value)||0)*200
+          +(parseInt(document.getElementById('instFloor').value)||0)*150
+          +(parseInt(document.getElementById('instRoof').value)||0)*150
+          +(parseInt(document.getElementById('instBrick').value)||0)*150
+          +(parseInt(document.getElementById('instRemoval').value)||0)*150
+          +(parseInt(document.getElementById('instSwitch').value)||0)*200
+          +(parseFloat(document.getElementById('instSpecial').value)||0);
+  const vQ=parseInt(document.getElementById('veecQty').value)||0;
+  const vUP=parseFloat(document.getElementById('veecPrice').value)||0;
+  const vFees=vQ*(VSVC+VREG),vProc=vQ*vUP;
+  const custC=parseFloat(document.getElementById('custContrib').value)||0;
+  const totRev=vProc+custC,instT=baseI+addI+vFees,totC=equipT+instT,fin=totRev-totC;
+  cc={s,om,iduD,nIDU,oduC,iduC,eevC,branchC,equipT,baseI,addI,vFees,vQ,vUP,vProc,custC,totRev,instT,totC,fin};
 
-    function calculateTotals() {
-        const stock = document.getElementById('calcStock').value;
-        const oduModel = document.getElementById('calcODU').value;
-        
-        // Update current calculation data
-        currentCalculation.stockLevel = stock;
-        currentCalculation.oduModel = oduModel;
-        currentCalculation.idus = [];
-        
-        let totalIDUs = 0;
-        let iduCost = 0;
-        iduModels.forEach((idu, index) => {
-            const qty = parseInt(document.getElementById(`idu${index}`).value) || 0;
-            if (qty > 0) {
-                totalIDUs += qty;
-                const price = getPriceFromTable('IDU', idu.model, stock);
-                iduCost += qty * price;
-                
-                // Store IDU data for PDF
-                currentCalculation.idus.push({
-                    model: idu.model,
-                    label: idu.label,
-                    capacity: idu.capacity,
-                    quantity: qty,
-                    unitPrice: price,
-                    totalPrice: qty * price
-                });
-            }
-        });
+  // update UI
+  $('baseInstTotal').textContent=`Total: ${fm(baseI)} (${nIDU} IDU${nIDU!==1?'s':''})`;
+  $('veecSvcFee').textContent=fm2(vQ*VSVC);$('veecRegFee').textContent=fm2(vQ*VREG);$('veecTotalFees').textContent=fm2(vFees);
+  $('resODU').textContent=fm(oduC);$('resIDU').textContent=fm(iduC);$('resEEV').textContent=fm(eevC);
+  $('resBranches').textContent=fm(branchC);$('resEquip').textContent=fm(equipT);
+  $('resBaseInst').textContent=fm(baseI);$('resAddInst').textContent=fm(addI);$('resVeecFees').textContent=fm2(vFees);
+  $('resInstTotal').textContent=fm2(instT);
+  $('resVeecProc').textContent='+'+fm2(vProc);$('resCustContrib').textContent='+'+fm2(custC);$('resTotalRev').textContent='+'+fm2(totRev);
+  $('grandTotal').textContent=fm2(totC);
+  const isP=fin>=0;
+  document.getElementById('profitBlock').classList.toggle('loss',!isP);
+  $('profitLbl').textContent=isP?'Profit':'Loss';
+  $('profitAmt').textContent=(isP?'':'-')+fm2(Math.abs(fin));
+}
 
-        const oduCost = getPriceFromTable('ODU', oduModel, stock);
-        const eevCost = totalIDUs * getPriceFromTable('EEV BOX', '/', stock);
+function $(id){return document.getElementById(id);}
+function showToast(m){const t=$('toast');t.innerText=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 
-        let yBranchCost;
-        const yOverride = document.getElementById('yBranchOverride').checked;
-        if (yOverride) {
-            const manualQty = parseInt(document.getElementById('yBranchManualQty').value) || 0;
-            yBranchCost = manualQty * 20;
-            document.getElementById('yBranchesCost').textContent = `$${yBranchCost} (${manualQty} manual)`;
-        } else {
-            yBranchCost = totalIDUs > 1 ? (totalIDUs - 1) * 20 : 0;
-            document.getElementById('yBranchesCost').textContent = `$${yBranchCost}`;
-        }
+async function generatePDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const PW=210,PH=297,ML=18,CW=PW-36;
+  const GOLD=[176,141,46],DARK=[20,28,46],MUT=[107,120,153],W=[255,255,255],TEAL=[26,158,130];
+  const c=cc,qn=$('quoteName').value.trim();
+  const sL={container:'Container 36',local10:'Local 10+',local5:'Local 5–10'};
+  const fa=v=>'$'+Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  // Header
+  doc.setFillColor(28,35,51);doc.rect(0,0,PW,34,'F');
+  doc.setFillColor(...GOLD);doc.rect(0,32.5,PW,2,'F');
+  try{const img=new Image();img.crossOrigin='anonymous';
+    await new Promise(r=>{img.onload=()=>{const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;cv.getContext('2d').drawImage(img,0,0);doc.addImage(cv.toDataURL('image/png'),'PNG',ML,6,20,20);r();};img.onerror=r;img.src='https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png';});
+  }catch(e){}
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...GOLD);doc.text('GOLDSURE',ML+25,14);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(190,200,220);doc.text('AUX Mini VRF — System Quote',ML+25,21);
+  doc.setTextColor(190,200,220);doc.text(new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'}),PW-ML,14,{align:'right'});
+  if(qn){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...GOLD);doc.text(qn,PW-ML,23,{align:'right'});}
+  let y=41;
+  doc.setFillColor(238,241,246);doc.roundedRect(ML,y,CW,10,2,2,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...MUT);
+  doc.text(`ODU: ${c.om}   ·   Stock: ${sL[c.s]}   ·   IDUs: ${c.nIDU}`,ML+4,y+6.8);
+  y+=16;
+  const sBar=l=>{if(y>PH-30){doc.addPage();y=18;}doc.setFillColor(...DARK);doc.rect(ML,y,CW,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...W);doc.text(l,ML+4,y+5.5);y+=12;};
+  const row=(l,v,lc,vc)=>{if(y>PH-24){doc.addPage();y=18;}doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...(lc||[60,75,105]));doc.text(l,ML+4,y);doc.setFont('helvetica','bold');doc.setTextColor(...(vc||DARK));doc.text(v,PW-ML-2,y,{align:'right'});y+=6.5;};
+  const div=()=>{doc.setDrawColor(220,226,238);doc.setLineWidth(0.3);doc.line(ML,y,PW-ML,y);y+=5;};
+  const sub=(l,v,vc)=>{if(y>PH-24){doc.addPage();y=18;}doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...DARK);doc.text(l,ML+4,y);doc.setTextColor(...(vc||DARK));doc.text(v,PW-ML-2,y,{align:'right'});y+=9;};
+  sBar('COST BREAKDOWN');
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...MUT);doc.text('EQUIPMENT',ML+2,y);y+=5;
+  row('Outdoor Unit (ODU)',fa(c.oduC));
+  c.iduD.forEach(i=>row(`  ${i.model} × ${i.q}`,fa(i.tot)));
+  row('Indoor Units (IDUs) — Total',fa(c.iduC));
+  row('EEV Boxes',fa(c.eevC));
+  if(c.branchC>0)row('Branches',fa(c.branchC));
+  div();sub('Equipment Total',fa(c.equipT));
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...MUT);doc.text('INSTALLATION',ML+2,y);y+=5;
+  row(`Base Installation (${c.nIDU} IDU${c.nIDU!==1?'s':''} × $900)`,fa(c.baseI));
+  if(c.addI>0)row('Additional Fees',fa(c.addI));
+  if(c.vFees>0)row('VEEC Registration Fees',fa(c.vFees));
+  div();sub('Installation Total',fa(c.instT));
+  if(c.totRev>0){
+    sBar('REVENUE');
+    if(c.vQ>0){row(`VEEC Proceeds (${c.vQ} × $${c.vUP.toFixed(2)})`,'+'+fa(c.vProc),[60,75,105],[46,139,87]);if(c.vFees>0)row('Less: VEEC Reg. Fees','−'+fa(c.vFees),[60,75,105],[180,40,40]);}
+    if(c.custC>0)row('Customer Contribution','+'+fa(c.custC),[60,75,105],[46,139,87]);
+    div();sub('Total Revenue','+'+fa(c.totRev),[46,139,87]);
+  }
+  y+=4;const isP=c.fin>=0;
+  doc.setFillColor(isP?232:253,isP?245:232,isP?233:232);doc.roundedRect(ML,y,CW,22,2,2,'F');
+  doc.setDrawColor(isP?176:224,isP?141:79,isP?46:79);doc.setLineWidth(0.5);doc.roundedRect(ML,y,CW,22,2,2,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(isP?176:224,isP?141:79,isP?46:79);
+  doc.text(isP?'✓  NET PROFIT':'✗  NET LOSS',ML+5,y+9);
+  doc.setFontSize(17);doc.text(`${isP?'+':'−'}${fa(c.fin)}`,PW-ML-4,y+16,{align:'right'});
+  const np=doc.internal.getNumberOfPages();
+  for(let p=1;p<=np;p++){
+    doc.setPage(p);doc.setFillColor(...DARK);doc.rect(0,PH-15,PW,15,'F');
+    doc.setFillColor(...GOLD);doc.rect(0,PH-15,PW,1.5,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...W);
+    doc.text('Goldsure Pty Ltd  |  ABN: 66 683 305 106  |  Suite 4, Level 1, 293 High Street, Preston VIC 3072',PW/2,PH-8.5,{align:'center'});
+    doc.text('(07) 2145 5155  ·  vignesh@goldsure.com.au  ·  www.goldsure.com.au',PW/2,PH-4,{align:'center'});
+    doc.text(`Page ${p} of ${np}`,PW-ML,PH-8.5,{align:'right'});
+  }
+  const ts=new Date().toISOString().slice(0,10);
+  doc.save(qn?`AUX-VRF-${qn.replace(/[^a-zA-Z0-9-_ ]/g,'').replace(/\s+/g,'-')}-${ts}.pdf`:`AUX-VRF-Quote-${ts}.pdf`);
+  showToast('PDF downloaded!');
+}
 
-        // Store branch data
-        currentCalculation.branches = {
-            yBranches: totalIDUs > 1 ? totalIDUs - 1 : 0,
-            yBranchCost: yBranchCost,
-            branch3: parseInt(document.getElementById('branch3').value) || 0,
-            branch4: parseInt(document.getElementById('branch4').value) || 0,
-            branch5: parseInt(document.getElementById('branch5').value) || 0,
-            branch6: parseInt(document.getElementById('branch6').value) || 0
-        };
-
-        let multiBranchCost = 0;
-        multiBranchCost += currentCalculation.branches.branch3 * getPriceFromTable('3 Heads Branch', '/', stock);
-        multiBranchCost += currentCalculation.branches.branch4 * getPriceFromTable('4 Heads Branch', '/', stock);
-        multiBranchCost += currentCalculation.branches.branch5 * getPriceFromTable('5 Heads Branch', '/', stock);
-        multiBranchCost += currentCalculation.branches.branch6 * getPriceFromTable('6 Heads Branch', '/', stock);
-
-        const equipmentTotal = oduCost + iduCost + eevCost + yBranchCost + multiBranchCost;
-
-        const baseInst = totalIDUs * 900;
-        
-        // Calculate additional installation fees with quantities
-        const instDifficultQty = parseInt(document.getElementById('instDifficultQty').value) || 0;
-        const instGasHeaterQty = parseInt(document.getElementById('instGasHeaterQty').value) || 0;
-        const instSecondFloorQty = parseInt(document.getElementById('instSecondFloorQty').value) || 0;
-        const instMetalRoofQty = parseInt(document.getElementById('instMetalRoofQty').value) || 0;
-        const instDoubleBrickQty = parseInt(document.getElementById('instDoubleBrickQty').value) || 0;
-        const instRemovalQty = parseInt(document.getElementById('instRemovalQty').value) || 0;
-        const instSwitchboardQty = parseInt(document.getElementById('instSwitchboardQty').value) || 0;
-        const instSpecialQty = parseFloat(document.getElementById('instSpecialQty').value) || 0;
-        
-        let addInst = 0;
-        addInst += instDifficultQty * 300;
-        addInst += instGasHeaterQty * 200;
-        addInst += instSecondFloorQty * 150;
-        addInst += instMetalRoofQty * 150;
-        addInst += instDoubleBrickQty * 150;
-        addInst += instRemovalQty * 150;
-        addInst += instSwitchboardQty * 200;
-        addInst += instSpecialQty;
-        
-        // Store installation data
-        currentCalculation.installation = {
-            baseInstallation: baseInst,
-            difficultAccess: instDifficultQty,
-            gasHeater: instGasHeaterQty,
-            secondFloor: instSecondFloorQty,
-            metalRoof: instMetalRoofQty,
-            doubleBrick: instDoubleBrickQty,
-            removal: instRemovalQty,
-            switchboard: instSwitchboardQty,
-            special: instSpecialQty
-        };
-
-        const veecQty = parseInt(document.getElementById('veecQuantity').value) || 0;
-        const veecUnitPrice = parseFloat(document.getElementById('veecPrice').value) || 0;
-        const totalVeecFees = veecQty * (VEEC_SERVICE_FEE + VEEC_REGISTRATION_FEE);
-        const veecProceeds = veecQty * veecUnitPrice;
-        const customerContribution = parseFloat(document.getElementById('customerContribution').value) || 0;
-        const totalRevenue = veecProceeds + customerContribution;
-        const installationTotal = baseInst + addInst + totalVeecFees;
-        const subtotal = equipmentTotal + installationTotal;
-        const finalTotal = totalRevenue - subtotal;
-
-        // Store financial data
-        currentCalculation.financial = {
-            veecQuantity: veecQty,
-            veecUnitPrice: veecUnitPrice,
-            veecProceeds: veecProceeds,
-            customerContribution: customerContribution,
-            veecFees: totalVeecFees
-        };
-
-        // Store results data
-        currentCalculation.results = {
-            oduCost: oduCost,
-            iduCost: iduCost,
-            eevCost: eevCost,
-            branchCost: yBranchCost + multiBranchCost,
-            equipmentTotal: equipmentTotal,
-            baseInstallation: baseInst,
-            additionalInstallation: addInst,
-            veecRegistrationFees: totalVeecFees,
-            installationTotal: installationTotal,
-            subtotal: subtotal,
-            veecProceeds: veecProceeds,
-            customerContribution: customerContribution,
-            totalRevenue: totalRevenue,
-            finalTotal: finalTotal
-        };
-
-        // UI Updates
-        document.getElementById('resultOdu').textContent = `$${oduCost.toLocaleString()}`;
-        document.getElementById('resultIdu').textContent = `$${iduCost.toLocaleString()}`;
-        document.getElementById('resultEev').textContent = `$${eevCost.toLocaleString()}`;
-        document.getElementById('resultBranches').textContent = `$${(yBranchCost + multiBranchCost).toLocaleString()}`;
-        document.getElementById('resultEquipment').textContent = `$${equipmentTotal.toLocaleString()}`;
-        
-        document.getElementById('baseInstallation').textContent = `Total: $${baseInst.toLocaleString()}`;
-        document.getElementById('veecServiceFee').textContent = `$${(veecQty * VEEC_SERVICE_FEE).toFixed(2)}`;
-        document.getElementById('veecRegistrationFee').textContent = `$${(veecQty * VEEC_REGISTRATION_FEE).toFixed(2)}`;
-        document.getElementById('totalVeecFees').textContent = `$${totalVeecFees.toFixed(2)}`;
-        
-        document.getElementById('resultInstallation').textContent = `$${baseInst.toLocaleString()}`;
-        document.getElementById('resultAdditional').textContent = `$${addInst.toLocaleString()}`;
-        document.getElementById('resultVeecRegFees').textContent = `$${totalVeecFees.toFixed(2)}`;
-        document.getElementById('resultInstallTotal').textContent = `$${installationTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        
-        document.getElementById('resultSubtotal').textContent = `−$${subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        document.getElementById('resultVeecProceeds').textContent = `+$${veecProceeds.toFixed(2)}`;
-        document.getElementById('resultCustomerContribution').textContent = `+$${customerContribution.toFixed(2)}`;
-        document.getElementById('resultTotalRevenue').textContent = `+$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-
-        const finalEl = document.getElementById('resultFinalTotal');
-        const profitCard = document.getElementById('profitCard');
-        const profitLabel = document.getElementById('profitLabel');
-        const absFinal = Math.abs(finalTotal).toLocaleString(undefined, {minimumFractionDigits: 2});
-        const profitIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`;
-        const lossIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>`;
-
-        if (finalTotal >= 0) {
-            finalEl.textContent = `$${absFinal}`;
-            profitCard.classList.remove('loss');
-            profitLabel.innerHTML = `${profitIcon} Profit`;
-        } else {
-            finalEl.textContent = `−$${absFinal}`;
-            profitCard.classList.add('loss');
-            profitLabel.innerHTML = `${lossIcon} Loss`;
-        }
-    }
-
-    function switchYear(view) {
-        document.getElementById('section2025').classList.add('hidden');
-        document.getElementById('section2026').classList.add('hidden');
-        document.getElementById('sectionInst').classList.add('hidden');
-        document.getElementById('btn2025').classList.remove('active');
-        document.getElementById('btn2026').classList.remove('active');
-        document.getElementById('btnInst').classList.remove('active');
-        
-        document.getElementById('section' + view).classList.remove('hidden');
-        if(view === 'Inst') document.getElementById('btnInst').classList.add('active');
-        else document.getElementById('btn' + view).classList.add('active');
-    }
-    
-    // PDF Generation Function
-    async function generatePDFReport() {
-        showLoading(true);
-        
-        try {
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const pw = doc.internal.pageSize.getWidth();   // 210
-            const ph = doc.internal.pageSize.getHeight();  // 297
-            const margin = 18;
-            const col2 = pw / 2;
-            let y = 0;
-
-            // ── Helper functions ────────────────────────
-            function pageCheck(needed) {
-                if (y + needed > ph - 20) {
-                    doc.addPage();
-                    y = 20;
-                }
-            }
-            function hrLine(color) {
-                doc.setDrawColor(...(color || [220, 228, 240]));
-                doc.setLineWidth(0.3);
-                doc.line(margin, y, pw - margin, y);
-                y += 5;
-            }
-            function sectionHeading(label, r, g, b) {
-                pageCheck(14);
-                doc.setFillColor(r || 61, g || 107, b || 142);
-                doc.roundedRect(margin, y, pw - margin * 2, 8, 1, 1, 'F');
-                doc.setFontSize(9); doc.setFont(undefined, 'bold');
-                doc.setTextColor(255, 255, 255);
-                doc.text(label.toUpperCase(), margin + 4, y + 5.5);
-                y += 12;
-                doc.setTextColor(30, 30, 30);
-            }
-            function row2col(leftLabel, leftVal, rightLabel, rightVal) {
-                pageCheck(8);
-                doc.setFontSize(9); doc.setFont(undefined, 'normal');
-                doc.setTextColor(100, 110, 130);
-                doc.text(leftLabel, margin + 2, y);
-                if (rightLabel) doc.text(rightLabel, col2 + 2, y);
-                y += 4.5;
-                doc.setFontSize(10); doc.setFont(undefined, 'bold');
-                doc.setTextColor(20, 30, 50);
-                doc.text(String(leftVal), margin + 2, y);
-                if (rightVal !== undefined) doc.text(String(rightVal), col2 + 2, y);
-                y += 7;
-            }
-            function lineItem(label, value, labelColor, valueColor) {
-                pageCheck(7);
-                doc.setFontSize(9.5); doc.setFont(undefined, 'normal');
-                doc.setTextColor(...(labelColor || [50, 60, 80]));
-                doc.text(label, margin + 4, y);
-                doc.setFont(undefined, 'semibold');
-                doc.setTextColor(...(valueColor || [20, 30, 50]));
-                doc.text(value, pw - margin - 2, y, { align: 'right' });
-                y += 6.5;
-            }
-            function subtotalLine(label, value, valueColor) {
-                pageCheck(8);
-                doc.setFontSize(10); doc.setFont(undefined, 'bold');
-                doc.setTextColor(20, 30, 50);
-                doc.text(label, margin + 4, y);
-                doc.setTextColor(...(valueColor || [20, 30, 50]));
-                doc.text(value, pw - margin - 2, y, { align: 'right' });
-                y += 8;
-            }
-
-            const quoteName = document.getElementById('quoteName').value.trim();
-            const stockText = document.getElementById('calcStock').options[document.getElementById('calcStock').selectedIndex].text;
-
-            // ── HEADER BANNER ───────────────────────────
-            // Soft slate header
-            doc.setFillColor(248, 250, 252);
-            doc.rect(0, 0, pw, 30, 'F');
-            // Thin accent line at top
-            doc.setFillColor(61, 107, 142);
-            doc.rect(0, 0, pw, 2, 'F');
-            // Bottom border
-            doc.setDrawColor(220, 228, 235);
-            doc.setLineWidth(0.5);
-            doc.line(0, 30, pw, 30);
-
-            // Logo (best-effort)
-            try {
-                const logoUrl = 'https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png';
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                await new Promise((res) => {
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-                        canvas.getContext('2d').drawImage(img, 0, 0);
-                        const data = canvas.toDataURL('image/png');
-                        const aspect = img.naturalWidth / img.naturalHeight;
-                        const lh = 16, lw = lh * aspect;
-                        doc.addImage(data, 'PNG', margin, 7, lw, lh);
-                        res();
-                    };
-                    img.onerror = res;
-                    img.src = logoUrl;
-                });
-            } catch(e) { /* logo optional */ }
-
-            doc.setFontSize(13); doc.setFont(undefined, 'bold');
-            doc.setTextColor(44, 62, 80);
-            doc.text('Goldsure Pty Ltd', pw - margin, 12, { align: 'right' });
-            doc.setFontSize(8); doc.setFont(undefined, 'normal');
-            doc.setTextColor(127, 140, 154);
-            const dateStr = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
-            doc.text('Suite 4, Level 1, 293 High Street, Preston VIC 3072', pw - margin, 18.5, { align: 'right' });
-            doc.text(`+61 451 898 761  ·  vignesh@goldsure.com.au`, pw - margin, 25, { align: 'right' });
-
-            y = 38;
-
-            // Document title
-            doc.setFontSize(15); doc.setFont(undefined, 'bold');
-            doc.setTextColor(44, 62, 80);
-            doc.text('AUX Mini VRF — System Quote', margin, y); y += 6;
-            doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(127, 140, 154);
-            doc.text(`Generated: ${dateStr}`, margin, y);
-            y += 9;
-
-            // ── QUOTE NAME (if set) ──────────────────────
-            if (quoteName) {
-                doc.setFontSize(13); doc.setFont(undefined, 'bold');
-                doc.setTextColor(61, 107, 142);
-                doc.text(quoteName, col2, y, { align: 'center' });
-                y += 6;
-            }
-            // ODU model + stock as a small info line
-            doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(127, 140, 154);
-            doc.text(`ODU Model: ${currentCalculation.oduModel}   |   Stock: ${stockText}`, margin, y);
-            y += 10;
-
-            // ── COSTS BREAKDOWN ─────────────────────────
-            pageCheck(20);
-            sectionHeading('Cost Breakdown');
-
-            // Equipment
-            doc.setFontSize(8.5); doc.setFont(undefined, 'bold'); doc.setTextColor(100, 110, 130);
-            doc.text('EQUIPMENT', margin + 2, y); y += 5;
-            lineItem('Outdoor Unit (ODU)', `$${currentCalculation.results.oduCost.toLocaleString()}`);
-            // Show each IDU line
-            currentCalculation.idus.forEach(idu => {
-                lineItem(`  ${idu.model} × ${idu.quantity}`, `$${idu.totalPrice.toLocaleString('en-AU', {minimumFractionDigits: 2})}`);
-            });
-            lineItem(`Indoor Units (IDUs) — Total`, `$${currentCalculation.results.iduCost.toLocaleString()}`);
-            lineItem(`EEV Boxes (${currentCalculation.idus.reduce((s,i)=>s+i.quantity,0)} units @ $${Math.round(currentCalculation.results.eevCost / Math.max(1, currentCalculation.idus.reduce((s,i)=>s+i.quantity,0)))} each)`, `$${currentCalculation.results.eevCost.toLocaleString()}`);
-            if (currentCalculation.results.branchCost > 0) lineItem('Branches', `$${currentCalculation.results.branchCost.toLocaleString()}`);
-            hrLine();
-            subtotalLine('Equipment Total', `$${currentCalculation.results.equipmentTotal.toLocaleString()}`);
-
-            // Installation
-            pageCheck(12);
-            doc.setFontSize(8.5); doc.setFont(undefined, 'bold'); doc.setTextColor(100, 110, 130);
-            doc.text('INSTALLATION', margin + 2, y); y += 5;
-            const totalIDUs = currentCalculation.idus.reduce((s, i) => s + i.quantity, 0);
-            lineItem(`Base Installation (${totalIDUs} IDU${totalIDUs !== 1 ? 's' : ''} × $900)`, `$${currentCalculation.results.baseInstallation.toLocaleString()}`);
-            if (currentCalculation.results.additionalInstallation > 0) lineItem('Additional Installation Fees', `$${currentCalculation.results.additionalInstallation.toLocaleString()}`);
-            if (currentCalculation.results.veecRegistrationFees > 0) lineItem('VEEC Registration Fees', `$${currentCalculation.results.veecRegistrationFees.toFixed(2)}`);
-            hrLine();
-            subtotalLine('Installation & Registration Total', `$${currentCalculation.results.installationTotal.toLocaleString('en-AU', {minimumFractionDigits: 2})}`);
-
-            // ── REVENUE ──────────────────────────────────
-            if (currentCalculation.results.totalRevenue > 0) {
-                pageCheck(20);
-                sectionHeading('Revenue', 0, 100, 80);
-                if (currentCalculation.financial.veecQuantity > 0) {
-                    lineItem(
-                        `VEEC Proceeds (${currentCalculation.financial.veecQuantity} VEECs x $${currentCalculation.financial.veecUnitPrice.toFixed(2)})`,
-                        `+$${currentCalculation.financial.veecProceeds.toLocaleString('en-AU', {minimumFractionDigits: 2})}`,
-                        [50, 60, 80], [46, 125, 50]
-                    );
-                    lineItem('Less: VEEC Registration Fees', `-$${currentCalculation.financial.veecFees.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [50, 60, 80], [180, 40, 40]);
-                }
-                if (currentCalculation.financial.customerContribution > 0) {
-                    lineItem('Customer Contribution', `+$${currentCalculation.financial.customerContribution.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [50, 60, 80], [46, 125, 50]);
-                }
-                hrLine();
-                subtotalLine('Total Revenue', `+$${currentCalculation.results.totalRevenue.toLocaleString('en-AU', {minimumFractionDigits: 2})}`, [46, 125, 50]);
-            }
-
-            // ── FINAL RESULT CARD ────────────────────────
-            pageCheck(30);
-            y += 4;
-            const finalTotal = currentCalculation.results.finalTotal;
-            const isProfit = finalTotal >= 0;
-
-            const cardR = isProfit ? 232 : 253, cardG = isProfit ? 245 : 232, cardB = isProfit ? 233 : 232;
-            doc.setFillColor(cardR, cardG, cardB);
-            doc.roundedRect(margin, y, pw - margin * 2, 24, 2, 2, 'F');
-            doc.setDrawColor(isProfit ? 46 : 211, isProfit ? 125 : 47, isProfit ? 50 : 47);
-            doc.setLineWidth(0.5);
-            doc.roundedRect(margin, y, pw - margin * 2, 24, 2, 2, 'S');
-
-            doc.setFontSize(10); doc.setFont(undefined, 'normal');
-            doc.setTextColor(isProfit ? 46 : 180, isProfit ? 100 : 30, isProfit ? 50 : 30);
-            doc.text(isProfit ? '✓  NET PROFIT' : '✗  NET LOSS', margin + 6, y + 9);
-
-            doc.setFontSize(18); doc.setFont(undefined, 'bold');
-            doc.setTextColor(isProfit ? 46 : 211, isProfit ? 125 : 47, isProfit ? 50 : 47);
-            const finalStr = `${isProfit ? '+' : '−'}$${Math.abs(finalTotal).toLocaleString('en-AU', {minimumFractionDigits: 2})}`;
-            doc.text(finalStr, pw - margin - 5, y + 16, { align: 'right' });
-
-            doc.setFontSize(7.5); doc.setFont(undefined, 'normal');
-            doc.setTextColor(140, 150, 170);
-            doc.text('Revenue minus Equipment, Installation & Registration costs', margin + 6, y + 20);
-            y += 30;
-
-            // ── FOOTER ───────────────────────────────────
-            pageCheck(16);
-            y += 6;
-            doc.setDrawColor(220, 228, 240); doc.setLineWidth(0.3);
-            doc.line(margin, y, pw - margin, y); y += 5;
-            doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(160, 170, 190);
-            doc.text('All prices exclude GST and local freight. For official quotes, contact Goldsure Pty Ltd.', col2, y, { align: 'center' });
-            y += 4;
-            doc.text(`Generated by AUX Mini VRF Dashboard · ${new Date().toLocaleString('en-AU')}`, col2, y, { align: 'center' });
-
-            // Save
-            const timestamp = new Date().toISOString().slice(0, 10);
-            const quoteNameForFile = (quoteName || '').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-');
-            const filename = quoteNameForFile ? `AUX-VRF-${quoteNameForFile}-${timestamp}.pdf` : `AUX-VRF-Quote-${timestamp}.pdf`;
-            doc.save(filename);
-            showLoading(false);
-
-        } catch (error) {
-            console.error('Error generating PDF:', error);
-            showLoading(false);
-            alert('Error generating PDF report. Please try again.');
-        }
-    }
-    
-    function showLoading(show) {
-        const overlay = document.getElementById('loadingOverlay');
-        if (show) {
-            overlay.style.display = 'flex';
-        } else {
-            overlay.style.display = 'none';
-        }
-    }
-    
-    window.addEventListener('DOMContentLoaded', initCalculator);
+initIDUs();
+calculateTotals();
+updateActionBtn();
 </script>
-
 </body>
 </html>
