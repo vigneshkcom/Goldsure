@@ -920,8 +920,16 @@ function renderCalendarGrid(containerId, year, month, events) {
           lbl.style.cssText = 'background:#fee2e2;color:#991b1b;border:1px dashed #fca5a5;font-style:italic'
           lbl.textContent = raw.replace('unavail:','').charAt(0).toUpperCase()+raw.replace('unavail:','').slice(1)+' ✗'
         } else {
-          lbl.className = `mobile-name ${getPillClass(e.electrician||'').replace('pill-','dot-')}`
-          lbl.textContent = (e.electrician||'').replace(/\[.*?\]/g,'').trim().split(' ').filter(Boolean)[0]||'—'
+          const displayName = (e.electrician||'').replace(/\[.*?\]/g,'').trim().split(' ').filter(Boolean)[0]||'—'
+          const isBookedWorker = workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)
+          if (isBookedWorker) {
+            lbl.className = 'mobile-name dot-0'
+            lbl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:2px;'
+            lbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;display:inline-block;vertical-align:middle;" aria-hidden="true"><path d="M17 11V7A5 5 0 0 0 7 7v4H5v11h14V11h-2zm-8-4a3 3 0 0 1 6 0v4H9V7zm3 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>' + displayName
+          } else {
+            lbl.className = `mobile-name ${getPillClass(e.electrician||'').replace('pill-','dot-')}`
+            lbl.textContent = displayName
+          }
         }
         namesCol.appendChild(lbl)
       })
@@ -932,11 +940,9 @@ function renderCalendarGrid(containerId, year, month, events) {
     if (workerFilter) {
       const myAvail   = dayWorkers.find(e => (e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
       const myUnavail = dayWorkers.find(e => (e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
-      const myBooked  = dayWorkers.find(e => { const n=(e.electrician||'').toLowerCase(); return n.includes(workerFilter)&&!n.startsWith('avail:')&&!n.startsWith('unavail:') })
       const tag = document.createElement('span')
-      if (myBooked)       { tag.className='avail-tag booked-tag'; tag.textContent='🔒'; dayBox.appendChild(tag) }
-      else if (myAvail)   { tag.className='avail-tag yes-tag';    tag.textContent='✓';  dayBox.appendChild(tag) }
-      else if (myUnavail) { tag.className='avail-tag no-tag';     tag.textContent='✗';  dayBox.appendChild(tag) }
+      if (myAvail)        { tag.className='avail-tag yes-tag'; tag.textContent='✓'; dayBox.appendChild(tag) }
+      else if (myUnavail) { tag.className='avail-tag no-tag';  tag.textContent='✗'; dayBox.appendChild(tag) }
     }
 
     calendar.appendChild(dayBox)
