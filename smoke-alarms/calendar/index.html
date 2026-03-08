@@ -9,25 +9,25 @@
 
 <style>
 :root {
-  --bg:        #f5f6f8;
+  --bg:        #f3f4f6;
   --surface:   #ffffff;
-  --surface2:  #f0f2f5;
-  --border:    #e3e7ef;
-  --text:      #141c2e;
-  --muted:     #6b7899;
-  --gold:      #b08d2e;
-  --gold-dark: #8a6900;
-  --gold-bg:   #fef7e7;
-  --gold-btn:  #b08d2e;
-  --red:       #e04f4f;
-  --shadow:    0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.10), 0 12px 32px rgba(0,0,0,0.08);
-  --r:         12px;
-  --p0-bg: #dbeafe; --p0-t: #1e40af;
-  --p1-bg: #dcfce7; --p1-t: #166534;
-  --p2-bg: #fce7f3; --p2-t: #9d174d;
-  --p3-bg: #ffedd5; --p3-t: #9a3412;
-  --p4-bg: #f3e8ff; --p4-t: #6b21a8;
+  --surface2:  #f9fafb;
+  --border:    #e5e7eb;
+  --text:      #111827;
+  --muted:     #6b7280;
+  --gold:      #cc9c2b;
+  --gold-dark: #b28522;
+  --gold-bg:   #fffbf0;
+  --gold-btn:  #cc9c2b;
+  --red:       #ef4444;
+  --shadow:    0 2px 8px rgba(0,0,0,0.04), 0 10px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.08), 0 24px 64px rgba(0,0,0,0.06);
+  --r:         16px;
+  --p0-bg: #eff6ff; --p0-t: #1e40af;
+  --p1-bg: #ecfdf5; --p1-t: #065f46;
+  --p2-bg: #fdf2f8; --p2-t: #9d174d;
+  --p3-bg: #fff7ed; --p3-t: #9a3412;
+  --p4-bg: #f5f3ff; --p4-t: #5b21b6;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,11 +57,12 @@ header {
 }
 .header-left  { display: flex; align-items: center; gap: 16px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
-.header-logo  { display: flex; align-items: center; gap: 12px; }
+.header-logo  { display: flex; align-items: center; gap: 12px; transition: transform 0.2s; cursor: pointer; }
+.header-logo:hover { transform: scale(1.02); }
 .header-logo img { height: 34px; width: auto; object-fit: contain; }
-.header-logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
-.header-logo-text span { color: var(--gold); }
-.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.1); }
+.header-logo-text { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; }
+.header-logo-text span { color: var(--gold); margin-left: 2px; }
+.hd { width: 1px; height: 28px; background: rgba(0,0,0,0.06); }
 .header-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
 .agent-chip {
   display: flex; align-items: center; gap: 7px;
@@ -99,13 +100,13 @@ header {
 }
 .month-nav-btn {
   font-family: 'Sora', sans-serif;
-  font-size: 12px; font-weight: 700;
-  padding: 7px 16px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--surface2); color: var(--text); cursor: pointer;
+  font-size: 13px; font-weight: 700;
+  padding: 6px 12px; border: none; border-radius: 8px;
+  background: transparent; color: var(--text); cursor: pointer;
   transition: all 0.15s; display: flex; align-items: center; gap: 6px;
   -webkit-tap-highlight-color: transparent; white-space: nowrap;
 }
-.month-nav-btn:hover { background: var(--gold-bg); border-color: var(--gold); color: var(--gold-dark); }
+.month-nav-btn:hover { background: var(--surface2); }
 .month-nav-btn:active { transform: scale(0.97); }
 .month-display {
   font-family: 'Sora', sans-serif;
@@ -141,10 +142,9 @@ header {
 .calendar-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
-  overflow: hidden;
-  padding: 20px 0 0;
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 24px;
 }
 
 /* Mobile month header — hidden on desktop */
@@ -153,14 +153,26 @@ header {
   padding: 0 20px 16px;
 }
 
+/* ── DUAL MONTH LAYOUT ── */
+.months-wrapper {
+  display: flex; gap: 24px;
+}
+.month-container { flex: 1; min-width: 0; }
+.month-divider { width: 1px; background: var(--border); display: block; }
+.month-title-header {
+  font-size: 16px; font-weight: 700; color: var(--text);
+  margin-bottom: 20px; text-align: center; letter-spacing: -0.4px;
+}
+.month-title-header span { color: var(--muted); margin-left: 4px; }
+
 /* ── WEEKDAY LABELS ── */
 .weekday-labels {
   display: grid;
   grid-template-columns: repeat(7,1fr);
   gap: 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 2px solid var(--border);
+  border-bottom: 2px solid var(--surface2);
   background: var(--surface);
+  margin-bottom: 12px;
 }
 .weekday-label {
   text-align: center; font-size: 10px; font-weight: 700;
@@ -168,55 +180,55 @@ header {
   color: var(--muted); padding: 8px 0;
 }
 
-/* ── CALENDAR GRID — grid-line style, no individual cell boxes ── */
+/* ── CALENDAR GRID ── */
 .calendar {
   display: grid;
-  grid-template-columns: repeat(7,1fr);
-  gap: 0;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
 }
 
 /* ── DAY CELL ── */
 .day {
-  background: transparent;
-  border: none;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 10px 10px 8px;
-  min-height: 104px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 6px;
+  min-height: 90px;
+  gap: 3px;
   position: relative;
   cursor: pointer;
-  transition: background 0.15s;
-  overflow: hidden;
-  box-shadow: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  display: flex; flex-direction: column; gap: 4px;
 }
-/* Left border on first column of each row */
-.day:nth-child(7n+1) { border-left: 1px solid var(--border); }
 
-
-.day:hover { background: var(--gold-bg); }
+.day:hover { 
+  background: var(--surface); 
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(204, 156, 43, 0.12);
+}
 
 .day.empty {
   background: transparent;
+  border: none;
+  box-shadow: none;
   pointer-events: none;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
 }
-.day.empty:nth-child(7n+1) { border-left: 1px solid var(--border); }
 
 
-/* Weekend — soft grey wash, no box */
-.day.weekend { background: #f7f8fa; }
-.day.weekend:hover { background: var(--gold-bg); }
+/* Weekend — soft grey wash */
+.day.weekend { background: #fafafa; border-color: #ededed; }
 
-/* Today — warm gold wash, no box border highlight */
-.day.today { background: var(--gold-bg); }
-.day.today:hover { background: #fdefc0; }
-.day.weekend.today { background: var(--gold-bg); }
+/* Today — warm gold wash */
+.day.today { 
+  background: var(--gold-bg); 
+  border-color: #e5d9ab;
+}
+.day.weekend.today { background: var(--gold-bg); border-color: #e5d9ab; }
 
 /* Holiday */
-.day.holiday-day { background: #fffcf0; }
-.day.holiday-day:hover { background: var(--gold-bg); }
+.day.holiday-day { background: #fffdf7; border-color: #f2ebd5; }
 
 /* ── DATE NUMBER ── */
 .day-num {
@@ -246,12 +258,13 @@ header {
 
 /* ── PILLS ── */
 .pill {
-  display: block; border-radius: 5px;
-  padding: 3px 7px; font-size: 10px; font-weight: 600;
-  margin-top: 3px; line-height: 1.35;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  letter-spacing: 0.01em; font-family: 'Sora', sans-serif;
+  display: flex; align-items: center; border-radius: 6px;
+  padding: 4px 8px; font-size: 10px; font-weight: 700;
+  line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: 0.02em; font-family: 'Sora', sans-serif;
+  transition: transform 0.15s; cursor: pointer;
 }
+.pill:hover { transform: scale(1.03); }
 .pill-0 { background: var(--p0-bg); color: var(--p0-t); }
 .pill-1 { background: var(--p1-bg); color: var(--p1-t); }
 .pill-2 { background: var(--p2-bg); color: var(--p2-t); }
@@ -307,17 +320,18 @@ header {
 /* ── MODAL ── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+  background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(6px);
   z-index: 999; align-items: center; justify-content: center;
 }
 .modal-overlay.open { display: flex; }
 .modal-box {
-  background: var(--surface); border-radius: 18px;
-  padding: 30px 28px 24px; max-width: 400px; width: 92%;
-  box-shadow: var(--shadow-lg); border-top: 3px solid var(--gold);
-  position: relative; animation: popIn 0.2s ease;
+  background: var(--surface); border-radius: 20px;
+  padding: 32px 30px 24px; max-width: 400px; width: 92%;
+  box-shadow: var(--shadow-lg);
+  position: relative; animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--border);
 }
-@keyframes popIn { from { transform: scale(0.96) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+@keyframes popIn { from { transform: scale(0.9) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 .modal-close { position: absolute; top: 14px; right: 18px; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--muted); line-height: 1; }
 .modal-close:hover { color: var(--text); }
 .modal-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 3px; letter-spacing: -0.3px; }
@@ -423,6 +437,10 @@ header {
   .sub-nav-right { position: static; transform: none; }
   .main { padding: 12px 10px 36px; }
   .weekday-label { font-size: 9px; letter-spacing: 0; }
+  
+  /* Fallback to single month stacked layout on small screens */
+  .months-wrapper { flex-direction: column; gap: 32px; }
+  .month-divider { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -473,23 +491,23 @@ header {
   /* Weekday labels */
   .weekday-label { font-size: 9px; font-weight: 700; padding: 6px 0; text-align: center; }
 
-  /* Calendar grid */
-  .calendar { gap: 0; }
+  /* Calendar grid inside card */
+  .calendar { gap: 6px; }
 
   /* Square cells on mobile */
   .day {
-    padding: 5px 3px 3px;
+    padding: 6px 4px 6px;
     min-height: unset;
     aspect-ratio: 1 / 1;
-    border-radius: 0;
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
     overflow: hidden;
-    box-shadow: none;
+    gap: 2px;
+    border: 1px solid var(--border);
   }
-  /* Keep grid lines on mobile too */
-  .day:hover { background: var(--gold-bg); }
+  .day:hover { transform: none; box-shadow: none; border-color: var(--gold); }
   .day.today { background: var(--gold-bg); }
   .day.weekend { background: #f7f8fa; }
   .day.weekend.today { background: var(--gold-bg); }
@@ -587,27 +605,40 @@ header {
 <div class="main">
   <div class="calendar-card">
 
-    <!-- Mobile-only: arrows inside the card -->
-    <div class="mobile-month-header">
-      <button class="mobile-month-nav" onclick="changeMonth(-1)">◀</button>
-      <div class="mobile-month-center">
-        <div class="mobile-month-display" id="mobileMonthDisplay"></div>
-        <button class="today-btn" onclick="goToToday()">Today</button>
+    <div class="months-wrapper">
+      <!-- MONTH 1 -->
+      <div class="month-container">
+        <div class="month-title-header" id="monthHeader1"></div>
+        <div class="weekday-labels">
+          <div class="weekday-label">Sun</div>
+          <div class="weekday-label">Mon</div>
+          <div class="weekday-label">Tue</div>
+          <div class="weekday-label">Wed</div>
+          <div class="weekday-label">Thu</div>
+          <div class="weekday-label">Fri</div>
+          <div class="weekday-label">Sat</div>
+        </div>
+        <div id="calendar1" class="calendar">
+          <div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>
+        </div>
       </div>
-      <button class="mobile-month-nav" onclick="changeMonth(1)">▶</button>
-    </div>
+      
+      <div class="month-divider"></div>
 
-    <div class="weekday-labels">
-      <div class="weekday-label">Sun</div>
-      <div class="weekday-label">Mon</div>
-      <div class="weekday-label">Tue</div>
-      <div class="weekday-label">Wed</div>
-      <div class="weekday-label">Thu</div>
-      <div class="weekday-label">Fri</div>
-      <div class="weekday-label">Sat</div>
-    </div>
-    <div id="calendar" class="calendar">
-      <div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>
+      <!-- MONTH 2 -->
+      <div class="month-container" id="monthContainer2">
+        <div class="month-title-header" id="monthHeader2" style="color:var(--muted)"></div>
+        <div class="weekday-labels">
+          <div class="weekday-label">Sun</div>
+          <div class="weekday-label">Mon</div>
+          <div class="weekday-label">Tue</div>
+          <div class="weekday-label">Wed</div>
+          <div class="weekday-label">Thu</div>
+          <div class="weekday-label">Fri</div>
+          <div class="weekday-label">Sat</div>
+        </div>
+        <div id="calendar2" class="calendar"></div>
+      </div>
     </div>
 
   </div>
@@ -713,32 +744,54 @@ function getPillClass(name) {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function updateMonthDisplay() {
-  const html = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
-  document.getElementById('monthDisplay').innerHTML = html
-  const mob = document.getElementById('mobileMonthDisplay')
-  if (mob) mob.innerHTML = html
+  const ny = currentMonth === 11 ? currentYear + 1 : currentYear;
+  const nm = currentMonth === 11 ? 0 : currentMonth + 1;
+  const m1 = MONTHS[currentMonth];
+  const m2 = MONTHS[nm];
+  
+  // Update center nav label
+  const yearStr = currentYear === ny ? currentYear : `${currentYear} – ${ny}`;
+  document.getElementById('monthDisplay').innerHTML = `${m1} – ${m2} <span style="font-weight:600;color:var(--muted); margin-left:4px;">${yearStr}</span>`
+  
+  // Update grids headers
+  document.getElementById('monthHeader1').innerHTML = `${m1} <span style="color:var(--muted)">${currentYear}</span>`;
+  document.getElementById('monthHeader2').innerHTML = `${m2} <span style="color:var(--border)">${ny}</span>`;
 }
 
 async function loadCalendar() {
-  document.getElementById('calendar').innerHTML =
+  document.getElementById('calendar1').innerHTML =
     `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
+  document.getElementById('calendar2').innerHTML = ''
   try {
     cachedEvents = await db.select("electrician_calendar") || []
     renderCalendar(cachedEvents)
   } catch(e) {
-    document.getElementById('calendar').innerHTML =
+    document.getElementById('calendar1').innerHTML =
       `<div class="loading-state" style="color:var(--red)">Connection error: ${e.message}</div>`
   }
 }
 
 function renderCalendar(events) {
-  const calendar = document.getElementById('calendar')
+  // Render current month on left side
+  renderMonth(events, 'calendar1', currentYear, currentMonth)
+  
+  // Render next month on right side
+  let nextMonth = currentMonth + 1;
+  let nextYear  = currentYear;
+  if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+  renderMonth(events, 'calendar2', nextYear, nextMonth)
+}
+
+function renderMonth(events, calendarId, year, month) {
+  const calendar = document.getElementById(calendarId)
+  if (!calendar) return
   calendar.innerHTML = ''
+  
   const todayStr    = new Date().toISOString().split('T')[0]
-  const firstDay    = new Date(currentYear, currentMonth, 1).getDay()
-  const lastDate    = new Date(currentYear, currentMonth + 1, 0).getDate()
+  const firstDay    = new Date(year, month, 1).getDay()
+  const lastDate    = new Date(year, month + 1, 0).getDate()
   const activeState = workerFilter ? (electricianStates[workerFilter] || null) : null
-  const holidayMap  = buildHolidayMap(currentYear, activeState)
+  const holidayMap  = buildHolidayMap(year, activeState)
   const filteredRows = workerFilter
     ? events.filter(r => (r.electrician || '').toLowerCase().includes(workerFilter))
     : events
@@ -748,9 +801,9 @@ function renderCalendar(events) {
   }
 
   for (let d = 1; d <= lastDate; d++) {
-    const dateStr   = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const dateStr   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const isToday   = dateStr === todayStr
-    const dayOfWeek = new Date(currentYear, currentMonth, d).getDay()
+    const dayOfWeek = new Date(year, month, d).getDay()
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     const dayHols   = holidayMap.get(dateStr) || []
 
