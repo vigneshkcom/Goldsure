@@ -135,7 +135,15 @@ header {
 #csvInput { display: none; }
 
 /* ── MAIN ── */
-.main { max-width: 1280px; margin: 0 auto; padding: 24px 28px 48px; width: 100%; flex: 1; }
+.main { max-width: 1600px; margin: 0 auto; padding: 24px 28px 48px; width: 100%; flex: 1; }
+
+/* ── TWO-MONTH WRAPPER ── */
+.two-month-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
 
 /* ── CALENDAR CARD ── */
 .calendar-card {
@@ -153,6 +161,18 @@ header {
   padding: 0 20px 16px;
 }
 
+/* ── MONTH LABEL INSIDE CARD (desktop) ── */
+.card-month-label {
+  text-align: center;
+  padding: 0 20px 14px;
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.card-month-label span { color: var(--gold); }
+
 /* ── WEEKDAY LABELS ── */
 .weekday-labels {
   display: grid;
@@ -168,7 +188,7 @@ header {
   color: var(--muted); padding: 8px 0;
 }
 
-/* ── CALENDAR GRID — grid-line style, no individual cell boxes ── */
+/* ── CALENDAR GRID ── */
 .calendar {
   display: grid;
   grid-template-columns: repeat(7,1fr);
@@ -193,7 +213,6 @@ header {
 /* Left border on first column of each row */
 .day:nth-child(7n+1) { border-left: 1px solid var(--border); }
 
-
 .day:hover { background: var(--gold-bg); }
 
 .day.empty {
@@ -204,12 +223,11 @@ header {
 }
 .day.empty:nth-child(7n+1) { border-left: 1px solid var(--border); }
 
-
-/* Weekend — soft grey wash, no box */
+/* Weekend */
 .day.weekend { background: #f7f8fa; }
 .day.weekend:hover { background: var(--gold-bg); }
 
-/* Today — warm gold wash, no box border highlight */
+/* Today */
 .day.today { background: var(--gold-bg); }
 .day.today:hover { background: #fdefc0; }
 .day.weekend.today { background: var(--gold-bg); }
@@ -232,7 +250,6 @@ header {
   line-height: 1;
   transition: background 0.15s;
 }
-/* Today: filled gold circle */
 .day.today .day-num {
   background: var(--gold);
   color: #fff;
@@ -241,7 +258,6 @@ header {
 .day.weekend .day-num { color: #b0bac8; }
 .day.holiday-day .day-num { color: var(--gold-dark); font-weight: 700; }
 
-/* Hide old dot indicator — circle replaces it */
 .today-dot { display: none !important; }
 
 /* ── PILLS ── */
@@ -402,7 +418,7 @@ header {
   padding: 14px 28px;
 }
 .footer-inner {
-  max-width: 1280px; margin: 0 auto;
+  max-width: 1600px; margin: 0 auto;
   display: flex; align-items: center; justify-content: center;
   gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--muted);
@@ -423,6 +439,12 @@ header {
   .sub-nav-right { position: static; transform: none; }
   .main { padding: 12px 10px 36px; }
   .weekday-label { font-size: 9px; letter-spacing: 0; }
+
+  /* Stack the two months vertically on tablet */
+  .two-month-wrapper {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -442,6 +464,12 @@ header {
   .upload-btn { font-size: 10px; padding: 6px 10px; }
 
   .main { padding: 10px 6px 36px; }
+
+  .two-month-wrapper {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .calendar-card { border-radius: 12px; padding: 12px 0 0; }
 
   /* Mobile month header INSIDE card */
@@ -470,6 +498,9 @@ header {
   }
   .mobile-month-display span { color: var(--gold); }
 
+  /* Hide desktop card labels on mobile — mobile header inside card handles it */
+  .card-month-label { display: none; }
+
   /* Weekday labels */
   .weekday-label { font-size: 9px; font-weight: 700; padding: 6px 0; text-align: center; }
 
@@ -488,14 +519,12 @@ header {
     overflow: hidden;
     box-shadow: none;
   }
-  /* Keep grid lines on mobile too */
   .day:hover { background: var(--gold-bg); }
   .day.today { background: var(--gold-bg); }
   .day.weekend { background: #f7f8fa; }
   .day.weekend.today { background: var(--gold-bg); }
   .day.holiday-day { background: #fffcf0; }
 
-  /* Date number — gold circle for today on mobile too */
   .day-num {
     font-family: 'Sora', sans-serif;
     font-size: 12px; font-weight: 600;
@@ -585,29 +614,65 @@ header {
 
 <!-- CALENDAR -->
 <div class="main">
-  <div class="calendar-card">
+  <div class="two-month-wrapper">
 
-    <!-- Mobile-only: arrows inside the card -->
-    <div class="mobile-month-header">
-      <button class="mobile-month-nav" onclick="changeMonth(-1)">◀</button>
-      <div class="mobile-month-center">
-        <div class="mobile-month-display" id="mobileMonthDisplay"></div>
-        <button class="today-btn" onclick="goToToday()">Today</button>
+    <!-- LEFT MONTH CARD -->
+    <div class="calendar-card" id="card-left">
+
+      <!-- Mobile-only nav for left month -->
+      <div class="mobile-month-header" id="mobileHeaderLeft">
+        <button class="mobile-month-nav" onclick="changeMonth(-1)">◀</button>
+        <div class="mobile-month-center">
+          <div class="mobile-month-display" id="mobileMonthDisplayLeft"></div>
+          <button class="today-btn" onclick="goToToday()">Today</button>
+        </div>
+        <button class="mobile-month-nav" onclick="changeMonth(1)">▶</button>
       </div>
-      <button class="mobile-month-nav" onclick="changeMonth(1)">▶</button>
+
+      <!-- Desktop month label inside card -->
+      <div class="card-month-label" id="cardMonthLabelLeft"></div>
+
+      <div class="weekday-labels">
+        <div class="weekday-label">Sun</div>
+        <div class="weekday-label">Mon</div>
+        <div class="weekday-label">Tue</div>
+        <div class="weekday-label">Wed</div>
+        <div class="weekday-label">Thu</div>
+        <div class="weekday-label">Fri</div>
+        <div class="weekday-label">Sat</div>
+      </div>
+      <div id="calendar-left" class="calendar">
+        <div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>
+      </div>
+
     </div>
 
-    <div class="weekday-labels">
-      <div class="weekday-label">Sun</div>
-      <div class="weekday-label">Mon</div>
-      <div class="weekday-label">Tue</div>
-      <div class="weekday-label">Wed</div>
-      <div class="weekday-label">Thu</div>
-      <div class="weekday-label">Fri</div>
-      <div class="weekday-label">Sat</div>
-    </div>
-    <div id="calendar" class="calendar">
-      <div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>
+    <!-- RIGHT MONTH CARD -->
+    <div class="calendar-card" id="card-right">
+
+      <!-- Mobile-only nav for right month (only shows prev/next, reuses same changeMonth) -->
+      <div class="mobile-month-header" id="mobileHeaderRight">
+        <div class="mobile-month-center" style="flex:1;">
+          <div class="mobile-month-display" id="mobileMonthDisplayRight"></div>
+        </div>
+      </div>
+
+      <!-- Desktop month label inside card -->
+      <div class="card-month-label" id="cardMonthLabelRight"></div>
+
+      <div class="weekday-labels">
+        <div class="weekday-label">Sun</div>
+        <div class="weekday-label">Mon</div>
+        <div class="weekday-label">Tue</div>
+        <div class="weekday-label">Wed</div>
+        <div class="weekday-label">Thu</div>
+        <div class="weekday-label">Fri</div>
+        <div class="weekday-label">Sat</div>
+      </div>
+      <div id="calendar-right" class="calendar">
+        <div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>
+      </div>
+
     </div>
 
   </div>
@@ -712,33 +777,68 @@ function getPillClass(name) {
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+// Compute the right month's year/month from left's
+function getRightMonthInfo() {
+  let rm = currentMonth + 1
+  let ry = currentYear
+  if (rm > 11) { rm = 0; ry++ }
+  return { month: rm, year: ry }
+}
+
 function updateMonthDisplay() {
-  const html = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
-  document.getElementById('monthDisplay').innerHTML = html
-  const mob = document.getElementById('mobileMonthDisplay')
-  if (mob) mob.innerHTML = html
+  const right = getRightMonthInfo()
+
+  // Desktop sub-nav: show range e.g. "March – April 2025" or "March 2025 – April 2026"
+  let rangeHtml
+  if (right.year === currentYear) {
+    rangeHtml = `${MONTHS[currentMonth]} – ${MONTHS[right.month]} <span>${currentYear}</span>`
+  } else {
+    rangeHtml = `${MONTHS[currentMonth]} <span>${currentYear}</span> – ${MONTHS[right.month]} <span>${right.year}</span>`
+  }
+  document.getElementById('monthDisplay').innerHTML = rangeHtml
+
+  // Desktop labels inside each card
+  document.getElementById('cardMonthLabelLeft').innerHTML =
+    `${MONTHS[currentMonth]} <span>${currentYear}</span>`
+  document.getElementById('cardMonthLabelRight').innerHTML =
+    `${MONTHS[right.month]} <span>${right.year}</span>`
+
+  // Mobile displays
+  const mobLeft = document.getElementById('mobileMonthDisplayLeft')
+  if (mobLeft) mobLeft.innerHTML = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
+  const mobRight = document.getElementById('mobileMonthDisplayRight')
+  if (mobRight) mobRight.innerHTML = `${MONTHS[right.month]} <span>${right.year}</span>`
 }
 
 async function loadCalendar() {
-  document.getElementById('calendar').innerHTML =
-    `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
+  const loadingHtml = `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
+  document.getElementById('calendar-left').innerHTML  = loadingHtml
+  document.getElementById('calendar-right').innerHTML = loadingHtml
   try {
     cachedEvents = await db.select("electrician_calendar") || []
-    renderCalendar(cachedEvents)
+    renderBothMonths(cachedEvents)
   } catch(e) {
-    document.getElementById('calendar').innerHTML =
-      `<div class="loading-state" style="color:var(--red)">Connection error: ${e.message}</div>`
+    const errHtml = `<div class="loading-state" style="color:var(--red)">Connection error: ${e.message}</div>`
+    document.getElementById('calendar-left').innerHTML  = errHtml
+    document.getElementById('calendar-right').innerHTML = errHtml
   }
 }
 
-function renderCalendar(events) {
-  const calendar = document.getElementById('calendar')
+function renderBothMonths(events) {
+  const right = getRightMonthInfo()
+  renderCalendarGrid('calendar-left',  currentYear, currentMonth, events)
+  renderCalendarGrid('calendar-right', right.year,  right.month,  events)
+}
+
+// Core render logic — extracted to work for any month/year, targeting a given container id
+function renderCalendarGrid(containerId, year, month, events) {
+  const calendar   = document.getElementById(containerId)
   calendar.innerHTML = ''
   const todayStr    = new Date().toISOString().split('T')[0]
-  const firstDay    = new Date(currentYear, currentMonth, 1).getDay()
-  const lastDate    = new Date(currentYear, currentMonth + 1, 0).getDate()
+  const firstDay    = new Date(year, month, 1).getDay()
+  const lastDate    = new Date(year, month + 1, 0).getDate()
   const activeState = workerFilter ? (electricianStates[workerFilter] || null) : null
-  const holidayMap  = buildHolidayMap(currentYear, activeState)
+  const holidayMap  = buildHolidayMap(year, activeState)
   const filteredRows = workerFilter
     ? events.filter(r => (r.electrician || '').toLowerCase().includes(workerFilter))
     : events
@@ -748,9 +848,9 @@ function renderCalendar(events) {
   }
 
   for (let d = 1; d <= lastDate; d++) {
-    const dateStr   = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const dateStr   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const isToday   = dateStr === todayStr
-    const dayOfWeek = new Date(currentYear, currentMonth, d).getDay()
+    const dayOfWeek = new Date(year, month, d).getDay()
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     const dayHols   = holidayMap.get(dateStr) || []
 
