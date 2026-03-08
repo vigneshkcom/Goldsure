@@ -758,11 +758,20 @@ async function loadCalendar() {
     `<div class="loading-state"><div class="spinner"></div><span>Loading schedule…</span></div>`
   document.getElementById('calendar2').innerHTML = ''
   try {
-    cachedEvents = await db.select("electrician_calendar") || []
+    console.log('[Goldsure] Fetching electrician_calendar from', SUPABASE_URL)
+    const { data, error } = await _sb.from('electrician_calendar').select('*')
+    console.log('[Goldsure] Response → data:', data, '| error:', error)
+    if (error) throw new Error(`${error.message} (code: ${error.code}, hint: ${error.hint || 'none'})`)
+    cachedEvents = data || []
     renderCalendar(cachedEvents)
   } catch(e) {
+    console.error('[Goldsure] loadCalendar failed:', e)
     document.getElementById('calendar1').innerHTML =
-      `<div class="loading-state" style="color:var(--red)">Connection error: ${e.message}</div>`
+      `<div class="loading-state" style="color:var(--red);text-align:center;padding:20px;">
+        <strong>⚠ Connection error</strong><br><br>
+        <span style="font-size:11px;font-family:monospace;">${e.message}</span><br><br>
+        <span style="font-size:11px;color:var(--muted)">Check Console (F12) for details. Likely fix: enable RLS read policy on <code>electrician_calendar</code> in Supabase.</span>
+      </div>`
   }
 }
 
