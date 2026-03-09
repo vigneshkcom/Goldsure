@@ -23,12 +23,13 @@ export default async function handler(req, res) {
       });
     }
 
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    // 1. Get fresh access token
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         client_id: GOOGLE_ADS_CLIENT_ID,
         client_secret: GOOGLE_ADS_CLIENT_SECRET,
         refresh_token: GOOGLE_ADS_REFRESH_TOKEN,
@@ -36,9 +37,9 @@ export default async function handler(req, res) {
       })
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenRes.json();
 
-    if (!tokenResponse.ok || !tokenData.access_token) {
+    if (!tokenRes.ok || !tokenData.access_token) {
       return res.status(500).json({
         success: false,
         error: "Failed to get access token",
@@ -48,13 +49,14 @@ export default async function handler(req, res) {
 
     const accessToken = tokenData.access_token;
 
+    // 2. Query Google Ads spend
     const query = `
-      SELECT metrics.cost_micros
-      FROM customer
+      SELECT campaign.id, campaign.name, metrics.cost_micros
+      FROM campaign
     `;
 
-    const adsResponse = await fetch(
-      `https://googleads.googleapis.com/v18/customers/${GOOGLE_ADS_CUSTOMER_ID}/googleAds:searchStream`,
+    const adsRes = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${GOOGLE_ADS_CUSTOMER_ID}/googleAds:search`,
       {
         method: "POST",
         headers: {
@@ -67,14 +69,14 @@ export default async function handler(req, res) {
       }
     );
 
-    const rawText = await adsResponse.text();
+    const rawText = await adsRes.text();
 
-    if (!adsResponse.ok) {
+    if (!adsRes.ok) {
       return res.status(500).json({
         success: false,
         error: "Google Ads API error",
         details: {
-          httpStatus: adsResponse.status,
+          httpStatus: adsRes.status,
           body: rawText
         }
       });
@@ -92,14 +94,14 @@ export default async function handler(req, res) {
     }
 
     let totalMicros = 0;
+    let campaignCount = 0;
 
-    if (Array.isArray(data)) {
-      data.forEach(chunk => {
-        if (chunk.results) {
-          chunk.results.forEach(row => {
-            totalMicros += Number(row.metrics?.costMicros || 0);
-          });
-        }
+    if (Array.isArray(data.results)) {
+      data.results.forEach(row => {
+        const metrics = row.metrics || {};
+        const val = metrics.costMicros ?? metrics.cost_micros ?? 0;
+        totalMicros += Number(val);
+        campaignCount += 1;
       });
     }
 
@@ -107,7 +109,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      total_spend: totalSpend
+      total_spend: totalSpend,
+      total_micros: totalMicros,
+      campaign_count: campaignCount
     });
   } catch (error) {
     return res.status(500).json({
