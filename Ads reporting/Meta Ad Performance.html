@@ -919,13 +919,12 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
           </div>
           <div class="config-divider"></div>
           <div class="config-csv-block">
-            <label>Google Ads CSV (Smoke)</label>
+            <label>Google Ads Spend (Live API)</label>
             <div class="config-csv-row">
-              <button class="btn-upload-csv" onclick="document.getElementById('smoke-google-csv-input').click()">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Upload CSV
+              <button class="btn-upload-csv" onclick="fetchLiveGoogleSpend(true)" id="btn-refresh-google" style="background:var(--green);border-color:var(--green);">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Refresh
               </button>
-              <input type="file" id="smoke-google-csv-input" accept=".csv" style="display:none;" onchange="handleSmokeGoogleCSV(this.files[0])">
               <div id="smoke-google-status"></div>
             </div>
           </div>
@@ -987,7 +986,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
             <div style="background:var(--surface2);border-radius:9px;padding:12px 14px;border:1px solid var(--border);">
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:5px;">↳ Google Spend</div>
               <div class="fin-value cb" id="kpi-google-spend" style="font-size:16px;">$0</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:3px;">From CSV ÷ 1.1 ex-GST</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;">Live API ÷ 1.1 ex-GST</div>
             </div>
             <!-- Webco -->
             <div style="background:var(--surface2);border-radius:9px;padding:12px 14px;border:1px solid var(--border);">
@@ -1063,7 +1062,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="financial-kpis" style="grid-template-columns:repeat(4,1fr);">
         <div class="fin-card"><div class="fin-label">TOTAL AD SPEND</div><div class="fin-value" id="hws-spend-val">$0</div><div class="fin-note">Meta + Google ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ META SPEND</div><div class="fin-value" id="hws-meta-spend" style="font-size:15px;">$0</div><div class="fin-note">API ÷ 1.1 ex-GST</div></div>
-        <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="hws-google-spend" style="font-size:15px;">$0</div><div class="fin-note">From billing CSVs ÷ 1.1 ex-GST</div></div>
+        <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="hws-google-spend" style="font-size:15px;">$0</div><div class="fin-note">Live API ÷ 1.1 ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="hws-webco-val">$0</div><div class="fin-note" id="hws-webco-note">Pro-rated ex-GST</div><button class="btn-webco-edit" onclick="openWebcoModal()">Edit Charges</button></div>
         <div class="fin-card"><div class="fin-label">TOTAL LEADS</div><div class="fin-value cb" id="hws-leads-val">0</div><div class="fin-note">Pipeline leads in date range</div></div>
       </div>
@@ -1179,12 +1178,48 @@ let alarmsPerJob = 5, sellPrice = 89.0909, costPrice = 25;
 // Monthly: Sep $798.02 · Oct $1,503.04 · Nov $1,425.78 · Dec $904.22
 const HWS_GOOGLE_SPEND_CSV = [{"date":"2025-09-15","amount":1.76},{"date":"2025-09-16","amount":1.27},{"date":"2025-09-17","amount":20.42},{"date":"2025-09-18","amount":55.13},{"date":"2025-09-19","amount":90.28},{"date":"2025-09-20","amount":99.99},{"date":"2025-09-21","amount":84.72},{"date":"2025-09-22","amount":65.39},{"date":"2025-09-23","amount":33.21},{"date":"2025-09-24","amount":44.67},{"date":"2025-09-25","amount":63.18},{"date":"2025-09-26","amount":61.82},{"date":"2025-09-27","amount":46.87},{"date":"2025-09-28","amount":45.76},{"date":"2025-09-29","amount":44.44},{"date":"2025-09-30","amount":39.11},{"date":"2025-10-01","amount":51.65},{"date":"2025-10-02","amount":47.13},{"date":"2025-10-03","amount":13.42},{"date":"2025-10-04","amount":66.93},{"date":"2025-10-05","amount":70.83},{"date":"2025-10-06","amount":85.11},{"date":"2025-10-07","amount":58.56},{"date":"2025-10-08","amount":49.36},{"date":"2025-10-09","amount":52.08},{"date":"2025-10-10","amount":45.26},{"date":"2025-10-11","amount":28.67},{"date":"2025-10-12","amount":42.45},{"date":"2025-10-13","amount":32.52},{"date":"2025-10-14","amount":65.87},{"date":"2025-10-15","amount":27.76},{"date":"2025-10-16","amount":14.26},{"date":"2025-10-17","amount":79.51},{"date":"2025-10-18","amount":95.73},{"date":"2025-10-19","amount":64.02},{"date":"2025-10-20","amount":42.89},{"date":"2025-10-21","amount":22.71},{"date":"2025-10-22","amount":9.98},{"date":"2025-10-23","amount":87.58},{"date":"2025-10-24","amount":33.06},{"date":"2025-10-25","amount":27.81},{"date":"2025-10-26","amount":61.53},{"date":"2025-10-27","amount":72.48},{"date":"2025-10-28","amount":51.61},{"date":"2025-10-29","amount":32.09},{"date":"2025-10-30","amount":48.3},{"date":"2025-10-31","amount":21.88},{"date":"2025-11-01","amount":25.82},{"date":"2025-11-02","amount":37.17},{"date":"2025-11-03","amount":59.1},{"date":"2025-11-04","amount":43.58},{"date":"2025-11-05","amount":75.13},{"date":"2025-11-06","amount":22.46},{"date":"2025-11-07","amount":49.05},{"date":"2025-11-08","amount":10.61},{"date":"2025-11-09","amount":16.98},{"date":"2025-11-10","amount":12.3},{"date":"2025-11-11","amount":29.19},{"date":"2025-11-12","amount":12.53},{"date":"2025-11-13","amount":8.15},{"date":"2025-11-14","amount":7.1},{"date":"2025-11-15","amount":1.87},{"date":"2025-11-16","amount":12.92},{"date":"2025-11-17","amount":21.3},{"date":"2025-11-18","amount":57.24},{"date":"2025-11-19","amount":67.75},{"date":"2025-11-20","amount":99.36},{"date":"2025-11-21","amount":99.93},{"date":"2025-11-22","amount":97.12},{"date":"2025-11-23","amount":66.85},{"date":"2025-11-24","amount":94.88},{"date":"2025-11-25","amount":92.78},{"date":"2025-11-26","amount":94.56},{"date":"2025-11-27","amount":99.99},{"date":"2025-11-28","amount":83.8},{"date":"2025-11-29","amount":17.71},{"date":"2025-11-30","amount":8.55},{"date":"2025-12-01","amount":51.2},{"date":"2025-12-02","amount":49.4},{"date":"2025-12-03","amount":54.81},{"date":"2025-12-04","amount":46.89},{"date":"2025-12-05","amount":51.87},{"date":"2025-12-06","amount":51.01},{"date":"2025-12-07","amount":5.57},{"date":"2025-12-08","amount":95.05},{"date":"2025-12-09","amount":50.93},{"date":"2025-12-10","amount":70.61},{"date":"2025-12-11","amount":47.98},{"date":"2025-12-12","amount":56.37},{"date":"2025-12-13","amount":60.65},{"date":"2025-12-14","amount":35.1},{"date":"2025-12-15","amount":79.44},{"date":"2025-12-16","amount":58.69},{"date":"2025-12-17","amount":38.65}];
 
-// Smoke Google spend: uploaded by user (same CSV format), stored in memory
-let SMOKE_GOOGLE_SPEND = []; // populated via CSV upload
+// Smoke Google spend: populated via live API fetch from /api/MetaAdPerformace/google-spend
+let SMOKE_GOOGLE_SPEND = []; // kept for CSV fallback compatibility (not used for live data)
 
 // Set to true if your Smoke Google CSV contains INC-GST amounts (÷1.1 will be applied).
 // Set to false (default) if CSV amounts are already EX-GST — no conversion applied.
 const SMOKE_CSV_IS_INC_GST = false;
+
+// Live Google spend fetched from the API (inc-GST AUD, lifetime total)
+let LIVE_GOOGLE_SPEND_TOTAL = null;   // null = not yet loaded
+let LIVE_GOOGLE_SPEND_LOADING = false;
+
+/**
+ * Fetch live Google Ads spend from the Vercel serverless endpoint.
+ * Sets LIVE_GOOGLE_SPEND_TOTAL and re-renders the current product view.
+ * @param {boolean} [userTriggered=false] - true when called from Refresh button click
+ */
+async function fetchLiveGoogleSpend(userTriggered = false) {
+  if (LIVE_GOOGLE_SPEND_LOADING) return;
+  LIVE_GOOGLE_SPEND_LOADING = true;
+  updateGoogleUploadStatus('loading');
+
+  try {
+    const res = await fetch('/api/MetaAdPerformace/google-spend');
+    const data = await res.json();
+
+    if (data.success && typeof data.total_spend === 'number') {
+      LIVE_GOOGLE_SPEND_TOTAL = data.total_spend;
+      updateGoogleUploadStatus('ok');
+    } else {
+      console.error('[google-spend] API error:', data);
+      LIVE_GOOGLE_SPEND_TOTAL = 0;
+      updateGoogleUploadStatus('error', data.error ?? 'Unknown error');
+    }
+  } catch (err) {
+    console.error('[google-spend] Fetch failed:', err);
+    LIVE_GOOGLE_SPEND_TOTAL = 0;
+    updateGoogleUploadStatus('error', err.message ?? 'Network error');
+  } finally {
+    LIVE_GOOGLE_SPEND_LOADING = false;
+    renderCurrentProduct();
+  }
+}
 
 // ── WEBCO EXPENSE (ex-GST per month) ──
 const WEBCO_SCHEDULE = [
@@ -1440,6 +1475,8 @@ function initDashboard(){
   switchProduct('smoke');
   if(META_CONNECTED) loadMetaSpend();
   else renderCurrentProduct();
+  // ── Fetch live Google Ads spend immediately on dashboard load ──
+  fetchLiveGoogleSpend();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1601,8 +1638,10 @@ function renderSmoke(){
 
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
   const metaSpend = spend.reduce((a,b)=>a+b.amount,0) / 1.1;
-  // Google: Smoke CSV is ex-GST by default (SMOKE_CSV_IS_INC_GST = false → no conversion)
-  const googleSpend = getFilteredGoogleSpend('smoke').reduce((a,b)=>a+b.amount,0) / (SMOKE_CSV_IS_INC_GST ? 1.1 : 1);
+  // Google: Live API returns inc-GST → divide by 1.1 to get ex-GST
+  // LIVE_GOOGLE_SPEND_TOTAL is lifetime total; we use it as-is (no date-range filtering possible on live data)
+  const googleSpendRaw = LIVE_GOOGLE_SPEND_TOTAL !== null ? LIVE_GOOGLE_SPEND_TOTAL : 0;
+  const googleSpend = googleSpendRaw / 1.1;
   const webcoAmt = getWebcoForRange(from, to, 'smoke');
   // Revenue, COGS, install all ex-GST
   const revenue = inst * alarmsPerJob * sellPrice;
@@ -1659,8 +1698,9 @@ function renderHws(){
 
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
   const metaSpend = spend.reduce((a,b)=>a+b.amount,0) / 1.1;
-  // Google: CSV values are inc-GST → divide by 1.1 to get ex-GST
-  const googleSpend = getFilteredGoogleSpend('hws').reduce((a,b)=>a+b.amount,0) / 1.1;
+  // Google: Live API returns inc-GST → divide by 1.1 to get ex-GST
+  const googleSpendRaw = LIVE_GOOGLE_SPEND_TOTAL !== null ? LIVE_GOOGLE_SPEND_TOTAL : 0;
+  const googleSpend = googleSpendRaw / 1.1;
   const webcoAmt = getWebcoForRange(from, to, 'hws');
   const totalAdSpend = metaSpend + googleSpend;
 
@@ -1823,16 +1863,19 @@ function renderSpendLeadsChart(leads, product) {
     spendByMonth[key] = (spendByMonth[key] || 0) + (d.amount / 1.1);
   });
 
-  // Also add Google spend (Smoke CSV or HWS CSV)
-  const googleAll = product === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND_CSV;
-  const filteredGoogle = (!from || !to) ? googleAll : googleAll.filter(r => r.date >= from && r.date <= to);
-  filteredGoogle.forEach(r => {
-    const key = r.date.slice(0, 7);
-    const amt = product === 'smoke'
-      ? r.amount / (SMOKE_CSV_IS_INC_GST ? 1.1 : 1)
-      : r.amount / 1.1;
-    spendByMonth[key] = (spendByMonth[key] || 0) + amt;
-  });
+  // Also add Google spend — live API gives a lifetime total (no per-day breakdown).
+  // We spread it evenly across months visible in the chart as a best-effort approximation.
+  // If LIVE_GOOGLE_SPEND_TOTAL is null (not yet loaded) we skip gracefully.
+  if (LIVE_GOOGLE_SPEND_TOTAL !== null && LIVE_GOOGLE_SPEND_TOTAL > 0) {
+    const googleExGst = LIVE_GOOGLE_SPEND_TOTAL / 1.1;
+    const monthKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
+    if (monthKeys.length > 0) {
+      const perMonth = googleExGst / monthKeys.length;
+      monthKeys.forEach(key => {
+        spendByMonth[key] = (spendByMonth[key] || 0) + perMonth;
+      });
+    }
+  }
 
   // Add Webco per month (ex-GST, pro-rated to full month)
   const allMonthKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
@@ -2161,37 +2204,41 @@ function clearSmokeGoogleSpend() {
   renderCurrentProduct();
 }
 
-function updateGoogleUploadStatus() {
+/**
+ * Update the status pill next to the Google Ads "Refresh" button.
+ * @param {'idle'|'loading'|'ok'|'error'} state
+ * @param {string} [errMsg]
+ */
+function updateGoogleUploadStatus(state, errMsg) {
   const el = document.getElementById('smoke-google-status');
   if (!el) return;
-  if (!SMOKE_GOOGLE_SPEND.length) {
-    el.innerHTML = '<span class="csv-status-pill empty">No file — Google $0</span>';
-  } else {
-    const total = SMOKE_GOOGLE_SPEND.reduce((a,b)=>a+b.amount,0);
-    const dates = SMOKE_GOOGLE_SPEND.map(r=>r.date).sort();
-    const from = document.getElementById('dateFrom').value;
-    const to   = document.getElementById('dateTo').value;
-    const filtered = SMOKE_GOOGLE_SPEND.filter(r => {
-      if (from && r.date < from) return false;
-      if (to   && r.date > to)   return false;
-      return true;
-    });
-    const filteredTotal = filtered.reduce((a,b)=>a+b.amount,0);
-    const rangeStr = (from && to) ? ` · $${filteredTotal.toFixed(2)} in range` : '';
-    el.innerHTML = `<span class="csv-status-pill loaded">✓ ${SMOKE_GOOGLE_SPEND.length}d · $${total.toFixed(2)}${rangeStr}</span><button class="btn-clear-csv" onclick="clearSmokeGoogleSpend()">✕ Clear</button>`;
+
+  if (state === 'loading') {
+    el.innerHTML = '<span class="csv-status-pill empty" style="color:var(--amber);">⟳ Fetching…</span>';
+    return;
   }
+  if (state === 'error') {
+    el.innerHTML = `<span class="csv-status-pill empty" style="color:var(--red);">✕ ${errMsg ?? 'Error'}</span>`;
+    return;
+  }
+  if (state === 'ok' && LIVE_GOOGLE_SPEND_TOTAL !== null) {
+    el.innerHTML = `<span class="csv-status-pill loaded">✓ $${LIVE_GOOGLE_SPEND_TOTAL.toFixed(2)} inc-GST (lifetime)</span>`;
+    return;
+  }
+  // idle / not yet loaded
+  el.innerHTML = '<span class="csv-status-pill empty">Not loaded — click Refresh</span>';
 }
 
 function getFilteredGoogleSpend(prod) {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  const all  = prod === 'smoke' ? SMOKE_GOOGLE_SPEND : HWS_GOOGLE_SPEND_CSV;
-  return all.filter(r => {
-    if (from && r.date < from) return false;
-    if (to   && r.date > to)   return false;
-    return true;
-  });
+  // Legacy helper kept for any code that may still call it.
+  // With live API data there is no per-day breakdown, so always return empty
+  // (the live total is consumed directly via LIVE_GOOGLE_SPEND_TOTAL).
+  return [];
 }
+
+// Legacy CSV functions — kept as no-ops so no existing call sites break
+function handleSmokeGoogleCSV() {}
+function clearSmokeGoogleSpend() {}
 
 // ══════════════════════════════════════════════════════════════
 //  PDF
