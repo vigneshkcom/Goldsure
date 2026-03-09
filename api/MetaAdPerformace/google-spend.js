@@ -77,16 +77,16 @@ export default async function handler(req, res) {
 
     // ── Step 2: Query Google Ads API for all-time campaign cost ───────────
     //
-    // We query the `campaign` resource which returns cost_micros per campaign.
-    // Summing gives lifetime spend across all campaigns in the account.
-    // metrics.cost_micros is always in the account currency (AUD).
+    // Querying `campaign` resource gives cost_micros per campaign (lifetime).
+    // No WHERE filter on status so REMOVED campaigns are included too,
+    // ensuring the full historical spend is captured.
     //
     const gaqlQuery = `
       SELECT
         campaign.id,
+        campaign.name,
         metrics.cost_micros
       FROM campaign
-      WHERE campaign.status != 'REMOVED'
     `.trim();
 
     const adsRes = await fetch(
@@ -121,13 +121,22 @@ export default async function handler(req, res) {
     const data = JSON.parse(rawText);
 
     // ── Step 3: Sum cost_micros across all campaigns (with pagination) ────
+    // The REST API may return either camelCase (costMicros) or snake_case
+    // (cost_micros) depending on the SDK version — handle both defensively.
+    function extractCostMicros(metrics) {
+      if (!metrics) return 0;
+      const val = metrics.costMicros ?? metrics.cost_micros ?? metrics['cost_micros'] ?? 0;
+      return Number(val);
+    }
+
     let totalMicros = 0;
     if (Array.isArray(data.results)) {
       for (const row of data.results) {
-        totalMicros += Number(row.metrics?.costMicros ?? 0);
+        totalMicros += extractCostMicros(row.metrics);
       }
     }
 
+    // Handle pagination
     let nextPageToken = data.nextPageToken;
     while (nextPageToken) {
       const pageRes = await fetch(
@@ -147,7 +156,7 @@ export default async function handler(req, res) {
       const pageData = JSON.parse(await pageRes.text());
       if (Array.isArray(pageData.results)) {
         for (const row of pageData.results) {
-          totalMicros += Number(row.metrics?.costMicros ?? 0);
+          totalMicros += extractCostMicros(row.metrics);
         }
       }
       nextPageToken = pageData.nextPageToken;
@@ -155,11 +164,16 @@ export default async function handler(req, res) {
 
     const totalSpend = totalMicros / 1_000_000;
 
+    // ── Debug info (safe to keep in production, remove if preferred) ───────
+    const campaignCount = Array.isArray(data.results) ? data.results.length : 0;
+
     return res.status(200).json({
-      success:     true,
-      total_spend: totalSpend,
-      currency:    'AUD',
-      note:        'Lifetime spend (inc-GST). Divide by 1.1 for ex-GST.',
+      success:        true,
+      total_spend:    totalSpend,
+      total_micros:   totalMicros,
+      campaign_count: campaignCount,
+      currency:       'AUD',
+      note:           'Lifetime spend (inc-GST). Divide by 1.1 for ex-GST.',
     });
 
   } catch (err) {
