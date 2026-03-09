@@ -747,8 +747,24 @@ const db = {
   }
 }
 
-const electricians = ["Corey", "Adam", "William"]
-const electricianStates = { corey: "QLD", adam: "VIC", william: "VIC" }
+let electricians = []
+let electricianStates = {}
+
+async function loadElectricians() {
+  try {
+    const { data, error } = await _sb
+      .from("qld_electricians_list")
+      .select("*")
+      .eq("active", true)
+    if (error) throw new Error(error.message)
+    const rows = data || []
+    electricians = rows.map(r => r.name)
+    electricianStates = {}
+    rows.forEach(r => { electricianStates[r.slug] = r.state || "QLD" })
+  } catch (e) {
+    console.error("Failed to load electricians:", e.message)
+  }
+}
 
 const _now       = new Date()
 let currentYear  = _now.getFullYear()
@@ -1145,8 +1161,13 @@ function showToast(msg,isError=false) {
   clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),3200)
 }
 
-updateMonthDisplay()
-loadCalendar()
+async function init() {
+  await loadElectricians()
+  updateMonthDisplay()
+  await loadCalendar()
+}
+
+init()
 
 let _shareMenuEl=null
 function showShareMenu(event) {
