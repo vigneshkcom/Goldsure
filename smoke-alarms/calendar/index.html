@@ -142,7 +142,7 @@ header {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ── CALENDAR CARD ── */
@@ -968,6 +968,13 @@ function renderCalendarGrid(containerId, year, month, events) {
     }
 
     calendar.appendChild(dayBox)
+  }
+
+  // Pad to exactly 42 cells (6 rows × 7) so both months always match height
+  const totalCells = firstDay + lastDate
+  const trailingEmpty = (42 - (totalCells % 42)) % 42
+  for (let i = 0; i < trailingEmpty; i++) {
+    const e = document.createElement('div'); e.className = 'day empty'; calendar.appendChild(e)
   }
 }
 
