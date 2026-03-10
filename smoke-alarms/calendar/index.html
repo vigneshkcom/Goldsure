@@ -288,6 +288,15 @@ header {
 }
 .lock-badge svg { display: block; }
 
+/* ── PILL JOB COUNT BADGE ── */
+.pill-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.13); color: inherit;
+  font-size: 9px; font-weight: 800; border-radius: 20px;
+  padding: 0px 5px; min-width: 16px; height: 14px;
+  margin-left: 2px; flex-shrink: 0; letter-spacing: 0;
+}
+
 /* ── HOLIDAYS ── */
 .holiday-label {
   display: block; font-size: 9px; font-weight: 700;
@@ -390,42 +399,6 @@ header {
 }
 .toast.show  { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.error { border-left-color: var(--red); }
-
-/* ── CSV SUMMARY PANEL ── */
-.csv-summary {
-  position: fixed; bottom: 24px; right: 24px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-top: 3px solid var(--gold);
-  border-radius: 14px; box-shadow: var(--shadow-lg);
-  padding: 16px 20px; z-index: 9998; min-width: 220px; max-width: 320px;
-  transform: translateY(120%); opacity: 0;
-  transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.25s;
-  pointer-events: none;
-}
-.csv-summary.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
-.csv-summary-title {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.7px; color: var(--muted); margin-bottom: 10px;
-}
-.csv-summary-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 0; border-bottom: 1px solid var(--border); gap: 12px;
-}
-.csv-summary-row:last-child { border-bottom: none; }
-.csv-summary-name { font-size: 12px; font-weight: 600; color: var(--text); }
-.csv-summary-count {
-  font-size: 11px; font-weight: 700; padding: 2px 9px;
-  border-radius: 20px; background: var(--gold-bg);
-  color: var(--gold-dark); white-space: nowrap; flex-shrink: 0;
-}
-.csv-summary-close {
-  display: block; margin-top: 12px; width: 100%;
-  font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.4px;
-  background: none; border: 1px solid var(--border); border-radius: 7px;
-  padding: 5px 0; color: var(--muted); cursor: pointer; transition: all 0.15s;
-}
-.csv-summary-close:hover { border-color: var(--gold); color: var(--gold-dark); background: var(--gold-bg); }
 
 /* ── SHARE MENU ── */
 .share-menu {
@@ -758,13 +731,6 @@ header {
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- CSV UPLOAD SUMMARY -->
-<div class="csv-summary" id="csvSummary">
-  <div class="csv-summary-title">📋 CSV Upload Summary</div>
-  <div id="csvSummaryRows"></div>
-  <button class="csv-summary-close" onclick="closeCsvSummary()">Dismiss</button>
-</div>
-
 <!-- FOOTER -->
 <footer class="site-footer">
   <div class="footer-inner">
@@ -917,12 +883,30 @@ async function loadCalendar() {
 
 function renderBothMonths(events) {
   const right = getRightMonthInfo()
-  renderCalendarGrid('calendar-left',  currentYear, currentMonth, events)
-  renderCalendarGrid('calendar-right', right.year,  right.month,  events)
+
+  // Build job count per electrician across both visible months (booked entries only)
+  const leftStart  = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`
+  const leftEnd    = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-31`
+  const rightStart = `${right.year}-${String(right.month+1).padStart(2,'0')}-01`
+  const rightEnd   = `${right.year}-${String(right.month+1).padStart(2,'0')}-31`
+  const monthJobCounts = new Map()
+  events.forEach(e => {
+    const n = (e.electrician||'').toLowerCase()
+    if (n.startsWith('avail:') || n.startsWith('unavail:')) return
+    const d = e.work_date || ''
+    if (!((d >= leftStart && d <= leftEnd) || (d >= rightStart && d <= rightEnd))) return
+    const name = (e.electrician||'').replace(/^\[\d+\]\s*/, '').trim()
+    if (!name) return
+    monthJobCounts.set(name, (monthJobCounts.get(name)||0) + 1)
+  })
+
+  renderCalendarGrid('calendar-left',  currentYear, currentMonth, events, monthJobCounts)
+  renderCalendarGrid('calendar-right', right.year,  right.month,  events, monthJobCounts)
 }
 
 // Core render logic — extracted to work for any month/year, targeting a given container id
-function renderCalendarGrid(containerId, year, month, events) {
+function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
+  monthJobCounts = monthJobCounts || new Map()
   const calendar   = document.getElementById(containerId)
   calendar.innerHTML = ''
   const todayStr    = new Date().toISOString().split('T')[0]
@@ -1034,13 +1018,22 @@ function renderCalendarGrid(containerId, year, month, events) {
         pill.className = 'pill pill-unavail'
         pill.textContent = workerFilter ? '✕ Unavailable' : '✕ ' + cap
       } else {
-        // Booked entry — in worker view show "🔒 Booked", in admin show first name.
+        // Booked entry — in worker view show "🔒 Booked", in admin show first name + month job count.
         pill.className = `pill ${getPillClass(e.electrician || '')}`
         if (workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)) {
           pill.textContent = '🔒 Booked'
         } else {
           const displayFirst = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim().split(' ')[0] || '—'
+          const fullStripped = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim()
+          const jobCount = monthJobCounts.get(fullStripped) || 0
+          pill.style.display = 'flex'; pill.style.alignItems = 'center'; pill.style.gap = '3px'
           pill.textContent = displayFirst
+          if (jobCount > 0) {
+            const badge = document.createElement('span')
+            badge.className = 'pill-count'
+            badge.textContent = jobCount
+            pill.appendChild(badge)
+          }
         }
       }
       dayBox.appendChild(pill)
@@ -1243,47 +1236,8 @@ async function handleCSV(event) {
     await db.delete('electrician_calendar',{work_date:{in:affectedDates},electrician:{in:existing.map(e=>e.electrician)}})
   }
   await db.insert('electrician_calendar',rows)
-
-  // Build per-electrician job count summary
-  const countMap = new Map()
-  rows.forEach(r => {
-    const name = (r.electrician||'').replace(/^\[\d+\]\s*/, '').trim()
-    if (!name) return
-    countMap.set(name, (countMap.get(name)||0) + 1)
-  })
-  const summaryRows = document.getElementById('csvSummaryRows')
-  summaryRows.innerHTML = ''
-  // Sort by count descending
-  const sorted = [...countMap.entries()].sort((a,b) => b[1]-a[1])
-  sorted.forEach(([name, count]) => {
-    const row = document.createElement('div'); row.className = 'csv-summary-row'
-    const nameEl = document.createElement('span'); nameEl.className = 'csv-summary-name'; nameEl.textContent = name
-    const countEl = document.createElement('span'); countEl.className = 'csv-summary-count'; countEl.textContent = `${count} job${count!==1?'s':''}`
-    row.appendChild(nameEl); row.appendChild(countEl)
-    summaryRows.appendChild(row)
-  })
-  // Total row
-  const totalRow = document.createElement('div'); totalRow.className = 'csv-summary-row'
-  const totalName = document.createElement('span'); totalName.className = 'csv-summary-name'; totalName.style.color='var(--muted)'; totalName.textContent = 'Total'
-  const totalCount = document.createElement('span'); totalCount.className = 'csv-summary-count'; totalCount.textContent = `${rows.length} job${rows.length!==1?'s':''}`
-  totalRow.appendChild(totalName); totalRow.appendChild(totalCount)
-  summaryRows.appendChild(totalRow)
-
-  showCsvSummary()
-  showToast(`✓ ${rows.length} job${rows.length!==1?'s':''} uploaded`)
+  showToast(`✓ Inserted ${rows.length} row${rows.length!==1?'s':''} from CSV`)
   loadCalendar()
-}
-
-let _csvSummaryTimer = null
-function showCsvSummary() {
-  const el = document.getElementById('csvSummary')
-  el.classList.add('show')
-  clearTimeout(_csvSummaryTimer)
-  _csvSummaryTimer = setTimeout(() => el.classList.remove('show'), 12000)
-}
-function closeCsvSummary() {
-  clearTimeout(_csvSummaryTimer)
-  document.getElementById('csvSummary').classList.remove('show')
 }
 
 function parseCSVLine(line) {
