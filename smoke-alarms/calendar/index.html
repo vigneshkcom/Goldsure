@@ -790,21 +790,24 @@ if (workerFilter) {
 }
 
 /**
- * Extract the numeric ID from values like "[999] Adam Pearl" or "[1003] Paul Taylor".
- * If no ID prefix is found, fall back to a hash of the name so the colour is still
- * stable (just not ID-based).  Either way the result is always the same for the
- * same electrician, regardless of row order.
+ * Assign a stable pill colour class to an electrician.
+ *
+ * Priority:
+ * 1. If the stored value has a numeric ID prefix like "[999] Adam Pearl",
+ *    use that ID — it never changes even if the name is edited.
+ * 2. Otherwise hash the first word of the name (first name / slug).
+ *    This means "Paul Taylor" and "Paul Smith" would share a colour,
+ *    but in practice first names are unique per team and won't change.
  */
 function getPillClass(name) {
   const idMatch = (name || '').match(/^\[(\d+)\]/)
   if (idMatch) {
-    // Use the numeric ID directly — always unique & stable
     return `pill-${parseInt(idMatch[1], 10) % 5}`
   }
-  // Fallback: simple character-code hash so unnamed entries are also stable
-  const str = (name || '').toLowerCase()
+  // Use only the first word so a surname change doesn't shift colours
+  const key = (name || '').trim().split(/\s+/)[0].toLowerCase()
   let hash = 0
-  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0
   return `pill-${hash % 5}`
 }
 
@@ -918,14 +921,14 @@ function renderCalendarGrid(containerId, year, month, events) {
       const pill = document.createElement('span')
       if (raw.startsWith('avail:')) {
         if (workerFilter) return
-        const name = raw.replace('avail:', '')
+        const firstName = raw.replace('avail:', '').trim().split(' ')[0]
         pill.className = 'pill pill-avail'
-        pill.textContent = name.charAt(0).toUpperCase() + name.slice(1) + ' ✓'
+        pill.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1) + ' ✓'
       } else if (raw.startsWith('unavail:')) {
         if (workerFilter) return
-        const name = raw.replace('unavail:', '')
+        const firstName = raw.replace('unavail:', '').trim().split(' ')[0]
         pill.className = 'pill pill-unavail'
-        pill.textContent = name.charAt(0).toUpperCase() + name.slice(1) + ' ✗'
+        pill.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1) + ' ✗'
       } else {
         pill.className = `pill ${getPillClass(e.electrician || '')}`
         pill.textContent = (e.electrician || '').replace(/\[.*?\]/g, '').trim().split(' ')[0] || '—'
@@ -946,12 +949,14 @@ function renderCalendarGrid(containerId, year, month, events) {
         const lbl = document.createElement('span')
         if (raw.startsWith('avail:')) {
           lbl.className = 'mobile-name'
-          lbl.style.cssText = 'background:#dcfce7;color:#166534;border:1px dashed #86efac;font-style:italic'
-          lbl.textContent = raw.replace('avail:','').charAt(0).toUpperCase()+raw.replace('avail:','').slice(1)+' ✓'
+          lbl.style.cssText = 'background:#dcfce7;color:#166634;border:1px dashed #86efac;font-style:italic'
+          const firstName = raw.replace('avail:','').trim().split(' ')[0]
+          lbl.textContent = firstName.charAt(0).toUpperCase()+firstName.slice(1)+' ✓'
         } else if (raw.startsWith('unavail:')) {
           lbl.className = 'mobile-name'
           lbl.style.cssText = 'background:#fee2e2;color:#991b1b;border:1px dashed #fca5a5;font-style:italic'
-          lbl.textContent = raw.replace('unavail:','').charAt(0).toUpperCase()+raw.replace('unavail:','').slice(1)+' ✗'
+          const firstName = raw.replace('unavail:','').trim().split(' ')[0]
+          lbl.textContent = firstName.charAt(0).toUpperCase()+firstName.slice(1)+' ✗'
         } else {
           const displayName = (e.electrician||'').replace(/\[.*?\]/g,'').trim().split(' ').filter(Boolean)[0]||'—'
           const isBookedWorker = workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)
