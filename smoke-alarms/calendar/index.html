@@ -885,29 +885,12 @@ async function loadCalendar() {
 function renderBothMonths(events) {
   const right = getRightMonthInfo()
 
-  // Build job count per electrician across both visible months (booked entries only)
-  const leftStart  = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`
-  const leftEnd    = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-31`
-  const rightStart = `${right.year}-${String(right.month+1).padStart(2,'0')}-01`
-  const rightEnd   = `${right.year}-${String(right.month+1).padStart(2,'0')}-31`
-  const monthJobCounts = new Map()
-  events.forEach(e => {
-    const n = (e.electrician||'').toLowerCase()
-    if (n.startsWith('avail:') || n.startsWith('unavail:')) return
-    const d = e.work_date || ''
-    if (!((d >= leftStart && d <= leftEnd) || (d >= rightStart && d <= rightEnd))) return
-    const name = (e.electrician||'').replace(/^\[\d+\]\s*/, '').trim()
-    if (!name) return
-    monthJobCounts.set(name, (monthJobCounts.get(name)||0) + 1)
-  })
-
-  renderCalendarGrid('calendar-left',  currentYear, currentMonth, events, monthJobCounts)
-  renderCalendarGrid('calendar-right', right.year,  right.month,  events, monthJobCounts)
+  renderCalendarGrid('calendar-left',  currentYear, currentMonth, events)
+  renderCalendarGrid('calendar-right', right.year,  right.month,  events)
 }
 
 // Core render logic — extracted to work for any month/year, targeting a given container id
-function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
-  monthJobCounts = monthJobCounts || new Map()
+function renderCalendarGrid(containerId, year, month, events) {
   const calendar   = document.getElementById(containerId)
   calendar.innerHTML = ''
   const todayStr    = new Date().toISOString().split('T')[0]
@@ -971,8 +954,8 @@ function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
     // Guards against stale/ghost DB rows triggering a lock on visually empty days.
     // Lock = ALL booked entries have [ID] prefix (came from CSV). No name validation needed.
     const hasCsvBooking = relevantWorkers.length > 0
-      && relevantWorkers.every(e => /^\[\d+\]/.test(e.electrician || ''))
-      && relevantWorkers.every(e => (e.electrician||'').replace(/^\[\d+\]\s*/,'').trim().length > 0)
+      && relevantWorkers.every(e => /^\[\d+(?:\|\d+)?\]/.test(e.electrician || ''))
+      && relevantWorkers.every(e => (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().length > 0)
     if (hasCsvBooking) {
       dayBox.classList.add('csv-locked')
       const badge = document.createElement('div')
@@ -986,7 +969,7 @@ function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
     const bookedNamesOnDay = new Set(
       dayWorkers
         .filter(e => { const n=(e.electrician||'').toLowerCase(); return !n.startsWith('avail:')&&!n.startsWith('unavail:') })
-        .map(e => (e.electrician||'').replace(/^\[\d+\]\s*/,'').trim().toLowerCase())
+        .map(e => (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().toLowerCase())
     )
 
     // Desktop pills
@@ -1019,9 +1002,9 @@ function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
         if (workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)) {
           pill.textContent = '🔒 Booked'
         } else {
-          const displayFirst = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim().split(' ')[0] || '—'
-          const fullStripped = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim()
-          const jobCount = monthJobCounts.get(fullStripped) || 0
+          const idMatch = (e.electrician||'').match(/^\[\d+(?:\|(\d+))?\]/)
+          const jobCount = idMatch && idMatch[1] ? parseInt(idMatch[1]) : 0
+          const displayFirst = (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().split(' ')[0] || '—'
           pill.textContent = displayFirst
           if (jobCount > 0) {
             const badge = document.createElement('span')
@@ -1207,7 +1190,7 @@ async function handleCSV(event) {
   const wdIdx=headers.indexOf('work_date'),elIdx=headers.indexOf('electrician')
   const isPortal=dtIdx!==-1&&fwIdx!==-1,isSimple=wdIdx!==-1&&elIdx!==-1
   if(!isPortal&&!isSimple){showToast('CSV columns not recognised',true);return}
-  const dedupMap=new Map()
+  const countMap=new Map()
   for(let i=1;i<lines.length;i++){
     const cols=parseCSVLine(lines[i]); if(!cols.length) continue
     let work_date='',electrician=''
@@ -1215,14 +1198,19 @@ async function handleCSV(event) {
     else{work_date=(cols[wdIdx]||'').trim();electrician=cleanElectricianName((cols[elIdx]||'').trim())}
     if(!work_date||!electrician) continue
     const key=`${work_date}|${electrician.toLowerCase()}`
-    if(!dedupMap.has(key)) dedupMap.set(key,{work_date,electrician})
+    if(!countMap.has(key)) countMap.set(key,{work_date,electrician,count:0})
+    countMap.get(key).count++
   }
-  const rows=[...dedupMap.values()]; if(!rows.length){showToast('No valid rows found',true);return}
+  const rows=[...countMap.values()].map(({work_date,electrician,count}) => ({
+    work_date,
+    electrician: electrician.replace(/^(\[\d+)(\])/, '$1|'+count+'$2')
+  }))
+  if(!rows.length){showToast('No valid rows found',true);return}
   showToast(`Uploading ${rows.length} row${rows.length!==1?'s':''}…`)
 
   // Build the set of electrician names appearing in this CSV (stripped of [ID] prefix, lowercase)
   const csvElectricians = new Set(
-    rows.map(r => (r.electrician||'').replace(/^\[\d+\]\s*/, '').trim().toLowerCase())
+    rows.map(r => (r.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim().toLowerCase())
   )
 
   // Step 1 — Delete ALL existing booked entries for every electrician in this CSV (clean slate).
@@ -1230,7 +1218,7 @@ async function handleCSV(event) {
   const bookedToDelete = cachedEvents.filter(e => {
     const n = (e.electrician||'').toLowerCase()
     if (n.startsWith('avail:') || n.startsWith('unavail:')) return false
-    const stripped = n.replace(/^\[\d+\]\s*/, '').trim()
+    const stripped = n.replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim()
     return csvElectricians.has(stripped)
   })
   if (bookedToDelete.length > 0) {
