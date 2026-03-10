@@ -328,7 +328,6 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   #login-screen, #password-gate { display: none !important; }
   header { position: static !important; box-shadow: none !important; }
   .btn-new, .btn-pdf, .product-toggle, .file-chip,
-  .btn-upload-csv, .btn-clear-csv, .config-csv-block,
   #meta-live-panel, .pbtn, .filters select { display: none !important; }
 
   @page { margin: 10mm 8mm; size: A4 portrait; }
@@ -491,29 +490,29 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   margin-bottom: 2px;
   flex-shrink: 0;
 }
-.config-csv-block {
+.google-api-block {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-.config-csv-block label {
+.google-api-block label {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--blue);
   letter-spacing: 0.4px;
 }
-.config-csv-row {
+.google-api-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.btn-upload-csv {
+.btn-refresh-google {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 7px 12px;
-  background: var(--blue);
+  background: var(--green);
   color: white;
   border: none;
   border-radius: 8px;
@@ -524,7 +523,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   white-space: nowrap;
   transition: background 0.15s;
 }
-.btn-upload-csv:hover { background: #1f56cc; }
+.btn-refresh-google:hover { background: #128a58; }
 .csv-status-pill {
   display: inline-flex;
   align-items: center;
@@ -548,20 +547,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   color: var(--green);
   border: 1px solid #b5e8d5;
 }
-.btn-clear-csv {
-  font-family: 'Sora', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-.btn-clear-csv:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
 .config-footer {
   margin-top: 8px;
   font-size: 10px;
@@ -918,10 +904,10 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
             <input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()">
           </div>
           <div class="config-divider"></div>
-          <div class="config-csv-block">
+          <div class="google-api-block">
             <label>Google Ads Spend (Live API)</label>
-            <div class="config-csv-row">
-              <button class="btn-upload-csv" onclick="fetchLiveGoogleSpend(true)" id="btn-refresh-google" style="background:var(--green);border-color:var(--green);">
+            <div class="google-api-row">
+              <button class="btn-refresh-google" onclick="fetchLiveGoogleSpend(true)" id="btn-refresh-google">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 Refresh
               </button>
@@ -1172,18 +1158,6 @@ let smokeCrmFile = null, hwsCrmFile = null, smokeSpendFile = null, hwsSpendFile 
 let currentProduct = 'smoke';
 let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 89.0909, costPrice = 25;
-
-// ── HWS GOOGLE ADS SPEND — parsed from billing CSVs (campaigns only, exc. GST/tax lines) ──
-// Sep 15 – Dec 17, 2025 · Total inc-GST: $4,631.06 → ex-GST: $4,210.05
-// Monthly: Sep $798.02 · Oct $1,503.04 · Nov $1,425.78 · Dec $904.22
-const HWS_GOOGLE_SPEND_CSV = [{"date":"2025-09-15","amount":1.76},{"date":"2025-09-16","amount":1.27},{"date":"2025-09-17","amount":20.42},{"date":"2025-09-18","amount":55.13},{"date":"2025-09-19","amount":90.28},{"date":"2025-09-20","amount":99.99},{"date":"2025-09-21","amount":84.72},{"date":"2025-09-22","amount":65.39},{"date":"2025-09-23","amount":33.21},{"date":"2025-09-24","amount":44.67},{"date":"2025-09-25","amount":63.18},{"date":"2025-09-26","amount":61.82},{"date":"2025-09-27","amount":46.87},{"date":"2025-09-28","amount":45.76},{"date":"2025-09-29","amount":44.44},{"date":"2025-09-30","amount":39.11},{"date":"2025-10-01","amount":51.65},{"date":"2025-10-02","amount":47.13},{"date":"2025-10-03","amount":13.42},{"date":"2025-10-04","amount":66.93},{"date":"2025-10-05","amount":70.83},{"date":"2025-10-06","amount":85.11},{"date":"2025-10-07","amount":58.56},{"date":"2025-10-08","amount":49.36},{"date":"2025-10-09","amount":52.08},{"date":"2025-10-10","amount":45.26},{"date":"2025-10-11","amount":28.67},{"date":"2025-10-12","amount":42.45},{"date":"2025-10-13","amount":32.52},{"date":"2025-10-14","amount":65.87},{"date":"2025-10-15","amount":27.76},{"date":"2025-10-16","amount":14.26},{"date":"2025-10-17","amount":79.51},{"date":"2025-10-18","amount":95.73},{"date":"2025-10-19","amount":64.02},{"date":"2025-10-20","amount":42.89},{"date":"2025-10-21","amount":22.71},{"date":"2025-10-22","amount":9.98},{"date":"2025-10-23","amount":87.58},{"date":"2025-10-24","amount":33.06},{"date":"2025-10-25","amount":27.81},{"date":"2025-10-26","amount":61.53},{"date":"2025-10-27","amount":72.48},{"date":"2025-10-28","amount":51.61},{"date":"2025-10-29","amount":32.09},{"date":"2025-10-30","amount":48.3},{"date":"2025-10-31","amount":21.88},{"date":"2025-11-01","amount":25.82},{"date":"2025-11-02","amount":37.17},{"date":"2025-11-03","amount":59.1},{"date":"2025-11-04","amount":43.58},{"date":"2025-11-05","amount":75.13},{"date":"2025-11-06","amount":22.46},{"date":"2025-11-07","amount":49.05},{"date":"2025-11-08","amount":10.61},{"date":"2025-11-09","amount":16.98},{"date":"2025-11-10","amount":12.3},{"date":"2025-11-11","amount":29.19},{"date":"2025-11-12","amount":12.53},{"date":"2025-11-13","amount":8.15},{"date":"2025-11-14","amount":7.1},{"date":"2025-11-15","amount":1.87},{"date":"2025-11-16","amount":12.92},{"date":"2025-11-17","amount":21.3},{"date":"2025-11-18","amount":57.24},{"date":"2025-11-19","amount":67.75},{"date":"2025-11-20","amount":99.36},{"date":"2025-11-21","amount":99.93},{"date":"2025-11-22","amount":97.12},{"date":"2025-11-23","amount":66.85},{"date":"2025-11-24","amount":94.88},{"date":"2025-11-25","amount":92.78},{"date":"2025-11-26","amount":94.56},{"date":"2025-11-27","amount":99.99},{"date":"2025-11-28","amount":83.8},{"date":"2025-11-29","amount":17.71},{"date":"2025-11-30","amount":8.55},{"date":"2025-12-01","amount":51.2},{"date":"2025-12-02","amount":49.4},{"date":"2025-12-03","amount":54.81},{"date":"2025-12-04","amount":46.89},{"date":"2025-12-05","amount":51.87},{"date":"2025-12-06","amount":51.01},{"date":"2025-12-07","amount":5.57},{"date":"2025-12-08","amount":95.05},{"date":"2025-12-09","amount":50.93},{"date":"2025-12-10","amount":70.61},{"date":"2025-12-11","amount":47.98},{"date":"2025-12-12","amount":56.37},{"date":"2025-12-13","amount":60.65},{"date":"2025-12-14","amount":35.1},{"date":"2025-12-15","amount":79.44},{"date":"2025-12-16","amount":58.69},{"date":"2025-12-17","amount":38.65}];
-
-// Smoke Google spend: populated via live API fetch from /api/MetaAdPerformace/google-spend
-let SMOKE_GOOGLE_SPEND = []; // kept for CSV fallback compatibility (not used for live data)
-
-// Set to true if your Smoke Google CSV contains INC-GST amounts (÷1.1 will be applied).
-// Set to false (default) if CSV amounts are already EX-GST — no conversion applied.
-const SMOKE_CSV_IS_INC_GST = false;
 
 // Live Google spend fetched from the API (inc-GST AUD, filtered to selected date range)
 let LIVE_GOOGLE_SPEND_TOTAL = null;   // null = not yet loaded
@@ -2045,221 +2019,13 @@ function getWebcoForRange(fromStr, toStr, product) {
   return total;
 }
 
+
 // ══════════════════════════════════════════════════════════════
-//  GOOGLE CSV PARSING (Smoke Alarm uploads)
-//  Supports both old (UTF-16, tab-delimited, "Mar 3, 2026" dates, A$)
-//  and new (UTF-8, comma-delimited, "7 Mar 2026" dates, $) formats.
+//  GOOGLE STATUS PILL
 // ══════════════════════════════════════════════════════════════
-
-// Parse a flexible date string into YYYY-MM-DD.
-// Supports: "Mar 3, 2026" and "7 Mar 2026"
-function _parseGoogleDate(raw) {
-  const MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
-  const s = raw.replace(/"/g,'').trim();
-  // Old style: "Mar 3, 2026"
-  let m = s.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})$/);
-  if (m) {
-    const mo = MONTHS[m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()];
-    if (!mo) return null;
-    return `${m[3]}-${String(mo).padStart(2,'0')}-${String(parseInt(m[2],10)).padStart(2,'0')}`;
-  }
-  // New style: "7 Mar 2026"
-  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
-  if (m) {
-    const mo = MONTHS[m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()];
-    if (!mo) return null;
-    return `${m[3]}-${String(mo).padStart(2,'0')}-${String(parseInt(m[1],10)).padStart(2,'0')}`;
-  }
-  return null;
-}
-
-// Parse currency string: strips A$, $, commas, dashes. Returns float or NaN.
-function _parseGoogleCurrency(raw) {
-  const s = raw.replace(/"/g,'').trim();
-  if (!s || s === '--' || s === '-' || s === '') return NaN;
-  const cleaned = s.replace(/A\$/g,'').replace(/\$/g,'').replace(/,/g,'').replace(/-/g,'').trim();
-  return parseFloat(cleaned);
-}
-
-// Parse a single CSV/TSV row, respecting quoted fields (which may contain the delimiter or newlines).
-// Returns an array of field strings.
-function _parseCSVRow(row, delim) {
-  const fields = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < row.length; i++) {
-    const ch = row[i];
-    if (inQ) {
-      if (ch === '"') {
-        if (row[i+1] === '"') { cur += '"'; i++; } // escaped quote
-        else { inQ = false; }
-      } else {
-        cur += ch;
-      }
-    } else {
-      if (ch === '"') {
-        inQ = true;
-      } else if (ch === delim) {
-        fields.push(cur.trim());
-        cur = '';
-      } else {
-        cur += ch;
-      }
-    }
-  }
-  fields.push(cur.trim());
-  return fields;
-}
-
-// Rebuild logical rows from raw text lines, handling quoted multi-line fields.
-function _rebuildLogicalRows(text, delim) {
-  const rawLines = text.split('\n');
-  const logicalRows = [];
-  let buf = '';
-  let openQuotes = 0;
-  for (let i = 0; i < rawLines.length; i++) {
-    const line = rawLines[i];
-    // Count unescaped quotes
-    for (let j = 0; j < line.length; j++) {
-      if (line[j] === '"') {
-        if (line[j+1] === '"') { j++; } // skip escaped
-        else { openQuotes++; }
-      }
-    }
-    buf = buf ? buf + '\n' + line : line;
-    if (openQuotes % 2 === 0) {
-      // Balanced quotes — complete logical row
-      logicalRows.push(buf);
-      buf = '';
-      openQuotes = 0;
-    }
-  }
-  if (buf) logicalRows.push(buf);
-  return logicalRows;
-}
-
-function parseGoogleCSV(text) {
-  // Auto-detect delimiter from the header row
-  // Find the line that starts with "Date"
-  const linesForDetect = text.split('\n');
-  let detectedDelim = '\t'; // default to tab (old format)
-  for (const l of linesForDetect) {
-    const t = l.replace(/"/g,'').trim();
-    if (/^Date[,\t]/.test(t)) {
-      detectedDelim = t.includes('\t') ? '\t' : ',';
-      break;
-    }
-  }
-
-  const logicalRows = _rebuildLogicalRows(text, detectedDelim);
-
-  let inData = false;
-  let dateIdx = 0, typeIdx = 1, costsIdx = 4;
-  const byDate = {};
-
-  for (const row of logicalRows) {
-    const trimmed = row.trim();
-    if (!trimmed) continue;
-
-    const fields = _parseCSVRow(trimmed, detectedDelim);
-    if (!fields.length) continue;
-
-    // Detect the header row dynamically
-    if (!inData) {
-      const f0 = fields[0].replace(/"/g,'').trim().toLowerCase();
-      if (f0 === 'date') {
-        // Map column indices
-        const headers = fields.map(f => f.replace(/"/g,'').trim().toLowerCase());
-        dateIdx  = headers.findIndex(h => h === 'date');
-        typeIdx  = headers.findIndex(h => h === 'type');
-        costsIdx = headers.findIndex(h => h === 'costs');
-        if (dateIdx < 0) dateIdx = 0;
-        if (typeIdx < 0) typeIdx = 1;
-        if (costsIdx < 0) costsIdx = 4;
-        inData = true;
-        continue;
-      }
-      continue;
-    }
-
-    if (fields.length <= Math.max(dateIdx, typeIdx, costsIdx)) continue;
-
-    const type    = fields[typeIdx].replace(/"/g,'').trim();
-    if (type !== 'Campaigns') continue;
-
-    const dateRaw = fields[dateIdx].replace(/"/g,'').trim();
-    const costRaw = fields[costsIdx].replace(/"/g,'').trim();
-
-    const iso = _parseGoogleDate(dateRaw);
-    if (!iso) continue;
-
-    const cost = _parseGoogleCurrency(costRaw);
-    if (isNaN(cost) || cost <= 0) continue;
-
-    byDate[iso] = (byDate[iso] || 0) + cost;
-  }
-
-  return Object.entries(byDate).map(([date,amount]) => ({date, amount: Math.round(amount*100)/100}));
-}
-
-// Read a file with encoding auto-detection: try UTF-8 first, fall back to UTF-16.
-function _readFileWithEncodingDetection(file, onSuccess, onError) {
-  // Check for UTF-16 BOM (0xFF 0xFE or 0xFE 0xFF)
-  const sniffer = new FileReader();
-  sniffer.onload = function(e) {
-    const arr = new Uint8Array(e.target.result);
-    const hasUTF16BOM = (arr[0] === 0xFF && arr[1] === 0xFE) || (arr[0] === 0xFE && arr[1] === 0xFF);
-    const hasUTF8BOM  = (arr[0] === 0xEF && arr[1] === 0xBB && arr[2] === 0xBF);
-    const encoding = hasUTF16BOM ? 'UTF-16' : 'UTF-8';
-    const reader2 = new FileReader();
-    reader2.onload = function(e2) {
-      try { onSuccess(e2.target.result); }
-      catch(err) { onError(err); }
-    };
-    reader2.onerror = onError;
-    reader2.readAsText(file, encoding);
-  };
-  sniffer.onerror = onError;
-  sniffer.readAsArrayBuffer(file.slice(0, 4));
-}
-
-function handleSmokeGoogleCSV(file) {
-  if (!file) return;
-  _readFileWithEncodingDetection(
-    file,
-    function(text) {
-      try {
-        const parsed = parseGoogleCSV(text);
-        if (!parsed.length) { alert('No campaign spend found in this CSV. Check the file format.'); return; }
-        const existing = {};
-        SMOKE_GOOGLE_SPEND.forEach(r => existing[r.date] = r.amount);
-        parsed.forEach(r => existing[r.date] = (existing[r.date]||0) + r.amount);
-        SMOKE_GOOGLE_SPEND = Object.entries(existing).map(([date,amount])=>({date,amount})).sort((a,b)=>a.date.localeCompare(b.date));
-        updateGoogleUploadStatus();
-        renderCurrentProduct();
-      } catch(err) { alert('Error parsing CSV. Please use a Google Ads billing activity export.'); }
-    },
-    function(err) { alert('Error reading CSV file. Please try again.'); }
-  );
-}
-
-function clearSmokeGoogleSpend() {
-  SMOKE_GOOGLE_SPEND = [];
-  const inp = document.getElementById('smoke-google-csv-input');
-  if (inp) inp.value = '';
-  updateGoogleUploadStatus();
-  renderCurrentProduct();
-}
-
-/**
- * Update the status pill next to the Google Ads "Refresh" button.
- * @param {'idle'|'loading'|'ok'|'error'} state
- * @param {string} [errMsg]
- */
 function updateGoogleUploadStatus(state, errMsg) {
   const el = document.getElementById('smoke-google-status');
   if (!el) return;
-
   if (state === 'loading') {
     el.innerHTML = '<span class="csv-status-pill empty" style="color:var(--amber);">⟳ Fetching…</span>';
     return;
@@ -2275,20 +2041,8 @@ function updateGoogleUploadStatus(state, errMsg) {
     el.innerHTML = `<span class="csv-status-pill loaded">✓ $${LIVE_GOOGLE_SPEND_TOTAL.toFixed(2)} inc-GST${rangeLabel}</span>`;
     return;
   }
-  // idle / not yet loaded
   el.innerHTML = '<span class="csv-status-pill empty">Not loaded — click Refresh</span>';
 }
-
-function getFilteredGoogleSpend(prod) {
-  // Legacy helper kept for any code that may still call it.
-  // With live API data there is no per-day breakdown, so always return empty
-  // (the live total is consumed directly via LIVE_GOOGLE_SPEND_TOTAL).
-  return [];
-}
-
-// Legacy CSV functions — kept as no-ops so no existing call sites break
-function handleSmokeGoogleCSV() {}
-function clearSmokeGoogleSpend() {}
 
 // ══════════════════════════════════════════════════════════════
 //  PDF
