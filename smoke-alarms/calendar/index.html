@@ -1091,17 +1091,17 @@ async function handleCSV(event) {
   for(let i=1;i<lines.length;i++){
     const cols=parseCSVLine(lines[i]); if(!cols.length) continue
     let work_date='',electrician=''
-    if(isPortal){work_date=parsePortalDate((cols[dtIdx]||'').trim());electrician=(cols[fwIdx]||'').trim()}
-    else{work_date=(cols[wdIdx]||'').trim();electrician=(cols[elIdx]||'').trim()}
+    if(isPortal){work_date=parsePortalDate((cols[dtIdx]||'').trim());electrician=cleanElectricianName((cols[fwIdx]||'').trim())}
+    else{work_date=(cols[wdIdx]||'').trim();electrician=cleanElectricianName((cols[elIdx]||'').trim())}
     if(!work_date||!electrician) continue
     const key=`${work_date}|${electrician.toLowerCase()}`
     if(!dedupMap.has(key)) dedupMap.set(key,{work_date,electrician})
   }
   const rows=[...dedupMap.values()]; if(!rows.length){showToast('No valid rows found',true);return}
   const affectedDates=[...new Set(rows.map(r=>r.work_date))]
-  const affectedElectricians=[...new Set(rows.map(r=>r.electrician))]
+  // affectedElectricians no longer needed — delete by date only to purge old [XXXX] names
   showToast(`Uploading ${rows.length} row${rows.length!==1?'s':''}…`)
-  await db.delete('electrician_calendar',{work_date:{in:affectedDates},electrician:{in:affectedElectricians}})
+  await db.delete('electrician_calendar',{work_date:{in:affectedDates}})
   await db.insert('electrician_calendar',rows)
   showToast(`✓ Inserted ${rows.length} row${rows.length!==1?'s':''} from CSV`)
   loadCalendar()
@@ -1116,6 +1116,17 @@ function parseCSVLine(line) {
     else cur+=ch
   }
   result.push(cur); return result
+}
+
+function cleanElectricianName(raw) {
+  // Strip leading [XXXX] code e.g. "[1003] Paul  Taylor" → "Paul Taylor"
+  let name = raw.replace(/^\[\d+\]\s*/, '').replace(/\s+/g, ' ').trim()
+  // Try to match against known electricians list (case-insensitive)
+  if (electricians.length) {
+    const match = electricians.find(e => e.toLowerCase() === name.toLowerCase())
+    if (match) return match
+  }
+  return name
 }
 
 function parsePortalDate(raw) {
