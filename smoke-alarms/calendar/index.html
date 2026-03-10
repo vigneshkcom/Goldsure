@@ -359,6 +359,20 @@ header {
 .check-item:hover { border-color: var(--gold); background: var(--gold-bg); }
 .check-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
 .check-item .check-label { font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; flex: 1; }
+.check-avail-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0; letter-spacing: 0.02em;
+}
+.badge-available   { background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; }
+.badge-unavailable { background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; }
+.badge-no-response { background: var(--surface2); color: var(--muted); border: 1.5px solid var(--border); }
+.unavail-warning {
+  background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 9px;
+  padding: 10px 14px; margin-bottom: 14px; font-size: 12px; font-weight: 600;
+  color: #92400e; display: none; gap: 8px; align-items: flex-start;
+}
+.unavail-warning.visible { display: flex; }
+.unavail-warning-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }'''
 .modal-actions { display: flex; gap: 10px; }
 .btn-save {
   flex: 1; background: var(--gold-btn); color: #000;
@@ -698,6 +712,10 @@ header {
     <div class="modal-date"  id="modalDate"></div>
     <div id="adminView">
       <div class="checklist" id="checklist"></div>
+      <div class="unavail-warning" id="unavailWarning">
+        <span class="unavail-warning-icon">⚠️</span>
+        <span id="unavailWarningText"></span>
+      </div>
       <div class="modal-actions">
         <button class="btn-save"   id="saveBtn" onclick="saveElectricians()">Save</button>
         <button class="btn-cancel" onclick="closeModal()">Cancel</button>
@@ -761,6 +779,7 @@ const db = {
 
 let electricians = []
 let electricianStates = {}
+let electricianSlugs = {}
 
 async function loadElectricians() {
   try {
@@ -778,7 +797,8 @@ async function loadElectricians() {
     const rows = await res.json()
     electricians = rows.map(r => r.name)
     electricianStates = {}
-    rows.forEach(r => { electricianStates[r.slug] = r.state || "QLD" })
+    electricianSlugs = {}
+    rows.forEach(r => { electricianStates[r.slug] = r.state || "QLD"; electricianSlugs[r.name] = r.slug })
   } catch (e) {
     console.error("Failed to load electricians:", e.message)
   }
@@ -1090,14 +1110,56 @@ function openModal(dateStr) {
     document.getElementById('modalTitle').textContent   = 'Select electricians working'
     const scheduled = cachedEvents.filter(e=>e.work_date===dateStr).map(e=>(e.electrician||'').toLowerCase())
     const list = document.getElementById('checklist'); list.innerHTML = ''
+    // Build availability lookup for this date
+    const availOnDay   = new Set(cachedEvents.filter(e=>e.work_date===dateStr&&(e.electrician||'').toLowerCase().startsWith('avail:')).map(e=>(e.electrician||'').replace(/^avail:/,'').trim().toLowerCase()))
+    const unavailOnDay = new Set(cachedEvents.filter(e=>e.work_date===dateStr&&(e.electrician||'').toLowerCase().startsWith('unavail:')).map(e=>(e.electrician||'').replace(/^unavail:/,'').trim().toLowerCase()))
+
+    const warningEl = document.getElementById('unavailWarning')
+    const warningText = document.getElementById('unavailWarningText')
+    warningEl.classList.remove('visible')
+
+    function updateWarning() {
+      const checkedNames = [...document.querySelectorAll('#checklist input:checked')].map(cb=>cb.value)
+      const conflicts = checkedNames.filter(name => {
+        const slug = name.toLowerCase().replace(/\s+/g,' ')
+        return unavailOnDay.has(slug) || [...unavailOnDay].some(u => u.startsWith(slug.split(' ')[0]))
+      })
+      if (conflicts.length > 0) {
+        warningText.textContent = conflicts.map(n=>n.split(' ')[0]).join(', ') + (conflicts.length===1?' marked themselves unavailable for this day.':' marked themselves unavailable for this day.')
+        warningEl.classList.add('visible')
+      } else {
+        warningEl.classList.remove('visible')
+      }
+    }
+
     electricians.forEach((name,i) => {
       const item = document.createElement('div'); item.className = 'check-item'
-      item.addEventListener('click', ev => { if(ev.target.tagName!=='INPUT') item.querySelector('input').checked=!item.querySelector('input').checked })
       const cb = document.createElement('input'); cb.type='checkbox'; cb.id=`chk-${i}`; cb.value=name
-      cb.checked = scheduled.includes(name.toLowerCase())
+      cb.checked = scheduled.some(s => s.includes(name.toLowerCase()) || name.toLowerCase().includes(s.replace(/^\[\d+\]\s*/,'')))
+
+      // Determine availability status
+      const slug = name.toLowerCase().replace(/\s+/g,' ')
+      const firstName = slug.split(' ')[0]
+      let badgeClass, badgeText
+      if (availOnDay.has(slug) || [...availOnDay].some(a=>a.startsWith(firstName))) {
+        badgeClass='check-avail-badge badge-available'; badgeText='✔ Available'
+      } else if (unavailOnDay.has(slug) || [...unavailOnDay].some(a=>a.startsWith(firstName))) {
+        badgeClass='check-avail-badge badge-unavailable'; badgeText='✕ Unavailable'
+      } else {
+        badgeClass='check-avail-badge badge-no-response'; badgeText='— No response'
+      }
+      const badge = document.createElement('span'); badge.className=badgeClass; badge.textContent=badgeText
+
       const lbl = document.createElement('span'); lbl.className='check-label'; lbl.textContent=name
-      item.appendChild(cb); item.appendChild(lbl); list.appendChild(item)
+      item.appendChild(cb); item.appendChild(lbl); item.appendChild(badge)
+      item.addEventListener('click', ev => {
+        if(ev.target.tagName!=='INPUT') cb.checked=!cb.checked
+        updateWarning()
+      })
+      cb.addEventListener('change', updateWarning)
+      list.appendChild(item)
     })
+    updateWarning()
     const btn = document.getElementById('saveBtn'); btn.disabled=false; btn.textContent='Save'
   }
   document.getElementById('modalOverlay').classList.add('open')
@@ -1295,7 +1357,7 @@ function showShareMenu(event) {
   electricians.forEach(name=>{
     const item=document.createElement('button'); item.className='share-menu-item'; item.textContent=name
     item.addEventListener('click',()=>{
-      const url=new URL(window.location.href.split('?')[0]); url.searchParams.set('electrician',name.toLowerCase())
+      const url=new URL(window.location.href.split('?')[0]); url.searchParams.set('electrician', electricianSlugs[name] || name.toLowerCase())
       navigator.clipboard.writeText(url.toString()).then(()=>showToast(`✓ Copied link for ${name}`)).catch(()=>showToast('Could not copy — please copy manually: '+url.toString(),true))
       closeShareMenu()
     }); menu.appendChild(item)
