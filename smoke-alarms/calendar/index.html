@@ -273,8 +273,8 @@ header {
 .pill-2 { background: var(--p2-bg); color: var(--p2-t); }
 .pill-3 { background: var(--p3-bg); color: var(--p3-t); }
 .pill-4 { background: var(--p4-bg); color: var(--p4-t); }
-.pill-avail   { background: #dcfce7; color: #166534; border: 1px dashed #86efac; font-style: italic; }
-.pill-unavail { background: #fee2e2; color: #991b1b; border: 1px dashed #fca5a5; font-style: italic; }
+.pill-avail   { background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; font-style: normal; font-weight: 700; letter-spacing: 0.02em; }
+.pill-unavail { background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; font-style: normal; font-weight: 700; letter-spacing: 0.02em; }
 
 /* ── HOLIDAYS ── */
 .holiday-label {
@@ -916,19 +916,25 @@ function renderCalendarGrid(containerId, year, month, events) {
     const dayWorkers = filteredRows.filter(e => e.work_date === dateStr)
 
     // Desktop pills
+    // Admin view: show all avail/unavail pills for all electricians.
+    // Worker view: show their own avail/unavail pill only; skip others.
     dayWorkers.forEach(e => {
       const raw  = (e.electrician || '').toLowerCase()
       const pill = document.createElement('span')
       if (raw.startsWith('avail:')) {
-        if (workerFilter) return
-        const firstName = raw.replace('avail:', '').trim().split(' ')[0]
+        const owner = raw.replace('avail:', '').trim()
+        if (workerFilter && !owner.includes(workerFilter)) return
+        const firstName = owner.split(' ')[0]
+        const cap = firstName.charAt(0).toUpperCase() + firstName.slice(1)
         pill.className = 'pill pill-avail'
-        pill.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1) + ' ✓'
+        pill.textContent = workerFilter ? '✔ You’re available' : '✔ ' + cap + ' available'
       } else if (raw.startsWith('unavail:')) {
-        if (workerFilter) return
-        const firstName = raw.replace('unavail:', '').trim().split(' ')[0]
+        const owner = raw.replace('unavail:', '').trim()
+        if (workerFilter && !owner.includes(workerFilter)) return
+        const firstName = owner.split(' ')[0]
+        const cap = firstName.charAt(0).toUpperCase() + firstName.slice(1)
         pill.className = 'pill pill-unavail'
-        pill.textContent = firstName.charAt(0).toUpperCase() + firstName.slice(1) + ' ✗'
+        pill.textContent = workerFilter ? '✕ You’re unavailable' : '✕ ' + cap + ' unavailable'
       } else {
         pill.className = `pill ${getPillClass(e.electrician || '')}`
         pill.textContent = (e.electrician || '').replace(/\[.*?\]/g, '').trim().split(' ')[0] || '—'
@@ -937,8 +943,17 @@ function renderCalendarGrid(containerId, year, month, events) {
     })
 
     // Mobile name labels
+    // Worker view: include their own avail/unavail; exclude others'.
+    // Admin view: include everything.
     const mobileWorkers = workerFilter
-      ? dayWorkers.filter(e => { const n=(e.electrician||'').toLowerCase(); return !n.startsWith('avail:')&&!n.startsWith('unavail:') })
+      ? dayWorkers.filter(e => {
+          const n = (e.electrician||'').toLowerCase()
+          if (n.startsWith('avail:') || n.startsWith('unavail:')) {
+            const owner = n.replace(/^(avail|unavail):/, '').trim()
+            return owner.includes(workerFilter)
+          }
+          return true
+        })
       : dayWorkers
 
     if (mobileWorkers.length > 0) {
@@ -949,14 +964,14 @@ function renderCalendarGrid(containerId, year, month, events) {
         const lbl = document.createElement('span')
         if (raw.startsWith('avail:')) {
           lbl.className = 'mobile-name'
-          lbl.style.cssText = 'background:#dcfce7;color:#166634;border:1px dashed #86efac;font-style:italic'
+          lbl.style.cssText = 'background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;font-style:normal;font-weight:700;'
           const firstName = raw.replace('avail:','').trim().split(' ')[0]
-          lbl.textContent = firstName.charAt(0).toUpperCase()+firstName.slice(1)+' ✓'
+          lbl.textContent = workerFilter ? '✔ Available' : '✔ ' + firstName.charAt(0).toUpperCase()+firstName.slice(1)
         } else if (raw.startsWith('unavail:')) {
           lbl.className = 'mobile-name'
-          lbl.style.cssText = 'background:#fee2e2;color:#991b1b;border:1px dashed #fca5a5;font-style:italic'
+          lbl.style.cssText = 'background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;font-style:normal;font-weight:700;'
           const firstName = raw.replace('unavail:','').trim().split(' ')[0]
-          lbl.textContent = firstName.charAt(0).toUpperCase()+firstName.slice(1)+' ✗'
+          lbl.textContent = workerFilter ? '✕ Unavailable' : '✕ ' + firstName.charAt(0).toUpperCase()+firstName.slice(1)
         } else {
           const displayName = (e.electrician||'').replace(/\[.*?\]/g,'').trim().split(' ').filter(Boolean)[0]||'—'
           const isBookedWorker = workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)
@@ -972,15 +987,6 @@ function renderCalendarGrid(containerId, year, month, events) {
         namesCol.appendChild(lbl)
       })
       dayBox.appendChild(namesCol)
-    }
-
-    // Worker view availability tags
-    if (workerFilter) {
-      const myAvail   = dayWorkers.find(e => (e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
-      const myUnavail = dayWorkers.find(e => (e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
-      const tag = document.createElement('span')
-      if (myAvail)        { tag.className='avail-tag yes-tag'; tag.textContent='✓'; dayBox.appendChild(tag) }
-      else if (myUnavail) { tag.className='avail-tag no-tag';  tag.textContent='✗'; dayBox.appendChild(tag) }
     }
 
     calendar.appendChild(dayBox)
