@@ -1223,19 +1223,46 @@ async function handleCSV(event) {
     if(!dedupMap.has(key)) dedupMap.set(key,{work_date,electrician})
   }
   const rows=[...dedupMap.values()]; if(!rows.length){showToast('No valid rows found',true);return}
-  const affectedDates=[...new Set(rows.map(r=>r.work_date))]
   showToast(`Uploading ${rows.length} row${rows.length!==1?'s':''}…`)
-  // Only delete existing booked ([ID] prefix) entries for affected dates.
-  // avail:/unavail: entries are NEVER deleted by CSV upload — they are the electrician's record.
-  const existing = cachedEvents.filter(e => {
-    if (!affectedDates.includes(e.work_date)) return false
+
+  // Build the set of electrician names appearing in this CSV (stripped of [ID] prefix, lowercase)
+  const csvElectricians = new Set(
+    rows.map(r => (r.electrician||'').replace(/^\[\d+\]\s*/, '').trim().toLowerCase())
+  )
+
+  // Step 1 — Delete ALL existing booked entries for every electrician in this CSV (clean slate).
+  //           Never touch avail:/unavail: entries here.
+  const bookedToDelete = cachedEvents.filter(e => {
     const n = (e.electrician||'').toLowerCase()
-    return !n.startsWith('avail:') && !n.startsWith('unavail:')
+    if (n.startsWith('avail:') || n.startsWith('unavail:')) return false
+    const stripped = n.replace(/^\[\d+\]\s*/, '').trim()
+    return csvElectricians.has(stripped)
   })
-  if (existing.length > 0) {
-    await db.delete('electrician_calendar',{work_date:{in:affectedDates},electrician:{in:existing.map(e=>e.electrician)}})
+  if (bookedToDelete.length > 0) {
+    await db.delete('electrician_calendar', {electrician: {in: bookedToDelete.map(e => e.electrician)}})
   }
-  await db.insert('electrician_calendar',rows)
+
+  // Step 2 — Insert the new bookings from CSV
+  await db.insert('electrician_calendar', rows)
+
+  // Step 3 — Remove avail:/unavail: entries ONLY for dates where that specific electrician
+  //           now has a booking in the new CSV. Leave all other availability untouched.
+  //           e.g. Paul booked on the 19th → delete avail:paul taylor for the 19th only.
+  //                Mahmoud not booked on the 19th → his avail:mahmoud el moussa stays.
+  const availToDelete = cachedEvents.filter(e => {
+    const n = (e.electrician||'').toLowerCase()
+    if (!n.startsWith('avail:') && !n.startsWith('unavail:')) return false
+    const ownerSlug = n.replace(/^(avail|unavail):/, '').trim()
+    // Check if this owner has a booking on this exact date in the new CSV
+    return rows.some(r => {
+      const rName = (r.electrician||'').replace(/^\[\d+\]\s*/, '').trim().toLowerCase()
+      return r.work_date === e.work_date && (rName === ownerSlug || rName.startsWith(ownerSlug.split(' ')[0]))
+    })
+  })
+  if (availToDelete.length > 0) {
+    await db.delete('electrician_calendar', {electrician: {in: availToDelete.map(e => e.electrician)}, work_date: {in: availToDelete.map(e => e.work_date)}})
+  }
+
   showToast(`✓ Inserted ${rows.length} row${rows.length!==1?'s':''} from CSV`)
   loadCalendar()
 }
