@@ -928,7 +928,18 @@ function renderCalendarGrid(containerId, year, month, events) {
     const dayWorkers = filteredRows.filter(e => e.work_date === dateStr)
 
     // Mark day as CSV-locked if any booked entry came from CSV (has [ID] prefix)
-    const hasCsvBooking = dayWorkers.some(e => /^\[\d+\]/.test(e.electrician || ''))
+    // Lock badge logic:
+    // Admin view: lock only if ALL booked entries on the day came from CSV ([ID] prefix).
+    //             If any were manually added (no prefix), day is considered manually managed.
+    // Worker view: lock only if THIS electrician's own entry came from CSV.
+    const bookedWorkers = dayWorkers.filter(e => {
+      const n = (e.electrician||'').toLowerCase()
+      return !n.startsWith('avail:') && !n.startsWith('unavail:')
+    })
+    const relevantWorkers = workerFilter
+      ? bookedWorkers.filter(e => (e.electrician||'').toLowerCase().includes(workerFilter))
+      : bookedWorkers
+    const hasCsvBooking = relevantWorkers.length > 0 && relevantWorkers.every(e => /^\[\d+\]/.test(e.electrician || ''))
     if (hasCsvBooking) {
       dayBox.classList.add('csv-locked')
       const badge = document.createElement('div')
