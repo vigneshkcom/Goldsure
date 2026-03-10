@@ -821,16 +821,20 @@ if (workerFilter) {
  *    This means "Paul Taylor" and "Paul Smith" would share a colour,
  *    but in practice first names are unique per team and won't change.
  */
+// Stable colour map: assign colours by order of first appearance, never collide.
+const _pillColorMap = new Map()
+const _pillColors = ['pill-0','pill-1','pill-2','pill-3','pill-4']
+let _pillColorNext = 0
+
 function getPillClass(name) {
+  // Extract stable key: prefer numeric ID from [ID] or [ID|count] prefix, else first name
   const idMatch = (name || '').match(/^\[(\d+)(?:\|\d+)?\]/)
-  if (idMatch) {
-    return `pill-${parseInt(idMatch[1], 10) % 5}`
+  const key = idMatch ? `id:${idMatch[1]}` : (name||'').trim().split(/\s+/)[0].toLowerCase()
+  if (!_pillColorMap.has(key)) {
+    _pillColorMap.set(key, _pillColors[_pillColorNext % _pillColors.length])
+    _pillColorNext++
   }
-  // Use only the first word so a surname change doesn't shift colours
-  const key = (name || '').trim().split(/\s+/)[0].toLowerCase()
-  let hash = 0
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0
-  return `pill-${hash % 5}`
+  return _pillColorMap.get(key)
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
