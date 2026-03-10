@@ -1185,26 +1185,44 @@ let SMOKE_GOOGLE_SPEND = []; // kept for CSV fallback compatibility (not used fo
 // Set to false (default) if CSV amounts are already EX-GST — no conversion applied.
 const SMOKE_CSV_IS_INC_GST = false;
 
-// Live Google spend fetched from the API (inc-GST AUD, lifetime total)
+// Live Google spend fetched from the API (inc-GST AUD, filtered to selected date range)
 let LIVE_GOOGLE_SPEND_TOTAL = null;   // null = not yet loaded
 let LIVE_GOOGLE_SPEND_LOADING = false;
+// Track the date range that was last fetched so we can detect when it changes
+let LIVE_GOOGLE_SPEND_FROM = null;
+let LIVE_GOOGLE_SPEND_TO   = null;
 
 /**
- * Fetch live Google Ads spend from the Vercel serverless endpoint.
+ * Fetch live Google Ads spend from the Vercel serverless endpoint,
+ * filtered to the currently selected dashboard date range.
  * Sets LIVE_GOOGLE_SPEND_TOTAL and re-renders the current product view.
  * @param {boolean} [userTriggered=false] - true when called from Refresh button click
  */
 async function fetchLiveGoogleSpend(userTriggered = false) {
-  if (LIVE_GOOGLE_SPEND_LOADING) return;
+  // Read current date range from the dashboard filters
+  const from = document.getElementById('dateFrom')?.value || '';
+  const to   = document.getElementById('dateTo')?.value   || '';
+
+  // If dates are missing, skip (dashboard not ready yet)
+  if (!from || !to) {
+    if (userTriggered) updateGoogleUploadStatus('error', 'Set a date range first');
+    return;
+  }
+
+  // Avoid duplicate in-flight requests, but always allow a user-triggered refresh
+  if (LIVE_GOOGLE_SPEND_LOADING && !userTriggered) return;
   LIVE_GOOGLE_SPEND_LOADING = true;
   updateGoogleUploadStatus('loading');
 
   try {
-    const res = await fetch('/api/MetaAdPerformace/google-spend');
+    const url = `/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const res  = await fetch(url);
     const data = await res.json();
 
     if (data.success && typeof data.total_spend === 'number') {
       LIVE_GOOGLE_SPEND_TOTAL = data.total_spend;
+      LIVE_GOOGLE_SPEND_FROM  = from;
+      LIVE_GOOGLE_SPEND_TO    = to;
       updateGoogleUploadStatus('ok');
     } else {
       console.error('[google-spend] API error:', data);
@@ -1614,7 +1632,17 @@ function switchProduct(prod){
   renderCurrentProduct();
 }
 
-function renderCurrentProduct(){ if(currentProduct==='smoke') renderSmoke(); else renderHws(); }
+function renderCurrentProduct(){
+  // If the selected date range has changed since the last Google fetch, kick off a new fetch.
+  // The fetch calls renderCurrentProduct() again when complete, so we also render immediately
+  // with the current (possibly stale) value to keep the UI responsive.
+  const from = document.getElementById('dateFrom')?.value || '';
+  const to   = document.getElementById('dateTo')?.value   || '';
+  if (from && to && (from !== LIVE_GOOGLE_SPEND_FROM || to !== LIVE_GOOGLE_SPEND_TO)) {
+    fetchLiveGoogleSpend();
+  }
+  if(currentProduct==='smoke') renderSmoke(); else renderHws();
+}
 
 function getFilteredCRM(prod){
   const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
@@ -1639,7 +1667,7 @@ function renderSmoke(){
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
   const metaSpend = spend.reduce((a,b)=>a+b.amount,0) / 1.1;
   // Google: Live API returns inc-GST → divide by 1.1 to get ex-GST
-  // LIVE_GOOGLE_SPEND_TOTAL is lifetime total; we use it as-is (no date-range filtering possible on live data)
+  // LIVE_GOOGLE_SPEND_TOTAL is now date-range filtered (matches the selected from/to period)
   const googleSpendRaw = LIVE_GOOGLE_SPEND_TOTAL !== null ? LIVE_GOOGLE_SPEND_TOTAL : 0;
   const googleSpend = googleSpendRaw / 1.1;
   const webcoAmt = getWebcoForRange(from, to, 'smoke');
@@ -1863,17 +1891,36 @@ function renderSpendLeadsChart(leads, product) {
     spendByMonth[key] = (spendByMonth[key] || 0) + (d.amount / 1.1);
   });
 
-  // Also add Google spend — live API gives a lifetime total (no per-day breakdown).
-  // We spread it evenly across months visible in the chart as a best-effort approximation.
-  // If LIVE_GOOGLE_SPEND_TOTAL is null (not yet loaded) we skip gracefully.
+  // Add Google spend — live API now returns date-filtered total for the selected period.
+  // Distribute it proportionally across the visible months (by days-in-month within the range).
   if (LIVE_GOOGLE_SPEND_TOTAL !== null && LIVE_GOOGLE_SPEND_TOTAL > 0) {
     const googleExGst = LIVE_GOOGLE_SPEND_TOTAL / 1.1;
     const monthKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
     if (monthKeys.length > 0) {
-      const perMonth = googleExGst / monthKeys.length;
+      // Calculate days each month contributes within the selected date range
+      const rangeFrom = from ? new Date(from + 'T00:00:00') : null;
+      const rangeTo   = to   ? new Date(to   + 'T00:00:00') : null;
+      let totalDays = 0;
+      const monthDays = {};
       monthKeys.forEach(key => {
-        spendByMonth[key] = (spendByMonth[key] || 0) + perMonth;
+        const [yr, mo] = key.split('-').map(Number);
+        const mStart = new Date(yr, mo - 1, 1);
+        const mEnd   = new Date(yr, mo, 0);
+        const effFrom = (rangeFrom && rangeFrom > mStart) ? rangeFrom : mStart;
+        const effTo   = (rangeTo   && rangeTo   < mEnd)   ? rangeTo   : mEnd;
+        const days = Math.max(0, Math.round((effTo - effFrom) / 86400000) + 1);
+        monthDays[key] = days;
+        totalDays += days;
       });
+      if (totalDays > 0) {
+        monthKeys.forEach(key => {
+          spendByMonth[key] = (spendByMonth[key] || 0) + googleExGst * (monthDays[key] / totalDays);
+        });
+      } else {
+        // Fallback: spread evenly
+        const perMonth = googleExGst / monthKeys.length;
+        monthKeys.forEach(key => { spendByMonth[key] = (spendByMonth[key] || 0) + perMonth; });
+      }
     }
   }
 
@@ -2222,7 +2269,10 @@ function updateGoogleUploadStatus(state, errMsg) {
     return;
   }
   if (state === 'ok' && LIVE_GOOGLE_SPEND_TOTAL !== null) {
-    el.innerHTML = `<span class="csv-status-pill loaded">✓ $${LIVE_GOOGLE_SPEND_TOTAL.toFixed(2)} inc-GST (lifetime)</span>`;
+    const rangeLabel = (LIVE_GOOGLE_SPEND_FROM && LIVE_GOOGLE_SPEND_TO)
+      ? ` · ${LIVE_GOOGLE_SPEND_FROM} → ${LIVE_GOOGLE_SPEND_TO}`
+      : '';
+    el.innerHTML = `<span class="csv-status-pill loaded">✓ $${LIVE_GOOGLE_SPEND_TOTAL.toFixed(2)} inc-GST${rangeLabel}</span>`;
     return;
   }
   // idle / not yet loaded
