@@ -262,12 +262,13 @@ header {
 
 /* ── PILLS ── */
 .pill {
-  display: block; border-radius: 5px;
-  padding: 3px 7px; font-size: 10px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 5px; padding: 3px 7px;
+  font-size: 10px; font-weight: 600;
   margin-top: 3px; line-height: 1.35;
-  white-space: nowrap; overflow: hidden; text-overflow: clip;
+  white-space: nowrap; overflow: hidden;
   letter-spacing: 0.01em; font-family: 'Sora', sans-serif;
-  display: flex; align-items: center; gap: 4px;
+  width: 100%; box-sizing: border-box;
 }
 .pill-0 { background: var(--p0-bg); color: var(--p0-t); }
 .pill-1 { background: var(--p1-bg); color: var(--p1-t); }
@@ -968,15 +969,10 @@ function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
       : bookedWorkers
     // Lock only when real, recognisable CSV-booked entries exist.
     // Guards against stale/ghost DB rows triggering a lock on visually empty days.
+    // Lock = ALL booked entries have [ID] prefix (came from CSV). No name validation needed.
     const hasCsvBooking = relevantWorkers.length > 0
       && relevantWorkers.every(e => /^\[\d+\]/.test(e.electrician || ''))
-      && relevantWorkers.some(e => {
-           const stripped = (e.electrician||'').replace(/^\[\d+\]\s*/, '').trim()
-           return stripped.length > 0 && (
-             electricians.length === 0 ||
-             electricians.some(el => el.toLowerCase() === stripped.toLowerCase())
-           )
-         })
+      && relevantWorkers.every(e => (e.electrician||'').replace(/^\[\d+\]\s*/,'').trim().length > 0)
     if (hasCsvBooking) {
       dayBox.classList.add('csv-locked')
       const badge = document.createElement('div')
@@ -1026,7 +1022,6 @@ function renderCalendarGrid(containerId, year, month, events, monthJobCounts) {
           const displayFirst = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim().split(' ')[0] || '—'
           const fullStripped = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim()
           const jobCount = monthJobCounts.get(fullStripped) || 0
-          pill.style.display = 'flex'; pill.style.alignItems = 'center'; pill.style.gap = '3px'
           pill.textContent = displayFirst
           if (jobCount > 0) {
             const badge = document.createElement('span')
