@@ -866,9 +866,11 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <span id="ghl-panel-info" style="font-size:12px;color:var(--muted);"></span>
       <span id="meta-panel-smoke-spend" style="font-size:12px;color:var(--muted);"></span>
       <span id="meta-panel-hws-spend" style="font-size:12px;color:var(--muted);"></span>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button onclick="refreshGHL()" id="btn-refresh-ghl" style="display:none;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#16a34a;color:white;border:none;border-radius:7px;cursor:pointer;">↻ Refresh CRM</button>
-        <button onclick="refreshMetaSpend()" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#1877f2;color:white;border:none;border-radius:7px;cursor:pointer;">↻ Refresh Spend</button>
+        <button onclick="refreshMetaSpend()" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#1877f2;color:white;border:none;border-radius:7px;cursor:pointer;">↻ Refresh Meta Spend</button>
+        <button onclick="fetchLiveGoogleSpend(true)" id="btn-refresh-google-panel" style="font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;background:#18a96e;color:white;border:none;border-radius:7px;cursor:pointer;">↻ Refresh Google Spend</button>
+        <span id="google-panel-status" style="font-size:11px;color:var(--muted);"></span>
         <span id="meta-last-refresh" style="font-size:10px;color:var(--muted);"></span>
       </div>
     </div>
@@ -902,17 +904,6 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
           <div class="config-field">
             <label>Cost Price (ex-GST)</label>
             <input type="number" id="costPrice" value="25" step="0.01" onchange="updateAssumptions()">
-          </div>
-          <div class="config-divider"></div>
-          <div class="google-api-block">
-            <label>Google Ads Spend (Live API)</label>
-            <div class="google-api-row">
-              <button class="btn-refresh-google" onclick="fetchLiveGoogleSpend(true)" id="btn-refresh-google">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                Refresh
-              </button>
-              <div id="smoke-google-status"></div>
-            </div>
           </div>
         </div>
         <div class="config-footer">All figures ex-GST · COGS stored and used as ex-GST</div>
@@ -1160,52 +1151,89 @@ let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 89.0909, costPrice = 25;
 
 // Live Google spend fetched from the API (inc-GST AUD, filtered to selected date range)
-let LIVE_GOOGLE_SPEND_TOTAL = null;   // null = not yet loaded
+// Smoke Google Ads started Jan 1 2026 — any spend before that date belongs to HWS.
+const GOOGLE_SMOKE_START = '2026-01-01'; // Smoke campaigns only from this date onwards
+
+let LIVE_GOOGLE_SPEND_SMOKE = null;  // null = not yet loaded
+let LIVE_GOOGLE_SPEND_HWS   = null;
 let LIVE_GOOGLE_SPEND_LOADING = false;
 // Track the date range that was last fetched so we can detect when it changes
 let LIVE_GOOGLE_SPEND_FROM = null;
 let LIVE_GOOGLE_SPEND_TO   = null;
 
+// Legacy alias kept so any remaining call sites referencing LIVE_GOOGLE_SPEND_TOTAL still work.
+// In renderSmoke/renderHws we now use the product-specific values directly.
+Object.defineProperty(window, 'LIVE_GOOGLE_SPEND_TOTAL', {
+  get() { return (LIVE_GOOGLE_SPEND_SMOKE ?? 0) + (LIVE_GOOGLE_SPEND_HWS ?? 0); },
+  configurable: true
+});
+
 /**
  * Fetch live Google Ads spend from the Vercel serverless endpoint,
- * filtered to the currently selected dashboard date range.
- * Sets LIVE_GOOGLE_SPEND_TOTAL and re-renders the current product view.
- * @param {boolean} [userTriggered=false] - true when called from Refresh button click
+ * split by product using date caps:
+ *   Smoke → from max(selectedFrom, 2026-01-01) to selectedTo
+ *   HWS   → from selectedFrom to min(selectedTo, 2025-12-31)
  */
 async function fetchLiveGoogleSpend(userTriggered = false) {
-  // Read current date range from the dashboard filters
   const from = document.getElementById('dateFrom')?.value || '';
   const to   = document.getElementById('dateTo')?.value   || '';
 
-  // If dates are missing, skip (dashboard not ready yet)
   if (!from || !to) {
     if (userTriggered) updateGoogleUploadStatus('error', 'Set a date range first');
     return;
   }
 
-  // Avoid duplicate in-flight requests, but always allow a user-triggered refresh
   if (LIVE_GOOGLE_SPEND_LOADING && !userTriggered) return;
   LIVE_GOOGLE_SPEND_LOADING = true;
   updateGoogleUploadStatus('loading');
 
-  try {
-    const url = `/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    const res  = await fetch(url);
-    const data = await res.json();
+  // ── Date caps per product ──
+  // Smoke: only Jan 1 2026 onwards
+  const smokeFrom = from < GOOGLE_SMOKE_START ? GOOGLE_SMOKE_START : from;
+  const smokeTo   = to;
+  const smokeValid = smokeFrom <= smokeTo; // false if entire range is before Jan 2026
 
-    if (data.success && typeof data.total_spend === 'number') {
-      LIVE_GOOGLE_SPEND_TOTAL = data.total_spend;
-      LIVE_GOOGLE_SPEND_FROM  = from;
-      LIVE_GOOGLE_SPEND_TO    = to;
-      updateGoogleUploadStatus('ok');
+  // HWS: only before Jan 1 2026
+  const HWS_END = '2025-12-31';
+  const hwsFrom = from;
+  const hwsTo   = to > HWS_END ? HWS_END : to;
+  const hwsValid = hwsFrom <= hwsTo; // false if entire range is after Dec 2025
+
+  try {
+    const fetches = [];
+
+    if (smokeValid) {
+      fetches.push(
+        fetch(`/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(smokeFrom)}&to=${encodeURIComponent(smokeTo)}`)
+          .then(r => r.json())
+          .then(d => d.success ? d.total_spend : 0)
+          .catch(() => 0)
+      );
     } else {
-      console.error('[google-spend] API error:', data);
-      LIVE_GOOGLE_SPEND_TOTAL = 0;
-      updateGoogleUploadStatus('error', data.error ?? 'Unknown error');
+      fetches.push(Promise.resolve(0));
     }
+
+    if (hwsValid) {
+      fetches.push(
+        fetch(`/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(hwsFrom)}&to=${encodeURIComponent(hwsTo)}`)
+          .then(r => r.json())
+          .then(d => d.success ? d.total_spend : 0)
+          .catch(() => 0)
+      );
+    } else {
+      fetches.push(Promise.resolve(0));
+    }
+
+    const [smokeTotal, hwsTotal] = await Promise.all(fetches);
+    LIVE_GOOGLE_SPEND_SMOKE = smokeTotal;
+    LIVE_GOOGLE_SPEND_HWS   = hwsTotal;
+    LIVE_GOOGLE_SPEND_FROM  = from;
+    LIVE_GOOGLE_SPEND_TO    = to;
+    updateGoogleUploadStatus('ok');
   } catch (err) {
     console.error('[google-spend] Fetch failed:', err);
-    LIVE_GOOGLE_SPEND_TOTAL = 0;
+    LIVE_GOOGLE_SPEND_SMOKE = 0;
+    LIVE_GOOGLE_SPEND_HWS   = 0;
     updateGoogleUploadStatus('error', err.message ?? 'Network error');
   } finally {
     LIVE_GOOGLE_SPEND_LOADING = false;
@@ -1458,6 +1486,8 @@ function initDashboard(){
 
   if(GHL_CONNECTED){ document.getElementById('ghl-live-indicator').style.display='inline-flex'; document.getElementById('btn-refresh-ghl').style.display='inline-block'; document.getElementById('meta-live-panel').style.display='flex'; }
   if(META_CONNECTED){ document.getElementById('meta-live-panel').style.display='flex'; document.getElementById('meta-live-indicator').style.display='inline-flex'; }
+  // Always show panel so Google Refresh button is accessible
+  document.getElementById('meta-live-panel').style.display='flex';
 
   let allDates=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();
   if(allDates.length){ document.getElementById('dateFrom').value=allDates[0]; document.getElementById('dateTo').value=allDates[allDates.length-1]; }
@@ -1631,7 +1661,6 @@ function getFilteredSpend(prod){
 
 function renderSmoke(){
   updateMetaPanelDisplay();
-  updateGoogleUploadStatus();
   const leads = getFilteredCRM('smoke'), spend = getFilteredSpend('smoke');
   const from = document.getElementById('dateFrom').value, to = document.getElementById('dateTo').value;
   const total = leads.length;
@@ -1641,8 +1670,8 @@ function renderSmoke(){
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
   const metaSpend = spend.reduce((a,b)=>a+b.amount,0) / 1.1;
   // Google: Live API returns inc-GST → divide by 1.1 to get ex-GST
-  // LIVE_GOOGLE_SPEND_TOTAL is now date-range filtered (matches the selected from/to period)
-  const googleSpendRaw = LIVE_GOOGLE_SPEND_TOTAL !== null ? LIVE_GOOGLE_SPEND_TOTAL : 0;
+  // Smoke Google Ads only active from Jan 1 2026 — LIVE_GOOGLE_SPEND_SMOKE is already date-capped
+  const googleSpendRaw = LIVE_GOOGLE_SPEND_SMOKE !== null ? LIVE_GOOGLE_SPEND_SMOKE : 0;
   const googleSpend = googleSpendRaw / 1.1;
   const webcoAmt = getWebcoForRange(from, to, 'smoke');
   // Revenue, COGS, install all ex-GST
@@ -1701,7 +1730,8 @@ function renderHws(){
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
   const metaSpend = spend.reduce((a,b)=>a+b.amount,0) / 1.1;
   // Google: Live API returns inc-GST → divide by 1.1 to get ex-GST
-  const googleSpendRaw = LIVE_GOOGLE_SPEND_TOTAL !== null ? LIVE_GOOGLE_SPEND_TOTAL : 0;
+  // HWS Google Ads ran before Jan 1 2026 — LIVE_GOOGLE_SPEND_HWS is already date-capped
+  const googleSpendRaw = LIVE_GOOGLE_SPEND_HWS !== null ? LIVE_GOOGLE_SPEND_HWS : 0;
   const googleSpend = googleSpendRaw / 1.1;
   const webcoAmt = getWebcoForRange(from, to, 'hws');
   const totalAdSpend = metaSpend + googleSpend;
@@ -1865,10 +1895,12 @@ function renderSpendLeadsChart(leads, product) {
     spendByMonth[key] = (spendByMonth[key] || 0) + (d.amount / 1.1);
   });
 
-  // Add Google spend — live API now returns date-filtered total for the selected period.
-  // Distribute it proportionally across the visible months (by days-in-month within the range).
-  if (LIVE_GOOGLE_SPEND_TOTAL !== null && LIVE_GOOGLE_SPEND_TOTAL > 0) {
-    const googleExGst = LIVE_GOOGLE_SPEND_TOTAL / 1.1;
+  // Add Google spend — now product-specific and date-filtered.
+  const googleLiveTotal = product === 'smoke'
+    ? (LIVE_GOOGLE_SPEND_SMOKE !== null ? LIVE_GOOGLE_SPEND_SMOKE : 0)
+    : (LIVE_GOOGLE_SPEND_HWS   !== null ? LIVE_GOOGLE_SPEND_HWS   : 0);
+  if (googleLiveTotal > 0) {
+    const googleExGst = googleLiveTotal / 1.1;
     const monthKeys = [...new Set([...Object.keys(leadsByMonth), ...Object.keys(spendByMonth)])].sort();
     if (monthKeys.length > 0) {
       // Calculate days each month contributes within the selected date range
@@ -2024,24 +2056,23 @@ function getWebcoForRange(fromStr, toStr, product) {
 //  GOOGLE STATUS PILL
 // ══════════════════════════════════════════════════════════════
 function updateGoogleUploadStatus(state, errMsg) {
-  const el = document.getElementById('smoke-google-status');
+  const el = document.getElementById('google-panel-status');
   if (!el) return;
   if (state === 'loading') {
-    el.innerHTML = '<span class="csv-status-pill empty" style="color:var(--amber);">⟳ Fetching…</span>';
+    el.innerHTML = '<span style="color:var(--amber);">⟳ Fetching…</span>';
     return;
   }
   if (state === 'error') {
-    el.innerHTML = `<span class="csv-status-pill empty" style="color:var(--red);">✕ ${errMsg ?? 'Error'}</span>`;
+    el.innerHTML = `<span style="color:var(--red);">✕ ${errMsg ?? 'Error'}</span>`;
     return;
   }
-  if (state === 'ok' && LIVE_GOOGLE_SPEND_TOTAL !== null) {
-    const rangeLabel = (LIVE_GOOGLE_SPEND_FROM && LIVE_GOOGLE_SPEND_TO)
-      ? ` · ${LIVE_GOOGLE_SPEND_FROM} → ${LIVE_GOOGLE_SPEND_TO}`
-      : '';
-    el.innerHTML = `<span class="csv-status-pill loaded">✓ $${LIVE_GOOGLE_SPEND_TOTAL.toFixed(2)} inc-GST${rangeLabel}</span>`;
+  if (state === 'ok' && LIVE_GOOGLE_SPEND_SMOKE !== null) {
+    const smokeLabel = `Smoke $${(LIVE_GOOGLE_SPEND_SMOKE/1.1).toFixed(2)} ex-GST`;
+    const hwsLabel   = `HWS $${(LIVE_GOOGLE_SPEND_HWS/1.1).toFixed(2)} ex-GST`;
+    el.innerHTML = `<span style="color:var(--green);">✓ ${smokeLabel} · ${hwsLabel}</span>`;
     return;
   }
-  el.innerHTML = '<span class="csv-status-pill empty">Not loaded — click Refresh</span>';
+  el.innerHTML = '';
 }
 
 // ══════════════════════════════════════════════════════════════
