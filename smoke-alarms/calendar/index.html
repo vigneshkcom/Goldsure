@@ -789,12 +789,23 @@ if (workerFilter) {
   document.getElementById('adminSubNavRight').style.display = 'none'
 }
 
-const workerColorMap = {}
-let colorCounter = 0
+/**
+ * Extract the numeric ID from values like "[999] Adam Pearl" or "[1003] Paul Taylor".
+ * If no ID prefix is found, fall back to a hash of the name so the colour is still
+ * stable (just not ID-based).  Either way the result is always the same for the
+ * same electrician, regardless of row order.
+ */
 function getPillClass(name) {
-  const key = name.toLowerCase()
-  if (workerColorMap[key] === undefined) workerColorMap[key] = colorCounter++ % 5
-  return `pill-${workerColorMap[key]}`
+  const idMatch = (name || '').match(/^\[(\d+)\]/)
+  if (idMatch) {
+    // Use the numeric ID directly — always unique & stable
+    return `pill-${parseInt(idMatch[1], 10) % 5}`
+  }
+  // Fallback: simple character-code hash so unnamed entries are also stable
+  const str = (name || '').toLowerCase()
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0
+  return `pill-${hash % 5}`
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
