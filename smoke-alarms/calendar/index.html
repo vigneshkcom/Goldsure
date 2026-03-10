@@ -265,8 +265,9 @@ header {
   display: block; border-radius: 5px;
   padding: 3px 7px; font-size: 10px; font-weight: 600;
   margin-top: 3px; line-height: 1.35;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: nowrap; overflow: hidden; text-overflow: clip;
   letter-spacing: 0.01em; font-family: 'Sora', sans-serif;
+  display: flex; align-items: center; gap: 4px;
 }
 .pill-0 { background: var(--p0-bg); color: var(--p0-t); }
 .pill-1 { background: var(--p1-bg); color: var(--p1-t); }
@@ -275,6 +276,17 @@ header {
 .pill-4 { background: var(--p4-bg); color: var(--p4-t); }
 .pill-avail   { background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; font-style: normal; font-weight: 700; letter-spacing: 0.02em; }
 .pill-unavail { background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; font-style: normal; font-weight: 700; letter-spacing: 0.02em; }
+.pill-locked  { background: #1e293b; color: #f8fafc; font-weight: 700; letter-spacing: 0.02em; opacity: 0.92; }
+.day.csv-locked { background: #f8fafc; }
+.day.csv-locked:hover { background: #f1f5f9; }
+.lock-badge {
+  position: absolute; top: 6px; right: 7px;
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 4px;
+  background: #1e293b; color: #f8fafc; opacity: 0.5;
+  z-index: 2; pointer-events: none;
+}
+.lock-badge svg { display: block; }
 
 /* ── HOLIDAYS ── */
 .holiday-label {
@@ -915,6 +927,17 @@ function renderCalendarGrid(containerId, year, month, events) {
 
     const dayWorkers = filteredRows.filter(e => e.work_date === dateStr)
 
+    // Mark day as CSV-locked if any booked entry came from CSV (has [ID] prefix)
+    const hasCsvBooking = dayWorkers.some(e => /^\[\d+\]/.test(e.electrician || ''))
+    if (hasCsvBooking) {
+      dayBox.classList.add('csv-locked')
+      const badge = document.createElement('div')
+      badge.className = 'lock-badge'
+      badge.title = 'Booked via CSV'
+      badge.innerHTML = '<svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="5" width="8" height="6" rx="1.2" fill="currentColor" opacity="0.9"/><path d="M3 5V3.5a2 2 0 1 1 4 0V5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/><circle cx="5" cy="8" r="1" fill="#1e293b"/></svg>'
+      dayBox.appendChild(badge)
+    }
+
     // Desktop pills
     // Admin view: show all avail/unavail pills for all electricians.
     // Worker view: show their own avail/unavail pill only; skip others.
@@ -927,17 +950,19 @@ function renderCalendarGrid(containerId, year, month, events) {
         const firstName = owner.split(' ')[0]
         const cap = firstName.charAt(0).toUpperCase() + firstName.slice(1)
         pill.className = 'pill pill-avail'
-        pill.textContent = workerFilter ? '✔ You’re available' : '✔ ' + cap + ' available'
+        pill.textContent = workerFilter ? '✔ Available' : '✔ ' + cap
       } else if (raw.startsWith('unavail:')) {
         const owner = raw.replace('unavail:', '').trim()
         if (workerFilter && !owner.includes(workerFilter)) return
         const firstName = owner.split(' ')[0]
         const cap = firstName.charAt(0).toUpperCase() + firstName.slice(1)
         pill.className = 'pill pill-unavail'
-        pill.textContent = workerFilter ? '✕ You’re unavailable' : '✕ ' + cap + ' unavailable'
+        pill.textContent = workerFilter ? '✕ Unavailable' : '✕ ' + cap
       } else {
+        // Booked entry — show first name only. Strip [ID] prefix for display.
         pill.className = `pill ${getPillClass(e.electrician || '')}`
-        pill.textContent = (e.electrician || '').replace(/\[.*?\]/g, '').trim().split(' ')[0] || '—'
+        const displayFirst = (e.electrician || '').replace(/^\[\d+\]\s*/, '').trim().split(' ')[0] || '—'
+        pill.textContent = displayFirst
       }
       dayBox.appendChild(pill)
     })
@@ -1141,14 +1166,9 @@ function parseCSVLine(line) {
 }
 
 function cleanElectricianName(raw) {
-  // Strip leading [XXXX] code e.g. "[1003] Paul  Taylor" → "Paul Taylor"
-  let name = raw.replace(/^\[\d+\]\s*/, '').replace(/\s+/g, ' ').trim()
-  // Try to match against known electricians list (case-insensitive)
-  if (electricians.length) {
-    const match = electricians.find(e => e.toLowerCase() === name.toLowerCase())
-    if (match) return match
-  }
-  return name
+  // Preserve the [XXXX] prefix — it is the stable colour key and CSV-lock marker.
+  // Normalise extra whitespace but keep "[1003] Paul Taylor" intact.
+  return raw.replace(/\s+/g, ' ').trim()
 }
 
 function parsePortalDate(raw) {
