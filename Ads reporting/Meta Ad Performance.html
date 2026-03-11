@@ -1073,7 +1073,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
     </div>
 
-    <!-- ── ROW 1: Lead Funnel | Monthly Spend ── -->
+    <!-- Funnel + Chart side by side -->
     <div class="row2" style="margin-bottom:16px;">
       <div class="card">
         <div class="ctitle">LEAD FUNNEL</div>
@@ -1091,11 +1091,13 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
     </div>
 
-    <!-- ── ROW 2: Lead Sources + Stage | Journey Paths ── -->
-    <div class="row2" style="margin-bottom:16px;align-items:stretch;">
+    <!-- 3-column layout: left col = Lead Sources + Stage Breakdown stacked, right col = Journey Paths -->
+    <div style="display:grid;grid-template-columns:1fr 1.55fr;gap:16px;margin-bottom:16px;align-items:start;">
 
-      <!-- Left: Lead Sources + Stage Breakdown — stretches to match Journey Paths height -->
+      <!-- LEFT COLUMN -->
       <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Lead Sources -->
         <div class="card">
           <div class="ctitle">LEAD SOURCES</div>
           <table class="dtable" style="font-size:11px;">
@@ -1103,13 +1105,16 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
             <tbody id="src-tbody"></tbody>
           </table>
         </div>
-        <div class="card" style="flex:1;">
+
+        <!-- Stage Breakdown -->
+        <div class="card">
           <div class="ctitle">STAGE BREAKDOWN</div>
           <div id="stage-rows"></div>
         </div>
+
       </div>
 
-      <!-- Right: Journey Paths -->
+      <!-- RIGHT COLUMN: Journey Paths -->
       <div class="card" id="journey-card">
         <div class="ctitle">LEAD SOURCES &amp; JOURNEY PATHS</div>
         <table class="dtable" style="font-size:11px;">
@@ -1590,7 +1595,11 @@ function categoriseSource(rawSource, contactAttr) {
 
 async function fetchContactAttributionBatch(contactIds) {
   const map = {};
-  const BATCH = 10;
+  // GHL rate limit: ~10 req/s. Use small parallel batches with a pause between each.
+  const BATCH     = 5;   // concurrent requests per wave
+  const DELAY_MS  = 300; // pause between waves to avoid 429s
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
   for (let i = 0; i < contactIds.length; i += BATCH) {
     const batch = contactIds.slice(i, i + BATCH);
     await Promise.all(batch.map(async (cid) => {
@@ -1608,8 +1617,16 @@ async function fetchContactAttributionBatch(contactIds) {
           contactSource: (c.source || '').toLowerCase(),
         });
         map[cid] = { first: parseAttr(attrFirst), latest: parseAttr(attrLatest) };
-      } catch(e) { map[cid] = null; }
+      } catch(e) {
+        // On 429 specifically, wait longer before continuing
+        if (e.message && e.message.includes('429')) {
+          await sleep(1000);
+        }
+        map[cid] = null;
+      }
     }));
+    // Pause between waves (skip pause after last batch)
+    if (i + BATCH < contactIds.length) await sleep(DELAY_MS);
   }
   return map;
 }
