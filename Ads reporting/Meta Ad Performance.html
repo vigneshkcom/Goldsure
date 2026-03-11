@@ -264,15 +264,15 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
 .product-kpis { margin-bottom: 16px; display: block; }
 #smoke-kpis, #hws-kpis { display: none; }
-.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
-.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); }
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; align-items: stretch; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow); height: 100%; display: flex; flex-direction: column; }
 .kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .kpi-val { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
 .kpi-sub { font-size: 11px; color: var(--muted); }
 .cb { color: var(--blue); } .cg { color: var(--green); } .ca { color: var(--amber); } .cr { color: var(--red); } .cgold { color: var(--gold); }
 
-.financial-kpis { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; }
-.fin-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; text-align: center; }
+.financial-kpis { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; align-items: stretch; }
+.fin-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; text-align: center; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
 .fin-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
 .fin-value { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .fin-note { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
@@ -285,9 +285,10 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 .assumption-note { font-size: 11px; color: #b8860b; display: flex; align-items: center; gap: 4px; }
 .assumption-note::before { content: "i"; font-weight: 600; }
 
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 22px; }
-.ctitle { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+.row2 > .card { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 22px; display: flex; flex-direction: column; }
+.ctitle { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0; }
 
 .sr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .sdot { width: 8px; height: 8px; border-radius: 50%; }
@@ -323,6 +324,11 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
 .vtbtn { font-size:11px; font-weight:600; padding:4px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--muted); cursor:pointer; }
 .vtbtn.active { background:var(--text); color:#fff; }
+
+/* Equal-height cards in same row: grid children stretch; cards fill cell */
+#journey-card { height: 100%; min-height: 0; }
+.metrics-row { align-items: stretch; }
+.metrics-row .metric-card { height: 100%; display: flex; flex-direction: column; }
 
 @media print {
   #login-screen, #password-gate { display: none !important; }
@@ -754,6 +760,11 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 @media (max-width:700px) {
   .metrics-row { grid-template-columns:1fr; }
 }
+/* Equal-height rows: prevent cramped cards on narrow viewports; stack instead */
+@media (max-width: 640px) {
+  .row2 { grid-template-columns: 1fr; }
+  .row2 > .card { min-height: auto; }
+}
 </style>
 </head>
 <body>
@@ -820,7 +831,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <span id="step-data-text">Loading all pipeline data…</span>
       </div>
       <div id="step-data-note" style="display:none;margin-top:10px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e;line-height:1.6;">
-        <strong>This step takes around 30 to 60 seconds.</strong> The tool is pulling all opportunities from Webco CRM and matching each contact with live ad attribution data, so you can clearly see which platform drove each lead. The dashboard will open automatically once it's ready.
+        ⏳ <strong>This step takes around 30 to 60 seconds.</strong> The tool is pulling all opportunities from Webco CRM and matching each contact with live ad attribution data, so you can clearly see which platform drove each lead. The dashboard will open automatically once it's ready.
       </div>
     </div>
 
@@ -1190,6 +1201,13 @@ let currentProduct = 'smoke';
 let viewMode = 'weekly';
 let alarmsPerJob = 5, sellPrice = 89.0909, costPrice = 25;
 
+// ── Contact attribution cache: avoid re-fetching same contacts on reload ──
+// Structure: { contactId: { data: { first, latest }, ts } }. Safe against malformed: we validate in fetch.
+const CONTACT_ATTR_CACHE = {};
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// Raw opportunities kept in memory so we can re-map when background enrichment completes (no re-fetch).
+let GHL_OPPORTUNITIES_RAW = null;
+
 // Live Google spend fetched from the API (inc-GST AUD, filtered to selected date range)
 // Smoke Google Ads started Jan 1 2026 — any spend before that date belongs to HWS.
 const GOOGLE_SMOKE_START = '2026-01-01'; // Smoke campaigns only from this date onwards
@@ -1448,11 +1466,14 @@ async function autoLogin() {
   const dataNote = document.getElementById('step-data-note');
   if (dataNote) dataNote.style.display = 'block';
   try {
-    if (GHL_CONNECTED) await loadGHLData();
+    if (GHL_CONNECTED) await loadGHLDataFast();
     status.className = 'login-status ok';
-    setStep('data', 'done', 'All data loaded — opening dashboard ✓');
+    setStep('data', 'done', 'Data loaded — opening dashboard ✓');
     status.innerText = 'Connected! Opening dashboard…';
-    setTimeout(() => initDashboard(), 600);
+    setTimeout(() => {
+      initDashboard();
+      if (GHL_CONNECTED) loadGHLDataEnrichment().catch(e => console.warn('[autoLogin] Background attribution failed:', e));
+    }, 600);
   } catch(e) {
     setStep('data', 'err', `Data load failed: ${e.message}`);
     status.className = 'login-status err';
@@ -1485,11 +1506,14 @@ async function manualLogin() {
   document.getElementById('login-status').className = 'login-status loading';
   document.getElementById('login-status').innerText = 'Loading data…';
   try {
-    if (GHL_CONNECTED) await loadGHLData();
+    if (GHL_CONNECTED) await loadGHLDataFast();
     setStep('data', 'done', 'Data loaded ✓');
     document.getElementById('login-status').className = 'login-status ok';
     document.getElementById('login-status').innerText = 'Done! Opening dashboard…';
-    setTimeout(() => initDashboard(), 600);
+    setTimeout(() => {
+      initDashboard();
+      if (GHL_CONNECTED) loadGHLDataEnrichment().catch(e => console.warn('[manualLogin] Background attribution failed:', e));
+    }, 600);
   } catch(e) {
     setStep('data', 'err', e.message);
     document.getElementById('login-status').className = 'login-status err';
@@ -1503,6 +1527,8 @@ function showLoginScreen() {
   SMOKE_CRM = []; HWS_CRM = [];
   SMOKE_SPEND = []; HWS_SPEND = [];
   SMOKE_SPEND_ALL = []; HWS_SPEND_ALL = [];
+  GHL_OPPORTUNITIES_RAW = null;
+  Object.keys(CONTACT_ATTR_CACHE).forEach(k => delete CONTACT_ATTR_CACHE[k]);
   sessionStorage.removeItem('gs_auth');
   document.getElementById('password-gate').style.display = 'flex';
   document.getElementById('login-screen').style.display = 'none';
@@ -1601,11 +1627,27 @@ function categoriseSource(rawSource, contactAttr) {
 async function fetchContactAttributionBatch(contactIds, onProgress) {
   const map   = {};
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const now   = Date.now();
+
+  // Use cache for valid entries; only fetch uncached or expired (safe against stale/malformed: we validate below)
+  const toFetch = [];
+  contactIds.forEach(cid => {
+    const cached = CONTACT_ATTR_CACHE[cid];
+    if (cached && (now - cached.ts) < CACHE_TTL_MS && cached.data && typeof cached.data === 'object' && cached.data.first != null) {
+      map[cid] = cached.data;
+    } else {
+      toFetch.push(cid);
+    }
+  });
+
+  let done = contactIds.length - toFetch.length;
+  if (onProgress && done > 0) onProgress(done, contactIds.length);
+
+  if (toFetch.length === 0) return map;
+
   // 3 parallel streams, 120ms gap each → ~25 req/s total, well within GHL limits
-  // 948 contacts: 316 per stream × 120ms ≈ 38s (vs 142s sequential)
   const CONCURRENCY = 3;
   const GAP_MS      = 120;
-  let done = 0;
 
   const fetchOne = async (cid) => {
     let attempts = 0;
@@ -1627,16 +1669,17 @@ async function fetchContactAttributionBatch(contactIds, onProgress) {
           gclid:         !!(a.gclid || a.wbraid || a.gbraid),
           contactSource: (c.source || '').toLowerCase(),
         });
-        map[cid] = { first: parseAttr(attrFirst), latest: parseAttr(attrLatest) };
+        const data = { first: parseAttr(attrFirst), latest: parseAttr(attrLatest) };
+        map[cid] = data;
+        CONTACT_ATTR_CACHE[cid] = { data, ts: Date.now() };
         return;
       } catch(e) { map[cid] = null; return; }
     }
     map[cid] = null;
   };
 
-  // Split into CONCURRENCY buckets, run each bucket sequentially in parallel
   const buckets = Array.from({ length: CONCURRENCY }, (_, i) =>
-    contactIds.filter((_, idx) => idx % CONCURRENCY === i)
+    toFetch.filter((_, idx) => idx % CONCURRENCY === i)
   );
 
   await Promise.all(buckets.map(async (bucket) => {
@@ -1666,52 +1709,87 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   };
 }
 
-async function loadGHLData(){
-  const statusEl=document.getElementById('ghl-panel-info');
-  if(statusEl) statusEl.innerText='Fetching CRM data…';
-  if(GHL_PIPELINES.length===0){
-    try{
-      const pipeJson=await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
-      GHL_PIPELINES=(pipeJson.pipelines||[]).map(p=>({id:p.id,name:p.name,stages:(p.stages||[]).map(s=>({id:s.id,name:s.name}))}));
-      const smokePipe=GHL_PIPELINES.find(p=>/smoke/i.test(p.name));
-      const hwsPipe=GHL_PIPELINES.find(p=>/hws|hot.?water|water/i.test(p.name));
-      if(smokePipe&&!SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID=smokePipe.id;
-      if(hwsPipe&&!HWS_PIPELINE_ID) HWS_PIPELINE_ID=hwsPipe.id;
-    }catch(e){}
+/** Build SMOKE_CRM and HWS_CRM from opportunity list and optional contact attribution. Used for both fast boot (attr={}) and after enrichment. */
+function buildCRMMapFromOpportunities(opps, contactAttrMap) {
+  const mapped = opps.map(o => mapGHLOpportunity(o, contactAttrMap)).filter(r => r.created);
+  const stageNameMap = {};
+  GHL_PIPELINES.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
+  mapped.forEach(r => { if (r.stageId && stageNameMap[r.stageId]) r.stage = stageNameMap[r.stageId]; });
+  if (SMOKE_PIPELINE_ID || HWS_PIPELINE_ID) {
+    SMOKE_CRM = SMOKE_PIPELINE_ID ? mapped.filter(r => r.pipelineId === SMOKE_PIPELINE_ID) : mapped.filter(r => !/hws|hot.?water|sales/i.test(r.pipeline));
+    HWS_CRM   = HWS_PIPELINE_ID ? mapped.filter(r => r.pipelineId === HWS_PIPELINE_ID) : mapped.filter(r => r.pipelineId !== SMOKE_PIPELINE_ID);
+  } else {
+    const pipelineNames = [...new Set(mapped.map(r => r.pipeline).filter(Boolean))];
+    const smokeName = pipelineNames.find(p => /smoke/i.test(p)) || '';
+    SMOKE_CRM = smokeName ? mapped.filter(r => r.pipeline === smokeName) : mapped;
+    HWS_CRM   = mapped.filter(r => r.pipeline !== smokeName);
+  }
+  if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0) { SMOKE_CRM = mapped; HWS_CRM = mapped; }
+  return mapped;
+}
+
+/** Stage 1: fetch opportunities only, map with raw source (no contact enrichment). Dashboard can render immediately. */
+async function loadGHLDataFast() {
+  const statusEl = document.getElementById('ghl-panel-info');
+  if (statusEl) statusEl.innerText = 'Fetching CRM data…';
+  if (GHL_PIPELINES.length === 0) {
+    try {
+      const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
+      GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({ id: p.id, name: p.name, stages: (p.stages || []).map(s => ({ id: s.id, name: s.name })) }));
+      const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
+      const hwsPipe  = GHL_PIPELINES.find(p => /hws|hot.?water|water/i.test(p.name));
+      if (smokePipe && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = smokePipe.id;
+      if (hwsPipe && !HWS_PIPELINE_ID) HWS_PIPELINE_ID = hwsPipe.id;
+    } catch (e) {}
   }
   const opps = await fetchAllOpportunities();
-  if(statusEl) statusEl.innerText=`Fetching attribution for ${opps.length} leads…`;
-  const contactIds = [...new Set(opps.map(o => o.contactId || o.contact?.id).filter(Boolean))];
+  GHL_OPPORTUNITIES_RAW = opps;
+  const mapped = buildCRMMapFromOpportunities(opps, {});
+  if (statusEl) statusEl.innerText = `GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
+  const metaRefresh = document.getElementById('meta-last-refresh');
+  if (metaRefresh) metaRefresh.innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
+}
+
+/** Stage 2: run in background after first paint. Fetches contact attribution (with cache), re-maps CRM, then refreshes only attribution-dependent UI. */
+async function loadGHLDataEnrichment() {
+  if (!GHL_OPPORTUNITIES_RAW || !GHL_OPPORTUNITIES_RAW.length) return;
+  const contactIds = [...new Set(GHL_OPPORTUNITIES_RAW.map(o => o.contactId || o.contact?.id).filter(Boolean))];
   let contactAttrMap = {};
   try {
     contactAttrMap = await fetchContactAttributionBatch(contactIds, (done, total) => {
       const stepEl = document.getElementById('step-data-text');
       if (stepEl) stepEl.innerText = `Enriching attribution… ${done} / ${total} contacts`;
     });
+  } catch (e) {
+    console.warn('[loadGHLDataEnrichment] Attribution fetch failed:', e);
+    return;
   }
-  catch(e) { console.warn('[loadGHLData] Attribution fetch failed:', e); }
-  const mapped = opps.map(o => mapGHLOpportunity(o, contactAttrMap)).filter(r => r.created);
-  const stageNameMap={};
-  GHL_PIPELINES.forEach(p=>p.stages.forEach(s=>{stageNameMap[s.id]=s.name;}));
-  mapped.forEach(r=>{ if(r.stageId&&stageNameMap[r.stageId]) r.stage=stageNameMap[r.stageId]; });
-  if(SMOKE_PIPELINE_ID||HWS_PIPELINE_ID){
-    SMOKE_CRM=SMOKE_PIPELINE_ID?mapped.filter(r=>r.pipelineId===SMOKE_PIPELINE_ID):mapped.filter(r=>!/hws|hot.?water|sales/i.test(r.pipeline));
-    HWS_CRM=HWS_PIPELINE_ID?mapped.filter(r=>r.pipelineId===HWS_PIPELINE_ID):mapped.filter(r=>r.pipelineId!==SMOKE_PIPELINE_ID);
-  } else {
-    const pipelineNames=[...new Set(mapped.map(r=>r.pipeline).filter(Boolean))];
-    const smokeName=pipelineNames.find(p=>/smoke/i.test(p)||'');
-    SMOKE_CRM=smokeName?mapped.filter(r=>r.pipeline===smokeName):mapped;
-    HWS_CRM=mapped.filter(r=>r.pipeline!==smokeName);
-  }
-  if(SMOKE_CRM.length===0&&HWS_CRM.length===0){SMOKE_CRM=mapped;HWS_CRM=mapped;}
-  if(statusEl) statusEl.innerText=`GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
-  document.getElementById('meta-last-refresh').innerText='Last refresh: '+new Date().toLocaleTimeString('en-AU');
+  buildCRMMapFromOpportunities(GHL_OPPORTUNITIES_RAW, contactAttrMap);
+  const statusEl = document.getElementById('ghl-panel-info');
+  if (statusEl) statusEl.innerText = `GHL: ${SMOKE_CRM.length + HWS_CRM.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS) · attribution updated`;
+  refreshAttributionDependentUI();
+}
+
+/** After enrichment: repopulate filters (preserving selection), then full re-render so KPIs, funnel, chart, stage breakdown, volume, source table, and journey paths all use updated attribution. */
+function refreshAttributionDependentUI() {
+  populateFilters();
+  renderCurrentProduct();
+}
+
+/** Full load (blocking): used by Refresh CRM button. Re-fetches opportunities then runs enrichment in background. */
+async function loadGHLData() {
+  await loadGHLDataFast();
+  loadGHLDataEnrichment().catch(e => console.warn('[loadGHLData] Background enrichment failed:', e));
 }
 
 async function refreshGHL(){
   const btn=document.getElementById('btn-refresh-ghl');
   if(btn){btn.innerText='↻ Fetching…';btn.disabled=true;}
-  try{ await loadGHLData(); populateFilters(); renderCurrentProduct(); }catch(e){ console.warn(e); }
+  try {
+    await loadGHLData();
+    populateFilters();
+    renderCurrentProduct();
+  } catch(e){ console.warn(e); }
   finally{ if(btn){btn.innerText='↻ Refresh CRM';btn.disabled=false;} }
 }
 
@@ -1758,11 +1836,17 @@ async function refreshMetaSpend(){
 //  RENDER
 // ══════════════════════════════════════════════════════════════
 function populateFilters(){
+  const srcEl = document.getElementById('filterSource');
+  const pipEl = document.getElementById('filterPipeline');
+  const savedSource = srcEl && srcEl.value;
+  const savedPipeline = pipEl && pipEl.value;
   const allCRM=[...SMOKE_CRM,...HWS_CRM];
   const sources=[...new Set(allCRM.map(r=>r.source).filter(Boolean))].sort();
   const pipelines=[...new Set(allCRM.map(r=>r.pipeline).filter(Boolean))].sort();
-  document.getElementById('filterSource').innerHTML='<option value="">All</option>'+sources.map(v=>`<option value="${v}">${v}</option>`).join('');
-  document.getElementById('filterPipeline').innerHTML='<option value="">All</option>'+pipelines.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if (srcEl) srcEl.innerHTML='<option value="">All</option>'+sources.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if (pipEl) pipEl.innerHTML='<option value="">All</option>'+pipelines.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if (srcEl && savedSource && sources.includes(savedSource)) srcEl.value = savedSource;
+  if (pipEl && savedPipeline && pipelines.includes(savedPipeline)) pipEl.value = savedPipeline;
 }
 
 function switchProduct(prod){
