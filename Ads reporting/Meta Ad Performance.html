@@ -1816,11 +1816,34 @@ async function loadGHLDataEnrichment() {
     return;
   }
   const opps = GHL_OPPORTUNITIES_RAW;
-  const contactIds = [...new Set(opps.map(o => {
-    const id = o.contactId != null ? o.contactId : (o.contact && o.contact.id);
-    return (id !== undefined && id !== null && id !== '') ? String(id) : null;
-  }).filter(Boolean))];
-  if (typeof console !== 'undefined' && console.log) console.log('[GHL] Contacts to enrich:', contactIds.length);
+
+  // ── Only enrich contacts in the Smoke pipeline ──
+  // SMOKE_CRM was already built by the fast load using the correct pipeline filter,
+  // so cross-reference its entries against the raw opps to get contact IDs.
+  // This avoids re-implementing pipeline matching logic and is guaranteed correct.
+  const smokeMapped = SMOKE_CRM.length > 0 ? SMOKE_CRM : null;
+  let contactIds;
+  if (smokeMapped) {
+    // Build a set of pipelineIds that belong to Smoke from the already-mapped records
+    const smokePipelineIds = new Set(smokeMapped.map(r => r.pipelineId).filter(Boolean));
+    // Extract contact IDs from raw opps whose pipelineId is in that set
+    const smokeRawOpps = opps.filter(o => {
+      const pid = String(o.pipelineId || '').trim();
+      return pid && smokePipelineIds.has(pid);
+    });
+    contactIds = [...new Set(smokeRawOpps.map(o => {
+      const id = o.contactId != null ? o.contactId : (o.contact && o.contact.id);
+      return (id !== undefined && id !== null && id !== '') ? String(id) : null;
+    }).filter(Boolean))];
+    if (typeof console !== 'undefined' && console.log) console.log('[GHL] Contacts to enrich (Smoke only):', contactIds.length, 'of', opps.length, 'total opps');
+  } else {
+    // Safety fallback: enrich all if SMOKE_CRM somehow empty
+    contactIds = [...new Set(opps.map(o => {
+      const id = o.contactId != null ? o.contactId : (o.contact && o.contact.id);
+      return (id !== undefined && id !== null && id !== '') ? String(id) : null;
+    }).filter(Boolean))];
+    if (typeof console !== 'undefined' && console.log) console.log('[GHL] Contacts to enrich (all, fallback):', contactIds.length);
+  }
 
   // ── Show the indicator: enrichment is starting ──
   setAttrStatus('loading', 0, contactIds.length);
