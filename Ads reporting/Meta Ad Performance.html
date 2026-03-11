@@ -1093,32 +1093,23 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
     <div class="row2">
       <div class="card"><div class="ctitle">STAGE BREAKDOWN</div><div id="stage-rows"></div></div>
-      <div class="card"><div class="ctitle">LEAD SOURCES</div><table class="dtable"><thead><tr><th>SOURCE</th><th>LEADS</th><th>INSTALLED</th><th>CLOSE %</th></tr></thead><tbody id="src-tbody"></tbody></table></div>
-    </div>
 
-    <!-- ── ATTRIBUTION ANALYSIS ROW ── -->
-    <div class="row2" style="margin-bottom:16px;">
-
-      <!-- Journey Paths card -->
+      <!-- JOURNEY PATHS replaces Lead Sources -->
       <div class="card" id="journey-card">
-        <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>JOURNEY PATHS <span style="font-size:9px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;">(first touch → close touch)</span></span>
-          <span style="font-size:10px;font-weight:500;color:var(--muted);text-transform:none;">top paths by leads</span>
-        </div>
-        <table class="dtable">
-          <thead><tr><th>PATH</th><th>LEADS</th><th>CLOSED</th><th>CLOSE %</th></tr></thead>
+        <div class="ctitle">LEAD SOURCES &amp; JOURNEY PATHS</div>
+        <table class="dtable" id="journey-table">
+          <thead>
+            <tr>
+              <th>SOURCE / PATH</th>
+              <th>LEADS</th>
+              <th>CLOSED</th>
+              <th>CLOSE %</th>
+            </tr>
+          </thead>
           <tbody id="journey-tbody"></tbody>
         </table>
-        <div style="margin-top:10px;font-size:10px;color:var(--muted);line-height:1.6;" id="journey-note"></div>
+        <div id="journey-legend" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:1.8;"></div>
       </div>
-
-      <!-- Landing Page vs Lead Form card -->
-      <div class="card" id="entry-card">
-        <div class="ctitle">ENTRY POINT COMPARISON</div>
-        <div id="entry-rows" style="display:flex;flex-direction:column;gap:14px;padding-top:4px;"></div>
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:1.6;" id="entry-note"></div>
-      </div>
-
     </div>
 
 
@@ -1554,11 +1545,7 @@ async function fetchAllOpportunities() {
 }
 
 
-// ══════════════════════════════════════════════════════════════
-//  SOURCE CATEGORISATION  (GHL attribution rules)
-// ══════════════════════════════════════════════════════════════
 function categoriseSource(rawSource, contactAttr) {
-  // Tier 1 — contact attribution object (most reliable)
   if (contactAttr) {
     const { type, medium, utmSource, referrer, gclid } = contactAttr;
     if (utmSource === 'adwords' || utmSource.includes('google_ads') || gclid ||
@@ -1571,10 +1558,8 @@ function categoriseSource(rawSource, contactAttr) {
     const searchEngines = ['google.com','bing.com','yahoo.com','duckduckgo.com'];
     if (searchEngines.some(d => referrer.includes(d))) return 'Organic Search';
     if (type === 'direct traffic' || type === 'direct') return 'Direct';
-    if (type === 'referral' || type === 'referrals') return 'Referral';
-    if (type === 'crm ui') return 'CRM UI';
+    if (type === 'referral') return 'Referral';
   }
-  // Tier 2 — normalise raw source string
   const raw = (contactAttr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';
   if (raw === 'paid search' || raw.includes('adword') || raw.includes('google ads')) return 'Google';
@@ -1584,17 +1569,8 @@ function categoriseSource(rawSource, contactAttr) {
   if (raw === 'organic social' || raw === 'social media') return 'Organic Social';
   if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
   if (raw === 'referral') return 'Referral';
-  if (raw === 'crm ui') return 'CRM UI';
   if (raw === 'landing page') return 'Unknown';
   return rawSource || 'Unknown';
-}
-
-function categoriseEntry(entryType) {
-  // Was this lead captured via a native lead form or a landing page form?
-  if (!entryType) return 'Unknown';
-  const t = entryType.toLowerCase();
-  if (t.includes('lead form') || t.includes('leadgen') || t.includes('facebook lead')) return 'Lead Form';
-  return 'Landing Page';
 }
 
 async function fetchContactAttributionBatch(contactIds) {
@@ -1612,21 +1588,12 @@ async function fetchContactAttributionBatch(contactIds) {
           type:          (a.type        || '').toLowerCase(),
           medium:        (a.medium      || '').toLowerCase(),
           utmSource:     (a.utmSource   || a.utm_source   || '').toLowerCase(),
-          utmMedium:     (a.utmMedium   || a.utm_medium   || '').toLowerCase(),
-          utmCampaign:   (a.utmCampaign || a.utm_campaign || '').toLowerCase(),
           referrer:      (a.referrer    || a.url          || '').toLowerCase(),
           gclid:         !!(a.gclid || a.wbraid || a.gbraid),
           contactSource: (c.source || '').toLowerCase(),
-          // Entry point: did they fill a form on a landing page or native lead form?
-          entry:         (a.medium || a.type || ''),
         });
-        map[cid] = {
-          first:  parseAttr(attrFirst),
-          latest: parseAttr(attrLatest),
-        };
-      } catch(e) {
-        map[cid] = null;
-      }
+        map[cid] = { first: parseAttr(attrFirst), latest: parseAttr(attrLatest) };
+      } catch(e) { map[cid] = null; }
     }));
   }
   return map;
@@ -1636,17 +1603,11 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const created    = opp.createdAt ? opp.createdAt.slice(0,10) : '';
   const contactId  = opp.contactId || opp.contact?.id || '';
   const cData      = (contactAttrMap && contactId) ? (contactAttrMap[contactId] || null) : null;
-  const firstAttr  = cData?.first  || null;
-  const latestAttr = cData?.latest || null;
-  const firstSrc   = categoriseSource(opp.source, firstAttr);
-  const latestSrc  = categoriseSource(opp.source, latestAttr);
-  const entry      = categoriseEntry(firstAttr?.entry || firstAttr?.medium || firstAttr?.type || '');
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
-    source:     firstSrc,          // first-touch source (used for Lead Sources table)
-    latestSrc,                     // last-touch source (for path analysis)
-    entry,                         // "Landing Page" or "Lead Form"
+    source:     categoriseSource(opp.source, cData?.first  || null),
+    latestSrc:  categoriseSource(opp.source, cData?.latest || null),
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
     created,
@@ -1667,12 +1628,11 @@ async function loadGHLData(){
     }catch(e){}
   }
   const opps = await fetchAllOpportunities();
-  // Enrich with contact-level attribution (batched, deduplicated by contact ID)
   if(statusEl) statusEl.innerText=`Fetching attribution for ${opps.length} leads…`;
   const contactIds = [...new Set(opps.map(o => o.contactId || o.contact?.id).filter(Boolean))];
   let contactAttrMap = {};
   try { contactAttrMap = await fetchContactAttributionBatch(contactIds); }
-  catch(e) { console.warn('[loadGHLData] Contact attribution batch failed:', e); }
+  catch(e) { console.warn('[loadGHLData] Attribution fetch failed:', e); }
   const mapped = opps.map(o => mapGHLOpportunity(o, contactAttrMap)).filter(r => r.created);
   const stageNameMap={};
   GHL_PIPELINES.forEach(p=>p.stages.forEach(s=>{stageNameMap[s.id]=s.name;}));
@@ -1892,140 +1852,128 @@ function renderStagesAndSources(leads, total, totalAdSpend, product){
   const sorted=stageOrder.filter(s=>stageCount[s]).map(s=>[s,stageCount[s]]).concat(Object.entries(stageCount).filter(([s])=>!stageOrder.includes(s)).sort((a,b)=>b[1]-a[1]));
   const max=Math.max(...sorted.map(([,v])=>v),1);
   document.getElementById('stage-rows').innerHTML=sorted.map(([s,cnt])=>{ const col=STAGE_COLORS[s]||'#94a3b8'; let dn=s; if(s==='Won/Installed') dn='Installed'; else if(s==='Qualified/IHA Complete') dn='Qualified'; return `<div class="sr"><div class="sdot" style="background:${col}"></div><span class="sname">${dn}</span><div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${col}"></div></div><span class="snums">${cnt} · ${total?((cnt/total*100).toFixed(1)):'0'}%</span></div>`; }).join('')||'<span>No data</span>';
-  const srcMap={};leads.forEach(r=>{ if(!srcMap[r.source]) srcMap[r.source]={t:0,i:0}; srcMap[r.source].t++; if(r.stage==='Installed'||r.stage==='Won/Installed'||/install|won|iha booked|qualified/i.test(r.stage)) srcMap[r.source].i++; });
-  const sortedSrc=Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
-  document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
   renderJourneyPaths(leads);
-  renderEntryComparison(leads);
   renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'));
   renderFunnel(leads, total, product);
   renderSpendLeadsChart(leads, product);
 }
 
-// ── JOURNEY PATHS ──
-// Shows first-touch → latest-touch source combinations and their close rates
+// ══════════════════════════════════════════════════════════════
+//  JOURNEY PATHS  (grouped by platform with subtotals)
+// ══════════════════════════════════════════════════════════════
 function renderJourneyPaths(leads) {
-  const tbody = document.getElementById('journey-tbody');
-  const noteEl = document.getElementById('journey-note');
+  const tbody  = document.getElementById('journey-tbody');
+  const legend = document.getElementById('journey-legend');
   if (!tbody) return;
 
   const isWon = r => /install|won/i.test(r.stage);
 
-  // Build path map
-  const pathMap = {};
+  // Platform grouping — which top-level bucket does a source belong to?
+  const PLATFORM_ORDER = ['Meta', 'Google', 'Organic Social', 'Direct', 'Referral', 'Unknown'];
+  const getPlatform = (src) => {
+    if (!src || src === 'Unknown') return 'Unknown';
+    if (src === 'Meta' || src.startsWith('Meta')) return 'Meta';
+    if (src === 'Google' || src.startsWith('Google')) return 'Google';
+    if (src === 'Organic Social') return 'Organic Social';
+    if (src === 'Direct') return 'Direct';
+    if (src === 'Referral') return 'Referral';
+    return 'Unknown';
+  };
+
+  const PLATFORM_COLORS = {
+    'Meta':           '#1877f2',
+    'Google':         '#18a96e',
+    'Organic Social': '#d98c1e',
+    'Direct':         '#7251c2',
+    'Referral':       '#0ea4ac',
+    'Unknown':        '#94a3b8',
+  };
+
+  // Build path data: first-touch source → latest-touch source
+  // path label = "Meta" if same, "Meta → Google" if different
+  const pathData = {};  // platform → { total:{t,i}, paths:{ pathLabel:{t,i} } }
+
   leads.forEach(r => {
     const first  = r.source    || 'Unknown';
     const latest = r.latestSrc || r.source || 'Unknown';
-    const path   = first === latest ? first : `${first} → ${latest}`;
-    if (!pathMap[path]) pathMap[path] = { t: 0, i: 0, first, latest };
-    pathMap[path].t++;
-    if (isWon(r)) pathMap[path].i++;
+    const platform = getPlatform(first);
+    const pathLabel = (first === latest || !r.latestSrc) ? first : `${first} → ${latest}`;
+
+    if (!pathData[platform]) pathData[platform] = { t: 0, i: 0, paths: {} };
+    pathData[platform].t++;
+    if (isWon(r)) pathData[platform].i++;
+
+    if (!pathData[platform].paths[pathLabel]) pathData[platform].paths[pathLabel] = { t: 0, i: 0 };
+    pathData[platform].paths[pathLabel].t++;
+    if (isWon(r)) pathData[platform].paths[pathLabel].i++;
   });
 
-  const sorted = Object.entries(pathMap).sort((a, b) => b[1].t - a[1].t).slice(0, 8);
-  const PATH_COLORS = { 'Meta': '#1877f2', 'Google': '#18a96e', 'Organic Social': '#d98c1e', 'Direct': '#7251c2', 'Unknown': '#94a3b8' };
-  const pathColor = (src) => PATH_COLORS[src] || '#94a3b8';
+  // Build HTML rows
+  const rows = [];
+  const grandTotal = { t: leads.length, i: leads.filter(isWon).length };
 
-  tbody.innerHTML = sorted.map(([path, v]) => {
-    const pct = v.t > 0 ? (v.i / v.t * 100).toFixed(1) : '0.0';
-    const [f, l] = path.includes(' → ') ? path.split(' → ') : [path, null];
-    const pathHtml = l
-      ? `<span style="display:inline-flex;align-items:center;gap:5px;">
-           <span class="scdot" style="background:${pathColor(f)}"></span>${f}
-           <span style="color:var(--muted);font-size:10px;">→</span>
-           <span class="scdot" style="background:${pathColor(l)}"></span>${l}
-         </span>`
-      : `<span style="display:inline-flex;align-items:center;gap:5px;"><span class="scdot" style="background:${pathColor(f)}"></span>${f}</span>`;
-    const pctColor = parseFloat(pct) >= 30 ? 'var(--green)' : parseFloat(pct) >= 15 ? 'var(--amber)' : 'var(--muted)';
-    return `<tr>
-      <td style="font-size:11px;">${pathHtml}</td>
-      <td>${v.t}</td>
-      <td style="color:var(--green);font-weight:600">${v.i}</td>
-      <td style="color:${pctColor};font-weight:600">${pct}%</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px;">No path data — attribution loading</td></tr>';
+  PLATFORM_ORDER.forEach(platform => {
+    const pg = pathData[platform];
+    if (!pg) return;
 
-  // Insight note
-  const multiTouch = Object.entries(pathMap).filter(([p]) => p.includes(' → '));
-  const multiLeads = multiTouch.reduce((a, [, v]) => a + v.t, 0);
-  const multiWon   = multiTouch.reduce((a, [, v]) => a + v.i, 0);
-  const singleWon  = leads.filter(r => isWon(r) && (!r.latestSrc || r.latestSrc === r.source)).length;
-  const singleLeads = leads.length - multiLeads;
-  noteEl.innerHTML = multiLeads > 0
-    ? `Multi-touch journeys: <strong>${multiLeads} leads</strong>, <strong>${(multiWon/multiLeads*100).toFixed(1)}%</strong> close rate &nbsp;·&nbsp; Single-touch: <strong>${singleLeads} leads</strong>, <strong>${singleLeads > 0 ? (singleWon/singleLeads*100).toFixed(1) : 0}%</strong> close rate`
-    : 'Attribution data loading — paths will appear after contact data is fetched.';
-}
+    const col = PLATFORM_COLORS[platform] || '#94a3b8';
+    const pPct = pg.t > 0 ? (pg.i / pg.t * 100).toFixed(1) : '0.0';
 
-// ── ENTRY POINT COMPARISON (Landing Page vs Lead Form) ──
-function renderEntryComparison(leads) {
-  const container = document.getElementById('entry-rows');
-  const noteEl    = document.getElementById('entry-note');
-  if (!container) return;
+    // Sub-paths sorted by leads desc — only show if >1 distinct path
+    const subPaths = Object.entries(pg.paths).sort((a, b) => b[1].t - a[1].t);
+    const hasSubPaths = subPaths.length > 1;
 
-  const isWon = r => /install|won/i.test(r.stage);
+    // Sub-path rows (only if multiple paths exist under this platform)
+    if (hasSubPaths) {
+      subPaths.forEach(([label, v]) => {
+        const sPct = v.t > 0 ? (v.i / v.t * 100).toFixed(1) : '0.0';
+        const sPctColor = parseFloat(sPct) >= 30 ? 'var(--green)' : parseFloat(sPct) >= 15 ? 'var(--amber)' : 'var(--muted)';
+        rows.push(`<tr style="background:transparent;">
+          <td style="font-size:11px;color:var(--muted);padding-left:22px;">
+            <span style="color:${col};margin-right:5px;">↳</span>${label}
+          </td>
+          <td style="font-size:11px;color:var(--muted);">${v.t}</td>
+          <td style="font-size:11px;color:var(--green);">${v.i}</td>
+          <td style="font-size:11px;color:${sPctColor};">${sPct}%</td>
+        </tr>`);
+      });
+    }
 
-  // Group by entry type, then by source within each entry type
-  const groups = {};
-  leads.forEach(r => {
-    const entry  = r.entry || 'Unknown';
-    const source = r.source || 'Unknown';
-    if (!groups[entry]) groups[entry] = { t: 0, i: 0, bySrc: {} };
-    groups[entry].t++;
-    if (isWon(r)) groups[entry].i++;
-    if (!groups[entry].bySrc[source]) groups[entry].bySrc[source] = { t: 0, i: 0 };
-    groups[entry].bySrc[source].t++;
-    if (isWon(r)) groups[entry].bySrc[source].i++;
+    // Platform TOTAL row (bold, coloured header)
+    const totalLabel = hasSubPaths ? `Total ${platform}` : platform;
+    const pPctColor = parseFloat(pPct) >= 30 ? 'var(--green)' : parseFloat(pPct) >= 15 ? 'var(--amber)' : 'var(--muted)';
+    rows.push(`<tr style="background:${col}12;border-top:${hasSubPaths ? '1px solid var(--border)' : 'none'};">
+      <td style="font-weight:700;font-size:12px;">
+        <span class="scdot" style="background:${col};"></span>${totalLabel}
+      </td>
+      <td style="font-weight:700;">${pg.t}</td>
+      <td style="font-weight:700;color:var(--green);">${pg.i}</td>
+      <td style="font-weight:700;color:${pPctColor};">${pPct}%</td>
+    </tr>`);
+
+    // Spacer between platform groups
+    rows.push(`<tr><td colspan="4" style="height:6px;border:none;background:transparent;"></td></tr>`);
   });
 
-  const ENTRY_CONFIG = {
-    'Landing Page': { icon: '🌐', color: 'var(--blue)',  bg: 'var(--blue-bg)',  border: '#c5d3f5' },
-    'Lead Form':    { icon: '📋', color: '#1877f2',      bg: '#eef3ff',         border: '#c0d0f8' },
-    'Unknown':      { icon: '?',  color: 'var(--muted)', bg: 'var(--surface2)', border: 'var(--border)' },
-  };
+  // Grand total row
+  const gPct = grandTotal.t > 0 ? (grandTotal.i / grandTotal.t * 100).toFixed(1) : '0.0';
+  rows.push(`<tr class="tr-total">
+    <td>ALL SOURCES</td>
+    <td>${grandTotal.t}</td>
+    <td style="color:var(--green);">${grandTotal.i}</td>
+    <td>${gPct}%</td>
+  </tr>`);
 
-  const sorted = Object.entries(groups).sort((a, b) => b[1].t - a[1].t);
+  tbody.innerHTML = rows.join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px;">Loading attribution data…</td></tr>';
 
-  container.innerHTML = sorted.map(([entry, g]) => {
-    const cfg    = ENTRY_CONFIG[entry] || ENTRY_CONFIG['Unknown'];
-    const pct    = g.t > 0 ? (g.i / g.t * 100).toFixed(1) : '0.0';
-    const pctColor = parseFloat(pct) >= 30 ? 'var(--green)' : parseFloat(pct) >= 15 ? 'var(--amber)' : 'var(--muted)';
-
-    // Source breakdown within this entry type
-    const srcBreakdown = Object.entries(g.bySrc).sort((a,b)=>b[1].t-a[1].t).map(([src, sv]) => {
-      const sp = sv.t > 0 ? (sv.i / sv.t * 100).toFixed(1) : '0.0';
-      return `<span style="font-size:10px;color:var(--muted);">${src}: <strong style="color:var(--text);">${sv.t}</strong> leads, <strong style="color:var(--green);">${sv.i}</strong> closed (${sp}%)</span>`;
-    }).join('<span style="color:var(--border);margin:0 6px;">·</span>');
-
-    return `<div style="background:${cfg.bg};border:1px solid ${cfg.border};border-radius:10px;padding:12px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:16px;">${cfg.icon}</span>
-          <span style="font-size:12px;font-weight:700;color:${cfg.color};">${entry}</span>
-        </div>
-        <div style="display:flex;gap:16px;align-items:center;">
-          <span style="font-size:11px;color:var(--muted);">${g.t} leads</span>
-          <span style="font-size:11px;font-weight:700;color:var(--green);">${g.i} closed</span>
-          <span style="font-size:13px;font-weight:700;color:${pctColor};">${pct}%</span>
-        </div>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-        ${srcBreakdown || '<span style="font-size:10px;color:var(--muted);">No source breakdown available</span>'}
-      </div>
-    </div>`;
-  }).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px;">Attribution data loading…</div>';
-
-  // Insight note comparing LP vs Lead Form
-  const lp = groups['Landing Page'];
-  const lf = groups['Lead Form'];
-  if (lp && lf) {
-    const lpPct = (lp.i / lp.t * 100).toFixed(1);
-    const lfPct = (lf.i / lf.t * 100).toFixed(1);
-    const diff  = (parseFloat(lpPct) - parseFloat(lfPct)).toFixed(1);
-    const winner = parseFloat(lpPct) > parseFloat(lfPct) ? 'Landing page' : 'Lead form';
-    noteEl.innerHTML = `<strong>${winner} leads close ${Math.abs(diff)}% more often.</strong> Landing Page: ${lpPct}% close rate &nbsp;·&nbsp; Lead Form: ${lfPct}% close rate`;
-  } else {
-    noteEl.innerHTML = 'Entry point data will appear once contact attribution is fetched.';
-  }
+  // Legend explaining terms
+  const hasOrgSocial = !!pathData['Organic Social'];
+  const legendParts = [
+    '<strong>Path notation:</strong> "Meta → Google" means first clicked a Meta ad, then converted after a Google search.',
+    hasOrgSocial ? '<strong>Organic Social:</strong> Clicked a non-paid link on Facebook/Instagram (e.g. a shared post or your business page) — not from an ad.' : '',
+    '<strong>Unknown:</strong> Lead arrived without UTM tracking — ad URL was not tagged, so the platform cannot be identified.',
+  ].filter(Boolean);
+  legend.innerHTML = legendParts.join('<br>');
 }
 
 function updateMetaPanelDisplay(){
