@@ -67,11 +67,70 @@ async function fetchAllOpportunities() {
   return all;
 }
 
-function mapOpp(opp) {
+// ── Source categorisation (mirrors dashboard logic) ──
+function categoriseSource(rawSource, attr) {
+  if (attr) {
+    const { type, medium, utmSource, referrer, gclid } = attr;
+    if (utmSource === 'adwords' || utmSource.includes('google_ads') || gclid ||
+        type === 'paid search' || medium === 'paid search' ||
+        (utmSource && referrer.includes('google.com'))) return 'Google';
+    if (utmSource === 'fb_ad' || utmSource === 'facebook' || utmSource === 'instagram' ||
+        type === 'paid social' || medium === 'paid social') return 'Meta';
+    const social = ['facebook.com','instagram.com','linkedin.com','twitter.com','tiktok.com'];
+    if (social.some(d => referrer.includes(d))) return 'Organic Social';
+    const search = ['google.com','bing.com','yahoo.com','duckduckgo.com'];
+    if (search.some(d => referrer.includes(d))) return 'Organic Search';
+    if (type === 'direct traffic' || type === 'direct') return 'Direct';
+    if (type === 'referral') return 'Referral';
+  }
+  const raw = (attr?.contactSource || rawSource || '').toLowerCase().trim();
+  if (!raw || raw === 'unknown') return 'Unknown';
+  if (raw === 'paid search' || raw.includes('adword') || raw.includes('google ads')) return 'Google';
+  if (raw.includes('google')) return 'Google';
+  if (raw === 'paid social' || raw === 'fb_ad' || raw.includes('facebook') ||
+      raw.includes('fb') || raw.includes('meta') || raw.includes('instagram')) return 'Meta';
+  if (raw === 'organic search') return 'Organic Search';
+  if (raw === 'organic social' || raw === 'social media') return 'Organic Social';
+  if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
+  if (raw === 'referral') return 'Referral';
+  if (raw === 'landing page') return 'Landing Page';
+  return rawSource || 'Unknown';
+}
+
+async function fetchContactAttributionBatch(contactIds) {
+  const map = {};
+  const BATCH = 10;
+  for (let i = 0; i < contactIds.length; i += BATCH) {
+    const batch = contactIds.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (cid) => {
+      try {
+        const json = await ghlFetch(`/contacts/${cid}`);
+        const c = json.contact || json;
+        const attrFirst  = c.attributionSource || c.firstAttributionSource || {};
+        const attrLatest = c.lastAttributionSource || c.latestAttributionSource || attrFirst;
+        const parse = (a) => ({
+          type:          (a.type        || '').toLowerCase(),
+          medium:        (a.medium      || '').toLowerCase(),
+          utmSource:     (a.utmSource   || a.utm_source   || '').toLowerCase(),
+          referrer:      (a.referrer    || a.url          || '').toLowerCase(),
+          gclid:         !!(a.gclid || a.wbraid || a.gbraid),
+          contactSource: (c.source      || '').toLowerCase(),
+        });
+        map[cid] = { first: parse(attrFirst), latest: parse(attrLatest) };
+      } catch(e) { map[cid] = null; }
+    }));
+  }
+  return map;
+}
+
+function mapOpp(opp, contactAttrMap) {
+  const contactId = opp.contactId || opp.contact?.id || '';
+  const cData     = contactAttrMap ? (contactAttrMap[contactId] || null) : null;
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
-    source:     (opp.source || 'Unknown').trim(),
+    source:     categoriseSource(opp.source, cData?.first  || null),
+    latestSrc:  categoriseSource(opp.source, cData?.latest || null),
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
     created:    opp.createdAt ? opp.createdAt.slice(0, 10) : '',
@@ -89,8 +148,12 @@ async function loadSmokeOpportunities() {
     if (smokePipe) smokePipelineId = smokePipe.id;
   } catch(e) { console.error('Pipeline fetch failed:', e.message); }
 
-  const rawOpps = await fetchAllOpportunities();
-  const mapped  = rawOpps.map(mapOpp).filter(r => r.created);
+  const rawOpps    = await fetchAllOpportunities();
+  const contactIds = [...new Set(rawOpps.map(o => o.contactId || o.contact?.id).filter(Boolean))];
+  let contactAttrMap = {};
+  try { contactAttrMap = await fetchContactAttributionBatch(contactIds); }
+  catch(e) { console.warn('Attribution batch failed:', e.message); }
+  const mapped = rawOpps.map(o => mapOpp(o, contactAttrMap)).filter(r => r.created);
 
   const stageNameMap = {};
   pipelines.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
@@ -128,7 +191,35 @@ function calcKPIs(leads) {
     closeRate: v.total > 0 ? ((v.inst / v.total) * 100).toFixed(1) : '0.0',
   }));
 
-  return { total, inst, notInt, closeRate, breakdown, sources };
+  // Journey paths: group by first-touch platform with sub-paths
+  const PLATFORM_ORDER = ['Meta', 'Google', 'Organic Social', 'Direct', 'Referral', 'Unknown'];
+  const getPlatform = src => {
+    if (!src || src === 'Unknown') return 'Unknown';
+    if (src === 'Meta'           || src.startsWith('Meta'))    return 'Meta';
+    if (src === 'Google'         || src.startsWith('Google'))  return 'Google';
+    if (src === 'Organic Social' || src.startsWith('Organic')) return 'Organic Social';
+    if (src === 'Direct')   return 'Direct';
+    if (src === 'Referral') return 'Referral';
+    return 'Unknown';
+  };
+  const pathData = {};
+  leads.forEach(r => {
+    const first    = r.source    || 'Unknown';
+    const latest   = r.latestSrc || r.source || 'Unknown';
+    const platform = getPlatform(first);
+    const pathLabel = (first === latest || !r.latestSrc) ? first : `${first} → ${latest}`;
+    if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
+    pathData[platform].t++;
+    if (isInstalled(r.stage)) pathData[platform].i++;
+    if (!pathData[platform].paths[pathLabel]) pathData[platform].paths[pathLabel] = { t:0, i:0 };
+    pathData[platform].paths[pathLabel].t++;
+    if (isInstalled(r.stage)) pathData[platform].paths[pathLabel].i++;
+  });
+  const journeyPaths = PLATFORM_ORDER
+    .filter(p => pathData[p])
+    .map(p => ({ platform: p, ...pathData[p], subPaths: Object.entries(pathData[p].paths).sort((a,b)=>b[1].t-a[1].t) }));
+
+  return { total, inst, notInt, closeRate, breakdown, sources, journeyPaths };
 }
 
 // Meta spend (ex-GST)
@@ -203,7 +294,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       }).join('')
     : `<tr><td colspan="3" style="padding:14px;font-size:12px;color:#9ca3af;text-align:center;background-color:#ffffff;">No leads recorded today</td></tr>`;
 
-  // Source rows
+  // Source rows (kept for reference but replaced by journeyRows in email)
   const sourceRows = todayKPIs.sources.length > 0
     ? todayKPIs.sources.map(({ source, total, inst, closeRate }, i) => {
         const rowBg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
@@ -216,6 +307,45 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
           </tr>`;
       }).join('')
     : `<tr><td colspan="4" style="padding:14px;font-size:12px;color:#9ca3af;text-align:center;background-color:#ffffff;">No leads recorded today</td></tr>`;
+
+  // Journey Paths rows — grouped by platform with sub-paths (7-day data)
+  const PLATFORM_COLORS_EMAIL = {
+    'Meta':           '#1d4ed8',
+    'Google':         '#15803d',
+    'Organic Social': '#92400e',
+    'Direct':         '#6d28d9',
+    'Referral':       '#0e7490',
+    'Unknown':        '#64748b',
+  };
+  const journeyRows = last7KPIs.journeyPaths.length > 0
+    ? last7KPIs.journeyPaths.map(({ platform, t, i, subPaths }) => {
+        const col     = PLATFORM_COLORS_EMAIL[platform] || '#64748b';
+        const pPct    = t > 0 ? ((i / t) * 100).toFixed(1) : '0.0';
+        const pctColor = parseFloat(pPct) >= 30 ? '#15803d' : parseFloat(pPct) >= 15 ? '#92400e' : '#64748b';
+        const hasMulti = subPaths.length > 1;
+
+        const subRows = hasMulti ? subPaths.map(([label, sv]) => {
+          const sPct = sv.t > 0 ? ((sv.i / sv.t) * 100).toFixed(1) : '0.0';
+          return `<tr bgcolor="#ffffff">
+            <td style="padding:7px 14px 7px 28px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;border-bottom:1px solid #f1f5f9;">&#8627; ${label}</td>
+            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-align:center;border-bottom:1px solid #f1f5f9;">${sv.t}</td>
+            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#15803d;text-align:center;border-bottom:1px solid #f1f5f9;">${sv.i}</td>
+            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-align:center;border-bottom:1px solid #f1f5f9;">${sPct}%</td>
+          </tr>`;
+        }).join('') : '';
+
+        const totalLabel = hasMulti ? `Total ${platform}` : platform;
+        const totalBg    = hasMulti ? '#f8fafc' : '#ffffff';
+        const totalRow   = `<tr bgcolor="${totalBg}" style="${hasMulti ? 'border-top:1px solid #e2e8f0;' : ''}">
+          <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${col};border-bottom:1px solid #e2e8f0;">&#9632; ${totalLabel}</td>
+          <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#1d4ed8;text-align:center;border-bottom:1px solid #e2e8f0;">${t}</td>
+          <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#15803d;text-align:center;border-bottom:1px solid #e2e8f0;">${i}</td>
+          <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${pctColor};text-align:center;border-bottom:1px solid #e2e8f0;">${pPct}%</td>
+        </tr>`;
+
+        return subRows + totalRow;
+      }).join('')
+    : `<tr><td colspan="4" style="padding:14px;font-size:12px;color:#9ca3af;text-align:center;background-color:#ffffff;">No attribution data available</td></tr>`;
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -428,23 +558,39 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
           </td>
         </tr>
 
-        <!-- SECTION: LEAD SOURCES -->
+        <!-- SECTION: LEAD SOURCES & JOURNEY PATHS -->
         <tr>
           <td bgcolor="#f8fafc" style="padding:14px 32px;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;">Lead Sources &mdash; Today</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;">Lead Sources &amp; Journey Paths &mdash; Last 7 Days</p>
           </td>
         </tr>
         <tr>
-          <td style="padding:12px 32px 28px 32px;">
+          <td style="padding:12px 32px 8px 32px;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;">
               <tr bgcolor="#f1f5f9">
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;">Source</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#1d4ed8;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;">Leads</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#15803d;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;">Installed</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;">Close %</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;">Source / Path</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#1d4ed8;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;width:60px;">Leads</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#15803d;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;width:60px;">Closed</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#64748b;text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e2e8f0;width:65px;">Close %</td>
               </tr>
-              ${sourceRows}
+              ${journeyRows}
+              <tr bgcolor="#0f172a">
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;border-top:2px solid #334155;">All Sources</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#93c5fd;text-align:center;border-top:2px solid #334155;">${last7KPIs.total}</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#86efac;text-align:center;border-top:2px solid #334155;">${last7KPIs.inst}</td>
+                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;text-align:center;border-top:2px solid #334155;">${last7KPIs.closeRate}%</td>
+              </tr>
             </table>
+          </td>
+        </tr>
+        <!-- Journey Paths legend -->
+        <tr>
+          <td style="padding:6px 32px 24px 32px;">
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#94a3b8;line-height:1.7;">
+              <strong style="color:#64748b;">Path notation:</strong> "Meta &#8594; Google" = first clicked a Meta ad, then converted after a Google search.<br>
+              <strong style="color:#64748b;">Organic Social:</strong> Clicked a non-paid Facebook/Instagram link (shared post, business page) — not from an ad.<br>
+              <strong style="color:#64748b;">Unknown:</strong> No UTM tracking on the ad URL — platform cannot be identified.
+            </p>
           </td>
         </tr>
 
