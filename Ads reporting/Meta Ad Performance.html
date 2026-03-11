@@ -566,6 +566,47 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   .config-field { min-width: unset; }
 }
 
+/* ── ATTRIBUTION STATUS INDICATOR ── */
+.attr-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 9px 3px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+.attr-status-pill.loading {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid #c0d4f7;
+}
+.attr-status-pill.partial {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border: 1px solid #f0d8a0;
+}
+.attr-status-pill.error {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid #f5c6c6;
+}
+.attr-status-pill.hidden { display: none; }
+.attr-spinner {
+  width: 9px; height: 9px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: attrSpin 0.75s linear infinite;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+@keyframes attrSpin { to { transform: rotate(360deg); } }
+
 /* ── WEBCO EDIT BUTTON ── */
 .btn-webco-edit {
   font-family: 'Sora', sans-serif;
@@ -1130,7 +1171,13 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
       <!-- RIGHT COLUMN: Journey Paths -->
       <div class="card" id="journey-card">
-        <div class="ctitle">LEAD SOURCES &amp; JOURNEY PATHS</div>
+        <div class="ctitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:0;">
+          LEAD SOURCES &amp; JOURNEY PATHS
+          <span id="attr-status-pill" class="attr-status-pill hidden" role="status" aria-live="polite">
+            <span class="attr-spinner" id="attr-spinner"></span>
+            <span id="attr-status-text">Refreshing attribution…</span>
+          </span>
+        </div>
         <table class="dtable" style="font-size:11px;">
           <thead>
             <tr>
@@ -1218,6 +1265,10 @@ let LIVE_GOOGLE_SPEND_LOADING = false;
 // Track the date range that was last fetched so we can detect when it changes
 let LIVE_GOOGLE_SPEND_FROM = null;
 let LIVE_GOOGLE_SPEND_TO   = null;
+
+// ── Attribution enrichment status (drives the card-level indicator) ──
+// States: 'idle' | 'loading' | 'complete' | 'partial' | 'error'
+let ATTR_ENRICHMENT_STATE = 'idle';
 
 // Legacy alias kept so any remaining call sites referencing LIVE_GOOGLE_SPEND_TOTAL still work.
 // In renderSmoke/renderHws we now use the product-specific values directly.
@@ -1770,18 +1821,36 @@ async function loadGHLDataEnrichment() {
     return (id !== undefined && id !== null && id !== '') ? String(id) : null;
   }).filter(Boolean))];
   if (typeof console !== 'undefined' && console.log) console.log('[GHL] Contacts to enrich:', contactIds.length);
+
+  // ── Show the indicator: enrichment is starting ──
+  setAttrStatus('loading', 0, contactIds.length);
+
   let contactAttrMap = {};
+  let enrichFailed = false;
   try {
     contactAttrMap = await fetchContactAttributionBatch(contactIds, (done, total) => {
       const stepEl = document.getElementById('step-data-text');
       if (stepEl) stepEl.innerText = `Enriching attribution… ${done} / ${total} contacts`;
+      // ── Drive the card-level progress indicator ──
+      setAttrStatus('loading', done, total);
     });
   } catch (e) {
     if (typeof console !== 'undefined' && console.warn) console.warn('[GHL] Enrichment fetch failed:', e);
+    enrichFailed = true;
+  }
+
+  if (enrichFailed) {
+    setAttrStatus('error');
     return;
   }
+
   const enrichedCount = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] != null && contactAttrMap[id].first != null).length;
   if (typeof console !== 'undefined' && console.log) console.log('[GHL] Enrichment complete: attr map size=', Object.keys(contactAttrMap).length, 'with data=', enrichedCount);
+
+  // Determine if enrichment was partial (some contacts returned null)
+  const nullCount = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] == null).length;
+  const isPartial = nullCount > 0 && enrichedCount > 0;
+
   buildCRMMapFromOpportunities(opps, contactAttrMap);
   if (typeof console !== 'undefined' && console.log) console.log('[GHL] CRM rebuilt after enrichment; sources=', countSources(SMOKE_CRM, HWS_CRM));
   const statusEl = document.getElementById('ghl-panel-info');
@@ -1792,6 +1861,10 @@ async function loadGHLDataEnrichment() {
   } catch (err) {
     if (typeof console !== 'undefined' && console.error) console.error('[GHL] refreshAttributionDependentUI error:', err);
   }
+
+  // ── Update indicator to terminal state after UI is refreshed ──
+  setAttrStatus(isPartial ? 'partial' : 'complete');
+
   setTimeout(function doRefreshAfterEnrichment() {
     try {
       refreshAttributionDependentUI();
@@ -1816,6 +1889,8 @@ async function loadGHLData() {
 async function refreshGHL(){
   const btn=document.getElementById('btn-refresh-ghl');
   if(btn){btn.innerText='↻ Fetching…';btn.disabled=true;}
+  // Reset the attribution indicator so we never show stale state from a previous run
+  setAttrStatus('idle');
   try {
     await loadGHLData();
     populateFilters();
@@ -1891,6 +1966,8 @@ function switchProduct(prod){
   document.getElementById('hws-vol-card').style.display=prod==='hws'?'block':'none';
   document.getElementById('smoke-metrics-row').style.display=prod==='smoke'?'grid':'none';
   document.getElementById('hws-metrics-row').style.display=prod==='hws'?'grid':'none';
+  // If enrichment is not actively running, reset any stale status when switching tabs
+  if (ATTR_ENRICHMENT_STATE !== 'loading') setAttrStatus('idle');
   renderCurrentProduct();
 }
 
@@ -2451,6 +2528,59 @@ function updateGoogleUploadStatus(state, errMsg) {
     return;
   }
   el.innerHTML = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ATTRIBUTION STATUS INDICATOR
+// ══════════════════════════════════════════════════════════════
+/**
+ * Update the attribution status pill inside the Lead Sources & Journey Paths card.
+ * @param {'idle'|'loading'|'partial'|'error'} state
+ * @param {number|null} done  - contacts processed so far
+ * @param {number|null} total - total contacts to enrich
+ */
+function setAttrStatus(state, done, total) {
+  ATTR_ENRICHMENT_STATE = state;
+  const pill    = document.getElementById('attr-status-pill');
+  const textEl  = document.getElementById('attr-status-text');
+  const spinner = document.getElementById('attr-spinner');
+  if (!pill || !textEl) return;
+
+  if (state === 'idle') {
+    pill.className = 'attr-status-pill hidden';
+    return;
+  }
+
+  if (state === 'loading') {
+    pill.className = 'attr-status-pill loading';
+    spinner.style.display = '';
+    const progressPart = (done != null && total != null && total > 0)
+      ? ` ${done.toLocaleString()} / ${total.toLocaleString()}`
+      : '';
+    textEl.textContent = `Refreshing attribution…${progressPart}`;
+    return;
+  }
+
+  // loading animation off for terminal states
+  spinner.style.display = 'none';
+
+  if (state === 'partial') {
+    pill.className = 'attr-status-pill partial';
+    textEl.textContent = 'Attribution updated with partial data';
+    // Auto-clear after 8 s so it doesn't linger
+    setTimeout(() => setAttrStatus('idle'), 8000);
+    return;
+  }
+
+  if (state === 'error') {
+    pill.className = 'attr-status-pill error';
+    textEl.textContent = 'Attribution update failed';
+    setTimeout(() => setAttrStatus('idle'), 10000);
+    return;
+  }
+
+  // 'complete' — clear immediately (UI has already re-rendered with enriched data)
+  pill.className = 'attr-status-pill hidden';
 }
 
 // ══════════════════════════════════════════════════════════════
