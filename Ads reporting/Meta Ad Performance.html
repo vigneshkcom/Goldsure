@@ -1696,8 +1696,8 @@ async function fetchContactAttributionBatch(contactIds, onProgress) {
 
 function mapGHLOpportunity(opp, contactAttrMap) {
   const created   = opp.createdAt ? opp.createdAt.slice(0,10) : '';
-  const contactId = opp.contactId || opp.contact?.id || '';
-  const cData     = (contactAttrMap && contactId) ? (contactAttrMap[contactId] || null) : null;
+  const contactId = opp.contactId != null ? opp.contactId : (opp.contact && opp.contact.id);
+  const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
@@ -1745,15 +1745,31 @@ async function loadGHLDataFast() {
   const opps = await fetchAllOpportunities();
   GHL_OPPORTUNITIES_RAW = opps;
   const mapped = buildCRMMapFromOpportunities(opps, {});
+  if (typeof console !== 'undefined' && console.log) console.log('[GHL] Fast load complete: opportunities=', opps.length, 'mapped=', mapped.length, 'sources (raw)=', countSources(SMOKE_CRM, HWS_CRM));
   if (statusEl) statusEl.innerText = `GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
   const metaRefresh = document.getElementById('meta-last-refresh');
   if (metaRefresh) metaRefresh.innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
 }
 
-/** Stage 2: run in background after first paint. Fetches contact attribution (with cache), re-maps CRM, then refreshes only attribution-dependent UI. */
+function countSources(smoke, hws) {
+  const m = {};
+  [...(smoke||[]), ...(hws||[])].forEach(r => { m[r.source] = (m[r.source]||0) + 1; });
+  return m;
+}
+
+/** Stage 2: run in background after first paint. Fetches contact attribution (with cache), re-maps CRM, then refreshes UI so enriched state replaces raw. */
 async function loadGHLDataEnrichment() {
-  if (!GHL_OPPORTUNITIES_RAW || !GHL_OPPORTUNITIES_RAW.length) return;
-  const contactIds = [...new Set(GHL_OPPORTUNITIES_RAW.map(o => o.contactId || o.contact?.id).filter(Boolean))];
+  if (typeof console !== 'undefined' && console.log) console.log('[GHL] Enrichment start');
+  if (!GHL_OPPORTUNITIES_RAW || !GHL_OPPORTUNITIES_RAW.length) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('[GHL] Enrichment skipped: no GHL_OPPORTUNITIES_RAW');
+    return;
+  }
+  const opps = GHL_OPPORTUNITIES_RAW;
+  const contactIds = [...new Set(opps.map(o => {
+    const id = o.contactId != null ? o.contactId : (o.contact && o.contact.id);
+    return (id !== undefined && id !== null && id !== '') ? String(id) : null;
+  }).filter(Boolean))];
+  if (typeof console !== 'undefined' && console.log) console.log('[GHL] Contacts to enrich:', contactIds.length);
   let contactAttrMap = {};
   try {
     contactAttrMap = await fetchContactAttributionBatch(contactIds, (done, total) => {
@@ -1761,13 +1777,28 @@ async function loadGHLDataEnrichment() {
       if (stepEl) stepEl.innerText = `Enriching attribution… ${done} / ${total} contacts`;
     });
   } catch (e) {
-    console.warn('[loadGHLDataEnrichment] Attribution fetch failed:', e);
+    if (typeof console !== 'undefined' && console.warn) console.warn('[GHL] Enrichment fetch failed:', e);
     return;
   }
-  buildCRMMapFromOpportunities(GHL_OPPORTUNITIES_RAW, contactAttrMap);
+  const enrichedCount = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] != null && contactAttrMap[id].first != null).length;
+  if (typeof console !== 'undefined' && console.log) console.log('[GHL] Enrichment complete: attr map size=', Object.keys(contactAttrMap).length, 'with data=', enrichedCount);
+  buildCRMMapFromOpportunities(opps, contactAttrMap);
+  if (typeof console !== 'undefined' && console.log) console.log('[GHL] CRM rebuilt after enrichment; sources=', countSources(SMOKE_CRM, HWS_CRM));
   const statusEl = document.getElementById('ghl-panel-info');
   if (statusEl) statusEl.innerText = `GHL: ${SMOKE_CRM.length + HWS_CRM.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS) · attribution updated`;
-  refreshAttributionDependentUI();
+  try {
+    refreshAttributionDependentUI();
+    if (typeof console !== 'undefined' && console.log) console.log('[GHL] Enrichment applied; UI refreshed');
+  } catch (err) {
+    if (typeof console !== 'undefined' && console.error) console.error('[GHL] refreshAttributionDependentUI error:', err);
+  }
+  setTimeout(function doRefreshAfterEnrichment() {
+    try {
+      refreshAttributionDependentUI();
+    } catch (err) {
+      if (typeof console !== 'undefined' && console.error) console.error('[GHL] refreshAttributionDependentUI (deferred) error:', err);
+    }
+  }, 0);
 }
 
 /** After enrichment: repopulate filters (preserving selection), then full re-render so KPIs, funnel, chart, stage breakdown, volume, source table, and journey paths all use updated attribution. */
