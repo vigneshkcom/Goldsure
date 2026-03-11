@@ -1091,25 +1091,46 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
     </div>
 
-    <div class="row2">
-      <div class="card"><div class="ctitle">STAGE BREAKDOWN</div><div id="stage-rows"></div></div>
+    <!-- 3-column layout: left col = Lead Sources + Stage Breakdown stacked, right col = Journey Paths -->
+    <div style="display:grid;grid-template-columns:1fr 1.55fr;gap:16px;margin-bottom:16px;align-items:start;">
 
-      <!-- JOURNEY PATHS replaces Lead Sources -->
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Lead Sources -->
+        <div class="card">
+          <div class="ctitle">LEAD SOURCES</div>
+          <table class="dtable" style="font-size:11px;">
+            <thead><tr><th>SOURCE</th><th>LEADS</th><th>CLOSED</th><th>CLOSE %</th></tr></thead>
+            <tbody id="src-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Stage Breakdown -->
+        <div class="card">
+          <div class="ctitle">STAGE BREAKDOWN</div>
+          <div id="stage-rows"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Journey Paths -->
       <div class="card" id="journey-card">
         <div class="ctitle">LEAD SOURCES &amp; JOURNEY PATHS</div>
-        <table class="dtable" id="journey-table">
+        <table class="dtable" style="font-size:11px;">
           <thead>
             <tr>
               <th>SOURCE / PATH</th>
-              <th>LEADS</th>
-              <th>CLOSED</th>
-              <th>CLOSE %</th>
+              <th style="min-width:52px;">LEADS</th>
+              <th style="min-width:52px;">CLOSED</th>
+              <th style="min-width:58px;">CLOSE %</th>
             </tr>
           </thead>
           <tbody id="journey-tbody"></tbody>
         </table>
-        <div id="journey-legend" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:1.8;"></div>
+        <div id="journey-legend" style="margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:1.8;"></div>
       </div>
+
     </div>
 
 
@@ -1544,7 +1565,6 @@ async function fetchAllOpportunities() {
   return all;
 }
 
-
 function categoriseSource(rawSource, contactAttr) {
   if (contactAttr) {
     const { type, medium, utmSource, referrer, gclid } = contactAttr;
@@ -1600,9 +1620,9 @@ async function fetchContactAttributionBatch(contactIds) {
 }
 
 function mapGHLOpportunity(opp, contactAttrMap) {
-  const created    = opp.createdAt ? opp.createdAt.slice(0,10) : '';
-  const contactId  = opp.contactId || opp.contact?.id || '';
-  const cData      = (contactAttrMap && contactId) ? (contactAttrMap[contactId] || null) : null;
+  const created   = opp.createdAt ? opp.createdAt.slice(0,10) : '';
+  const contactId = opp.contactId || opp.contact?.id || '';
+  const cData     = (contactAttrMap && contactId) ? (contactAttrMap[contactId] || null) : null;
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
@@ -1852,6 +1872,17 @@ function renderStagesAndSources(leads, total, totalAdSpend, product){
   const sorted=stageOrder.filter(s=>stageCount[s]).map(s=>[s,stageCount[s]]).concat(Object.entries(stageCount).filter(([s])=>!stageOrder.includes(s)).sort((a,b)=>b[1]-a[1]));
   const max=Math.max(...sorted.map(([,v])=>v),1);
   document.getElementById('stage-rows').innerHTML=sorted.map(([s,cnt])=>{ const col=STAGE_COLORS[s]||'#94a3b8'; let dn=s; if(s==='Won/Installed') dn='Installed'; else if(s==='Qualified/IHA Complete') dn='Qualified'; return `<div class="sr"><div class="sdot" style="background:${col}"></div><span class="sname">${dn}</span><div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${col}"></div></div><span class="snums">${cnt} · ${total?((cnt/total*100).toFixed(1)):'0'}%</span></div>`; }).join('')||'<span>No data</span>';
+  // ── Lead Sources table (flat, compact) ──
+  const isWon = r => /install|won/i.test(r.stage);
+  const srcMap={};
+  leads.forEach(r=>{
+    if(!srcMap[r.source]) srcMap[r.source]={t:0,i:0};
+    srcMap[r.source].t++;
+    if(isWon(r)) srcMap[r.source].i++;
+  });
+  const sortedSrc=Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
+  document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
+
   renderJourneyPaths(leads);
   renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'));
   renderFunnel(leads, total, product);
@@ -1859,7 +1890,7 @@ function renderStagesAndSources(leads, total, totalAdSpend, product){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  JOURNEY PATHS  (grouped by platform with subtotals)
+//  JOURNEY PATHS  (grouped by platform with sub-paths)
 // ══════════════════════════════════════════════════════════════
 function renderJourneyPaths(leads) {
   const tbody  = document.getElementById('journey-tbody');
@@ -1868,14 +1899,13 @@ function renderJourneyPaths(leads) {
 
   const isWon = r => /install|won/i.test(r.stage);
 
-  // Platform grouping — which top-level bucket does a source belong to?
   const PLATFORM_ORDER = ['Meta', 'Google', 'Organic Social', 'Direct', 'Referral', 'Unknown'];
-  const getPlatform = (src) => {
+  const getPlatform = src => {
     if (!src || src === 'Unknown') return 'Unknown';
-    if (src === 'Meta' || src.startsWith('Meta')) return 'Meta';
-    if (src === 'Google' || src.startsWith('Google')) return 'Google';
-    if (src === 'Organic Social') return 'Organic Social';
-    if (src === 'Direct') return 'Direct';
+    if (src === 'Meta'           || src.startsWith('Meta'))    return 'Meta';
+    if (src === 'Google'         || src.startsWith('Google'))  return 'Google';
+    if (src === 'Organic Social' || src.startsWith('Organic')) return 'Organic Social';
+    if (src === 'Direct')   return 'Direct';
     if (src === 'Referral') return 'Referral';
     return 'Unknown';
   };
@@ -1889,26 +1919,23 @@ function renderJourneyPaths(leads) {
     'Unknown':        '#94a3b8',
   };
 
-  // Build path data: first-touch source → latest-touch source
-  // path label = "Meta" if same, "Meta → Google" if different
-  const pathData = {};  // platform → { total:{t,i}, paths:{ pathLabel:{t,i} } }
-
+  // Build path data
+  const pathData = {};
   leads.forEach(r => {
-    const first  = r.source    || 'Unknown';
-    const latest = r.latestSrc || r.source || 'Unknown';
+    const first    = r.source    || 'Unknown';
+    const latest   = r.latestSrc || r.source || 'Unknown';
     const platform = getPlatform(first);
     const pathLabel = (first === latest || !r.latestSrc) ? first : `${first} → ${latest}`;
 
-    if (!pathData[platform]) pathData[platform] = { t: 0, i: 0, paths: {} };
+    if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
     if (isWon(r)) pathData[platform].i++;
 
-    if (!pathData[platform].paths[pathLabel]) pathData[platform].paths[pathLabel] = { t: 0, i: 0 };
+    if (!pathData[platform].paths[pathLabel]) pathData[platform].paths[pathLabel] = { t:0, i:0 };
     pathData[platform].paths[pathLabel].t++;
     if (isWon(r)) pathData[platform].paths[pathLabel].i++;
   });
 
-  // Build HTML rows
   const rows = [];
   const grandTotal = { t: leads.length, i: leads.filter(isWon).length };
 
@@ -1916,64 +1943,61 @@ function renderJourneyPaths(leads) {
     const pg = pathData[platform];
     if (!pg) return;
 
-    const col = PLATFORM_COLORS[platform] || '#94a3b8';
+    const col  = PLATFORM_COLORS[platform] || '#94a3b8';
     const pPct = pg.t > 0 ? (pg.i / pg.t * 100).toFixed(1) : '0.0';
-
-    // Sub-paths sorted by leads desc — only show if >1 distinct path
-    const subPaths = Object.entries(pg.paths).sort((a, b) => b[1].t - a[1].t);
+    const subPaths   = Object.entries(pg.paths).sort((a,b) => b[1].t - a[1].t);
     const hasSubPaths = subPaths.length > 1;
 
-    // Sub-path rows (only if multiple paths exist under this platform)
+    // Sub-path rows
     if (hasSubPaths) {
       subPaths.forEach(([label, v]) => {
         const sPct = v.t > 0 ? (v.i / v.t * 100).toFixed(1) : '0.0';
         const sPctColor = parseFloat(sPct) >= 30 ? 'var(--green)' : parseFloat(sPct) >= 15 ? 'var(--amber)' : 'var(--muted)';
-        rows.push(`<tr style="background:transparent;">
-          <td style="font-size:11px;color:var(--muted);padding-left:22px;">
-            <span style="color:${col};margin-right:5px;">↳</span>${label}
+        rows.push(`<tr>
+          <td style="color:var(--muted);padding-left:18px;font-size:10.5px;">
+            <span style="color:${col};margin-right:4px;font-size:9px;">↳</span>${label}
           </td>
-          <td style="font-size:11px;color:var(--muted);">${v.t}</td>
-          <td style="font-size:11px;color:var(--green);">${v.i}</td>
-          <td style="font-size:11px;color:${sPctColor};">${sPct}%</td>
+          <td style="color:var(--muted);font-size:10.5px;">${v.t}</td>
+          <td style="color:var(--green);font-size:10.5px;">${v.i}</td>
+          <td style="color:${sPctColor};font-size:10.5px;">${sPct}%</td>
         </tr>`);
       });
     }
 
-    // Platform TOTAL row (bold, coloured header)
+    // Platform total row
     const totalLabel = hasSubPaths ? `Total ${platform}` : platform;
-    const pPctColor = parseFloat(pPct) >= 30 ? 'var(--green)' : parseFloat(pPct) >= 15 ? 'var(--amber)' : 'var(--muted)';
-    rows.push(`<tr style="background:${col}12;border-top:${hasSubPaths ? '1px solid var(--border)' : 'none'};">
-      <td style="font-weight:700;font-size:12px;">
+    const pPctColor  = parseFloat(pPct) >= 30 ? 'var(--green)' : parseFloat(pPct) >= 15 ? 'var(--amber)' : 'var(--muted)';
+    rows.push(`<tr style="background:${col}11;${hasSubPaths?'border-top:1px solid var(--border);':''}">
+      <td style="font-weight:700;font-size:11px;">
         <span class="scdot" style="background:${col};"></span>${totalLabel}
       </td>
-      <td style="font-weight:700;">${pg.t}</td>
-      <td style="font-weight:700;color:var(--green);">${pg.i}</td>
-      <td style="font-weight:700;color:${pPctColor};">${pPct}%</td>
-    </tr>`);
-
-    // Spacer between platform groups
-    rows.push(`<tr><td colspan="4" style="height:6px;border:none;background:transparent;"></td></tr>`);
+      <td style="font-weight:700;font-size:11px;">${pg.t}</td>
+      <td style="font-weight:700;font-size:11px;color:var(--green);">${pg.i}</td>
+      <td style="font-weight:700;font-size:11px;color:${pPctColor};">${pPct}%</td>
+    </tr>
+    <tr><td colspan="4" style="height:5px;border:none;background:transparent;padding:0;"></td></tr>`);
   });
 
-  // Grand total row
+  // Grand total
   const gPct = grandTotal.t > 0 ? (grandTotal.i / grandTotal.t * 100).toFixed(1) : '0.0';
   rows.push(`<tr class="tr-total">
-    <td>ALL SOURCES</td>
-    <td>${grandTotal.t}</td>
-    <td style="color:var(--green);">${grandTotal.i}</td>
-    <td>${gPct}%</td>
+    <td style="font-size:11px;">ALL SOURCES</td>
+    <td style="font-size:11px;">${grandTotal.t}</td>
+    <td style="font-size:11px;color:var(--green);">${grandTotal.i}</td>
+    <td style="font-size:11px;">${gPct}%</td>
   </tr>`);
 
-  tbody.innerHTML = rows.join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px;">Loading attribution data…</td></tr>';
+  tbody.innerHTML = rows.join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:12px;">Loading…</td></tr>';
 
-  // Legend explaining terms
+  // Legend
   const hasOrgSocial = !!pathData['Organic Social'];
-  const legendParts = [
+  const hasUnknown   = !!pathData['Unknown'];
+  const parts = [
     '<strong>Path notation:</strong> "Meta → Google" means first clicked a Meta ad, then converted after a Google search.',
     hasOrgSocial ? '<strong>Organic Social:</strong> Clicked a non-paid link on Facebook/Instagram (e.g. a shared post or your business page) — not from an ad.' : '',
-    '<strong>Unknown:</strong> Lead arrived without UTM tracking — ad URL was not tagged, so the platform cannot be identified.',
+    hasUnknown   ? '<strong>Unknown:</strong> Lead arrived without UTM tracking — ad URL was not tagged, so the platform cannot be identified.' : '',
   ].filter(Boolean);
-  legend.innerHTML = legendParts.join('<br>');
+  legend.innerHTML = parts.join('<br>');
 }
 
 function updateMetaPanelDisplay(){
