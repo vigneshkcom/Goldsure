@@ -1528,9 +1528,113 @@ async function fetchAllOpportunities() {
   return all;
 }
 
-function mapGHLOpportunity(opp){
-  const created=opp.createdAt?opp.createdAt.slice(0,10):'';
-  return { stage:(opp.pipelineStage?.name||opp.status||'Unknown').trim(), stageId:(opp.pipelineStageId||opp.pipelineStage?.id||'').trim(), source:(opp.source||'Unknown').trim(), pipeline:(opp.pipeline?.name||opp.pipelineName||'').trim(), pipelineId:(opp.pipelineId||opp.pipeline?.id||'').trim(), created };
+/**
+ * Categorise a GHL opportunity's source using GHL's own attribution rules.
+ * Priority: contact attribution object > opp.source string normalisation.
+ *
+ * contactAttr = { type, medium, utmSource, utmMedium, referrer, gclid, contactSource }
+ */
+function categoriseSource(opp, contactAttr) {
+  // ── 1. Use contact-level attribution object if available ──
+  if (contactAttr) {
+    const { type, medium, utmSource, referrer, gclid } = contactAttr;
+
+    // Google: paid search signals
+    if (
+      utmSource === 'adwords' || utmSource.includes('google_ads') ||
+      gclid ||
+      type === 'paid search' || medium === 'paid search' ||
+      (utmSource && referrer.includes('google.com'))
+    ) return 'Google';
+
+    // Meta: paid social signals
+    if (
+      utmSource === 'fb_ad' || utmSource === 'facebook' || utmSource === 'instagram' ||
+      type === 'paid social' || medium === 'paid social'
+    ) return 'Meta';
+
+    // Organic social
+    const socialDomains = ['facebook.com','instagram.com','linkedin.com','twitter.com','tiktok.com','pinterest.com','youtube.com'];
+    if (socialDomains.some(d => referrer.includes(d))) return 'Organic Social';
+
+    // Organic search
+    const searchEngines = ['google.com','bing.com','yahoo.com','duckduckgo.com'];
+    if (searchEngines.some(d => referrer.includes(d))) return 'Organic Search';
+
+    // Other GHL attribution types
+    if (type === 'direct traffic' || type === 'direct') return 'Direct';
+    if (type === 'referral' || type === 'referrals') return 'Referral';
+    if (type === 'crm ui') return 'CRM UI';
+    if (type === 'third-party' || type === 'third party') return 'Third-Party';
+  }
+
+  // ── 2. Fall back to normalising opp.source / contactAttr.contactSource ──
+  const raw = (
+    (contactAttr?.contactSource) ||
+    (opp.source || '')
+  ).toLowerCase().trim();
+
+  if (!raw || raw === 'unknown') return 'Unknown';
+
+  if (raw === 'paid search' || raw.includes('adword') || raw.includes('google ads')) return 'Google';
+  if (raw.includes('google')) return 'Google';
+  if (raw === 'paid social' || raw === 'fb_ad' || raw.includes('facebook') || raw.includes('fb') || raw.includes('meta') || raw.includes('instagram')) return 'Meta';
+  if (raw === 'organic search') return 'Organic Search';
+  if (raw === 'organic social' || raw === 'social media') return 'Organic Social';
+  if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
+  if (raw === 'referral' || raw === 'referrals') return 'Referral';
+  if (raw === 'crm ui') return 'CRM UI';
+  if (raw === 'third-party' || raw === 'third party') return 'Third-Party';
+  if (raw === 'landing page') return 'Unknown (Landing Page)';
+
+  // Return original capitalised if unrecognised
+  return (opp.source || 'Unknown').trim();
+}
+
+/**
+ * Fetch contact attribution data in batches of 10 (parallel per batch).
+ * Returns map of contactId → { type, medium, utmSource, referrer, gclid, contactSource }
+ */
+async function fetchContactAttributionBatch(contactIds) {
+  const map = {};
+  const BATCH = 10;
+  for (let i = 0; i < contactIds.length; i += BATCH) {
+    const batch = contactIds.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (cid) => {
+      try {
+        const json = await ghlFetch(`/contacts/${cid}`);
+        const c = json.contact || json;
+        const attr = c.attributionSource || c.firstAttributionSource || {};
+        map[cid] = {
+          type:          (attr.type        || '').toLowerCase(),
+          medium:        (attr.medium      || '').toLowerCase(),
+          utmSource:     (attr.utmSource   || attr.utm_source   || '').toLowerCase(),
+          utmMedium:     (attr.utmMedium   || attr.utm_medium   || '').toLowerCase(),
+          utmCampaign:   (attr.utmCampaign || attr.utm_campaign || '').toLowerCase(),
+          referrer:      (attr.referrer    || attr.url          || '').toLowerCase(),
+          gclid:         !!(attr.gclid || attr.wbraid || attr.gbraid),
+          contactSource: (c.source || '').toLowerCase(),
+        };
+      } catch(e) {
+        map[cid] = null;
+      }
+    }));
+  }
+  return map;
+}
+
+function mapGHLOpportunity(opp, contactAttrMap) {
+  const created    = opp.createdAt ? opp.createdAt.slice(0,10) : '';
+  const contactId  = opp.contactId || opp.contact?.id || '';
+  const contactAttr = (contactAttrMap && contactId) ? (contactAttrMap[contactId] || null) : null;
+  return {
+    stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
+    stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
+    source:     categoriseSource(opp, contactAttr),
+    pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
+    pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
+    created
+  };
 }
 
 async function loadGHLData(){
@@ -1546,8 +1650,16 @@ async function loadGHLData(){
       if(hwsPipe&&!HWS_PIPELINE_ID) HWS_PIPELINE_ID=hwsPipe.id;
     }catch(e){}
   }
-  const opps=await fetchAllOpportunities();
-  const mapped=opps.map(mapGHLOpportunity).filter(r=>r.created);
+  const opps = await fetchAllOpportunities();
+
+  // Enrich with contact-level attribution data (batch fetched, deduplicated by contact ID)
+  if(statusEl) statusEl.innerText=`Fetching attribution for ${opps.length} leads…`;
+  const contactIds = [...new Set(opps.map(o => o.contactId || o.contact?.id).filter(Boolean))];
+  let contactAttrMap = {};
+  try { contactAttrMap = await fetchContactAttributionBatch(contactIds); }
+  catch(e) { console.warn('[loadGHLData] Contact attribution fetch failed:', e); }
+
+  const mapped=opps.map(o => mapGHLOpportunity(o, contactAttrMap)).filter(r=>r.created);
   const stageNameMap={};
   GHL_PIPELINES.forEach(p=>p.stages.forEach(s=>{stageNameMap[s.id]=s.name;}));
   mapped.forEach(r=>{ if(r.stageId&&stageNameMap[r.stageId]) r.stage=stageNameMap[r.stageId]; });
@@ -1564,6 +1676,7 @@ async function loadGHLData(){
   if(statusEl) statusEl.innerText=`GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
   document.getElementById('meta-last-refresh').innerText='Last refresh: '+new Date().toLocaleTimeString('en-AU');
 }
+
 
 async function refreshGHL(){
   const btn=document.getElementById('btn-refresh-ghl');
