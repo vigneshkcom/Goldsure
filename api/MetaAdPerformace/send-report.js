@@ -1,5 +1,5 @@
 // api/send-report.js
-// Goldsure — Smoke Alarms Daily Report
+// Goldsure - Smoke Alarms Daily Report
 //
 // Cron: "30 6 * * *" -> 06:30 UTC = 4:30 PM AEDT (UTC+10)
 //
@@ -236,7 +236,7 @@ async function fetchMetaSpend(since, until) {
   } catch(e) { return 0; }
 }
 
-// Google Ads spend (ex-GST) — calls Google Ads API directly (same logic as google-spend.js)
+// Google Ads spend (ex-GST) - calls Google Ads API directly (same logic as google-spend.js)
 // Avoids unreliable internal Vercel self-calls from cron jobs.
 async function fetchGoogleSpend(since, until) {
   try {
@@ -252,7 +252,7 @@ async function fetchGoogleSpend(since, until) {
     if (!GOOGLE_ADS_DEVELOPER_TOKEN || !GOOGLE_ADS_CLIENT_ID ||
         !GOOGLE_ADS_CLIENT_SECRET   || !GOOGLE_ADS_REFRESH_TOKEN ||
         !GOOGLE_ADS_MANAGER_ID      || !GOOGLE_ADS_CUSTOMER_ID) {
-      console.warn('[Google] Missing env vars — skipping Google spend');
+      console.warn('[Google] Missing env vars - skipping Google spend');
       return 0;
     }
 
@@ -316,7 +316,7 @@ async function fetchGoogleSpend(since, until) {
   }
 }
 
-// Email HTML — Outlook-safe: tables only, all inline styles, no flexbox or CSS grid
+// Email HTML - Outlook-safe: tables only, all inline styles, no flexbox or CSS grid
 const fmt$   = n => `$${n.toFixed(2)}`;
 const fmtPct = n => `${n}%`;
 
@@ -520,7 +520,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
         <tr>
           ${stat('New Leads', todayKPIs.total)}
           ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`, todayKPIs.inst > 0 ? GREEN : DARK)}
-          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '—', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
+          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '-', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
           ${statCPL(todayCPL)}
           ${statCPI(todayCPI)}
         </tr>
@@ -666,7 +666,7 @@ export default async function handler(req, res) {
         from:    'Vignesh <vignesh@goldsure.com.au>',
         to:      recipients,
         bcc:     bcc,
-        subject: `Goldsure Ad Performance Report — ${dateStr}`,
+        subject: `Goldsure Ad Performance Report - ${dateStr}`,
         html,
       }),
     });
