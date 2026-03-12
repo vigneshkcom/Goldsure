@@ -645,6 +645,11 @@ export default async function handler(req, res) {
 
   try {
     const today      = new Date();
+    // Skip weekends - use AEST (UTC+10)
+    const aestDay = new Date(today.getTime() + 10 * 60 * 60 * 1000).getUTCDay();
+    if (aestDay === 0 || aestDay === 6) {
+      return res.status(200).json({ ok: true, skipped: 'Weekend - no report sent.' });
+    }
     const ranges     = buildRanges(today);
     const dailyDates = buildDailyDates(today);
     const dateStr    = today.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
