@@ -636,10 +636,11 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = (process.env.REPORT_RECIPIENTS || '').split(',').map(e => e.trim()).filter(Boolean);
+  const recipients = ['andrew@goldsure.com.au', 'amit@goldsure.com.au', 'adam@goldsure.com.au'];
+  const bcc        = ['vignesh@goldsure.com.au', 'david@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
-  if (!recipients.length)       return res.status(500).json({ error: 'REPORT_RECIPIENTS not set' });
+
   if (!process.env.GHL_API_KEY) return res.status(500).json({ error: 'GHL_API_KEY not set' });
 
   try {
@@ -662,9 +663,10 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from:    'Goldsure Reports <reports@goldsure.com.au>',
+        from:    'Vignesh <vignesh@goldsure.com.au>',
         to:      recipients,
-        subject: `Smoke Alarms Daily Report — ${dateStr}`,
+        bcc:     bcc,
+        subject: `Goldsure Ad Performance Report — ${dateStr}`,
         html,
       }),
     });
