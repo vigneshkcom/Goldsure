@@ -248,9 +248,10 @@ async function fetchGoogleSpend(since, until) {
     });
     if (!resp.ok) return 0;
     const json = await resp.json();
-    // Endpoint returns inc-GST; divide by 1.1 for ex-GST
-    const raw = typeof json.totalSpend === 'number' ? json.totalSpend
-              : typeof json.spend      === 'number' ? json.spend : 0;
+    if (!json.success) return 0;
+    // API returns total_spend in AUD inc-GST → divide by 1.1 for ex-GST
+    // (matches dashboard: "Live API ÷ 1.1 ex-GST")
+    const raw = typeof json.total_spend === 'number' ? json.total_spend : 0;
     return raw / 1.1;
   } catch(e) { return 0; }
 }
@@ -388,11 +389,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
 
         <!-- ══ HEADER ══ -->
         <tr>
-          <td bgcolor="${DARK}" style="padding:0;">
-            <!-- Gold top bar -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr><td bgcolor="${GOLD}" style="height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
-            </table>
+          <td bgcolor="#000000" style="padding:0;">
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="padding:28px 32px 24px 32px;">
@@ -400,11 +397,10 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
                   <table width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                       <td valign="middle">
-                        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png"
-                             alt="Goldsure" width="44" height="44"
-                             style="display:inline-block;vertical-align:middle;margin-right:14px;" />
-                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:#ffffff;vertical-align:middle;letter-spacing:-0.3px;">Goldsure</span>
-                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${GOLD};vertical-align:middle;margin-left:6px;">Smoke Alarms</span>
+                        <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
+                             alt="Goldsure" width="140" height="auto"
+                             style="display:inline-block;vertical-align:middle;margin-right:16px;border:0;" />
+                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${GOLD};vertical-align:middle;">Smoke Alarms</span>
                       </td>
                       <td align="right" valign="middle">
                         <span style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#4b5b7a;text-transform:uppercase;letter-spacing:1.5px;">Daily Report</span>
@@ -419,13 +415,13 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
                   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
                     <tr>
                       <td>
-                        <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;">Hi team,</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#94a3b8;line-height:1.6;">
+                        <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;">Hi All,</p>
+                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.6;">
                           Please find below today's ad performance summary for Smoke Alarms.${noLeadsToday ? ' <strong style="color:#f59e0b;">&#9888; No new leads were recorded today.</strong>' : ''}
                         </p>
                       </td>
                       <td align="right" valign="bottom" style="white-space:nowrap;padding-left:20px;">
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#4b5b7a;">${dateStr}</p>
+                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">${dateStr}</p>
                       </td>
                     </tr>
                   </table>
@@ -487,7 +483,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
                   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${MUTED};">
                     <tr><td bgcolor="#ffffff" style="padding:16px 14px;">
                       <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;">Cost / Lead</p>
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${DARK};line-height:1;">${todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '&mdash;'}</p>
+                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${DARK};line-height:1;">${todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '-'}</p>
                       <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Meta + Google</p>
                     </td></tr>
                   </table>
@@ -562,8 +558,8 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
                   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${MUTED};">
                     <tr><td bgcolor="#ffffff" style="padding:14px;">
                       <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;">Cost / Lead</p>
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${DARK};line-height:1;">${last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '&mdash;'}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Cost / Install: ${last7CPI !== null ? `$${last7CPI.toFixed(2)}` : '&mdash;'}</p>
+                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${DARK};line-height:1;">${last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '-'}</p>
+                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Cost / Install: ${last7CPI !== null ? `$${last7CPI.toFixed(2)}` : '-'}</p>
                     </td></tr>
                   </table>
                 </td>
@@ -620,7 +616,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Stage Breakdown &mdash; Today</p>
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Stage Breakdown - Today</p>
                 </td>
               </tr>
             </table>
@@ -645,7 +641,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Lead Sources &amp; Journey Paths &mdash; Last 7 Days</p>
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Lead Sources &amp; Journey Paths - Last 7 Days</p>
                 </td>
               </tr>
             </table>
@@ -675,42 +671,17 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
           <td style="padding:6px 32px 24px 32px;">
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#94a3b8;line-height:1.8;">
               <strong style="color:${MUTED};">Path notation:</strong> &ldquo;Meta &#8594; Google&rdquo; means first clicked a Meta ad, then converted after a Google search.<br>
-              <strong style="color:${MUTED};">Unknown:</strong> No UTM tracking on the ad URL &mdash; platform cannot be identified.
+              <strong style="color:${MUTED};">Unknown:</strong> No UTM tracking on the ad URL - platform cannot be identified.
             </p>
-          </td>
-        </tr>
-
-        <!-- ══ CTA ══ -->
-        <tr>
-          <td align="center" style="padding:4px 32px 32px 32px;">
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="${DARK}" style="border:2px solid ${GOLD};padding:0;">
-                  <a href="https://vigneshkcom.github.io/Goldsure/Ads%20reporting/Meta%20Ad%20Performance.html"
-                     style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${GOLD};text-decoration:none;display:block;padding:13px 32px;text-transform:uppercase;letter-spacing:1px;">
-                    Open Full Dashboard &#8594;
-                  </a>
-                </td>
-              </tr>
-            </table>
           </td>
         </tr>
 
         <!-- ══ FOOTER ══ -->
         <tr>
-          <td bgcolor="${DARK}" style="padding:0;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr><td bgcolor="${GOLD}" style="height:3px;font-size:0;line-height:0;">&nbsp;</td></tr>
-            </table>
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding:20px 32px;" align="center">
-                  <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;">Goldsure Pty Ltd</p>
-                  <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#4b5b7a;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</p>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#4b5b7a;">Auto-generated &bull; ${dateStr}</p>
-                </td>
-              </tr>
-            </table>
+          <td bgcolor="#000000" style="padding:20px 32px;" align="center">
+            <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;">Goldsure Pty Ltd</p>
+            <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">Auto-generated - ${dateStr}</p>
           </td>
         </tr>
 
