@@ -340,6 +340,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   const totalSpendLast7 = metaLast7 + googleLast7;
 
   const todayCPL  = todayKPIs.total > 0 && totalSpendToday > 0 ? totalSpendToday / todayKPIs.total : null;
+  const todayCPI  = todayKPIs.inst  > 0 && totalSpendToday > 0 ? totalSpendToday / todayKPIs.inst  : null;
   const last7CPL  = last7KPIs.total > 0 && totalSpendLast7 > 0 ? totalSpendLast7 / last7KPIs.total : null;
   const last7CPI  = last7KPIs.inst  > 0 && totalSpendLast7 > 0 ? totalSpendLast7 / last7KPIs.inst  : null;
   const noLeadsToday = todayKPIs.total === 0;
@@ -439,10 +440,10 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
     : `<tr><td colspan="4" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
 
   // ── Big stat cell builder ──
-  function stat(label, value, sub = '') {
+  function stat(label, value, sub = '', valueColor = DARK) {
     return `<td valign="top" style="padding:0 20px 0 0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
-      <p style="${F}font-size:38px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
+      <p style="${F}font-size:38px;font-weight:bold;line-height:1;color:${valueColor};margin:0;">${value}</p>
       ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
     </td>`;
   }
@@ -451,6 +452,23 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
       <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
       ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
+    </td>`;
+  }
+  // CPL and CPI as separate stat cells
+  function statCPL(cpl) {
+    const val = cpl !== null ? `$${cpl.toFixed(2)}` : '$0.00';
+    return `<td valign="top" style="padding:0 20px 0 0;">
+      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Lead</p>
+      <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
+      <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
+    </td>`;
+  }
+  function statCPI(cpi) {
+    const val = cpi !== null ? `$${cpi.toFixed(2)}` : '$0.00';
+    return `<td valign="top" style="padding:0 20px 0 0;">
+      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Install</p>
+      <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
+      <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
     </td>`;
   }
 
@@ -501,15 +519,11 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:20px;">
         <tr>
           ${stat('New Leads', todayKPIs.total)}
-          ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`)}
+          ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`, todayKPIs.inst > 0 ? GREEN : DARK)}
           ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '—', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
-          ${statMoney('Cost / Lead', todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '—', 'ex-GST')}
+          ${statCPL(todayCPL)}
+          ${statCPI(todayCPI)}
         </tr>
-      </table>
-
-      <!-- DIVIDER -->
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
-        <tr><td height="1" bgcolor="${BORDER}" style="font-size:0;line-height:0;">&nbsp;</td></tr>
       </table>
 
       <!-- LAST 7 DAYS -->
@@ -517,9 +531,10 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:20px;">
         <tr>
           ${stat('Leads', last7KPIs.total, (() => { const t = trend(last7KPIs.total, prior7KPIs.total); return t || '&nbsp;'; })())}
-          ${stat('Installed', last7KPIs.inst, (() => { const t = trend(last7KPIs.inst, prior7KPIs.inst); return t || '&nbsp;'; })())}
+          ${stat('Installed', last7KPIs.inst, (() => { const t = trend(last7KPIs.inst, prior7KPIs.inst); return t || '&nbsp;'; })(), last7KPIs.inst > 0 ? GREEN : DARK)}
           ${statMoney('Ad Spend', `$${totalSpendLast7.toFixed(2)}`, `Meta $${metaLast7.toFixed(2)} &nbsp;+&nbsp; Google $${googleLast7.toFixed(2)}`)}
-          ${statMoney('Cost / Lead', last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '—', last7CPI !== null ? `CPI $${last7CPI.toFixed(2)}` : 'ex-GST')}
+          ${statCPL(last7CPL)}
+          ${statCPI(last7CPI)}
         </tr>
       </table>
 
