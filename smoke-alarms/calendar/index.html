@@ -6,16 +6,16 @@
 <title>Goldsure · Electrician Calendar</title>
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/smoke-alarms/calendar/sw.js');
-  }
-</script>
 <meta name="theme-color" content="#c9a84c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Goldsure">
 <link rel="apple-touch-icon" href="../../assets/icon-192x192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/smoke-alarms/calendar/sw.js');
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
@@ -812,8 +812,12 @@ let currentMonth = _now.getMonth()
 let selectedDate = null
 let cachedEvents = []
 
-const params       = new URLSearchParams(window.location.search)
-const workerFilter = (params.get('electrician') || '').trim().toLowerCase().replace(/\s+/g, ' ')
+const params = new URLSearchParams(window.location.search)
+const _paramVal = (params.get('electrician') || '').trim().toLowerCase().replace(/\s+/g, ' ')
+if (_paramVal) {
+  localStorage.setItem('gs_electrician', _paramVal)
+}
+const workerFilter = _paramVal || (localStorage.getItem('gs_electrician') || '')
 
 if (workerFilter) {
   const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
