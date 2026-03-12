@@ -373,33 +373,33 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
     const isToday = i === 0;
     const label   = isToday ? 'Today'
       : new Date(day + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-    const rowBg      = isToday ? '#fef7e7' : (i % 2 === 0 ? '#ffffff' : SURFACE);
+    const rowBg      = isToday ? '#fffdf5' : '#ffffff';
     const fw         = isToday ? 'bold' : 'normal';
     const labelColor = isToday ? GOLD : DARK;
+    const B          = `border-bottom:1px solid ${BORDER};`;
     return `
       <tr>
-        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:${fw};color:${labelColor};background-color:${rowBg};border-bottom:1px solid ${BORDER};">${label}</td>
-        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:${fw};color:${BLUE};text-align:center;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${kpi.total}</td>
-        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:${fw};color:${GREEN};text-align:center;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${kpi.inst}</td>
-        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:${fw};color:${MUTED};text-align:center;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${kpi.closeRate}%</td>
-        <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:${fw};color:${RED};text-align:center;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${kpi.notInt}</td>
+        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${labelColor};background-color:${rowBg};${B}">${label}</td>
+        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${DARK};text-align:center;background-color:${rowBg};${B}">${kpi.total}</td>
+        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${DARK};text-align:center;background-color:${rowBg};${B}">${kpi.inst}</td>
+        <td style="padding:10px 12px;${F}font-size:13px;color:${MUTED};text-align:center;background-color:${rowBg};${B}">${kpi.closeRate}%</td>
+        <td style="padding:10px 12px;${F}font-size:13px;color:${kpi.notInt > 0 ? RED : MUTED};text-align:center;background-color:${rowBg};${B}">${kpi.notInt}</td>
       </tr>`;
   }).join('');
 
   // ── Stage breakdown rows (today) ──
   const stageRows = todayKPIs.breakdown.length > 0
-    ? todayKPIs.breakdown.map(({ stage, count }, i) => {
+    ? todayKPIs.breakdown.map(({ stage, count }) => {
         const display = stage === 'Won/Installed' ? 'Installed' : stage === 'Qualified/IHA Complete' ? 'Qualified' : stage;
         const pct     = todayKPIs.total > 0 ? ((count / todayKPIs.total) * 100).toFixed(1) : '0';
-        const rowBg   = i % 2 === 0 ? '#ffffff' : SURFACE;
-        return `
-          <tr>
-            <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${DARK};background-color:${rowBg};border-bottom:1px solid ${BORDER};">${display}</td>
-            <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${DARK};text-align:center;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${count}</td>
-            <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};text-align:right;background-color:${rowBg};border-bottom:1px solid ${BORDER};">${pct}%</td>
-          </tr>`;
+        const B = `border-bottom:1px solid ${BORDER};`;
+        return `<tr>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${DARK};${B}">${display}</td>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${count}</td>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:right;${B}">${pct}%</td>
+        </tr>`;
       }).join('')
-    : `<tr><td colspan="3" style="padding:14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};text-align:center;">No leads recorded today</td></tr>`;
+    : `<tr><td colspan="3" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No leads recorded today</td></tr>`;
 
   // ── Journey path rows (7-day) ──
   const PLATFORM_COLORS_EMAIL = {
@@ -408,30 +408,51 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   };
   const journeyRows = last7KPIs.journeyPaths.length > 0
     ? last7KPIs.journeyPaths.map(({ platform, t, i, subPaths }) => {
-        const col     = PLATFORM_COLORS_EMAIL[platform] || MUTED;
-        const pPct    = t > 0 ? ((i / t) * 100).toFixed(1) : '0.0';
-        const pctColor = parseFloat(pPct) >= 30 ? GREEN : parseFloat(pPct) >= 15 ? GOLD : MUTED;
+        const col      = PLATFORM_COLORS_EMAIL[platform] || MUTED;
+        const pPct     = t > 0 ? ((i / t) * 100).toFixed(1) : '0.0';
         const hasMulti = subPaths.length > 1;
+        const B = `border-bottom:1px solid ${BORDER};`;
         const subRows  = hasMulti ? subPaths.map(([label, sv]) => {
           const sPct = sv.t > 0 ? ((sv.i / sv.t) * 100).toFixed(1) : '0.0';
-          return `<tr bgcolor="#ffffff">
-            <td style="padding:7px 14px 7px 26px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${MUTED};border-bottom:1px solid ${SURFACE};">&#8627; ${label}</td>
-            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${MUTED};text-align:center;border-bottom:1px solid ${SURFACE};">${sv.t}</td>
-            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${GREEN};text-align:center;border-bottom:1px solid ${SURFACE};">${sv.i}</td>
-            <td style="padding:7px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${MUTED};text-align:center;border-bottom:1px solid ${SURFACE};">${sPct}%</td>
+          return `<tr>
+            <td style="padding:8px 12px 8px 22px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};${B}">&#8627; ${label}</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${DARK};text-align:center;${B}">${sv.t}</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${DARK};text-align:center;${B}">${sv.i}</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};text-align:center;${B}">${sPct}%</td>
           </tr>`;
         }).join('') : '';
-        const totalLabel = hasMulti ? `Total ${platform}` : platform;
-        const totalBg    = hasMulti ? SURFACE : '#ffffff';
-        const totalRow   = `<tr bgcolor="${totalBg}">
-          <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${col};border-bottom:1px solid ${BORDER};">&bull; ${totalLabel}</td>
-          <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${BLUE};text-align:center;border-bottom:1px solid ${BORDER};">${t}</td>
-          <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${GREEN};text-align:center;border-bottom:1px solid ${BORDER};">${i}</td>
-          <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${pctColor};text-align:center;border-bottom:1px solid ${BORDER};">${pPct}%</td>
+        const totalLabel = hasMulti ? `${platform} (total)` : platform;
+        const totalRow   = `<tr>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${col};${B}">${totalLabel}</td>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${t}</td>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${i}</td>
+          <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${pPct}%</td>
         </tr>`;
         return subRows + totalRow;
       }).join('')
-    : `<tr><td colspan="4" style="padding:14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
+    : `<tr><td colspan="4" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
+
+  // ── Shared style strings ──
+  const F  = 'font-family:Arial,Helvetica,sans-serif;';
+  const sec  = `${F}font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:${MUTED};margin:0 0 16px 0;`;
+  const th   = `${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};padding:9px 12px;border-bottom:2px solid ${BORDER};background-color:#f8f9fb;`;
+  const td0  = `${F}font-size:13px;color:${DARK};padding:10px 12px;border-bottom:1px solid ${BORDER};`;
+
+  // ── Big stat cell builder ──
+  function stat(label, value, sub = '') {
+    return `<td valign="top" style="padding:0 20px 0 0;">
+      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
+      <p style="${F}font-size:38px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
+      ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
+    </td>`;
+  }
+  function statMoney(label, value, sub = '') {
+    return `<td valign="top" style="padding:0 20px 0 0;">
+      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
+      <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
+      ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
+    </td>`;
+  }
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -440,320 +461,153 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Goldsure Daily Report</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f5f6f8;">
+<body style="margin:0;padding:0;background-color:#f0f2f5;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f2f5">
+<tr><td align="center" style="padding:24px 16px;">
+<table width="580" cellpadding="0" cellspacing="0" border="0">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f6f8">
+  <!-- HEADER -->
   <tr>
-    <td align="center" style="padding:32px 16px;">
-      <table width="620" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border:1px solid ${BORDER};">
-
-        <!-- ══ HEADER ══ -->
+    <td bgcolor="#000000" style="padding:28px 32px 24px;border-radius:6px 6px 0 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td bgcolor="#000000" style="padding:28px 32px 24px 32px;">
-
-            <!-- Row 1: Logo left | Daily Report right -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td valign="middle">
-                  <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
-                       alt="Goldsure" width="130"
-                       style="display:block;border:0;" />
-                </td>
-                <td align="right" valign="middle">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:1.5px;">Daily Report</p>
-                  <p style="margin:4px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">${dateStr}</p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Row 2: Smoke Alarms label -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px;">
-              <tr>
-                <td>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${GOLD};letter-spacing:0.5px;">Smoke Alarms</p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Divider -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
-              <tr><td style="height:1px;background-color:rgba(255,255,255,0.12);font-size:0;">&nbsp;</td></tr>
-            </table>
-
-            <!-- Greeting -->
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
-              <tr>
-                <td>
-                  <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;">Hi All,</p>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.6;">
-                    Please find below today's ad performance summary for Smoke Alarms.${noLeadsToday ? '<br><strong style="color:#f59e0b;">&#9888; No new leads were recorded today.</strong>' : ''}
-                  </p>
-                </td>
-              </tr>
-            </table>
-
+          <td valign="middle">
+            <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
+                 alt="Goldsure" width="110" style="display:block;border:0;" />
+            <p style="${F}font-size:11px;color:${GOLD};margin:5px 0 0 0;letter-spacing:0.3px;">Smoke Alarms</p>
+          </td>
+          <td align="right" valign="top">
+            <p style="${F}font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);margin:0 0 4px 0;">Daily Report</p>
+            <p style="${F}font-size:12px;color:#ffffff;margin:0;">${dateStr}</p>
           </td>
         </tr>
-
-        <!-- ══ SECTION LABEL: TODAY ══ -->
-        <tr>
-          <td style="padding:0;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Today&rsquo;s Snapshot</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ TODAY KPI TILES ══ -->
-        <tr>
-          <td style="padding:20px 32px 8px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <!-- Leads -->
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${BLUE};">
-                    <tr><td bgcolor="#ffffff" style="padding:16px 14px;">
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${BLUE};text-transform:uppercase;letter-spacing:1px;">New Leads</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:bold;color:${BLUE};line-height:1;">${todayKPIs.total}</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <!-- Installed -->
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${GREEN};">
-                    <tr><td bgcolor="#ffffff" style="padding:16px 14px;">
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GREEN};text-transform:uppercase;letter-spacing:1px;">Installed</p>
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:bold;color:${GREEN};line-height:1;">${todayKPIs.inst}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">${todayKPIs.closeRate}% close rate</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <!-- Total Spend -->
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${GOLD};">
-                    <tr><td bgcolor="#ffffff" style="padding:16px 14px;">
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GOLD};text-transform:uppercase;letter-spacing:1px;">Total Spend</p>
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${DARK};line-height:1;">$${totalSpendToday.toFixed(2)}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Meta + Google ex-GST</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <!-- CPL -->
-                <td width="25%" valign="top">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${MUTED};">
-                    <tr><td bgcolor="#ffffff" style="padding:16px 14px;">
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;">Cost / Lead</p>
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${DARK};line-height:1;">${todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '-'}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Meta + Google</p>
-                    </td></tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ SPEND BREAKDOWN ROW (today) ══ -->
-        <tr>
-          <td style="padding:8px 32px 20px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${SURFACE}" style="border:1px solid ${BORDER};">
-              <tr>
-                <td style="padding:10px 16px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${MUTED};">
-                  &#8627; <strong style="color:${DARK};">Meta:</strong> $${metaToday.toFixed(2)} ex-GST
-                  &nbsp;&nbsp;&bull;&nbsp;&nbsp;
-                  <strong style="color:${DARK};">Google:</strong> $${googleToday.toFixed(2)} ex-GST
-                  ${todayKPIs.notInt > 0 ? `&nbsp;&nbsp;&bull;&nbsp;&nbsp;<strong style="color:${RED};">Not Interested:</strong> ${todayKPIs.notInt}` : ''}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ SECTION LABEL: 7 DAYS ══ -->
-        <tr>
-          <td style="padding:0;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Last 7 Days</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ 7-DAY KPI TILES ══ -->
-        <tr>
-          <td style="padding:20px 32px 8px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${BLUE};">
-                    <tr><td bgcolor="#ffffff" style="padding:14px;">
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${BLUE};text-transform:uppercase;letter-spacing:1px;">Leads</p>
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${BLUE};line-height:1;">${last7KPIs.total}</p>
-                      <p style="margin:0;">${trend(last7KPIs.total, prior7KPIs.total)}</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${GREEN};">
-                    <tr><td bgcolor="#ffffff" style="padding:14px;">
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GREEN};text-transform:uppercase;letter-spacing:1px;">Installed</p>
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:bold;color:${GREEN};line-height:1;">${last7KPIs.inst}</p>
-                      <p style="margin:0;">${trend(last7KPIs.inst, prior7KPIs.inst)}</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <td width="25%" valign="top" style="padding-right:8px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${GOLD};">
-                    <tr><td bgcolor="#ffffff" style="padding:14px;">
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GOLD};text-transform:uppercase;letter-spacing:1px;">Total Spend</p>
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${DARK};line-height:1;">$${totalSpendLast7.toFixed(2)}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Meta + Google ex-GST</p>
-                    </td></tr>
-                  </table>
-                </td>
-                <td width="25%" valign="top">
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-top:3px solid ${MUTED};">
-                    <tr><td bgcolor="#ffffff" style="padding:14px;">
-                      <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;">Cost / Lead</p>
-                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${DARK};line-height:1;">${last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '-'}</p>
-                      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:${MUTED};">Cost / Install: ${last7CPI !== null ? `$${last7CPI.toFixed(2)}` : '-'}</p>
-                    </td></tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ SPEND BREAKDOWN ROW (7d) ══ -->
-        <tr>
-          <td style="padding:8px 32px 16px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${SURFACE}" style="border:1px solid ${BORDER};">
-              <tr>
-                <td style="padding:10px 16px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${MUTED};">
-                  &#8627; <strong style="color:${DARK};">Meta:</strong> $${metaLast7.toFixed(2)}
-                  &nbsp;&nbsp;&bull;&nbsp;&nbsp;
-                  <strong style="color:${DARK};">Google:</strong> $${googleLast7.toFixed(2)}
-                  &nbsp;&nbsp;&bull;&nbsp;&nbsp;
-                  <strong style="color:${DARK};">Close rate:</strong> ${last7KPIs.closeRate}%
-                  &nbsp;&nbsp;&bull;&nbsp;&nbsp;
-                  <strong style="color:${RED};">Not Interested:</strong> ${last7KPIs.notInt}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ DAY-BY-DAY TABLE ══ -->
-        <tr>
-          <td style="padding:4px 32px 24px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-              <tr bgcolor="${SURFACE}">
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Day</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${BLUE};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Leads</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GREEN};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Installed</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Close %</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${RED};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Not Int.</td>
-              </tr>
-              ${dayRows}
-              <tr bgcolor="${SURFACE}">
-                <td style="padding:11px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${DARK};border-top:2px solid ${BORDER};">7-Day Total</td>
-                <td style="padding:11px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${BLUE};text-align:center;border-top:2px solid ${BORDER};">${last7KPIs.total}</td>
-                <td style="padding:11px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${GREEN};text-align:center;border-top:2px solid ${BORDER};">${last7KPIs.inst}</td>
-                <td style="padding:11px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${DARK};text-align:center;border-top:2px solid ${BORDER};">${last7KPIs.closeRate}%</td>
-                <td style="padding:11px 14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${RED};text-align:center;border-top:2px solid ${BORDER};">${last7KPIs.notInt}</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ SECTION LABEL: STAGE BREAKDOWN ══ -->
-        <tr>
-          <td style="padding:0;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Stage Breakdown - Today</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:12px 32px 24px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-              <tr bgcolor="${SURFACE}">
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Stage</td>
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Count</td>
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-align:right;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Share</td>
-              </tr>
-              ${stageRows}
-            </table>
-          </td>
-        </tr>
-
-        <!-- ══ SECTION LABEL: JOURNEY PATHS ══ -->
-        <tr>
-          <td style="padding:0;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td bgcolor="${SURFACE}" style="padding:12px 32px;border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};">
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:2px;">&#9632; Lead Sources &amp; Journey Paths - Last 7 Days</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:12px 32px 8px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-              <tr bgcolor="${SURFACE}">
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};">Source / Path</td>
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${BLUE};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};width:58px;">Leads</td>
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${GREEN};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};width:58px;">Closed</td>
-                <td style="padding:9px 14px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:${MUTED};text-align:center;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid ${BORDER};width:62px;">Close %</td>
-              </tr>
-              ${journeyRows}
-              <tr bgcolor="${DARK}">
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#ffffff;">All Sources</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#93c5fd;text-align:center;">${last7KPIs.total}</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#86efac;text-align:center;">${last7KPIs.inst}</td>
-                <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#ffffff;text-align:center;">${last7KPIs.closeRate}%</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <!-- Legend -->
-        <tr>
-          <td style="padding:6px 32px 24px 32px;">
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#94a3b8;line-height:1.8;">
-              <strong style="color:${MUTED};">Path notation:</strong> &ldquo;Meta &#8594; Google&rdquo; means first clicked a Meta ad, then converted after a Google search.<br>
-              <strong style="color:${MUTED};">Unknown:</strong> No UTM tracking on the ad URL - platform cannot be identified.
-            </p>
-          </td>
-        </tr>
-
-        <!-- ══ FOOTER ══ -->
-        <tr>
-          <td bgcolor="#000000" style="padding:20px 32px;" align="center">
-            <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#ffffff;">Goldsure Pty Ltd</p>
-            <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;">Auto-generated - ${dateStr}</p>
-          </td>
-        </tr>
-
+      </table>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;border-top:1px solid rgba(255,255,255,0.1);">
+        <tr><td style="padding-top:20px;">
+          <p style="${F}font-size:17px;font-weight:bold;color:#ffffff;margin:0 0 6px 0;">Hi All,</p>
+          <p style="${F}font-size:13px;color:rgba(255,255,255,0.65);line-height:1.6;margin:0;">Please find below today's ad performance summary for Smoke Alarms.</p>
+          ${noLeadsToday ? `<p style="${F}font-size:12px;font-weight:bold;color:#f59e0b;margin:12px 0 0 0;">&#9888;&nbsp; No new leads were recorded today.</p>` : ''}
+        </td></tr>
       </table>
     </td>
   </tr>
-</table>
 
+  <!-- WHITE BODY -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:32px 32px 0;">
+
+      <!-- TODAY -->
+      <p style="${sec}">Today &mdash; ${today.from}</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:20px;">
+        <tr>
+          ${stat('New Leads', todayKPIs.total)}
+          ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`)}
+          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '—', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
+          ${statMoney('Cost / Lead', todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '—', 'ex-GST')}
+        </tr>
+      </table>
+
+      <!-- DIVIDER -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+        <tr><td height="1" bgcolor="${BORDER}" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+
+      <!-- LAST 7 DAYS -->
+      <p style="${sec}margin-top:28px;">Last 7 Days</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:20px;">
+        <tr>
+          ${stat('Leads', last7KPIs.total, (() => { const t = trend(last7KPIs.total, prior7KPIs.total); return t || '&nbsp;'; })())}
+          ${stat('Installed', last7KPIs.inst, (() => { const t = trend(last7KPIs.inst, prior7KPIs.inst); return t || '&nbsp;'; })())}
+          ${statMoney('Ad Spend', `$${totalSpendLast7.toFixed(2)}`, `Meta $${metaLast7.toFixed(2)} &nbsp;+&nbsp; Google $${googleLast7.toFixed(2)}`)}
+          ${statMoney('Cost / Lead', last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '—', last7CPI !== null ? `CPI $${last7CPI.toFixed(2)}` : 'ex-GST')}
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+
+  <!-- DAILY BREAKDOWN TABLE -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:28px 32px 0;">
+      <p style="${sec}">Daily Breakdown</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
+        <tr>
+          <td style="${th}text-align:left;width:40%;">Day</td>
+          <td style="${th}text-align:center;">Leads</td>
+          <td style="${th}text-align:center;">Installed</td>
+          <td style="${th}text-align:center;">Close %</td>
+          <td style="${th}text-align:center;">Not Int.</td>
+        </tr>
+        ${dayRows}
+        <tr bgcolor="#f8f9fb">
+          <td style="${td0}font-weight:bold;border-bottom:none;">7-Day Total</td>
+          <td style="${td0}text-align:center;font-weight:bold;border-bottom:none;">${last7KPIs.total}</td>
+          <td style="${td0}text-align:center;font-weight:bold;color:${last7KPIs.inst > 0 ? GREEN : DARK};border-bottom:none;">${last7KPIs.inst}</td>
+          <td style="${td0}text-align:center;border-bottom:none;">${last7KPIs.closeRate}%</td>
+          <td style="${td0}text-align:center;border-bottom:none;">${last7KPIs.notInt}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- STAGE BREAKDOWN -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:28px 32px 0;">
+      <p style="${sec}">Stage Breakdown &mdash; Today</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
+        <tr>
+          <td style="${th}text-align:left;">Stage</td>
+          <td style="${th}text-align:center;width:80px;">Count</td>
+          <td style="${th}text-align:right;width:70px;">Share</td>
+        </tr>
+        ${stageRows}
+      </table>
+    </td>
+  </tr>
+
+  <!-- LEAD SOURCES -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:28px 32px 0;">
+      <p style="${sec}">Lead Sources &mdash; Last 7 Days</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
+        <tr>
+          <td style="${th}text-align:left;">Source</td>
+          <td style="${th}text-align:center;width:70px;">Leads</td>
+          <td style="${th}text-align:center;width:70px;">Installed</td>
+          <td style="${th}text-align:center;width:70px;">Close %</td>
+        </tr>
+        ${journeyRows}
+        <tr bgcolor="#000000">
+          <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;">All Sources</td>
+          <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.total}</td>
+          <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.inst}</td>
+          <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.closeRate}%</td>
+        </tr>
+      </table>
+      <p style="${F}font-size:10px;color:${MUTED};margin:8px 0 0 0;line-height:1.6;">
+        Path notation: "Meta &rarr; Google" = first touchpoint Meta, converted via Google. Unknown = no UTM data.
+      </p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:28px 32px 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr><td height="1" bgcolor="${BORDER}" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td bgcolor="#000000" style="padding:18px 32px;border-radius:0 0 6px 6px;" align="center">
+      <p style="${F}font-size:12px;font-weight:bold;color:#ffffff;margin:0 0 3px 0;">Goldsure Pty Ltd</p>
+      <p style="${F}font-size:10px;color:rgba(255,255,255,0.4);margin:0;">Suite 4, Level 1, 293 High Street, Preston VIC 3072 &nbsp;&bull;&nbsp; Auto-generated</p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
 </body>
 </html>`;
 }
