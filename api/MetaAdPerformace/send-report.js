@@ -441,14 +441,14 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
 
   // ── Big stat cell builder ──
   function stat(label, value, sub = '', valueColor = DARK) {
-    return `<td valign="top" style="padding:0 20px 0 0;">
+    return `<td valign="top" width="16%" style="padding:0 12px 0 0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
       <p style="${F}font-size:38px;font-weight:bold;line-height:1;color:${valueColor};margin:0;">${value}</p>
       ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
     </td>`;
   }
   function statMoney(label, value, sub = '') {
-    return `<td valign="top" style="padding:0 20px 0 0;">
+    return `<td valign="top" width="26%" style="padding:0 12px 0 0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
       <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
       ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
@@ -457,7 +457,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   // CPL and CPI as separate stat cells
   function statCPL(cpl) {
     const val = cpl !== null ? `$${cpl.toFixed(2)}` : '$0.00';
-    return `<td valign="top" style="padding:0 20px 0 0;">
+    return `<td valign="top" width="21%" style="padding:0 12px 0 0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Lead</p>
       <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
       <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
@@ -465,7 +465,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   }
   function statCPI(cpi) {
     const val = cpi !== null ? `$${cpi.toFixed(2)}` : '$0.00';
-    return `<td valign="top" style="padding:0 20px 0 0;">
+    return `<td valign="top" width="21%" style="padding:0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Install</p>
       <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
       <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
