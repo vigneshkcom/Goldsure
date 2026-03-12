@@ -354,6 +354,12 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   const BORDER  = '#e3e7ef';
   const SURFACE = '#f5f6f8';
 
+  // ── Shared style strings (must be declared before dayRows / stageRows etc.) ──
+  const F   = 'font-family:Arial,Helvetica,sans-serif;';
+  const sec = `${F}font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:${MUTED};margin:0 0 16px 0;`;
+  const th  = `${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};padding:9px 12px;border-bottom:2px solid ${BORDER};background-color:#f8f9fb;`;
+  const td0 = `${F}font-size:13px;color:${DARK};padding:10px 12px;border-bottom:1px solid ${BORDER};`;
+
   // ── Trend arrow helper ──
   function trend(curr, prior, invert = false, unit = '') {
     if (prior == null || prior === 0) return '';
@@ -431,12 +437,6 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
         return subRows + totalRow;
       }).join('')
     : `<tr><td colspan="4" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
-
-  // ── Shared style strings ──
-  const F  = 'font-family:Arial,Helvetica,sans-serif;';
-  const sec  = `${F}font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:${MUTED};margin:0 0 16px 0;`;
-  const th   = `${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};padding:9px 12px;border-bottom:2px solid ${BORDER};background-color:#f8f9fb;`;
-  const td0  = `${F}font-size:13px;color:${DARK};padding:10px 12px;border-bottom:1px solid ${BORDER};`;
 
   // ── Big stat cell builder ──
   function stat(label, value, sub = '') {
