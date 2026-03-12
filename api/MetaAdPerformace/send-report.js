@@ -236,24 +236,84 @@ async function fetchMetaSpend(since, until) {
   } catch(e) { return 0; }
 }
 
-// Google Ads spend (ex-GST) — uses same Vercel endpoint as dashboard
+// Google Ads spend (ex-GST) — calls Google Ads API directly (same logic as google-spend.js)
+// Avoids unreliable internal Vercel self-calls from cron jobs.
 async function fetchGoogleSpend(since, until) {
   try {
-    const base = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-    const url = `${base}/api/MetaAdPerformace/google-spend?from=${since}&to=${until}`;
-    const resp = await fetch(url, {
-      headers: { 'x-cron-secret': process.env.CRON_SECRET || '' },
+    const {
+      GOOGLE_ADS_DEVELOPER_TOKEN,
+      GOOGLE_ADS_CLIENT_ID,
+      GOOGLE_ADS_CLIENT_SECRET,
+      GOOGLE_ADS_REFRESH_TOKEN,
+      GOOGLE_ADS_MANAGER_ID,
+      GOOGLE_ADS_CUSTOMER_ID,
+    } = process.env;
+
+    if (!GOOGLE_ADS_DEVELOPER_TOKEN || !GOOGLE_ADS_CLIENT_ID ||
+        !GOOGLE_ADS_CLIENT_SECRET   || !GOOGLE_ADS_REFRESH_TOKEN ||
+        !GOOGLE_ADS_MANAGER_ID      || !GOOGLE_ADS_CUSTOMER_ID) {
+      console.warn('[Google] Missing env vars — skipping Google spend');
+      return 0;
+    }
+
+    const customerId = GOOGLE_ADS_CUSTOMER_ID.replace(/-/g, '');
+    const managerId  = GOOGLE_ADS_MANAGER_ID.replace(/-/g, '');
+
+    // 1. Get access token
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     GOOGLE_ADS_CLIENT_ID,
+        client_secret: GOOGLE_ADS_CLIENT_SECRET,
+        refresh_token: GOOGLE_ADS_REFRESH_TOKEN,
+        grant_type:    'refresh_token',
+      }),
     });
-    if (!resp.ok) return 0;
-    const json = await resp.json();
-    if (!json.success) return 0;
-    // API returns total_spend in AUD inc-GST → divide by 1.1 for ex-GST
-    // (matches dashboard: "Live API ÷ 1.1 ex-GST")
-    const raw = typeof json.total_spend === 'number' ? json.total_spend : 0;
-    return raw / 1.1;
-  } catch(e) { return 0; }
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.warn('[Google] OAuth failed:', tokenData);
+      return 0;
+    }
+
+    // 2. Query spend for date range
+    const query = `
+      SELECT metrics.cost_micros
+      FROM campaign
+      WHERE segments.date BETWEEN '${since}' AND '${until}'
+        AND metrics.cost_micros > 0
+        AND campaign.status != 'REMOVED'
+    `;
+    const adsRes = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:search`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization':       `Bearer ${tokenData.access_token}`,
+          'developer-token':     GOOGLE_ADS_DEVELOPER_TOKEN,
+          'login-customer-id':   managerId,
+          'Content-Type':        'application/json',
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
+    if (!adsRes.ok) { console.warn('[Google] Ads API error:', adsRes.status); return 0; }
+
+    const data = await adsRes.json();
+    let totalMicros = 0;
+    if (Array.isArray(data.results)) {
+      data.results.forEach(row => {
+        const m = row.metrics || {};
+        totalMicros += parseInt(m.costMicros ?? m.cost_micros ?? '0', 10) || 0;
+      });
+    }
+
+    // Google returns inc-GST AUD → divide by 1.1 for ex-GST (matches dashboard)
+    return (totalMicros / 1_000_000) / 1.1;
+  } catch(e) {
+    console.warn('[Google] fetchGoogleSpend error:', e.message);
+    return 0;
+  }
 }
 
 // Email HTML — Outlook-safe: tables only, all inline styles, no flexbox or CSS grid
@@ -389,45 +449,49 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
 
         <!-- ══ HEADER ══ -->
         <tr>
-          <td bgcolor="#000000" style="padding:0;">
+          <td bgcolor="#000000" style="padding:28px 32px 24px 32px;">
+
+            <!-- Row 1: Logo left | Daily Report right -->
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="padding:28px 32px 24px 32px;">
-                  <!-- Logo row -->
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td valign="middle">
-                        <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
-                             alt="Goldsure" width="140" height="auto"
-                             style="display:inline-block;vertical-align:middle;margin-right:16px;border:0;" />
-                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${GOLD};vertical-align:middle;">Smoke Alarms</span>
-                      </td>
-                      <td align="right" valign="middle">
-                        <span style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#4b5b7a;text-transform:uppercase;letter-spacing:1.5px;">Daily Report</span>
-                      </td>
-                    </tr>
-                  </table>
-                  <!-- Divider -->
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
-                    <tr><td style="height:1px;background-color:rgba(255,255,255,0.08);font-size:0;">&nbsp;</td></tr>
-                  </table>
-                  <!-- Greeting -->
-                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
-                    <tr>
-                      <td>
-                        <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;">Hi All,</p>
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.6;">
-                          Please find below today's ad performance summary for Smoke Alarms.${noLeadsToday ? ' <strong style="color:#f59e0b;">&#9888; No new leads were recorded today.</strong>' : ''}
-                        </p>
-                      </td>
-                      <td align="right" valign="bottom" style="white-space:nowrap;padding-left:20px;">
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">${dateStr}</p>
-                      </td>
-                    </tr>
-                  </table>
+                <td valign="middle">
+                  <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
+                       alt="Goldsure" width="130"
+                       style="display:block;border:0;" />
+                </td>
+                <td align="right" valign="middle">
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:1.5px;">Daily Report</p>
+                  <p style="margin:4px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">${dateStr}</p>
                 </td>
               </tr>
             </table>
+
+            <!-- Row 2: Smoke Alarms label -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px;">
+              <tr>
+                <td>
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${GOLD};letter-spacing:0.5px;">Smoke Alarms</p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Divider -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
+              <tr><td style="height:1px;background-color:rgba(255,255,255,0.12);font-size:0;">&nbsp;</td></tr>
+            </table>
+
+            <!-- Greeting -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
+              <tr>
+                <td>
+                  <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;">Hi All,</p>
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.6;">
+                    Please find below today's ad performance summary for Smoke Alarms.${noLeadsToday ? '<br><strong style="color:#f59e0b;">&#9888; No new leads were recorded today.</strong>' : ''}
+                  </p>
+                </td>
+              </tr>
+            </table>
+
           </td>
         </tr>
 
