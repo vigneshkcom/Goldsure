@@ -720,21 +720,32 @@ function render(rows, filename) {
   const totAlarm = totHw + totBat, n = tableData.length;
 
   const dates = rows.map(r => r['Completed Date']).filter(Boolean).sort();
-  const period = dates.length
-    ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`)
+
+  // Format dates as DD/MM/YYYY
+  function fmtDate(d) {
+    if (!d) return '—';
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return d;
+  }
+
+  const periodDisplay = dates.length
+    ? (dates[0] === dates[dates.length - 1]
+        ? fmtDate(dates[0])
+        : `${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])}`)
     : '—';
 
   // Store for email
-  summaryStats = { n, period, totAlarm, totHw, totBat, totCtrl, totExGst, filename };
+  summaryStats = { n, period: periodDisplay, totAlarm, totHw, totBat, totCtrl, totExGst };
 
   // Update DOM
   animateNumber('statJobs', n);
-  document.getElementById('statPeriod').textContent = period;
+  document.getElementById('statPeriod').textContent = periodDisplay;
   animateNumber('statAlarms', totAlarm);
   document.getElementById('statAlarmSub').textContent = `${totHw} Hard Wired + ${totBat} Battery`;
   document.getElementById('statRevenue').textContent = '$' + totExGst.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  document.getElementById('headerMeta').innerHTML = `<strong>${filename}</strong><br>${n} jobs &middot; ${period}`;
-  document.getElementById('footerFile').textContent = filename;
+  document.getElementById('headerMeta').innerHTML = `<strong>${n} jobs loaded</strong><br>${periodDisplay}`;
+  document.getElementById('footerFile').textContent = periodDisplay;
 
   // Table rows
   const tbody = document.getElementById('tableBody');
@@ -791,102 +802,233 @@ async function sendEmail() {
   btn.classList.add('loading');
   btn.disabled = true;
 
-  // Build HTML rows for email
-  const rowsHtml = tableData.map(r => `
-    <tr>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#111;border-bottom:1px solid #f0f0f0;">${r.jid}</td>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.hw || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.bat || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:#b08d2e;text-align:center;border-bottom:1px solid #f0f0f0;">${r.total}</td>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.ctrl || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:#1a6641;text-align:right;border-bottom:1px solid #f0f0f0;">$${r.exGst.toFixed(2)}</td>
-    </tr>`).join('');
+  const { n, period, totAlarm, totHw, totBat, totCtrl, totExGst } = summaryStats;
 
-  const { n, period, totAlarm, totHw, totBat, totCtrl, totExGst, filename } = summaryStats;
+  // Alternating row colours for email
+  const rowsHtml = tableData.map((r, i) => {
+    const bg = i % 2 === 0 ? '#ffffff' : '#f9f8f6';
+    const hw  = r.hw  || 0;
+    const bat = r.bat || 0;
+    const ctrl = r.ctrl || 0;
+    return `
+    <tr>
+      <td style="padding:11px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;font-weight:600;background:${bg};border-bottom:1px solid #eeebe4;">${r.jid}</td>
+      <td style="padding:11px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${hw ? '#333' : '#ccc'};text-align:center;background:${bg};border-bottom:1px solid #eeebe4;">${hw || '—'}</td>
+      <td style="padding:11px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${bat ? '#333' : '#ccc'};text-align:center;background:${bg};border-bottom:1px solid #eeebe4;">${bat || '—'}</td>
+      <td style="padding:11px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:14px;color:#b08d2e;text-align:center;background:${bg};border-bottom:1px solid #eeebe4;">${r.total}</td>
+      <td style="padding:11px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${ctrl ? '#333' : '#ccc'};text-align:center;background:${bg};border-bottom:1px solid #eeebe4;">${ctrl || '—'}</td>
+      <td style="padding:11px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#1a6641;text-align:right;background:${bg};border-bottom:1px solid #eeebe4;">$${r.exGst.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
 
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install Summary</title></head>
-<body style="margin:0;padding:0;background:#ebebeb;">
-<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ebebeb">
-<tr><td align="center" style="padding:20px 16px;">
-<table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goldsure Install Summary</title>
+</head>
+<body style="margin:0;padding:0;background-color:#edeae2;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#edeae2">
+<tr><td align="center" style="padding:32px 16px 40px;">
 
-  <!-- HEADER -->
-  <tr><td bgcolor="#000000" align="center" style="padding:24px 32px 8px;">
-    <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg" alt="Goldsure" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" />
-  </td></tr>
-  <tr><td bgcolor="#000000" align="center" style="padding:0 32px 18px;">
-    <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Install Summary Report</p>
-  </td></tr>
-  <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+<table width="620" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
-  <!-- BODY -->
-  <tr><td style="padding:28px 30px 8px;">
-    <p style="margin:0 0 6px;font-family:'Arial Black',Gadget,sans-serif;font-size:20px;font-weight:bold;color:#000;">Install Summary</p>
-    <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#666;">Period: ${period} &nbsp;&middot;&nbsp; File: ${filename}</p>
+  <!-- ── HEADER ── -->
+  <tr>
+    <td bgcolor="#0d0d0d" align="center" style="padding:28px 32px 10px;">
+      <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
+           alt="Goldsure" width="150" style="display:block;width:150px;height:auto;margin:0 auto;" />
+    </td>
+  </tr>
+  <tr>
+    <td bgcolor="#0d0d0d" align="center" style="padding:4px 32px 22px;">
+      <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;font-weight:bold;
+                letter-spacing:5px;text-transform:uppercase;color:#b08d2e;">
+        Smoke Alarm Install Summary
+      </p>
+    </td>
+  </tr>
+  <tr><td bgcolor="#b08d2e" style="height:3px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
 
-    <!-- STAT BOXES -->
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      <tr>
-        <td width="32%" style="padding-right:6px;">
-          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #e0e0e0;">
-            <tr><td style="padding:14px 16px;">
-              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;">Total Jobs</p>
-              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:28px;color:#000;">${n}</p>
-            </td></tr>
-          </table>
-        </td>
-        <td width="32%" style="padding:0 3px;">
-          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #e0e0e0;">
-            <tr><td style="padding:14px 16px;">
-              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;">Alarms Installed</p>
-              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:28px;color:#000;">${totAlarm}</p>
-              <p style="margin:2px 0 0;font-family:Arial,sans-serif;font-size:10px;color:#aaa;">${totHw} HW + ${totBat} Battery</p>
-            </td></tr>
-          </table>
-        </td>
-        <td width="36%" style="padding-left:6px;">
-          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#000;border:1px solid #000;">
-            <tr><td style="padding:14px 16px;">
-              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Revenue (Ex GST)</p>
-              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:24px;color:#b08d2e;">$${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+  <!-- ── TITLE BAND ── -->
+  <tr>
+    <td style="padding:28px 32px 0;background:#ffffff;">
+      <table width="100%" border="0" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="bottom">
+            <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:22px;
+                      font-weight:bold;color:#0d0d0d;letter-spacing:-0.3px;">
+              Install Summary Report
+            </p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;">
+              Period: <strong style="color:#444;">${period}</strong>
+            </p>
+          </td>
+          <td valign="bottom" align="right">
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#aaaaaa;
+                      text-align:right;line-height:1.6;">
+              Goldsure Pty Ltd<br>
+              <span style="color:#b08d2e;">info@goldsure.com.au</span>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-    <!-- TABLE -->
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border:1px solid #e0e0e0;">
-      <tr bgcolor="#000">
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Job ID</td>
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3430] HW</td>
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3431] Bat</td>
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">Total</td>
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3434] Ctrl</td>
-        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:right;">Ex GST</td>
-      </tr>
-      ${rowsHtml}
-      <!-- GRAND TOTAL -->
-      <tr bgcolor="#000">
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:11px;color:#fff;text-transform:uppercase;letter-spacing:1px;">Grand Total</td>
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totHw}</td>
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totBat}</td>
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:16px;color:#b08d2e;text-align:center;font-weight:bold;">${totAlarm}</td>
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totCtrl}</td>
-        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:18px;color:#3d9970;text-align:right;">$${totExGst.toFixed(2)}</td>
-      </tr>
-    </table>
+  <!-- ── SUMMARY STRIP ── -->
+  <tr>
+    <td style="padding:20px 32px 24px;background:#ffffff;">
+      <table width="100%" border="0" cellpadding="0" cellspacing="0"
+             style="border:1px solid #e8e4da;border-radius:3px;overflow:hidden;">
+        <tr>
+          <!-- Jobs -->
+          <td width="33%" style="padding:18px 20px;border-right:1px solid #e8e4da;vertical-align:top;">
+            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
+                      letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">Total Jobs</p>
+            <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:36px;
+                      color:#0d0d0d;line-height:1;">${n}</p>
+            <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#aaa;">
+              ${period}
+            </p>
+          </td>
+          <!-- Alarms -->
+          <td width="33%" style="padding:18px 20px;border-right:1px solid #e8e4da;vertical-align:top;">
+            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
+                      letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">Alarms Installed</p>
+            <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:36px;
+                      color:#0d0d0d;line-height:1;">${totAlarm}</p>
+            <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#aaa;">
+              ${totHw} Hard-Wired &nbsp;&middot;&nbsp; ${totBat} Battery
+            </p>
+          </td>
+          <!-- Revenue -->
+          <td width="34%" style="padding:18px 20px;background:#0d0d0d;vertical-align:top;">
+            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
+                      letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Revenue (Ex GST)</p>
+            <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:30px;
+                      color:#b08d2e;line-height:1;">
+              $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+            </p>
+            <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#555555;">
+              ${totCtrl > 0 ? `incl. ${totCtrl} controller${totCtrl > 1 ? 's' : ''}` : 'Alarms only'}
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-    <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:11px;color:#aaa;font-style:italic;">Unit prices: [3430] Hard Wired $89.09 &nbsp;|&nbsp; [3431] Battery $89.09 &nbsp;|&nbsp; [3434] Controller $44.55 (all Ex GST)</p>
-  </td></tr>
+  <!-- ── TABLE ── -->
+  <tr>
+    <td style="padding:0 32px 28px;background:#ffffff;">
 
-  <!-- FOOTER -->
-  <tr><td bgcolor="#000" align="center" style="padding:14px 20px;">
-    <p style="margin:0 0 3px;font-family:'Arial Black',Gadget,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
-    <p style="margin:0;font-family:Arial,sans-serif;font-size:10px;color:#555;">ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia</p>
-  </td></tr>
+      <!-- Table header label -->
+      <p style="margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
+                letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">
+        Job Breakdown
+      </p>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0"
+             style="border:1px solid #e8e4da;border-radius:3px;overflow:hidden;">
+
+        <!-- Column headers -->
+        <tr bgcolor="#0d0d0d">
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#b08d2e;border-right:1px solid #222;">
+            Job ID
+          </td>
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#888;text-align:center;
+                     border-right:1px solid #222;">
+            Hard-Wired
+          </td>
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#888;text-align:center;
+                     border-right:1px solid #222;">
+            Battery
+          </td>
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;
+                     border-right:1px solid #222;">
+            Total Alarms
+          </td>
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#888;text-align:center;
+                     border-right:1px solid #222;">
+            Controller
+          </td>
+          <td style="padding:12px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;
+                     letter-spacing:2px;text-transform:uppercase;color:#888;text-align:right;">
+            Ex GST
+          </td>
+        </tr>
+
+        ${rowsHtml}
+
+        <!-- GRAND TOTAL ROW -->
+        <tr>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:11px;
+                     color:#ffffff;text-transform:uppercase;letter-spacing:1px;background:#0d0d0d;
+                     border-top:2px solid #b08d2e;">
+            Grand Total
+          </td>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;
+                     color:#dddddd;text-align:center;background:#0d0d0d;border-top:2px solid #b08d2e;">
+            ${totHw}
+          </td>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;
+                     color:#dddddd;text-align:center;background:#0d0d0d;border-top:2px solid #b08d2e;">
+            ${totBat}
+          </td>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:18px;
+                     color:#b08d2e;text-align:center;background:#0d0d0d;border-top:2px solid #b08d2e;">
+            ${totAlarm}
+          </td>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;
+                     color:#dddddd;text-align:center;background:#0d0d0d;border-top:2px solid #b08d2e;">
+            ${totCtrl || '—'}
+          </td>
+          <td style="padding:14px 16px;font-family:'Arial Black',Gadget,sans-serif;font-size:18px;
+                     color:#3d9970;text-align:right;background:#0d0d0d;border-top:2px solid #b08d2e;">
+            $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+          </td>
+        </tr>
+
+        <!-- UNIT PRICE FOOTNOTE ROW -->
+        <tr bgcolor="#f5f3ee">
+          <td colspan="6" style="padding:9px 16px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:10px;color:#aaaaaa;font-style:italic;border-top:1px solid #e8e4da;">
+            Unit prices (Ex GST): Hard-Wired Smoke Alarm $89.09 &nbsp;&middot;&nbsp;
+            Battery Smoke Alarm $89.09 &nbsp;&middot;&nbsp; Controller $44.55
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+
+  <!-- ── FOOTER ── -->
+  <tr>
+    <td bgcolor="#0d0d0d" align="center" style="padding:18px 32px;">
+      <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:10px;
+                letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">
+        Goldsure Pty Ltd
+      </p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;
+                color:#555555;line-height:1.7;">
+        ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia<br>
+        <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;">
+          info@goldsure.com.au
+        </a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://www.goldsure.com.au" style="color:#555555;text-decoration:none;">
+          www.goldsure.com.au
+        </a>
+      </p>
+    </td>
+  </tr>
 
 </table>
 </td></tr>
@@ -901,7 +1043,7 @@ async function sendEmail() {
       body: JSON.stringify({
         from: `Goldsure Pty Ltd <${FROM_EMAIL}>`,
         to: TO_EMAIL,
-        subject: `Install Summary Report — ${n} Jobs · ${period}`,
+        subject: `Goldsure Install Summary — ${n} Jobs · ${period}`,
         html,
       }),
     });
