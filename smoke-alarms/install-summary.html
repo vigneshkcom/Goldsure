@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure — Install Summary</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0a0a;
+  --bg2:       #111111;
+  --surface:   #161616;
+  --border:    #242424;
+  --border2:   #2e2e2e;
+  --gold:      #c9a84c;
+  --gold2:     #e8c96e;
+  --gold-dim:  rgba(201,168,76,0.12);
+  --gold-glow: rgba(201,168,76,0.04);
+  --white:     #f0ece3;
+  --mid:       #888070;
+  --faint:     #3d3830;
+  --green:     #3d9970;
+  --red:       #c44;
+  --mono: 'DM Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --body: 'Fraunces', serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.4;
+}
+
+/* ── SCAN LINES ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── CORNER GLOW ── */
+.corner-glow {
+  position: fixed; top: -200px; right: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── WRAPPER ── */
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+/* ── HEADER ── */
+.header {
+  padding: 48px 0 40px;
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: end; gap: 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+  animation: slideDown 0.6s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.logo-block { display: flex; align-items: center; gap: 20px; }
+
+.logo-mark {
+  font-family: var(--display);
+  font-size: 52px; line-height: 1;
+  letter-spacing: 2px;
+  color: var(--white);
+}
+.logo-mark em {
+  font-style: normal;
+  color: var(--gold);
+  text-shadow: 0 0 40px rgba(201,168,76,0.3);
+}
+
+.logo-divider { width: 1px; height: 40px; background: var(--border2); }
+
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--mid);
+  line-height: 1.8;
+}
+.logo-sub strong { color: var(--gold); display: block; font-weight: 500; }
+
+.header-right {
+  text-align: right;
+  font-size: 10px; letter-spacing: 0.1em;
+  color: var(--mid); line-height: 2;
+}
+.header-right strong { color: var(--white); font-weight: 500; }
+
+/* ── UPLOAD ZONE ── */
+.upload-section {
+  animation: fadeUp 0.6s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.upload-zone {
+  position: relative;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  background: var(--surface);
+  padding: 80px 48px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.upload-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, var(--gold-dim) 0%, transparent 70%);
+  opacity: 0; transition: opacity 0.4s;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), inset 0 0 60px rgba(201,168,76,0.03);
+}
+.upload-zone:hover::before, .upload-zone.dragover::before { opacity: 1; }
+
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
+}
+
+.upload-icon {
+  width: 64px; height: 64px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg2);
+  transition: border-color 0.3s, background 0.3s;
+  position: relative; z-index: 1;
+}
+.upload-zone:hover .upload-icon { border-color: var(--gold); background: var(--gold-dim); }
+
+.upload-icon svg { width: 26px; height: 26px; stroke: var(--mid); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.3s; }
+.upload-zone:hover .upload-icon svg { stroke: var(--gold); }
+
+.upload-label {
+  text-align: center; position: relative; z-index: 1;
+}
+.upload-label h2 {
+  font-family: var(--body);
+  font-size: 22px; font-weight: 300;
+  color: var(--white); margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+.upload-label p { font-size: 11px; color: var(--mid); letter-spacing: 0.1em; }
+
+.upload-pill {
+  position: relative; z-index: 1;
+  background: var(--bg2); border: 1px solid var(--faint);
+  border-radius: 1px; padding: 4px 14px;
+  font-size: 10px; color: var(--mid);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+/* ── RESULTS ── */
+.results { display: none; }
+.results.visible { display: block; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; margin-bottom: 48px;
+  border: 1px solid var(--border);
+  background: var(--border);
+  border-radius: 2px; overflow: hidden;
+  animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.stat-card {
+  background: var(--surface);
+  padding: 28px 28px 24px;
+  position: relative; overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px; background: var(--gold);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+
+.stat-card.loaded::before { transform: scaleX(1); }
+
+.stat-accent {
+  position: absolute; bottom: 0; right: 0;
+  font-family: var(--display);
+  font-size: 100px; line-height: 1;
+  color: rgba(201,168,76,0.03);
+  pointer-events: none;
+  user-select: none;
+}
+
+.stat-label {
+  font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--mid);
+  margin-bottom: 14px;
+}
+
+.stat-value {
+  font-family: var(--display);
+  font-size: 54px; line-height: 1;
+  color: var(--white); letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.stat-value.gold { color: var(--gold); text-shadow: 0 0 30px rgba(201,168,76,0.2); }
+
+.stat-sub { font-size: 10px; color: var(--mid); letter-spacing: 0.06em; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  animation: fadeUp 0.5s 0.05s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.section-label {
+  font-size: 9px; letter-spacing: 0.25em;
+  text-transform: uppercase; color: var(--mid);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-label::before {
+  content: ''; display: inline-block;
+  width: 24px; height: 1px; background: var(--gold);
+}
+
+.btn-row { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 400;
+  padding: 9px 20px; border-radius: 1px;
+  cursor: pointer; transition: all 0.2s;
+  letter-spacing: 0.08em; border: 1px solid;
+  display: inline-flex; align-items: center; gap: 8px;
+  position: relative; overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: currentColor; opacity: 0;
+  transition: opacity 0.2s;
+}
+.btn:hover::before { opacity: 0.06; }
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--mid);
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--white); }
+
+.btn-export {
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--mid);
+}
+.btn-export:hover { border-color: var(--gold); color: var(--gold); }
+
+.btn-send {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #0a0a0a;
+  font-weight: 500;
+}
+.btn-send:hover {
+  background: var(--gold2);
+  border-color: var(--gold2);
+  box-shadow: 0 0 24px rgba(201,168,76,0.25);
+}
+.btn-send:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+.btn-send:disabled:hover {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: none;
+}
+
+/* ── TABLE ── */
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  animation: fadeUp 0.5s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+
+.price-head th {
+  background: var(--bg);
+  padding: 6px 18px;
+  font-size: 9px; font-weight: 400;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.08em; text-align: center;
+}
+.price-head th:first-child { text-align: left; }
+.price-head th:last-child { text-align: right; }
+
+.col-head th {
+  background: var(--surface);
+  color: var(--mid);
+  padding: 12px 18px;
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.col-head th:first-child { text-align: left; padding-left: 20px; }
+.col-head th:last-child { text-align: right; padding-right: 20px; border-right: none; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+  animation: slideRow 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+tbody tr:last-child { border-bottom: none; }
+
+tbody tr td {
+  padding: 12px 18px; text-align: center;
+  border-right: 1px solid var(--border);
+  color: var(--mid); transition: color 0.15s;
+}
+tbody tr td:first-child {
+  text-align: left; padding-left: 20px;
+  color: var(--white); font-weight: 500;
+  letter-spacing: 0.04em;
+  border-right: 1px solid var(--border2);
+}
+tbody tr td:last-child {
+  text-align: right; padding-right: 20px;
+  border-right: none; color: var(--green); font-weight: 500;
+}
+
+tbody tr:hover td { background: rgba(201,168,76,0.025); }
+tbody tr:hover td:first-child { color: var(--gold); }
+
+.total-col { color: var(--gold) !important; font-weight: 500; }
+.zero-val { color: var(--faint) !important; font-weight: 400; }
+
+.grand-row td {
+  background: var(--surface) !important;
+  border-top: 1px solid var(--border2) !important;
+  color: var(--white) !important;
+  font-weight: 500; padding: 16px 18px;
+}
+.grand-row td:first-child {
+  font-family: var(--body); font-size: 13px; font-weight: 600;
+  color: var(--white) !important; letter-spacing: 0.05em;
+  text-transform: uppercase; padding-left: 20px;
+}
+.grand-row td:last-child { color: var(--green) !important; padding-right: 20px; }
+.grand-row .total-col { color: var(--gold) !important; }
+
+.avg-row td {
+  background: var(--bg) !important;
+  color: var(--faint) !important;
+  font-size: 10px; padding: 8px 18px;
+  border-top: 1px solid var(--border) !important;
+}
+.avg-row td:first-child {
+  color: var(--mid) !important;
+  font-style: italic; padding-left: 20px;
+  text-transform: none; letter-spacing: 0;
+}
+.avg-row td:last-child { padding-right: 20px; color: var(--faint) !important; }
+.avg-row:hover td { background: var(--bg) !important; }
+
+/* ── FOOTER ── */
+.data-footer {
+  margin-top: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  animation: fadeUp 0.5s 0.15s cubic-bezier(0.16,1,0.3,1) both;
+}
+.footer-note { font-size: 10px; color: var(--faint); letter-spacing: 0.08em; }
+.price-tags { display: flex; gap: 16px; }
+.price-tag {
+  font-size: 9px; color: var(--faint);
+  display: flex; align-items: center; gap: 8px; letter-spacing: 0.08em;
+}
+.price-tag span {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 1px; padding: 2px 8px;
+  color: var(--green); font-weight: 500;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 32px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 2px; padding: 14px 24px;
+  font-size: 12px; color: var(--white);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+  z-index: 100; white-space: nowrap;
+  display: flex; align-items: center; gap: 10px;
+}
+.toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+.toast.success { border-color: var(--green); }
+.toast.error { border-color: var(--red); }
+.toast-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
+.toast.success .toast-dot { background: var(--green); }
+.toast.error .toast-dot { background: var(--red); }
+
+/* ── SPINNER ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 12px; height: 12px;
+  border: 1.5px solid rgba(10,10,10,0.3);
+  border-top-color: #0a0a0a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+.btn-send.loading .spinner { display: block; }
+.btn-send.loading .btn-label { display: none; }
+
+/* ── KEYFRAMES ── */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideRow {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Row stagger delays */
+tbody tr:nth-child(1)  { animation-delay: 0.04s; }
+tbody tr:nth-child(2)  { animation-delay: 0.08s; }
+tbody tr:nth-child(3)  { animation-delay: 0.12s; }
+tbody tr:nth-child(4)  { animation-delay: 0.16s; }
+tbody tr:nth-child(5)  { animation-delay: 0.20s; }
+tbody tr:nth-child(6)  { animation-delay: 0.24s; }
+tbody tr:nth-child(7)  { animation-delay: 0.28s; }
+tbody tr:nth-child(8)  { animation-delay: 0.32s; }
+tbody tr:nth-child(9)  { animation-delay: 0.36s; }
+tbody tr:nth-child(n+10) { animation-delay: 0.40s; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .wrap { padding: 0 16px 60px; }
+  .header { grid-template-columns: 1fr; }
+  .header-right { text-align: left; }
+  .stats-row { grid-template-columns: 1fr; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 660px; }
+  .toolbar { flex-direction: column; gap: 14px; align-items: flex-start; }
+  .data-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="corner-glow"></div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo-block">
+      <div class="logo-mark">GOLD<em>SURE</em></div>
+      <div class="logo-divider"></div>
+      <div class="logo-sub">
+        <strong>Install Summary</strong>
+        Electrical Services · QLD
+      </div>
+    </div>
+    <div class="header-right" id="headerMeta">
+      <strong>No file loaded</strong><br>
+      Drop a CSV to begin
+    </div>
+  </header>
+
+  <!-- UPLOAD -->
+  <div class="upload-section" id="uploadSection">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".csv">
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="upload-label">
+        <h2>Drop your CSV file here</h2>
+        <p>or click anywhere to browse</p>
+      </div>
+      <div class="upload-pill">product-summary-installed_*.csv</div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results" id="results">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card" id="sc1">
+        <div class="stat-accent">JB</div>
+        <div class="stat-label">Total Jobs</div>
+        <div class="stat-value" id="statJobs">—</div>
+        <div class="stat-sub" id="statPeriod">—</div>
+      </div>
+      <div class="stat-card" id="sc2">
+        <div class="stat-accent">AL</div>
+        <div class="stat-label">Alarms Installed</div>
+        <div class="stat-value" id="statAlarms">—</div>
+        <div class="stat-sub" id="statAlarmSub">HW + Battery</div>
+      </div>
+      <div class="stat-card" id="sc3">
+        <div class="stat-accent">$</div>
+        <div class="stat-label">Revenue (Ex GST)</div>
+        <div class="stat-value gold" id="statRevenue">—</div>
+        <div class="stat-sub">Across all jobs</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="section-label">Installed Products Breakdown</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="resetTool()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+          Reset
+        </button>
+        <button class="btn btn-export" onclick="exportCSV()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-send" id="sendBtn" onclick="sendEmail()">
+          <div class="spinner"></div>
+          <span class="btn-label" style="display:flex;align-items:center;gap:8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send Report Email
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table>
+        <thead class="price-head">
+          <tr>
+            <th>Unit Price (Ex GST)</th>
+            <th>$89.09 / unit</th>
+            <th>$89.09 / unit</th>
+            <th>—</th>
+            <th>$44.55 / unit</th>
+            <th>Calculated</th>
+          </tr>
+        </thead>
+        <thead class="col-head">
+          <tr>
+            <th>Job ID</th>
+            <th>[3430] Hard Wired</th>
+            <th>[3431] Battery</th>
+            <th>Alarm Total</th>
+            <th>[3434] Controller</th>
+            <th>Ex GST</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- DATA FOOTER -->
+    <div class="data-footer">
+      <div class="footer-note" id="footerFile">—</div>
+      <div class="price-tags">
+        <div class="price-tag">[3430] Hard Wired <span>$89.09</span></div>
+        <div class="price-tag">[3431] Battery <span>$89.09</span></div>
+        <div class="price-tag">[3434] Controller <span>$44.55</span></div>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+</div><!-- /wrap -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-dot"></div>
+  <span id="toastMsg">Message sent</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIG — update API endpoint if needed
+// ════════════════════════════════════════════════════════════
+const API_ENDPOINT = 'https://portal.goldsure.com.au/api/smoke-alarms/reports/send-install-summary';
+const FROM_EMAIL   = 'info@goldsure.com.au';
+const TO_EMAIL     = 'vignesh@goldsure.com.au';
+
+// ════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════
+const PRICES = { '3430': 89.09, '3431': 89.09, '3434': 44.55 };
+let tableData = [];
+let currentFilename = '';
+let summaryStats = {};
+
+// ════════════════════════════════════════════════════════════
+// DRAG & DROP
+// ════════════════════════════════════════════════════════════
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+// ════════════════════════════════════════════════════════════
+// CSV PARSING
+// ════════════════════════════════════════════════════════════
+function parseCSVLine(line) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur); return result;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line), obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  });
+}
+
+function extractCode(name) { const m = (name || '').match(/\[(\d+)\]/); return m ? m[1] : null; }
+function fmt(n) { return n === 0 ? '<span class="zero-val">—</span>' : n; }
+
+// ════════════════════════════════════════════════════════════
+// PROCESS FILE
+// ════════════════════════════════════════════════════════════
+function processFile(file) {
+  currentFilename = file.name;
+  const reader = new FileReader();
+  reader.onload = e => render(parseCSV(e.target.result), file.name);
+  reader.readAsText(file);
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ════════════════════════════════════════════════════════════
+function render(rows, filename) {
+  const relevant = ['3430', '3431', '3434'];
+  const jobOrder = [], seen = new Set();
+  rows.forEach(r => {
+    if (r['Job Id'] && !seen.has(r['Job Id'])) { seen.add(r['Job Id']); jobOrder.push(r['Job Id']); }
+  });
+
+  const jobMap = {};
+  rows.filter(r => relevant.includes(extractCode(r['Product Name']))).forEach(r => {
+    const jid = r['Job Id'], code = extractCode(r['Product Name']), qty = parseInt(r['Product Quantity']) || 0;
+    if (!jobMap[jid]) jobMap[jid] = { '3430': 0, '3431': 0, '3434': 0 };
+    jobMap[jid][code] += qty;
+  });
+
+  const jobIds = jobOrder.filter(id => jobMap[id]);
+  tableData = jobIds.map(jid => {
+    const d = jobMap[jid];
+    const hw = d['3430'] || 0, bat = d['3431'] || 0, ctrl = d['3434'] || 0;
+    return { jid, hw, bat, total: hw + bat, ctrl, exGst: hw * PRICES['3430'] + bat * PRICES['3431'] + ctrl * PRICES['3434'] };
+  });
+
+  const totHw    = tableData.reduce((s, r) => s + r.hw, 0);
+  const totBat   = tableData.reduce((s, r) => s + r.bat, 0);
+  const totCtrl  = tableData.reduce((s, r) => s + r.ctrl, 0);
+  const totExGst = tableData.reduce((s, r) => s + r.exGst, 0);
+  const totAlarm = totHw + totBat, n = tableData.length;
+
+  const dates = rows.map(r => r['Completed Date']).filter(Boolean).sort();
+  const period = dates.length
+    ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`)
+    : '—';
+
+  // Store for email
+  summaryStats = { n, period, totAlarm, totHw, totBat, totCtrl, totExGst, filename };
+
+  // Update DOM
+  animateNumber('statJobs', n);
+  document.getElementById('statPeriod').textContent = period;
+  animateNumber('statAlarms', totAlarm);
+  document.getElementById('statAlarmSub').textContent = `${totHw} Hard Wired + ${totBat} Battery`;
+  document.getElementById('statRevenue').textContent = '$' + totExGst.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('headerMeta').innerHTML = `<strong>${filename}</strong><br>${n} jobs &middot; ${period}`;
+  document.getElementById('footerFile').textContent = filename;
+
+  // Table rows
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  tableData.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.jid}</td><td>${fmt(r.hw)}</td><td>${fmt(r.bat)}</td><td class="total-col">${r.total}</td><td>${fmt(r.ctrl)}</td><td>$${r.exGst.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const grand = document.createElement('tr'); grand.className = 'grand-row';
+  grand.innerHTML = `<td>Grand Total</td><td>${totHw}</td><td>${totBat}</td><td class="total-col">${totAlarm}</td><td>${totCtrl}</td><td>$${totExGst.toFixed(2)}</td>`;
+  tbody.appendChild(grand);
+
+  const avg = document.createElement('tr'); avg.className = 'avg-row';
+  avg.innerHTML = `<td>Average per job</td><td>${(totHw / n).toFixed(4)}</td><td>${(totBat / n).toFixed(4)}</td><td>${(totAlarm / n).toFixed(4)}</td><td>${(totCtrl / n).toFixed(4)}</td><td>$${(totExGst / n).toFixed(2)}</td>`;
+  tbody.appendChild(avg);
+
+  // Animate stat cards
+  setTimeout(() => {
+    document.getElementById('sc1').classList.add('loaded');
+    setTimeout(() => document.getElementById('sc2').classList.add('loaded'), 100);
+    setTimeout(() => document.getElementById('sc3').classList.add('loaded'), 200);
+  }, 100);
+
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('results').classList.add('visible');
+}
+
+// ════════════════════════════════════════════════════════════
+// NUMBER COUNTER ANIMATION
+// ════════════════════════════════════════════════════════════
+function animateNumber(id, target) {
+  const el = document.getElementById(id);
+  const duration = 800;
+  const start = performance.now();
+  const from = 0;
+  function step(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ════════════════════════════════════════════════════════════
+// SEND EMAIL
+// ════════════════════════════════════════════════════════════
+async function sendEmail() {
+  if (!tableData.length) { showToast('No data loaded — drop a CSV first', 'error'); return; }
+
+  const btn = document.getElementById('sendBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  // Build HTML rows for email
+  const rowsHtml = tableData.map(r => `
+    <tr>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#111;border-bottom:1px solid #f0f0f0;">${r.jid}</td>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.hw || '—'}</td>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.bat || '—'}</td>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:#b08d2e;text-align:center;border-bottom:1px solid #f0f0f0;">${r.total}</td>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;color:#444;text-align:center;border-bottom:1px solid #f0f0f0;">${r.ctrl || '—'}</td>
+      <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;color:#1a6641;text-align:right;border-bottom:1px solid #f0f0f0;">$${r.exGst.toFixed(2)}</td>
+    </tr>`).join('');
+
+  const { n, period, totAlarm, totHw, totBat, totCtrl, totExGst, filename } = summaryStats;
+
+  const html = `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Install Summary</title></head>
+<body style="margin:0;padding:0;background:#ebebeb;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ebebeb">
+<tr><td align="center" style="padding:20px 16px;">
+<table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+
+  <!-- HEADER -->
+  <tr><td bgcolor="#000000" align="center" style="padding:24px 32px 8px;">
+    <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg" alt="Goldsure" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" />
+  </td></tr>
+  <tr><td bgcolor="#000000" align="center" style="padding:0 32px 18px;">
+    <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Install Summary Report</p>
+  </td></tr>
+  <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+
+  <!-- BODY -->
+  <tr><td style="padding:28px 30px 8px;">
+    <p style="margin:0 0 6px;font-family:'Arial Black',Gadget,sans-serif;font-size:20px;font-weight:bold;color:#000;">Install Summary</p>
+    <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#666;">Period: ${period} &nbsp;&middot;&nbsp; File: ${filename}</p>
+
+    <!-- STAT BOXES -->
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        <td width="32%" style="padding-right:6px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #e0e0e0;">
+            <tr><td style="padding:14px 16px;">
+              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;">Total Jobs</p>
+              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:28px;color:#000;">${n}</p>
+            </td></tr>
+          </table>
+        </td>
+        <td width="32%" style="padding:0 3px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #e0e0e0;">
+            <tr><td style="padding:14px 16px;">
+              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#999;">Alarms Installed</p>
+              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:28px;color:#000;">${totAlarm}</p>
+              <p style="margin:2px 0 0;font-family:Arial,sans-serif;font-size:10px;color:#aaa;">${totHw} HW + ${totBat} Battery</p>
+            </td></tr>
+          </table>
+        </td>
+        <td width="36%" style="padding-left:6px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#000;border:1px solid #000;">
+            <tr><td style="padding:14px 16px;">
+              <p style="margin:0 0 4px;font-family:'Arial Black',Gadget,sans-serif;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Revenue (Ex GST)</p>
+              <p style="margin:0;font-family:'Arial Black',Gadget,sans-serif;font-size:24px;color:#b08d2e;">$${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- TABLE -->
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border:1px solid #e0e0e0;">
+      <tr bgcolor="#000">
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Job ID</td>
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3430] HW</td>
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3431] Bat</td>
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">Total</td>
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:center;">[3434] Ctrl</td>
+        <td style="padding:10px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;text-align:right;">Ex GST</td>
+      </tr>
+      ${rowsHtml}
+      <!-- GRAND TOTAL -->
+      <tr bgcolor="#000">
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:11px;color:#fff;text-transform:uppercase;letter-spacing:1px;">Grand Total</td>
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totHw}</td>
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totBat}</td>
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:16px;color:#b08d2e;text-align:center;font-weight:bold;">${totAlarm}</td>
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:13px;color:#fff;text-align:center;">${totCtrl}</td>
+        <td style="padding:12px 14px;font-family:'Arial Black',Gadget,sans-serif;font-size:18px;color:#3d9970;text-align:right;">$${totExGst.toFixed(2)}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:11px;color:#aaa;font-style:italic;">Unit prices: [3430] Hard Wired $89.09 &nbsp;|&nbsp; [3431] Battery $89.09 &nbsp;|&nbsp; [3434] Controller $44.55 (all Ex GST)</p>
+  </td></tr>
+
+  <!-- FOOTER -->
+  <tr><td bgcolor="#000" align="center" style="padding:14px 20px;">
+    <p style="margin:0 0 3px;font-family:'Arial Black',Gadget,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+    <p style="margin:0;font-family:Arial,sans-serif;font-size:10px;color:#555;">ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  try {
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: `Goldsure Pty Ltd <${FROM_EMAIL}>`,
+        to: TO_EMAIL,
+        subject: `Install Summary Report — ${n} Jobs · ${period}`,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    showToast(`Report emailed to ${TO_EMAIL}`, 'success');
+  } catch (err) {
+    console.error('[Send Email]', err);
+    showToast(`Failed: ${err.message}`, 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// RESET
+// ════════════════════════════════════════════════════════════
+function resetTool() {
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('uploadSection').style.display = '';
+  document.getElementById('headerMeta').innerHTML = '<strong>No file loaded</strong><br>Drop a CSV to begin';
+  fileInput.value = ''; tableData = []; currentFilename = ''; summaryStats = {};
+  ['sc1','sc2','sc3'].forEach(id => document.getElementById(id).classList.remove('loaded'));
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORT CSV
+// ════════════════════════════════════════════════════════════
+function exportCSV() {
+  if (!tableData.length) return;
+  const rows = [
+    ['Job ID', 'HW Alarm (3430)', 'Battery Alarm (3431)', 'Alarm Total', 'Controller (3434)', 'Ex GST'],
+    ...tableData.map(r => [r.jid, r.hw, r.bat, r.total, r.ctrl, r.exGst.toFixed(2)])
+  ];
+  const totHw = tableData.reduce((s, r) => s + r.hw, 0);
+  const totBat = tableData.reduce((s, r) => s + r.bat, 0);
+  const totCtrl = tableData.reduce((s, r) => s + r.ctrl, 0);
+  const totExGst = tableData.reduce((s, r) => s + r.exGst, 0);
+  rows.push(['Grand Total', totHw, totBat, totHw + totBat, totCtrl, totExGst.toFixed(2)]);
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.map(r => r.join(',')).join('\n'));
+  a.download = `goldsure-install-summary-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  clearTimeout(toastTimer);
+  toast.className = `toast ${type}`;
+  toastMsg.textContent = msg;
+  requestAnimationFrame(() => toast.classList.add('show'));
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+</script>
+</body>
+</html>
