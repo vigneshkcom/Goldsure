@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure — Install Summary</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -24,8 +24,8 @@
   --green:     #3d9970;
   --red:       #c44;
   --mono: 'DM Mono', monospace;
-  --display: 'Bebas Neue', sans-serif;
-  --body: 'Fraunces', serif;
+  --display: 'Sora', sans-serif;
+  --body: 'Sora', sans-serif;
 }
 
 html { scroll-behavior: smooth; }
@@ -83,10 +83,12 @@ body::after {
 .logo-block { display: flex; align-items: center; gap: 20px; }
 
 .logo-mark {
-  font-family: var(--display);
-  font-size: 52px; line-height: 1;
-  letter-spacing: 2px;
+  font-family: 'Sora', sans-serif;
+  font-size: 38px; line-height: 1;
+  font-weight: 800;
+  letter-spacing: -1px;
   color: var(--white);
+  text-transform: uppercase;
 }
 .logo-mark em {
   font-style: normal;
@@ -225,9 +227,10 @@ body::after {
 }
 
 .stat-value {
-  font-family: var(--display);
-  font-size: 54px; line-height: 1;
-  color: var(--white); letter-spacing: 1px;
+  font-family: 'Sora', sans-serif;
+  font-size: 48px; line-height: 1;
+  color: var(--white); letter-spacing: -1px;
+  font-weight: 800;
   margin-bottom: 8px;
 }
 .stat-value.gold { color: var(--gold); text-shadow: 0 0 30px rgba(201,168,76,0.2); }
@@ -804,21 +807,20 @@ async function sendEmail() {
 
   const { n, period, totAlarm, totHw, totBat, totCtrl, totExGst } = summaryStats;
 
-  // Alternating row colours for email
+  // Build data rows — NO border-bottom on tds (causes ghost lines in Outlook)
+  // Use bgcolor on tr for alternating, background on td for solid fill
   const rowsHtml = tableData.map((r, i) => {
-    const bg   = i % 2 === 0 ? '#ffffff' : '#f9f8f6';
+    const bg   = i % 2 === 0 ? '#ffffff' : '#f5f3ee';
     const hw   = r.hw   || 0;
     const bat  = r.bat  || 0;
     const ctrl = r.ctrl || 0;
-    // consistent gold for Total Alarms and Ex GST
-    return `
-    <tr>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;font-weight:bold;background:${bg};border-bottom:1px solid #e8e4d8;">${r.jid}</td>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${hw ? '#444444' : '#cccccc'};text-align:center;background:${bg};border-bottom:1px solid #e8e4d8;">${hw || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${bat ? '#444444' : '#cccccc'};text-align:center;background:${bg};border-bottom:1px solid #e8e4d8;">${bat || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#b08d2e;text-align:center;background:${bg};border-bottom:1px solid #e8e4d8;">${r.total}</td>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${ctrl ? '#444444' : '#cccccc'};text-align:center;background:${bg};border-bottom:1px solid #e8e4d8;">${ctrl || '—'}</td>
-      <td style="padding:10px 14px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#b08d2e;text-align:right;background:${bg};border-bottom:1px solid #e8e4d8;">$${r.exGst.toFixed(2)}</td>
+    return `<tr bgcolor="${bg}">
+      <td width="18%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;font-weight:bold;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">${r.jid}</td>
+      <td width="15%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${hw ? '#444444' : '#cccccc'};text-align:center;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">${hw || '&mdash;'}</td>
+      <td width="15%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${bat ? '#444444' : '#cccccc'};text-align:center;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">${bat || '&mdash;'}</td>
+      <td width="17%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#b08d2e;text-align:center;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">${r.total}</td>
+      <td width="15%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${ctrl ? '#444444' : '#cccccc'};text-align:center;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">${ctrl || '&mdash;'}</td>
+      <td width="20%" style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#b08d2e;text-align:right;border-bottom:1px solid #e8e4d8;" bgcolor="${bg}">$${r.exGst.toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -826,180 +828,244 @@ async function sendEmail() {
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Goldsure Install Summary</title>
 </head>
-<body style="margin:0;padding:0;background-color:#e8e4dc;">
-<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#e8e4dc">
-<tr><td align="center" style="padding:28px 16px 36px;">
+<body style="margin:0;padding:0;background:#e4e0d8;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#e4e0d8">
+<tr><td align="center" style="padding:28px 0 36px;">
 
+<!-- OUTER CARD: 600px, no border-radius (Outlook ignores it) -->
 <table width="600" border="0" cellpadding="0" cellspacing="0"
-       style="background:#ffffff;box-shadow:0 2px 20px rgba(0,0,0,0.12);">
+       style="background:#ffffff;" bgcolor="#ffffff">
 
-  <!-- HEADER: pitch black to match logo -->
+  <!-- ══ HEADER ══ -->
   <tr>
-    <td bgcolor="#000000" align="center" style="padding:26px 32px 8px;">
+    <td bgcolor="#000000" align="center"
+        style="padding:26px 32px 8px;background:#000000;">
       <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
-           alt="Goldsure" width="145" style="display:block;width:145px;height:auto;margin:0 auto;" />
+           alt="Goldsure" width="140" height="auto"
+           style="display:block;width:140px;border:0;" />
     </td>
   </tr>
   <tr>
-    <td bgcolor="#000000" align="center" style="padding:2px 32px 18px;">
-      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:8px;font-weight:bold;
-                letter-spacing:5px;text-transform:uppercase;color:#b08d2e;">
-        Smoke Alarm Install Summary
-      </p>
+    <td bgcolor="#000000" align="center"
+        style="padding:2px 32px 16px;background:#000000;">
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:8px;
+                font-weight:bold;letter-spacing:5px;text-transform:uppercase;
+                color:#b08d2e;">Smoke Alarm Install Summary</p>
     </td>
   </tr>
-  <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+  <!-- Gold rule -->
+  <tr>
+    <td bgcolor="#b08d2e" height="2"
+        style="font-size:2px;line-height:2px;background:#b08d2e;">&nbsp;</td>
+  </tr>
 
-  <!-- TITLE ROW -->
+  <!-- ══ TITLE ROW ══ -->
   <tr>
-    <td style="padding:22px 28px 0;background:#ffffff;">
+    <td bgcolor="#ffffff" style="padding:22px 28px 4px;background:#ffffff;">
       <table width="100%" border="0" cellpadding="0" cellspacing="0">
         <tr>
           <td valign="middle">
-            <p style="margin:0 0 3px;font-family:Georgia,'Times New Roman',serif;font-size:20px;
-                      font-weight:bold;color:#000000;">
-              Install Summary Report
-            </p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#999999;">
-              Period:&nbsp;<strong style="color:#333333;">${period}</strong>
-            </p>
+            <p style="margin:0 0 3px;font-family:Georgia,'Times New Roman',serif;
+                      font-size:20px;font-weight:bold;color:#000000;">
+              Install Summary Report</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:12px;color:#999999;">
+              Period:&nbsp;<strong style="color:#333333;">${period}</strong></p>
           </td>
           <td valign="middle" align="right">
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                      color:#aaaaaa;text-align:right;line-height:1.7;">
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:11px;color:#aaaaaa;text-align:right;line-height:1.7;">
               Goldsure Pty Ltd<br>
               <a href="mailto:info@goldsure.com.au"
-                 style="color:#b08d2e;text-decoration:none;font-weight:bold;">info@goldsure.com.au</a>
-            </p>
+                 style="color:#b08d2e;text-decoration:none;font-weight:bold;">
+                info@goldsure.com.au</a></p>
           </td>
         </tr>
       </table>
     </td>
   </tr>
 
-  <!-- STAT STRIP -->
+  <!-- ══ STAT STRIP — no border/padding tricks, all inline bgcolor ══ -->
   <tr>
-    <td style="padding:14px 28px 18px;background:#ffffff;">
+    <td bgcolor="#ffffff" style="padding:14px 28px 18px;background:#ffffff;">
       <table width="100%" border="0" cellpadding="0" cellspacing="0"
-             style="border:1px solid #e0dcd2;">
+             style="border-collapse:collapse;border:1px solid #e0dcd2;">
         <tr>
-          <!-- Jobs -->
-          <td width="33%" valign="top"
-              style="padding:14px 16px;border-right:1px solid #e0dcd2;">
-            <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:8px;
-                      letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">Total Jobs</p>
-            <p style="margin:0 0 3px;font-family:Georgia,'Times New Roman',serif;font-size:28px;
-                      font-weight:bold;color:#000000;line-height:1;">${n}</p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#bbbbbb;">
-              ${period}
-            </p>
+          <!-- Total Jobs -->
+          <td width="33%" valign="top" bgcolor="#ffffff"
+              style="padding:14px 16px;border-right:1px solid #e0dcd2;
+                     vertical-align:top;background:#ffffff;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#aaaaaa;">Total Jobs</p>
+            <p style="margin:0 0 4px;font-family:Georgia,'Times New Roman',serif;
+                      font-size:32px;font-weight:bold;color:#000000;line-height:1;">
+              ${n}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:10px;color:#bbbbbb;">${period}</p>
           </td>
-          <!-- Alarms -->
-          <td width="33%" valign="top"
-              style="padding:14px 16px;border-right:1px solid #e0dcd2;">
-            <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:8px;
-                      letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">Alarms Installed</p>
-            <p style="margin:0 0 3px;font-family:Georgia,'Times New Roman',serif;font-size:28px;
-                      font-weight:bold;color:#000000;line-height:1;">${totAlarm}</p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#bbbbbb;">
-              ${totHw}&nbsp;Hard-Wired &middot; ${totBat}&nbsp;Battery
-            </p>
+          <!-- Alarms Installed -->
+          <td width="33%" valign="top" bgcolor="#ffffff"
+              style="padding:14px 16px;border-right:1px solid #e0dcd2;
+                     vertical-align:top;background:#ffffff;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#aaaaaa;">Alarms Installed</p>
+            <p style="margin:0 0 4px;font-family:Georgia,'Times New Roman',serif;
+                      font-size:32px;font-weight:bold;color:#000000;line-height:1;">
+              ${totAlarm}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:10px;color:#bbbbbb;">
+              ${totHw}&nbsp;Hard-Wired &middot; ${totBat}&nbsp;Battery</p>
           </td>
           <!-- Revenue -->
           <td width="34%" valign="top" bgcolor="#000000"
-              style="padding:14px 16px;">
-            <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:8px;
-                      letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Revenue (Ex GST)</p>
-            <p style="margin:0 0 3px;font-family:Georgia,'Times New Roman',serif;font-size:24px;
-                      font-weight:bold;color:#b08d2e;line-height:1;">
-              $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}
-            </p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#555555;">
-              ${totCtrl > 0 ? `incl. ${totCtrl} controller${totCtrl > 1 ? 's' : ''}` : 'Alarms only'}
-            </p>
+              style="padding:14px 16px;vertical-align:top;background:#000000;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#b08d2e;">Revenue (Ex GST)</p>
+            <p style="margin:0 0 4px;font-family:Georgia,'Times New Roman',serif;
+                      font-size:26px;font-weight:bold;color:#b08d2e;line-height:1;">
+              $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:10px;color:#666666;">
+              ${totCtrl > 0 ? `incl. ${totCtrl} controller${totCtrl > 1 ? 's' : ''}` : 'Alarms only'}</p>
           </td>
         </tr>
       </table>
     </td>
   </tr>
 
-  <!-- JOB TABLE -->
+  <!-- ══ JOB TABLE ══ -->
   <tr>
-    <td style="padding:0 28px 26px;background:#ffffff;">
-      <p style="margin:0 0 7px;font-family:Arial,Helvetica,sans-serif;font-size:8px;
-                letter-spacing:3px;text-transform:uppercase;color:#aaaaaa;">Job Breakdown</p>
+    <td bgcolor="#ffffff" style="padding:0 28px 26px;background:#ffffff;">
+      <p style="margin:0 0 7px;font-family:Arial,Helvetica,sans-serif;
+                font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                color:#aaaaaa;">Job Breakdown</p>
 
       <table width="100%" border="0" cellpadding="0" cellspacing="0"
-             style="border:1px solid #e0dcd2;">
+             style="border-collapse:collapse;border:1px solid #e0dcd2;">
 
         <!-- Column headers -->
         <tr bgcolor="#000000">
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#b08d2e;border-right:1px solid #1c1c1c;">Job ID</td>
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#888888;text-align:center;border-right:1px solid #1c1c1c;">Hard-Wired</td>
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#888888;text-align:center;border-right:1px solid #1c1c1c;">Battery</td>
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#b08d2e;text-align:center;border-right:1px solid #1c1c1c;">Total Alarms</td>
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#888888;text-align:center;border-right:1px solid #1c1c1c;">Controller</td>
-          <td style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;font-size:9px;
-                     font-weight:bold;letter-spacing:2px;text-transform:uppercase;
-                     color:#b08d2e;text-align:right;">Ex GST</td>
+          <td width="18%" bgcolor="#000000"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#b08d2e;
+                     border-right:1px solid #1c1c1c;background:#000000;">
+            Job ID</td>
+          <td width="15%" bgcolor="#000000" align="center"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#888888;text-align:center;
+                     border-right:1px solid #1c1c1c;background:#000000;">
+            Hard-Wired</td>
+          <td width="15%" bgcolor="#000000" align="center"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#888888;text-align:center;
+                     border-right:1px solid #1c1c1c;background:#000000;">
+            Battery</td>
+          <td width="17%" bgcolor="#000000" align="center"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#b08d2e;text-align:center;
+                     border-right:1px solid #1c1c1c;background:#000000;">
+            Total Alarms</td>
+          <td width="15%" bgcolor="#000000" align="center"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#888888;text-align:center;
+                     border-right:1px solid #1c1c1c;background:#000000;">
+            Controller</td>
+          <td width="20%" bgcolor="#000000" align="right"
+              style="padding:10px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:9px;font-weight:bold;letter-spacing:2px;
+                     text-transform:uppercase;color:#b08d2e;text-align:right;
+                     background:#000000;">
+            Ex GST</td>
         </tr>
 
         ${rowsHtml}
 
         <!-- GRAND TOTAL -->
         <tr bgcolor="#000000">
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:10px;
-                     font-weight:bold;color:#ffffff;text-transform:uppercase;letter-spacing:2px;
-                     border-top:2px solid #b08d2e;">Grand Total</td>
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;
-                     font-weight:bold;color:#cccccc;text-align:center;border-top:2px solid #b08d2e;">${totHw}</td>
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;
-                     font-weight:bold;color:#cccccc;text-align:center;border-top:2px solid #b08d2e;">${totBat}</td>
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:16px;
-                     font-weight:bold;color:#b08d2e;text-align:center;border-top:2px solid #b08d2e;">${totAlarm}</td>
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;
-                     font-weight:bold;color:#cccccc;text-align:center;border-top:2px solid #b08d2e;">${totCtrl || '—'}</td>
-          <td style="padding:12px 13px;font-family:Arial,Helvetica,sans-serif;font-size:16px;
-                     font-weight:bold;color:#b08d2e;text-align:right;border-top:2px solid #b08d2e;">
-            $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}
-          </td>
+          <td bgcolor="#000000"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:10px;font-weight:bold;color:#ffffff;
+                     text-transform:uppercase;letter-spacing:2px;
+                     border-top:2px solid #b08d2e;background:#000000;">
+            Grand Total</td>
+          <td bgcolor="#000000" align="center"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:14px;font-weight:bold;color:#cccccc;text-align:center;
+                     border-top:2px solid #b08d2e;background:#000000;">${totHw}</td>
+          <td bgcolor="#000000" align="center"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:14px;font-weight:bold;color:#cccccc;text-align:center;
+                     border-top:2px solid #b08d2e;background:#000000;">${totBat}</td>
+          <td bgcolor="#000000" align="center"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:18px;font-weight:bold;color:#b08d2e;text-align:center;
+                     border-top:2px solid #b08d2e;background:#000000;">${totAlarm}</td>
+          <td bgcolor="#000000" align="center"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:14px;font-weight:bold;color:#cccccc;text-align:center;
+                     border-top:2px solid #b08d2e;background:#000000;">
+            ${totCtrl || '&mdash;'}</td>
+          <td bgcolor="#000000" align="right"
+              style="padding:13px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:18px;font-weight:bold;color:#b08d2e;text-align:right;
+                     border-top:2px solid #b08d2e;background:#000000;">
+            $${totExGst.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
         </tr>
 
-        <!-- AVERAGE -->
-        <tr bgcolor="#f5f3ee">
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:10px;
-                     color:#999999;font-style:italic;border-top:1px solid #e0dcd2;">Average per job</td>
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                     color:#aaaaaa;text-align:center;border-top:1px solid #e0dcd2;">${(totHw/n).toFixed(2)}</td>
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                     color:#aaaaaa;text-align:center;border-top:1px solid #e0dcd2;">${(totBat/n).toFixed(2)}</td>
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                     color:#aaaaaa;text-align:center;border-top:1px solid #e0dcd2;">${(totAlarm/n).toFixed(2)}</td>
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                     color:#aaaaaa;text-align:center;border-top:1px solid #e0dcd2;">${(totCtrl/n).toFixed(2)}</td>
-          <td style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;font-size:11px;
-                     color:#aaaaaa;text-align:right;border-top:1px solid #e0dcd2;">$${(totExGst/n).toFixed(2)}</td>
+        <!-- AVERAGE — visible gold text so it reads clearly -->
+        <tr bgcolor="#1a1a1a">
+          <td bgcolor="#1a1a1a"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:10px;font-weight:bold;color:#b08d2e;
+                     text-transform:uppercase;letter-spacing:1px;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            Avg / Job</td>
+          <td bgcolor="#1a1a1a" align="center"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:12px;font-weight:bold;color:#e0d4b0;text-align:center;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            ${(totHw/n).toFixed(2)}</td>
+          <td bgcolor="#1a1a1a" align="center"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:12px;font-weight:bold;color:#e0d4b0;text-align:center;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            ${(totBat/n).toFixed(2)}</td>
+          <td bgcolor="#1a1a1a" align="center"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:12px;font-weight:bold;color:#b08d2e;text-align:center;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            ${(totAlarm/n).toFixed(2)}</td>
+          <td bgcolor="#1a1a1a" align="center"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:12px;font-weight:bold;color:#e0d4b0;text-align:center;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            ${(totCtrl/n).toFixed(2)}</td>
+          <td bgcolor="#1a1a1a" align="right"
+              style="padding:9px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:12px;font-weight:bold;color:#b08d2e;text-align:right;
+                     border-top:1px solid #333333;background:#1a1a1a;">
+            $${(totExGst/n).toFixed(2)}</td>
         </tr>
 
         <!-- FOOTNOTE -->
-        <tr bgcolor="#eeece6">
-          <td colspan="6" style="padding:7px 13px;font-family:Arial,Helvetica,sans-serif;
-                     font-size:10px;color:#aaaaaa;font-style:italic;border-top:1px solid #e0dcd2;">
-            Unit prices (Ex GST):&nbsp; Hard-Wired $89.09 &nbsp;&middot;&nbsp;
-            Battery $89.09 &nbsp;&middot;&nbsp; Controller $44.55
+        <tr bgcolor="#f0ede6">
+          <td colspan="6" bgcolor="#f0ede6"
+              style="padding:8px 13px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:10px;color:#999999;font-style:italic;
+                     border-top:1px solid #e0dcd2;background:#f0ede6;">
+            Unit prices (Ex GST):&nbsp;Hard-Wired $89.09 &middot;
+            Battery $89.09 &middot; Controller $44.55
           </td>
         </tr>
 
@@ -1007,13 +1073,15 @@ async function sendEmail() {
     </td>
   </tr>
 
-  <!-- FOOTER -->
+  <!-- ══ FOOTER ══ -->
   <tr>
-    <td bgcolor="#000000" align="center" style="padding:14px 28px;">
-      <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;
-                letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
-      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;
-                color:#555555;line-height:1.7;">
+    <td bgcolor="#000000" align="center"
+        style="padding:14px 28px;background:#000000;">
+      <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;
+                font-size:9px;font-weight:bold;letter-spacing:3px;
+                text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                font-size:10px;color:#555555;line-height:1.7;">
         ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia<br>
         <a href="mailto:info@goldsure.com.au"
            style="color:#b08d2e;text-decoration:none;">info@goldsure.com.au</a>
@@ -1024,9 +1092,9 @@ async function sendEmail() {
     </td>
   </tr>
 
-</table>
+</table><!-- /600 card -->
 </td></tr>
-</table>
+</table><!-- /100% wrapper -->
 </body>
 </html>`;
 
