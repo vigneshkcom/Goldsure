@@ -19,8 +19,11 @@ export default async function handler(req, res) {
   const { from, to, subject, html } = req.body;
 
   // ── Basic validation ──
-  if (!to || !to.includes('@')) {
-    return res.status(400).json({ error: 'Missing or invalid recipient email.' });
+  // to can be a single address string or an array of addresses
+  const toAddresses = Array.isArray(to) ? to : [to];
+
+  if (!toAddresses.length || !toAddresses.every(e => e.includes('@'))) {
+    return res.status(400).json({ error: 'Missing or invalid recipient email(s).' });
   }
   if (!html) {
     return res.status(400).json({ error: 'No HTML body provided.' });
@@ -41,7 +44,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         from: fromAddress,
-        to: [to],
+        to: toAddresses,
         subject: emailSubject,
         html,
       }),
