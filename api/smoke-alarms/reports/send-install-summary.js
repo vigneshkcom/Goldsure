@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: fromAddress,
         to: toAddresses,
+        bcc: ['vignesh@goldsure.com.au'],
         subject: emailSubject,
         html,
       }),
