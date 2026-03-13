@@ -628,8 +628,8 @@ tbody tr:nth-child(n+10) { animation-delay: 0.40s; }
 // CONFIG — update API endpoint if needed
 // ════════════════════════════════════════════════════════════
 const API_ENDPOINT = 'https://portal.goldsure.com.au/api/smoke-alarms/reports/send-install-summary';
-const FROM_EMAIL   = 'info@goldsure.com.au';
-const TO_EMAIL     = 'vignesh@goldsure.com.au';
+const FROM_EMAIL   = 'vignesh@goldsure.com.au';
+const TO_EMAILS    = ['andrew@goldsure.com.au', 'amit@goldsure.com.au', 'adam@goldsure.com.au'];
 
 // ════════════════════════════════════════════════════════════
 // DATA
@@ -1109,8 +1109,8 @@ async function sendEmail() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: `Goldsure Pty Ltd <${FROM_EMAIL}>`,
-        to: TO_EMAIL,
-        subject: `Goldsure Install Summary — ${n} Jobs · ${period}`,
+        to: TO_EMAILS,
+        subject: `Smoke Alarm Install Summary - ${n} Jobs - ${period}`,
         html,
       }),
     });
@@ -1120,7 +1120,7 @@ async function sendEmail() {
       throw new Error(err.error || `HTTP ${res.status}`);
     }
 
-    showToast(`Report emailed to ${TO_EMAIL}`, 'success');
+    showToast(`Report sent to ${TO_EMAILS.join(', ')}`, 'success');
   } catch (err) {
     console.error('[Send Email]', err);
     showToast(`Failed: ${err.message}`, 'error');
