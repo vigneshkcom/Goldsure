@@ -265,28 +265,10 @@ section { padding: 5rem 2rem; }
 .hfc-body {
   padding: 1.25rem 1.25rem 1rem;
 }
-/* Clip container — hides GHL injected promo header via overflow */
-.hfc-clip {
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-  /* Height of GHL injected block to clip (red text + "Get compliant now") */
-  --clip-offset: 178px;
-  /* Shrink the visible height by the clip amount */
-  margin-bottom: 0;
-}
-/* The iframe is pushed UP by the clip offset so the injected header
-   slides above the visible area. padding-top compensates so fields
-   start correctly. The container's overflow:hidden clips the top. */
+/* GHL form_embed.js controls iframe height automatically */
 .hfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 680px;
-  /* Push iframe up to hide injected GHL header */
-  margin-top: calc(-1 * var(--clip-offset, 178px));
-  /* Re-add the space so form fields aren't cropped */
-  padding-top: var(--clip-offset, 178px);
-  box-sizing: border-box;
-  overflow: hidden;
-  background: #ffffff;
+  min-height: 400px;
 }
 @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
 
@@ -787,8 +769,7 @@ section { padding: 5rem 2rem; }
 .bfc-body { padding: 1.75rem 1.75rem 0.5rem; }
 .bfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 500px;
-  overflow: auto;
+  min-height: 400px;
 }
 
 /* ══════════════════════════════════════
@@ -923,8 +904,7 @@ section { padding: 5rem 2rem; }
   /* Hero form card */
   .hero-form-card { border-radius: var(--radius); }
   .hfc-body { padding: 1rem 1rem 0.85rem; }
-  .hfc-clip { --clip-offset: 140px; }
-  .hfc-body iframe { min-height: 560px; margin-top: -140px; padding-top: 140px; }
+  .hfc-body iframe { min-height: 350px; }
   .hfc-title { font-size: 0.84rem; }
   .hfc-sub   { font-size: 0.72rem; }
 
@@ -1102,15 +1082,23 @@ section { padding: 5rem 2rem; }
           <div class="hfc-title">Get a Free Quote</div>
           <div class="hfc-sub">We'll confirm your requirements and provide pricing within 24 hours.</div>
         </div>
-        <div class="hfc-clip">
-          <iframe
-            src="https://api.leadconnectorhq.com/widget/form/HApM0TGgenKKKOjPzsxB"
-            id="hero-iframe"
-            name="form-7JO-0ZuQsl"
-            title="Book Your Installation"
-            data-form-id="HApM0TGgenKKKOjPzsxB"
-          ></iframe>
-        </div>
+        <iframe
+          src="https://api.leadconnectorhq.com/widget/form/HApM0TGgenKKKOjPzsxB"
+          style="width:100%;height:100%;border:none;border-radius:5px"
+          id="inline-HApM0TGgenKKKOjPzsxB"
+          data-layout="{'id':'INLINE'}"
+          data-trigger-type="alwaysShow"
+          data-trigger-value=""
+          data-activation-type="alwaysActivated"
+          data-activation-value=""
+          data-deactivation-type="neverDeactivate"
+          data-deactivation-value=""
+          data-form-name="Gold sure - Smoke Alarms -Above the fold"
+          data-height="undefined"
+          data-layout-iframe-id="inline-HApM0TGgenKKKOjPzsxB"
+          data-form-id="HApM0TGgenKKKOjPzsxB"
+          title="Gold sure - Smoke Alarms -Above the fold"
+        ></iframe>
         <div class="form-note">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Secure and confidential. No obligation.
@@ -1376,9 +1364,20 @@ section { padding: 5rem 2rem; }
       <div class="bfc-body">
         <iframe
           src="https://api.leadconnectorhq.com/widget/form/rVYCfxI9xEn7hwVcMRNp"
-          id="bottom-iframe"
-          title="Get Compliant Now"
-          scrolling="auto"
+          style="width:100%;height:100%;border:none;border-radius:5px"
+          id="inline-rVYCfxI9xEn7hwVcMRNp"
+          data-layout="{'id':'INLINE'}"
+          data-trigger-type="alwaysShow"
+          data-trigger-value=""
+          data-activation-type="alwaysActivated"
+          data-activation-value=""
+          data-deactivation-type="neverDeactivate"
+          data-deactivation-value=""
+          data-form-name="Gold sure - Smoke Alarms"
+          data-height="688"
+          data-layout-iframe-id="inline-rVYCfxI9xEn7hwVcMRNp"
+          data-form-id="rVYCfxI9xEn7hwVcMRNp"
+          title="Gold sure - Smoke Alarms"
         ></iframe>
         <div class="form-note" style="margin-top:0.75rem;color:var(--muted);">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -1631,50 +1630,8 @@ function faqToggle(el) {
   if (!isOpen) item.classList.add('open');
 }
 
-/* ── Iframe auto-resize: postMessage + generous fallback ── */
-(function () {
-  var HERO_MIN   = 860;
-  var BOTTOM_MIN = 500;
-
-  function setHeight(id, h) {
-    var el = document.getElementById(id);
-    if (el) el.style.height = Math.max(h, id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN) + 'px';
-  }
-
-  /* Apply generous defaults immediately so forms are usable even if
-     the resize message never fires (embed origin restriction etc.) */
-  setHeight('hero-iframe',   HERO_MIN);
-  setHeight('bottom-iframe', BOTTOM_MIN);
-
-  /* Listen for postMessage resize signals from the embed */
-  window.addEventListener('message', function (e) {
-    if (!e.data) return;
-    var d = e.data;
-    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { return; } }
-
-    var raw = d.height || d.iframeHeight || d.frameHeight || 0;
-    var h = parseInt(raw, 10);
-    if (!h || isNaN(h)) return;
-
-    /* Try to work out which iframe sent the message by origin or just
-       update both — whichever is taller wins because of the Math.max */
-    ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
-      setHeight(id, h + 24);
-    });
-  });
-
-  /* Safety net: after 3 s poll for any form that may have grown */
-  setTimeout(function () {
-    ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var current = parseInt(el.style.height, 10) || 0;
-      var min     = id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN;
-      if (current < min) el.style.height = min + 'px';
-    });
-  }, 3000);
-})();
 </script>
 
+<script src="https://link.msgsndr.com/js/form_embed.js"></script>
 </body>
 </html>
