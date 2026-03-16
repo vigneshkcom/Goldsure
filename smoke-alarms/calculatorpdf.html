@@ -161,7 +161,7 @@
                 <span id="res_alarmTotal">$0.00</span>
             </div>
 
-            <div id="summary-controller-row" class="hidden flex justify-between border-b border-gray-800 pb-2">
+            <div id="summary-controller-row" class="hidden justify-between border-b border-gray-800 pb-2">
                 <span>Controllers (<span id="res_ctrlQty">0</span> x $49.00):</span>
                 <span id="res_ctrlTotal">$0.00</span>
             </div>
@@ -184,7 +184,7 @@
     </div>
 </div>
 
-<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
+<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 p-4" style="align-items:center; justify-content:center;">
     <div class="bg-white p-6 rounded-lg w-full max-w-md shadow-xl">
         <h3 class="text-lg font-bold mb-4">Enter Your Details</h3>
         <input type="text" id="customerName" placeholder="Full Name *"
@@ -328,7 +328,9 @@ function toggleStoreyQuestion() {
 
 function toggleControllerQty(show) {
     document.getElementById('controllerInput').classList.toggle('hidden', !show);
-    document.getElementById('summary-controller-row').classList.toggle('hidden', !show);
+    const ctrlRow = document.getElementById('summary-controller-row');
+    ctrlRow.classList.toggle('hidden', !show);
+    ctrlRow.classList.toggle('flex', show);
     calculate();
 }
 
@@ -357,8 +359,9 @@ function calculate() {
 }
 
 function openCustomerModal() {
-    document.getElementById('customerModal').classList.remove('hidden');
-    document.getElementById('customerModal').classList.add('flex');
+    const modal = document.getElementById('customerModal');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     document.getElementById('customerName').value = '';
     document.getElementById('customerEmail').value = '';
     document.getElementById('customerPhone').value = '';
@@ -367,8 +370,9 @@ function openCustomerModal() {
 }
 
 function closeCustomerModal() {
-    document.getElementById('customerModal').classList.add('hidden');
-    document.getElementById('customerModal').classList.remove('flex');
+    const modal = document.getElementById('customerModal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
 }
 
 async function submitToWebhook() {
@@ -480,8 +484,8 @@ function downloadPDF() {
     const bedrooms = parseInt(document.getElementById('bedrooms').value) || 0;
     const hallways = parseInt(document.getElementById('hallways').value) || 0;
     const storeys = parseInt(document.getElementById('levels').value) || 1;
-    const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText);
-    const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText);
+    const alarmQty = parseInt(document.getElementById('res_alarmQty').innerText) || 0;
+    const ctrlQty = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
     const grandTotalText = document.getElementById('res-total').innerText;
 
     const grandTotal = parseFloat(grandTotalText.replace(/[^\d.-]/g, ''));
