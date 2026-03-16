@@ -817,7 +817,10 @@ const _paramVal = (params.get('electrician') || '').trim().toLowerCase().replace
 if (_paramVal) {
   localStorage.setItem('gs_electrician', _paramVal)
 }
-const workerFilter = _paramVal || (localStorage.getItem('gs_electrician') || '')
+// Only treat as worker view when the URL explicitly has ?electrician=...
+// Do NOT fall back to localStorage — that would open worker mode for admins
+// who visit the plain /calendar/ URL after a worker previously used their device.
+const workerFilter = _paramVal
 
 if (workerFilter) {
   const display = workerFilter.charAt(0).toUpperCase() + workerFilter.slice(1)
