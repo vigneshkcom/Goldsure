@@ -636,8 +636,8 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['andrew@goldsure.com.au', 'amit@goldsure.com.au', 'adam@goldsure.com.au'];
-  const bcc        = ['vignesh@goldsure.com.au', 'david@goldsure.com.au'];
+  const recipients = ['vignesh@goldsure.com.au'];
+  const bcc        = ['vigneshk.com@gmail.com'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
 
@@ -645,11 +645,6 @@ export default async function handler(req, res) {
 
   try {
     const today      = new Date();
-    // Skip weekends — use AEST (UTC+10)
-    const aestDay = new Date(today.getTime() + 11 * 60 * 60 * 1000).getUTCDay();
-    if (aestDay === 0 || aestDay === 6) {
-      return res.status(200).json({ ok: true, skipped: 'Weekend — no report sent.' });
-    }
     const ranges     = buildRanges(today);
     const dailyDates = buildDailyDates(today);
     const dateStr    = today.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
