@@ -269,13 +269,13 @@ section { padding: 5rem 2rem; }
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: 0 8px 40px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05);
-  overflow: hidden; position: relative;
+  overflow: visible; position: relative;
   animation: fadeUp 0.65s 0.2s ease both;
 }
 .hero-form-card::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
   background: linear-gradient(90deg, var(--gold-deep), var(--gold-light));
-  z-index: 2;
+  z-index: 2; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 .hfc-body {
   padding: 1.25rem 1.25rem 1rem;
@@ -289,7 +289,9 @@ section { padding: 5rem 2rem; }
 }
 .hfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 760px;
+  /* visible area = this height minus --clip-offset (178px)
+     form content ~720px → 178 + 720 + 20 buffer = 918px */
+  height: 918px;
   margin-top: calc(-1 * var(--clip-offset, 178px));
   padding-top: var(--clip-offset, 178px);
   box-sizing: border-box;
@@ -864,7 +866,7 @@ section { padding: 5rem 2rem; }
 .bfc-body { padding: 1.75rem 1.75rem 0.5rem; }
 .bfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 780px;
+  height: 820px;
   overflow: hidden;
 }
 
@@ -1098,7 +1100,7 @@ section { padding: 5rem 2rem; }
   /* Hero form */
   .hero-form-card { border-radius: var(--radius); }
   .hfc-body { padding: 0.9rem 0.9rem 0.75rem; }
-  .hfc-body iframe { min-height: 720px; }
+  .hfc-body iframe { height: 918px; }
   .hfc-title { font-size: 0.92rem; }
 
   /* Marquee */
@@ -1160,7 +1162,7 @@ section { padding: 5rem 2rem; }
   /* Bottom form */
   .bottom-form-section { padding: 2.25rem 1rem; }
   .bfc-body { padding: 1rem 1rem 0.5rem; }
-  .bfc-body iframe { min-height: 720px; }
+  .bfc-body iframe { height: 860px; }
 
   /* Reviews */
   .testimonials-section { padding: 2.25rem 1rem; }
@@ -2152,36 +2154,63 @@ function faqToggle(el) {
   if (!isOpen) item.classList.add('open');
 }
 
-/* ── Iframe auto-resize ── */
+/* ── Iframe auto-resize — no internal scrollbars ── */
 (function () {
-  var HERO_MIN   = 860;
-  var BOTTOM_MIN = 780;
+  /* visible area = iframe height − clip-offset (178px)
+     GHL form content ≈ 820px → floor = 178 + 820 + 60 buffer = 1058 */
+  var HERO_FLOOR   = 918;
+  var BOTTOM_FLOOR = 860;
 
   function setHeight(id, h) {
     var el = document.getElementById(id);
-    if (el) el.style.height = Math.max(h, id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN) + 'px';
+    if (!el) return;
+    var floor = id === 'hero-iframe' ? HERO_FLOOR : BOTTOM_FLOOR;
+    var next  = Math.max(h, floor);
+    if (parseInt(el.style.height, 10) !== next) {
+      el.style.height = next + 'px';
+    }
   }
 
-  setHeight('hero-iframe',   HERO_MIN);
-  setHeight('bottom-iframe', BOTTOM_MIN);
+  /* Set floors immediately */
+  setHeight('hero-iframe',   HERO_FLOOR);
+  setHeight('bottom-iframe', BOTTOM_FLOOR);
 
+  /* postMessage from GHL embed */
   window.addEventListener('message', function (e) {
     if (!e.data) return;
     var d = e.data;
     if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { return; } }
-    var h = parseInt(d.height || d.iframeHeight || d.frameHeight || 0, 10);
-    if (!h || isNaN(h)) return;
-    ['hero-iframe', 'bottom-iframe'].forEach(function (id) { setHeight(id, h + 24); });
+    var raw = d.height || d.iframeHeight || d.frameHeight || d.scrollHeight || 0;
+    var h   = parseInt(raw, 10);
+    if (!h || isNaN(h) || h < 100) return;
+    setHeight('hero-iframe',   h + 178 + 40);
+    setHeight('bottom-iframe', h + 40);
   });
 
-  setTimeout(function () {
+  /* Poll — same-origin read attempt (silently fails cross-origin) */
+  function poll() {
     ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
-      var min = id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN;
-      if ((parseInt(el.style.height, 10) || 0) < min) el.style.height = min + 'px';
+      try {
+        var doc = el.contentDocument || (el.contentWindow && el.contentWindow.document);
+        if (doc && doc.body) {
+          var sh = doc.body.scrollHeight;
+          if (sh > 100) setHeight(id, id === 'hero-iframe' ? sh + 178 + 40 : sh + 40);
+        }
+      } catch (err) { /* cross-origin — expected */ }
     });
-  }, 3000);
+  }
+
+  /* Frequent polling for first 15s, then every 3s */
+  var ticks = 0;
+  var fastPoll = setInterval(function () {
+    poll();
+    if (++ticks >= 30) {
+      clearInterval(fastPoll);
+      setInterval(poll, 3000);
+    }
+  }, 500);
 })();
 </script>
 
