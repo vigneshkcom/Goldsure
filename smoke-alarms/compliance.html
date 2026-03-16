@@ -945,17 +945,95 @@ section { padding: 5rem 2rem; }
 .footer-copy { font-size: 0.74rem; color: rgba(255,255,255,0.30); }
 
 /* ══════════════════════════════════════
-   SCROLL REVEAL
+   SCROLL REVEAL + MOBILE ANIMATIONS
 ══════════════════════════════════════ */
-.reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease; }
+
+/* Progress bar */
+.scroll-progress {
+  position: fixed; top: 0; left: 0; z-index: 600;
+  height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-light));
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+/* Base reveal — fade + rise */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
 .reveal.in { opacity: 1; transform: none; }
-.stagger > * { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
-.stagger.in > *:nth-child(1) { opacity:1;transform:none;transition-delay:0s; }
-.stagger.in > *:nth-child(2) { opacity:1;transform:none;transition-delay:0.1s; }
-.stagger.in > *:nth-child(3) { opacity:1;transform:none;transition-delay:0.2s; }
-.stagger.in > *:nth-child(4) { opacity:1;transform:none;transition-delay:0.3s; }
-.stagger.in > *:nth-child(5) { opacity:1;transform:none;transition-delay:0.38s; }
-.stagger.in > *:nth-child(6) { opacity:1;transform:none;transition-delay:0.46s; }
+
+/* Slide-from-left for section eyebrow+heading blocks on mobile */
+@media (max-width: 660px) {
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal-left.in { opacity: 1; transform: none; }
+}
+
+/* Stagger parent */
+.stagger > * {
+  opacity: 0;
+  transform: translateY(18px) scale(0.97);
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.stagger.in > *:nth-child(1) { opacity:1; transform:none; transition-delay:0s; }
+.stagger.in > *:nth-child(2) { opacity:1; transform:none; transition-delay:0.08s; }
+.stagger.in > *:nth-child(3) { opacity:1; transform:none; transition-delay:0.16s; }
+.stagger.in > *:nth-child(4) { opacity:1; transform:none; transition-delay:0.24s; }
+.stagger.in > *:nth-child(5) { opacity:1; transform:none; transition-delay:0.32s; }
+.stagger.in > *:nth-child(6) { opacity:1; transform:none; transition-delay:0.40s; }
+
+/* Deadline row entrance — individual stagger */
+.deadline-row {
+  opacity: 0;
+  transform: translateX(-16px);
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.2s;
+}
+.deadline-row.visible { opacity: 1; transform: none; }
+.deadline-row:nth-child(1) { transition-delay: 0s; }
+.deadline-row:nth-child(2) { transition-delay: 0.1s; }
+.deadline-row:nth-child(3) { transition-delay: 0.2s; }
+
+/* Package card entrance */
+.pkg-item {
+  opacity: 0;
+  transform: translateY(16px) scale(0.98);
+  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s, box-shadow 0.25s;
+}
+.pkg-item.visible { opacity: 1; transform: none; }
+
+/* Countdown digit flip */
+@keyframes digitFlip {
+  0%   { transform: translateY(0);    opacity: 1; }
+  30%  { transform: translateY(-8px); opacity: 0; }
+  31%  { transform: translateY(8px);  opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+.cd-num.flip {
+  animation: digitFlip 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Trust cards entrance */
+.trust-card {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.28s, box-shadow 0.28s;
+}
+.trust-card.visible { opacity: 1; transform: none; }
 
 /* ══════════════════════════════════════
    RESPONSIVE — TABLET (≤1020px)
@@ -987,8 +1065,8 @@ section { padding: 5rem 2rem; }
    RESPONSIVE — MOBILE (≤660px)
 ══════════════════════════════════════ */
 @media (max-width: 660px) {
-  /* Global */
-  section { padding: 3rem 1rem; }
+  /* Global — tighter vertical rhythm on mobile */
+  section { padding: 2.25rem 1rem; }
   .wrap   { padding: 0 1rem; }
 
   /* Header */
@@ -997,7 +1075,7 @@ section { padding: 5rem 2rem; }
   .header-cta { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
 
   /* Hero */
-  .hero { padding: 5.5rem 1rem 2.5rem; }
+  .hero { padding: 5rem 1rem 2.25rem; }
   h1 { font-size: clamp(1.6rem, 6.5vw, 1.9rem); }
   h2 { font-size: clamp(1.35rem, 5.5vw, 1.6rem); }
   .hero-badge { font-size: 0.66rem; }
@@ -1026,56 +1104,65 @@ section { padding: 5rem 2rem; }
   .marquee-item { font-size: 0.66rem; padding: 0 1.5rem; gap: 0.6rem; }
 
   /* Act / Why now */
-  .act-section { padding: 3rem 1rem; }
+  .act-section { padding: 2.25rem 1rem; }
+  .act-header { margin-bottom: 1.5rem; }
   .deadline-row { padding: 0.85rem 1rem; gap: 0.85rem; }
   .dl-icon { width: 30px; height: 30px; }
   .dl-icon svg { width: 12px; height: 12px; }
   .dl-year { font-size: 0.67rem; }
   .dl-desc { font-size: 0.84rem; }
   .dl-tag { font-size: 0.62rem; padding: 0.2rem 0.55rem; }
+  .act-points { gap: 0.65rem; }
+  .act-image-col { display: none; } /* hide image on mobile — saves big space */
 
   /* Trust grid */
-  .trust-section { padding: 3rem 1rem; }
-  .trust-grid { grid-template-columns: 1fr; gap: 0.85rem; }
+  .trust-section { padding: 2.25rem 1rem; }
+  .trust-grid { grid-template-columns: 1fr; gap: 0.7rem; }
   .trust-grid .trust-card:nth-child(3) { grid-column: span 1; }
-  .trust-card { padding: 1.75rem 1.4rem 1.5rem; }
+  .trust-card { padding: 1.5rem 1.25rem 1.25rem; }
+  .trust-header { margin-bottom: 1.75rem; }
 
   /* Package — single column */
-  .package-section { padding: 3rem 1rem; }
-  .pkg-grid { grid-template-columns: 1fr; gap: 0.75rem; }
-  .pkg-item { padding: 1.25rem 1.25rem; }
+  .package-section { padding: 2.25rem 1rem; }
+  .pkg-header { margin-bottom: 1.75rem; }
+  .pkg-grid { grid-template-columns: 1fr; gap: 0.65rem; }
+  .pkg-item { padding: 1.1rem 1.15rem; gap: 0.75rem; }
   .pkg-item-body h4 { font-size: 0.93rem; }
   .pkg-item-body p  { font-size: 0.84rem; }
-  .pkg-cta-strip { flex-direction: column; align-items: stretch; padding: 1.35rem 1.25rem; }
+  .pkg-cta-strip { flex-direction: column; align-items: stretch; padding: 1.25rem 1rem; margin-top: 1rem; }
   .pkg-cta-strip .btn-gold { width: 100%; justify-content: center; }
 
   /* Process */
-  .process-section { padding: 3rem 1rem; }
-  .process-step { gap: 1rem; margin-bottom: 1.5rem; }
-  .ps-circle { width: 52px; height: 52px; }
+  .process-section { padding: 2.25rem 1rem; }
+  .process-header { margin-bottom: 2rem; }
+  .process-step { gap: 1rem; margin-bottom: 1.25rem; }
+  .ps-circle { width: 48px; height: 48px; }
   .ps-title { font-size: 0.92rem; }
   .ps-desc  { font-size: 0.84rem; }
 
   /* Guarantee — single column */
-  .guarantee-section { padding: 3rem 1rem 3.5rem; }
-  .guarantee-layout { grid-template-columns: 1fr !important; }
+  .guarantee-section { padding: 2.25rem 1rem 2.75rem; }
+  .guarantee-header { margin-bottom: 1.75rem; }
+  .guarantee-layout { grid-template-columns: 1fr !important; gap: 0.65rem; }
   .guarantee-layout .gu-card:nth-child(3) { grid-column: span 1 !important; }
-  .gu-card { padding: 1.75rem 1.4rem 1.5rem; }
-  .gu-icon { width: 60px; height: 60px; margin-bottom: 1.25rem; }
+  .gu-card { padding: 1.5rem 1.25rem 1.25rem; }
+  .gu-icon { width: 54px; height: 54px; margin-bottom: 1rem; border-radius: var(--radius); }
   .gu-card h3 { font-size: 1rem; }
   .gu-card p  { font-size: 0.85rem; }
-  .gu-footer { padding: 1rem 1.25rem; flex-direction: column; align-items: flex-start; }
-  .gu-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  .gu-footer { padding: 0.85rem 1.1rem; flex-direction: column; align-items: flex-start; margin-top: 1.5rem; }
+  .gu-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
   .gu-pill { justify-content: flex-start; }
 
   /* Bottom form */
-  .bottom-form-section { padding: 3rem 1rem; }
+  .bottom-form-section { padding: 2.25rem 1rem; }
   .bfc-body { padding: 1rem 1rem 0.5rem; }
   .bfc-body iframe { min-height: 720px; }
 
-  /* Reviews — 2×2 grid */
-  .testimonials-section { padding: 3rem 1rem; }
-  .reviews-grid { grid-template-columns: 1fr 1fr; gap: 0.65rem; }
+  /* Reviews */
+  .testimonials-section { padding: 2.25rem 1rem; }
+  .testimonials-header { margin-bottom: 1.5rem; }
+  .rating-bar { margin-bottom: 1.5rem; }
+  .reviews-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
   .review-card { padding: 0.9rem 0.8rem; gap: 0.5rem; }
   .review-text { font-size: 0.76rem; line-height: 1.6; }
   .review-name { font-size: 0.76rem; }
@@ -1083,7 +1170,8 @@ section { padding: 5rem 2rem; }
   .review-stars svg { width: 11px; height: 11px; }
 
   /* FAQ */
-  .faq-section { padding: 3rem 1rem; }
+  .faq-section { padding: 2.25rem 1rem; }
+  .faq-header { margin-bottom: 1.5rem; }
   .faq-q { font-size: 0.88rem; padding: 1rem 1.1rem; }
   .faq-body-inner { padding: 0.75rem 1.1rem 1rem; font-size: 0.84rem; }
 
@@ -1094,6 +1182,9 @@ section { padding: 5rem 2rem; }
 </style>
 </head>
 <body>
+
+<!-- ══ SCROLL PROGRESS BAR ══ -->
+<div class="scroll-progress" id="scrollProgress"></div>
 
 <!-- ══ HEADER ══ -->
 <header class="site-header">
@@ -1877,44 +1968,131 @@ section { padding: 5rem 2rem; }
 </footer>
 
 <script>
-/* ── Countdown to 31 Dec 2026 23:59:59 ── */
+/* ── Scroll progress bar ── */
+(function () {
+  var bar = document.getElementById('scrollProgress');
+  if (!bar) return;
+  function update() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docH = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (docH > 0 ? (scrollTop / docH) * 100 : 0) + '%';
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+
+/* ── Countdown to 1 Jan 2027 with digit flip ── */
 (function () {
   var deadline = new Date('2027-01-01T00:00:00');
   var dEl = document.getElementById('cd-d');
   var hEl = document.getElementById('cd-h');
   var mEl = document.getElementById('cd-m');
   var sEl = document.getElementById('cd-s');
+  var prev = { d: null, h: null, m: null, s: null };
 
   function pad(n, len) { return String(n).padStart(len || 2, '0'); }
 
+  function flipIfChanged(el, newVal, key) {
+    if (prev[key] !== newVal) {
+      el.textContent = newVal;
+      el.classList.remove('flip');
+      void el.offsetWidth; /* reflow to restart animation */
+      el.classList.add('flip');
+      prev[key] = newVal;
+    }
+  }
+
   function tick() {
-    var now = new Date();
+    var now  = new Date();
     var diff = deadline - now;
     if (diff <= 0) {
-      dEl.textContent = '000'; hEl.textContent = '00'; mEl.textContent = '00'; sEl.textContent = '00';
+      dEl.textContent = '000'; hEl.textContent = '00';
+      mEl.textContent = '00';  sEl.textContent = '00';
       return;
     }
-    var days  = Math.floor(diff / 86400000);
-    var hours = Math.floor((diff % 86400000) / 3600000);
-    var mins  = Math.floor((diff % 3600000) / 60000);
-    var secs  = Math.floor((diff % 60000) / 1000);
-    dEl.textContent = pad(days, 3);
-    hEl.textContent = pad(hours);
-    mEl.textContent = pad(mins);
-    sEl.textContent = pad(secs);
+    flipIfChanged(dEl, pad(Math.floor(diff / 86400000), 3),    'd');
+    flipIfChanged(hEl, pad(Math.floor((diff % 86400000) / 3600000)), 'h');
+    flipIfChanged(mEl, pad(Math.floor((diff % 3600000) / 60000)),    'm');
+    flipIfChanged(sEl, pad(Math.floor((diff % 60000) / 1000)),       's');
   }
   tick();
   setInterval(tick, 1000);
 })();
 
-/* ── Scroll reveal ── */
+/* ── Unified scroll-triggered animations ── */
 (function () {
-  var obs = new IntersectionObserver(function (entries) {
+  var isMobile = window.innerWidth <= 660;
+
+  /* Standard reveals (.reveal, .stagger) */
+  var revealObs = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) {
-      if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); }
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        revealObs.unobserve(e.target);
+      }
     });
-  }, { threshold: 0.07 });
-  document.querySelectorAll('.reveal, .stagger').forEach(function (el) { obs.observe(el); });
+  }, { threshold: isMobile ? 0.05 : 0.07 });
+  document.querySelectorAll('.reveal, .stagger').forEach(function (el) {
+    revealObs.observe(el);
+  });
+
+  /* reveal-left — section headers on mobile */
+  if (isMobile) {
+    document.querySelectorAll('.act-header, .pkg-header, .process-header, .guarantee-header, .faq-header, .testimonials-header, .trust-header').forEach(function (el) {
+      el.classList.add('reveal-left');
+    });
+    var leftObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); leftObs.unobserve(e.target); }
+      });
+    }, { threshold: 0.05 });
+    document.querySelectorAll('.reveal-left').forEach(function (el) { leftObs.observe(el); });
+  }
+
+  /* Deadline rows — staggered slide-in */
+  var dlRows = document.querySelectorAll('.deadline-row');
+  if (dlRows.length) {
+    var dlObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          dlObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -20px 0px' });
+    dlRows.forEach(function (row) { dlObs.observe(row); });
+  }
+
+  /* Package items — staggered pop-in */
+  var pkgItems = document.querySelectorAll('.pkg-item');
+  if (pkgItems.length) {
+    var pkgObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          /* delay per item index */
+          var idx = Array.from(pkgItems).indexOf(e.target);
+          setTimeout(function () { e.target.classList.add('visible'); }, idx * 60);
+          pkgObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -10px 0px' });
+    pkgItems.forEach(function (item) { pkgObs.observe(item); });
+  }
+
+  /* Trust cards — staggered */
+  var trustCards = document.querySelectorAll('.trust-card');
+  if (trustCards.length) {
+    var trustObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var idx = Array.from(trustCards).indexOf(e.target);
+          setTimeout(function () { e.target.classList.add('visible'); }, idx * 80);
+          trustObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.05 });
+    trustCards.forEach(function (card) { trustObs.observe(card); });
+  }
 })();
 
 /* ── Reviews Carousel (mobile auto-flip) ── */
@@ -1923,38 +2101,31 @@ section { padding: 5rem 2rem; }
   var dots  = document.querySelectorAll('.reviews-dot');
   if (!track || !dots.length) return;
 
-  var total   = dots.length;   // 3 slides
+  var total   = dots.length;
   var current = 0;
   var timer;
 
   function goTo(idx) {
     current = (idx + total) % total;
     track.style.transform = 'translateX(-' + (current * 100) + '%)';
-    dots.forEach(function (d, i) {
-      d.classList.toggle('active', i === current);
-    });
+    dots.forEach(function (d, i) { d.classList.toggle('active', i === current); });
   }
-
-  function next() { goTo(current + 1); }
 
   function startAuto() {
     clearInterval(timer);
-    timer = setInterval(next, 4000);
+    timer = setInterval(function () { goTo(current + 1); }, 4000);
   }
 
-  /* Dot clicks */
   dots.forEach(function (dot) {
     dot.addEventListener('click', function () {
       goTo(parseInt(dot.getAttribute('data-slide')));
-      startAuto(); /* reset timer on manual tap */
+      startAuto();
     });
   });
 
-  /* Touch swipe */
   var startX = 0;
   track.addEventListener('touchstart', function (e) {
-    startX = e.touches[0].clientX;
-    clearInterval(timer);
+    startX = e.touches[0].clientX; clearInterval(timer);
   }, { passive: true });
   track.addEventListener('touchend', function (e) {
     var dx = e.changedTouches[0].clientX - startX;
@@ -1962,11 +2133,7 @@ section { padding: 5rem 2rem; }
     startAuto();
   }, { passive: true });
 
-  /* Only run on mobile */
-  function init() {
-    if (window.innerWidth <= 660) startAuto();
-  }
-  init();
+  if (window.innerWidth <= 660) startAuto();
   window.addEventListener('resize', function () {
     clearInterval(timer);
     if (window.innerWidth <= 660) startAuto();
@@ -1981,7 +2148,7 @@ function faqToggle(el) {
   if (!isOpen) item.classList.add('open');
 }
 
-/* ── Iframe auto-resize: postMessage + generous fallback ── */
+/* ── Iframe auto-resize ── */
 (function () {
   var HERO_MIN   = 860;
   var BOTTOM_MIN = 780;
@@ -1991,36 +2158,24 @@ function faqToggle(el) {
     if (el) el.style.height = Math.max(h, id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN) + 'px';
   }
 
-  /* Apply generous defaults immediately so forms are usable even if
-     the resize message never fires (embed origin restriction etc.) */
   setHeight('hero-iframe',   HERO_MIN);
   setHeight('bottom-iframe', BOTTOM_MIN);
 
-  /* Listen for postMessage resize signals from the embed */
   window.addEventListener('message', function (e) {
     if (!e.data) return;
     var d = e.data;
     if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { return; } }
-
-    var raw = d.height || d.iframeHeight || d.frameHeight || 0;
-    var h = parseInt(raw, 10);
+    var h = parseInt(d.height || d.iframeHeight || d.frameHeight || 0, 10);
     if (!h || isNaN(h)) return;
-
-    /* Try to work out which iframe sent the message by origin or just
-       update both — whichever is taller wins because of the Math.max */
-    ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
-      setHeight(id, h + 24);
-    });
+    ['hero-iframe', 'bottom-iframe'].forEach(function (id) { setHeight(id, h + 24); });
   });
 
-  /* Safety net: after 3 s poll for any form that may have grown */
   setTimeout(function () {
     ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
-      var current = parseInt(el.style.height, 10) || 0;
-      var min     = id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN;
-      if (current < min) el.style.height = min + 'px';
+      var min = id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN;
+      if ((parseInt(el.style.height, 10) || 0) < min) el.style.height = min + 'px';
     });
   }, 3000);
 })();
