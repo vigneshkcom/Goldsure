@@ -265,10 +265,28 @@ section { padding: 5rem 2rem; }
 .hfc-body {
   padding: 1.25rem 1.25rem 1rem;
 }
-/* GHL form_embed.js controls iframe height automatically */
+/* Clip container — hides GHL injected promo header via overflow */
+.hfc-clip {
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  /* Height of GHL injected block to clip (red text + "Get compliant now") */
+  --clip-offset: 178px;
+  /* Shrink the visible height by the clip amount */
+  margin-bottom: 0;
+}
+/* The iframe is pushed UP by the clip offset so the injected header
+   slides above the visible area. padding-top compensates so fields
+   start correctly. The container's overflow:hidden clips the top. */
 .hfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 400px;
+  min-height: 680px;
+  /* Push iframe up to hide injected GHL header */
+  margin-top: calc(-1 * var(--clip-offset, 178px));
+  /* Re-add the space so form fields aren't cropped */
+  padding-top: var(--clip-offset, 178px);
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #ffffff;
 }
 @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
 
@@ -769,7 +787,8 @@ section { padding: 5rem 2rem; }
 .bfc-body { padding: 1.75rem 1.75rem 0.5rem; }
 .bfc-body iframe {
   width: 100%; border: none; display: block;
-  min-height: 400px;
+  min-height: 500px;
+  overflow: auto;
 }
 
 /* ══════════════════════════════════════
@@ -810,7 +829,30 @@ section { padding: 5rem 2rem; }
 }
 .faq-body-inner ul { padding-left: 1rem; margin-top: 0.6rem; }
 .faq-body-inner li { margin-bottom: 0.35rem; }
-.faq-item.open .faq-body { max-height: 600px; }
+.faq-item.open .faq-body { max-height: 900px; }
+
+/* FAQ checklist rows */
+.faq-check-list { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }
+.faq-check-item {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  font-size: 0.83rem; color: rgba(255,255,255,0.5); line-height: 1.6;
+}
+.faq-check-item svg { color: var(--gold); flex-shrink: 0; margin-top: 0.18rem; }
+.faq-sub-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(201,168,76,0.65);
+  margin: 0.75rem 0 0.35rem;
+}
+.faq-bullet-list { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.4rem 0; }
+.faq-bullet-item {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  font-size: 0.83rem; color: rgba(255,255,255,0.5); line-height: 1.6;
+}
+.faq-bullet-item::before {
+  content: '';
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold); flex-shrink: 0; margin-top: 0.55rem;
+}
 
 /* ══════════════════════════════════════
    FOOTER
@@ -840,15 +882,11 @@ section { padding: 5rem 2rem; }
 /* ══════════════════════════════════════
    RESPONSIVE — TABLET (≤1020px)
 ══════════════════════════════════════ */
-/* ══════════════════════════════════════
-   RESPONSIVE — TABLET (≤1020px)
-══════════════════════════════════════ */
 @media (max-width: 1020px) {
   section { padding: 3.75rem 1.5rem; }
 
   .hero-inner { grid-template-columns: 1fr; gap: 2.5rem; }
-  .act-inner  { grid-template-columns: 1fr !important; gap: 2.5rem; }
-  .act-image-col { display: none; }
+  .act-inner  { grid-template-columns: 1fr !important; gap: 2rem; }
 
   .trust-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
   .trust-grid .trust-card:nth-child(3) { grid-column: span 2; }
@@ -863,7 +901,6 @@ section { padding: 5rem 2rem; }
   .ps-circle { flex-shrink: 0; margin: 0; }
 
   .reviews-grid { grid-template-columns: 1fr 1fr; }
-  .pkg-grid { grid-template-columns: 1fr; }
 }
 
 /* ══════════════════════════════════════
@@ -871,126 +908,104 @@ section { padding: 5rem 2rem; }
 ══════════════════════════════════════ */
 @media (max-width: 660px) {
   /* Global */
-  section { padding: 2.75rem 1rem; }
+  section { padding: 3rem 1rem; }
   .wrap   { padding: 0 1rem; }
-  h2 { font-size: clamp(1.2rem, 5vw, 1.45rem); }
 
   /* Header */
-  .site-header { padding: 0 1rem; height: 56px; }
-  .header-logo img { height: 32px; }
-  .header-cta { padding: 0.4rem 0.75rem; font-size: 0.78rem; gap: 0.35rem; white-space: nowrap; }
-  .header-cta svg { width: 12px; height: 12px; }
+  .site-header { padding: 0 1rem; height: 58px; }
+  .header-logo img { height: 36px; }
+  .header-cta { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
 
   /* Hero */
-  .hero { padding: 5rem 1rem 2.5rem; }
-  h1 { font-size: clamp(1.4rem, 6.5vw, 1.8rem); }
-  .hero-badge { font-size: 0.58rem; padding: 0.28rem 0.7rem; }
-  .hero-sub   { font-size: 0.83rem; margin-bottom: 1.5rem; }
+  .hero { padding: 5.5rem 1rem 2.5rem; }
+  h1 { font-size: clamp(1.45rem, 6vw, 1.75rem); }
+  h2 { font-size: clamp(1.25rem, 5vw, 1.5rem); }
+  .hero-badge { font-size: 0.6rem; }
+  .hero-sub   { font-size: 0.84rem; }
 
   /* Countdown */
-  .countdown { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.6rem; padding: 0.6rem 0.85rem; width: 100%; box-sizing: border-box; }
-  .cd-label { font-size: 0.55rem; width: 100%; margin-bottom: 0.1rem; }
-  .cd-units { gap: 0.25rem; }
-  .cd-num   { font-size: 0.9rem; min-width: 30px; }
-  .cd-lbl   { font-size: 0.45rem; }
-  .cd-colon { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .countdown { flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 0.65rem 0.9rem; width: 100%; }
+  .cd-units { gap: 0.3rem; }
+  .cd-num   { font-size: 0.95rem; min-width: 34px; }
+  .cd-lbl   { font-size: 0.48rem; }
+  .cd-colon { font-size: 1rem; }
+  .cd-label { font-size: 0.57rem; }
 
-  /* Hero checklist + CTAs */
-  .hero-list { margin-bottom: 1.5rem; gap: 0.45rem; }
-  .hero-list-item { font-size: 0.79rem; gap: 0.5rem; }
-  .hero-ctas { flex-direction: column; gap: 0.6rem; }
+  /* Hero CTAs */
+  .hero-list-item { font-size: 0.8rem; }
+  .hero-ctas { flex-direction: column; gap: 0.65rem; }
   .hero-ctas .btn { width: 100%; justify-content: center; }
 
-  /* Hero form card */
+  /* Hero form */
   .hero-form-card { border-radius: var(--radius); }
-  .hfc-body { padding: 1rem 1rem 0.85rem; }
-  .hfc-body iframe { min-height: 350px; }
-  .hfc-title { font-size: 0.84rem; }
-  .hfc-sub   { font-size: 0.72rem; }
+  .hfc-body { padding: 0.9rem 0.9rem 0.75rem; }
+  .hfc-body iframe { min-height: 560px; }
+  .hfc-title { font-size: 0.85rem; }
 
   /* Marquee */
-  .marquee-item { font-size: 0.6rem; padding: 0 1.25rem; gap: 0.5rem; }
+  .marquee-item { font-size: 0.62rem; padding: 0 1.5rem; gap: 0.6rem; }
 
   /* Act / Why now */
-  .act-section  { padding: 2.75rem 1rem; }
-  .act-header   { margin-bottom: 2rem; }
-  .deadline-rows { margin-bottom: 1.25rem; }
-  .deadline-row { flex-wrap: wrap; gap: 0.35rem; padding: 0.7rem 0.8rem; }
-  .dl-year  { min-width: auto; font-size: 0.67rem; }
-  .dl-desc  { font-size: 0.79rem; flex-basis: 100%; order: 3; }
-  .dl-tag   { font-size: 0.58rem; }
-  .act-points { gap: 0.6rem; }
-  .act-point  { font-size: 0.82rem; gap: 0.6rem; }
+  .act-section { padding: 3rem 1rem; }
+  .deadline-row { flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 0.85rem; }
+  .dl-year  { min-width: auto; font-size: 0.68rem; }
+  .dl-desc  { font-size: 0.8rem; flex-basis: 100%; }
+  .dl-tag   { font-size: 0.6rem; }
 
   /* Trust grid */
-  .trust-section { padding: 2.75rem 1rem; }
-  .trust-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+  .trust-grid { grid-template-columns: 1fr; gap: 0.85rem; }
   .trust-grid .trust-card:nth-child(3) { grid-column: span 1; }
-  .trust-card { padding: 1.6rem 1.25rem 1.4rem; }
-  .trust-icon { width: 48px; height: 48px; margin-bottom: 1rem; }
-  .trust-card h3 { font-size: 0.92rem; }
-  .trust-card p  { font-size: 0.78rem; }
+  .trust-card { padding: 1.75rem 1.5rem 1.5rem; }
 
-  /* Package */
-  .package-section { padding: 2.75rem 1rem; }
+  /* Package — single column, clean readable items */
+  .package-section { padding: 3rem 1rem; }
   .pkg-grid { grid-template-columns: 1fr; }
-  .pkg-item { padding: 1rem 1.1rem; gap: 0.75rem; }
-  .pkg-item-body h4 { font-size: 0.84rem; }
-  .pkg-item-body p  { font-size: 0.76rem; }
-  .pkg-cta-strip { flex-direction: column; align-items: stretch; padding: 1.1rem; gap: 1rem; }
+  .pkg-item { padding: 1rem 1.1rem; gap: 0.8rem; }
+  .pkg-item-body h4 { font-size: 0.86rem; }
+  .pkg-item-body p  { font-size: 0.78rem; }
+  .pkg-cta-strip { flex-direction: column; align-items: flex-start; padding: 1.25rem; }
   .pkg-cta-strip .btn-gold { width: 100%; justify-content: center; }
-  .pkg-cta-copy h4 { font-size: 0.88rem; }
-  .pkg-cta-copy p  { font-size: 0.75rem; }
 
   /* Process */
-  .process-section { padding: 2.75rem 1rem; }
-  .process-header  { margin-bottom: 2.5rem; }
-  .process-step    { gap: 0.9rem; margin-bottom: 1.4rem; }
-  .ps-circle { width: 48px; height: 48px; }
-  .ps-num    { font-size: 0.78rem; }
-  .ps-title  { font-size: 0.86rem; margin-bottom: 0.35rem; }
-  .ps-desc   { font-size: 0.77rem; line-height: 1.65; }
+  .process-section { padding: 3rem 1rem; }
+  .process-step { gap: 1rem; margin-bottom: 1.5rem; }
+  .ps-circle { width: 52px; height: 52px; }
+  .ps-title { font-size: 0.88rem; }
+  .ps-desc  { font-size: 0.78rem; }
 
-  /* Guarantee */
-  .guarantee-section { padding: 2.75rem 1rem 3rem; }
-  .guarantee-header  { margin-bottom: 2.25rem; }
-  .guarantee-layout  { grid-template-columns: 1fr !important; gap: 0.85rem; }
+  /* Guarantee — single column stack on mobile */
+  .guarantee-section { padding: 3rem 1rem 3.5rem; }
+  .guarantee-layout { grid-template-columns: 1fr !important; }
   .guarantee-layout .gu-card:nth-child(3) { grid-column: span 1 !important; }
-  .gu-card { padding: 1.6rem 1.4rem 1.4rem; align-items: flex-start; text-align: left; }
-  .gu-icon   { width: 54px; height: 54px; border-radius: 14px; margin-bottom: 1.1rem; }
-  .gu-card h3 { font-size: 0.92rem; }
-  .gu-card p  { font-size: 0.77rem; }
-  .gu-footer  { padding: 0.9rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-  .gu-pills   { flex-wrap: wrap; gap: 0.4rem; }
-  .gu-pill    { font-size: 0.7rem; }
-  .gu-footer-label { font-size: 0.75rem; }
+  .gu-card { padding: 1.75rem 1.5rem 1.5rem; }
+  .gu-icon { width: 60px; height: 60px; margin-bottom: 1.25rem; }
+  .gu-card h3 { font-size: 0.95rem; }
+  .gu-card p  { font-size: 0.78rem; }
+  .gu-footer { padding: 1rem 1.25rem; }
+  .gu-pills { flex-wrap: wrap; gap: 0.4rem; }
 
   /* Bottom form */
-  .bottom-form-section { padding: 2.75rem 1rem; }
+  .bottom-form-section { padding: 3rem 1rem; }
   .bfc-body { padding: 1rem 1rem 0.5rem; }
   .bfc-body iframe { min-height: 480px; }
-  .bottom-form-inner .bfs-sub { font-size: 0.83rem; margin-bottom: 2rem; }
 
-  /* Reviews — single column on mobile */
-  .testimonials-section { padding: 2.75rem 1rem; }
-  .rating-bar-inner { gap: 0.45rem; padding: 0.45rem 1rem; flex-wrap: wrap; justify-content: center; }
-  .reviews-grid { grid-template-columns: 1fr; gap: 0.75rem; }
-  .review-card { padding: 1.25rem 1.1rem; gap: 0.6rem; }
-  .review-text { font-size: 0.79rem; line-height: 1.65; }
-  .review-name { font-size: 0.79rem; }
-  .review-source { font-size: 0.63rem; }
-  .review-stars svg { width: 12px; height: 12px; }
+  /* Reviews — 2×2 grid */
+  .testimonials-section { padding: 3rem 1rem; }
+  .reviews-grid { grid-template-columns: 1fr 1fr; gap: 0.65rem; }
+  .review-card { padding: 0.9rem 0.8rem; gap: 0.5rem; }
+  .review-text { font-size: 0.73rem; line-height: 1.6; }
+  .review-name { font-size: 0.73rem; }
+  .review-source { font-size: 0.58rem; }
+  .review-stars svg { width: 11px; height: 11px; }
 
   /* FAQ */
-  .faq-section { padding: 2.75rem 1rem; }
-  .faq-q { font-size: 0.81rem; padding: 0.95rem 1rem; gap: 0.75rem; }
-  .faq-body-inner { padding: 0.75rem 1rem 1rem; font-size: 0.78rem; }
-  .faq-toggle { width: 20px; height: 20px; flex-shrink: 0; }
+  .faq-section { padding: 3rem 1rem; }
+  .faq-q { font-size: 0.82rem; padding: 1rem 1.1rem; }
+  .faq-body-inner { padding: 0.75rem 1.1rem 1rem; font-size: 0.79rem; }
 
   /* Footer */
-  .site-footer { padding: 1.5rem 1rem; flex-direction: column; align-items: center; text-align: center; gap: 0.4rem; }
-  .footer-disc { font-size: 0.64rem; max-width: 100%; }
-  .footer-copy { font-size: 0.64rem; }
+  .site-footer { padding: 1.5rem 1rem; flex-direction: column; text-align: center; }
+  .footer-disc { font-size: 0.65rem; max-width: 100%; }
 }
 </style>
 </head>
@@ -1082,23 +1097,15 @@ section { padding: 5rem 2rem; }
           <div class="hfc-title">Get a Free Quote</div>
           <div class="hfc-sub">We'll confirm your requirements and provide pricing within 24 hours.</div>
         </div>
-        <iframe
-          src="https://api.leadconnectorhq.com/widget/form/HApM0TGgenKKKOjPzsxB"
-          style="width:100%;height:100%;border:none;border-radius:5px"
-          id="inline-HApM0TGgenKKKOjPzsxB"
-          data-layout="{'id':'INLINE'}"
-          data-trigger-type="alwaysShow"
-          data-trigger-value=""
-          data-activation-type="alwaysActivated"
-          data-activation-value=""
-          data-deactivation-type="neverDeactivate"
-          data-deactivation-value=""
-          data-form-name="Gold sure - Smoke Alarms -Above the fold"
-          data-height="undefined"
-          data-layout-iframe-id="inline-HApM0TGgenKKKOjPzsxB"
-          data-form-id="HApM0TGgenKKKOjPzsxB"
-          title="Gold sure - Smoke Alarms -Above the fold"
-        ></iframe>
+        <div class="hfc-clip">
+          <iframe
+            src="https://api.leadconnectorhq.com/widget/form/HApM0TGgenKKKOjPzsxB"
+            id="hero-iframe"
+            name="form-7JO-0ZuQsl"
+            title="Book Your Installation"
+            data-form-id="HApM0TGgenKKKOjPzsxB"
+          ></iframe>
+        </div>
         <div class="form-note">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Secure and confidential. No obligation.
@@ -1185,7 +1192,7 @@ section { padding: 5rem 2rem; }
 
       <div class="act-image-col reveal">
         <div class="act-img-wrap">
-          <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/698c9e687f6dcf5f5e14e936.jpg" alt="Smoke alarm compliance package">
+          <img src="https://portal.goldsure.com.au/assets/goldsure-technician.png" alt="Goldsure licensed electrician holding Raptor smoke alarm outside Queensland home" style="border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);">
         </div>
       </div>
     </div>
@@ -1364,20 +1371,9 @@ section { padding: 5rem 2rem; }
       <div class="bfc-body">
         <iframe
           src="https://api.leadconnectorhq.com/widget/form/rVYCfxI9xEn7hwVcMRNp"
-          style="width:100%;height:100%;border:none;border-radius:5px"
-          id="inline-rVYCfxI9xEn7hwVcMRNp"
-          data-layout="{'id':'INLINE'}"
-          data-trigger-type="alwaysShow"
-          data-trigger-value=""
-          data-activation-type="alwaysActivated"
-          data-activation-value=""
-          data-deactivation-type="neverDeactivate"
-          data-deactivation-value=""
-          data-form-name="Gold sure - Smoke Alarms"
-          data-height="688"
-          data-layout-iframe-id="inline-rVYCfxI9xEn7hwVcMRNp"
-          data-form-id="rVYCfxI9xEn7hwVcMRNp"
-          title="Gold sure - Smoke Alarms"
+          id="bottom-iframe"
+          title="Get Compliant Now"
+          scrolling="auto"
         ></iframe>
         <div class="form-note" style="margin-top:0.75rem;color:var(--muted);">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -1528,7 +1524,30 @@ section { padding: 5rem 2rem; }
           What are the Queensland smoke alarm requirements?
           <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
         </div>
-        <div class="faq-body"><div class="faq-body-inner">Smoke alarms must be photoelectric (not ionisation), comply with AS 3786-2014 or AS 3786-2023, and be interconnected. They must be installed in every bedroom, in hallways connecting bedrooms to the rest of the dwelling, and on each storey. Alarms must be hard-wired at 240V with a non-removable 10-year battery backup, or powered by a 10-year non-removable battery, and must be less than 10 years old.</div></div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">To comply with Queensland legislation, smoke alarms must:</p>
+          <div class="faq-check-list">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be photoelectric (not ionisation type)</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Comply with AS 3786-2014 or AS 3786-2023</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be interconnected — when one alarm sounds, all alarms sound</div>
+          </div>
+          <div class="faq-sub-label">Be installed:</div>
+          <div class="faq-check-list">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>In every bedroom</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>In hallways connecting bedrooms to the rest of the dwelling</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>If there is no hallway, between the bedrooms and other parts of the storey</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>On each storey of the dwelling</div>
+          </div>
+          <div class="faq-sub-label">Power source (either):</div>
+          <div class="faq-check-list">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Hard-wired (240V) with a non-removable 10-year battery backup</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Powered by a 10-year non-removable battery</div>
+          </div>
+          <div class="faq-check-list" style="margin-top:0.5rem;">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be less than 10 years old</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Operate correctly when tested</div>
+          </div>
+        </div></div>
       </div>
 
       <div class="faq-item">
@@ -1536,31 +1555,14 @@ section { padding: 5rem 2rem; }
           What is the Queensland smoke alarm compliance deadline?
           <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
         </div>
-        <div class="faq-body"><div class="faq-body-inner"><ul><li><strong>1 January 2022</strong> — Homes being sold or leased (passed)</li><li><strong>1 July 2024</strong> — Caravans and motorhomes (passed)</li><li><strong>1 January 2027</strong> — All remaining dwellings</li></ul>All Queensland homes must meet the updated requirements by 1 January 2027.</div></div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="faqToggle(this)">
-          Do I need a licensed electrician to install smoke alarms?
-          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-        </div>
-        <div class="faq-body"><div class="faq-body-inner">Yes. Hard-wired 240V smoke alarms must be installed by a licensed electrician under Queensland law. All Goldsure installations are completed by fully licensed electricians.</div></div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="faqToggle(this)">
-          What happens if my home is not compliant?
-          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-        </div>
-        <div class="faq-body"><div class="faq-body-inner">If a property is sold without compliant smoke alarms, the buyer may claim a 0.15% reduction of the purchase price at settlement. The Queensland Fire Department may also issue Penalty Infringement Notices, and the Queensland Police Service may pursue charges for non-compliance.</div></div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="faqToggle(this)">
-          How many smoke alarms are required in a Queensland home?
-          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-        </div>
-        <div class="faq-body"><div class="faq-body-inner">The number depends on your home's layout. Alarms are required in every bedroom, in hallways connecting bedrooms to the rest of the dwelling, and on each storey. All must be interconnected. Our team will assess your specific requirements as part of your booking.</div></div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <div class="faq-bullet-list">
+            <div class="faq-bullet-item"><strong style="color:rgba(255,255,255,0.7);min-width:100px;">1 Jan 2022</strong> Homes being sold or leased</div>
+            <div class="faq-bullet-item"><strong style="color:rgba(255,255,255,0.7);min-width:100px;">1 Jul 2024</strong> Caravans and motorhomes being transferred</div>
+            <div class="faq-bullet-item"><strong style="color:var(--gold);min-width:100px;">1 Jan 2027</strong> All remaining dwellings</div>
+          </div>
+          <p style="margin-top:0.75rem;">All homes must meet the updated smoke alarm requirements by 1 January 2027.</p>
+        </div></div>
       </div>
 
       <div class="faq-item">
@@ -1568,7 +1570,107 @@ section { padding: 5rem 2rem; }
           Who does the Queensland smoke alarm legislation affect?
           <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
         </div>
-        <div class="faq-body"><div class="faq-body-inner">The legislation applies to Class 1a buildings (houses and townhouses), Class 2 buildings (units and apartments), and caravans and motorhomes. It does not apply to short-term stay buildings such as motels, which are covered by the National Construction Code.</div></div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">The legislation applies to:</p>
+          <div class="faq-bullet-list">
+            <div class="faq-bullet-item">Class 1a buildings (houses and townhouses)</div>
+            <div class="faq-bullet-item">Class 2 buildings (units and apartments)</div>
+            <div class="faq-bullet-item">Caravans and motorhomes</div>
+          </div>
+          <p style="margin-top:0.75rem;">It does not apply to short-term stay buildings such as motels, which are covered by the National Construction Code (NCC).</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          How many smoke alarms are required in a Queensland home?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">The number required depends on the layout of the dwelling. Smoke alarms must be installed:</p>
+          <div class="faq-bullet-list">
+            <div class="faq-bullet-item">In every bedroom</div>
+            <div class="faq-bullet-item">In hallways connecting bedrooms to the rest of the dwelling</div>
+            <div class="faq-bullet-item">If there is no hallway, between the bedrooms and other parts of the storey</div>
+            <div class="faq-bullet-item">On each storey of the dwelling</div>
+          </div>
+          <p style="margin-top:0.75rem;">All required alarms must be interconnected. Our team assesses your specific property as part of every booking.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          Do smoke alarms need to be photoelectric and interconnected in Queensland?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">Yes. Under Queensland legislation, required smoke alarms must:</p>
+          <div class="faq-bullet-list">
+            <div class="faq-bullet-item">Be photoelectric and must not contain an ionisation sensor</div>
+            <div class="faq-bullet-item">Comply with AS 3786-2014 or AS 3786-2023</div>
+            <div class="faq-bullet-item">Be interconnected so that when one alarm detects smoke, all alarms in the dwelling sound simultaneously</div>
+          </div>
+          <p style="margin-top:0.75rem;">Ionisation smoke alarms do not meet the updated Queensland requirements and must be replaced to achieve compliance.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          What type of smoke alarm is required in Queensland?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">Smoke alarms must:</p>
+          <div class="faq-check-list">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be photoelectric, not ionisation type</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Comply with AS 3786-2014 or AS 3786-2023</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be interconnected</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be either hard-wired 240V with battery backup, or powered by a 10-year non-removable battery</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Be less than 10 years old</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          Do I need a licensed electrician to install smoke alarms?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p>Yes. Smoke alarms that are hard-wired at 240V must be installed by a licensed electrician under Queensland law. All Goldsure installations are completed by fully licensed electricians — no exceptions.</p>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          What happens if my home is not compliant?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">If a property is sold without compliant smoke alarms:</p>
+          <div class="faq-bullet-list">
+            <div class="faq-bullet-item">The buyer may claim a 0.15% reduction of the purchase price at settlement</div>
+            <div class="faq-bullet-item">The Queensland Fire Department may issue Penalty Infringement Notices (PINs)</div>
+            <div class="faq-bullet-item">The Queensland Police Service may pursue charges for non-compliance</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="faqToggle(this)">
+          How do I check if my smoke alarms are compliant?
+          <div class="faq-toggle"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        </div>
+        <div class="faq-body"><div class="faq-body-inner">
+          <p style="margin-bottom:0.6rem;">You can check:</p>
+          <div class="faq-check-list">
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Whether alarms are photoelectric</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>The date of manufacture — must be less than 10 years old</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Whether alarms are interconnected</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Whether placement meets legislative requirements</div>
+            <div class="faq-check-item"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>A licensed installer can assess compliance and provide documentation where required</div>
+          </div>
+        </div></div>
       </div>
 
     </div>
@@ -1630,8 +1732,50 @@ function faqToggle(el) {
   if (!isOpen) item.classList.add('open');
 }
 
+/* ── Iframe auto-resize: postMessage + generous fallback ── */
+(function () {
+  var HERO_MIN   = 860;
+  var BOTTOM_MIN = 500;
+
+  function setHeight(id, h) {
+    var el = document.getElementById(id);
+    if (el) el.style.height = Math.max(h, id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN) + 'px';
+  }
+
+  /* Apply generous defaults immediately so forms are usable even if
+     the resize message never fires (embed origin restriction etc.) */
+  setHeight('hero-iframe',   HERO_MIN);
+  setHeight('bottom-iframe', BOTTOM_MIN);
+
+  /* Listen for postMessage resize signals from the embed */
+  window.addEventListener('message', function (e) {
+    if (!e.data) return;
+    var d = e.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { return; } }
+
+    var raw = d.height || d.iframeHeight || d.frameHeight || 0;
+    var h = parseInt(raw, 10);
+    if (!h || isNaN(h)) return;
+
+    /* Try to work out which iframe sent the message by origin or just
+       update both — whichever is taller wins because of the Math.max */
+    ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
+      setHeight(id, h + 24);
+    });
+  });
+
+  /* Safety net: after 3 s poll for any form that may have grown */
+  setTimeout(function () {
+    ['hero-iframe', 'bottom-iframe'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var current = parseInt(el.style.height, 10) || 0;
+      var min     = id === 'hero-iframe' ? HERO_MIN : BOTTOM_MIN;
+      if (current < min) el.style.height = min + 'px';
+    });
+  }, 3000);
+})();
 </script>
 
-<script src="https://link.msgsndr.com/js/form_embed.js"></script>
 </body>
 </html>
