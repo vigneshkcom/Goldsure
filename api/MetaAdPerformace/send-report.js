@@ -74,6 +74,16 @@ async function fetchAllOpportunities() {
 }
 
 // ── Source categorisation (mirrors dashboard logic) ──
+// GHL campaign/form names that indicate a Meta paid ad (case-insensitive fragment match)
+const META_CAMPAIGN_PATTERNS = [
+  'gold sure', 'goldsure', 'smoke alarm', 'above the fold', 'below the fold',
+  'fb_ad', 'facebook ad', 'meta ad', 'ig_ad', 'instagram ad',
+];
+function looksLikeMetaCampaign(str) {
+  const s = (str || '').toLowerCase();
+  return META_CAMPAIGN_PATTERNS.some(p => s.includes(p));
+}
+
 function categoriseSource(rawSource, attr) {
   if (attr) {
     const { type, medium, utmSource, referrer, gclid } = attr;
@@ -82,21 +92,41 @@ function categoriseSource(rawSource, attr) {
         (utmSource && referrer.includes('google.com'))) return 'Google';
     if (utmSource === 'fb_ad' || utmSource === 'facebook' || utmSource === 'instagram' ||
         type === 'paid social' || medium === 'paid social') return 'Meta';
-    const social = ['facebook.com','instagram.com','linkedin.com','twitter.com','tiktok.com'];
-    if (social.some(d => referrer.includes(d))) return 'Organic Social';
-    const search = ['google.com','bing.com','yahoo.com','duckduckgo.com'];
+    // Referrer: Facebook/Instagram domain = paid or organic social — disambiguate via contactSource below
+    const metaSocial = ['facebook.com','instagram.com'];
+    const otherSocial = ['linkedin.com','twitter.com','tiktok.com'];
+    const isMeta  = metaSocial.some(d => referrer.includes(d));
+    const isOther = otherSocial.some(d => referrer.includes(d));
+    const search  = ['google.com','bing.com','yahoo.com','duckduckgo.com'];
+    // Check contactSource for campaign name before committing to Organic Social
+    const csRaw = (attr.contactSource || '').toLowerCase();
+    if (isMeta && looksLikeMetaCampaign(csRaw)) return 'Meta';
+    if (isMeta || isOther) return 'Organic Social';
     if (search.some(d => referrer.includes(d))) return 'Organic Search';
     if (type === 'direct traffic' || type === 'direct') return 'Direct';
     if (type === 'referral') return 'Referral';
   }
+  // Check rawSource as a URL/referrer (e.g. "https://l.facebook.com", "https://www.google.com/...")
+  const oppSrcUrl = (rawSource || '').toLowerCase();
+  if (oppSrcUrl.includes('facebook.com') || oppSrcUrl.includes('instagram.com') || oppSrcUrl.includes('l.facebook')) {
+    // Facebook/Instagram URL — paid vs organic determined by campaign name on contact source
+    const csCheck = (attr?.contactSource || '').toLowerCase();
+    if (looksLikeMetaCampaign(csCheck)) return 'Meta';
+    return 'Meta'; // l.facebook.com as opp source almost always means a paid ad click
+  }
+  if (oppSrcUrl.includes('google.com') || oppSrcUrl.includes('googleads') || oppSrcUrl.includes('gclid')) return 'Google';
+
   const raw = (attr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';
   if (raw === 'paid search' || raw.includes('adword') || raw.includes('google ads')) return 'Google';
   if (raw.includes('google')) return 'Google';
   if (raw === 'paid social' || raw === 'fb_ad' || raw.includes('facebook') ||
       raw.includes('fb') || raw.includes('meta') || raw.includes('instagram')) return 'Meta';
+  // Campaign name pattern match — catches GHL form names like "Gold sure - Smoke Alarms -Above the fold"
+  if (looksLikeMetaCampaign(raw)) return 'Meta';
   if (raw === 'organic search') return 'Organic Search';
-  if (raw === 'organic social' || raw === 'social media') return 'Organic Social';
+  if (raw === 'organic social') return 'Organic Social';
+  if (raw === 'social media') return 'Organic Social';
   if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
   if (raw === 'referral') return 'Referral';
   if (raw === 'landing page') return 'Landing Page';
