@@ -172,11 +172,19 @@ function mapOpp(opp, contactAttrMap) {
   // if it looks like a campaign/form name rather than a generic attribution type.
   const GENERIC_SOURCES = ['social media','paid social','paid search','organic search','organic social','direct traffic','direct','referral','unknown',''];
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
+
+  // Tags fallback — e.g. ["smoke alarm landing page"] → "Smoke Alarm Landing Page"
+  const oppTags = Array.isArray(opp.tags) ? opp.tags : [];
+  const tagLabel = oppTags.length > 0
+    ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
+    : '';
+
   const formName = rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
     ? rawContactSrc
     : (() => {
         const isUrl = /^https?:\/\//i.test(oppSrcRaw);
-        return !isUrl && oppSrcRaw ? oppSrcRaw.trim() : '';
+        if (!isUrl && oppSrcRaw) return oppSrcRaw.trim();
+        return tagLabel;
       })();
 
   // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
@@ -722,7 +730,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['vigneshk.com@gmail.com'];
+  const recipients = ['accounts@goldsure.com.au'];
   const bcc        = ['vignesh@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
