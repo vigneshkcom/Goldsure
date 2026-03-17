@@ -1938,7 +1938,24 @@ async function loadGHLDataEnrichment() {
   const enrichedCount = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] != null && contactAttrMap[id].first != null).length;
   if (typeof console !== 'undefined' && console.log) console.log('[GHL] Enrichment complete: attr map size=', Object.keys(contactAttrMap).length, 'with data=', enrichedCount);
 
-  // Determine if enrichment was partial (some contacts returned null)
+  // Retry failed contacts once (with 2s delay) — catches transient GHL timeouts
+  const failedIds = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] == null);
+  if (failedIds.length > 0) {
+    if (typeof console !== 'undefined' && console.log) console.log('[GHL] Retrying', failedIds.length, 'failed contacts…');
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const retryMap = await fetchContactAttributionBatch(failedIds);
+      let retryFixed = 0;
+      failedIds.forEach(id => {
+        if (retryMap[id] != null) { contactAttrMap[id] = retryMap[id]; retryFixed++; }
+      });
+      if (typeof console !== 'undefined' && console.log) console.log('[GHL] Retry recovered', retryFixed, 'of', failedIds.length, 'contacts');
+    } catch(e) {
+      if (typeof console !== 'undefined' && console.warn) console.warn('[GHL] Retry fetch failed:', e);
+    }
+  }
+
+  // Determine if enrichment was partial (some contacts still null after retry)
   const nullCount = Object.keys(contactAttrMap).filter(id => contactAttrMap[id] == null).length;
   const isPartial = nullCount > 0 && enrichedCount > 0;
 
