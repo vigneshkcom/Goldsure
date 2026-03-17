@@ -636,7 +636,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['accounts@goldsure.com.au'];
+  const recipients = ['vigneshk.com@gmail.com'];
   const bcc        = ['vignesh@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
@@ -644,10 +644,12 @@ export default async function handler(req, res) {
   if (!process.env.GHL_API_KEY) return res.status(500).json({ error: 'GHL_API_KEY not set' });
 
   try {
-    const today      = new Date();
+    const nowUtc     = new Date();
+    const todayStr   = nowUtc.toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' }); // → "YYYY-MM-DD"
+    const today      = new Date(todayStr + 'T12:00:00'); // noon anchor for safe date arithmetic
     const ranges     = buildRanges(today);
     const dailyDates = buildDailyDates(today);
-    const dateStr    = today.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const dateStr    = nowUtc.toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
     const allOpps = await loadSmokeOpportunities();
     const [metaToday, metaLast7, googleToday, googleLast7] = await Promise.all([
