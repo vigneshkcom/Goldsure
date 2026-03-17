@@ -1799,11 +1799,25 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const created   = toAestDate(opp.createdAt);
   const contactId = opp.contactId != null ? opp.contactId : (opp.contact && opp.contact.id);
   const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
+
+  // opp.source may be a URL (e.g. "https://l.facebook.com") or a form/campaign name.
+  // For latest-touch, use the latest attribution's own referrer so it can differ from first-touch.
+  const oppSrcRaw    = opp.source || '';
+  const latestRefUrl = cData?.latest?.referrer || '';
+
+  // If opp.source is a campaign/form name (not a URL), capture it as a label
+  const isUrl    = /^https?:\/\//i.test(oppSrcRaw);
+  const formName = !isUrl && oppSrcRaw ? oppSrcRaw.trim() : '';
+
+  // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
+  const latestRaw = latestRefUrl || oppSrcRaw;
+
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
-    source:     categoriseSource(opp.source, cData?.first  || null),
-    latestSrc:  categoriseSource(opp.source, cData?.latest || null),
+    source:     categoriseSource(oppSrcRaw, cData?.first  || null),
+    latestSrc:  categoriseSource(latestRaw, cData?.latest || null),
+    formName,
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
     created,
@@ -2227,7 +2241,13 @@ function renderJourneyPaths(leads) {
     const first    = r.source    || 'Unknown';
     const latest   = r.latestSrc || r.source || 'Unknown';
     const platform = getPlatform(first);
-    const pathLabel = (first === latest || !r.latestSrc) ? first : `${first} → ${latest}`;
+    // If a form/campaign name is available, append it as the conversion touchpoint label
+    const latestLabel = r.formName
+      ? `Landing Page (${r.formName})`
+      : latest;
+    const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
+      ? first
+      : `${first} → ${latestLabel}`;
 
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
