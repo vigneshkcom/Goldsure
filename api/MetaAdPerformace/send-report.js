@@ -168,9 +168,16 @@ function mapOpp(opp, contactAttrMap) {
   const oppSrcRaw    = opp.source || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
-  // If opp.source is a campaign/form name (not a URL), capture it as a label
-  const isUrl    = /^https?:\/\//i.test(oppSrcRaw);
-  const formName = !isUrl && oppSrcRaw ? oppSrcRaw.trim() : '';
+  // formName: use contact source field (e.g. "Gold sure - Smoke Alarms -Above the fold")
+  // if it looks like a campaign/form name rather than a generic attribution type.
+  const GENERIC_SOURCES = ['social media','paid social','paid search','organic search','organic social','direct traffic','direct','referral','unknown',''];
+  const rawContactSrc = (cData?.first?.contactSource || '').trim();
+  const formName = rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
+    ? rawContactSrc
+    : (() => {
+        const isUrl = /^https?:\/\//i.test(oppSrcRaw);
+        return !isUrl && oppSrcRaw ? oppSrcRaw.trim() : '';
+      })();
 
   // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
   const latestRaw = latestRefUrl || oppSrcRaw;
@@ -715,7 +722,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['vignesh@goldsure.com.au'];
+  const recipients = ['vigneshk.com@gmail.com'];
   const bcc        = ['vignesh@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
