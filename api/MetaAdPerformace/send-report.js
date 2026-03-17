@@ -23,6 +23,12 @@ const STAGE_ORDER = [
 // Date helpers
 const isoDate = d => d.toISOString().slice(0, 10);
 
+// Convert any UTC ISO timestamp from GHL to a YYYY-MM-DD string in AEST/AEDT
+function toAestDate(utcString) {
+  if (!utcString) return '';
+  return new Date(utcString).toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+}
+
 function buildRanges(today) {
   const todayStr = isoDate(today);
   const w7start  = new Date(today); w7start.setDate(today.getDate() - 6);
@@ -133,7 +139,7 @@ function mapOpp(opp, contactAttrMap) {
     latestSrc:  categoriseSource(opp.source, cData?.latest || null),
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
-    created:    opp.createdAt ? opp.createdAt.slice(0, 10) : '',
+    created:    toAestDate(opp.createdAt),
   };
 }
 
@@ -636,7 +642,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['vigneshk.com@gmail.com'];
+  const recipients = ['accounts@goldsure.com.au'];
   const bcc        = ['vignesh@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
