@@ -1228,6 +1228,30 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
 
 <script>
 // ══════════════════════════════════════════════════════════════
+//  TIMEZONE HELPERS — all date strings use Australia/Sydney (AEST/AEDT)
+// ══════════════════════════════════════════════════════════════
+// Returns today's date as YYYY-MM-DD in AEST/AEDT (never UTC)
+function aestToday() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+}
+// Offset today by N days (negative = past), returned as YYYY-MM-DD AEST/AEDT
+function aestOffsetDate(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+}
+// First day of current month as YYYY-MM-DD AEST/AEDT
+function aestMonthStart() {
+  const parts = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' }).split('-');
+  return `${parts[0]}-${parts[1]}-01`;
+}
+// Convert a GHL UTC ISO createdAt string to YYYY-MM-DD in AEST/AEDT
+function toAestDate(utcStr) {
+  if (!utcStr) return '';
+  return new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+}
+
+// ══════════════════════════════════════════════════════════════
 //  GLOBAL STATE
 // ══════════════════════════════════════════════════════════════
 let SMOKE_CRM = [], HWS_CRM = [];
@@ -1488,9 +1512,8 @@ async function autoLogin() {
   if (metaToken) {
     setStep('meta', 'active', 'Connecting to Meta Ads API…');
     try {
-      const today = new Date();
-      const since = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
-      const until = today.toISOString().slice(0,10);
+      const since = aestMonthStart();
+      const until = aestToday();
       const testData = await fetchMetaInsights(SMOKE_ACCOUNT, metaToken, since, until);
       const testTotal = testData.reduce((a,b)=>a+b.amount, 0);
       META_CONNECTED = true;
@@ -1610,7 +1633,7 @@ function initDashboard(){
 
   let allDates=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();
   if(allDates.length){ document.getElementById('dateFrom').value=allDates[0]; document.getElementById('dateTo').value=allDates[allDates.length-1]; }
-  else { const t=new Date(),f=new Date(); f.setDate(t.getDate()-30); document.getElementById('dateFrom').value=f.toISOString().slice(0,10); document.getElementById('dateTo').value=t.toISOString().slice(0,10); }
+  else { document.getElementById('dateFrom').value=aestOffsetDate(-30); document.getElementById('dateTo').value=aestToday(); }
 
   populateFilters();
   switchProduct('smoke');
@@ -1746,7 +1769,7 @@ async function fetchContactAttributionBatch(contactIds, onProgress) {
 }
 
 function mapGHLOpportunity(opp, contactAttrMap) {
-  const created   = opp.createdAt ? opp.createdAt.slice(0,10) : '';
+  const created   = toAestDate(opp.createdAt);
   const contactId = opp.contactId != null ? opp.contactId : (opp.contact && opp.contact.id);
   const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
   return {
@@ -1942,8 +1965,8 @@ async function loadMetaSpend(){
   const statusEl=document.getElementById('meta-panel-smoke-spend');
   if(statusEl) statusEl.innerHTML='<em>Fetching spend data…</em>';
   const sinceDate=new Date(); sinceDate.setMonth(sinceDate.getMonth()-36);
-  const since=sinceDate.toISOString().slice(0,10);
-  const until=new Date().toISOString().slice(0,10);
+  const since=toAestDate(sinceDate.toISOString());
+  const until=aestToday();
   try{
     const [smokeData,hwsData]=await Promise.all([fetchMetaInsights(SMOKE_ACCOUNT,META_TOKEN,since,until),fetchMetaInsights(HWS_ACCOUNT,META_TOKEN,since,until)]);
     SMOKE_SPEND_ALL=smokeData; HWS_SPEND_ALL=hwsData; SMOKE_SPEND=smokeData; HWS_SPEND=hwsData;
@@ -2268,11 +2291,11 @@ function updateAssumptions(){ alarmsPerJob=+document.getElementById('alarmsPerJo
 
 function setPreset(p,btn){
   document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
-  const t=new Date(),fmt=d=>d.toISOString().slice(0,10);let from,to=fmt(t);
+  const t=new Date(),fmt=d=>toAestDate(d.toISOString());let from,to=aestToday();
   if(p==='7d'){let d=new Date(t);d.setDate(d.getDate()-6);from=fmt(d);}
   else if(p==='30d'){let d=new Date(t);d.setDate(d.getDate()-29);from=fmt(d);}
-  else if(p==='mtd'){from=fmt(new Date(t.getFullYear(),t.getMonth(),1));}
-  else{let all=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();from=all[0]||fmt(new Date(t.getFullYear(),t.getMonth(),1));to=all[all.length-1]||fmt(t);}
+  else if(p==='mtd'){from=aestMonthStart();}
+  else{let all=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();from=all[0]||aestMonthStart();to=all[all.length-1]||aestToday();}
   document.getElementById('dateFrom').value=from;document.getElementById('dateTo').value=to;renderCurrentProduct();
 }
 
