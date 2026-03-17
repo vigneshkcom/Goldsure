@@ -1185,6 +1185,130 @@ section { padding: 5rem 2rem; }
   .site-footer { padding: 1.5rem 1rem; flex-direction: column; text-align: center; }
   .footer-disc { font-size: 0.70rem; max-width: 100%; }
 }
+/* ══════════════════════════════════════
+   PLACEMENT GUIDE MODAL
+══════════════════════════════════════ */
+
+/* The clickable card gets a special treatment */
+.pkg-item--placement {
+  cursor: pointer;
+  position: relative;
+}
+.pkg-item--placement:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.15), var(--shadow);
+}
+
+/* Hint badge — pulses to invite click */
+.placement-hint {
+  position: absolute;
+  top: 0.65rem; right: 0.65rem;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 0.58rem; font-weight: 800;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+  animation: hintPulse 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.placement-hint-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--ink); flex-shrink: 0;
+  animation: hintDot 2.2s ease-in-out infinite;
+}
+@keyframes hintPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.65; transform: scale(0.94); }
+}
+@keyframes hintDot {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.6); }
+}
+
+/* Modal overlay */
+.placement-modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+  padding: 1.5rem;
+  animation: overlayIn 0.22s ease;
+}
+.placement-modal-overlay.open {
+  display: flex;
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Modal box */
+.placement-modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  max-width: 880px; width: 100%;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.40);
+  position: relative;
+  overflow: hidden;
+  animation: modalIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Gold top bar */
+.placement-modal::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-light));
+}
+
+.placement-modal-header {
+  padding: 1.25rem 1.5rem 0.85rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-mid);
+}
+.placement-modal-title {
+  font-size: 1rem; font-weight: 700; color: var(--ink);
+}
+.placement-modal-sub {
+  font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem;
+}
+
+/* Close button */
+.placement-close {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted);
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  margin-left: 1rem;
+}
+.placement-close:hover {
+  background: var(--ink); color: var(--white); border-color: var(--ink);
+}
+
+/* Image container */
+.placement-modal-img {
+  display: block; width: 100%; height: auto;
+  max-height: 72vh; object-fit: contain;
+  background: var(--off-white);
+  padding: 1rem;
+}
+
+@media (max-width: 660px) {
+  .placement-modal-overlay { padding: 0.75rem; align-items: flex-end; }
+  .placement-modal { border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-sm); max-height: 90vh; overflow-y: auto; }
+  .placement-modal-img { max-height: 58vh; }
+  .placement-hint { font-size: 0.52rem; }
+}
 </style>
 </head>
 <body>
@@ -1422,7 +1546,8 @@ section { padding: 5rem 2rem; }
         </div>
       </div>
 
-      <div class="pkg-item">
+      <div class="pkg-item pkg-item--placement" onclick="openPlacementModal()" title="Click to see placement guide">
+        <span class="placement-hint"><span class="placement-hint-dot"></span>View Guide</span>
         <div class="pkg-check">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M8 12l3 3 5-5"/></svg>
         </div>
@@ -1967,6 +2092,26 @@ section { padding: 5rem 2rem; }
   </div>
 </section>
 
+<!-- ══ PLACEMENT GUIDE MODAL ══ -->
+<div class="placement-modal-overlay" id="placementModal" onclick="closePlacementModalOutside(event)">
+  <div class="placement-modal">
+    <div class="placement-modal-header">
+      <div>
+        <div class="placement-modal-title">QLD Smoke Alarm Placement Guide</div>
+        <div class="placement-modal-sub">Interconnected alarms required in every bedroom, hallway and on each storey</div>
+      </div>
+      <button class="placement-close" onclick="closePlacementModal()" aria-label="Close">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <img
+      class="placement-modal-img"
+      src="https://portal.goldsure.com.au/assets/Smoke%20Alarm%20Placement%20Guide.png"
+      alt="Queensland smoke alarm placement guide showing required locations in a two-storey home"
+    >
+  </div>
+</div>
+
 <!-- ══ FOOTER ══ -->
 <footer class="site-footer">
   <div class="footer-disc">This is an estimated quote based on information provided at the time of enquiry. Compliance requirements may vary based on individual property assessments conducted by a licensed professional.</div>
@@ -2212,6 +2357,26 @@ function faqToggle(el) {
     }
   }, 500);
 })();
+/* ── Placement Guide Modal ── */
+function openPlacementModal() {
+  var modal = document.getElementById('placementModal');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePlacementModal() {
+  var modal = document.getElementById('placementModal');
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closePlacementModalOutside(e) {
+  if (e.target === document.getElementById('placementModal')) {
+    closePlacementModal();
+  }
+}
+/* Close on Escape key */
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closePlacementModal();
+});
 </script>
 
 </body>
