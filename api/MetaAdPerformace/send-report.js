@@ -162,11 +162,25 @@ async function fetchContactAttributionBatch(contactIds) {
 function mapOpp(opp, contactAttrMap) {
   const contactId = opp.contactId || opp.contact?.id || '';
   const cData     = contactAttrMap ? (contactAttrMap[contactId] || null) : null;
+
+  // opp.source may be a URL (e.g. "https://l.facebook.com") or a form/campaign name.
+  // For latest-touch we use the latest attribution's own referrer so it can differ from first-touch.
+  const oppSrcRaw    = opp.source || '';
+  const latestRefUrl = cData?.latest?.referrer || '';
+
+  // If opp.source is a campaign/form name (not a URL), capture it as a label
+  const isUrl    = /^https?:\/\//i.test(oppSrcRaw);
+  const formName = !isUrl && oppSrcRaw ? oppSrcRaw.trim() : '';
+
+  // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
+  const latestRaw = latestRefUrl || oppSrcRaw;
+
   return {
     stage:      (opp.pipelineStage?.name || opp.status || 'Unknown').trim(),
     stageId:    (opp.pipelineStageId || opp.pipelineStage?.id || '').trim(),
-    source:     categoriseSource(opp.source, cData?.first  || null),
-    latestSrc:  categoriseSource(opp.source, cData?.latest || null),
+    source:     categoriseSource(oppSrcRaw, cData?.first  || null),
+    latestSrc:  categoriseSource(latestRaw, cData?.latest || null),
+    formName,
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
     created:    toAestDate(opp.createdAt),
@@ -243,7 +257,13 @@ function calcKPIs(leads) {
     const first    = r.source    || 'Unknown';
     const latest   = r.latestSrc || r.source || 'Unknown';
     const platform = getPlatform(first);
-    const pathLabel = (first === latest || !r.latestSrc) ? first : `${first} → ${latest}`;
+    // If a form/campaign name is available, append it as the conversion touchpoint label
+    const latestLabel = r.formName
+      ? `Landing Page (${r.formName})`
+      : latest;
+    const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
+      ? first
+      : `${first} → ${latestLabel}`;
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
     if (isInstalled(r.stage)) pathData[platform].i++;
@@ -373,6 +393,22 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   const prior7KPIs = calcKPIs(filterRange(allOpps, prior7.from, prior7.to));
 
   const totalSpendToday = metaToday + googleToday;
+
+  // Today's leads broken down by source — for the source pills row
+  const todayLeads = filterRange(allOpps, today.from, today.to);
+  const SOURCE_COLORS = { Meta: '#2d6be4', Google: '#18a96e', 'Organic Search': '#7251c2', 'Organic Social': '#d98c1e', Direct: '#0ea4ac', Referral: '#6b7899', Unknown: '#94a3b8' };
+  const todaySrcCount = {};
+  todayLeads.forEach(r => {
+    const src = r.source || 'Unknown';
+    todaySrcCount[src] = (todaySrcCount[src] || 0) + 1;
+  });
+  const todaySourcePills = Object.entries(todaySrcCount)
+    .sort((a, b) => b[1] - a[1])
+    .map(([src, cnt]) => {
+      const col = SOURCE_COLORS[src] || '#94a3b8';
+      const label = cnt === 1 ? `1 ${src}` : `${cnt} ${src}`;
+      return `<span style="display:inline-block;background:${col}18;border:1px solid ${col}44;color:${col};font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:20px;margin:0 4px 4px 0;">${label}</span>`;
+    }).join('');
   const totalSpendLast7 = metaLast7 + googleLast7;
 
   const todayCPL  = todayKPIs.total > 0 && totalSpendToday > 0 ? totalSpendToday / todayKPIs.total : null;
@@ -561,6 +597,13 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
           ${statCPI(todayCPI)}
         </tr>
       </table>
+
+      ${todayKPIs.total > 0 ? `
+      <!-- TODAY SOURCE PILLS -->
+      <div style="margin-top:14px;line-height:1.8;">
+        <span style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin-right:8px;">Sources</span>
+        ${todaySourcePills}
+      </div>` : ''}
 
       <!-- LAST 7 DAYS -->
       <p style="${sec}margin-top:28px;">Last 7 Days</p>
