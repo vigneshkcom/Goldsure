@@ -1721,7 +1721,7 @@ function categoriseSource(rawSource, contactAttr) {
   if (raw === 'social media') return 'Organic Social';
   if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
   if (raw === 'referral') return 'Referral';
-  if (raw === 'landing page') return 'Landing Page';
+  // Note: "landing page" is a GHL contact source label, not a traffic source — fall through to Unknown
   return rawSource || 'Unknown';
 }
 
@@ -1797,14 +1797,7 @@ async function fetchContactAttributionBatch(contactIds, onProgress) {
 
 function mapGHLOpportunity(opp, contactAttrMap) {
   const created   = toAestDate(opp.createdAt);
-  // DEBUG — logs raw opp fields for leads created today to help diagnose formName/source issues
-  if (created === aestToday()) {
-    console.log('[DEBUG opp]', {
-      name: opp.name, source: opp.source, contactSource: opp.contactSource,
-      contact_source: opp.contact?.source, contact_tags: opp.contact?.tags,
-      tags: opp.tags, attributionSource: opp.attributionSource,
-    });
-  }
+
   const contactId = opp.contactId != null ? opp.contactId : (opp.contact && opp.contact.id);
   const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
 
@@ -1813,34 +1806,12 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const oppSrcRaw    = opp.source || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
-  // formName: use contact source field (e.g. "Gold sure - Smoke Alarms -Above the fold")
-  // Sources checked in priority order:
-  //   1. Attribution batch contactSource (most detailed — only available after enrichment)
-  //   2. opp.contact.source — returned directly in opportunity search response, no extra API call needed
-  //   3. opp.source if it's a plain string (not a URL)
-  //   4. Tags on opp.contact.tags
-  const GENERIC_SOURCES = ['social media','paid social','paid search','organic search','organic social','direct traffic','direct','referral','unknown',''];
-
-  const rawContactSrc     = (cData?.first?.contactSource || '').trim();
-  const rawOppContactSrc  = (opp.contact?.source || opp.contactSource || '').trim();
-
-  // Tags fallback — e.g. ["smoke alarm landing page"] → "Smoke Alarm Landing Page"
-  const oppTags = Array.isArray(opp.tags) ? opp.tags : (Array.isArray(opp.contact?.tags) ? opp.contact.tags : []);
-  const tagLabel = oppTags.length > 0
-    ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
-    : '';
-
-  const _pickFormName = (src) => src && !GENERIC_SOURCES.includes(src.toLowerCase()) ? src : null;
-
-  const formName =
-    _pickFormName(rawContactSrc) ||        // 1. attribution batch
-    _pickFormName(rawOppContactSrc) ||     // 2. opp.contact.source (no extra API call)
-    (() => {
-      const isUrl = /^https?:\/\//i.test(oppSrcRaw);
-      return (!isUrl && oppSrcRaw) ? oppSrcRaw.trim() : '';  // 3. opp.source if plain string
-    })() ||
-    tagLabel ||                            // 4. tags
-    '';
+  // formName: ONLY set when the contact source is a genuine campaign/form name.
+  // We use looksLikeMetaCampaign() as the gate — only strings that match our known
+  // ad campaign patterns qualify. Everything else (generic labels like "Facebook",
+  // "Landing Page", "Social media") produces no sub-path so the journey shows cleanly.
+  const rawContactSrc = (cData?.first?.contactSource || '').trim();
+  const formName = looksLikeMetaCampaign(rawContactSrc) ? rawContactSrc : '';
 
   // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
   const latestRaw = latestRefUrl || oppSrcRaw;
