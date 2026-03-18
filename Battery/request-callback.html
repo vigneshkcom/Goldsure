@@ -478,23 +478,10 @@
   </footer>
 
   <script>
-    // ── Load Google Maps via the existing working route ───────────────────────
-    fetch('/api/smoke-alarms/google-key')
-      .then(r => r.json())
-      .then(data => {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAutocomplete`;
-        script.async = true;
-        document.head.appendChild(script);
-      })
-      .catch(err => console.warn('Could not load Google Maps:', err));
-  </script>
-
-  <script>
-    // ── Google Places Autocomplete init ──────────────────────────────────────
+    // ── 1. Define callback FIRST so it exists when Maps script fires it ───────
     window.initAutocomplete = function () {
-      const input    = document.getElementById('addressInput');
-      const hidden   = document.getElementById('address');
+      const input  = document.getElementById('addressInput');
+      const hidden = document.getElementById('address');
 
       const autocomplete = new google.maps.places.Autocomplete(input, {
         componentRestrictions: { country: 'au' },
@@ -513,15 +500,23 @@
         }
       });
 
-      // If user clears the field manually, clear hidden too
       input.addEventListener('input', function () {
-        if (!input.value.trim()) {
-          hidden.value = '';
-        }
+        if (!input.value.trim()) hidden.value = '';
       });
     };
 
-    // ── Form validation & submission ─────────────────────────────────────────
+    // ── 2. NOW fetch the key and inject the Maps script ───────────────────────
+    fetch('/api/smoke-alarms/google-key')
+      .then(r => r.json())
+      .then(data => {
+        const script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + data.key + '&libraries=places&callback=initAutocomplete';
+        script.async = true;
+        document.head.appendChild(script);
+      })
+      .catch(err => console.warn('Could not load Google Maps:', err));
+
+    // ── 3. Form validation & submission ──────────────────────────────────────
     document.getElementById('callbackForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
@@ -533,7 +528,6 @@
       const btn        = document.getElementById('submitBtn');
       const formErr    = document.getElementById('formError');
 
-      // Reset errors
       clearError('fullName');
       clearError('phone');
       clearError('email');
@@ -555,7 +549,6 @@
         showError('email'); valid = false;
       }
 
-      // If user typed something in address but never selected a suggestion, warn them
       if (addressInp.value.trim() && !addressHid.value) {
         showError('addressInput');
         document.getElementById('addressError').textContent = 'Please select an address from the suggestions.';
@@ -600,4 +593,12 @@
       if (errEl) errEl.classList.add('visible');
     }
 
-    fun
+    function clearError(fieldId) {
+      document.getElementById(fieldId).classList.remove('error');
+      const errEl = document.getElementById(fieldId + 'Error');
+      if (errEl) errEl.classList.remove('visible');
+    }
+  </script>
+
+</body>
+</html>
