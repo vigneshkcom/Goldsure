@@ -124,10 +124,10 @@ export default async function handler(req, res) {
             <td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
               <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background-color:#141c2e;border-radius:6px;">
+                  <td style="background-color:#141c2e;border-radius:8px;">
                     <a href="tel:${phone}"
-                       style="display:inline-block;padding:12px 24px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;text-decoration:none;">
-                      Call ${fullName.split(' ')[0]} Now
+                       style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;">
+                      📞 &nbsp;Call ${fullName.split(' ')[0]} Now
                     </a>
                   </td>
                 </tr>
@@ -178,7 +178,7 @@ Submitted: ${submittedAt}
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        from: "Goldsure Battery <vignesh@goldsure.com.au>",
+        from: "Goldsure Leads <vignesh@goldsure.com.au>",
         to: ["info@goldsure.com.au"],
         subject: `New Call Back Request - ${fullName}`,
         html: htmlMessage,
