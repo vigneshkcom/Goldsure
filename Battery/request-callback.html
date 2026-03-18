@@ -478,23 +478,16 @@
   </footer>
 
   <script>
-    // ── Load Google Maps API key from server, then init autocomplete ──────────
-    async function loadMapsAPI() {
-      try {
-        const res  = await fetch('/api/maps-key');
-        const data = await res.json();
-        const key  = data.key;
-        if (!key) return;
+    // ── Load Google Maps via the existing working route ───────────────────────
+    fetch('/api/smoke-alarms/google-key')
+      .then(r => r.json())
+      .then(data => {
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initAutocomplete`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAutocomplete`;
         script.async = true;
-        script.defer = true;
         document.head.appendChild(script);
-      } catch (err) {
-        console.warn('Maps API could not be loaded:', err);
-      }
-    }
-    loadMapsAPI();
+      })
+      .catch(err => console.warn('Could not load Google Maps:', err));
   </script>
 
   <script>
