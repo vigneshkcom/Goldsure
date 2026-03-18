@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   try {
 
-    const { fullName, phone, email, postcode, source } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
     if (!fullName || !phone) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
+                    <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
                          alt="Goldsure" height="36"
                          style="display:block;height:36px;" />
                   </td>
@@ -113,18 +113,10 @@ export default async function handler(req, res) {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Postcode</p>
-                    <p style="margin:0;font-size:15px;color:#0a0a0a;">
-                      ${postcode || '<span style="color:#999999;">Not provided</span>'}
-                    </p>
-                  </td>
-                </tr>
-                <tr>
                   <td style="padding:16px 20px;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Lead Source</p>
+                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Property Address</p>
                     <p style="margin:0;font-size:15px;color:#0a0a0a;">
-                      ${source || '<span style="color:#999999;">Unknown</span>'}
+                      ${address || '<span style="color:#999999;">Not provided</span>'}
                     </p>
                   </td>
                 </tr>
@@ -184,8 +176,7 @@ New Callback Request
 Name: ${fullName}
 Phone: ${phone}
 Email: ${email || "Not provided"}
-Postcode: ${postcode || "Not provided"}
-Source: ${source || "Unknown"}
+Address: ${address || "Not provided"}
 
 Submitted: ${submittedAt}
 `;
