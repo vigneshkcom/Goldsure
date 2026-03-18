@@ -189,7 +189,7 @@ Submitted: ${submittedAt}
       },
       body: JSON.stringify({
         from: "Goldsure Leads <info@goldsure.com.au>",
-        to: ["info@goldsure.com.au"],
+        to: ["vignesh@goldsure.com.au"],
         subject: `New Call Back Request — ${fullName}`,
         html: htmlMessage,
         text: plainFallback
