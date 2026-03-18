@@ -343,20 +343,21 @@
 
     .footer-brand {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
     }
 
     .footer-brand img {
-      height: 28px;
+      height: 44px;
       width: auto;
       object-fit: contain;
     }
 
     .footer-brand-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
     }
 
     .footer-contact {
@@ -469,34 +470,32 @@
         <span class="footer-brand-name">Goldsure Pty Ltd</span>
       </div>
       <div class="footer-contact">
-        <div><a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></div>
+        <div><a href="/cdn-cgi/l/email-protection#046d6a626b44636b6860777176612a676b692a6571"><span class="__cf_email__" data-cfemail="6d04030b022d0a0201091e181f08430e0200430c18">[email&#160;protected]</span></a></div>
         <div><a href="tel:0370502846">03 7050 2846</a></div>
         <div>&copy; 2026 Goldsure Pty Ltd</div>
       </div>
     </div>
   </footer>
 
-  <!-- Google Places Autocomplete — key pulled from meta tag injected at build time -->
   <script>
-    // Read the API key that Vercel injects via the meta tag below (set at build time)
-    // We load the Maps JS API dynamically so the key stays in the env variable.
-    (function () {
-      const key = document.getElementById('googleMapsKey').content;
-      if (!key) return;
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initAutocomplete`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    })();
+    // ── Load Google Maps API key from server, then init autocomplete ──────────
+    async function loadMapsAPI() {
+      try {
+        const res  = await fetch('/api/maps-key');
+        const data = await res.json();
+        const key  = data.key;
+        if (!key) return;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initAutocomplete`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      } catch (err) {
+        console.warn('Maps API could not be loaded:', err);
+      }
+    }
+    loadMapsAPI();
   </script>
-
-  <!--
-    Vercel replaces @NEXT_PUBLIC_GOOGLE_MAPS_KEY@ at build time when this file
-    is served from a Next.js / Vercel Static project.
-    For a plain static deploy, set the content value in your build step.
-  -->
-  <meta id="googleMapsKey" content="@NEXT_PUBLIC_GOOGLE_MAPS_KEY@" />
 
   <script>
     // ── Google Places Autocomplete init ──────────────────────────────────────
@@ -608,12 +607,4 @@
       if (errEl) errEl.classList.add('visible');
     }
 
-    function clearError(fieldId) {
-      document.getElementById(fieldId).classList.remove('error');
-      const errEl = document.getElementById(fieldId + 'Error');
-      if (errEl) errEl.classList.remove('visible');
-    }
-  </script>
-
-</body>
-</html>
+    fun
