@@ -55,7 +55,7 @@ export default async function handler(req, res) {
           <tr>
             <td style="background-color:#ffffff;padding:32px 32px 0;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
               <p style="margin:0 0 6px;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">
-                New Lead — Solar Battery
+                New Lead - Solar Battery
               </p>
               <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#141c2e;line-height:1.3;">
                 Call back request from ${fullName.split(' ')[0]}
@@ -178,9 +178,9 @@ Submitted: ${submittedAt}
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        from: "Goldsure Battery <info@goldsure.com.au>",
-        to: ["vignesh@goldsure.com.au"],
-        subject: `New Call Back Request — ${fullName}`,
+        from: "Goldsure Battery <vignesh@goldsure.com.au>",
+        to: ["info@goldsure.com.au"],
+        subject: `New Call Back Request - ${fullName}`,
         html: htmlMessage,
         text: plainFallback
       })
