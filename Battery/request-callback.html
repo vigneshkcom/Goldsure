@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- Disable Cloudflare email obfuscation for this page -->
   <meta name="email-obfuscation" content="off">
-  <title>Thank You | Goldsure</title>
+  <title>Request a Call Back | Goldsure</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -17,7 +17,9 @@
       --muted: #6b7899;
       --gold: #b08d2e;
       --gold-rich: #d3ad40;
+      --gold-bg: #fef7e7;
       --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.10), 0 12px 32px rgba(0,0,0,0.08);
       --r: 12px;
     }
 
@@ -74,13 +76,33 @@
       color: var(--muted);
     }
 
+    /* ── URGENCY BAR ── */
+    .urgency-bar {
+      display: flex;
+      justify-content: center;
+      padding: 10px 24px;
+      background: transparent;
+    }
+
+    .urgency-bar span {
+      background: var(--gold);
+      display: inline-block;
+      padding: 7px 18px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #fff;
+      border-radius: 20px;
+    }
+
     /* ── MAIN ── */
     main {
       flex: 1;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: 48px 16px 64px;
+      padding: 40px 16px 64px;
     }
 
     .container {
@@ -131,8 +153,8 @@
       border-radius: 2px;
     }
 
-    /* ── CARD ── */
-    .card {
+    /* ── FORM CARD ── */
+    .form-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-top: 3px solid var(--gold);
@@ -141,84 +163,153 @@
       box-shadow: var(--shadow);
     }
 
-    /* ── CHECK ICON ── */
-    .check-wrap {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: #fef7e7;
-      border: 2px solid var(--gold-rich);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    .check-wrap svg {
-      width: 24px;
-      height: 24px;
-    }
-
-    .card-title {
+    .form-title {
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--gold);
-      margin-bottom: 10px;
+      margin-bottom: 22px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
     }
 
-    .card h2 {
-      font-size: clamp(20px, 4vw, 26px);
+    .field {
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    label {
+      display: block;
+      font-size: 10px;
       font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-      letter-spacing: -0.4px;
-      margin: 20px 0 14px;
-    }
-
-    .card h2 span {
-      color: var(--gold-rich);
-    }
-
-    .card p {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.75;
-      margin-bottom: 8px;
-    }
-
-    /* ── PHONE BLOCK ── */
-    .phone-block {
-      margin-top: 24px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
-
-    .phone-label {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 8px;
+      margin-bottom: 7px;
+    }
+
+    label .optional {
+      font-size: 9px;
+      color: var(--border);
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      margin-left: 5px;
+    }
+
+    input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      padding: 11px 14px;
+      outline: none;
+      border-radius: 8px;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-appearance: none;
+    }
+
+    input::placeholder {
+      color: #bec5d4;
+    }
+
+    input:focus {
+      border-color: var(--gold);
+      background: var(--surface);
+    }
+
+    input.error {
+      border-color: #e04f4f;
+    }
+
+    .error-msg {
+      font-size: 11px;
+      color: #e04f4f;
+      margin-top: 5px;
+      display: none;
+      font-weight: 500;
+    }
+
+    .error-msg.visible {
       display: block;
     }
 
-    .phone-number {
-      font-size: 26px;
+    /* ── PAC (Google Places) dropdown override ── */
+    .pac-container {
+      font-family: 'Sora', sans-serif;
+      font-size: 13px;
+      border: 1.5px solid var(--gold);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .pac-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .pac-item:hover,
+    .pac-item-selected {
+      background: var(--gold-bg);
+    }
+
+    .pac-item-query {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .submit-btn {
+      width: 100%;
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: 14px 24px;
+      font-family: 'Sora', sans-serif;
+      font-size: 12px;
       font-weight: 700;
-      color: var(--gold-rich);
-      letter-spacing: 0.5px;
-      text-decoration: none;
-      display: block;
-      transition: color 0.2s;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: 6px;
+      border-radius: 8px;
+      transition: background 0.15s, transform 0.1s;
     }
 
-    .phone-number:hover {
-      color: var(--gold);
+    .submit-btn:hover {
+      background: #caa535;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.99);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* ── FORM ERROR ── */
+    .form-error {
+      background: rgba(224,79,79,0.08);
+      border: 1px solid rgba(224,79,79,0.25);
+      color: #e04f4f;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 11px 14px;
+      margin-top: 14px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .form-error.visible {
+      display: block;
     }
 
     /* ── TRUST LINE ── */
@@ -286,13 +377,19 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 560px) {
-      .card { padding: 22px 18px; }
-      header { padding: 12px 16px; }
+      .form-card {
+        padding: 22px 18px;
+      }
+      header {
+        padding: 12px 16px;
+      }
       .footer-inner {
         flex-direction: column;
         align-items: flex-start;
       }
-      .footer-contact { text-align: left; }
+      .footer-contact {
+        text-align: left;
+      }
     }
   </style>
 </head>
@@ -308,37 +405,62 @@
     </div>
   </header>
 
+  <div class="urgency-bar">
+    <span>Rebates reduce after April 30 &mdash; Act now to lock in the full amount</span>
+  </div>
+
   <main>
     <div class="container">
 
       <div class="intro">
         <p class="eyebrow">Solar Battery Rebate</p>
-        <h1>Request <span>Received</span></h1>
+        <h1>Request a <span>Call Back</span></h1>
         <div class="gold-rule"></div>
-        <p>Thank you for getting in touch. A member of the Goldsure team will call you shortly to discuss your solar battery options.</p>
+        <p>Leave your details below and a member of the Goldsure team will call you to discuss your solar battery options and available federal subsidies before the April 30 deadline.</p>
       </div>
 
-      <div class="card">
-        <p class="card-title">What Happens Next</p>
+      <div class="form-card">
+        <p class="form-title">Your Contact Details</p>
 
-        <div class="check-wrap">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polyline points="4,13 9,18 20,7" stroke="#d3ad40" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+        <form id="callbackForm" novalidate>
 
-        <h2>We'll be in touch <span>shortly</span></h2>
+          <div class="field">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" name="fullName" placeholder="e.g. John Smith" required autocomplete="name" />
+            <p class="error-msg" id="fullNameError">Please enter your full name.</p>
+          </div>
 
-        <p>One of our solar battery specialists will call you to walk through your eligibility, available rebates, and the best options for your home.</p>
-        <p>If you need to speak with us immediately, call us directly on the number below.</p>
+          <div class="field">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="e.g. 04XX XXX XXX" required autocomplete="tel" />
+            <p class="error-msg" id="phoneError">Please enter a valid phone number.</p>
+          </div>
 
-        <div class="phone-block">
-          <span class="phone-label">Call us directly</span>
-          <a href="tel:0370502846" class="phone-number">03 7050 2846</a>
-        </div>
+          <div class="field">
+            <label for="email">Email Address <span class="optional">optional</span></label>
+            <input type="email" id="email" name="email" placeholder="e.g. john@example.com" autocomplete="email" />
+            <p class="error-msg" id="emailError">Please enter a valid email address.</p>
+          </div>
+
+          <div class="field">
+            <label for="addressInput">Property Address <span class="optional">optional</span></label>
+            <input type="text" id="addressInput" name="addressInput" placeholder="Start typing your address…" autocomplete="off" />
+            <p class="error-msg" id="addressError">Please select an address from the suggestions.</p>
+          </div>
+
+          <!-- Hidden field stores the confirmed Places address -->
+          <input type="hidden" id="address" name="address" value="" />
+
+          <button type="submit" class="submit-btn" id="submitBtn">Request a Call Back</button>
+
+          <div class="form-error" id="formError">
+            Something went wrong. Please try again or call us on <strong>03 7050 2846</strong>.
+          </div>
+
+        </form>
       </div>
 
-      <p class="trust">Or email us: <strong>info@goldsure.com.au</strong></p>
+      <p class="trust">Or call us directly: <strong>03 7050 2846</strong></p>
 
     </div>
   </main>
@@ -356,6 +478,129 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    // ── 1. Define callback FIRST so it exists when Maps script fires it ───────
+    window.initAutocomplete = function () {
+      const input  = document.getElementById('addressInput');
+      const hidden = document.getElementById('address');
+
+      const autocomplete = new google.maps.places.Autocomplete(input, {
+        componentRestrictions: { country: 'au' },
+        fields: ['formatted_address'],
+        types: ['address']
+      });
+
+      autocomplete.addListener('place_changed', function () {
+        const place = autocomplete.getPlace();
+        if (place && place.formatted_address) {
+          hidden.value = place.formatted_address;
+          input.classList.remove('error');
+          document.getElementById('addressError').classList.remove('visible');
+        } else {
+          hidden.value = '';
+        }
+      });
+
+      input.addEventListener('input', function () {
+        if (!input.value.trim()) hidden.value = '';
+      });
+    };
+
+    // ── 2. NOW fetch the key and inject the Maps script ───────────────────────
+    fetch('/api/smoke-alarms/google-key')
+      .then(r => r.json())
+      .then(data => {
+        const script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + data.key + '&libraries=places&callback=initAutocomplete';
+        script.async = true;
+        document.head.appendChild(script);
+      })
+      .catch(err => console.warn('Could not load Google Maps:', err));
+
+    // ── 3. Form validation & submission ──────────────────────────────────────
+    document.getElementById('callbackForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const fullName   = document.getElementById('fullName');
+      const phone      = document.getElementById('phone');
+      const email      = document.getElementById('email');
+      const addressInp = document.getElementById('addressInput');
+      const addressHid = document.getElementById('address');
+      const btn        = document.getElementById('submitBtn');
+      const formErr    = document.getElementById('formError');
+
+      clearError('fullName');
+      clearError('phone');
+      clearError('email');
+      clearError('addressInput');
+      formErr.classList.remove('visible');
+
+      let valid = true;
+
+      if (!fullName.value.trim()) {
+        showError('fullName'); valid = false;
+      }
+
+      const phoneDigits = phone.value.replace(/\D/g, '');
+      if (!phone.value.trim() || phoneDigits.length < 8) {
+        showError('phone'); valid = false;
+      }
+
+      if (email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+        showError('email'); valid = false;
+      }
+
+      if (addressInp.value.trim() && !addressHid.value) {
+        showError('addressInput');
+        document.getElementById('addressError').textContent = 'Please select an address from the suggestions.';
+        valid = false;
+      }
+
+      if (!valid) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      const payload = {
+        fullName: fullName.value.trim(),
+        phone:    phone.value.trim(),
+        email:    email.value.trim(),
+        address:  addressHid.value || addressInp.value.trim() || '',
+      };
+
+      try {
+        const res = await fetch('/api/battery/request-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          window.location.href = '/Battery/thank-you.html';
+        } else {
+          throw new Error('Server error: ' + res.status);
+        }
+      } catch (err) {
+        console.error(err);
+        formErr.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Request a Call Back';
+      }
+    });
+
+    function showError(fieldId) {
+      document.getElementById(fieldId).classList.add('error');
+      const errEl = document.getElementById(fieldId + 'Error');
+      if (errEl) errEl.classList.add('visible');
+    }
+
+    function clearError(fieldId) {
+      document.getElementById(fieldId).classList.remove('error');
+      const errEl = document.getElementById(fieldId + 'Error');
+      if (errEl) errEl.classList.remove('visible');
+    }
+  </script>
 
 </body>
 </html>
