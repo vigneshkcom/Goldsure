@@ -54,7 +54,7 @@
     }
 
     .logo-wrap img {
-      height: 36px;
+      height: 38px;
       width: auto;
       object-fit: contain;
       display: block;
@@ -174,6 +174,7 @@
 
     .field {
       margin-bottom: 18px;
+      position: relative;
     }
 
     label {
@@ -233,6 +234,32 @@
 
     .error-msg.visible {
       display: block;
+    }
+
+    /* ── PAC (Google Places) dropdown override ── */
+    .pac-container {
+      font-family: 'Sora', sans-serif;
+      font-size: 13px;
+      border: 1.5px solid var(--gold);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .pac-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .pac-item:hover,
+    .pac-item-selected {
+      background: var(--gold-bg);
+    }
+
+    .pac-item-query {
+      font-size: 13px;
+      color: var(--text);
     }
 
     /* ── SUBMIT BUTTON ── */
@@ -368,7 +395,7 @@
   <header>
     <div class="header-left">
       <div class="logo-wrap">
-        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg" alt="Goldsure" />
+        <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" />
       </div>
       <div class="hd"></div>
       <span class="header-badge">Solar Battery</span>
@@ -413,11 +440,13 @@
           </div>
 
           <div class="field">
-            <label for="postcode">Postcode <span class="optional">optional</span></label>
-            <input type="text" id="postcode" name="postcode" placeholder="e.g. 3000" maxlength="4" autocomplete="postal-code" />
+            <label for="addressInput">Property Address <span class="optional">optional</span></label>
+            <input type="text" id="addressInput" name="addressInput" placeholder="Start typing your address…" autocomplete="off" />
+            <p class="error-msg" id="addressError">Please select an address from the suggestions.</p>
           </div>
 
-          <input type="hidden" id="source" name="source" value="" />
+          <!-- Hidden field stores the confirmed Places address -->
+          <input type="hidden" id="address" name="address" value="" />
 
           <button type="submit" class="submit-btn" id="submitBtn">Request a Call Back</button>
 
@@ -436,7 +465,7 @@
   <footer>
     <div class="footer-inner">
       <div class="footer-brand">
-        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg" alt="Goldsure" />
+        <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" />
         <span class="footer-brand-name">Goldsure Pty Ltd</span>
       </div>
       <div class="footer-contact">
@@ -447,72 +476,117 @@
     </div>
   </footer>
 
+  <!-- Google Places Autocomplete — key pulled from meta tag injected at build time -->
   <script>
-    // Capture ?source= param and populate hidden field
+    // Read the API key that Vercel injects via the meta tag below (set at build time)
+    // We load the Maps JS API dynamically so the key stays in the env variable.
     (function () {
-      const params = new URLSearchParams(window.location.search);
-      const source = params.get('source') || '';
-      document.getElementById('source').value = source;
+      const key = document.getElementById('googleMapsKey').content;
+      if (!key) return;
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initAutocomplete`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
     })();
+  </script>
 
-    // Form submission
+  <!--
+    Vercel replaces @NEXT_PUBLIC_GOOGLE_MAPS_KEY@ at build time when this file
+    is served from a Next.js / Vercel Static project.
+    For a plain static deploy, set the content value in your build step.
+  -->
+  <meta id="googleMapsKey" content="@NEXT_PUBLIC_GOOGLE_MAPS_KEY@" />
+
+  <script>
+    // ── Google Places Autocomplete init ──────────────────────────────────────
+    window.initAutocomplete = function () {
+      const input    = document.getElementById('addressInput');
+      const hidden   = document.getElementById('address');
+
+      const autocomplete = new google.maps.places.Autocomplete(input, {
+        componentRestrictions: { country: 'au' },
+        fields: ['formatted_address'],
+        types: ['address']
+      });
+
+      autocomplete.addListener('place_changed', function () {
+        const place = autocomplete.getPlace();
+        if (place && place.formatted_address) {
+          hidden.value = place.formatted_address;
+          input.classList.remove('error');
+          document.getElementById('addressError').classList.remove('visible');
+        } else {
+          hidden.value = '';
+        }
+      });
+
+      // If user clears the field manually, clear hidden too
+      input.addEventListener('input', function () {
+        if (!input.value.trim()) {
+          hidden.value = '';
+        }
+      });
+    };
+
+    // ── Form validation & submission ─────────────────────────────────────────
     document.getElementById('callbackForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
-      const fullName = document.getElementById('fullName');
-      const phone    = document.getElementById('phone');
-      const email    = document.getElementById('email');
-      const postcode = document.getElementById('postcode');
-      const source   = document.getElementById('source');
-      const btn      = document.getElementById('submitBtn');
-      const formErr  = document.getElementById('formError');
+      const fullName   = document.getElementById('fullName');
+      const phone      = document.getElementById('phone');
+      const email      = document.getElementById('email');
+      const addressInp = document.getElementById('addressInput');
+      const addressHid = document.getElementById('address');
+      const btn        = document.getElementById('submitBtn');
+      const formErr    = document.getElementById('formError');
 
       // Reset errors
       clearError('fullName');
       clearError('phone');
       clearError('email');
+      clearError('addressInput');
       formErr.classList.remove('visible');
 
       let valid = true;
 
-      // Validate full name
       if (!fullName.value.trim()) {
-        showError('fullName');
-        valid = false;
+        showError('fullName'); valid = false;
       }
 
-      // Validate phone (must have at least 8 digits)
       const phoneDigits = phone.value.replace(/\D/g, '');
       if (!phone.value.trim() || phoneDigits.length < 8) {
-        showError('phone');
-        valid = false;
+        showError('phone'); valid = false;
       }
 
-      // Validate email if provided
       if (email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
-        showError('email');
+        showError('email'); valid = false;
+      }
+
+      // If user typed something in address but never selected a suggestion, warn them
+      if (addressInp.value.trim() && !addressHid.value) {
+        showError('addressInput');
+        document.getElementById('addressError').textContent = 'Please select an address from the suggestions.';
         valid = false;
       }
 
       if (!valid) return;
 
-      // Disable button while submitting
       btn.disabled = true;
-      btn.textContent = 'Sending...';
+      btn.textContent = 'Sending…';
 
       const payload = {
         fullName: fullName.value.trim(),
         phone:    phone.value.trim(),
         email:    email.value.trim(),
-        postcode: postcode.value.trim(),
-        source:   source.value,
+        address:  addressHid.value || addressInp.value.trim() || '',
       };
 
       try {
         const res = await fetch('/api/battery/request-callback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName: payload.fullName, phone: payload.phone, email: payload.email, postcode: payload.postcode, source: "Battery Email Campaign" }),
+          body: JSON.stringify(payload),
         });
 
         if (res.ok) {
