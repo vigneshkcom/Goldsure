@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   try {
 
-    const { fullName, phone, email, postcode, source } = req.body;
+    const { fullName, phone, email, address } = req.body;
 
     if (!fullName || !phone) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -26,24 +26,24 @@ export default async function handler(req, res) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>New Call Back Request</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f5f6f8;font-family:Arial,sans-serif;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:40px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f6f8;padding:40px 0;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e0e0e0;">
+        <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
 
           <!-- HEADER -->
           <tr>
-            <td style="background-color:#0a0a0a;padding:24px 32px;border-bottom:3px solid #d3ad40;">
+            <td style="background-color:#ffffff;padding:20px 32px;border-bottom:3px solid #b08d2e;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg"
-                         alt="Goldsure" height="36"
-                         style="display:block;height:36px;" />
+                    <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
+                         alt="Goldsure" height="34"
+                         style="display:block;height:34px;" />
                   </td>
-                  <td align="right" style="font-size:9px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:#d3ad40;">
+                  <td align="right" style="font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#6b7899;">
                     Solar Battery
                   </td>
                 </tr>
@@ -51,96 +51,83 @@ export default async function handler(req, res) {
             </td>
           </tr>
 
-          <!-- GOLD BAND -->
+          <!-- MAIN CARD -->
           <tr>
-            <td style="background-color:#d3ad40;padding:12px 32px;">
-              <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#0a0a0a;">
-                New Call Back Request
+            <td style="background-color:#ffffff;padding:32px 32px 0;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
+              <p style="margin:0 0 6px;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">
+                New Lead - Solar Battery
               </p>
-            </td>
-          </tr>
-
-          <!-- INTRO -->
-          <tr>
-            <td style="padding:32px 32px 24px;">
-              <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#d3ad40;">
-                Lead Notification
-              </p>
-              <h1 style="margin:0 0 12px;font-size:22px;font-weight:bold;color:#0a0a0a;font-family:Georgia,serif;">
-                A customer has requested a call back
+              <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#141c2e;line-height:1.3;">
+                Call back request from ${fullName.split(' ')[0]}
               </h1>
-              <p style="margin:0;font-size:14px;color:#555555;line-height:1.6;">
-                The following details were submitted via the Goldsure Solar Battery callback form.
-                Please contact this lead as soon as possible.
+              <p style="margin:0 0 24px;font-size:13px;color:#6b7899;line-height:1.6;">
+                Submitted via the Goldsure Solar Battery form. Please follow up as soon as possible.
               </p>
             </td>
           </tr>
 
-          <!-- DIVIDER -->
+          <!-- DETAILS TABLE -->
           <tr>
-            <td style="padding:0 32px;">
-              <div style="height:2px;background-color:#d3ad40;width:48px;"></div>
-            </td>
-          </tr>
+            <td style="background-color:#ffffff;padding:0 32px 8px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:8px;overflow:hidden;">
 
-          <!-- LEAD DETAILS CARD -->
-          <tr>
-            <td style="padding:24px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0"
-                     style="background-color:#f9f9f9;border:1px solid #e8e8e8;border-top:3px solid #d3ad40;">
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Full Name</p>
-                    <p style="margin:0;font-size:16px;color:#0a0a0a;font-weight:bold;">${fullName}</p>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;width:36%;">
+                    <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Full Name</p>
+                  </td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;">
+                    <p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">${fullName}</p>
                   </td>
                 </tr>
+
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Phone Number</p>
-                    <p style="margin:0;font-size:16px;color:#0a0a0a;font-weight:bold;">
-                      <a href="tel:${phone}" style="color:#0a0a0a;text-decoration:none;">${phone}</a>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;">
+                    <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Phone</p>
+                  </td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;">
+                    <p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">
+                      <a href="tel:${phone}" style="color:#141c2e;text-decoration:none;">${phone}</a>
                     </p>
                   </td>
                 </tr>
+
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Email Address</p>
-                    <p style="margin:0;font-size:15px;color:#0a0a0a;">
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;">
+                    <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Email</p>
+                  </td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;">
+                    <p style="margin:0;font-size:14px;color:#141c2e;">
                       ${email
-                        ? `<a href="mailto:${email}" style="color:#d3ad40;text-decoration:none;">${email}</a>`
-                        : '<span style="color:#999999;">Not provided</span>'}
+                        ? `<a href="mailto:${email}" style="color:#b08d2e;text-decoration:none;">${email}</a>`
+                        : '<span style="color:#aaaaaa;">Not provided</span>'}
                     </p>
                   </td>
                 </tr>
+
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Postcode</p>
-                    <p style="margin:0;font-size:15px;color:#0a0a0a;">
-                      ${postcode || '<span style="color:#999999;">Not provided</span>'}
+                  <td style="padding:14px 18px;background-color:#f5f6f8;">
+                    <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Property Address</p>
+                  </td>
+                  <td style="padding:14px 18px;background-color:#ffffff;">
+                    <p style="margin:0;font-size:14px;color:#141c2e;">
+                      ${address || '<span style="color:#aaaaaa;">Not provided</span>'}
                     </p>
                   </td>
                 </tr>
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="margin:0 0 4px;font-size:9px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#d3ad40;">Lead Source</p>
-                    <p style="margin:0;font-size:15px;color:#0a0a0a;">
-                      ${source || '<span style="color:#999999;">Unknown</span>'}
-                    </p>
-                  </td>
-                </tr>
+
               </table>
             </td>
           </tr>
 
           <!-- CTA BUTTON -->
           <tr>
-            <td style="padding:0 32px 32px;">
+            <td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
               <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background-color:#d3ad40;">
+                  <td style="background-color:#141c2e;border-radius:8px;">
                     <a href="tel:${phone}"
-                       style="display:inline-block;padding:14px 28px;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#0a0a0a;text-decoration:none;">
-                      Call ${fullName.split(' ')[0]} Now
+                       style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;">
+                      📞 &nbsp;Call ${fullName.split(' ')[0]} Now
                     </a>
                   </td>
                 </tr>
@@ -150,21 +137,16 @@ export default async function handler(req, res) {
 
           <!-- TIMESTAMP -->
           <tr>
-            <td style="padding:16px 32px;background-color:#f9f9f9;border-top:1px solid #e8e8e8;">
-              <p style="margin:0;font-size:11px;color:#999999;">
-                Submitted: ${submittedAt}
-              </p>
+            <td style="padding:14px 32px;background-color:#f5f6f8;border:1px solid #e3e7ef;border-top:none;">
+              <p style="margin:0;font-size:11px;color:#aaaaaa;">Submitted: ${submittedAt}</p>
             </td>
           </tr>
 
           <!-- FOOTER -->
           <tr>
-            <td style="background-color:#0a0a0a;padding:20px 32px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:10px;color:#d3ad40;letter-spacing:1px;text-transform:uppercase;font-weight:bold;">
-                Goldsure Pty Ltd
-              </p>
-              <p style="margin:0;font-size:10px;color:#555555;letter-spacing:0.5px;">
-                info@goldsure.com.au &nbsp;|&nbsp; 03 7050 2846
+            <td style="padding:20px 32px;text-align:center;">
+              <p style="margin:0;font-size:11px;color:#aaaaaa;">
+                Goldsure Pty Ltd &nbsp;&middot;&nbsp; info@goldsure.com.au &nbsp;&middot;&nbsp; 03 7050 2846
               </p>
             </td>
           </tr>
@@ -184,8 +166,7 @@ New Callback Request
 Name: ${fullName}
 Phone: ${phone}
 Email: ${email || "Not provided"}
-Postcode: ${postcode || "Not provided"}
-Source: ${source || "Unknown"}
+Address: ${address || "Not provided"}
 
 Submitted: ${submittedAt}
 `;
@@ -197,9 +178,9 @@ Submitted: ${submittedAt}
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        from: "Goldsure Leads <info@goldsure.com.au>",
+        from: "Goldsure Leads <vignesh@goldsure.com.au>",
         to: ["info@goldsure.com.au"],
-        subject: `New Call Back Request — ${fullName}`,
+        subject: `New Call Back Request - ${fullName}`,
         html: htmlMessage,
         text: plainFallback
       })
