@@ -874,9 +874,11 @@ function electricianNamesMatch(name, filter) {
   const rightParts = right.split(' ').filter(Boolean)
   if (!leftParts.length || !rightParts.length) return false
 
-  // Support legacy links/bookings where only the first name or a shortened name was stored.
+  // Support legacy short links like ?electrician=mahmoud matching
+  // full stored names like "Mahmoud El Moussa", but do not let
+  // a full-name worker link match stale one-word booking rows.
   if (leftParts[0] !== rightParts[0]) return false
-  return leftParts.length === 1 || rightParts.length === 1
+  return rightParts.length === 1
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -1296,12 +1298,13 @@ async function handleCSV(event) {
     const ownerSlug = n.replace(/^(avail|unavail):/, '').trim()
     // Check if this owner has a booking on this exact date in the new CSV
     return rows.some(r => {
-      const rName = (r.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim().toLowerCase()
-      return r.work_date === e.work_date && (rName === ownerSlug || rName.startsWith(ownerSlug.split(' ')[0]))
+      return r.work_date === e.work_date && electricianNamesMatch(r.electrician || '', ownerSlug)
     })
   })
   if (availToDelete.length > 0) {
-    await db.delete('electrician_calendar', {electrician: {in: availToDelete.map(e => e.electrician)}, work_date: {in: availToDelete.map(e => e.work_date)}})
+    for (const row of availToDelete) {
+      await db.delete('electrician_calendar', { electrician: row.electrician, work_date: row.work_date })
+    }
   }
 
   showToast(`✓ Inserted ${rows.length} row${rows.length!==1?'s':''} from CSV`)
