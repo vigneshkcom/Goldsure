@@ -514,7 +514,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div class="email-preview">
         <div class="email-preview-row"><strong>Fieldworker</strong><span id="emailPreviewWorker">—</span></div>
         <div class="email-preview-row"><strong>Pay period</strong><span id="emailPreviewPeriod">—</span></div>
-        <div class="email-preview-row"><strong>Attachment</strong><span id="emailPreviewAttachment">Installer Pay Summary.pdf</span></div>
+        <div class="email-preview-row"><strong>Format</strong><span id="emailPreviewAttachment">Goldsure summary email</span></div>
       </div>
       <div class="modal-field">
         <label for="electricianEmailInput">Recipient Email</label>
@@ -524,15 +524,13 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <button class="btn" type="button" onclick="closeEmailElectricianModal()">Cancel</button>
         <button class="btn btn-sendmail" id="sendElectricianEmailBtn" type="button" onclick="sendElectricianEmail()">
           <span class="spinner"></span>
-          <span class="btn-text">Send PDF</span>
+          <span class="btn-text">Send Email</span>
         </button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script ></script><script>
 /* ── PAY RATES ── */
 // Only these product codes appear as columns in the table
@@ -565,6 +563,7 @@ function payRate(name) {
 let allRows = [], fileDateFrom = '', fileDateTo = '';
 let paymentSelections = {}; // jobId -> 'bank' | 'cash'
 const PAY_SUMMARY_EMAIL_API = '/api/smoke-alarms/reports/send-installer-pay-summary';
+let currentEmailPayload = null;
 
 /* ── FILE UPLOAD ── */
 const dropZone  = document.getElementById('dropZone');
@@ -796,6 +795,7 @@ function renderTable() {
   }
 
   if (!jobs.length) {
+    currentEmailPayload = null;
     document.getElementById('tableContainer').innerHTML =
       '<p style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">No data found for the selected period and fieldworker.</p>';
     return;
@@ -884,6 +884,36 @@ function renderTable() {
     ${cashRows}
   </tfoot>`;
 
+  currentEmailPayload = {
+    worker: worker === '__ALL__' ? '' : worker,
+    period: periodLabel,
+    totals: {
+      jobs: totJobs,
+      units: totUnits,
+      payEx: baseEx.toFixed(2),
+      payInc: totInc.toFixed(2),
+      payIncGross: baseInc.toFixed(2),
+      smoke: totalSmoke,
+      controllers: totalControllers,
+      deduction: deduction.toFixed(2)
+    },
+    columns: cols.map(shortHdr),
+    jobs: jobs.map(j => ({
+      installedDate: friendly(j.d),
+      jobId: j.id,
+      items: cols.map(p => j.prods[p] || 0),
+      totalQty: cols.reduce((s,p) => s + (j.prods[p] || 0), 0),
+      balance: j.balance > 0 ? j.balance.toFixed(2) : '',
+      paymentMethod: j.balance > 0 ? ((paymentSelections[j.id] || 'bank') === 'cash' ? 'Cash Collected' : 'Bank Transfer') : '',
+      payEx: j.payEx.toFixed(2),
+      payInc: j.payInc.toFixed(2)
+    })),
+    footer: {
+      grandQty,
+      colTotals: cols.map(p => colTot[p] || 0)
+    }
+  };
+
   document.getElementById('tableContainer').innerHTML = `<table>${thead}${tbody}${tfoot}</table>`;
 }
 
@@ -919,8 +949,8 @@ function getCurrentPeriodLabel() {
   return document.getElementById('tablePeriodLabel').textContent.trim() || 'Selected Period';
 }
 
-function getPdfAttachmentName() {
-  return `Installer-Pay-Summary-${sanitizeFilenamePart(getCurrentWorkerName())}-${sanitizeFilenamePart(getCurrentPeriodLabel())}.pdf`;
+function getEmailSubject() {
+  return `${getCurrentWorkerName()} Installer Pay Summary - ${getCurrentPeriodLabel()}`;
 }
 
 function openEmailElectricianModal() {
@@ -931,7 +961,7 @@ function openEmailElectricianModal() {
   }
   document.getElementById('emailPreviewWorker').textContent = worker;
   document.getElementById('emailPreviewPeriod').textContent = getCurrentPeriodLabel();
-  document.getElementById('emailPreviewAttachment').textContent = getPdfAttachmentName();
+  document.getElementById('emailPreviewAttachment').textContent = 'Goldsure summary email';
   document.getElementById('electricianEmailInput').value = '';
   document.getElementById('emailElectricianModal').classList.add('open');
   setTimeout(() => document.getElementById('electricianEmailInput').focus(), 30);
@@ -941,61 +971,14 @@ function closeEmailElectricianModal() {
   document.getElementById('emailElectricianModal').classList.remove('open');
 }
 
-async function buildInstallerPayPdfBase64() {
-  const capture = document.createElement('div');
-  capture.className = 'hidden-pdf-capture';
-  capture.innerHTML = `
-    <div style="background:#ffffff;border-bottom:1px solid #e3e7ef;padding:14px 28px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <img src="/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;">
-          <div>
-            <div style="font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:#141c2e;">Goldsure <span style="color:#2d6be4;">|</span> Installer Pay</div>
-            <div style="font-family:'Sora',sans-serif;font-size:11px;color:#6b7899;">${getCurrentPeriodLabel()}</div>
-          </div>
-        </div>
-        <div style="font-family:'Sora',sans-serif;font-size:12px;font-weight:700;color:#6b7899;text-transform:uppercase;letter-spacing:0.4px;">${getCurrentWorkerName()}</div>
-      </div>
-    </div>
-    <div style="padding:24px 28px 10px;background:#f5f6f8;">${document.querySelector('main').innerHTML}</div>
-  `;
-  document.body.appendChild(capture);
-
-  try {
-    const canvas = await html2canvas(capture, { scale: 2, useCORS: true, backgroundColor: '#f5f6f8' });
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 8;
-    const usableWidth = pageWidth - margin * 2;
-    const usableHeight = pageHeight - margin * 2;
-    const imgWidth = usableWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    const imgData = canvas.toDataURL('image/png');
-
-    let heightLeft = imgHeight;
-    let position = margin;
-    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-    heightLeft -= usableHeight;
-
-    while (heightLeft > 0) {
-      position = margin - (imgHeight - heightLeft);
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-      heightLeft -= usableHeight;
-    }
-
-    return pdf.output('datauristring').split(',')[1];
-  } finally {
-    capture.remove();
-  }
-}
-
 async function sendElectricianEmail() {
   const worker = getCurrentWorkerName();
   if (!worker) {
     showToast('Choose a specific electrician first', true);
+    return;
+  }
+  if (!currentEmailPayload || !currentEmailPayload.jobs || !currentEmailPayload.jobs.length) {
+    showToast('No summary data available to send', true);
     return;
   }
 
@@ -1011,17 +994,13 @@ async function sendElectricianEmail() {
   btn.classList.add('loading');
 
   try {
-    const pdfBase64 = await buildInstallerPayPdfBase64();
     const res = await fetch(PAY_SUMMARY_EMAIL_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to: email,
-        worker,
-        period: getCurrentPeriodLabel(),
-        subject: `${worker} Installer Pay Summary - ${getCurrentPeriodLabel()}`,
-        filename: getPdfAttachmentName(),
-        pdfBase64
+        subject: getEmailSubject(),
+        summary: currentEmailPayload
       })
     });
     const json = await res.json().catch(() => ({}));
