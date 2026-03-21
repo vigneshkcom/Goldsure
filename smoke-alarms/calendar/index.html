@@ -856,6 +856,29 @@ function getPillClass(name) {
   return _pillColorMap.get(key)
 }
 
+function stripBookingPrefix(name) {
+  return (name || '').replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim()
+}
+
+function normalizeElectricianName(name) {
+  return stripBookingPrefix(name).replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function electricianNamesMatch(name, filter) {
+  const left = normalizeElectricianName(name)
+  const right = normalizeElectricianName(filter)
+  if (!left || !right) return false
+  if (left === right) return true
+
+  const leftParts = left.split(' ').filter(Boolean)
+  const rightParts = right.split(' ').filter(Boolean)
+  if (!leftParts.length || !rightParts.length) return false
+
+  // Support legacy links/bookings where only the first name or a shortened name was stored.
+  if (leftParts[0] !== rightParts[0]) return false
+  return leftParts.length === 1 || rightParts.length === 1
+}
+
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 // Compute the right month's year/month from left's
@@ -922,7 +945,13 @@ function renderCalendarGrid(containerId, year, month, events) {
   const activeState = workerFilter ? (electricianStates[workerFilter] || null) : null
   const holidayMap  = buildHolidayMap(year, activeState)
   const filteredRows = workerFilter
-    ? events.filter(r => (r.electrician || '').toLowerCase().includes(workerFilter))
+    ? events.filter(r => {
+        const raw = (r.electrician || '').toLowerCase()
+        if (raw.startsWith('avail:') || raw.startsWith('unavail:')) {
+          return electricianNamesMatch(raw.replace(/^(avail|unavail):/, '').trim(), workerFilter)
+        }
+        return electricianNamesMatch(r.electrician || '', workerFilter)
+      })
     : events
 
   for (let i = 0; i < firstDay; i++) {
@@ -971,7 +1000,7 @@ function renderCalendarGrid(containerId, year, month, events) {
       return !n.startsWith('avail:') && !n.startsWith('unavail:')
     })
     const relevantWorkers = workerFilter
-      ? bookedWorkers.filter(e => (e.electrician||'').toLowerCase().includes(workerFilter))
+      ? bookedWorkers.filter(e => electricianNamesMatch(e.electrician || '', workerFilter))
       : bookedWorkers
     // Lock only when real, recognisable CSV-booked entries exist.
     // Guards against stale/ghost DB rows triggering a lock on visually empty days.
@@ -1003,7 +1032,7 @@ function renderCalendarGrid(containerId, year, month, events) {
       const pill = document.createElement('span')
       if (raw.startsWith('avail:')) {
         const owner = raw.replace('avail:', '').trim()
-        if (workerFilter && !owner.includes(workerFilter)) return
+        if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
         // Hide avail pill if this person already has a booking showing
         const ownerFirstName = owner.split(' ')[0]
         if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirstName))) return
@@ -1012,7 +1041,7 @@ function renderCalendarGrid(containerId, year, month, events) {
         pill.textContent = workerFilter ? '✔ Available' : '✔ ' + cap
       } else if (raw.startsWith('unavail:')) {
         const owner = raw.replace('unavail:', '').trim()
-        if (workerFilter && !owner.includes(workerFilter)) return
+        if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
         // Hide unavail pill if this person already has a booking showing
         const ownerFirstName = owner.split(' ')[0]
         if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirstName))) return
@@ -1022,7 +1051,7 @@ function renderCalendarGrid(containerId, year, month, events) {
       } else {
         // Booked entry — in worker view show "🔒 Booked", in admin show first name + month job count.
         pill.className = `pill ${getPillClass(e.electrician || '')}`
-        if (workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)) {
+        if (workerFilter && electricianNamesMatch(e.electrician || '', workerFilter)) {
           pill.textContent = '🔒 Booked'
         } else {
           const idMatch = (e.electrician||'').match(/^\[\d+(?:\|(\d+))?\]/)
@@ -1048,9 +1077,9 @@ function renderCalendarGrid(containerId, year, month, events) {
           const n = (e.electrician||'').toLowerCase()
           if (n.startsWith('avail:') || n.startsWith('unavail:')) {
             const owner = n.replace(/^(avail|unavail):/, '').trim()
-            return owner.includes(workerFilter)
+            return electricianNamesMatch(owner, workerFilter)
           }
-          return true
+          return electricianNamesMatch(e.electrician || '', workerFilter)
         })
       : dayWorkers
 
@@ -1078,7 +1107,7 @@ function renderCalendarGrid(containerId, year, month, events) {
           lbl.textContent = workerFilter ? '✕ Unavailable' : '✕ ' + ownerFirst.charAt(0).toUpperCase()+ownerFirst.slice(1)
         } else {
           const displayName = (e.electrician||'').replace(/\[.*?\]/g,'').trim().split(' ').filter(Boolean)[0]||'—'
-          const isBookedWorker = workerFilter && (e.electrician||'').toLowerCase().includes(workerFilter)
+          const isBookedWorker = workerFilter && electricianNamesMatch(e.electrician || '', workerFilter)
           if (isBookedWorker) {
             lbl.className = 'mobile-name dot-0'
             lbl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:2px;'
@@ -1145,7 +1174,13 @@ function openWorkerModal(dateStr) {
   document.getElementById('adminView').style.display  = 'none'
   document.getElementById('workerView').style.display = 'block'
   document.getElementById('modalTitle').textContent   = 'Your Availability'
-  const bookedEntry  = cachedEvents.find(e => { const el=(e.electrician||'').toLowerCase(); return e.work_date===dateStr&&el.includes(workerFilter)&&!el.startsWith('avail:')&&!el.startsWith('unavail:') })
+  const bookedEntry  = cachedEvents.find(e => {
+    const el=(e.electrician||'').toLowerCase()
+    return e.work_date===dateStr
+      && !el.startsWith('avail:')
+      && !el.startsWith('unavail:')
+      && electricianNamesMatch(e.electrician || '', workerFilter)
+  })
   const availEntry   = cachedEvents.find(e => e.work_date===dateStr&&(e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
   const unavailEntry = cachedEvents.find(e => e.work_date===dateStr&&(e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
   const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText')
@@ -1261,7 +1296,7 @@ async function handleCSV(event) {
     const ownerSlug = n.replace(/^(avail|unavail):/, '').trim()
     // Check if this owner has a booking on this exact date in the new CSV
     return rows.some(r => {
-      const rName = (r.electrician||'').replace(/^\[\d+\]\s*/, '').trim().toLowerCase()
+      const rName = (r.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim().toLowerCase()
       return r.work_date === e.work_date && (rName === ownerSlug || rName.startsWith(ownerSlug.split(' ')[0]))
     })
   })
