@@ -118,18 +118,18 @@ function buildEmailHtml(summary) {
 <table width="600" border="0" cellpadding="0" cellspacing="0"
        style="background:#ffffff;" bgcolor="#ffffff">
 
-  <!-- HEADER: black with logo -->
+  <!-- HEADER: white background with logo -->
   <tr>
-    <td bgcolor="#000000" align="center"
-        style="padding:24px 32px 8px;background:#000000;">
+    <td bgcolor="#ffffff" align="center"
+        style="padding:24px 32px 8px;background:#ffffff;">
       <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
            alt="Goldsure" width="160" height="auto"
            style="display:block;width:160px;border:0;" />
     </td>
   </tr>
   <tr>
-    <td bgcolor="#000000" align="center"
-        style="padding:2px 32px 16px;background:#000000;">
+    <td bgcolor="#ffffff" align="center"
+        style="padding:2px 32px 16px;background:#ffffff;">
       <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:8px;
                 font-weight:bold;letter-spacing:5px;text-transform:uppercase;
                 color:#b08d2e;">Installer Pay Summary</p>
