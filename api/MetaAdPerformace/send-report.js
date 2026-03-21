@@ -1,5 +1,5 @@
-// api/send-report.js
-// Goldsure — Smoke Alarms Daily Report
+﻿// api/send-report.js
+// Goldsure â€” Smoke Alarms Daily Report
 //
 // Cron: "0 6 * * 1-5" -> 06:00 UTC = 5:00 PM AEDT (UTC+11)
 //
@@ -73,7 +73,7 @@ async function fetchAllOpportunities() {
   return all;
 }
 
-// ── Source categorisation (mirrors dashboard logic) ──
+// â”€â”€ Source categorisation (mirrors dashboard logic) â”€â”€
 // Only explicit Meta-only tokens belong here.
 // Broad brand/form labels like "Gold sure", "Smoke Alarms", or
 // "Above the fold" can exist on non-Meta lead paths and were causing
@@ -93,6 +93,15 @@ function looksLikeMetaCampaign(str) {
   return META_CAMPAIGN_PATTERNS.some(p => s.includes(p));
 }
 
+function isLandingPageLabel(str) {
+  const s = (str || '').toLowerCase().trim();
+  return s.includes('gold sure - smoke alarms') || s.includes('goldsure - smoke alarms');
+}
+
+function displaySourceLabel(str) {
+  return isLandingPageLabel(str) ? 'Landing Page' : (str || 'Unknown');
+}
+
 function categoriseSource(rawSource, attr) {
   if (attr) {
     const { type, medium, utmSource, referrer, gclid } = attr;
@@ -101,7 +110,7 @@ function categoriseSource(rawSource, attr) {
         (utmSource && referrer.includes('google.com'))) return 'Google';
     if (utmSource === 'fb_ad' || utmSource === 'facebook' || utmSource === 'instagram' ||
         type === 'paid social' || medium === 'paid social') return 'Meta';
-    // Referrer: Facebook/Instagram domain = paid or organic social — disambiguate via contactSource below
+    // Referrer: Facebook/Instagram domain = paid or organic social â€” disambiguate via contactSource below
     const metaSocial = ['facebook.com','instagram.com'];
     const otherSocial = ['linkedin.com','twitter.com','tiktok.com'];
     const isMeta  = metaSocial.some(d => referrer.includes(d));
@@ -119,7 +128,7 @@ function categoriseSource(rawSource, attr) {
   // Check rawSource as a URL/referrer (e.g. "https://l.facebook.com", "https://www.google.com/...")
   const oppSrcUrl = (rawSource || '').toLowerCase();
   if (oppSrcUrl.includes('facebook.com') || oppSrcUrl.includes('instagram.com') || oppSrcUrl.includes('l.facebook')) {
-    // Facebook/Instagram URL — paid vs organic determined by campaign name on contact source
+    // Facebook/Instagram URL â€” paid vs organic determined by campaign name on contact source
     const csCheck = (attr?.contactSource || '').toLowerCase();
     if (looksLikeMetaCampaign(csCheck)) return 'Meta';
     return 'Meta'; // l.facebook.com as opp source almost always means a paid ad click
@@ -184,7 +193,7 @@ function mapOpp(opp, contactAttrMap) {
   const GENERIC_SOURCES = ['social media','paid social','paid search','organic search','organic social','direct traffic','direct','referral','unknown',''];
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
 
-  // Tags fallback — e.g. ["smoke alarm landing page"] → "Smoke Alarm Landing Page"
+  // Tags fallback â€” e.g. ["smoke alarm landing page"] â†’ "Smoke Alarm Landing Page"
   const oppTags = Array.isArray(opp.tags) ? opp.tags : [];
   const tagLabel = oppTags.length > 0
     ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
@@ -285,11 +294,11 @@ function calcKPIs(leads) {
     const platform = getPlatform(first);
     // If a form/campaign name is available, append it as the conversion touchpoint label
     const latestLabel = r.formName
-      ? `Landing Page (${r.formName})`
-      : latest;
+      ? 'Landing Page'
+      : displaySourceLabel(latest);
     const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
-      ? first
-      : `${first} → ${latestLabel}`;
+      ? displaySourceLabel(first)
+      : `${displaySourceLabel(first)} -> ${latestLabel}`;
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
     if (isInstalled(r.stage)) pathData[platform].i++;
@@ -318,7 +327,7 @@ async function fetchMetaSpend(since, until) {
   } catch(e) { return 0; }
 }
 
-// Google Ads spend (ex-GST) — calls Google Ads API directly (same logic as google-spend.js)
+// Google Ads spend (ex-GST) â€” calls Google Ads API directly (same logic as google-spend.js)
 // Avoids unreliable internal Vercel self-calls from cron jobs.
 async function fetchGoogleSpend(since, until) {
   try {
@@ -334,7 +343,7 @@ async function fetchGoogleSpend(since, until) {
     if (!GOOGLE_ADS_DEVELOPER_TOKEN || !GOOGLE_ADS_CLIENT_ID ||
         !GOOGLE_ADS_CLIENT_SECRET   || !GOOGLE_ADS_REFRESH_TOKEN ||
         !GOOGLE_ADS_MANAGER_ID      || !GOOGLE_ADS_CUSTOMER_ID) {
-      console.warn('[Google] Missing env vars — skipping Google spend');
+      console.warn('[Google] Missing env vars â€” skipping Google spend');
       return 0;
     }
 
@@ -390,7 +399,7 @@ async function fetchGoogleSpend(since, until) {
       });
     }
 
-    // Google returns inc-GST AUD → divide by 1.1 for ex-GST (matches dashboard)
+    // Google returns inc-GST AUD â†’ divide by 1.1 for ex-GST (matches dashboard)
     return (totalMicros / 1_000_000) / 1.1;
   } catch(e) {
     console.warn('[Google] fetchGoogleSpend error:', e.message);
@@ -398,7 +407,7 @@ async function fetchGoogleSpend(since, until) {
   }
 }
 
-// Email HTML — Outlook-safe: tables only, all inline styles, no flexbox or CSS grid
+// Email HTML â€” Outlook-safe: tables only, all inline styles, no flexbox or CSS grid
 const fmt$   = n => `$${n.toFixed(2)}`;
 const fmtPct = n => `${n}%`;
 
@@ -420,7 +429,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
 
   const totalSpendToday = metaToday + googleToday;
 
-  // Today's leads broken down by source — for the source pills row
+  // Today's leads broken down by source â€” for the source pills row
   const todayLeads = filterRange(allOpps, today.from, today.to);
   const SOURCE_COLORS = { Meta: '#2d6be4', Google: '#18a96e', 'Organic Search': '#7251c2', 'Organic Social': '#d98c1e', Direct: '#0ea4ac', Referral: '#6b7899', Unknown: '#94a3b8' };
   const todaySrcCount = {};
@@ -432,7 +441,8 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
     .sort((a, b) => b[1] - a[1])
     .map(([src, cnt]) => {
       const col = SOURCE_COLORS[src] || '#94a3b8';
-      const label = cnt === 1 ? `1 ${src}` : `${cnt} ${src}`;
+      const labelSrc = displaySourceLabel(src);
+      const label = cnt === 1 ? `1 ${labelSrc}` : `${cnt} ${labelSrc}`;
       return `<span style="display:inline-block;background:${col}18;border:1px solid ${col}44;color:${col};font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:20px;margin:0 4px 4px 0;">${label}</span>`;
     }).join('');
   const totalSpendLast7 = metaLast7 + googleLast7;
@@ -443,7 +453,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   const last7CPI  = last7KPIs.inst  > 0 && totalSpendLast7 > 0 ? totalSpendLast7 / last7KPIs.inst  : null;
   const noLeadsToday = todayKPIs.total === 0;
 
-  // ── Colours from Goldsure design language ──
+  // â”€â”€ Colours from Goldsure design language â”€â”€
   const GOLD    = '#b08d2e';
   const DARK    = '#141c2e';
   const MUTED   = '#6b7899';
@@ -453,13 +463,13 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   const BORDER  = '#e3e7ef';
   const SURFACE = '#f5f6f8';
 
-  // ── Shared style strings (must be declared before dayRows / stageRows etc.) ──
+  // â”€â”€ Shared style strings (must be declared before dayRows / stageRows etc.) â”€â”€
   const F   = 'font-family:Arial,Helvetica,sans-serif;';
   const sec = `${F}font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:${MUTED};margin:0 0 16px 0;`;
   const th  = `${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};padding:9px 12px;border-bottom:2px solid ${BORDER};background-color:#f8f9fb;`;
   const td0 = `${F}font-size:13px;color:${DARK};padding:10px 12px;border-bottom:1px solid ${BORDER};`;
 
-  // ── Trend arrow helper ──
+  // â”€â”€ Trend arrow helper â”€â”€
   function trend(curr, prior, invert = false, unit = '') {
     if (prior == null || prior === 0) return '';
     const diff = curr - prior;
@@ -472,7 +482,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
     return `<span style="color:${col};font-size:10px;">${arrow} ${abs}${unit === '%' ? '%' : ''} vs prior 7d</span>`;
   }
 
-  // ── Day-by-day rows ──
+  // â”€â”€ Day-by-day rows â”€â”€
   const dayRows = dailyDates.map((day, i) => {
     const kpi     = calcKPIs(filterRange(allOpps, day, day));
     const isToday = i === 0;
@@ -492,7 +502,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       </tr>`;
   }).join('');
 
-  // ── Stage breakdown rows (today) ──
+  // â”€â”€ Stage breakdown rows (today) â”€â”€
   const stageRows = todayKPIs.breakdown.length > 0
     ? todayKPIs.breakdown.map(({ stage, count }) => {
         const display = stage === 'Won/Installed' ? 'Installed' : stage === 'Qualified/IHA Complete' ? 'Qualified' : stage;
@@ -506,7 +516,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       }).join('')
     : `<tr><td colspan="3" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No leads recorded today</td></tr>`;
 
-  // ── Journey path rows (7-day) ──
+  // â”€â”€ Journey path rows (7-day) â”€â”€
   const PLATFORM_COLORS_EMAIL = {
     'Meta': BLUE, 'Google': GREEN, 'Organic Social': GOLD,
     'Direct': '#7251c2', 'Referral': '#0ea4ac', 'Unknown': MUTED,
@@ -537,7 +547,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
       }).join('')
     : `<tr><td colspan="4" style="padding:16px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
 
-  // ── Big stat cell builder ──
+  // â”€â”€ Big stat cell builder â”€â”€
   function stat(label, value, sub = '', valueColor = DARK) {
     return `<td valign="top" width="16%" style="padding:0 12px 0 0;">
       <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
@@ -618,7 +628,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
         <tr>
           ${stat('New Leads', todayKPIs.total)}
           ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`, todayKPIs.inst > 0 ? GREEN : DARK)}
-          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '—', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
+          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : 'â€”', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
           ${statCPL(todayCPL)}
           ${statCPI(todayCPI)}
         </tr>
@@ -750,7 +760,7 @@ export default async function handler(req, res) {
 
   try {
     const nowUtc     = new Date();
-    const todayStr   = nowUtc.toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' }); // → "YYYY-MM-DD"
+    const todayStr   = nowUtc.toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' }); // â†’ "YYYY-MM-DD"
     const today      = new Date(todayStr + 'T12:00:00'); // noon anchor for safe date arithmetic
     const ranges     = buildRanges(today);
     const dailyDates = buildDailyDates(today);
@@ -773,7 +783,7 @@ export default async function handler(req, res) {
         from:    'Vignesh <vignesh@goldsure.com.au>',
         to:      recipients,
         bcc:     bcc,
-        subject: `Goldsure Ad Performance Report — ${dateStr}`,
+        subject: `Goldsure Ad Performance Report â€” ${dateStr}`,
         html,
       }),
     });

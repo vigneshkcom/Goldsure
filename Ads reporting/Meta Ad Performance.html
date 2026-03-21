@@ -1689,6 +1689,15 @@ function looksLikeMetaCampaign(str) {
   return META_CAMPAIGN_PATTERNS.some(p => s.includes(p));
 }
 
+function isLandingPageLabel(str) {
+  const s = (str || '').toLowerCase().trim();
+  return s.includes('gold sure - smoke alarms') || s.includes('goldsure - smoke alarms');
+}
+
+function displaySourceLabel(str) {
+  return isLandingPageLabel(str) ? 'Landing Page' : (str || 'Unknown');
+}
+
 function categoriseSource(rawSource, contactAttr) {
   if (contactAttr) {
     const { type, medium, utmSource, referrer, gclid } = contactAttr;
@@ -2227,7 +2236,7 @@ function renderStagesAndSources(leads, total, totalAdSpend, product){
     if(isWon(r)) srcMap[r.source].i++;
   });
   const sortedSrc=Object.entries(srcMap).sort((a,b)=>b[1].t-a[1].t);
-  document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${src}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
+  document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${displaySourceLabel(src)}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
 
   renderJourneyPaths(leads);
   renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'));
@@ -2273,11 +2282,11 @@ function renderJourneyPaths(leads) {
     const platform = getPlatform(first);
     // If a form/campaign name is available, append it as the conversion touchpoint label
     const latestLabel = r.formName
-      ? `Landing Page (${r.formName})`
-      : latest;
+      ? 'Landing Page'
+      : displaySourceLabel(latest);
     const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
-      ? first
-      : `${first} → ${latestLabel}`;
+      ? displaySourceLabel(first)
+      : `${displaySourceLabel(first)} → ${latestLabel}`;
 
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
