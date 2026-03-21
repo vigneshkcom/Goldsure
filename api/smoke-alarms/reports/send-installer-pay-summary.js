@@ -170,7 +170,7 @@ function buildEmailHtml(summary) {
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding-right:10px;vertical-align:middle;">
-              <div style="background:#f5c518;border-radius:6px;width:28px;height:28px;text-align:center;line-height:28px;font-size:15px;font-weight:900;color:#141c2e;">G</div>
+              <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" style="height:32px;width:auto;display:block;">
             </td>
             <td style="vertical-align:middle;">
               <div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure | Installer Pay</div>
