@@ -23,23 +23,23 @@ function buildEmailHtml(summary) {
   const jobs = Array.isArray(summary.jobs) ? summary.jobs : [];
   const footer = summary.footer || {};
 
-  // ── Shared cell styles ──
-  const thStyle = 'padding:8px 6px;border-bottom:1px solid #e3e7ef;font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;color:#6b7899;min-width:48px;';
+  const thStyle = 'padding:8px 6px;border-bottom:1px solid #e3e7ef;font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;color:#6b7899;';
   const tdBase = 'padding:8px 6px;border-bottom:1px solid #eef2f7;font-size:11px;';
   const tfStyle = 'padding:8px 6px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:11px;font-weight:700;';
 
+  // ── Desktop table ──
   const headerCells = columns.map(col =>
     `<th style="${thStyle}text-align:right;">${esc(col)}</th>`
   ).join('');
 
-  const jobRows = jobs.map((job, index) => {
+  const jobRowsDesktop = jobs.map((job, index) => {
     const itemCells = (job.items || []).map(val =>
       `<td style="${tdBase}color:${Number(val || 0) === 0 ? '#c8d0dd' : '#141c2e'};text-align:right;">${qty(val)}</td>`
     ).join('');
     return `
       <tr style="background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
         <td style="${tdBase}color:#6b7899;text-align:left;white-space:nowrap;">${esc(job.installedDate)}</td>
-        <td style="${tdBase}color:#2d6be4;text-align:left;font-weight:700;white-space:nowrap;">${esc(job.jobId)}</td>
+        <td style="${tdBase}color:#2d6be4;font-weight:700;text-align:left;white-space:nowrap;">${esc(job.jobId)}</td>
         ${itemCells}
         <td style="${tdBase}color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
         <td style="${tdBase}color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:right;">${job.balance ? money(job.balance) : '&mdash;'}</td>
@@ -55,12 +55,67 @@ function buildEmailHtml(summary) {
 
   const deductionRow = Number(totals.deduction || 0) > 0 ? `
     <tr>
-      <td colspan="${columns.length + 6}" style="padding:11px 8px;background:#fff5f5;border-top:1px solid #f3d1d1;font-size:12px;color:#b42318;text-align:right;font-weight:700;">
+      <td colspan="${columns.length + 6}" style="padding:10px 8px;background:#fff5f5;border-top:1px solid #f3d1d1;font-size:12px;color:#b42318;text-align:right;font-weight:700;">
         Cash Collected Deduction: ${money(totals.deduction)}
       </td>
     </tr>` : '';
 
-  // ── Stat cards: 2-column <table> layout — works in Gmail (no CSS classes needed) ──
+  // ── Mobile: one card per job ──
+  const mobileJobCards = jobs.map((job) => {
+    const productLines = columns.map((col, i) => {
+      const val = (job.items || [])[i];
+      if (Number(val || 0) === 0) return '';
+      return `<tr>
+        <td style="padding:4px 0;font-size:12px;color:#6b7899;">${esc(col)}</td>
+        <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(val)}</td>
+      </tr>`;
+    }).filter(Boolean).join('');
+
+    return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:10px;margin-bottom:10px;border-collapse:collapse;overflow:hidden;">
+      <tr style="background:#f8f9fc;">
+        <td style="padding:10px 12px;border-bottom:1px solid #e3e7ef;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-size:13px;font-weight:700;color:#2d6be4;">${esc(job.jobId)}</td>
+              <td style="font-size:11px;color:#6b7899;text-align:right;">${esc(job.installedDate)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr><td style="padding:10px 12px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${productLines}
+          <tr>
+            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Total Qty</td>
+            <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
+          </tr>
+          ${job.balance ? `<tr>
+            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Balance</td>
+            <td style="padding:4px 0;font-size:12px;color:#d98c1e;text-align:right;font-weight:700;">${money(job.balance)}</td>
+          </tr>` : ''}
+          ${job.paymentMethod ? `<tr>
+            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Payment</td>
+            <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;">${esc(job.paymentMethod)}</td>
+          </tr>` : ''}
+        </table>
+      </td></tr>
+      <tr style="background:#f8f9fc;"><td style="padding:10px 12px;border-top:1px solid #e3e7ef;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:12px;color:#6b7899;">Pay Ex GST</td>
+            <td style="font-size:14px;font-weight:700;color:#18a96e;text-align:right;">${money(job.payEx)}</td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:#6b7899;">Pay Inc GST</td>
+            <td style="font-size:14px;font-weight:700;color:#d98c1e;text-align:right;">${money(job.payInc)}</td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>`;
+  }).join('');
+
+  // ── Stat cards: 2-column table ──
   const statData = [
     { label: 'Fieldworker',     value: worker,               color: '#141c2e', sub: '' },
     { label: 'Pay Period',      value: period,               color: '#2d6be4', sub: '' },
@@ -70,24 +125,20 @@ function buildEmailHtml(summary) {
     { label: 'Pay Inc GST',     value: money(totals.payInc), color: '#d98c1e',
       sub: Number(totals.deduction || 0) > 0 ? 'net after cash deduction' : 'includes 10% GST' },
   ];
-
-  // Pair cards into rows of 2 for the table
   const statRows = [];
   for (let i = 0; i < statData.length; i += 2) {
-    const left  = statData[i];
-    const right = statData[i + 1];
+    const left = statData[i], right = statData[i + 1];
     const isLastRow = i + 2 >= statData.length;
-    const cellBorderBottom = isLastRow ? '' : 'border-bottom:1px solid #e3e7ef;';
-    const cellStyle = `padding:14px 16px;${cellBorderBottom}vertical-align:top;width:50%;`;
-    const renderCard = (card) => `
-      <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">${card.label}</div>
-      <div style="font-size:16px;font-weight:700;color:${card.color};margin-top:4px;">${card.value}</div>
-      ${card.sub ? `<div style="font-size:11px;color:#6b7899;margin-top:3px;">${card.sub}</div>` : ''}`;
-    statRows.push(`
-      <tr>
-        <td style="${cellStyle}border-right:1px solid #e3e7ef;">${renderCard(left)}</td>
-        <td style="${cellStyle}">${right ? renderCard(right) : ''}</td>
-      </tr>`);
+    const bb = isLastRow ? '' : 'border-bottom:1px solid #e3e7ef;';
+    const cell = `padding:12px 14px;${bb}vertical-align:top;width:50%;`;
+    const card = (c) => `
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">${c.label}</div>
+      <div style="font-size:15px;font-weight:700;color:${c.color};margin-top:4px;">${c.value}</div>
+      ${c.sub ? `<div style="font-size:10px;color:#6b7899;margin-top:2px;">${c.sub}</div>` : ''}`;
+    statRows.push(`<tr>
+      <td style="${cell}border-right:1px solid #e3e7ef;">${card(left)}</td>
+      <td style="${cell}">${right ? card(right) : ''}</td>
+    </tr>`);
   }
 
   return `<!DOCTYPE html>
@@ -96,15 +147,26 @@ function buildEmailHtml(summary) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Installer Pay Summary</title>
+  <style>
+    /* u+.body targets Gmail Android specifically */
+    u+.body .mob-hide { display:none !important; max-height:0 !important; overflow:hidden !important; mso-hide:all; }
+    u+.body .mob-show { display:block !important; max-height:none !important; }
+    u+.body .mob-show-row { display:table-row !important; max-height:none !important; }
+    /* Standard media query for Apple Mail, Samsung, etc. */
+    @media only screen and (max-width:600px) {
+      .mob-hide { display:none !important; max-height:0 !important; overflow:hidden !important; }
+      .mob-show { display:block !important; max-height:none !important; }
+      .mob-show-row { display:table-row !important; max-height:none !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:16px;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;color:#141c2e;">
+<body class="body" style="margin:0;padding:12px;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;color:#141c2e;">
 
-  <!-- Outer card -->
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:960px;margin:0 auto;background:#ffffff;border:1px solid #e3e7ef;border-radius:16px;overflow:hidden;">
 
     <!-- Header -->
     <tr>
-      <td style="padding:16px 20px;border-bottom:1px solid #e3e7ef;">
+      <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;">
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding-right:10px;vertical-align:middle;">
@@ -119,72 +181,91 @@ function buildEmailHtml(summary) {
       </td>
     </tr>
 
-    <!-- Stat cards (2-column table — Gmail safe) -->
+    <!-- Stat cards (always visible, 2-col table) -->
     <tr>
-      <td style="padding:14px 16px 0;">
+      <td style="padding:12px 16px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:12px;overflow:hidden;border-collapse:collapse;">
           ${statRows.join('')}
         </table>
       </td>
     </tr>
 
-    <!-- Jobs table section -->
-    <tr>
+    <!-- DESKTOP: full table row — hidden on mobile -->
+    <tr class="mob-hide">
       <td style="padding:14px 16px 18px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:12px;overflow:hidden;">
-
-          <!-- Section label -->
           <tr>
-            <td style="padding:12px 14px;border-bottom:1px solid #e3e7ef;">
+            <td style="padding:11px 14px;border-bottom:1px solid #e3e7ef;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">
+                  <td style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">
                     Installed Products by Job
                     <span style="font-size:13px;text-transform:none;letter-spacing:0;color:#141c2e;margin-left:6px;">${worker}</span>
                   </td>
                   <td align="right" style="padding-left:8px;white-space:nowrap;">
-                    <span style="display:inline-block;padding:5px 10px;border-radius:999px;background:#edf2fd;border:1px solid #c5d3f5;color:#2d6be4;font-size:11px;font-weight:700;">${period}</span>
+                    <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#edf2fd;border:1px solid #c5d3f5;color:#2d6be4;font-size:11px;font-weight:700;">${period}</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
-
-          <!-- Horizontally scrollable table wrapper -->
           <tr>
             <td style="padding:0;">
-              <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  <thead>
-                    <tr style="background:#f8f9fc;">
-                      <th style="${thStyle}text-align:left;">Installed Date</th>
-                      <th style="${thStyle}text-align:left;">Job No.</th>
-                      ${headerCells}
-                      <th style="${thStyle}text-align:right;">Total Qty</th>
-                      <th style="${thStyle}text-align:right;">Balance</th>
-                      <th style="${thStyle}text-align:left;">Payment Method</th>
-                      <th style="${thStyle}text-align:right;">Pay Ex GST</th>
-                      <th style="${thStyle}text-align:right;">Pay Inc GST</th>
-                    </tr>
-                  </thead>
-                  <tbody>${jobRows}</tbody>
-                  <tfoot>
-                    <tr>
-                      <td colspan="2" style="${tfStyle}color:#141c2e;text-align:left;">Gross Total</td>
-                      ${footerCells}
-                      <td style="${tfStyle}color:#141c2e;text-align:right;">${esc(footer.grandQty)}</td>
-                      <td style="${tfStyle}color:#141c2e;"></td>
-                      <td style="${tfStyle}color:#141c2e;"></td>
-                      <td style="${tfStyle}color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
-                      <td style="${tfStyle}color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
-                    </tr>
-                    ${deductionRow}
-                  </tfoot>
-                </table>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f8f9fc;">
+                    <th style="${thStyle}text-align:left;">Installed Date</th>
+                    <th style="${thStyle}text-align:left;">Job No.</th>
+                    ${headerCells}
+                    <th style="${thStyle}text-align:right;">Total Qty</th>
+                    <th style="${thStyle}text-align:right;">Balance</th>
+                    <th style="${thStyle}text-align:left;">Payment Method</th>
+                    <th style="${thStyle}text-align:right;">Pay Ex GST</th>
+                    <th style="${thStyle}text-align:right;">Pay Inc GST</th>
+                  </tr>
+                </thead>
+                <tbody>${jobRowsDesktop}</tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" style="${tfStyle}color:#141c2e;text-align:left;">Gross Total</td>
+                    ${footerCells}
+                    <td style="${tfStyle}color:#141c2e;text-align:right;">${esc(footer.grandQty)}</td>
+                    <td style="${tfStyle}"></td>
+                    <td style="${tfStyle}"></td>
+                    <td style="${tfStyle}color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
+                    <td style="${tfStyle}color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
+                  </tr>
+                  ${deductionRow}
+                </tfoot>
+              </table>
             </td>
           </tr>
+        </table>
+      </td>
+    </tr>
 
+    <!-- MOBILE: job cards row — hidden on desktop, shown on mobile -->
+    <tr class="mob-show-row" style="display:none;">
+      <td style="padding:12px 14px 16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;margin-bottom:10px;">Jobs &mdash; ${worker}</div>
+        ${mobileJobCards}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:10px;border-collapse:collapse;overflow:hidden;margin-top:4px;">
+          <tr style="background:#f8f9fc;">
+            <td colspan="2" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;font-size:11px;font-weight:700;color:#141c2e;">
+              Gross Total &mdash; ${esc(totals.jobs)} jobs, ${esc(totals.units)} units
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:10px 14px;font-size:13px;color:#6b7899;">Pay Ex GST</td>
+            <td style="padding:10px 14px;font-size:16px;font-weight:700;color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 14px;font-size:13px;color:#6b7899;">Pay Inc GST</td>
+            <td style="padding:10px 14px;font-size:16px;font-weight:700;color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
+          </tr>
+          ${Number(totals.deduction || 0) > 0 ? `<tr style="background:#fff5f5;">
+            <td colspan="2" style="padding:10px 14px;font-size:12px;color:#b42318;">Cash Collected Deduction: ${money(totals.deduction)}</td>
+          </tr>` : ''}
         </table>
       </td>
     </tr>
