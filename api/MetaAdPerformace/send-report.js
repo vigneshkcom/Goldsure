@@ -112,7 +112,8 @@ function categoriseSource(rawSource, attr) {
     if (isMeta && looksLikeMetaCampaign(csRaw)) return 'Meta';
     if (isMeta || isOther) return 'Organic Social';
     if (search.some(d => referrer.includes(d))) return 'Organic Search';
-    if (type === 'direct traffic' || type === 'direct') return 'Direct';
+    // Business rule: GHL "Direct traffic" is treated as Google for reporting.
+    if (type === 'direct traffic' || type === 'direct') return 'Google';
     if (type === 'referral') return 'Referral';
   }
   // Check rawSource as a URL/referrer (e.g. "https://l.facebook.com", "https://www.google.com/...")
@@ -136,7 +137,8 @@ function categoriseSource(rawSource, attr) {
   if (raw === 'organic search') return 'Organic Search';
   if (raw === 'organic social') return 'Organic Social';
   if (raw === 'social media') return 'Organic Social';
-  if (raw === 'direct traffic' || raw === 'direct') return 'Direct';
+  // Business rule: GHL "Direct traffic" is treated as Google for reporting.
+  if (raw === 'direct traffic' || raw === 'direct') return 'Google';
   if (raw === 'referral') return 'Referral';
   if (raw === 'landing page') return 'Landing Page';
   return rawSource || 'Unknown';
