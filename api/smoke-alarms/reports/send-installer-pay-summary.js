@@ -24,9 +24,9 @@ function buildEmailHtml(summary) {
   const footer = summary.footer || {};
 
   // ── Shared cell styles ──
-  const thStyle = 'padding:10px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;min-width:60px;';
-  const tdBase = 'padding:9px 8px;border-bottom:1px solid #eef2f7;font-size:12px;';
-  const tfStyle = 'padding:10px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;';
+  const thStyle = 'padding:8px 6px;border-bottom:1px solid #e3e7ef;font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;color:#6b7899;min-width:48px;';
+  const tdBase = 'padding:8px 6px;border-bottom:1px solid #eef2f7;font-size:11px;';
+  const tfStyle = 'padding:8px 6px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:11px;font-weight:700;';
 
   const headerCells = columns.map(col =>
     `<th style="${thStyle}text-align:right;">${esc(col)}</th>`
@@ -38,8 +38,8 @@ function buildEmailHtml(summary) {
     ).join('');
     return `
       <tr style="background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
-        <td style="${tdBase}color:#6b7899;text-align:left;">${esc(job.installedDate)}</td>
-        <td style="${tdBase}color:#2d6be4;text-align:left;font-weight:700;">${esc(job.jobId)}</td>
+        <td style="${tdBase}color:#6b7899;text-align:left;white-space:nowrap;">${esc(job.installedDate)}</td>
+        <td style="${tdBase}color:#2d6be4;text-align:left;font-weight:700;white-space:nowrap;">${esc(job.jobId)}</td>
         ${itemCells}
         <td style="${tdBase}color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
         <td style="${tdBase}color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:right;">${job.balance ? money(job.balance) : '&mdash;'}</td>
@@ -108,7 +108,7 @@ function buildEmailHtml(summary) {
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding-right:10px;vertical-align:middle;">
-              <img src="https://portal.goldsure.com.au/assets/48%20PX.png" alt="Goldsure" style="height:28px;width:auto;display:block;">
+              <div style="background:#f5c518;border-radius:6px;width:28px;height:28px;text-align:center;line-height:28px;font-size:15px;font-weight:900;color:#141c2e;">G</div>
             </td>
             <td style="vertical-align:middle;">
               <div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure | Installer Pay</div>
