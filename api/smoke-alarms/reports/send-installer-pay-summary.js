@@ -23,254 +23,297 @@ function buildEmailHtml(summary) {
   const jobs = Array.isArray(summary.jobs) ? summary.jobs : [];
   const footer = summary.footer || {};
 
-  const thStyle = 'padding:8px 6px;border-bottom:1px solid #e3e7ef;font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;color:#6b7899;';
-  const tdBase = 'padding:8px 6px;border-bottom:1px solid #eef2f7;font-size:11px;';
-  const tfStyle = 'padding:8px 6px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:11px;font-weight:700;';
+  // ── Job rows ──
+  const jobRowsHtml = jobs.map((job, index) => {
+    const bg = index % 2 === 0 ? '#ffffff' : '#f9f9f9';
+    const itemCells = (job.items || []).map(val => {
+      const isEmpty = Number(val || 0) === 0;
+      return `<td align="center" bgcolor="${bg}"
+          style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:13px;color:${isEmpty ? '#cccccc' : '#333333'};
+                 text-align:center;background:${bg};">
+        ${isEmpty ? '&mdash;' : esc(val)}
+      </td>`;
+    }).join('');
 
-  // ── Desktop table ──
-  const headerCells = columns.map(col =>
-    `<th style="${thStyle}text-align:right;">${esc(col)}</th>`
-  ).join('');
-
-  const jobRowsDesktop = jobs.map((job, index) => {
-    const itemCells = (job.items || []).map(val =>
-      `<td style="${tdBase}color:${Number(val || 0) === 0 ? '#c8d0dd' : '#141c2e'};text-align:right;">${qty(val)}</td>`
-    ).join('');
-    return `
-      <tr style="background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
-        <td style="${tdBase}color:#6b7899;text-align:left;white-space:nowrap;">${esc(job.installedDate)}</td>
-        <td style="${tdBase}color:#2d6be4;font-weight:700;text-align:left;white-space:nowrap;">${esc(job.jobId)}</td>
-        ${itemCells}
-        <td style="${tdBase}color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
-        <td style="${tdBase}color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:right;">${job.balance ? money(job.balance) : '&mdash;'}</td>
-        <td style="${tdBase}color:#141c2e;text-align:left;">${job.paymentMethod ? esc(job.paymentMethod) : '&mdash;'}</td>
-        <td style="${tdBase}color:#18a96e;text-align:right;font-weight:700;">${money(job.payEx)}</td>
-        <td style="${tdBase}color:#d98c1e;text-align:right;font-weight:700;">${money(job.payInc)}</td>
-      </tr>`;
+    return `<tr>
+      <td bgcolor="${bg}"
+          style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:11px;color:#888888;background:${bg};">
+        ${esc(job.installedDate)}</td>
+      <td bgcolor="${bg}"
+          style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:13px;font-weight:bold;color:#2d6be4;background:${bg};">
+        ${esc(job.jobId)}</td>
+      ${itemCells}
+      <td align="center" bgcolor="${bg}"
+          style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:14px;font-weight:bold;color:#b08d2e;
+                 text-align:center;background:${bg};">
+        ${esc(job.totalQty)}</td>
+      <td align="right" bgcolor="${bg}"
+          style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:13px;font-weight:bold;color:#18a96e;
+                 text-align:right;background:${bg};">
+        ${money(job.payEx)}</td>
+      <td align="right" bgcolor="${bg}"
+          style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:13px;font-weight:bold;color:#b08d2e;
+                 text-align:right;background:${bg};">
+        ${money(job.payInc)}</td>
+    </tr>`;
   }).join('');
 
-  const footerCells = (footer.colTotals || []).map(val =>
-    `<td style="${tfStyle}color:#141c2e;text-align:right;">${esc(val)}</td>`
-  ).join('');
+  // ── Column header cells ──
+  const colHeaderCells = columns.map(col => `
+    <td align="center" bgcolor="#000000"
+        style="padding:10px 6px;font-family:Arial,Helvetica,sans-serif;
+               font-size:8px;font-weight:bold;letter-spacing:1px;
+               text-transform:uppercase;color:#888888;text-align:center;
+               background:#000000;">
+      ${esc(col)}</td>`).join('');
+
+  // ── Footer totals cells ──
+  const colTotalCells = (footer.colTotals || []).map(val => `
+    <td align="center" bgcolor="#000000"
+        style="padding:12px 6px;font-family:Arial,Helvetica,sans-serif;
+               font-size:14px;font-weight:bold;color:#cccccc;
+               text-align:center;background:#000000;">
+      ${esc(val)}</td>`).join('');
 
   const deductionRow = Number(totals.deduction || 0) > 0 ? `
     <tr>
-      <td colspan="${columns.length + 6}" style="padding:10px 8px;background:#fff5f5;border-top:1px solid #f3d1d1;font-size:12px;color:#b42318;text-align:right;font-weight:700;">
+      <td colspan="${columns.length + 6}" bgcolor="#fff5f5"
+          style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;
+                 font-size:11px;color:#b42318;text-align:right;font-weight:bold;
+                 background:#fff5f5;">
         Cash Collected Deduction: ${money(totals.deduction)}
       </td>
     </tr>` : '';
 
-  // ── Mobile: one card per job ──
-  const mobileJobCards = jobs.map((job) => {
-    const productLines = columns.map((col, i) => {
-      const val = (job.items || [])[i];
-      if (Number(val || 0) === 0) return '';
-      return `<tr>
-        <td style="padding:4px 0;font-size:12px;color:#6b7899;">${esc(col)}</td>
-        <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(val)}</td>
-      </tr>`;
-    }).filter(Boolean).join('');
-
-    return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:10px;margin-bottom:10px;border-collapse:collapse;overflow:hidden;">
-      <tr style="background:#f8f9fc;">
-        <td style="padding:10px 12px;border-bottom:1px solid #e3e7ef;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="font-size:13px;font-weight:700;color:#2d6be4;">${esc(job.jobId)}</td>
-              <td style="font-size:11px;color:#6b7899;text-align:right;">${esc(job.installedDate)}</td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr><td style="padding:10px 12px;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          ${productLines}
-          <tr>
-            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Total Qty</td>
-            <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
-          </tr>
-          ${job.balance ? `<tr>
-            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Balance</td>
-            <td style="padding:4px 0;font-size:12px;color:#d98c1e;text-align:right;font-weight:700;">${money(job.balance)}</td>
-          </tr>` : ''}
-          ${job.paymentMethod ? `<tr>
-            <td style="padding:4px 0;font-size:12px;color:#6b7899;">Payment</td>
-            <td style="padding:4px 0;font-size:12px;color:#141c2e;text-align:right;">${esc(job.paymentMethod)}</td>
-          </tr>` : ''}
-        </table>
-      </td></tr>
-      <tr style="background:#f8f9fc;"><td style="padding:10px 12px;border-top:1px solid #e3e7ef;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="font-size:12px;color:#6b7899;">Pay Ex GST</td>
-            <td style="font-size:14px;font-weight:700;color:#18a96e;text-align:right;">${money(job.payEx)}</td>
-          </tr>
-          <tr>
-            <td style="font-size:12px;color:#6b7899;">Pay Inc GST</td>
-            <td style="font-size:14px;font-weight:700;color:#d98c1e;text-align:right;">${money(job.payInc)}</td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>`;
-  }).join('');
-
-  // ── Stat cards: 2-column table ──
-  const statData = [
-    { label: 'Fieldworker',     value: worker,               color: '#141c2e', sub: '' },
-    { label: 'Pay Period',      value: period,               color: '#2d6be4', sub: '' },
-    { label: 'Total Jobs',      value: esc(totals.jobs),     color: '#2d6be4', sub: '' },
-    { label: 'Units Installed', value: esc(totals.units),    color: '#d98c1e', sub: '' },
-    { label: 'Pay Ex GST',      value: money(totals.payEx),  color: '#18a96e', sub: '' },
-    { label: 'Pay Inc GST',     value: money(totals.payInc), color: '#d98c1e',
-      sub: Number(totals.deduction || 0) > 0 ? 'net after cash deduction' : 'includes 10% GST' },
-  ];
-  const statRows = [];
-  for (let i = 0; i < statData.length; i += 2) {
-    const left = statData[i], right = statData[i + 1];
-    const isLastRow = i + 2 >= statData.length;
-    const bb = isLastRow ? '' : 'border-bottom:1px solid #e3e7ef;';
-    const cell = `padding:12px 14px;${bb}vertical-align:top;width:50%;`;
-    const card = (c) => `
-      <div style="font-size:9px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">${c.label}</div>
-      <div style="font-size:15px;font-weight:700;color:${c.color};margin-top:4px;">${c.value}</div>
-      ${c.sub ? `<div style="font-size:10px;color:#6b7899;margin-top:2px;">${c.sub}</div>` : ''}`;
-    statRows.push(`<tr>
-      <td style="${cell}border-right:1px solid #e3e7ef;">${card(left)}</td>
-      <td style="${cell}">${right ? card(right) : ''}</td>
-    </tr>`);
-  }
-
   return `<!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Installer Pay Summary</title>
-  <style>
-    /* u+.body targets Gmail Android specifically */
-    u+.body .mob-hide { display:none !important; max-height:0 !important; overflow:hidden !important; mso-hide:all; }
-    u+.body .mob-show { display:block !important; max-height:none !important; }
-    u+.body .mob-show-row { display:table-row !important; max-height:none !important; }
-    /* Standard media query for Apple Mail, Samsung, etc. */
-    @media only screen and (max-width:600px) {
-      .mob-hide { display:none !important; max-height:0 !important; overflow:hidden !important; }
-      .mob-show { display:block !important; max-height:none !important; }
-      .mob-show-row { display:table-row !important; max-height:none !important; }
-    }
-  </style>
 </head>
-<body class="body" style="margin:0;padding:12px;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;color:#141c2e;">
+<body style="margin:0;padding:0;background:#e4e0d8;font-family:Arial,Helvetica,sans-serif;">
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:960px;margin:0 auto;background:#ffffff;border:1px solid #e3e7ef;border-radius:16px;overflow:hidden;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#e4e0d8">
+<tr><td align="center" style="padding:28px 0 36px;">
 
-    <!-- Header -->
-    <tr>
-      <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;">
-        <table role="presentation" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding-right:10px;vertical-align:middle;">
-              <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" style="height:32px;width:auto;display:block;">
-            </td>
-            <td style="vertical-align:middle;">
-              <div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure | Installer Pay</div>
-              <div style="font-size:12px;color:#6b7899;">${period}</div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
+<!-- OUTER CARD: fixed 600px — Gmail scales this down proportionally on mobile -->
+<table width="600" border="0" cellpadding="0" cellspacing="0"
+       style="background:#ffffff;" bgcolor="#ffffff">
 
-    <!-- Stat cards (always visible, 2-col table) -->
-    <tr>
-      <td style="padding:12px 16px 0;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:12px;overflow:hidden;border-collapse:collapse;">
-          ${statRows.join('')}
-        </table>
-      </td>
-    </tr>
+  <!-- HEADER: black with logo -->
+  <tr>
+    <td bgcolor="#000000" align="center"
+        style="padding:24px 32px 8px;background:#000000;">
+      <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
+           alt="Goldsure" width="160" height="auto"
+           style="display:block;width:160px;border:0;" />
+    </td>
+  </tr>
+  <tr>
+    <td bgcolor="#000000" align="center"
+        style="padding:2px 32px 16px;background:#000000;">
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:8px;
+                font-weight:bold;letter-spacing:5px;text-transform:uppercase;
+                color:#b08d2e;">Installer Pay Summary</p>
+    </td>
+  </tr>
+  <!-- Gold rule -->
+  <tr>
+    <td bgcolor="#b08d2e" height="2"
+        style="font-size:2px;line-height:2px;background:#b08d2e;">&nbsp;</td>
+  </tr>
 
-    <!-- DESKTOP: full table row — hidden on mobile -->
-    <tr class="mob-hide">
-      <td style="padding:14px 16px 18px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="padding:11px 14px;border-bottom:1px solid #e3e7ef;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">
-                    Installed Products by Job
-                    <span style="font-size:13px;text-transform:none;letter-spacing:0;color:#141c2e;margin-left:6px;">${worker}</span>
-                  </td>
-                  <td align="right" style="padding-left:8px;white-space:nowrap;">
-                    <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#edf2fd;border:1px solid #c5d3f5;color:#2d6be4;font-size:11px;font-weight:700;">${period}</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                <thead>
-                  <tr style="background:#f8f9fc;">
-                    <th style="${thStyle}text-align:left;">Installed Date</th>
-                    <th style="${thStyle}text-align:left;">Job No.</th>
-                    ${headerCells}
-                    <th style="${thStyle}text-align:right;">Total Qty</th>
-                    <th style="${thStyle}text-align:right;">Balance</th>
-                    <th style="${thStyle}text-align:left;">Payment Method</th>
-                    <th style="${thStyle}text-align:right;">Pay Ex GST</th>
-                    <th style="${thStyle}text-align:right;">Pay Inc GST</th>
-                  </tr>
-                </thead>
-                <tbody>${jobRowsDesktop}</tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="2" style="${tfStyle}color:#141c2e;text-align:left;">Gross Total</td>
-                    ${footerCells}
-                    <td style="${tfStyle}color:#141c2e;text-align:right;">${esc(footer.grandQty)}</td>
-                    <td style="${tfStyle}"></td>
-                    <td style="${tfStyle}"></td>
-                    <td style="${tfStyle}color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
-                    <td style="${tfStyle}color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
-                  </tr>
-                  ${deductionRow}
-                </tfoot>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
+  <!-- TITLE ROW -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:20px 28px 4px;background:#ffffff;">
+      <table width="100%" border="0" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="middle">
+            <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:18px;font-weight:bold;color:#000000;">
+              ${worker}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:12px;color:#999999;">
+              Pay Period:&nbsp;<strong style="color:#333333;">${period}</strong></p>
+          </td>
+          <td valign="middle" align="right">
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:11px;color:#aaaaaa;text-align:right;line-height:1.7;">
+              Goldsure Pty Ltd<br>
+              <a href="mailto:info@goldsure.com.au"
+                 style="color:#b08d2e;text-decoration:none;font-weight:bold;">
+                info@goldsure.com.au</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-    <!-- MOBILE: job cards row — hidden on desktop, shown on mobile -->
-    <tr class="mob-show-row" style="display:none;">
-      <td style="padding:12px 14px 16px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;margin-bottom:10px;">Jobs &mdash; ${worker}</div>
-        ${mobileJobCards}
-        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:10px;border-collapse:collapse;overflow:hidden;margin-top:4px;">
-          <tr style="background:#f8f9fc;">
-            <td colspan="2" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;font-size:11px;font-weight:700;color:#141c2e;">
-              Gross Total &mdash; ${esc(totals.jobs)} jobs, ${esc(totals.units)} units
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px 14px;font-size:13px;color:#6b7899;">Pay Ex GST</td>
-            <td style="padding:10px 14px;font-size:16px;font-weight:700;color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
-          </tr>
-          <tr>
-            <td style="padding:10px 14px;font-size:13px;color:#6b7899;">Pay Inc GST</td>
-            <td style="padding:10px 14px;font-size:16px;font-weight:700;color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
-          </tr>
-          ${Number(totals.deduction || 0) > 0 ? `<tr style="background:#fff5f5;">
-            <td colspan="2" style="padding:10px 14px;font-size:12px;color:#b42318;">Cash Collected Deduction: ${money(totals.deduction)}</td>
-          </tr>` : ''}
-        </table>
-      </td>
-    </tr>
+  <!-- STAT STRIP -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:14px 28px 18px;background:#ffffff;">
+      <table width="100%" border="0" cellpadding="0" cellspacing="0"
+             style="border-collapse:collapse;border:1px solid #e0dcd2;">
+        <tr>
+          <td width="25%" valign="top" bgcolor="#ffffff"
+              style="padding:14px 16px;border-right:1px solid #e0dcd2;
+                     vertical-align:top;background:#ffffff;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#aaaaaa;">Total Jobs</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:26px;font-weight:bold;color:#000000;line-height:1;">
+              ${esc(totals.jobs)}</p>
+          </td>
+          <td width="25%" valign="top" bgcolor="#ffffff"
+              style="padding:14px 16px;border-right:1px solid #e0dcd2;
+                     vertical-align:top;background:#ffffff;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#aaaaaa;">Units Installed</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:26px;font-weight:bold;color:#000000;line-height:1;">
+              ${esc(totals.units)}</p>
+          </td>
+          <td width="25%" valign="top" bgcolor="#ffffff"
+              style="padding:14px 16px;border-right:1px solid #e0dcd2;
+                     vertical-align:top;background:#ffffff;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#aaaaaa;">Pay Ex GST</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:26px;font-weight:bold;color:#18a96e;line-height:1;">
+              ${money(totals.payEx)}</p>
+          </td>
+          <td width="25%" valign="top" bgcolor="#000000"
+              style="padding:14px 16px;vertical-align:top;background:#000000;">
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                      color:#b08d2e;">Pay Inc GST</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:26px;font-weight:bold;color:#b08d2e;line-height:1;">
+              ${money(totals.payInc)}</p>
+            <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;
+                      font-size:10px;color:#666666;">
+              ${Number(totals.deduction || 0) > 0 ? 'net after cash deduction' : 'includes 10% GST'}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-  </table>
+  <!-- JOB TABLE -->
+  <tr>
+    <td bgcolor="#ffffff" style="padding:0 28px 26px;background:#ffffff;">
+      <p style="margin:0 0 7px;font-family:Arial,Helvetica,sans-serif;
+                font-size:8px;letter-spacing:3px;text-transform:uppercase;
+                color:#aaaaaa;">Job Breakdown</p>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0"
+             style="border-collapse:collapse;border:1px solid #e0dcd2;border-top:none;">
+
+        <!-- Column headers -->
+        <tr bgcolor="#000000">
+          <td bgcolor="#000000"
+              style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:8px;font-weight:bold;letter-spacing:1px;
+                     text-transform:uppercase;color:#b08d2e;background:#000000;">
+            Date</td>
+          <td bgcolor="#000000"
+              style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:8px;font-weight:bold;letter-spacing:1px;
+                     text-transform:uppercase;color:#b08d2e;background:#000000;">
+            Job No.</td>
+          ${colHeaderCells}
+          <td align="center" bgcolor="#000000"
+              style="padding:10px 6px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:8px;font-weight:bold;letter-spacing:1px;
+                     text-transform:uppercase;color:#b08d2e;text-align:center;
+                     background:#000000;">
+            Total Qty</td>
+          <td align="right" bgcolor="#000000"
+              style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:8px;font-weight:bold;letter-spacing:1px;
+                     text-transform:uppercase;color:#888888;text-align:right;
+                     background:#000000;">
+            Pay Ex GST</td>
+          <td align="right" bgcolor="#000000"
+              style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:8px;font-weight:bold;letter-spacing:1px;
+                     text-transform:uppercase;color:#b08d2e;text-align:right;
+                     background:#000000;">
+            Pay Inc GST</td>
+        </tr>
+
+        ${jobRowsHtml}
+
+        <!-- Gold separator -->
+        <tr bgcolor="#b08d2e">
+          <td colspan="${columns.length + 5}" bgcolor="#b08d2e"
+              style="font-size:2px;line-height:2px;background:#b08d2e;">&nbsp;</td>
+        </tr>
+
+        <!-- Grand Total -->
+        <tr bgcolor="#000000">
+          <td colspan="2" bgcolor="#000000"
+              style="padding:12px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:10px;font-weight:bold;color:#ffffff;
+                     text-transform:uppercase;letter-spacing:2px;background:#000000;">
+            Gross Total</td>
+          ${colTotalCells}
+          <td align="center" bgcolor="#000000"
+              style="padding:12px 6px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:16px;font-weight:bold;color:#b08d2e;
+                     text-align:center;background:#000000;">
+            ${esc(footer.grandQty)}</td>
+          <td align="right" bgcolor="#000000"
+              style="padding:12px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:16px;font-weight:bold;color:#18a96e;
+                     text-align:right;background:#000000;">
+            ${money(totals.payEx)}</td>
+          <td align="right" bgcolor="#000000"
+              style="padding:12px 8px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:16px;font-weight:bold;color:#b08d2e;
+                     text-align:right;background:#000000;">
+            ${money(totals.payIncGross)}</td>
+        </tr>
+
+        ${deductionRow}
+
+      </table>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td bgcolor="#000000" align="center"
+        style="padding:14px 28px;background:#000000;">
+      <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;
+                font-size:9px;font-weight:bold;letter-spacing:3px;
+                text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                font-size:10px;color:#555555;line-height:1.7;">
+        ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia<br>
+        <a href="mailto:info@goldsure.com.au"
+           style="color:#b08d2e;text-decoration:none;">info@goldsure.com.au</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://www.goldsure.com.au"
+           style="color:#555555;text-decoration:none;">www.goldsure.com.au</a>
+      </p>
+    </td>
+  </tr>
+
+</table><!-- /600 card -->
+</td></tr>
+</table><!-- /100% wrapper -->
+
 </body>
 </html>`;
 }
