@@ -751,7 +751,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['accounts@goldsure.com.au'];
+  const recipients = ['vigneshk.com@gmail.com'];
   const bcc        = ['vignesh@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
