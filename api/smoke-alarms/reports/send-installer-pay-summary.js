@@ -24,14 +24,14 @@ function buildEmailHtml(summary) {
   const footer = summary.footer || {};
 
   const headerCells = columns.map(col => `
-    <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">
+    <th style="padding:12px 6px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:center;line-height:1.25;">
       ${esc(col)}
     </th>
   `).join('');
 
   const jobRows = jobs.map((job, index) => {
     const itemCells = (job.items || []).map(val => `
-      <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:${Number(val || 0) === 0 ? '#c8d0dd' : '#141c2e'};text-align:right;">
+      <td style="padding:10px 6px;border-bottom:1px solid #eef2f7;font-size:12px;color:${Number(val || 0) === 0 ? '#c8d0dd' : '#141c2e'};text-align:center;">
         ${qty(val)}
       </td>
     `).join('');
@@ -41,7 +41,7 @@ function buildEmailHtml(summary) {
         <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#2d6be4;text-align:left;font-weight:700;white-space:nowrap;">${esc(job.jobId)}</td>
         ${itemCells}
         <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:right;">${job.balance ? money(job.balance) : '&mdash;'}</td>
+        <td style="padding:10px 6px;border-bottom:1px solid #eef2f7;font-size:12px;color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:center;">${job.balance ? money(job.balance) : '&mdash;'}</td>
         <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#141c2e;text-align:left;">${job.paymentMethod ? esc(job.paymentMethod) : '&mdash;'}</td>
         <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#18a96e;text-align:right;font-weight:700;">${money(job.payEx)}</td>
         <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#d98c1e;text-align:right;font-weight:700;">${money(job.payInc)}</td>
@@ -50,7 +50,7 @@ function buildEmailHtml(summary) {
   }).join('');
 
   const footerCells = (footer.colTotals || []).map(val => `
-    <td style="padding:12px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#141c2e;text-align:right;">${esc(val)}</td>
+    <td style="padding:12px 6px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#141c2e;text-align:center;">${esc(val)}</td>
   `).join('');
 
   const deductionRow = Number(totals.deduction || 0) > 0 ? `
@@ -144,15 +144,25 @@ function buildEmailHtml(summary) {
             </tr>
             <tr>
               <td style="padding:0;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
+                  <colgroup>
+                    <col style="width:9%;">
+                    <col style="width:8%;">
+                    ${columns.map(() => '<col style="width:10.5%;">').join('')}
+                    <col style="width:7%;">
+                    <col style="width:7%;">
+                    <col style="width:10%;">
+                    <col style="width:9%;">
+                    <col style="width:9%;">
+                  </colgroup>
                   <thead>
                     <tr style="background:#f8f9fc;">
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;">Installed Date</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;">Job No.</th>
+                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;line-height:1.25;">Installed Date</th>
+                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;line-height:1.25;">Job No.</th>
                       ${headerCells}
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Total Qty</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Balance</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;">Payment Method</th>
+                      <th style="padding:12px 6px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:center;line-height:1.25;">Total Qty</th>
+                      <th style="padding:12px 6px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:center;line-height:1.25;">Balance</th>
+                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;line-height:1.25;">Payment Method</th>
                       <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Pay Ex GST</th>
                       <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Pay Inc GST</th>
                     </tr>
