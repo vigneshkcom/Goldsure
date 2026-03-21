@@ -39,7 +39,7 @@ export default async function handler(req, res) {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
+        <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg"
                          alt="Goldsure" height="34"
                          style="display:block;height:34px;" />
                   </td>

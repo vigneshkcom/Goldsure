@@ -1,0 +1,39 @@
+# Route Dependencies
+
+This repo is live and has route-sensitive paths that should not be renamed casually.
+
+## Preserve as-is for now
+
+- Public folders with mixed naming that are already live:
+  - `/Battery/`
+  - `/Air-Cons/`
+  - `/Ads reporting/`
+- Public page paths under `/smoke-alarms/`
+- Existing API route names under `/api/`
+
+## Vercel-coupled paths
+
+- [vercel.json](../vercel.json) schedules the cron job at `/api/MetaAdPerformace/send-report`.
+- [vercel.json](../vercel.json) also applies custom headers to `/smoke-alarms/calculatorpdf.html`.
+- Do not rename either path without updating deployment config and preserving compatibility.
+
+## API route dependencies
+
+- The `MetaAdPerformace` directory name contains a typo, but it is a live dependency.
+- Frontend code currently calls:
+  - `/api/MetaAdPerformace/auth`
+  - `/api/MetaAdPerformace/config`
+  - `/api/MetaAdPerformace/ghl`
+  - `/api/MetaAdPerformace/google-spend`
+- Keep those route names working until aliases or wrappers are added.
+
+## PWA path dependencies
+
+- `/smoke-alarms/calendar/` is path-sensitive.
+- Its manifest uses `/smoke-alarms/calendar/` for both `start_url` and `scope`.
+- Treat that folder as fixed unless the manifest, service worker behavior, and inbound links are updated together.
+
+## Safe cleanup pattern
+
+- Root-relative links like `/smoke-alarms/...`, `/calendar/...`, `/assets/...`, and `/api/...` are safe when they point to existing paths in this repo.
+- Cross-domain references to GitHub Pages or pinned raw GitHub assets should be reviewed separately before changing them.

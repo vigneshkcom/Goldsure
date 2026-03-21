@@ -815,7 +815,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
      ══════════════════════════════════════════════ -->
 <div id="password-gate">
   <div style="margin-bottom:32px;text-align:center;">
-    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:56px;width:auto;display:block;margin:0 auto 12px;">
+<img src="/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:56px;width:auto;display:block;margin:0 auto 12px;">
     <div style="font-size:20px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
     <div style="font-size:13px;color:var(--muted);margin-top:4px;">Smoke Alarms &amp; Hot Water Systems</div>
   </div>
@@ -837,7 +837,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
      ══════════════════════════════════════════════ -->
 <div id="login-screen" style="display:none;">
   <div class="login-logo">
-    <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:64px;width:auto;display:block;margin:0 auto 12px;">
+<img src="/assets/48%20PX%20(%23f5f6f8).png" alt="Goldsure" style="height:64px;width:auto;display:block;margin:0 auto 12px;">
     <div style="font-size:20px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
     <div style="font-size:13px;color:var(--muted);margin-top:4px;">Smoke Alarms &amp; Hot Water Systems</div>
   </div>
@@ -911,7 +911,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <span id="meta-live-indicator" style="display:none;" class="meta-live-badge"><span class="meta-live-dot"></span>Meta Live</span>
       <button class="btn-pdf" onclick="generatePDF()">Download PDF</button>
       <button class="btn-new" onclick="showLoginScreen()">← Back</button>
-      <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:48px;width:auto;margin-left:8px;object-fit:contain;">
+<img src="/assets/48%20PX.png" alt="Goldsure" style="height:48px;width:auto;margin-left:8px;object-fit:contain;">
     </div>
   </header>
   <main>
@@ -1212,7 +1212,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
   <footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
     <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
       <div style="display:flex;align-items:center;gap:16px;">
-        <img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
+<img src="/assets/48%20PX.png" alt="Goldsure" style="height:40px;width:auto;object-fit:contain;">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--text);">Goldsure Pty Ltd</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">Suite 4, Level 1, 293 High Street, Preston, Victoria 3072</div>
@@ -1670,10 +1670,19 @@ async function fetchAllOpportunities() {
   return all;
 }
 
-// GHL campaign/form names that indicate a Meta paid ad (case-insensitive fragment match)
+// Only explicit Meta-only tokens belong here.
+// Broad brand/form labels like "Gold sure", "Smoke Alarms", or
+// "Above the fold" can exist on non-Meta lead paths and were causing
+// Google or ambiguous leads to be over-counted as Meta.
 const META_CAMPAIGN_PATTERNS = [
-  'gold sure', 'goldsure', 'smoke alarm', 'above the fold', 'below the fold',
-  'fb_ad', 'facebook ad', 'meta ad', 'ig_ad', 'instagram ad',
+  'fb_ad',
+  'facebook ad',
+  'facebook lead ad',
+  'meta ad',
+  'meta lead ad',
+  'ig_ad',
+  'instagram ad',
+  'instagram lead ad',
 ];
 function looksLikeMetaCampaign(str) {
   const s = (str || '').toLowerCase();
@@ -1714,7 +1723,7 @@ function categoriseSource(rawSource, contactAttr) {
   if (raw === 'paid search' || raw.includes('adword') || raw.includes('google ads')) return 'Google';
   if (raw.includes('google')) return 'Google';
   if (raw === 'paid social' || raw === 'fb_ad' || raw.includes('facebook') || raw.includes('fb') || raw.includes('meta') || raw.includes('instagram')) return 'Meta';
-  // Campaign name pattern match — catches GHL form names like "Gold sure - Smoke Alarms -Above the fold"
+  // Campaign-name pattern match should only fire for explicit Meta labels.
   if (looksLikeMetaCampaign(raw)) return 'Meta';
   if (raw === 'organic search') return 'Organic Search';
   if (raw === 'organic social') return 'Organic Social';
@@ -1806,10 +1815,8 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const oppSrcRaw    = opp.source || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
-  // formName: ONLY set when the contact source is a genuine campaign/form name.
-  // We use looksLikeMetaCampaign() as the gate — only strings that match our known
-  // ad campaign patterns qualify. Everything else (generic labels like "Facebook",
-  // "Landing Page", "Social media") produces no sub-path so the journey shows cleanly.
+  // formName: ONLY set when the contact source contains an explicit Meta-only label.
+  // Generic branded names should not be treated as channel evidence.
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
   const formName = looksLikeMetaCampaign(rawContactSrc) ? rawContactSrc : '';
 
@@ -2706,7 +2713,7 @@ function generatePDF(){
   const fmtDate=s=>s?new Date(s+'T00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}):'';
   const generated=new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const cover=document.createElement('div');
-  cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="https://vigneshkcom.github.io/Goldsure/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
+cover.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:0 0 16px 0;border-bottom:2px solid #2d6be4;margin-bottom:20px;"><div style="display:flex;align-items:center;gap:14px;"><img src="/assets/48%20PX.png" style="height:48px;width:auto;"><div><div style="font-size:18px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:11px;color:#6b7899;">Suite 4, Level 1, 293 High Street, Preston VIC 3072</div></div></div><div style="text-align:right;font-size:11px;color:#6b7899;line-height:1.8;"><div style="font-size:14px;font-weight:700;color:#2d6be4;">${product} Performance Report</div><div>Period: ${fmtDate(from)} – ${fmtDate(to)}</div><div>Generated: ${generated}</div></div></div>`;
   document.querySelector('#dashboard main').prepend(cover);
   const t=document.title;
   document.title=`Goldsure – ${product} Report ${from} to ${to}`;

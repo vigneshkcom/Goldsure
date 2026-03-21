@@ -74,10 +74,19 @@ async function fetchAllOpportunities() {
 }
 
 // ── Source categorisation (mirrors dashboard logic) ──
-// GHL campaign/form names that indicate a Meta paid ad (case-insensitive fragment match)
+// Only explicit Meta-only tokens belong here.
+// Broad brand/form labels like "Gold sure", "Smoke Alarms", or
+// "Above the fold" can exist on non-Meta lead paths and were causing
+// Google or ambiguous leads to be over-counted as Meta in daily emails.
 const META_CAMPAIGN_PATTERNS = [
-  'gold sure', 'goldsure', 'smoke alarm', 'above the fold', 'below the fold',
-  'fb_ad', 'facebook ad', 'meta ad', 'ig_ad', 'instagram ad',
+  'fb_ad',
+  'facebook ad',
+  'facebook lead ad',
+  'meta ad',
+  'meta lead ad',
+  'ig_ad',
+  'instagram ad',
+  'instagram lead ad',
 ];
 function looksLikeMetaCampaign(str) {
   const s = (str || '').toLowerCase();
@@ -122,7 +131,7 @@ function categoriseSource(rawSource, attr) {
   if (raw.includes('google')) return 'Google';
   if (raw === 'paid social' || raw === 'fb_ad' || raw.includes('facebook') ||
       raw.includes('fb') || raw.includes('meta') || raw.includes('instagram')) return 'Meta';
-  // Campaign name pattern match — catches GHL form names like "Gold sure - Smoke Alarms -Above the fold"
+  // Campaign-name pattern match should only fire for explicit Meta labels.
   if (looksLikeMetaCampaign(raw)) return 'Meta';
   if (raw === 'organic search') return 'Organic Search';
   if (raw === 'organic social') return 'Organic Social';
@@ -168,8 +177,8 @@ function mapOpp(opp, contactAttrMap) {
   const oppSrcRaw    = opp.source || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
-  // formName: use contact source field (e.g. "Gold sure - Smoke Alarms -Above the fold")
-  // if it looks like a campaign/form name rather than a generic attribution type.
+  // formName: use contact source only when it contains an explicit Meta-only label.
+  // Generic branded form names are useful for UX labels, but not safe as source evidence.
   const GENERIC_SOURCES = ['social media','paid social','paid search','organic search','organic social','direct traffic','direct','referral','unknown',''];
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
 
