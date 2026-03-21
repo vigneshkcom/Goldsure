@@ -24,9 +24,9 @@ function buildEmailHtml(summary) {
   const footer = summary.footer || {};
 
   // ── Shared cell styles ──
-  const thStyle = 'padding:10px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;white-space:nowrap;';
-  const tdBase = 'padding:9px 8px;border-bottom:1px solid #eef2f7;font-size:12px;white-space:nowrap;';
-  const tfStyle = 'padding:10px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;white-space:nowrap;';
+  const thStyle = 'padding:10px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;min-width:60px;';
+  const tdBase = 'padding:9px 8px;border-bottom:1px solid #eef2f7;font-size:12px;';
+  const tfStyle = 'padding:10px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;';
 
   const headerCells = columns.map(col =>
     `<th style="${thStyle}text-align:right;">${esc(col)}</th>`
@@ -154,7 +154,7 @@ function buildEmailHtml(summary) {
           <tr>
             <td style="padding:0;">
               <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;min-width:660px;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                   <thead>
                     <tr style="background:#f8f9fc;">
                       <th style="${thStyle}text-align:left;">Installed Date</th>
