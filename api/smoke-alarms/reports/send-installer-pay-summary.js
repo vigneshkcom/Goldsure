@@ -26,6 +26,17 @@ function buildEmailHtml(summary) {
   // ── Job rows ──
   const jobRowsHtml = jobs.map((job, index) => {
     const bg = index % 2 === 0 ? '#ffffff' : '#f9f9f9';
+    // Format date as DD/MM/YY
+    const rawDate = job.installedDate || '';
+    let formattedDate = rawDate;
+    const dmatch = rawDate.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+    if (dmatch) {
+      const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+      const d = dmatch[1].padStart(2,'0');
+      const m = months[dmatch[2]] || '00';
+      const y = dmatch[3].slice(2);
+      formattedDate = `${d}/${m}/${y}`;
+    }
     const itemCells = (job.items || []).map(val => {
       const isEmpty = Number(val || 0) === 0;
       return `<td align="center" bgcolor="${bg}"
@@ -39,21 +50,21 @@ function buildEmailHtml(summary) {
     return `<tr>
       <td bgcolor="${bg}"
           style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
-                 font-size:11px;color:#888888;background:${bg};">
-        ${esc(job.installedDate)}</td>
+                 font-size:11px;color:#888888;white-space:nowrap;background:${bg};">
+        ${esc(formattedDate)}</td>
       <td bgcolor="${bg}"
           style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
-                 font-size:13px;font-weight:bold;color:#2d6be4;background:${bg};">
+                 font-size:13px;font-weight:bold;color:#000000;background:${bg};">
         ${esc(job.jobId)}</td>
       ${itemCells}
       <td align="center" bgcolor="${bg}"
           style="padding:9px 6px;font-family:Arial,Helvetica,sans-serif;
-                 font-size:14px;font-weight:bold;color:#b08d2e;
+                 font-size:14px;font-weight:bold;color:#000000;
                  text-align:center;background:${bg};">
         ${esc(job.totalQty)}</td>
       <td align="right" bgcolor="${bg}"
           style="padding:9px 8px;font-family:Arial,Helvetica,sans-serif;
-                 font-size:13px;font-weight:bold;color:#18a96e;
+                 font-size:13px;font-weight:bold;color:#000000;
                  text-align:right;background:${bg};">
         ${money(job.payEx)}</td>
       <td align="right" bgcolor="${bg}"
@@ -69,7 +80,7 @@ function buildEmailHtml(summary) {
     <td align="center" bgcolor="#000000"
         style="padding:10px 6px;font-family:Arial,Helvetica,sans-serif;
                font-size:8px;font-weight:bold;letter-spacing:1px;
-               text-transform:uppercase;color:#888888;text-align:center;
+               text-transform:uppercase;color:#ffffff;text-align:center;
                background:#000000;">
       ${esc(col)}</td>`).join('');
 
@@ -77,7 +88,7 @@ function buildEmailHtml(summary) {
   const colTotalCells = (footer.colTotals || []).map(val => `
     <td align="center" bgcolor="#000000"
         style="padding:12px 6px;font-family:Arial,Helvetica,sans-serif;
-               font-size:14px;font-weight:bold;color:#cccccc;
+               font-size:14px;font-weight:bold;color:#ffffff;
                text-align:center;background:#000000;">
       ${esc(val)}</td>`).join('');
 
@@ -147,9 +158,9 @@ function buildEmailHtml(summary) {
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
                       font-size:11px;color:#aaaaaa;text-align:right;line-height:1.7;">
               Goldsure Pty Ltd<br>
-              <a href="mailto:info@goldsure.com.au"
+              <a href="mailto:vignesh@goldsure.com.au"
                  style="color:#b08d2e;text-decoration:none;font-weight:bold;">
-                info@goldsure.com.au</a></p>
+                vignesh@goldsure.com.au</a></p>
           </td>
         </tr>
       </table>
@@ -189,7 +200,7 @@ function buildEmailHtml(summary) {
                       font-size:8px;letter-spacing:3px;text-transform:uppercase;
                       color:#aaaaaa;">Pay Ex GST</p>
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:26px;font-weight:bold;color:#18a96e;line-height:1;">
+                      font-size:26px;font-weight:bold;color:#000000;line-height:1;">
               ${money(totals.payEx)}</p>
           </td>
           <td width="25%" valign="top" bgcolor="#000000"
@@ -224,24 +235,24 @@ function buildEmailHtml(summary) {
           <td bgcolor="#000000"
               style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
                      font-size:8px;font-weight:bold;letter-spacing:1px;
-                     text-transform:uppercase;color:#b08d2e;background:#000000;">
+                     text-transform:uppercase;color:#ffffff;background:#000000;">
             Date</td>
           <td bgcolor="#000000"
               style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
                      font-size:8px;font-weight:bold;letter-spacing:1px;
-                     text-transform:uppercase;color:#b08d2e;background:#000000;">
+                     text-transform:uppercase;color:#ffffff;background:#000000;">
             Job No.</td>
           ${colHeaderCells}
           <td align="center" bgcolor="#000000"
               style="padding:10px 6px;font-family:Arial,Helvetica,sans-serif;
                      font-size:8px;font-weight:bold;letter-spacing:1px;
-                     text-transform:uppercase;color:#b08d2e;text-align:center;
+                     text-transform:uppercase;color:#ffffff;text-align:center;
                      background:#000000;">
             Total Qty</td>
           <td align="right" bgcolor="#000000"
               style="padding:10px 8px;font-family:Arial,Helvetica,sans-serif;
                      font-size:8px;font-weight:bold;letter-spacing:1px;
-                     text-transform:uppercase;color:#888888;text-align:right;
+                     text-transform:uppercase;color:#ffffff;text-align:right;
                      background:#000000;">
             Pay Ex GST</td>
           <td align="right" bgcolor="#000000"
@@ -270,12 +281,12 @@ function buildEmailHtml(summary) {
           ${colTotalCells}
           <td align="center" bgcolor="#000000"
               style="padding:12px 6px;font-family:Arial,Helvetica,sans-serif;
-                     font-size:16px;font-weight:bold;color:#b08d2e;
+                     font-size:16px;font-weight:bold;color:#ffffff;
                      text-align:center;background:#000000;">
             ${esc(footer.grandQty)}</td>
           <td align="right" bgcolor="#000000"
               style="padding:12px 8px;font-family:Arial,Helvetica,sans-serif;
-                     font-size:16px;font-weight:bold;color:#18a96e;
+                     font-size:16px;font-weight:bold;color:#ffffff;
                      text-align:right;background:#000000;">
             ${money(totals.payEx)}</td>
           <td align="right" bgcolor="#000000"
@@ -301,8 +312,8 @@ function buildEmailHtml(summary) {
       <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
                 font-size:10px;color:#555555;line-height:1.7;">
         ABN: 66 683 305 106 &nbsp;&middot;&nbsp; Queensland, Australia<br>
-        <a href="mailto:info@goldsure.com.au"
-           style="color:#b08d2e;text-decoration:none;">info@goldsure.com.au</a>
+        <a href="mailto:vignesh@goldsure.com.au"
+           style="color:#b08d2e;text-decoration:none;">vignesh@goldsure.com.au</a>
         &nbsp;&middot;&nbsp;
         <a href="https://www.goldsure.com.au"
            style="color:#555555;text-decoration:none;">www.goldsure.com.au</a>
