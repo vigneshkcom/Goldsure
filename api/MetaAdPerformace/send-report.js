@@ -298,7 +298,7 @@ function calcKPIs(leads) {
       : displaySourceLabel(latest);
     const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
       ? displaySourceLabel(first)
-      : `${displaySourceLabel(first)} -> ${latestLabel}`;
+      : `${displaySourceLabel(first)} &rarr; ${latestLabel}`;
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
     if (isInstalled(r.stage)) pathData[platform].i++;
@@ -628,7 +628,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
         <tr>
           ${stat('New Leads', todayKPIs.total)}
           ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`, todayKPIs.inst > 0 ? GREEN : DARK)}
-          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : 'â€”', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
+          ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '&mdash;', `Meta $${metaToday.toFixed(2)} &nbsp;+&nbsp; Google $${googleToday.toFixed(2)}`)}
           ${statCPL(todayCPL)}
           ${statCPI(todayCPI)}
         </tr>
@@ -698,7 +698,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
   <!-- LEAD SOURCES -->
   <tr>
     <td bgcolor="#ffffff" style="padding:28px 32px 0;">
-      <p style="${sec}">Lead Sources &mdash; Last 7 Days</p>
+      <p style="${sec}">Lead Sources &amp; Journey Paths &mdash; Last 7 Days</p>
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
         <tr>
           <td style="${th}text-align:left;">Source</td>
@@ -783,7 +783,7 @@ export default async function handler(req, res) {
         from:    'Vignesh <vignesh@goldsure.com.au>',
         to:      recipients,
         bcc:     bcc,
-        subject: `Goldsure Ad Performance Report â€” ${dateStr}`,
+        subject: `Goldsure Ad Performance Report - ${dateStr}`,
         html,
       }),
     });
