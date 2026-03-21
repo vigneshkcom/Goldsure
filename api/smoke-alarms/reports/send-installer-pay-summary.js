@@ -28,55 +28,111 @@ function buildEmailHtml(summary) {
     return String(col || '').replace(/raptor/ig, '').trim();
   });
   const jobs = Array.isArray(summary.jobs) ? summary.jobs : [];
-  const footer = summary.footer || {};
+  const summaryCards = [
+    { label: 'Fieldworker', value: worker, color: '#141c2e', sub: '' },
+    { label: 'Pay Period', value: period, color: '#2d6be4', sub: '' },
+    { label: 'Total Jobs', value: esc(totals.jobs), color: '#2d6be4', sub: '' },
+    { label: 'Units Installed', value: esc(totals.units), color: '#d98c1e', sub: '' },
+    { label: 'Pay Ex GST', value: money(totals.payEx), color: '#18a96e', sub: '' },
+    { label: 'Pay Inc GST', value: money(totals.payInc), color: '#d98c1e', sub: Number(totals.deduction || 0) > 0 ? 'net after cash deduction' : 'includes 10% GST' }
+  ].map(card => `
+    <td width="50%" style="padding:6px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:14px;">
+        <tr>
+          <td style="padding:12px 14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">${card.label}</div>
+            <div style="font-size:15px;line-height:1.3;font-weight:700;color:${card.color};">${card.value}</div>
+            ${card.sub ? `<div style="font-size:11px;color:#6b7899;margin-top:3px;">${card.sub}</div>` : ''}
+          </td>
+        </tr>
+      </table>
+    </td>
+  `);
 
-  const headerCells = columns.map(col => `
-    <th style="padding:12px 6px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:center;line-height:1.25;">
-      ${esc(col)}
-    </th>
-  `).join('');
+  const summaryRows = [];
+  for (let i = 0; i < summaryCards.length; i += 2) {
+    summaryRows.push(`
+      <tr>
+        ${summaryCards[i]}
+        ${summaryCards[i + 1] || '<td width="50%" style="padding:6px;"></td>'}
+      </tr>
+    `);
+  }
 
-  const jobRows = jobs.map((job, index) => {
-    const itemCells = (job.items || []).map(val => `
-      <td style="padding:10px 6px;border-bottom:1px solid #eef2f7;font-size:12px;color:${Number(val || 0) === 0 ? '#c8d0dd' : '#141c2e'};text-align:center;">
-        ${qty(val)}
-      </td>
+  const jobCards = jobs.map((job, index) => {
+    const itemRows = columns.map((col, idx) => `
+      <tr>
+        <td style="padding:7px 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">${esc(col)}</td>
+        <td align="right" style="padding:7px 0;font-size:14px;font-weight:700;color:${Number(job.items?.[idx] || 0) === 0 ? '#c8d0dd' : '#141c2e'};">${qty(job.items?.[idx] || 0)}</td>
+      </tr>
     `).join('');
+
+    const paymentBlock = (job.balance || job.paymentMethod) ? `
+      <tr>
+        <td colspan="2" style="padding-top:10px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px dashed #d8dfeb;">
+            ${job.balance ? `
+              <tr>
+                <td style="padding:8px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Balance</td>
+                <td align="right" style="padding:8px 0 0;font-size:13px;font-weight:700;color:#d98c1e;">${money(job.balance)}</td>
+              </tr>
+            ` : ''}
+            ${job.paymentMethod ? `
+              <tr>
+                <td style="padding:7px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Payment</td>
+                <td align="right" style="padding:7px 0 0;font-size:13px;font-weight:700;color:#141c2e;">${esc(job.paymentMethod)}</td>
+              </tr>
+            ` : ''}
+          </table>
+        </td>
+      </tr>
+    ` : '';
+
     return `
-      <tr style="background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#6b7899;text-align:left;white-space:nowrap;">${esc(job.installedDate)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#2d6be4;text-align:left;font-weight:700;white-space:nowrap;">${esc(job.jobId)}</td>
-        ${itemCells}
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#141c2e;text-align:right;font-weight:700;">${esc(job.totalQty)}</td>
-        <td style="padding:10px 6px;border-bottom:1px solid #eef2f7;font-size:12px;color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:center;">${job.balance ? money(job.balance) : '&mdash;'}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#141c2e;text-align:left;">${job.paymentMethod ? esc(job.paymentMethod) : '&mdash;'}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#18a96e;text-align:right;font-weight:700;">${money(job.payEx)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#d98c1e;text-align:right;font-weight:700;">${money(job.payInc)}</td>
+      <tr>
+        <td style="padding:${index === 0 ? '0' : '12px 0 0'};">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:16px;overflow:hidden;background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
+            <tr>
+              <td style="padding:14px 14px 12px;border-bottom:1px solid #eef2f7;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td>
+                      <div style="font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Job</div>
+                      <div style="font-size:15px;font-weight:700;color:#2d6be4;">${esc(job.jobId)}</div>
+                    </td>
+                    <td align="right">
+                      <div style="font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Date</div>
+                      <div style="font-size:13px;font-weight:700;color:#141c2e;">${esc(job.installedDate)}</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 14px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  ${itemRows}
+                  <tr>
+                    <td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Total Qty</td>
+                    <td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(job.totalQty)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Pay Ex GST</td>
+                    <td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#18a96e;">${money(job.payEx)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Pay Inc GST</td>
+                    <td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#d98c1e;">${money(job.payInc)}</td>
+                  </tr>
+                  ${paymentBlock}
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
       </tr>
     `;
   }).join('');
-
-  const footerCells = (footer.colTotals || []).map(val => `
-    <td style="padding:12px 6px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#141c2e;text-align:center;">${esc(val)}</td>
-  `).join('');
-
-  const paymentRows = jobs
-    .filter(job => job.balance || job.paymentMethod)
-    .map((job, index) => `
-      <tr style="background:${index % 2 === 0 ? '#ffffff' : '#fbfcfe'};">
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#2d6be4;text-align:left;font-weight:700;white-space:nowrap;">${esc(job.jobId)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:${job.balance ? '#d98c1e' : '#c8d0dd'};text-align:right;">${job.balance ? money(job.balance) : '&mdash;'}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #eef2f7;font-size:12px;color:#141c2e;text-align:left;">${job.paymentMethod ? esc(job.paymentMethod) : '&mdash;'}</td>
-      </tr>
-    `).join('');
-
-  const deductionRow = Number(totals.deduction || 0) > 0 ? `
-    <tr>
-      <td colspan="${columns.length + 4}" style="padding:11px 8px;background:#fff5f5;border-top:1px solid #f3d1d1;font-size:12px;color:#b42318;text-align:right;font-weight:700;">
-        Cash Collected Deduction: ${money(totals.deduction)}
-      </td>
-    </tr>
-  ` : '';
 
   return `
   <!DOCTYPE html>
@@ -111,34 +167,8 @@ function buildEmailHtml(summary) {
       </tr>
       <tr>
         <td style="padding:10px 18px 0;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:14px;overflow:hidden;">
-            <tr>
-              <td style="padding:12px 14px;border-right:1px solid #e3e7ef;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Fieldworker</div>
-                <div style="font-size:15px;font-weight:700;color:#141c2e;">${worker}</div>
-              </td>
-              <td style="padding:12px 14px;border-right:1px solid #e3e7ef;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Pay Period</div>
-                <div style="font-size:15px;font-weight:700;color:#2d6be4;">${period}</div>
-              </td>
-              <td style="padding:12px 14px;border-right:1px solid #e3e7ef;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Total Jobs</div>
-                <div style="font-size:15px;font-weight:700;color:#2d6be4;">${esc(totals.jobs)}</div>
-              </td>
-              <td style="padding:12px 14px;border-right:1px solid #e3e7ef;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Units Installed</div>
-                <div style="font-size:15px;font-weight:700;color:#d98c1e;">${esc(totals.units)}</div>
-              </td>
-              <td style="padding:12px 14px;border-right:1px solid #e3e7ef;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Pay Ex GST</div>
-                <div style="font-size:15px;font-weight:700;color:#18a96e;">${money(totals.payEx)}</div>
-              </td>
-              <td style="padding:12px 14px;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Pay Inc GST</div>
-                <div style="font-size:15px;font-weight:700;color:#d98c1e;">${money(totals.payInc)}</div>
-                <div style="font-size:11px;color:#6b7899;">${Number(totals.deduction || 0) > 0 ? 'net after cash deduction' : 'includes 10% GST'}</div>
-              </td>
-            </tr>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${summaryRows.join('')}
           </table>
         </td>
       </tr>
@@ -161,69 +191,39 @@ function buildEmailHtml(summary) {
             </tr>
             <tr>
               <td style="padding:0;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
-                  <colgroup>
-                    <col style="width:11%;">
-                    <col style="width:10%;">
-                    ${columns.map(() => '<col style="width:9.5%;">').join('')}
-                    <col style="width:9%;">
-                    <col style="width:11%;">
-                    <col style="width:11%;">
-                  </colgroup>
-                  <thead>
-                    <tr style="background:#f8f9fc;">
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;line-height:1.25;">Date</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;line-height:1.25;">Job</th>
-                      ${headerCells}
-                      <th style="padding:12px 6px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:center;line-height:1.25;">Qty</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Pay Ex GST</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Pay Inc GST</th>
-                    </tr>
-                  </thead>
-                  <tbody>${jobRows}</tbody>
-                  <tfoot>
-                    <tr>
-                      <td colspan="2" style="padding:12px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#141c2e;text-align:left;">Gross Total</td>
-                      ${footerCells}
-                      <td style="padding:12px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#141c2e;text-align:right;">${esc(footer.grandQty)}</td>
-                      <td style="padding:12px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#18a96e;text-align:right;">${money(totals.payEx)}</td>
-                      <td style="padding:12px 8px;background:#f8f9fc;border-top:2px solid #e3e7ef;font-size:12px;font-weight:700;color:#d98c1e;text-align:right;">${money(totals.payIncGross)}</td>
-                    </tr>
-                    ${deductionRow}
-                  </tfoot>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:14px;">
+                  ${jobCards}
+                  <tr>
+                    <td style="padding:12px 0 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:16px;background:#f8f9fc;">
+                        <tr>
+                          <td style="padding:14px 14px 10px;border-bottom:1px solid #e3e7ef;">
+                            <div style="font-size:12px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">Gross Total</div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:12px 14px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                              <tr><td style="padding:7px 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Booking</td><td align="right" style="padding:7px 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(summary.footer?.colTotals?.[0] || 0)}</td></tr>
+                              <tr><td style="padding:7px 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">240V</td><td align="right" style="padding:7px 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(summary.footer?.colTotals?.[1] || 0)}</td></tr>
+                              <tr><td style="padding:7px 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Battery</td><td align="right" style="padding:7px 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(summary.footer?.colTotals?.[2] || 0)}</td></tr>
+                              <tr><td style="padding:7px 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Controller</td><td align="right" style="padding:7px 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(summary.footer?.colTotals?.[3] || 0)}</td></tr>
+                              <tr><td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Total Qty</td><td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#141c2e;">${esc(summary.footer?.grandQty || 0)}</td></tr>
+                              <tr><td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Pay Ex GST</td><td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#18a96e;">${money(totals.payEx)}</td></tr>
+                              <tr><td style="padding:9px 0 0;font-size:11px;color:#6b7899;text-transform:uppercase;letter-spacing:0.3px;">Pay Inc GST</td><td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#d98c1e;">${money(totals.payIncGross)}</td></tr>
+                              ${Number(totals.deduction || 0) > 0 ? `<tr><td style="padding:9px 0 0;font-size:11px;color:#b42318;text-transform:uppercase;letter-spacing:0.3px;">Cash Deduction</td><td align="right" style="padding:9px 0 0;font-size:14px;font-weight:700;color:#b42318;">${money(totals.deduction)}</td></tr>` : ''}
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
                 </table>
               </td>
             </tr>
           </table>
         </td>
       </tr>
-      ${paymentRows ? `
-      <tr>
-        <td style="padding:0 18px 18px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:14px;overflow:hidden;">
-            <tr>
-              <td style="padding:14px 16px;border-bottom:1px solid #e3e7ef;font-size:12px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;">
-                Payment Details
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  <thead>
-                    <tr style="background:#f8f9fc;">
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;">Job</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:right;">Balance</th>
-                      <th style="padding:12px 8px;border-bottom:1px solid #e3e7ef;font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#6b7899;text-align:left;">Payment</th>
-                    </tr>
-                  </thead>
-                  <tbody>${paymentRows}</tbody>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      ` : ''}
     </table>
   </body>
   </html>
