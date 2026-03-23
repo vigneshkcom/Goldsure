@@ -204,6 +204,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
         to: [customer_email],
+        reply_to: 'info@goldsure.com.au',
         subject: `Reminder: Your Goldsure quote is ready`,
         html,
       }),
