@@ -77,7 +77,7 @@ main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
 .table-header-bar { padding: 12px 18px; border-bottom: 1px solid var(--border); }
 .table-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
 .table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; min-width: 940px; }
+table { width: 100%; border-collapse: collapse; min-width: 1320px; }
 thead tr { background: var(--surface2); }
 th { padding: 10px 14px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: color 0.15s; }
 th:hover { color: var(--gold); }
@@ -99,6 +99,13 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
 .badge-installed { background: #f0f7ff; color: #1a56a0; border: 1px solid #b3d1f5; }
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .status-btn:hover .badge { opacity: 0.8; }
+.row-actions { display: flex; align-items: center; gap: 8px; }
+.reminder-btn { font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700; padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(176,141,46,0.28); background: var(--gold-bg); color: var(--gold); cursor: pointer; text-transform: uppercase; letter-spacing: 0.35px; white-space: nowrap; transition: all 0.15s; }
+.reminder-btn:hover:not(:disabled) { background: #f8edc9; border-color: rgba(176,141,46,0.46); }
+.reminder-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.days-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 3px 8px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 10px; font-weight: 700; }
+.days-pill.is-stale { background: var(--gold-bg); border-color: var(--gold-border); color: var(--gold); }
+.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 4px 8px; border-radius: 999px; background: var(--blue-bg); border: 1px solid rgba(45,107,228,0.22); color: var(--blue); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
 .status-menu { position: absolute; right: 0; top: calc(100% + 4px); background: #fff; border: 1px solid var(--border2); border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,0.12); z-index: 500; min-width: 130px; overflow: hidden; display: none; }
 .status-menu.open { display: block; }
 .status-menu-item { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text); transition: background 0.1s; white-space: nowrap; }
@@ -193,12 +200,16 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
             <th>Service</th>
             <th onclick="sortBy('alarm_qty')" data-col="alarm_qty">Alarms ↕</th>
             <th onclick="sortBy('grand_total_numeric')" data-col="grand_total_numeric">Total ↕</th>
+            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders ↕</th>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
+            <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
             <th>Status</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -256,8 +267,8 @@ function applyFilters() {
   });
   filtered.sort((a,b) => {
     let av = a[sortCol], bv = b[sortCol];
-    if (sortCol === 'sent_at') { av = new Date(av); bv = new Date(bv); }
-    if (sortCol === 'alarm_qty' || sortCol === 'grand_total_numeric') { av = parseFloat(av)||0; bv = parseFloat(bv)||0; }
+    if (sortCol === 'sent_at' || sortCol === 'last_reminder_sent_at') { av = av ? new Date(av) : new Date(0); bv = bv ? new Date(bv) : new Date(0); }
+    if (sortCol === 'alarm_qty' || sortCol === 'grand_total_numeric' || sortCol === 'reminder_count') { av = parseFloat(av)||0; bv = parseFloat(bv)||0; }
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ?  1 : -1;
     return 0;
@@ -286,10 +297,28 @@ function populateAgentFilter() {
   sel.value = cur;
 }
 
+function getReminderCount(q) {
+  const count = parseInt(q.reminder_count, 10);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
+}
+
+function renderDaysPill(days, staleAfter = 3) {
+  if (days === null) return '<span class="days-pill">-</span>';
+  const cls = days >= staleAfter ? 'days-pill is-stale' : 'days-pill';
+  return `<span class="${cls}">${days === 0 ? 'Today' : `${days}d`}</span>`;
+}
+
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Try adjusting your filters or send your first quote from the Sales Portal.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Try adjusting your filters or send your first quote from the Sales Portal.</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(q => {
@@ -301,6 +330,11 @@ function renderTable() {
     const leadType = (q.customer_type||'digital').toLowerCase();
     const leadClass = leadType === 'letterbox' ? 'lead-letterbox' : 'lead-digital';
     const leadLabel = leadType === 'letterbox' ? '📬 Letterbox' : '📱 Digital';
+    const reminderCount = getReminderCount(q);
+    const quoteAgeDays = daysSince(q.sent_at);
+    const reminderAgeDays = daysSince(q.last_reminder_sent_at);
+    const canRemind = st === 'sent' && !!q.customer_email && !!q.quote_token;
+    const reminderLabel = q._reminderSending ? 'Sending...' : (reminderCount > 0 ? 'Send Again' : 'Send Reminder');
     const menuItems = ['sent','accepted','rejected','installed'].map(s =>
       `<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`
     ).join('');
@@ -313,14 +347,18 @@ function renderTable() {
       <td><span class="svc-badge ${svcClass}">${svcLabel}</span></td>
       <td class="td-mono">${q.alarm_qty||0}</td>
       <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
+      <td><span class="count-badge">${reminderCount}</span></td>
+      <td>${renderDaysPill(quoteAgeDays, 4)}</td>
+      <td>${renderDaysPill(reminderAgeDays, 2)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
+      <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${reminderLabel}</button></div></td>
     </tr>`;
   }).join('');
 }
 
 function showEmptyTable(msg) {
   document.getElementById('results-count').innerText = '0';
-  document.getElementById('table-body').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`;
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`;
 }
 
 function renderKPIs() {
@@ -368,7 +406,7 @@ function renderCharts() {
 
 function exportCSV() {
   if (!filtered.length) { showToast('No quotes to export.'); return; }
-  const headers = ['Date Sent','Customer Name','Email','Phone','Lead Type','Agent','Service','Alarms','Total','Status'];
+  const headers = ['Date Sent','Customer Name','Email','Phone','Lead Type','Agent','Service','Alarms','Total','Reminder Count','Days Since Quote','Days Since Reminder','Status'];
   const rows = filtered.map(q => {
     const date = q.sent_at ? new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
     return [
@@ -381,6 +419,9 @@ function exportCSV() {
       q.service_type || '',
       q.alarm_qty || 0,
       q.grand_total || '',
+      getReminderCount(q),
+      daysSince(q.sent_at) ?? '',
+      daysSince(q.last_reminder_sent_at) ?? '',
       q.status || 'sent',
     ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
@@ -437,6 +478,61 @@ async function updateStatus(e, id, newStatus) {
   } catch(err) {
     console.error(err);
     showToast('Network error updating status.');
+  }
+}
+
+async function sendReminder(id) {
+  const quote = allQuotes.find(x => String(x.id) === String(id));
+  if (!quote) { showToast('Quote record not found.'); return; }
+  if (!quote.customer_email) { showToast('This quote has no customer email.'); return; }
+  if ((quote.status || 'sent').toLowerCase() !== 'sent') { showToast('Only quotes still marked Sent can receive reminders.'); return; }
+
+  quote._reminderSending = true;
+  applyFilters();
+
+  try {
+    const res = await fetch('/api/smoke-alarms/send-reminder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: quote.id,
+        quote_token: quote.quote_token,
+        customer_name: quote.customer_name,
+        customer_email: quote.customer_email,
+        customer_phone: quote.customer_phone,
+        customer_address: quote.customer_address,
+        customer_type: quote.customer_type,
+        agent_name: quote.agent_name,
+        service_type: quote.service_type,
+        alarm_qty: quote.alarm_qty,
+        alarm_total: quote.alarm_total,
+        ctrl_qty: quote.ctrl_qty,
+        ctrl_total: quote.ctrl_total,
+        fee_label: quote.fee_label,
+        fee_amount: quote.fee_amount,
+        grand_total: quote.grand_total,
+        grand_total_numeric: quote.grand_total_numeric,
+        reminder_count: getReminderCount(quote),
+        sent_at: quote.sent_at,
+        last_reminder_sent_at: quote.last_reminder_sent_at,
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(data.error || 'Reminder send failed.');
+      return;
+    }
+
+    quote.reminder_count = data.reminder_count ?? (getReminderCount(quote) + 1);
+    quote.last_reminder_sent_at = data.last_reminder_sent_at || new Date().toISOString();
+    showToast(data.warning ? 'Reminder sent, but tracking did not save.' : `Reminder sent to ${quote.customer_email}`);
+  } catch (err) {
+    console.error(err);
+    showToast('Network error sending reminder.');
+  } finally {
+    quote._reminderSending = false;
+    applyFilters();
   }
 }
 </script>
