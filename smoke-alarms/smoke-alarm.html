@@ -703,9 +703,10 @@ function doLogout() {
     <div class="modal-field">
       <label>Customer Type <span style="color:var(--red);font-weight:700;">*</span></label>
       <div class="ctype-row">
-        <label class="ctype-label"><input type="radio" name="custType" value="digital" checked>  Digital Lead</label>
-        <label class="ctype-label"><input type="radio" name="custType" value="letterbox">  Letterbox Lead</label>
+        <label class="ctype-label"><input type="radio" name="custType" value="digital" onchange="validateEmailModal()">  Digital Lead</label>
+        <label class="ctype-label"><input type="radio" name="custType" value="letterbox" onchange="validateEmailModal()">  Letterbox Lead</label>
       </div>
+      <div class="phone-required-hint" id="custTypeHint">Customer type is required before sending.</div>
     </div>
 
     <div class="modal-field">
@@ -1007,11 +1008,23 @@ function copyPreviewToClipboard() {
 
 function onPhoneInput() {
   const phone = document.getElementById('emailCustomerPhone').value.trim();
-  const btn   = document.getElementById('sendEmailBtn');
   const hint  = document.getElementById('phoneHint');
   const hasPhone = phone.length >= 8;
-  btn.disabled = !hasPhone;
   hint.style.display = hasPhone ? 'none' : 'block';
+  validateEmailModal();
+}
+
+function validateEmailModal() {
+  const phone = document.getElementById('emailCustomerPhone').value.trim();
+  const hasPhone = phone.length >= 8;
+  const hasCustType = !!document.querySelector('input[name="custType"]:checked');
+  const btn = document.getElementById('sendEmailBtn');
+  const phoneHint = document.getElementById('phoneHint');
+  const custTypeHint = document.getElementById('custTypeHint');
+
+  if (phoneHint) phoneHint.style.display = hasPhone ? 'none' : 'block';
+  if (custTypeHint) custTypeHint.style.display = hasCustType ? 'none' : 'block';
+  if (btn) btn.disabled = !(hasPhone && hasCustType);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1032,10 +1045,9 @@ function openEmailModal() {
   document.getElementById('emailCustomerEmail').value = '';
   document.getElementById('emailCustomerAddress').value = '';
   document.getElementById('sendEmailBtn').disabled = true;
-  document.getElementById('phoneHint').style.display = 'none';
-  // Reset customer type to digital
-  const firstRadio = document.querySelector('input[name="custType"][value="digital"]');
-  if (firstRadio) firstRadio.checked = true;
+  document.getElementById('phoneHint').style.display = 'block';
+  document.getElementById('custTypeHint').style.display = 'block';
+  document.querySelectorAll('input[name="custType"]').forEach(radio => { radio.checked = false; });
   setAddressState('pending', '');
 
   const alarmQty   = document.getElementById('res_alarmQty').innerText;
@@ -1055,6 +1067,7 @@ function openEmailModal() {
   }
   previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${grandTotal}</span></div>`;
   document.getElementById('emailPreviewBox').innerHTML = previewHTML;
+  validateEmailModal();
   document.getElementById('emailModal').classList.add('open');
 }
 function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
@@ -1067,10 +1080,11 @@ async function sendQuoteEmail() {
   const custPhone   = document.getElementById('emailCustomerPhone').value.trim();
   const custEmail   = document.getElementById('emailCustomerEmail').value.trim();
   const custAddress = document.getElementById('emailCustomerAddress').value.trim();
-  const custType    = document.querySelector('input[name="custType"]:checked')?.value || 'digital';
+  const custType    = document.querySelector('input[name="custType"]:checked')?.value || '';
 
   if (!custName)  { showToast('Please enter the customer name.'); return; }
   if (!custPhone || custPhone.length < 8) { showToast('Please enter the customer phone number.'); return; }
+  if (!custType) { showToast('Please select the customer type.'); return; }
   if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
 
   // ── Address validation: must be QLD or left blank ──
