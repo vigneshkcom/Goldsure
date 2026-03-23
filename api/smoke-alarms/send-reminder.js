@@ -53,7 +53,7 @@ function buildReminderEmail(data) {
         <table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;overflow:hidden;">
           <tr>
             <td bgcolor="#000000" align="center" style="padding:20px 32px 5px;">
-              <img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;">
+              <img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;">
             </td>
           </tr>
           <tr>
