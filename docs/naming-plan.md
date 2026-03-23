@@ -53,10 +53,10 @@ Preferred future examples:
 
 - Use uppercase stable root names only for shared repo docs already in use:
   - `/README.md`
-  - `/AGENTS.md`
-  - `/ARCHITECTURE.md`
-  - `/UI_GUIDE.md`
-  - `/BRANDING_MAP.md`
+  - `/docs/AGENTS.md`
+  - `/docs/ARCHITECTURE.md`
+  - `/docs/UI_GUIDE.md`
+  - `/docs/BRANDING_MAP.md`
 - Use lowercase kebab-case under `/docs/` for planning and operational notes
 
 Preferred examples under `/docs/`:

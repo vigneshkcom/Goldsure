@@ -22,7 +22,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Start with [/index.html](/index.html) if you want the main portal navigation.
 - Start with [/smoke-alarms/](/smoke-alarms) if you are working on the busiest live workflow.
 - Start with [/api/](/api) if you are tracing forms, notifications, or report delivery.
-- Start with [/assets/](/assets) and [/BRANDING_MAP.md](/BRANDING_MAP.md) if you are changing shared branding.
+- Start with [/assets/](/assets) and [/docs/BRANDING_MAP.md](/docs/BRANDING_MAP.md) if you are changing shared branding.
 - Treat [/vercel.json](/vercel.json) as deployment-critical configuration, not routine cleanup territory.
 
 ## Top-Level Practical File Map
@@ -147,7 +147,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Risky to change: low
 - Open this when: you need the quickest orientation to the repo docs
 
-### `/AGENTS.md`
+### `/docs/AGENTS.md`
 
 - Type: `documentation`
 - Purpose: instructions and guardrails for future coding/automation agents
@@ -157,7 +157,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Risky to change: low
 - Open this when: you want guardrails for safe agent or contributor changes
 
-### `/BRANDING_MAP.md`
+### `/docs/BRANDING_MAP.md`
 
 - Type: `documentation`
 - Purpose: logo/icon usage source of truth
@@ -167,7 +167,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Risky to change: low to medium because it guides future branding decisions
 - Open this when: you need to choose a logo or icon variant safely
 
-### `/UI_GUIDE.md`
+### `/docs/UI_GUIDE.md`
 
 - Type: `documentation`
 - Purpose: UI/runtime conventions and design guardrails
@@ -177,7 +177,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Risky to change: low
 - Open this when: you need UI conventions for browser-facing pages
 
-### `/ARCHITECTURE.md`
+### `/docs/ARCHITECTURE.md`
 
 - Type: `documentation`
 - Purpose: practical structural map of the repo and critical flows

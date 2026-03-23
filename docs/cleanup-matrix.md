@@ -73,10 +73,10 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 - `/assets/`
 - `/docs/route-dependencies.md`
 - `/README.md`
-- `/AGENTS.md`
-- `/ARCHITECTURE.md`
-- `/UI_GUIDE.md`
-- `/BRANDING_MAP.md`
+- `/docs/AGENTS.md`
+- `/docs/ARCHITECTURE.md`
+- `/docs/UI_GUIDE.md`
+- `/docs/BRANDING_MAP.md`
 
 ### Likely Legacy
 
@@ -165,10 +165,10 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 | `/smoke-alarms/calendar/manifest.json` | config | PWA manifest for calendar | clearly active / shared infrastructure | keep | very high |
 | `/smoke-alarms/calendar/sw.js` | config | service worker for calendar PWA | clearly active / shared infrastructure | keep | very high |
 | `/README.md` | documentation | repo entry point | shared infrastructure | keep | low |
-| `/AGENTS.md` | documentation | agent/contributor guardrails | shared infrastructure | keep | low |
-| `/ARCHITECTURE.md` | documentation | structural map and flow map | shared infrastructure | keep | low |
-| `/UI_GUIDE.md` | documentation | UI/runtime rules | shared infrastructure | keep | low |
-| `/BRANDING_MAP.md` | documentation | branding source of truth | shared infrastructure | keep | low-medium |
+| `/docs/AGENTS.md` | documentation | agent/contributor guardrails | shared infrastructure | keep | low |
+| `/docs/ARCHITECTURE.md` | documentation | structural map and flow map | shared infrastructure | keep | low |
+| `/docs/UI_GUIDE.md` | documentation | UI/runtime rules | shared infrastructure | keep | low |
+| `/docs/BRANDING_MAP.md` | documentation | branding source of truth | shared infrastructure | keep | low-medium |
 
 ## Top 20 Most Confusing Files/Folders
 

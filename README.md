@@ -153,10 +153,10 @@ Do not casually rename, move, or delete:
 
 If you need more detail after this README, use:
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md): practical repo map and critical flows
-- [UI_GUIDE.md](./UI_GUIDE.md): browser/UI conventions
-- [BRANDING_MAP.md](./BRANDING_MAP.md): logo/icon usage rules
-- [AGENTS.md](./AGENTS.md): contributor/agent guardrails
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): practical repo map and critical flows
+- [docs/UI_GUIDE.md](./docs/UI_GUIDE.md): browser/UI conventions
+- [docs/BRANDING_MAP.md](./docs/BRANDING_MAP.md): logo/icon usage rules
+- [docs/AGENTS.md](./docs/AGENTS.md): contributor/agent guardrails
 - [docs/cleanup-matrix.md](./docs/cleanup-matrix.md): cleanup planning matrix and risk map
 - [docs/naming-plan.md](./docs/naming-plan.md): naming and organisation cleanup plan
 - [docs/route-dependencies.md](./docs/route-dependencies.md): route/path dependency notes

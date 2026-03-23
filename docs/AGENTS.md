@@ -22,7 +22,7 @@
   - `/Air-Cons`
   - `/Ads reporting`
   - `/api/MetaAdPerformace`
-- Do not change [vercel.json](./vercel.json) without checking cron paths, headers, and any route-sensitive behavior first.
+- Do not change [vercel.json](../vercel.json) without checking cron paths, headers, and any route-sensitive behavior first.
 
 ## Safe Cleanup Scope
 

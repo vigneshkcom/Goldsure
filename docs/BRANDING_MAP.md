@@ -28,7 +28,7 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - generated browser-side exports on dark or branded report surfaces
   - contexts where the normal logo does not have enough contrast
 - Current known usage:
-  - browser/report flow in [Air-Cons/aux-mini-vrf-pricing.html](./Air-Cons/aux-mini-vrf-pricing.html)
+  - browser/report flow in [Air-Cons/aux-mini-vrf-pricing.html](../Air-Cons/aux-mini-vrf-pricing.html)
 - Should not be used:
   - as the default portal header logo
   - as a favicon or PWA icon
@@ -76,8 +76,8 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - Apple touch icon
   - installable app/icon surfaces
 - Current known usage:
-  - [smoke-alarms/calendar/index.html](./smoke-alarms/calendar/index.html)
-  - [smoke-alarms/calendar/manifest.json](./smoke-alarms/calendar/manifest.json)
+  - [smoke-alarms/calendar/index.html](../smoke-alarms/calendar/index.html)
+  - [smoke-alarms/calendar/manifest.json](../smoke-alarms/calendar/manifest.json)
 - Should not be used:
   - as a normal page header logo
   - in email HTML
@@ -88,7 +88,7 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - high-resolution PWA icon
   - install prompts and launcher surfaces
 - Current known usage:
-  - [smoke-alarms/calendar/manifest.json](./smoke-alarms/calendar/manifest.json)
+  - [smoke-alarms/calendar/manifest.json](../smoke-alarms/calendar/manifest.json)
 - Should not be used:
   - as a normal page header logo
   - in email HTML
@@ -104,7 +104,7 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - transactional email templates
   - any delivery context where relative asset paths may not resolve reliably
 - Current known usage:
-  - [api/battery/request-callback.js](./api/battery/request-callback.js)
+  - [api/battery/request-callback.js](../api/battery/request-callback.js)
 - Should not be used:
   - as the default browser logo when a root-relative browser asset is available
   - as a favicon or PWA icon
