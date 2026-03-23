@@ -77,9 +77,9 @@ main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
 .table-header-bar { padding: 12px 18px; border-bottom: 1px solid var(--border); }
 .table-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
 .table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; min-width: 1320px; }
+table { width: 100%; border-collapse: collapse; min-width: 1220px; }
 thead tr { background: var(--surface2); }
-th { padding: 10px 14px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: color 0.15s; }
+th { padding: 10px 14px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); white-space: normal; line-height: 1.3; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: color 0.15s; }
 th:hover { color: var(--gold); }
 th.sorted { color: var(--gold); }
 tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
@@ -203,11 +203,12 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
             <th>Status</th>
             <th>Send Reminder</th>
             <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
+            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminder Count ↕</th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td></tr>
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -316,7 +317,7 @@ function renderDaysPill(days, staleAfter = 3) {
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Try adjusting your filters or send your first quote from the Sales Portal.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Try adjusting your filters or send your first quote from the Sales Portal.</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(q => {
@@ -346,13 +347,14 @@ function renderTable() {
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${reminderLabel}</button></div></td>
       <td>${renderDaysPill(reminderAgeDays, 2)}</td>
+      <td><span class="count-badge">${reminderCount}</span></td>
     </tr>`;
   }).join('');
 }
 
 function showEmptyTable(msg) {
   document.getElementById('results-count').innerText = '0';
-  document.getElementById('table-body').innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`;
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`;
 }
 
 function renderKPIs() {
@@ -400,7 +402,7 @@ function renderCharts() {
 
 function exportCSV() {
   if (!filtered.length) { showToast('No quotes to export.'); return; }
-  const headers = ['Date Sent','Customer Name','Email','Phone','Lead Type','Agent','Alarms','Total','Days Since Quote','Status','Days Since Reminder'];
+  const headers = ['Date Sent','Customer Name','Email','Phone','Lead Type','Agent','Alarms','Total','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
   const rows = filtered.map(q => {
     const date = q.sent_at ? new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
     return [
@@ -415,6 +417,7 @@ function exportCSV() {
       daysSince(q.sent_at) ?? '',
       q.status || 'sent',
       daysSince(q.last_reminder_sent_at) ?? '',
+      getReminderCount(q),
     ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
   const csv = [headers.join(','), ...rows].join('\n');
