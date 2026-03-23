@@ -100,12 +100,13 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .status-btn:hover .badge { opacity: 0.8; }
 .row-actions { display: flex; align-items: center; gap: 8px; }
-.reminder-btn { font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700; padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(176,141,46,0.28); background: var(--gold-bg); color: var(--gold); cursor: pointer; text-transform: uppercase; letter-spacing: 0.35px; white-space: nowrap; transition: all 0.15s; }
-.reminder-btn:hover:not(:disabled) { background: #f8edc9; border-color: rgba(176,141,46,0.46); }
-.reminder-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.days-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 3px 8px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 10px; font-weight: 700; }
+.reminder-btn { font-family: 'Sora', sans-serif; font-size: 9px; font-weight: 700; padding: 5px 9px; border-radius: 6px; border: 1px solid rgba(176,141,46,0.3); background: var(--gold-bg); color: var(--gold); cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; transition: all 0.15s; }
+.reminder-btn:hover:not(:disabled) { background: #f8edc9; border-color: rgba(176,141,46,0.55); box-shadow: 0 1px 4px rgba(176,141,46,0.15); }
+.reminder-btn:disabled { opacity: 0.3; cursor: not-allowed; background: var(--surface2); color: var(--muted); border-color: var(--border); }
+.days-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; padding: 3px 8px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 .days-pill.is-stale { background: var(--gold-bg); border-color: var(--gold-border); color: var(--gold); }
-.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 4px 8px; border-radius: 999px; background: var(--blue-bg); border: 1px solid rgba(45,107,228,0.22); color: var(--blue); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; }
+.count-badge.has-reminders { background: var(--blue-bg); border-color: rgba(45,107,228,0.22); color: var(--blue); }
 .status-menu { position: absolute; right: 0; top: calc(100% + 4px); background: #fff; border: 1px solid var(--border2); border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,0.12); z-index: 500; min-width: 130px; overflow: hidden; display: none; }
 .status-menu.open { display: block; }
 .status-menu-item { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text); transition: background 0.1s; white-space: nowrap; }
@@ -309,7 +310,7 @@ function daysSince(dateStr) {
 }
 
 function renderDaysPill(days, staleAfter = 3) {
-  if (days === null) return '<span class="days-pill">-</span>';
+  if (days === null) return '<span class="days-pill" style="opacity:0.35;">—</span>';
   const cls = days >= staleAfter ? 'days-pill is-stale' : 'days-pill';
   return `<span class="${cls}">${days === 0 ? 'Today' : `${days}d`}</span>`;
 }
@@ -345,9 +346,9 @@ function renderTable() {
       <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
       <td>${renderDaysPill(quoteAgeDays, 4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
-      <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${reminderLabel}</button></div></td>
+      <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${q._reminderSending ? 'Sending…' : 'Remind'}</button></div></td>
       <td>${renderDaysPill(reminderAgeDays, 2)}</td>
-      <td><span class="count-badge">${reminderCount}</span></td>
+      <td><span class="count-badge${reminderCount > 0 ? ' has-reminders' : ''}">${reminderCount}</span></td>
     </tr>`;
   }).join('');
 }
