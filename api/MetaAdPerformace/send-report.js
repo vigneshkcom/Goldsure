@@ -728,7 +728,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
         </tr>
       </table>
       <p style="${F}font-size:10px;color:${MUTED};margin:8px 0 0 0;line-height:1.6;">
-        Path notation: "Meta &rarr; Google" = first touchpoint Meta, converted via Google. Unknown = no UTM data.
+        Path notation: "Meta &rarr; Landing Page" means the lead first came from Meta and converted via the landing page. "Google &rarr; Landing Page" means the lead is grouped under Google/direct traffic and converted via the landing page.
       </p>
     </td>
   </tr>
