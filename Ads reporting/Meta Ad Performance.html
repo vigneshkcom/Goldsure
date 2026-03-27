@@ -1691,11 +1691,24 @@ function looksLikeMetaCampaign(str) {
 
 function isLandingPageLabel(str) {
   const s = (str || '').toLowerCase().trim();
-  return s.includes('gold sure - smoke alarms') || s.includes('goldsure - smoke alarms');
+  return s === 'landing page' ||
+    s.includes('gold sure - smoke alarms') ||
+    s.includes('goldsure - smoke alarms');
+}
+
+function isLandingPageTouchpoint(str) {
+  const s = (str || '').toLowerCase().trim();
+  return isLandingPageLabel(s) ||
+    s.includes('offers.goldsure.com.au') ||
+    s.includes('/smoke-alarm');
 }
 
 function displaySourceLabel(str) {
-  return isLandingPageLabel(str) ? 'Landing Page' : (str || 'Unknown');
+  return isLandingPageTouchpoint(str) ? 'Google' : (str || 'Unknown');
+}
+
+function displayJourneyLabel(str) {
+  return isLandingPageTouchpoint(str) ? 'Landing Page' : displaySourceLabel(str);
 }
 
 function categoriseSource(rawSource, contactAttr) {
@@ -1741,7 +1754,7 @@ function categoriseSource(rawSource, contactAttr) {
   // Business rule: GHL "Direct traffic" is treated as Google for reporting.
   if (raw === 'direct traffic' || raw === 'direct') return 'Google';
   if (raw === 'referral') return 'Referral';
-  // Note: "landing page" is a GHL contact source label, not a traffic source — fall through to Unknown
+  if (isLandingPageTouchpoint(raw)) return 'Google';
   return rawSource || 'Unknown';
 }
 
@@ -1826,10 +1839,11 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const oppSrcRaw    = opp.source || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
-  // formName: ONLY set when the contact source contains an explicit Meta-only label.
-  // Generic branded names should not be treated as channel evidence.
+  // Keep landing pages as a journey touchpoint, but not as a standalone source bucket.
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
-  const formName = looksLikeMetaCampaign(rawContactSrc) ? rawContactSrc : '';
+  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw)
+    ? 'Landing Page'
+    : (looksLikeMetaCampaign(rawContactSrc) ? rawContactSrc : '');
 
   // latest raw source: prefer the latest attribution's own referrer; fall back to opp.source
   const latestRaw = latestRefUrl || oppSrcRaw;
@@ -2281,12 +2295,10 @@ function renderJourneyPaths(leads) {
     const latest   = r.latestSrc || r.source || 'Unknown';
     const platform = getPlatform(first);
     // If a form/campaign name is available, append it as the conversion touchpoint label
-    const latestLabel = r.formName
-      ? 'Landing Page'
-      : displaySourceLabel(latest);
+    const latestLabel = r.formName ? r.formName : displayJourneyLabel(latest);
     const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
-      ? displaySourceLabel(first)
-      : `${displaySourceLabel(first)} → ${latestLabel}`;
+      ? displayJourneyLabel(first)
+      : `${displayJourneyLabel(first)} → ${latestLabel}`;
 
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;

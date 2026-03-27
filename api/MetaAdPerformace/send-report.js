@@ -95,11 +95,24 @@ function looksLikeMetaCampaign(str) {
 
 function isLandingPageLabel(str) {
   const s = (str || '').toLowerCase().trim();
-  return s.includes('gold sure - smoke alarms') || s.includes('goldsure - smoke alarms');
+  return s === 'landing page' ||
+    s.includes('gold sure - smoke alarms') ||
+    s.includes('goldsure - smoke alarms');
+}
+
+function isLandingPageTouchpoint(str) {
+  const s = (str || '').toLowerCase().trim();
+  return isLandingPageLabel(s) ||
+    s.includes('offers.goldsure.com.au') ||
+    s.includes('/smoke-alarm');
 }
 
 function displaySourceLabel(str) {
-  return isLandingPageLabel(str) ? 'Landing Page' : (str || 'Unknown');
+  return isLandingPageTouchpoint(str) ? 'Google' : (str || 'Unknown');
+}
+
+function displayJourneyLabel(str) {
+  return isLandingPageTouchpoint(str) ? 'Landing Page' : displaySourceLabel(str);
 }
 
 function categoriseSource(rawSource, attr) {
@@ -149,7 +162,7 @@ function categoriseSource(rawSource, attr) {
   // Business rule: GHL "Direct traffic" is treated as Google for reporting.
   if (raw === 'direct traffic' || raw === 'direct') return 'Google';
   if (raw === 'referral') return 'Referral';
-  if (raw === 'landing page') return 'Landing Page';
+  if (isLandingPageTouchpoint(raw)) return 'Google';
   return rawSource || 'Unknown';
 }
 
@@ -199,7 +212,9 @@ function mapOpp(opp, contactAttrMap) {
     ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
     : '';
 
-  const formName = rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
+  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw)
+    ? 'Landing Page'
+    : rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
     ? rawContactSrc
     : (() => {
         const isUrl = /^https?:\/\//i.test(oppSrcRaw);
@@ -293,12 +308,10 @@ function calcKPIs(leads) {
     const latest   = r.latestSrc || r.source || 'Unknown';
     const platform = getPlatform(first);
     // If a form/campaign name is available, append it as the conversion touchpoint label
-    const latestLabel = r.formName
-      ? 'Landing Page'
-      : displaySourceLabel(latest);
+    const latestLabel = r.formName ? r.formName : displayJourneyLabel(latest);
     const pathLabel = (first === latestLabel || (!r.latestSrc && !r.formName))
-      ? displaySourceLabel(first)
-      : `${displaySourceLabel(first)} &rarr; ${latestLabel}`;
+      ? displayJourneyLabel(first)
+      : `${displayJourneyLabel(first)} &rarr; ${latestLabel}`;
     if (!pathData[platform]) pathData[platform] = { t:0, i:0, paths:{} };
     pathData[platform].t++;
     if (isInstalled(r.stage)) pathData[platform].i++;
