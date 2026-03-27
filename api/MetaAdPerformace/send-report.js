@@ -538,7 +538,7 @@ function buildEmail({ today, last7, prior7, dailyDates, allOpps, metaToday, meta
     ? last7KPIs.journeyPaths.map(({ platform, t, i, subPaths }) => {
         const col      = PLATFORM_COLORS_EMAIL[platform] || MUTED;
         const pPct     = t > 0 ? ((i / t) * 100).toFixed(1) : '0.0';
-        const hasMulti = subPaths.length > 1;
+        const hasMulti = subPaths.length > 0;
         const B = `border-bottom:1px solid ${BORDER};`;
         const subRows  = hasMulti ? subPaths.map(([label, sv]) => {
           const sPct = sv.t > 0 ? ((sv.i / sv.t) * 100).toFixed(1) : '0.0';
