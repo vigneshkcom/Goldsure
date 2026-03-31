@@ -36,6 +36,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Likely legacy: no
 - Risky to change: high
 - Open this when: you need to understand how people navigate into the rest of the repo
+- Notes: sidebar groups are client-side toggles; if the left nav feels locked, check the bottom script for `toggleGroup()`
 
 ### `/accept-quote.html`
 
@@ -200,7 +201,8 @@ These sections list the files that are most important when working in each folde
   - Shared: no
   - Likely legacy: no, but naming is inconsistent
   - Risky to change: high
-  - Notes: calls `/api/MetaAdPerformace/*`; contains report/export presentation logic
+- Notes: calls `/api/MetaAdPerformace/*`; contains report/export presentation logic
+- Notes (2026-03): source/journey-path logic now normalizes to `Meta` vs `Google` and shows landing pages as a journey path detail
 
 ### `/Air-Cons/`
 
@@ -268,6 +270,7 @@ These sections list the files that are most important when working in each folde
   - Likely legacy: no, but path naming is legacy
   - Risky to change: very high
   - Notes: also functions as an `email/report template` source and is coupled to Vercel cron
+  - Notes (2026-03): journey path output now mirrors dashboard (landing page shown as path detail under Meta/Google)
 
 #### `/api/smoke-alarms/`
 
@@ -292,6 +295,15 @@ These sections list the files that are most important when working in each folde
 - [google-key.js](/api/smoke-alarms/google-key.js)
   - Type: `API route`
   - Purpose: browser-safe bootstrap for Google Maps Places key
+
+- [send-reminder.js](/api/smoke-alarms/send-reminder.js)
+  - Type: `API route`
+  - Purpose: quote reminder email flow for the quote tracker
+  - Live/active: yes
+  - Shared: yes
+  - Likely legacy: no
+  - Risky to change: high
+  - Notes: updates `reminder_count` + `last_reminder_sent_at` in `quote_emails`
   - Live/active: yes
   - Shared: yes
   - Likely legacy: no
@@ -460,6 +472,7 @@ These sections list the files that are most important when working in each folde
   - Shared: no
   - Likely legacy: no
   - Risky to change: high
+  - Notes: supports reminder counts and follow-up actions; feeds the sales-portal summary block
 
 - [qld-smoke-alarm-training-certificate.html](/smoke-alarms/qld-smoke-alarm-training-certificate.html)
   - Type: `browser page`

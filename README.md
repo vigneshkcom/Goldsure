@@ -70,6 +70,13 @@ Important files:
 - `/api/MetaAdPerformace/google-spend.js`
 - `/api/MetaAdPerformace/send-report.js`
 
+### Recent Operational Changes
+
+- Quote tracker now has reminder logic and reminder counts.
+- Sales portal shows a quote follow-up summary block above Customer Name.
+- Meta Ad Performance reporting now normalizes sources to Meta vs Google and shows landing page as a journey path detail.
+- Portal sidebar grouping uses a client-side toggle script (check `index.html` if the sidebar feels locked).
+
 ### API / Forms / Notifications
 
 If something submits a form, sends an email, pulls CRM data, or generates a report, check:

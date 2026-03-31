@@ -27,6 +27,12 @@ This repo is live and has route-sensitive paths that should not be renamed casua
   - `/api/MetaAdPerformace/google-spend`
 - Keep those route names working until aliases or wrappers are added.
 
+## Quote tracker dependencies
+
+- `/smoke-alarms/quote-tracker.html` calls `/api/smoke-alarms/send-reminder`.
+- Reminder tracking persists in `quote_emails` via `reminder_count` and `last_reminder_sent_at`.
+- `/smoke-alarms/smoke-alarm.html` reads quote tracker data to show the follow-up summary bar.
+
 ## PWA path dependencies
 
 - `/smoke-alarms/calendar/` is path-sensitive.
