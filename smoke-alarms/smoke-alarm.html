@@ -147,6 +147,30 @@ header {
 /* ── MAIN ── */
 main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
 
+.quote-summary-bar {
+  grid-column: 1 / -1; background: linear-gradient(135deg, #fffdfa 0%, #f8fafc 100%);
+  border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: var(--shadow);
+}
+.quote-summary-copy { display: flex; flex-direction: column; gap: 4px; }
+.quote-summary-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+.quote-summary-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+.quote-summary-sub { font-size: 11px; color: var(--muted); }
+.quote-summary-stats { display: flex; align-items: stretch; gap: 10px; margin-left: auto; }
+.quote-summary-stat {
+  min-width: 120px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.quote-summary-stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
+.quote-summary-stat-value { font-size: 24px; font-family: 'JetBrains Mono', monospace; font-weight: 700; line-height: 1; color: var(--text); }
+.quote-summary-stat-value.gold { color: var(--gold); }
+.quote-summary-action {
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700; padding: 10px 14px;
+  border-radius: 8px; border: 1px solid #d0d5df; background: #141c2e; color: #fff;
+  text-decoration: none; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.35px; transition: all 0.15s;
+}
+.quote-summary-action:hover { background: var(--gold); border-color: var(--gold); color: #000; }
+
 .customer-bar {
   grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r); padding: 13px 18px;
@@ -380,6 +404,8 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   main { grid-template-columns: 1fr; }
   .sidebar { order: -1; }
   .price-card { position: static; }
+  .quote-summary-bar { flex-direction: column; align-items: flex-start; }
+  .quote-summary-stats { width: 100%; margin-left: 0; flex-wrap: wrap; }
   header { flex-wrap: wrap; min-height: auto; padding: 12px 16px; gap: 8px; }
   .sub-nav { padding: 8px 16px; }
   main { padding: 16px; }
@@ -490,6 +516,25 @@ function doLogout() {
 </div>
 
 <main>
+
+  <div class="quote-summary-bar" id="quoteSummaryBar">
+    <div class="quote-summary-copy">
+      <span class="quote-summary-label">Quote Follow Up</span>
+      <span class="quote-summary-title" id="quoteSummaryTitle">Quote tracker snapshot</span>
+      <span class="quote-summary-sub" id="quoteSummarySub">Sign in to load your quote activity.</span>
+    </div>
+    <div class="quote-summary-stats">
+      <div class="quote-summary-stat">
+        <div class="quote-summary-stat-label">Quotes Sent</div>
+        <div class="quote-summary-stat-value" id="quoteSummarySent">—</div>
+      </div>
+      <div class="quote-summary-stat">
+        <div class="quote-summary-stat-label">Need Chasing</div>
+        <div class="quote-summary-stat-value gold" id="quoteSummaryChasing">—</div>
+      </div>
+    </div>
+    <a href="/smoke-alarms/quote-tracker.html" target="_blank" class="quote-summary-action">Open Quote Tracker</a>
+  </div>
 
   <div class="customer-bar">
     <label>Customer Name</label>
@@ -766,6 +811,8 @@ let serviceMode  = 'install';
 let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
 let mapsLoaded = false;
 let currentQuoteToken = null;     // ← unique token per quote send
+const QUOTE_TRACKER_SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const QUOTE_TRACKER_SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 
 // Hook so the early global doLogin() can update agentName in this scope
@@ -790,6 +837,7 @@ function doLogin() {
   document.getElementById('app').style.display = 'block';
   setMode('social');
   calculate();
+  loadQuoteTrackerSummary();
   loadGoogleMaps(); // ← load Maps after login
 }
 function doLogout() {
@@ -797,6 +845,82 @@ function doLogout() {
   document.getElementById('login-agent').value='';
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
+  setQuoteSummaryState({
+    title: 'Quote tracker snapshot',
+    sub: 'Sign in to load your quote activity.',
+    sent: '—',
+    chasing: '—'
+  });
+}
+
+function quoteTrackerDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.max(0, Math.round((startOfToday - startOfDate) / 86400000));
+}
+
+function setQuoteSummaryState({ title, sub, sent, chasing }) {
+  document.getElementById('quoteSummaryTitle').innerText = title;
+  document.getElementById('quoteSummarySub').innerText = sub;
+  document.getElementById('quoteSummarySent').innerText = sent;
+  document.getElementById('quoteSummaryChasing').innerText = chasing;
+}
+
+async function loadQuoteTrackerSummary() {
+  if (!agentName) {
+    setQuoteSummaryState({
+      title: 'Quote tracker snapshot',
+      sub: 'Sign in to load your quote activity.',
+      sent: '—',
+      chasing: '—'
+    });
+    return;
+  }
+
+  setQuoteSummaryState({
+    title: `${agentName}'s quote tracker snapshot`,
+    sub: 'Loading sent quotes and follow-ups…',
+    sent: '…',
+    chasing: '…'
+  });
+
+  try {
+    const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/quote_emails?select=agent_name,status,sent_at&agent_name=eq.${encodeURIComponent(agentName)}&limit=1000`, {
+      headers: {
+        'apikey': QUOTE_TRACKER_SUPABASE_KEY,
+        'Authorization': `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!res.ok) throw new Error('Could not load quote tracker data');
+
+    const rows = await res.json();
+    const sentQuotes = rows.filter(q => (q.status || 'sent').toLowerCase() === 'sent');
+    const needChasing = sentQuotes.filter(q => {
+      const quoteAge = quoteTrackerDaysSince(q.sent_at);
+      return quoteAge !== null && quoteAge >= 2;
+    });
+
+    setQuoteSummaryState({
+      title: `${agentName}'s quote tracker snapshot`,
+      sub: `${sentQuotes.length} quote${sentQuotes.length === 1 ? '' : 's'} still marked sent. Chasing = sent quotes 2+ days old.`,
+      sent: String(sentQuotes.length),
+      chasing: String(needChasing.length)
+    });
+  } catch (err) {
+    console.warn('Quote tracker summary failed:', err);
+    setQuoteSummaryState({
+      title: `${agentName}'s quote tracker snapshot`,
+      sub: 'Could not load quote tracker summary right now.',
+      sent: '—',
+      chasing: '—'
+    });
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1375,8 +1499,8 @@ function generatePDF() {
     });
     y += Math.ceil(legislation.length/2)*9+8;
 
-    const frontViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png';
-    const installedViewUrl = 'https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png';
+    const frontViewUrl = 'https://portal.goldsure.com.au/assets/Raptor%20Smoke%20Alarm%201.png';
+    const installedViewUrl = 'https://portal.goldsure.com.au/assets/Raptor%20Alarm%202.png';
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...GOLD);
     doc.text('RAPTOR ALARMS', ML, y); y += 6;
     doc.setFontSize(13); doc.setTextColor(...DARK);

@@ -131,9 +131,9 @@ export default async function handler(req, res) {
             <p style="margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#666666;line-height:1.5;">Purpose-built for Australian Standards and approved for Queensland's fire safety regulatory requirements.</p>
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
               <tr>
-                <td width="48%" align="center"><img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9d08245e3a7a8f790d.png" alt="Raptor Front View" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" /><p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Front View</p></td>
+                <td width="48%" align="center"><img src="https://portal.goldsure.com.au/assets/Raptor%20Smoke%20Alarm%201.png" alt="Raptor Front View" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" /><p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Front View</p></td>
                 <td width="4%"></td>
-                <td width="48%" align="center"><img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699aaa9ddf9bdf6826e81b7c.png" alt="Raptor Installed View" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" /><p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Installed View</p></td>
+                <td width="48%" align="center"><img src="https://portal.goldsure.com.au/assets/Raptor%20Alarm%202.png" alt="Raptor Installed View" width="160" style="display:block;width:160px;height:auto;margin:0 auto;" /><p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#999999;margin:4px 0 0;font-style:italic;text-align:center;">Installed View</p></td>
               </tr>
             </table>
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e0e0e0;">
