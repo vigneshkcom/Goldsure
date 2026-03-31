@@ -152,12 +152,14 @@ export default async function handler(req, res) {
           </td></tr>
         </table>
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
-        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;padding-top:14px;border-top:1px solid #e0e0e0;">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #e0e0e0;">
           <tr>
-            <td width="136" valign="middle" style="padding-right:14px;"><img src="https://portal.goldsure.com.au/assets/48%20PX.png" alt="Goldsure Team" width="72" style="display:block;width:72px;height:auto;" /></td>
-            <td valign="middle" style="padding-left:14px;border-left:2px solid #b08d2e;">
-              <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#000000;">${agent_name}</p>
-              <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#b08d2e;letter-spacing:1px;text-transform:uppercase;">Goldsure Pty Ltd</p>
+            <td valign="middle" style="padding:14px 16px 14px 0;width:130px;">
+              <img src="https://portal.goldsure.com.au/assets/goldsure-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;">
+            </td>
+            <td valign="middle" style="padding:14px 0 14px 16px;border-left:2px solid #b08d2e;">
+              <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#000000;">${agent_name}</p>
+              <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
               <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;line-height:1.6;">p: 07 2145 5155<br>e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">info@goldsure.com.au</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">www.goldsure.com.au</a></p>
             </td>
           </tr>
