@@ -167,3 +167,4 @@ If you need more detail after this README, use:
 - [docs/cleanup-matrix.md](./docs/cleanup-matrix.md): cleanup planning matrix and risk map
 - [docs/naming-plan.md](./docs/naming-plan.md): naming and organisation cleanup plan
 - [docs/route-dependencies.md](./docs/route-dependencies.md): route/path dependency notes
+- [docs/HANDOFF.md](./docs/HANDOFF.md): single‑page handoff for new contributors or AI assistants
