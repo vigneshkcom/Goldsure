@@ -154,12 +154,8 @@ export default async function handler(req, res) {
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #e0e0e0;">
           <tr>
-            <td valign="middle" style="padding:14px 16px 14px 0;width:140px;">
-              <table border="0" cellpadding="0" cellspacing="0" style="background:#000000;border-radius:4px;">
-                <tr><td style="padding:10px 14px;">
-                  <img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;">
-                </td></tr>
-              </table>
+            <td valign="middle" style="padding:14px 16px 14px 0;width:130px;">
+              <img src="https://portal.goldsure.com.au/assets/goldsure-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;">
             </td>
             <td valign="middle" style="padding:14px 0 14px 16px;border-left:2px solid #b08d2e;">
               <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#000000;">${agent_name}</p>
