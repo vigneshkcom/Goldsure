@@ -56,7 +56,7 @@ export default async function handler(req, res) {
       <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
       <tr><td style="padding:24px 30px;background:#ffffff;">
         <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#000000;">Hi ${customer_name},</p>
-        ${customer_phone ? `<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#888888;"> ${customer_phone}</p>` : ''}
+        ${(customer_phone || customer_address) ? `<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#888888;line-height:1.6;">${customer_phone ? customer_phone : ''}${customer_phone && customer_address ? '<br>' : ''}${customer_address ? customer_address : ''}</p>` : ''}
         <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.6;">Thank you for choosing Goldsure. As discussed, please find your personalised smoke alarm quote below. Our licensed electrician will confirm the exact alarm placement on the day of installation to ensure full compliance with Queensland legislation.</p>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #e0e0e0;">
           <tr bgcolor="#000000">
