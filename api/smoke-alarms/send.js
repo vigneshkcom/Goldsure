@@ -48,61 +48,61 @@ export default async function handler(req, res) {
   <tr><td align="center" style="padding:20px 16px;">
     <table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;overflow:hidden;">
       <tr><td bgcolor="#000000" align="center" style="padding:20px 32px 5px;">
-        <img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/699a73ab3a2afd85cbdb392f.jpg" alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;" />
+        <img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;" />
       </td></tr>
       <tr><td bgcolor="#000000" align="center" style="padding:0 32px 16px;">
-        <p style="margin:0;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Smoke Alarm Quote</p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Smoke Alarm Quote</p>
       </td></tr>
       <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
       <tr><td style="padding:24px 30px;background:#ffffff;">
-        <p style="margin:0 0 4px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:22px;font-weight:bold;color:#000000;">Hi ${customer_name},</p>
+        <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#000000;">Hi ${customer_name},</p>
         ${customer_phone ? `<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#888888;"> ${customer_phone}</p>` : ''}
         <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.6;">Thank you for choosing Goldsure. As discussed, please find your personalised smoke alarm quote below. Our licensed electrician will confirm the exact alarm placement on the day of installation to ensure full compliance with Queensland legislation.</p>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #e0e0e0;">
           <tr bgcolor="#000000">
-            <td style="padding:8px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Description</td>
-            <td style="padding:8px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:center;">Qty</td>
-            <td style="padding:8px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Unit</td>
-            <td style="padding:8px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Total</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Description</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:center;">Qty</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Unit</td>
+            <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Total</td>
           </tr>
           <tr bgcolor="#ffffff">
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:'Arial Black','Arial Bold',Gadget,sans-serif;">Raptor Smoke Alarms</span><br><span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; 10-Yr Warranty</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Raptor Smoke Alarms</span><br><span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; 10-Yr Warranty</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarm_qty}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$98.00</td>
-            <td style="padding:10px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarm_total}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarm_total}</td>
           </tr>
           <tr bgcolor="#f9f9f9">
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:'Arial Black','Arial Bold',Gadget,sans-serif;">Smoke Alarm Controller</span><br><span style="font-size:11px;color:#888888;">Remote control &amp; status display</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Smoke Alarm Controller</span><br><span style="font-size:11px;color:#888888;">Remote control &amp; status display</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${ctrl_qty}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$49.00</td>
-            <td style="padding:10px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ctrl_total}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ctrl_total}</td>
           </tr>
           <tr bgcolor="#ffffff">
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:'Arial Black','Arial Bold',Gadget,sans-serif;">${fee_label}</span><br><span style="font-size:11px;color:#888888;">${fee_amount} payable upfront to secure your booking</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">${fee_label}</span><br><span style="font-size:11px;color:#888888;">${fee_amount} payable upfront to secure your booking</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">1</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
-            <td style="padding:10px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:13px;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
           </tr>
           <tr bgcolor="#000000">
-            <td colspan="3" style="padding:12px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:10px;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Grand Total (Incl. GST)</td>
-            <td style="padding:12px 12px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${grand_total}</td>
+            <td colspan="3" style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Grand Total (Incl. GST)</td>
+            <td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${grand_total}</td>
           </tr>
         </table>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;">
           <tr><td style="padding:10px 14px;">
-            <p style="margin:0 0 3px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Payment Structure</p>
+            <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Payment Structure</p>
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;">${payment_note}</p>
           </td></tr>
         </table>
-        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-          <tr><td align="center" style="padding:24px 0 8px;">
-            <p style="margin:0 0 6px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 14 days</p>
-            <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;line-height:1.5;">Ready to proceed? Click below and we'll be in touch to confirm your booking.</p>
-            <a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#000000;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;font-weight:bold;text-decoration:none;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Accept This Quote</a>
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#111111;border-radius:10px;">
+          <tr><td style="padding:20px 22px;text-align:center;">
+            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 14 days</p>
+            <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.5;">Ready to proceed? Click below and we'll be in touch to confirm your booking.</p>
+            <a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#111111;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;padding:14px 24px;border-radius:8px;">Accept This Quote</a>
           </td></tr>
         </table>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
-          <tr><td bgcolor="#000000" style="padding:8px 14px;"><p style="margin:0;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b08d2e;">Queensland Legislation &mdash; Effective 01/01/2027</p></td></tr>
+          <tr><td bgcolor="#000000" style="padding:8px 14px;"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#b08d2e;">Queensland Legislation &mdash; Effective 01/01/2027</p></td></tr>
           <tr><td style="padding:10px 12px;border:1px solid #e0e0e0;border-top:none;">
             <table width="100%" border="0" cellpadding="0" cellspacing="0">
               <tr>
@@ -126,8 +126,8 @@ export default async function handler(req, res) {
         </table>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border-top:2px solid #b08d2e;">
           <tr><td style="padding-top:14px;">
-            <p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Raptor Alarms</p>
-            <p style="margin:0 0 5px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:20px;color:#000000;line-height:1.2;">The Raptor Smoke Alarm</p>
+            <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Raptor Alarms</p>
+            <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#000000;line-height:1.2;">The Raptor Smoke Alarm</p>
             <p style="margin:0 0 15px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#666666;line-height:1.5;">Purpose-built for Australian Standards and approved for Queensland's fire safety regulatory requirements.</p>
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
               <tr>
@@ -137,35 +137,36 @@ export default async function handler(req, res) {
               </tr>
             </table>
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e0e0e0;">
-              <tr><td colspan="2" bgcolor="#000000" style="padding:8px 12px;"><p style="margin:0;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Key Features</p></td></tr>
+              <tr><td colspan="2" bgcolor="#000000" style="padding:8px 12px;"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Key Features</p></td></tr>
               <tr>
-                <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-right:1px solid #eeeeee;border-bottom:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;color:#b08d2e;">&#10003; Photoelectric Sensing</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Reduces nuisance alarms from cooking while ensuring reliable early detection.</p></td>
-                <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-bottom:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;color:#b08d2e;">&#10003; RF Wireless Interconnect</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">When one alarm sounds, all connected alarms sound. Up to 40 units per network.</p></td>
+                <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-right:1px solid #eeeeee;border-bottom:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#b08d2e;">&#10003; Photoelectric Sensing</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Reduces nuisance alarms from cooking while ensuring reliable early detection.</p></td>
+                <td width="50%" valign="top" bgcolor="#ffffff" style="padding:10px 12px;border-bottom:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#b08d2e;">&#10003; RF Wireless Interconnect</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">When one alarm sounds, all connected alarms sound. Up to 40 units per network.</p></td>
               </tr>
               <tr>
-                <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;border-right:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;color:#b08d2e;">&#10003; Alarm Memory</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Visual indication of prior activations and end-of-life warning for easy management.</p></td>
-                <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;"><p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:12px;color:#b08d2e;">&#10003; 10-Year Warranty</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Backed by a full 10-year manufacturer warranty for complete peace of mind.</p></td>
+                <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;border-right:1px solid #eeeeee;"><p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#b08d2e;">&#10003; Alarm Memory</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Visual indication of prior activations and end-of-life warning for easy management.</p></td>
+                <td width="50%" valign="top" bgcolor="#f9f9f9" style="padding:10px 12px;"><p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#b08d2e;">&#10003; 10-Year Warranty</p><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;line-height:1.4;">Backed by a full 10-year manufacturer warranty for complete peace of mind.</p></td>
               </tr>
               <tr><td colspan="2" bgcolor="#000000" align="center" style="padding:8px 12px;"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#ffffff;">Certified to <strong style="color:#b08d2e;">AS3786 2023</strong> &nbsp;|&nbsp; Approved for All Australian States</p></td></tr>
             </table>
-            <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:center;"><a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color:#b08d2e;text-decoration:none;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;">View the Raptor Smoke Alarm Datasheet &rarr;</a></p>
+            <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;text-align:center;"><a href="https://workdrive.zohopublic.com.au/external/77cc4e8b9e29aef78d17e9bde90d3e9718972cbe212a0bc0446effb7292cf0e6" style="color:#b08d2e;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">View the Raptor Smoke Alarm Datasheet &rarr;</a></p>
           </td></tr>
         </table>
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">* This quote is an estimate based on property details provided. On-site assessment by a licensed electrician is required for final compliance certification.</p>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:24px;padding-top:14px;border-top:1px solid #e0e0e0;">
           <tr>
-            <td width="100" valign="middle" style="padding-right:14px;"><img src="https://assets.cdn.filesafe.space/11epCbQAg9B4rQt5yHjw/media/6941477dca729831ab339932.jpg" alt="Goldsure Team" width="90" style="display:block;width:90px;height:auto;" /></td>
+            <td width="136" valign="middle" style="padding-right:14px;"><img src="https://portal.goldsure.com.au/assets/48%20PX.png" alt="Goldsure Team" width="72" style="display:block;width:72px;height:auto;" /></td>
             <td valign="middle" style="padding-left:14px;border-left:2px solid #b08d2e;">
-              <p style="margin:0 0 2px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:16px;color:#000000;">${agent_name}</p>
-              <p style="margin:0 0 5px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:11px;color:#b08d2e;letter-spacing:1px;text-transform:uppercase;">Goldsure Pty Ltd</p>
+              <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#000000;">${agent_name}</p>
+              <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#b08d2e;letter-spacing:1px;text-transform:uppercase;">Goldsure Pty Ltd</p>
               <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;line-height:1.6;">p: 07 2145 5155<br>e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">info@goldsure.com.au</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">www.goldsure.com.au</a></p>
             </td>
           </tr>
         </table>
       </td></tr>
       <tr><td bgcolor="#000000" align="center" style="padding:15px 20px;">
-        <p style="margin:0 0 3px;font-family:'Arial Black','Arial Bold',Gadget,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
-        <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#888888;line-height:1.5;">ABN: 66 683 305 106<br>Queensland, Australia</p>
+        <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+        <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#888888;line-height:1.5;">ABN: 66 683 305 106</p>
+        <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#888888;line-height:1.5;">Queensland, Australia</p>
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#555555;line-height:1.4;">CONFIDENTIAL: This email and any attachments are intended solely for the named recipient. Unauthorised use is prohibited.</p>
       </td></tr>
     </table>
