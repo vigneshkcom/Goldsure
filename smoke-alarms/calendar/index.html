@@ -804,7 +804,6 @@ header {
 </style>
 </head>
 <body>
-
 <!-- HEADER -->
 <header>
   <div class="header-left">
@@ -836,9 +835,9 @@ header {
   </div>
   <div class="sub-nav-right" id="adminSubNavRight">
     <button class="upload-btn" onclick="showManagerModal()">Manage Team</button>
-    <button class="upload-btn" onclick="document.getElementById('csvInput').click()">↑ <span class="upload-label">Upload CSV</span></button>
+    <button class="upload-btn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
     <input type="file" id="csvInput" accept=".csv,text/csv" onchange="handleCSV(event)">
-    <button class="upload-btn" id="shareLinkBtn" onclick="showShareMenu(event)">🔗 <span class="upload-label">Share Link</span></button>
+    <button class="upload-btn" id="shareLinkBtn" onclick="showShareMenu(event)">Share Link</button>
   </div>
 </div>
 
@@ -923,12 +922,12 @@ header {
     </div>
     <div id="workerView" style="display:none;">
       <div class="avail-status open" id="availStatus">
-        <span class="avail-icon">📅</span>
+        <span class="avail-icon"></span>
         <span id="availStatusText">What is your availability?</span>
       </div>
       <div class="avail-btns" id="availBtns">
-        <button class="avail-btn yes" id="availYes" onclick="setAvailability(true)">✓ Available</button>
-        <button class="avail-btn no"  id="availNo"  onclick="setAvailability(false)">✗ Not Available</button>
+        <button class="avail-btn yes" id="availYes" onclick="setAvailability(true)">Available</button>
+        <button class="avail-btn no"  id="availNo"  onclick="setAvailability(false)">Not Available</button>
       </div>
       <div class="modal-actions" style="flex-wrap: wrap;">
         <button class="btn-save" id="syncCalBtn" onclick="window.open('/api/smoke-alarms/calendar-feed?electrician=' + workerFilter)" style="flex:1; min-width:100%; margin-bottom:10px; background:var(--surface2); color:var(--text); border:1px solid var(--border);">Sync to Calendar App</button>
@@ -1128,9 +1127,6 @@ const _paramVal = (params.get('electrician') || '').trim().toLowerCase().replace
 if (_paramVal) {
   localStorage.setItem('gs_electrician', _paramVal)
 }
-// Only treat as worker view when the URL explicitly has ?electrician=...
-// Do NOT fall back to localStorage — that would open worker mode for admins
-// who visit the plain /calendar/ URL after a worker previously used their device.
 const workerFilter = _paramVal
 
 if (workerFilter) {
@@ -1141,23 +1137,11 @@ if (workerFilter) {
   document.getElementById('adminSubNavRight').style.display = 'none'
 }
 
-/**
- * Assign a stable pill colour class to an electrician.
- *
- * Priority:
- * 1. If the stored value has a numeric ID prefix like "[999] Adam Pearl",
- *    use that ID — it never changes even if the name is edited.
- * 2. Otherwise hash the first word of the name (first name / slug).
- *    This means "Paul Taylor" and "Paul Smith" would share a colour,
- *    but in practice first names are unique per team and won't change.
- */
-// Stable colour map: assign colours by order of first appearance, never collide.
 const _pillColorMap = new Map()
 const _pillColors = ['pill-0','pill-1','pill-2','pill-3','pill-4']
 let _pillColorNext = 0
 
 function getPillClass(name) {
-  // Extract stable key: prefer numeric ID from [ID] or [ID|count] prefix, else first name
   const idMatch = (name || '').match(/^\[(\d+)(?:\|\d+)?\]/)
   const key = idMatch ? `id:${idMatch[1]}` : (name||'').trim().split(/\s+/)[0].toLowerCase()
   if (!_pillColorMap.has(key)) {
@@ -1185,16 +1169,12 @@ function electricianNamesMatch(name, filter) {
   const rightParts = right.split(' ').filter(Boolean)
   if (!leftParts.length || !rightParts.length) return false
 
-  // Support legacy short links like ?electrician=mahmoud matching
-  // full stored names like "Mahmoud El Moussa", but do not let
-  // a full-name worker link match stale one-word booking rows.
   if (leftParts[0] !== rightParts[0]) return false
   return rightParts.length === 1
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-// Compute the right month's year/month from left's
 function getRightMonthInfo() {
   let rm = currentMonth + 1
   let ry = currentYear
@@ -1205,7 +1185,6 @@ function getRightMonthInfo() {
 function updateMonthDisplay() {
   const right = getRightMonthInfo()
 
-  // Desktop sub-nav: show range e.g. "March – April 2025" or "March 2025 – April 2026"
   let rangeHtml
   if (right.year === currentYear) {
     rangeHtml = `${MONTHS[currentMonth]} – ${MONTHS[right.month]} <span>${currentYear}</span>`
@@ -1214,13 +1193,11 @@ function updateMonthDisplay() {
   }
   document.getElementById('monthDisplay').innerHTML = rangeHtml
 
-  // Desktop labels inside each card
   document.getElementById('cardMonthLabelLeft').innerHTML =
     `${MONTHS[currentMonth]} <span>${currentYear}</span>`
   document.getElementById('cardMonthLabelRight').innerHTML =
     `${MONTHS[right.month]} <span>${right.year}</span>`
 
-  // Mobile displays
   const mobLeft = document.getElementById('mobileMonthDisplayLeft')
   if (mobLeft) mobLeft.innerHTML = `${MONTHS[currentMonth]} <span>${currentYear}</span>`
   const mobRight = document.getElementById('mobileMonthDisplayRight')
@@ -1248,7 +1225,6 @@ function renderBothMonths(events) {
   renderCalendarGrid('calendar-right', right.year,  right.month,  events)
 }
 
-// Core render logic — extracted to work for any month/year, targeting a given container id
 function renderCalendarGrid(containerId, year, month, events) {
   const calendar   = document.getElementById(containerId)
   calendar.innerHTML = ''
@@ -1287,27 +1263,19 @@ function renderCalendarGrid(containerId, year, month, events) {
     dayBox.dataset.date = dateStr
     dayBox.addEventListener('click', () => openModal(dateStr))
 
-    // Today dot (hidden via CSS — gold circle on number handles it)
     dayBox.appendChild(Object.assign(document.createElement('div'), { className: 'today-dot' }))
 
-    // Date number
     const numEl = document.createElement('span')
     numEl.className = 'day-num'
     numEl.textContent = d
     dayBox.appendChild(numEl)
 
-    // Holiday labels
     dayHols.forEach(label => {
       dayBox.appendChild(Object.assign(document.createElement('span'), { className: 'holiday-label', textContent: label }))
     })
 
     const dayWorkers = filteredRows.filter(e => e.work_date === dateStr)
 
-    // Mark day as CSV-locked if any booked entry came from CSV (has [ID] prefix)
-    // Lock badge logic:
-    // Admin view: lock only if ALL booked entries on the day came from CSV ([ID] prefix).
-    //             If any were manually added (no prefix), day is considered manually managed.
-    // Worker view: lock only if THIS electrician's own entry came from CSV.
     const bookedWorkers = dayWorkers.filter(e => {
       const n = (e.electrician||'').toLowerCase()
       return !n.startsWith('avail:') && !n.startsWith('unavail:')
@@ -1315,9 +1283,6 @@ function renderCalendarGrid(containerId, year, month, events) {
     const relevantWorkers = workerFilter
       ? bookedWorkers.filter(e => electricianNamesMatch(e.electrician || '', workerFilter))
       : bookedWorkers
-    // Lock only when real, recognisable CSV-booked entries exist.
-    // Guards against stale/ghost DB rows triggering a lock on visually empty days.
-    // Lock = ALL booked entries have [ID] prefix (came from CSV). No name validation needed.
     const hasCsvBooking = relevantWorkers.length > 0
       && relevantWorkers.every(e => /^\[\d+(?:\|\d+)?\]/.test(e.electrician || ''))
       && relevantWorkers.every(e => (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().length > 0)
@@ -1330,23 +1295,18 @@ function renderCalendarGrid(containerId, year, month, events) {
       dayBox.appendChild(badge)
     }
 
-    // Build a set of names that have an actual booking on this day (for suppressing avail pills)
     const bookedNamesOnDay = new Set(
       dayWorkers
         .filter(e => { const n=(e.electrician||'').toLowerCase(); return !n.startsWith('avail:')&&!n.startsWith('unavail:') })
         .map(e => (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().toLowerCase())
     )
 
-    // Desktop pills
-    // Option B: if a person has a booking, hide their avail/unavail pill — booking pill takes over.
-    // Worker view: only show their own avail/unavail; skip others.
     dayWorkers.forEach(e => {
       const raw  = (e.electrician || '').toLowerCase()
       const pill = document.createElement('span')
       if (raw.startsWith('avail:')) {
         const owner = raw.replace('avail:', '').trim()
         if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
-        // Hide avail pill if this person already has a booking showing
         const ownerFirstName = owner.split(' ')[0]
         if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirstName))) return
         const cap = ownerFirstName.charAt(0).toUpperCase() + ownerFirstName.slice(1)
@@ -1355,14 +1315,12 @@ function renderCalendarGrid(containerId, year, month, events) {
       } else if (raw.startsWith('unavail:')) {
         const owner = raw.replace('unavail:', '').trim()
         if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
-        // Hide unavail pill if this person already has a booking showing
         const ownerFirstName = owner.split(' ')[0]
         if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirstName))) return
         const cap = ownerFirstName.charAt(0).toUpperCase() + ownerFirstName.slice(1)
         pill.className = 'pill pill-unavail'
         pill.textContent = workerFilter ? 'Unavailable' : 'Unavailable: ' + cap
       } else {
-        // Booked entry — in worker view show "🔒 Booked", in admin show first name + month job count.
         pill.className = `pill ${getPillClass(e.electrician || '')}`
         if (workerFilter && electricianNamesMatch(e.electrician || '', workerFilter)) {
           pill.textContent = 'Booked'
@@ -1382,9 +1340,6 @@ function renderCalendarGrid(containerId, year, month, events) {
       dayBox.appendChild(pill)
     })
 
-    // Mobile name labels
-    // Worker view: include their own avail/unavail; exclude others'.
-    // Admin view: include everything.
     const mobileWorkers = workerFilter
       ? dayWorkers.filter(e => {
           const n = (e.electrician||'').toLowerCase()
@@ -1405,7 +1360,6 @@ function renderCalendarGrid(containerId, year, month, events) {
         if (raw.startsWith('avail:')) {
           const owner = raw.replace('avail:','').trim()
           const ownerFirst = owner.split(' ')[0]
-          // Hide if booked
           if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirst))) return
           lbl.className = 'mobile-name'
           lbl.style.cssText = 'background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;font-style:normal;font-weight:700;'
@@ -1413,7 +1367,6 @@ function renderCalendarGrid(containerId, year, month, events) {
         } else if (raw.startsWith('unavail:')) {
           const owner = raw.replace('unavail:','').trim()
           const ownerFirst = owner.split(' ')[0]
-          // Hide if booked
           if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirst))) return
           lbl.className = 'mobile-name'
           lbl.style.cssText = 'background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;font-style:normal;font-weight:700;'
@@ -1438,7 +1391,6 @@ function renderCalendarGrid(containerId, year, month, events) {
     calendar.appendChild(dayBox)
   }
 
-  // Pad to exactly 42 cells (6 rows × 7) so both months always match height
   const totalCells = firstDay + lastDate
   const trailingEmpty = (42 - (totalCells % 42)) % 42
   for (let i = 0; i < trailingEmpty; i++) {
@@ -1494,28 +1446,98 @@ function openWorkerModal(dateStr) {
       && !el.startsWith('unavail:')
       && electricianNamesMatch(e.electrician || '', workerFilter)
   })
-  const bookedToDelete = cachedEvents.filter(e => {
-    const n = (e.electrician||'').toLowerCase()
-    if (n.startsWith('avail:') || n.startsWith('unavail:')) return false
-    const stripped = n.replace(/^\[\d+(?:\|\d+)?\]\s*/, '').trim()
-    return csvElectricians.has(stripped)
-  })
-  if (bookedToDelete.length > 0) {
-    await db.delete('electrician_calendar', {electrician: {in: bookedToDelete.map(e => e.electrician)}})
+  const availEntry   = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
+  const unavailEntry = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
+  
+  const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText'), btnsEl=document.getElementById('availBtns'), yesBtn=document.getElementById('availYes'), noBtn=document.getElementById('availNo')
+  yesBtn.classList.remove('active'); noBtn.classList.remove('active')
+  
+  if (bookedEntry) {
+    statusEl.className='avail-status booked'; statusEl.querySelector('.avail-icon').textContent='!'
+    statusText.textContent='You have a job booked for this day. Contact the scheduler to make changes.'; btnsEl.style.display='none'
+  } else if (availEntry) {
+    statusEl.className='avail-status available'; statusEl.querySelector('.avail-icon').textContent='Y'
+    statusText.textContent='You marked yourself available. Tap to change.'; btnsEl.style.display='flex'; yesBtn.classList.add('active'); _workerAvailChoice=true
+  } else if (unavailEntry) {
+    statusEl.className='avail-status unavailable'; statusEl.querySelector('.avail-icon').textContent='N'
+    statusText.textContent='You marked yourself unavailable. Tap to change.'; btnsEl.style.display='flex'; noBtn.classList.add('active'); _workerAvailChoice=false
+  } else {
+    statusEl.className='avail-status open'; statusEl.querySelector('.avail-icon').textContent='?'
+    statusText.textContent='Let the scheduler know your availability.'; btnsEl.style.display='flex'
   }
+}
 
-  // Step 2 — Insert the new bookings from CSV
+async function setAvailability(isAvailable) {
+  if (!selectedDate) return
+  const workerName = workerFilter.charAt(0).toUpperCase()+workerFilter.slice(1)
+  const availKey=`avail:${workerFilter}`, unavailKey=`unavail:${workerFilter}`
+  const yesBtn=document.getElementById('availYes'), noBtn=document.getElementById('availNo')
+  const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText')
+  yesBtn.disabled=true; noBtn.disabled=true
+  const toDelete=cachedEvents.filter(e=>e.work_date===selectedDate&&((e.electrician||'').toLowerCase()===availKey||(e.electrician||'').toLowerCase()===unavailKey))
+  if (toDelete.length>0) await db.delete('electrician_calendar',{work_date:selectedDate,electrician:{in:toDelete.map(e => e.electrician)}})
+  await db.insert('electrician_calendar',[{work_date:selectedDate,electrician:isAvailable?availKey:unavailKey}])
+  yesBtn.disabled=false; noBtn.disabled=false
+  yesBtn.classList.toggle('active',isAvailable); noBtn.classList.toggle('active',!isAvailable); _workerAvailChoice=isAvailable
+  if (isAvailable) {
+    statusEl.className='avail-status available'; statusEl.querySelector('.avail-icon').textContent='Y'
+    statusText.textContent='Marked as available — the scheduler can now book you.'
+    showToast(`Available: ${workerName} on ${formatDate(selectedDate)}`)
+  } else {
+    statusEl.className='avail-status unavailable'; statusEl.querySelector('.avail-icon').textContent='N'
+    statusText.textContent='Marked as unavailable for this day.'
+    showToast(`Unavailable: ${workerName} on ${formatDate(selectedDate)}`)
+  }
+  loadCalendar()
+}
+
+async function saveElectricians() {
+  const btn = document.getElementById('saveBtn'); btn.disabled=true; btn.textContent='Saving…'
+  const checked = Array.from(document.querySelectorAll('#checklist input:checked')).map(i=>i.value)
+  const existing = cachedEvents.filter(e=>e.work_date===selectedDate && !e.electrician.startsWith('avail:') && !e.electrician.startsWith('unavail:'))
+  
+  await db.delete('electrician_calendar', {work_date: selectedDate, electrician: {in: existing.map(e=>e.electrician)}})
+  if (checked.length) await db.insert('electrician_calendar', checked.map(name=>({work_date:selectedDate, electrician:name})))
+  
+  showToast(`Saved ${checked.length} electrician${checked.length!==1?'s':''} for ${formatDate(selectedDate)}`)
+  closeModal(); loadCalendar()
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open') }
+
+async function handleCSV(e) {
+  const file = e.target.files[0]; if(!file) return
+  const text = await file.text(); const lines = text.split('\n').slice(1)
+  const rows = [], csvElectricians = new Set()
+  lines.forEach(line => {
+    const cols = parseCSVLine(line)
+    if (cols.length < 3) return
+    const date = parsePortalDate(cols[0])
+    const name = cleanElectricianName(cols[1])
+    const id   = cols[2].trim()
+    if (date && name) {
+      rows.push({ work_date: date, electrician: `[${id}] ${name}` })
+      csvElectricians.add(name)
+    }
+  })
+  
+  const dates = rows.map(r => r.work_date);
+  const minDate = dates.reduce((a, b) => a < b ? a : b);
+  const maxDate = dates.reduce((a, b) => a > b ? a : b);
+
+  await _sb.from('electrician_calendar')
+    .delete()
+    .gte('work_date', minDate)
+    .lte('work_date', maxDate)
+    .not('electrician', 'ilike', 'avail:%')
+    .not('electrician', 'ilike', 'unavail:%');
+
   await db.insert('electrician_calendar', rows)
 
-  // Step 3 — Remove avail:/unavail: entries ONLY for dates where that specific electrician
-  //           now has a booking in the new CSV. Leave all other availability untouched.
-  //           e.g. Paul booked on the 19th → delete avail:paul taylor for the 19th only.
-  //                Mahmoud not booked on the 19th → his avail:mahmoud el moussa stays.
   const availToDelete = cachedEvents.filter(e => {
     const n = (e.electrician||'').toLowerCase()
     if (!n.startsWith('avail:') && !n.startsWith('unavail:')) return false
     const ownerSlug = n.replace(/^(avail|unavail):/, '').trim()
-    // Check if this owner has a booking on this exact date in the new CSV
     return rows.some(r => {
       return r.work_date === e.work_date && electricianNamesMatch(r.electrician || '', ownerSlug)
     })
