@@ -1659,12 +1659,12 @@ function closeShareMenuOutside(e){
 function syncToCalendar(){
   var feedUrl = window.location.origin + '/api/smoke-alarms/calendar-feed?electrician=' + workerFilter;
   var webcalUrl = feedUrl.replace('https://', 'webcal://').replace('http://', 'webcal://');
-  var a = document.createElement('a');
-  a.href = webcalUrl;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  if (isIOS) {
+    window.location.href = webcalUrl;
+  } else {
+    window.open('https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(webcalUrl), '_blank');
+  }
 }
 </script>
 </body>
