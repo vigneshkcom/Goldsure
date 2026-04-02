@@ -337,18 +337,25 @@ header {
   padding: 14px 16px; border-radius: 10px; margin-bottom: 16px;
   font-size: 13px; font-weight: 600;
 }
-.avail-status.booked      { background: #fff3cd; border: 1.5px solid #e8c93a; color: #7a5c00; }
-.avail-status.available   { background: #dcfce7; border: 1.5px solid #86efac; color: #166534; }
-.avail-status.unavailable { background: #fee2e2; border: 1.5px solid #fca5a5; color: #991b1b; }
-.avail-status.open        { background: var(--surface2); border: 1.5px solid var(--border); color: var(--muted); }
+.avail-status.booked        { background: #fff3cd; border: 1.5px solid #e8c93a; color: #7a5c00; }
+.avail-status.available     { background: #dcfce7; border: 1.5px solid #86efac; color: #166534; }
+.avail-status.available-am  { background: #e0f2fe; border: 1.5px solid #7dd3fc; color: #0369a1; }
+.avail-status.available-pm  { background: #ede9fe; border: 1.5px solid #c4b5fd; color: #6d28d9; }
+.avail-status.unavailable   { background: #fee2e2; border: 1.5px solid #fca5a5; color: #991b1b; }
+.avail-status.open          { background: var(--surface2); border: 1.5px solid var(--border); color: var(--muted); }
 .avail-icon { font-size: 18px; flex-shrink: 0; }
-.avail-btns { display: flex; gap: 10px; margin-bottom: 16px; }
+.avail-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
 .avail-btn {
-  flex: 1; padding: 12px 8px; border-radius: 10px; border: 2px solid transparent;
-  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700;
+  padding: 12px 8px; border-radius: 10px; border: 2px solid transparent;
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700;
   cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.3px;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.3;
 }
+.avail-btn small { font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; opacity: 0.8; }
+.avail-btn.am  { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
+.avail-btn.am:hover, .avail-btn.am.active  { background: #0284c7; border-color: #0284c7; color: #fff; }
+.avail-btn.pm  { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; }
+.avail-btn.pm:hover, .avail-btn.pm.active  { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 .avail-btn.yes { background: #dcfce7; border-color: #86efac; color: #166534; }
 .avail-btn.yes:hover, .avail-btn.yes.active { background: #16a34a; border-color: #16a34a; color: #fff; }
 .avail-btn.no  { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
@@ -916,7 +923,9 @@ header {
         <span id="availStatusText">What is your availability?</span>
       </div>
       <div class="avail-btns" id="availBtns">
-        <button class="avail-btn yes" id="availYes" onclick="setAvailability(true)">Available</button>
+        <button class="avail-btn am"  id="availAm"  onclick="setAvailability('am')">Morning<br><small>8am – 12pm</small></button>
+        <button class="avail-btn pm"  id="availPm"  onclick="setAvailability('pm')">Afternoon<br><small>12pm – 5pm</small></button>
+        <button class="avail-btn yes" id="availYes" onclick="setAvailability('full')">Full Day<br><small>8am – 5pm</small></button>
         <button class="avail-btn no"  id="availNo"  onclick="setAvailability(false)">Not Available</button>
       </div>
       <div class="modal-actions" style="flex-wrap: wrap;">
@@ -1148,6 +1157,15 @@ function normalizeElectricianName(name) {
   return stripBookingPrefix(name).replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
+// Returns true if a raw electrician field value is any availability/unavailability entry
+function isAvailType(n) {
+  return n.startsWith('avail:') || n.startsWith('avail-am:') || n.startsWith('avail-pm:') || n.startsWith('unavail:')
+}
+// Strips the avail prefix and returns the slug
+function getAvailSlug(n) {
+  return n.replace(/^(avail-am|avail-pm|avail|unavail):/, '').trim()
+}
+
 function electricianNamesMatch(name, filter) {
   const left = normalizeElectricianName(name)
   const right = normalizeElectricianName(filter)
@@ -1225,8 +1243,8 @@ function renderCalendarGrid(containerId, year, month, events) {
   const filteredRows = workerFilter
     ? events.filter(r => {
         const raw = (r.electrician || '').toLowerCase()
-        if (raw.startsWith('avail:') || raw.startsWith('unavail:')) {
-          return electricianNamesMatch(raw.replace(/^(avail|unavail):/, '').trim(), workerFilter)
+        if (isAvailType(raw)) {
+          return electricianNamesMatch(getAvailSlug(raw), workerFilter)
         }
         return electricianNamesMatch(r.electrician || '', workerFilter)
       })
@@ -1286,21 +1304,29 @@ function renderCalendarGrid(containerId, year, month, events) {
 
     const bookedNamesOnDay = new Set(
       dayWorkers
-        .filter(e => { const n=(e.electrician||'').toLowerCase(); return !n.startsWith('avail:')&&!n.startsWith('unavail:') })
+        .filter(e => !isAvailType((e.electrician||'').toLowerCase()))
         .map(e => (e.electrician||'').replace(/^\[\d+(?:\|\d+)?\]\s*/,'').trim().toLowerCase())
     )
 
     dayWorkers.forEach(e => {
       const raw  = (e.electrician || '').toLowerCase()
       const pill = document.createElement('span')
-      if (raw.startsWith('avail:')) {
-        const owner = raw.replace('avail:', '').trim()
+      if (raw.startsWith('avail-am:') || raw.startsWith('avail-pm:') || raw.startsWith('avail:')) {
+        const owner = getAvailSlug(raw)
         if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
         const ownerFirstName = owner.split(' ')[0]
         if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirstName))) return
         const cap = ownerFirstName.charAt(0).toUpperCase() + ownerFirstName.slice(1)
-        pill.className = 'pill pill-avail'
-        pill.textContent = workerFilter ? 'Available' : 'Available: ' + cap
+        if (raw.startsWith('avail-am:')) {
+          pill.className = 'pill pill-avail'; pill.style.cssText = 'background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;'
+          pill.textContent = workerFilter ? 'AM' : 'AM: ' + cap
+        } else if (raw.startsWith('avail-pm:')) {
+          pill.className = 'pill pill-avail'; pill.style.cssText = 'background:#ede9fe;color:#6d28d9;border-color:#c4b5fd;'
+          pill.textContent = workerFilter ? 'PM' : 'PM: ' + cap
+        } else {
+          pill.className = 'pill pill-avail'
+          pill.textContent = workerFilter ? 'Available' : 'Available: ' + cap
+        }
       } else if (raw.startsWith('unavail:')) {
         const owner = raw.replace('unavail:', '').trim()
         if (workerFilter && !electricianNamesMatch(owner, workerFilter)) return
@@ -1332,9 +1358,8 @@ function renderCalendarGrid(containerId, year, month, events) {
     const mobileWorkers = workerFilter
       ? dayWorkers.filter(e => {
           const n = (e.electrician||'').toLowerCase()
-          if (n.startsWith('avail:') || n.startsWith('unavail:')) {
-            const owner = n.replace(/^(avail|unavail):/, '').trim()
-            return electricianNamesMatch(owner, workerFilter)
+          if (isAvailType(n)) {
+            return electricianNamesMatch(getAvailSlug(n), workerFilter)
           }
           return electricianNamesMatch(e.electrician || '', workerFilter)
         })
@@ -1346,13 +1371,22 @@ function renderCalendarGrid(containerId, year, month, events) {
       mobileWorkers.forEach(e => {
         const raw = (e.electrician || '').toLowerCase()
         const lbl = document.createElement('span')
-        if (raw.startsWith('avail:')) {
-          const owner = raw.replace('avail:','').trim()
+        if (isAvailType(raw) && !raw.startsWith('unavail:')) {
+          const owner = getAvailSlug(raw)
           const ownerFirst = owner.split(' ')[0]
           if (bookedNamesOnDay.has(owner) || [...bookedNamesOnDay].some(n => n.startsWith(ownerFirst))) return
+          const cap = ownerFirst.charAt(0).toUpperCase()+ownerFirst.slice(1)
           lbl.className = 'mobile-name'
-          lbl.style.cssText = 'background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;font-style:normal;font-weight:700;'
-          lbl.textContent = workerFilter ? 'Available' : 'Avail: ' + ownerFirst.charAt(0).toUpperCase()+ownerFirst.slice(1)
+          if (raw.startsWith('avail-am:')) {
+            lbl.style.cssText = 'background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc;font-style:normal;font-weight:700;'
+            lbl.textContent = workerFilter ? 'AM' : 'AM: ' + cap
+          } else if (raw.startsWith('avail-pm:')) {
+            lbl.style.cssText = 'background:#ede9fe;color:#6d28d9;border:1.5px solid #c4b5fd;font-style:normal;font-weight:700;'
+            lbl.textContent = workerFilter ? 'PM' : 'PM: ' + cap
+          } else {
+            lbl.style.cssText = 'background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;font-style:normal;font-weight:700;'
+            lbl.textContent = workerFilter ? 'Available' : 'Avail: ' + cap
+          }
         } else if (raw.startsWith('unavail:')) {
           const owner = raw.replace('unavail:','').trim()
           const ownerFirst = owner.split(' ')[0]
@@ -1430,53 +1464,71 @@ function openWorkerModal(dateStr) {
   document.getElementById('modalTitle').textContent   = 'Your Availability'
   const bookedEntry  = cachedEvents.find(e => {
     const el=(e.electrician||'').toLowerCase()
-    return e.work_date===dateStr
-      && !el.startsWith('avail:')
-      && !el.startsWith('unavail:')
-      && electricianNamesMatch(e.electrician || '', workerFilter)
+    return e.work_date===dateStr && !isAvailType(el) && electricianNamesMatch(e.electrician || '', workerFilter)
   })
-  const availEntry   = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
-  const unavailEntry = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
-  
-  const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText'), btnsEl=document.getElementById('availBtns'), yesBtn=document.getElementById('availYes'), noBtn=document.getElementById('availNo')
-  yesBtn.classList.remove('active'); noBtn.classList.remove('active')
-  
+  const amEntry     = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`avail-am:${workerFilter}`)
+  const pmEntry     = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`avail-pm:${workerFilter}`)
+  const availEntry  = cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`avail:${workerFilter}`)
+  const unavailEntry= cachedEvents.find(e => e.work_date===dateStr && (e.electrician||'').toLowerCase()===`unavail:${workerFilter}`)
+
+  const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText'), btnsEl=document.getElementById('availBtns')
+  const amBtn=document.getElementById('availAm'), pmBtn=document.getElementById('availPm'), yesBtn=document.getElementById('availYes'), noBtn=document.getElementById('availNo')
+  ;[amBtn,pmBtn,yesBtn,noBtn].forEach(b=>b.classList.remove('active'))
+
   if (bookedEntry) {
     statusEl.className='avail-status booked'; statusEl.querySelector('.avail-icon').textContent='!'
     statusText.textContent='You have a job booked for this day. Contact the scheduler to make changes.'; btnsEl.style.display='none'
+  } else if (amEntry) {
+    statusEl.className='avail-status available-am'; statusEl.querySelector('.avail-icon').textContent='AM'
+    statusText.textContent='Morning slot marked (8am–12pm). Tap to change.'; btnsEl.style.display='grid'; amBtn.classList.add('active')
+  } else if (pmEntry) {
+    statusEl.className='avail-status available-pm'; statusEl.querySelector('.avail-icon').textContent='PM'
+    statusText.textContent='Afternoon slot marked (12pm–5pm). Tap to change.'; btnsEl.style.display='grid'; pmBtn.classList.add('active')
   } else if (availEntry) {
     statusEl.className='avail-status available'; statusEl.querySelector('.avail-icon').textContent='Y'
-    statusText.textContent='You marked yourself available. Tap to change.'; btnsEl.style.display='flex'; yesBtn.classList.add('active'); _workerAvailChoice=true
+    statusText.textContent='Full day marked available. Tap to change.'; btnsEl.style.display='grid'; yesBtn.classList.add('active')
   } else if (unavailEntry) {
     statusEl.className='avail-status unavailable'; statusEl.querySelector('.avail-icon').textContent='N'
-    statusText.textContent='You marked yourself unavailable. Tap to change.'; btnsEl.style.display='flex'; noBtn.classList.add('active'); _workerAvailChoice=false
+    statusText.textContent='You marked yourself unavailable. Tap to change.'; btnsEl.style.display='grid'; noBtn.classList.add('active')
   } else {
     statusEl.className='avail-status open'; statusEl.querySelector('.avail-icon').textContent='?'
-    statusText.textContent='Let the scheduler know your availability.'; btnsEl.style.display='flex'
+    statusText.textContent='Let the scheduler know your availability.'; btnsEl.style.display='grid'
   }
 }
 
-async function setAvailability(isAvailable) {
+async function setAvailability(slot) {
   if (!selectedDate) return
   const workerName = workerFilter.charAt(0).toUpperCase()+workerFilter.slice(1)
-  const availKey=`avail:${workerFilter}`, unavailKey=`unavail:${workerFilter}`
+  const allAvailKeys = [`avail:${workerFilter}`,`avail-am:${workerFilter}`,`avail-pm:${workerFilter}`,`unavail:${workerFilter}`]
+  const amBtn=document.getElementById('availAm'), pmBtn=document.getElementById('availPm')
   const yesBtn=document.getElementById('availYes'), noBtn=document.getElementById('availNo')
   const statusEl=document.getElementById('availStatus'), statusText=document.getElementById('availStatusText')
-  yesBtn.disabled=true; noBtn.disabled=true
-  const toDelete=cachedEvents.filter(e=>e.work_date===selectedDate&&((e.electrician||'').toLowerCase()===availKey||(e.electrician||'').toLowerCase()===unavailKey))
-  if (toDelete.length>0) await db.delete('electrician_calendar',{work_date:selectedDate,electrician:{in:toDelete.map(e => e.electrician)}})
-  await db.insert('electrician_calendar',[{work_date:selectedDate,electrician:isAvailable?availKey:unavailKey}])
-  yesBtn.disabled=false; noBtn.disabled=false
-  yesBtn.classList.toggle('active',isAvailable); noBtn.classList.toggle('active',!isAvailable); _workerAvailChoice=isAvailable
-  if (isAvailable) {
-    statusEl.className='avail-status available'; statusEl.querySelector('.avail-icon').textContent='Y'
-    statusText.textContent='Marked as available — the scheduler can now book you.'
-    showToast(`Available: ${workerName} on ${formatDate(selectedDate)}`)
+  ;[amBtn,pmBtn,yesBtn,noBtn].forEach(b=>b.disabled=true)
+  const toDelete=cachedEvents.filter(e=>e.work_date===selectedDate&&allAvailKeys.includes((e.electrician||'').toLowerCase()))
+  if (toDelete.length>0) await db.delete('electrician_calendar',{work_date:selectedDate,electrician:{in:toDelete.map(e=>e.electrician)}})
+  let newKey, statusClass, iconText, statusMsg, toastMsg
+  if (slot==='am') {
+    newKey=`avail-am:${workerFilter}`; statusClass='avail-status available-am'; iconText='AM'
+    statusMsg='Morning slot marked (8am–12pm).'; toastMsg=`AM available: ${workerName} on ${formatDate(selectedDate)}`
+    amBtn.classList.add('active'); [pmBtn,yesBtn,noBtn].forEach(b=>b.classList.remove('active'))
+  } else if (slot==='pm') {
+    newKey=`avail-pm:${workerFilter}`; statusClass='avail-status available-pm'; iconText='PM'
+    statusMsg='Afternoon slot marked (12pm–5pm).'; toastMsg=`PM available: ${workerName} on ${formatDate(selectedDate)}`
+    pmBtn.classList.add('active'); [amBtn,yesBtn,noBtn].forEach(b=>b.classList.remove('active'))
+  } else if (slot==='full') {
+    newKey=`avail:${workerFilter}`; statusClass='avail-status available'; iconText='Y'
+    statusMsg='Full day marked — the scheduler can now book you.'; toastMsg=`Available (full day): ${workerName} on ${formatDate(selectedDate)}`
+    yesBtn.classList.add('active'); [amBtn,pmBtn,noBtn].forEach(b=>b.classList.remove('active'))
   } else {
-    statusEl.className='avail-status unavailable'; statusEl.querySelector('.avail-icon').textContent='N'
-    statusText.textContent='Marked as unavailable for this day.'
-    showToast(`Unavailable: ${workerName} on ${formatDate(selectedDate)}`)
+    newKey=`unavail:${workerFilter}`; statusClass='avail-status unavailable'; iconText='N'
+    statusMsg='Marked as unavailable for this day.'; toastMsg=`Unavailable: ${workerName} on ${formatDate(selectedDate)}`
+    noBtn.classList.add('active'); [amBtn,pmBtn,yesBtn].forEach(b=>b.classList.remove('active'))
   }
+  await db.insert('electrician_calendar',[{work_date:selectedDate,electrician:newKey}])
+  ;[amBtn,pmBtn,yesBtn,noBtn].forEach(b=>b.disabled=false)
+  statusEl.className=statusClass; statusEl.querySelector('.avail-icon').textContent=iconText
+  statusText.textContent=statusMsg
+  showToast(toastMsg)
   loadCalendar()
 }
 
@@ -1519,14 +1571,16 @@ async function handleCSV(e) {
     .gte('work_date', minDate)
     .lte('work_date', maxDate)
     .not('electrician', 'ilike', 'avail:%')
+    .not('electrician', 'ilike', 'avail-am:%')
+    .not('electrician', 'ilike', 'avail-pm:%')
     .not('electrician', 'ilike', 'unavail:%');
 
   await db.insert('electrician_calendar', rows)
 
   const availToDelete = cachedEvents.filter(e => {
     const n = (e.electrician||'').toLowerCase()
-    if (!n.startsWith('avail:') && !n.startsWith('unavail:')) return false
-    const ownerSlug = n.replace(/^(avail|unavail):/, '').trim()
+    if (!isAvailType(n)) return false
+    const ownerSlug = getAvailSlug(n)
     return rows.some(r => {
       return r.work_date === e.work_date && electricianNamesMatch(r.electrician || '', ownerSlug)
     })
