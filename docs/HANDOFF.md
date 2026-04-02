@@ -47,7 +47,23 @@ This file is a single-page orientation for any new contributor or assistant. It 
 - Tracks reminder count + last reminder timestamp in `quote_emails`
 - Sales portal summary block (quote follow‑up) reads from the same data
 
-### 4) Ad Performance Reporting
+### 4) Install Reports (Emails)
+
+- Install Summary page: `/smoke-alarms/install-summary.html`
+- Installer Pay Summary page: `/smoke-alarms/Installer Pay Summary.html`
+- **Both** call the same API: `/api/smoke-alarms/reports` (→ `api/smoke-alarms/reports/index.js`)
+- Routing is by body shape: `{ html }` → install summary relay; `{ summary }` → pay summary builder
+- These two were consolidated into one function to stay within the Vercel Hobby 12-function limit
+
+### 5) Electrician Calendar
+
+- Page: `/smoke-alarms/calendar/` (PWA)
+- Admin view: no query param — shows all electricians, CSV upload, Manage Team button
+- Worker view: `?electrician=SLUG` — shows that worker's schedule and availability toggle
+- Data lives in Supabase `electrician_calendar` table
+- No external calendar sync endpoint (removed — Google Calendar's 24h refresh delay made it useless)
+
+### 6) Ad Performance Reporting
 
 - Page: `/Ads reporting/Meta Ad Performance.html`
 - APIs:
@@ -63,6 +79,24 @@ This file is a single-page orientation for any new contributor or assistant. It 
 - Direct traffic → `Google`
 - Landing page / offers URLs → shown as a journey touchpoint, not a standalone source
 - Journey table shows sub‑paths under `Meta` and `Google`
+
+## Vercel Function Limit
+
+The repo is on the Hobby plan: **12 serverless functions maximum**. Currently at exactly 12. Before adding any new file under `/api/`, consolidate or remove an existing one first.
+
+Current 12 functions:
+1. `api/MetaAdPerformace/auth.js`
+2. `api/MetaAdPerformace/config.js`
+3. `api/MetaAdPerformace/ghl.js`
+4. `api/MetaAdPerformace/google-spend.js`
+5. `api/MetaAdPerformace/send-report.js`
+6. `api/battery/request-callback.js`
+7. `api/smoke-alarms/accept.js`
+8. `api/smoke-alarms/google-key.js`
+9. `api/smoke-alarms/send-reminder.js`
+10. `api/smoke-alarms/send.js`
+11. `api/smoke-alarms/reports/index.js`
+12. *(one slot free — slot freed when calendar-feed.js was removed)*
 
 ## High‑Risk Files (Don’t Rename)
 

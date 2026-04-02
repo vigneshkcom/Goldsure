@@ -23,6 +23,12 @@
   - `/Ads reporting`
   - `/api/MetaAdPerformace`
 - Do not change [vercel.json](../vercel.json) without checking cron paths, headers, and any route-sensitive behavior first.
+- **Vercel Hobby plan: 12 serverless functions maximum.** The repo is currently at 11 (one slot free). Do not add more than one new file under `/api/` without consolidating existing ones. Each `.js` file directly inside `/api/` or any subfolder counts as one function.
+
+## Email Signature Logos
+
+- Quote email (`api/smoke-alarms/send.js`) and reminder email (`api/smoke-alarms/send-reminder.js`) both use `/assets/goldsure-logo.jpg` (white background) in the agent/contact signature block.
+- The header logo in those same emails uses `/assets/goldsure-inverted-logo.jpg` (black background).
 
 ## Safe Cleanup Scope
 

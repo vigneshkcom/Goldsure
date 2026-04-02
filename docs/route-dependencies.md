@@ -33,6 +33,13 @@ This repo is live and has route-sensitive paths that should not be renamed casua
 - Reminder tracking persists in `quote_emails` via `reminder_count` and `last_reminder_sent_at`.
 - `/smoke-alarms/smoke-alarm.html` reads quote tracker data to show the follow-up summary bar.
 
+## Report email dependencies
+
+- `/smoke-alarms/install-summary.html` calls `/api/smoke-alarms/reports` (POST `{ html, to, subject, from }`).
+- `/smoke-alarms/Installer Pay Summary.html` calls `/api/smoke-alarms/reports` (POST `{ summary, to, subject }`).
+- Both routes are handled by the single `api/smoke-alarms/reports/index.js` function.
+- Do not split this back into separate files without freeing a Vercel function slot first.
+
 ## PWA path dependencies
 
 - `/smoke-alarms/calendar/` is path-sensitive.

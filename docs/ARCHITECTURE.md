@@ -87,6 +87,7 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Likely legacy: mixed
 - Risky to change: very high
 - Open this when: you are tracing form submissions, CRM/report integrations, or generated emails
+- **Vercel Hobby plan limit: 12 serverless functions maximum.** The repo is currently at exactly 12. Do not add a new file under `/api/` without first consolidating or removing an existing one.
 
 ### `/assets/`
 
@@ -311,13 +312,14 @@ These sections list the files that are most important when working in each folde
 
 #### `/api/smoke-alarms/reports/`
 
-- [send-install-summary.js](/api/smoke-alarms/reports/send-install-summary.js)
+- [index.js](/api/smoke-alarms/reports/index.js)
   - Type: `API route`
-  - Purpose: install summary submission/report route
+  - Purpose: combined report email endpoint — handles both install summary relay and installer pay summary builder in a single function; routes on request body shape (`html` field → install summary, `summary` field → pay summary)
   - Live/active: yes
   - Shared: yes
   - Likely legacy: no
   - Risky to change: very high
+  - Notes: consolidated from two separate files to stay within Vercel Hobby plan 12-function limit; frontend callers use `/api/smoke-alarms/reports` (no sub-path)
 
 ### `/assets/`
 
@@ -355,10 +357,10 @@ These sections list the files that are most important when working in each folde
 
 - [goldsure-logo.jpg](/assets/goldsure-logo.jpg)
   - Type: `shared asset`
-  - Purpose: legacy horizontal portal logo
+  - Purpose: horizontal logo on a white/light background — used in email signatures (quote + reminder emails)
   - Live/active: yes
   - Shared: yes
-  - Likely legacy: yes
+  - Likely legacy: no
   - Risky to change: medium
 
 - [goldsure-technician.png](/assets/goldsure-technician.png)
@@ -518,11 +520,12 @@ These sections list the files that are most important when working in each folde
 
 - [index.html](/smoke-alarms/calendar/index.html)
   - Type: `browser page`
-  - Purpose: electrician calendar PWA UI
+  - Purpose: electrician calendar PWA UI — shows scheduled jobs by electrician, supports availability toggling, CSV upload, and team management
   - Live/active: yes
   - Shared: no
   - Likely legacy: no
   - Risky to change: very high
+  - Notes: worker view is accessed via `?electrician=SLUG` query param; admin view has no query param; no ICS/calendar-feed endpoint (was removed — Google Calendar sync was unreliable due to 24h refresh delay)
 
 - [manifest.json](/smoke-alarms/calendar/manifest.json)
   - Type: `config`
@@ -587,8 +590,9 @@ These sections list the files that are most important when working in each folde
 - Main APIs:
   - [api/smoke-alarms/send.js](/api/smoke-alarms/send.js)
   - [api/smoke-alarms/accept.js](/api/smoke-alarms/accept.js)
+  - [api/smoke-alarms/send-reminder.js](/api/smoke-alarms/send-reminder.js)
   - [api/smoke-alarms/google-key.js](/api/smoke-alarms/google-key.js)
-  - [api/smoke-alarms/reports/send-install-summary.js](/api/smoke-alarms/reports/send-install-summary.js)
+  - [api/smoke-alarms/reports/index.js](/api/smoke-alarms/reports/index.js)
 - What the user sees: the core sales and operations workflow for smoke alarm quotes, support, installs, and calendar access
 - Risk profile:
   - most interconnected area in the repo
@@ -643,7 +647,7 @@ Documentation only. These are good candidates for future cleanup planning, not a
   - [api/smoke-alarms/send.js](/api/smoke-alarms/send.js)
   - [api/smoke-alarms/accept.js](/api/smoke-alarms/accept.js)
   - [api/smoke-alarms/google-key.js](/api/smoke-alarms/google-key.js)
-  - [api/smoke-alarms/reports/send-install-summary.js](/api/smoke-alarms/reports/send-install-summary.js)
+  - [api/smoke-alarms/reports/index.js](/api/smoke-alarms/reports/index.js)
   - [api/battery/request-callback.js](/api/battery/request-callback.js)
 
 ### Form-sensitive
