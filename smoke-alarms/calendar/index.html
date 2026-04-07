@@ -1549,21 +1549,35 @@ function closeModal() { document.getElementById('modalOverlay').classList.remove
 async function handleCSV(e) {
   const file = e.target.files[0]; if(!file) return
   const text = await file.text(); const lines = text.split('\n').slice(1)
-  const rows = [], csvElectricians = new Set()
+
+  // CSV columns (0-indexed):
+  //   J=9  Scheduled Datetime  e.g. "13-Apr-2026 9:30AM"
+  //   N=13 Field Worker        e.g. "[1005] Munesh Chand"
+  const jobMap = new Map() // key: "date|id" → { work_date, id, name, count }
   lines.forEach(line => {
     const cols = parseCSVLine(line)
-    if (cols.length < 3) return
-    const date = parsePortalDate(cols[0])
-    const name = cleanElectricianName(cols[1])
-    const id   = cols[2].trim()
-    if (date && name) {
-      rows.push({ work_date: date, electrician: `[${id}] ${name}` })
-      csvElectricians.add(name)
-    }
+    if (cols.length < 14) return
+    const date = parsePortalDate(cols[9])   // Scheduled Datetime
+    const fw   = cols[13].trim()            // Field Worker
+    if (!date || !fw) return
+    const fwMatch = fw.match(/^\[(\d+)\]\s*(.+)/)
+    if (!fwMatch) return
+    const id   = fwMatch[1]
+    const name = fwMatch[2].trim()
+    const key  = `${date}|${id}`
+    if (jobMap.has(key)) { jobMap.get(key).count++ }
+    else { jobMap.set(key, { work_date: date, id, name, count: 1 }) }
   })
-  
+
+  const rows = [], csvElectricians = new Set()
+  for (const { work_date, id, name, count } of jobMap.values()) {
+    const elec = count > 1 ? `[${id}|${count}] ${name}` : `[${id}] ${name}`
+    rows.push({ work_date, electrician: elec })
+    csvElectricians.add(name)
+  }
+
   if (rows.length === 0) {
-    showToast('No valid rows found — check the CSV date format (expected DD/MM/YYYY or DD-Mon-YYYY)')
+    showToast('No valid rows found — ensure Field Worker column (N) has [ID] Name format')
     e.target.value = ''
     return
   }
