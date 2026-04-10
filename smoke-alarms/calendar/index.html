@@ -1582,8 +1582,13 @@ async function handleCSV(e) {
     return
   }
   const dates = rows.map(r => r.work_date);
-  const minDate = dates.reduce((a, b) => a < b ? a : b);
+  const csvMin = dates.reduce((a, b) => a < b ? a : b);
   const maxDate = dates.reduce((a, b) => a > b ? a : b);
+  // Use today as the delete start if it's earlier than the CSV's first date.
+  // This ensures days cleared in the source system (no rows in new CSV) are
+  // also wiped here, not just days that appear in the new CSV.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+  const minDate = today < csvMin ? today : csvMin;
 
   await _sb.from('electrician_calendar')
     .delete()
