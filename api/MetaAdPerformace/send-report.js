@@ -4,9 +4,9 @@
 // Cron: "0 6 * * 1-5" -> 06:00 UTC = 5:00 PM AEDT (UTC+11)
 //
 // Required Vercel Environment Variables:
-//   RESEND_API_KEY, GHL_API_KEY, META_TOKEN, REPORT_RECIPIENTS, CRON_SECRET
+//   RESEND_API_KEY, GHL_API_KEY, GHL_LOCATION_ID, META_TOKEN, REPORT_RECIPIENTS, CRON_SECRET
 
-const GHL_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
 const SMOKE_ACCOUNT   = 'act_1420815159464502';
 
 // Stage classification (matches dashboard renderSmoke exactly)

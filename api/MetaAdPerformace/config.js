@@ -4,8 +4,9 @@
 // in /api/ghl (server-side), so it is never exposed to the client.
 //
 // Set these in Vercel Dashboard → Project Settings → Environment Variables:
-//   GHL_API_KEY   = your GoHighLevel API key (pit-xxxx...)   ← server-side only
-//   META_TOKEN    = your Meta Ads access token (EAAia7...)   ← returned to browser
+//   GHL_API_KEY      = your GoHighLevel API key (pit-xxxx...)   ← server-side only
+//   GHL_LOCATION_ID  = your GHL Location/Sub-account ID         ← server-side only
+//   META_TOKEN       = your Meta Ads access token (EAAia7...)   ← returned to browser
 
 export default function handler(req, res) {
   if (req.method !== 'GET') {
