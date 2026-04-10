@@ -1258,7 +1258,7 @@ let SMOKE_CRM = [], HWS_CRM = [];
 let SMOKE_SPEND = [], HWS_SPEND = [];
 let SMOKE_SPEND_ALL = [], HWS_SPEND_ALL = [];
 
-const GHL_LOCATION_ID = '11epCbQAg9B4rQt5yHjw';
+let GHL_LOCATION_ID = '';
 let GHL_API_KEY = '';
 let META_TOKEN = '';
 let GHL_CONNECTED = false;
@@ -1484,6 +1484,7 @@ async function autoLogin() {
     const cfg = await resp.json();
     if (cfg.error) throw new Error(cfg.error);
     metaToken = cfg.metaToken || '';
+    GHL_LOCATION_ID = cfg.ghlLocationId || '';
     setStep('config', 'done', 'Credentials loaded from Vercel ✓');
   } catch(e) {
     setStep('config', 'err', `Failed to load credentials: ${e.message}`);
@@ -1499,14 +1500,19 @@ async function autoLogin() {
   META_TOKEN = metaToken;
 
   setStep('ghl', 'active', 'Connecting to GoHighLevel CRM…');
-  try {
-    const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
-    const total = json.meta?.total || 0;
-    GHL_CONNECTED = true;
-    setStep('ghl', 'done', `GHL connected — ${total} opportunities found ✓`);
-  } catch(e) {
-    setStep('ghl', 'err', `GHL connection failed: ${e.message}`);
+  if (!GHL_LOCATION_ID) {
+    setStep('ghl', 'err', 'GHL_LOCATION_ID not set in Vercel Environment Variables');
     GHL_CONNECTED = false;
+  } else {
+    try {
+      const json = await ghlFetch(`/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=5`);
+      const total = json.meta?.total || 0;
+      GHL_CONNECTED = true;
+      setStep('ghl', 'done', `GHL connected — ${total} opportunities found ✓`);
+    } catch(e) {
+      setStep('ghl', 'err', `GHL connection failed: ${e.message}`);
+      GHL_CONNECTED = false;
+    }
   }
 
   if (metaToken) {
