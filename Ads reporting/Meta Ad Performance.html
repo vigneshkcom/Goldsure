@@ -1267,6 +1267,11 @@ let META_CONNECTED = false;
 let SMOKE_PIPELINE_ID = '', HWS_PIPELINE_ID = '';
 let GHL_PIPELINES = [];
 
+// ── Date overrides: email → 'YYYY-MM-DD' loaded from Supabase "Webco Created Dates" ──
+let DATE_OVERRIDES = new Map();
+const SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+
 let smokeCrmFile = null, hwsCrmFile = null, smokeSpendFile = null, hwsSpendFile = null;
 let currentProduct = 'smoke';
 let viewMode = 'weekly';
@@ -1837,7 +1842,10 @@ async function fetchContactAttributionBatch(contactIds, onProgress) {
 }
 
 function mapGHLOpportunity(opp, contactAttrMap) {
-  const created   = toAestDate(opp.createdAt);
+  const contactEmail = (opp.contact?.email || '').toLowerCase().trim();
+  const created = (contactEmail && DATE_OVERRIDES.has(contactEmail))
+    ? DATE_OVERRIDES.get(contactEmail)
+    : toAestDate(opp.createdAt);
 
   const contactId = opp.contactId != null ? opp.contactId : (opp.contact && opp.contact.id);
   const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
@@ -1887,8 +1895,27 @@ function buildCRMMapFromOpportunities(opps, contactAttrMap) {
   return mapped;
 }
 
+/** Fetch email→date overrides from Supabase "Webco Created Dates" table. */
+async function loadDateOverrides() {
+  try {
+    const resp = await fetch(
+      `${SB_URL}/rest/v1/Webco%20Created%20Dates?select=email,real_date`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    DATE_OVERRIDES = new Map(
+      rows.map(r => [r.email.toLowerCase().trim(), r.real_date.slice(0, 10)])
+    );
+    console.log(`[DateOverrides] Loaded ${DATE_OVERRIDES.size} email→date overrides`);
+  } catch(e) {
+    console.warn('[DateOverrides] Failed to load:', e.message);
+  }
+}
+
 /** Stage 1: fetch opportunities only, map with raw source (no contact enrichment). Dashboard can render immediately. */
 async function loadGHLDataFast() {
+  await loadDateOverrides();
   const statusEl = document.getElementById('ghl-panel-info');
   if (statusEl) statusEl.innerText = 'Fetching CRM data…';
   if (GHL_PIPELINES.length === 0) {
