@@ -1638,9 +1638,10 @@ function initDashboard(){
   // Always show panel so Google Refresh button is accessible
   document.getElementById('meta-live-panel').style.display='flex';
 
-  let allDates=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();
-  if(allDates.length){ document.getElementById('dateFrom').value=allDates[0]; document.getElementById('dateTo').value=allDates[allDates.length-1]; }
-  else { document.getElementById('dateFrom').value=aestOffsetDate(-30); document.getElementById('dateTo').value=aestToday(); }
+  // Default range: 10 Apr 2026 → today. Avoids bulk-import date spike on Apr 9.
+  // User can change via date pickers or preset buttons (7d, 30d, MTD, All).
+  document.getElementById('dateFrom').value = '2026-04-10';
+  document.getElementById('dateTo').value   = aestToday();
 
   populateFilters();
   switchProduct('smoke');
