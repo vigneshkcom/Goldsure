@@ -1381,11 +1381,12 @@ const WEBCO_SCHEDULE = [
   { year:2026, month:1,  smoke:600,  hws:0    },
   { year:2026, month:2,  smoke:2000, hws:0    },
   { year:2026, month:3,  smoke:2000, hws:0    },
-  { year:2026, month:4,  smoke:2000, hws:0    },
-  { year:2026, month:5,  smoke:2000, hws:0    },
-  { year:2026, month:6,  smoke:2000, hws:0    },
+  // Webco contract ended — $0 from April 2026 onwards
+  { year:2026, month:4,  smoke:0,    hws:0    },
+  { year:2026, month:5,  smoke:0,    hws:0    },
+  { year:2026, month:6,  smoke:0,    hws:0    },
 ];
-const WEBCO_DEFAULT_FROM = { year:2026, month:7, smoke:2000, hws:0 };
+const WEBCO_DEFAULT_FROM = { year:2026, month:7, smoke:0, hws:0 };
 
 const SMOKE_ACCOUNT = 'act_1420815159464502';
 const HWS_ACCOUNT   = 'act_716067364534837';
@@ -2780,15 +2781,24 @@ const WEBCO_MODAL_DEFAULTS = {
   '2026-1':  { smoke: 2000, hws: 0    },
   '2026-2':  { smoke: 2000, hws: 0    },
   '2026-3':  { smoke: 2000, hws: 0    },
-  '2026-4':  { smoke: 2000, hws: 0    },
-  '2026-5':  { smoke: 2000, hws: 0    },
-  '2026-6':  { smoke: 2000, hws: 0    },
+  '2026-4':  { smoke: 0,    hws: 0    },
+  '2026-5':  { smoke: 0,    hws: 0    },
+  '2026-6':  { smoke: 0,    hws: 0    },
 };
 
 function webcoKey(year, month) { return `${year}-${month}`; }
 
-// Load saved values from localStorage, fall back to defaults
+// Load saved values from localStorage, fall back to defaults.
+// Version key: bump WEBCO_SCHEDULE_VERSION whenever defaults change so old
+// cached values are cleared automatically.
+const WEBCO_SCHEDULE_VERSION = 2; // bumped when Webco removed from Apr 2026
 function getWebcoModalValues() {
+  const savedVersion = parseInt(localStorage.getItem('gs_webco_schedule_v') || '0', 10);
+  if (savedVersion < WEBCO_SCHEDULE_VERSION) {
+    localStorage.removeItem('gs_webco_schedule');
+    localStorage.setItem('gs_webco_schedule_v', String(WEBCO_SCHEDULE_VERSION));
+    return null; // use hardcoded defaults
+  }
   const saved = localStorage.getItem('gs_webco_schedule');
   if (saved) {
     try { return JSON.parse(saved); } catch(e) {}
