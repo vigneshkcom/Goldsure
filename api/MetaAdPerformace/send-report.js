@@ -9,6 +9,25 @@
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
 const SMOKE_ACCOUNT   = 'act_1420815159464502';
 
+// Supabase — same publishable key used client-side in the calendar
+const SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+
+async function loadDateOverrides() {
+  try {
+    const resp = await fetch(
+      `${SB_URL}/rest/v1/Webco%20Created%20Dates?select=email,real_date`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    if (!resp.ok) return new Map();
+    const rows = await resp.json();
+    return new Map(rows.map(r => [r.email.toLowerCase().trim(), r.real_date.slice(0, 10)]));
+  } catch(e) {
+    console.warn('[DateOverrides] Failed:', e.message);
+    return new Map();
+  }
+}
+
 // Stage classification (matches dashboard renderSmoke exactly)
 const isInstalled     = s => /install|won/i.test(s);
 const isNotInterested = s => /not.?interest|spam/i.test(s);
@@ -192,7 +211,8 @@ async function fetchContactAttributionBatch(contactIds) {
   return map;
 }
 
-function mapOpp(opp, contactAttrMap) {
+function mapOpp(opp, contactAttrMap, dateOverrides = new Map()) {
+  const contactEmail = (opp.contact?.email || '').toLowerCase().trim();
   const contactId = opp.contactId || opp.contact?.id || '';
   const cData     = contactAttrMap ? (contactAttrMap[contactId] || null) : null;
 
@@ -233,7 +253,9 @@ function mapOpp(opp, contactAttrMap) {
     formName,
     pipeline:   (opp.pipeline?.name || opp.pipelineName || '').trim(),
     pipelineId: (opp.pipelineId || opp.pipeline?.id || '').trim(),
-    created:    toAestDate(opp.createdAt),
+    created:    (contactEmail && dateOverrides.has(contactEmail))
+                  ? dateOverrides.get(contactEmail)
+                  : toAestDate(opp.createdAt),
   };
 }
 
@@ -248,12 +270,16 @@ async function loadSmokeOpportunities() {
     if (smokePipe) smokePipelineId = smokePipe.id;
   } catch(e) { console.error('Pipeline fetch failed:', e.message); }
 
-  const rawOpps    = await fetchAllOpportunities();
+  const [rawOpps, dateOverrides] = await Promise.all([
+    fetchAllOpportunities(),
+    loadDateOverrides(),
+  ]);
+  console.log(`[DateOverrides] Loaded ${dateOverrides.size} email→date overrides`);
   const contactIds = [...new Set(rawOpps.map(o => o.contactId || o.contact?.id).filter(Boolean))];
   let contactAttrMap = {};
   try { contactAttrMap = await fetchContactAttributionBatch(contactIds); }
   catch(e) { console.warn('Attribution batch failed:', e.message); }
-  const mapped = rawOpps.map(o => mapOpp(o, contactAttrMap)).filter(r => r.created);
+  const mapped = rawOpps.map(o => mapOpp(o, contactAttrMap, dateOverrides)).filter(r => r.created);
 
   const stageNameMap = {};
   pipelines.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
