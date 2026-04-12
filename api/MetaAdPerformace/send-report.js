@@ -217,8 +217,11 @@ function mapOpp(opp, contactAttrMap, dateOverrides = new Map()) {
   const cData     = contactAttrMap ? (contactAttrMap[contactId] || null) : null;
 
   // opp.source may be a URL (e.g. "https://l.facebook.com") or a form/campaign name.
-  // For latest-touch we use the latest attribution's own referrer so it can differ from first-touch.
-  const oppSrcRaw    = opp.source || '';
+  // opp.opportunitySource is the "Opportunity Source" dropdown in the GHL UI.
+  // Fall back through all source fields so Facebook/Google labels are always found.
+  const oppTags    = Array.isArray(opp.tags) ? opp.tags.map(t => (t||'').toLowerCase()) : [];
+  const tagSource  = oppTags.find(t => t.includes('facebook') || t.includes('instagram') || t.includes('meta') || t.includes('google'));
+  const oppSrcRaw  = opp.source || opp.opportunitySource || opp.leadSource || tagSource || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
   // formName: use contact source only when it contains an explicit Meta-only label.

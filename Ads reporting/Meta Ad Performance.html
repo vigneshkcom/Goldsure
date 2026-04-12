@@ -1851,8 +1851,11 @@ function mapGHLOpportunity(opp, contactAttrMap) {
   const cData     = (contactAttrMap && contactId !== undefined && contactId !== '') ? (contactAttrMap[contactId] ?? contactAttrMap[String(contactId)] ?? null) : null;
 
   // opp.source may be a URL (e.g. "https://l.facebook.com") or a form/campaign name.
-  // For latest-touch, use the latest attribution's own referrer so it can differ from first-touch.
-  const oppSrcRaw    = opp.source || '';
+  // opp.opportunitySource is the "Opportunity Source" dropdown shown in the GHL UI.
+  // Fall back through all source fields so Facebook/Google labels are always found.
+  const oppTags   = Array.isArray(opp.tags) ? opp.tags.map(t => (t||'').toLowerCase()) : [];
+  const tagSource = oppTags.find(t => t.includes('facebook') || t.includes('instagram') || t.includes('meta') || t.includes('google'));
+  const oppSrcRaw = opp.source || opp.opportunitySource || opp.leadSource || tagSource || '';
   const latestRefUrl = cData?.latest?.referrer || '';
 
   // Keep landing pages as a journey touchpoint, but not as a standalone source bucket.
