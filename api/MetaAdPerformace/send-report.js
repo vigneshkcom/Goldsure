@@ -114,7 +114,7 @@ function looksLikeMetaCampaign(str) {
 
 function isLandingPageLabel(str) {
   const s = (str || '').toLowerCase().trim();
-  return s === 'landing page' ||
+  return s.includes('landing page') ||
     s.includes('gold sure - smoke alarms') ||
     s.includes('goldsure - smoke alarms');
 }
@@ -166,6 +166,9 @@ function categoriseSource(rawSource, attr) {
     return 'Meta'; // l.facebook.com as opp source almost always means a paid ad click
   }
   if (oppSrcUrl.includes('google.com') || oppSrcUrl.includes('googleads') || oppSrcUrl.includes('gclid')) return 'Google';
+  // Exact GHL workflow labels — must check before contactSource shadows rawSource
+  if (oppSrcUrl === 'meta' || oppSrcUrl === 'facebook') return 'Meta';
+  if (oppSrcUrl === 'google') return 'Google';
 
   const raw = (attr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';

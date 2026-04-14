@@ -405,6 +405,7 @@ async function submitToWebhook() {
     const bookingFee = 33;
     const grandTotal = alarmTotal + ctrlTotal + bookingFee;
 
+    const urlParams = new URLSearchParams(window.location.search);
     const webhookData = {
         timestamp: new Date().toISOString(),
         customer: {
@@ -430,7 +431,13 @@ async function submitToWebhook() {
             grand_total: grandTotal,
             grand_total_formatted: formatter.format(grandTotal)
         },
-        source: 'smoke_alarm_calculator'
+        source: 'Smoke Alarm Landing Page',
+        page_url: window.location.href,
+        utm_source: urlParams.get('utm_source') || '',
+        utm_medium: urlParams.get('utm_medium') || '',
+        utm_campaign: urlParams.get('utm_campaign') || '',
+        utm_content: urlParams.get('utm_content') || '',
+        utm_term: urlParams.get('utm_term') || ''
     };
 
     statusEl.classList.remove('hidden');
