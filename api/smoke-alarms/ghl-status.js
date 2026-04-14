@@ -16,15 +16,17 @@ async function ghlGet(path) {
 }
 
 async function getStageForEmail(email, locationId) {
-  // 1. Search GHL contacts by email
-  const data = await ghlGet(`/contacts/search?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}`);
+  // 1. Look up GHL contact by email using the contacts list endpoint
+  // GHL v2 supports ?email= for exact match on the contacts list endpoint
+  const data = await ghlGet(`/contacts/?locationId=${encodeURIComponent(locationId)}&email=${encodeURIComponent(email)}&limit=5`);
   const contacts = data?.contacts || [];
-  // Exact email match (search is fuzzy)
-  const contact = contacts.find(c => (c.email || '').toLowerCase() === email.toLowerCase());
+  // Exact email match (in case GHL returns partial matches)
+  const contact = contacts.find(c => (c.email || '').toLowerCase() === email.toLowerCase())
+    || contacts[0]; // fall back to first result if exact match not found
   if (!contact) return null;
 
   // 2. Get most recent opportunity for this contact
-  const oppData = await ghlGet(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=1`);
+  const oppData = await ghlGet(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contact.id)}&limit=1`);
   const opp = oppData?.opportunities?.[0];
   if (!opp) return null;
 
