@@ -150,6 +150,7 @@ function categoriseSource(rawSource, attr) {
   // Exact GHL workflow labels — must check before contactSource shadows rawSource
   if (oppSrcUrl === 'meta' || oppSrcUrl === 'facebook') return 'Meta';
   if (oppSrcUrl === 'google') return 'Google';
+  if (oppSrcUrl === 'direct') return 'Unknown';
 
   const raw = (attr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';
