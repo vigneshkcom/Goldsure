@@ -1756,6 +1756,7 @@ function categoriseSource(rawSource, contactAttr) {
   // Exact GHL workflow labels — must check before contactSource shadows rawSource
   if (oppSrcUrl === 'meta' || oppSrcUrl === 'facebook') return 'Meta';
   if (oppSrcUrl === 'google') return 'Google';
+  if (oppSrcUrl === 'direct') return 'Google';
 
   const raw = (contactAttr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';
@@ -1863,7 +1864,8 @@ function mapGHLOpportunity(opp, contactAttrMap) {
 
   // Keep landing pages as a journey touchpoint, but not as a standalone source bucket.
   const rawContactSrc = (cData?.first?.contactSource || '').trim();
-  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw)
+  const hasLandingPageTag = oppTags.some(t => t.includes('landing page'));
+  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw) || hasLandingPageTag
     ? 'Landing Page'
     : (looksLikeMetaCampaign(rawContactSrc) ? rawContactSrc : '');
 

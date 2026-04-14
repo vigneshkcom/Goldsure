@@ -169,6 +169,7 @@ function categoriseSource(rawSource, attr) {
   // Exact GHL workflow labels — must check before contactSource shadows rawSource
   if (oppSrcUrl === 'meta' || oppSrcUrl === 'facebook') return 'Meta';
   if (oppSrcUrl === 'google') return 'Google';
+  if (oppSrcUrl === 'direct') return 'Google';
 
   const raw = (attr?.contactSource || rawSource || '').toLowerCase().trim();
   if (!raw || raw === 'unknown') return 'Unknown';
@@ -238,7 +239,8 @@ function mapOpp(opp, contactAttrMap, dateOverrides = new Map()) {
     ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
     : '';
 
-  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw)
+  const hasLandingPageTag = oppTags.some(t => t.includes('landing page'));
+  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw) || hasLandingPageTag
     ? 'Landing Page'
     : rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
     ? rawContactSrc
