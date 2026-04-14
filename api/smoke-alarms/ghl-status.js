@@ -9,30 +9,41 @@ const GHL_HEADERS = () => ({
   'Accept': 'application/json',
 });
 
-async function ghlGet(path) {
+async function ghlGetRaw(path) {
   const res = await fetch(`${GHL_BASE}${path}`, { headers: GHL_HEADERS() });
-  if (!res.ok) return null;
-  return res.json();
+  const text = await res.text();
+  try { return { ok: res.ok, status: res.status, data: JSON.parse(text) }; }
+  catch { return { ok: false, status: res.status, data: null, raw: text.slice(0, 200) }; }
 }
 
 async function getStageForEmail(email, locationId) {
-  // 1. Look up GHL contact by email using the contacts list endpoint
-  // GHL v2 supports ?email= for exact match on the contacts list endpoint
-  const data = await ghlGet(`/contacts/?locationId=${encodeURIComponent(locationId)}&email=${encodeURIComponent(email)}&limit=5`);
-  const contacts = data?.contacts || [];
-  // Exact email match (in case GHL returns partial matches)
+  // 1. Search GHL contacts by email using the query text search
+  const r = await ghlGetRaw(`/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`);
+  if (!r.ok) {
+    console.error(`GHL contacts lookup failed for ${email}: HTTP ${r.status}`, r.raw || r.data);
+    return null;
+  }
+  const contacts = r.data?.contacts || [];
   const contact = contacts.find(c => (c.email || '').toLowerCase() === email.toLowerCase())
-    || contacts[0]; // fall back to first result if exact match not found
+    || contacts[0];
   if (!contact) return null;
 
   // 2. Get most recent opportunity for this contact
-  const oppData = await ghlGet(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contact.id)}&limit=1`);
-  const opp = oppData?.opportunities?.[0];
+  const o = await ghlGetRaw(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=1`);
+  if (!o.ok) {
+    console.error(`GHL opportunities lookup failed for contact ${contact.id}: HTTP ${o.status}`, o.data);
+    return null;
+  }
+  const opp = o.data?.opportunities?.[0];
   if (!opp) return null;
 
+  // pipelineStageName is the GHL v2 API field for the stage name
   return {
-    stage: opp.pipelineStage?.name || opp.status || null,
-    pipeline: opp.pipeline?.name || opp.pipelineName || null,
+    stage: opp.pipelineStageName || opp.pipelineStage?.name || null,
+    stageId: opp.pipelineStageId || opp.pipelineStage?.id || null,
+    opportunityId: opp.id || null,
+    pipelineId: opp.pipelineId || null,
+    pipeline: opp.pipelineName || opp.pipeline?.name || null,
   };
 }
 
