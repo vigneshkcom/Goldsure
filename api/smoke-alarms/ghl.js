@@ -110,14 +110,29 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { emails } = req.body || {};
     if (!Array.isArray(emails) || emails.length === 0) return res.status(400).json({ error: 'emails array required' });
+
+    // Also fetch pipeline stages so we can resolve stage names when GHL's
+    // /opportunities/search response omits pipelineStageName (it often only
+    // returns pipelineStageId).
+    const pipelineInfo = await getPipelineStages(locationId);
+    const stageMap = {};
+    if (!pipelineInfo.error) {
+      (pipelineInfo.stages || []).forEach(s => { stageMap[s.id] = s.name; });
+    }
+
     const unique = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(Boolean))];
     const result = {};
     const BATCH = 5;
     for (let i = 0; i < unique.length; i += BATCH) {
       const batch = unique.slice(i, i + BATCH);
       await Promise.all(batch.map(async (email) => {
-        try { result[email] = await getStageForEmail(email, locationId); }
-        catch { result[email] = null; }
+        try {
+          const data = await getStageForEmail(email, locationId);
+          if (data && data.stageId && !data.stage && stageMap[data.stageId]) {
+            data.stage = stageMap[data.stageId];
+          }
+          result[email] = data;
+        } catch { result[email] = null; }
       }));
     }
     return res.status(200).json(result);
