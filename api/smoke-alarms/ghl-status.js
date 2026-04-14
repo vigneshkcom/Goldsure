@@ -9,10 +9,11 @@ const GHL_HEADERS = () => ({
   'Accept': 'application/json',
 });
 
-async function ghlGet(path) {
+async function ghlGetRaw(path) {
   const res = await fetch(`${GHL_BASE}${path}`, { headers: GHL_HEADERS() });
-  if (!res.ok) return null;
-  return res.json();
+  const text = await res.text();
+  try { return { ok: res.ok, status: res.status, data: JSON.parse(text) }; }
+  catch { return { ok: false, status: res.status, data: null, raw: text.slice(0, 200) }; }
 }
 
 async function ghlGetRaw(path) {
@@ -43,9 +44,13 @@ async function getStageForEmail(email, locationId) {
   const opp = o.data?.opportunities?.[0];
   if (!opp) return null;
 
+  // pipelineStageName is the GHL v2 API field for the stage name
   return {
-    stage: opp.pipelineStage?.name || opp.status || null,
-    pipeline: opp.pipeline?.name || opp.pipelineName || null,
+    stage: opp.pipelineStageName || opp.pipelineStage?.name || null,
+    stageId: opp.pipelineStageId || opp.pipelineStage?.id || null,
+    opportunityId: opp.id || null,
+    pipelineId: opp.pipelineId || null,
+    pipeline: opp.pipelineName || opp.pipeline?.name || null,
   };
 }
 

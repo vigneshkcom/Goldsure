@@ -97,9 +97,12 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
 .badge-accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
 .badge-rejected { background: var(--red-bg); color: var(--red); border: 1px solid rgba(224,79,79,0.3); }
 .badge-installed { background: #f0f7ff; color: #1a56a0; border: 1px solid #b3d1f5; }
-.badge-ghl { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.badge-ghl { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; cursor: pointer; }
+.badge-ghl:hover { background: #e9eaec; border-color: #9ca3af; }
 .badge-ghl-loading { background: #f3f4f6; color: #9ca3af; border: 1px solid #e5e7eb; font-style: italic; }
-.badge-ghl-none { color: #9ca3af; }
+.badge-ghl-none { color: #9ca3af; border-color: #e5e7eb; }
+.ghl-stage-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
+.ghl-stage-menu { min-width: 160px; }
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .status-btn:hover .badge { opacity: 0.8; }
 .row-actions { display: flex; align-items: center; gap: 8px; }
@@ -227,8 +230,13 @@ const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
+let ghlOppData = {};  // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
+let ghlStages  = [];  // [{ id, name, position }] for Smoke Alarms pipeline
 
-window.addEventListener('DOMContentLoaded', loadQuotes);
+window.addEventListener('DOMContentLoaded', () => {
+  loadQuotes();
+  loadGhlPipelineStages();
+});
 
 async function loadQuotes() {
   const btn  = document.getElementById('refreshBtn');
@@ -263,6 +271,7 @@ async function loadGhlStages(quotes) {
     });
     if (res.ok) map = await res.json();
   } catch(e) { console.warn('GHL stage fetch failed', e); }
+  ghlOppData = map; // store globally (keys are already lowercased emails)
   quotes.forEach(q => {
     const el = document.getElementById(`ghl-${q.id}`);
     if (!el) return;
@@ -270,6 +279,79 @@ async function loadGhlStages(quotes) {
     el.textContent = data?.stage || '—';
     el.className = `badge badge-ghl${data?.stage ? '' : ' badge-ghl-none'}`;
   });
+}
+
+async function loadGhlPipelineStages() {
+  try {
+    const res = await fetch('/api/smoke-alarms/ghl-pipeline-stages');
+    if (!res.ok) return;
+    const data = await res.json();
+    ghlStages = data.stages || [];
+  } catch(e) { console.warn('GHL pipeline stages fetch failed', e); }
+}
+
+function toggleGhlMenu(e, btn, quoteId) {
+  e.stopPropagation();
+  const menu = btn.querySelector('.ghl-stage-menu');
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) {
+    populateGhlMenu(menu, btn.dataset.email, quoteId);
+    menu.classList.add('open');
+  }
+}
+
+function populateGhlMenu(menu, email, quoteId) {
+  const oppData = ghlOppData[email];
+  if (!oppData?.opportunityId) {
+    menu.innerHTML = '<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">No GHL record found</div>';
+    return;
+  }
+  if (!ghlStages.length) {
+    menu.innerHTML = '<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">Loading stages…</div>';
+    return;
+  }
+  const cur = oppData.stageId;
+  menu.innerHTML = ghlStages.map(s =>
+    `<div class="status-menu-item${s.id === cur ? ' active' : ''}" onclick="updateGhlStage(event,'${quoteId}','${esc(email)}','${s.id}','${esc(s.name)}')">`
+    + `<span class="dot" style="background:#6b7899;flex-shrink:0;"></span>${esc(s.name)}</div>`
+  ).join('');
+}
+
+async function updateGhlStage(e, quoteId, email, stageId, stageName) {
+  e.stopPropagation();
+  document.querySelectorAll('.status-menu.open').forEach(m => m.classList.remove('open'));
+  const oppData = ghlOppData[email];
+  if (!oppData?.opportunityId) { showToast('No GHL opportunity for this contact.'); return; }
+
+  const el = document.getElementById(`ghl-${quoteId}`);
+  const prevText = el ? el.textContent : '';
+  if (el) { el.textContent = 'Saving…'; el.className = 'badge badge-ghl-loading'; }
+
+  try {
+    const res = await fetch('/api/smoke-alarms/ghl-update-stage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opportunityId: oppData.opportunityId, stageId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast('GHL update failed: ' + (err.error || res.status));
+      if (el) { el.textContent = prevText; el.className = `badge badge-ghl${prevText === '—' ? ' badge-ghl-none' : ''}`; }
+      return;
+    }
+    oppData.stageId = stageId;
+    oppData.stage   = stageName;
+    if (el) { el.textContent = stageName; el.className = 'badge badge-ghl'; }
+    // Invalidate cached menu so it repopulates with the new active stage next open
+    const menu = document.getElementById(`ghl-menu-${quoteId}`);
+    if (menu) menu.innerHTML = '';
+    showToast(`GHL stage → ${stageName}`);
+  } catch(err) {
+    console.error(err);
+    showToast('Network error updating GHL stage.');
+    if (el) { el.textContent = prevText; el.className = `badge badge-ghl${prevText === '—' ? ' badge-ghl-none' : ''}`; }
+  }
 }
 
 function applyFilters() {
@@ -376,7 +458,7 @@ function renderTable() {
       <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
       <td>${renderDaysPill(quoteAgeDays, 4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
-      <td><span id="ghl-${q.id}" class="badge badge-ghl-loading">…</span></td>
+      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc((q.customer_email||'').toLowerCase().trim())}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="badge badge-ghl-loading">…</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${q._reminderSending ? 'Sending…' : 'Remind'}</button></div></td>
       <td>${renderDaysPill(reminderAgeDays, 2)}</td>
       <td><span class="count-badge${reminderCount > 0 ? ' has-reminders' : ''}">${reminderCount}</span></td>
