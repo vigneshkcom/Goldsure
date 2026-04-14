@@ -24,14 +24,15 @@ async function ghlGetRaw(path) {
 // ── GET: return Smoke Alarms pipeline stages ────────────────────────────────
 
 async function getPipelineStages(locationId) {
+  // GHL v2 pipelines endpoint uses camelCase locationId (not location_id)
   const r = await fetch(
-    `${GHL_BASE}/opportunities/pipelines?location_id=${encodeURIComponent(locationId)}`,
+    `${GHL_BASE}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
     { headers: GHL_HEADERS() }
   );
   if (!r.ok) {
     const text = await r.text();
     console.error('GHL pipelines fetch failed:', r.status, text.slice(0, 200));
-    return { error: 'Failed to fetch GHL pipelines', status: r.status };
+    return { error: 'Failed to fetch GHL pipelines', status: r.status, detail: text.slice(0, 200) };
   }
   const data = await r.json();
   const pipelines = data.pipelines || [];
