@@ -98,10 +98,20 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
 .badge-accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
 .badge-rejected { background: var(--red-bg); color: var(--red); border: 1px solid rgba(224,79,79,0.3); }
 .badge-installed { background: #f0f7ff; color: #1a56a0; border: 1px solid #b3d1f5; }
+/* GHL stage badge — base (clickable) */
 .badge-ghl { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; cursor: pointer; }
-.badge-ghl:hover { background: #e9eaec; border-color: #9ca3af; }
+.badge-ghl:hover { opacity: 0.82; }
 .badge-ghl-loading { background: #f3f4f6; color: #9ca3af; border: 1px solid #e5e7eb; font-style: italic; }
-.badge-ghl-none { color: #9ca3af; border-color: #e5e7eb; }
+.badge-ghl-none { background: #f3f4f6; color: #9ca3af; border: 1px solid #e5e7eb; cursor: pointer; }
+/* Per-stage colours matching the Stage Breakdown chart */
+.badge-ghl-new-lead      { background: #f1f2f4; color: #6b7280; border: 1px solid #d1d5db; }
+.badge-ghl-follow-up     { background: #e6faf8; color: #0d9488; border: 1px solid #99e6df; }
+.badge-ghl-shopping      { background: #f0eeff; color: #7c3aed; border: 1px solid #c4b5fd; }
+.badge-ghl-quote-sent    { background: #eff6ff; color: #2563eb; border: 1px solid #93c5fd; }
+.badge-ghl-won           { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+.badge-ghl-not-reachable { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+.badge-ghl-not-interested{ background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.badge-ghl-out-of-area   { background: #f5f3ff; color: #7c3aed; border: 1px solid #c4b5fd; }
 .ghl-stage-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .ghl-stage-menu { min-width: 160px; }
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
@@ -277,7 +287,7 @@ async function loadGhlStages(quotes) {
     if (!el) return;
     const data = map[(q.customer_email || '').toLowerCase().trim()];
     el.textContent = data?.stage || '—';
-    el.className = `badge badge-ghl${data?.stage ? '' : ' badge-ghl-none'}`;
+    el.className = ghlBadgeClass(data?.stage);
   });
 }
 
@@ -288,6 +298,20 @@ async function loadGhlPipelineStages() {
     const data = await res.json();
     ghlStages = data.stages || [];
   } catch(e) { console.warn('GHL pipeline stages fetch failed', e); }
+}
+
+function ghlBadgeClass(stageName) {
+  const s = (stageName || '').toLowerCase();
+  if (!s || s === '—') return 'badge badge-ghl badge-ghl-none';
+  if (s.includes('new lead'))          return 'badge badge-ghl badge-ghl-new-lead';
+  if (s.includes('follow'))            return 'badge badge-ghl badge-ghl-follow-up';
+  if (s.includes('shopping'))          return 'badge badge-ghl badge-ghl-shopping';
+  if (s.includes('quote sent'))        return 'badge badge-ghl badge-ghl-quote-sent';
+  if (s.includes('won') || s.includes('install')) return 'badge badge-ghl badge-ghl-won';
+  if (s.includes('not reachable'))     return 'badge badge-ghl badge-ghl-not-reachable';
+  if (s.includes('not interested') || s.includes('spam')) return 'badge badge-ghl badge-ghl-not-interested';
+  if (s.includes('out of area'))       return 'badge badge-ghl badge-ghl-out-of-area';
+  return 'badge badge-ghl';
 }
 
 function toggleGhlMenu(e, btn, quoteId) {
@@ -337,12 +361,12 @@ async function updateGhlStage(e, quoteId, email, stageId, stageName) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       showToast('GHL update failed: ' + (err.error || res.status));
-      if (el) { el.textContent = prevText; el.className = `badge badge-ghl${prevText === '—' ? ' badge-ghl-none' : ''}`; }
+      if (el) { el.textContent = prevText; el.className = ghlBadgeClass(prevText); }
       return;
     }
     oppData.stageId = stageId;
     oppData.stage   = stageName;
-    if (el) { el.textContent = stageName; el.className = 'badge badge-ghl'; }
+    if (el) { el.textContent = stageName; el.className = ghlBadgeClass(stageName); }
     // Invalidate cached menu so it repopulates with the new active stage next open
     const menu = document.getElementById(`ghl-menu-${quoteId}`);
     if (menu) menu.innerHTML = '';
@@ -350,7 +374,7 @@ async function updateGhlStage(e, quoteId, email, stageId, stageName) {
   } catch(err) {
     console.error(err);
     showToast('Network error updating GHL stage.');
-    if (el) { el.textContent = prevText; el.className = `badge badge-ghl${prevText === '—' ? ' badge-ghl-none' : ''}`; }
+    if (el) { el.textContent = prevText; el.className = ghlBadgeClass(prevText); }
   }
 }
 
