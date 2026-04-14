@@ -264,7 +264,7 @@ async function loadGhlStages(quotes) {
   if (!emails.length) return;
   let map = {};
   try {
-    const res = await fetch('/api/smoke-alarms/ghl-status', {
+    const res = await fetch('/api/smoke-alarms/ghl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ emails })
@@ -283,7 +283,7 @@ async function loadGhlStages(quotes) {
 
 async function loadGhlPipelineStages() {
   try {
-    const res = await fetch('/api/smoke-alarms/ghl-pipeline-stages');
+    const res = await fetch('/api/smoke-alarms/ghl');
     if (!res.ok) return;
     const data = await res.json();
     ghlStages = data.stages || [];
@@ -329,8 +329,8 @@ async function updateGhlStage(e, quoteId, email, stageId, stageName) {
   if (el) { el.textContent = 'Saving…'; el.className = 'badge badge-ghl-loading'; }
 
   try {
-    const res = await fetch('/api/smoke-alarms/ghl-update-stage', {
-      method: 'POST',
+    const res = await fetch('/api/smoke-alarms/ghl', {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ opportunityId: oppData.opportunityId, stageId })
     });
