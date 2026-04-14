@@ -95,7 +95,7 @@ function looksLikeMetaCampaign(str) {
 
 function isLandingPageLabel(str) {
   const s = (str || '').toLowerCase().trim();
-  return s === 'landing page' ||
+  return s.includes('landing page') ||
     s.includes('gold sure - smoke alarms') ||
     s.includes('goldsure - smoke alarms');
 }
