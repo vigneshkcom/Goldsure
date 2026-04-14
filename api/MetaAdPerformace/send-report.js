@@ -215,7 +215,8 @@ function mapOpp(opp, contactAttrMap) {
     ? oppTags.map(t => t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
     : '';
 
-  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw)
+  const hasLandingPageTag = oppTags.some(t => t.includes('landing page'));
+  const formName = isLandingPageTouchpoint(rawContactSrc) || isLandingPageTouchpoint(oppSrcRaw) || hasLandingPageTag
     ? 'Landing Page'
     : rawContactSrc && !GENERIC_SOURCES.includes(rawContactSrc.toLowerCase())
     ? rawContactSrc
