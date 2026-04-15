@@ -607,6 +607,36 @@ async function updateStatus(e, id, newStatus) {
     if (q) q.status = newStatus;
     renderKPIs(); applyFilters();
     showToast(`Status updated → ${newStatus.charAt(0).toUpperCase()+newStatus.slice(1)}`);
+
+    // Send internal notification email when a quote is accepted
+    if (newStatus === 'accepted' && q) {
+      const acceptedAt = new Date().toLocaleString('en-AU', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      fetch('/api/smoke-alarms/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name:    q.customer_name,
+          customer_email:   q.customer_email,
+          customer_phone:   q.customer_phone,
+          customer_address: q.customer_address,
+          agent_name:       q.agent_name,
+          service_type:     q.service_type,
+          alarm_qty:        q.alarm_qty,
+          alarm_total:      q.alarm_total,
+          ctrl_qty:         q.ctrl_qty,
+          ctrl_total:       q.ctrl_total,
+          fee_label:        q.fee_label,
+          fee_amount:       q.fee_amount,
+          grand_total:      q.grand_total,
+          accepted_at:      acceptedAt,
+        })
+      }).then(r => {
+        if (!r.ok) console.warn('Accept notification email failed:', r.status);
+      }).catch(err => console.warn('Accept notification fetch error:', err));
+    }
   } catch(err) {
     console.error(err);
     showToast('Network error updating status.');
