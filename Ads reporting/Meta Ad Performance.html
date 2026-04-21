@@ -1286,6 +1286,7 @@ let GHL_OPPORTUNITIES_RAW = null;
 // Live Google spend fetched from the API (inc-GST AUD, filtered to selected date range)
 // Smoke Google Ads started Jan 1 2026 — any spend before that date belongs to HWS.
 const GOOGLE_SMOKE_START = '2026-01-01'; // Smoke campaigns only from this date onwards
+const HWS_START          = '2026-04-21'; // HWS Google Ads resumed from this date
 
 let LIVE_GOOGLE_SPEND_SMOKE = null;  // null = not yet loaded
 let LIVE_GOOGLE_SPEND_HWS   = null;
@@ -2147,6 +2148,11 @@ function switchProduct(prod){
   document.getElementById('hws-vol-card').style.display=prod==='hws'?'block':'none';
   document.getElementById('smoke-metrics-row').style.display=prod==='smoke'?'grid':'none';
   document.getElementById('hws-metrics-row').style.display=prod==='hws'?'grid':'none';
+  // Snap FROM date to HWS_START when switching to HWS (no data exists before that date)
+  if (prod === 'hws') {
+    const fromEl = document.getElementById('dateFrom');
+    if (!fromEl.value || fromEl.value < HWS_START) fromEl.value = HWS_START;
+  }
   // If enrichment is not actively running, reset any stale status when switching tabs
   if (ATTR_ENRICHMENT_STATE !== 'loading') setAttrStatus('idle');
   renderCurrentProduct();
@@ -2431,7 +2437,8 @@ function setPreset(p,btn){
   if(p==='7d'){let d=new Date(t);d.setDate(d.getDate()-6);from=fmt(d);}
   else if(p==='30d'){let d=new Date(t);d.setDate(d.getDate()-29);from=fmt(d);}
   else if(p==='mtd'){from=aestMonthStart();}
-  else{let all=[...SMOKE_CRM.map(r=>r.created),...HWS_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date),...HWS_SPEND_ALL.map(r=>r.date)].sort();from=all[0]||aestMonthStart();to=all[all.length-1]||aestToday();}
+  else if(currentProduct==='hws'){from=HWS_START;}
+  else{let all=[...SMOKE_CRM.map(r=>r.created),...SMOKE_SPEND_ALL.map(r=>r.date)].sort();from=all[0]||aestMonthStart();to=all[all.length-1]||aestToday();}
   document.getElementById('dateFrom').value=from;document.getElementById('dateTo').value=to;renderCurrentProduct();
 }
 
