@@ -1095,7 +1095,6 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
         <div class="fin-card"><div class="fin-label">TOTAL AD SPEND</div><div class="fin-value" id="hws-spend-val">$0</div><div class="fin-note">Meta + Google ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ META SPEND</div><div class="fin-value" id="hws-meta-spend" style="font-size:15px;">$0</div><div class="fin-note">API ÷ 1.1 ex-GST</div></div>
         <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="hws-google-spend" style="font-size:15px;">$0</div><div class="fin-note">Live API ÷ 1.1 ex-GST</div></div>
-        <div class="fin-card"><div class="fin-label">WEBCO</div><div class="fin-value" id="hws-webco-val">$0</div><div class="fin-note" id="hws-webco-note">Pro-rated ex-GST</div><button class="btn-webco-edit" onclick="openWebcoModal()">Edit Charges</button></div>
         <div class="fin-card"><div class="fin-label">TOTAL LEADS</div><div class="fin-value cb" id="hws-leads-val">0</div><div class="fin-note">Pipeline leads in date range</div></div>
       </div>
       <div class="kpi-row">
@@ -2251,23 +2250,20 @@ function renderHws(){
   // HWS Google Ads ran before Jan 1 2026 — LIVE_GOOGLE_SPEND_HWS is already date-capped
   const googleSpendRaw = LIVE_GOOGLE_SPEND_HWS !== null ? LIVE_GOOGLE_SPEND_HWS : 0;
   const googleSpend = googleSpendRaw / 1.1;
-  const webcoAmt = getWebcoForRange(from, to, 'hws');
   const totalAdSpend = metaSpend + googleSpend;
 
   document.getElementById('hws-spend-val').innerText    = `$${totalAdSpend.toFixed(2)}`;
   document.getElementById('hws-meta-spend').innerText   = `$${metaSpend.toFixed(2)}`;
   document.getElementById('hws-google-spend').innerText = `$${googleSpend.toFixed(2)}`;
-  document.getElementById('hws-webco-val').innerText    = `$${webcoAmt.toFixed(2)}`;
   document.getElementById('hws-leads-val').innerText    = total;
   document.getElementById('hws-inst').innerText         = inst;
   document.getElementById('hws-ni').innerText           = ni;
   document.getElementById('hws-rate').innerText         = total?((inst/total*100).toFixed(1))+'%':'0%';
   document.getElementById('hws-other').innerText        = other;
-  document.getElementById('hws-webco-note').innerHTML   = from&&to ? `Pro-rated ${from} → ${to}` : 'Set date range to calculate';
   document.getElementById('lead-count').innerHTML       = `<strong>${total}</strong> leads (HWS)`;
 
   // ── NEW METRICS ──
-  const hwsTotalCost = totalAdSpend + webcoAmt;
+  const hwsTotalCost = totalAdSpend;
   const hwsCpl  = total > 0 ? hwsTotalCost / total : null;
   const hwsCpi  = inst  > 0 ? hwsTotalCost / inst  : null;
   const hwsConv = total > 0 ? (inst / total) * 100  : null;
@@ -2874,11 +2870,9 @@ function openWebcoModal() {
     // Use saved → then live schedule → then modal defaults
     const liveEntry = WEBCO_SCHEDULE.find(e => e.year === year && e.month === month);
     const smokeVal = saved?.[key]?.smoke ?? liveEntry?.smoke ?? WEBCO_MODAL_DEFAULTS[key]?.smoke ?? 0;
-    const hwsVal   = saved?.[key]?.hws   ?? liveEntry?.hws   ?? WEBCO_MODAL_DEFAULTS[key]?.hws   ?? 0;
     return `<tr>
       <td>${label}</td>
       <td><input class="webco-input" type="number" min="0" step="1" data-key="${key}" data-type="smoke" value="${smokeVal}"></td>
-      <td><input class="webco-input" type="number" min="0" step="1" data-key="${key}" data-type="hws"   value="${hwsVal}"></td>
     </tr>`;
   }).join('');
 
@@ -2955,7 +2949,6 @@ applyWebcoOverride();
           <tr>
             <th>Month</th>
             <th>Smoke (ex-GST)</th>
-            <th>HWS (ex-GST)</th>
           </tr>
         </thead>
         <tbody id="webco-modal-rows"></tbody>

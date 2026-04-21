@@ -120,6 +120,7 @@ export default async function handler(req, res) {
       (pipelineInfo.stages || []).forEach(s => { stageMap[s.id] = s.name; });
     }
 
+
     const unique = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(Boolean))];
     const result = {};
     const BATCH = 5;
