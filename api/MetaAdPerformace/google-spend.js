@@ -29,8 +29,8 @@ export default async function handler(req, res) {
     const customerId = GOOGLE_ADS_CUSTOMER_ID.replace(/-/g, '');
     const managerId  = GOOGLE_ADS_MANAGER_ID.replace(/-/g, '');
 
-    // ── Validate and extract date range from query params ──
-    const { from, to } = req.query;
+    // ── Validate and extract date range + optional campaign filter ──
+    const { from, to, filter: campaignFilter } = req.query;
 
     const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
     if (!from || !to || !ISO_DATE.test(from) || !ISO_DATE.test(to)) {
@@ -123,29 +123,38 @@ export default async function handler(req, res) {
     }
 
     let totalMicros = 0;
-    const seenCampaigns = new Set();
+    const campaignTotals = {}; // name → micros
 
     if (Array.isArray(data.results)) {
       data.results.forEach(row => {
-        // ── FIX 3: Google REST API returns costMicros as a STRING ──
-        // Use parseInt not Number to safely handle "1234567" or 1234567.
-        const metrics = row.metrics || {};
-        // camelCase (REST v23) first, snake_case fallback
-        const rawVal = metrics.costMicros ?? metrics.cost_micros ?? '0';
-        totalMicros += parseInt(rawVal, 10) || 0;
+        const campaignName = row.campaign?.name || '';
 
-        const campId = row.campaign?.id;
-        if (campId) seenCampaigns.add(String(campId));
+        // Skip rows that don't match the optional campaign name filter
+        if (campaignFilter && !campaignName.toLowerCase().includes(campaignFilter.toLowerCase())) return;
+
+        // ── FIX 3: Google REST API returns costMicros as a STRING ──
+        const metrics = row.metrics || {};
+        const rawVal = metrics.costMicros ?? metrics.cost_micros ?? '0';
+        const micros = parseInt(rawVal, 10) || 0;
+        totalMicros += micros;
+
+        if (campaignName) {
+          campaignTotals[campaignName] = (campaignTotals[campaignName] || 0) + micros;
+        }
       });
     }
 
     const totalSpend = totalMicros / 1_000_000;
+    const campaigns = Object.entries(campaignTotals)
+      .map(([name, micros]) => ({ name, spend: micros / 1_000_000 }))
+      .sort((a, b) => b.spend - a.spend);
 
     return res.status(200).json({
       success:        true,
       total_spend:    totalSpend,
       total_micros:   totalMicros,
-      campaign_count: seenCampaigns.size,
+      campaign_count: campaigns.length,
+      campaigns,
       row_count:      data.results?.length ?? 0,
       from,
       to
