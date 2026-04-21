@@ -1113,12 +1113,12 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="metric-card">
         <div class="metric-lbl">Cost Per Lead (CPL)</div>
         <div class="metric-val cb" id="hws-kpi-cpl">—</div>
-        <div class="metric-sub">Total Ad Spend + Webco ÷ Total Leads</div>
+        <div class="metric-sub">Total Ad Spend ÷ Total Leads</div>
       </div>
       <div class="metric-card green">
         <div class="metric-lbl">Cost Per Installation (CPI)</div>
         <div class="metric-val cg" id="hws-kpi-cpi">—</div>
-        <div class="metric-sub">Total Ad Spend + Webco ÷ Installed Jobs</div>
+        <div class="metric-sub">Total Ad Spend ÷ Installed Jobs</div>
       </div>
       <div class="metric-card gold">
         <div class="metric-lbl">Conversion Rate</div>
@@ -1307,9 +1307,9 @@ Object.defineProperty(window, 'LIVE_GOOGLE_SPEND_TOTAL', {
 
 /**
  * Fetch live Google Ads spend from the Vercel serverless endpoint,
- * split by product using date caps:
- *   Smoke → from max(selectedFrom, 2026-01-01) to selectedTo
- *   HWS   → from selectedFrom to min(selectedTo, 2025-12-31)
+ * filtered by campaign name:
+ *   Smoke → all campaigns from max(selectedFrom, 2026-01-01) to selectedTo
+ *   HWS   → filter=Heatpumps campaigns, full selected date range
  */
 async function fetchLiveGoogleSpend(userTriggered = false) {
   const from = document.getElementById('dateFrom')?.value || '';
@@ -1330,11 +1330,10 @@ async function fetchLiveGoogleSpend(userTriggered = false) {
   const smokeTo   = to;
   const smokeValid = smokeFrom <= smokeTo; // false if entire range is before Jan 2026
 
-  // HWS: only before Jan 1 2026
-  const HWS_END = '2025-12-31';
+  // HWS: Heatpumps campaigns filtered by name, no date cap
   const hwsFrom = from;
-  const hwsTo   = to > HWS_END ? HWS_END : to;
-  const hwsValid = hwsFrom <= hwsTo; // false if entire range is after Dec 2025
+  const hwsTo   = to;
+  const hwsValid = true;
 
   try {
     const fetches = [];
@@ -1352,7 +1351,7 @@ async function fetchLiveGoogleSpend(userTriggered = false) {
 
     if (hwsValid) {
       fetches.push(
-        fetch(`/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(hwsFrom)}&to=${encodeURIComponent(hwsTo)}`)
+        fetch(`/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(hwsFrom)}&to=${encodeURIComponent(hwsTo)}&filter=Heatpumps`)
           .then(r => r.json())
           .then(d => d.success ? d.total_spend : 0)
           .catch(() => 0)
