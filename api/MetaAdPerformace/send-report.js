@@ -468,76 +468,51 @@ async function fetchGoogleSpend(since, until, campaignFilter = '', excludeFilter
 }
 
 
-const fmt$ = n => `$${n.toFixed(2)}`;
 
 function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
-  // ── Colour palette ──
-  const GOLD    = '#b08d2e';
-  const DARK    = '#141c2e';
-  const MUTED   = '#6b7899';
-  const GREEN   = '#18a96e';
-  const RED     = '#e04f4f';
-  const BLUE    = '#2d6be4';
-  const TEAL    = '#0ea4ac';
-  const BORDER  = '#e3e7ef';
-  const F       = 'font-family:Arial,Helvetica,sans-serif;';
-  const sec     = `${F}font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:${MUTED};margin:0 0 14px 0;`;
-  const th      = `${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};padding:9px 12px;border-bottom:2px solid ${BORDER};background-color:#f8f9fb;`;
-  const td0     = `${F}font-size:13px;color:${DARK};padding:10px 12px;border-bottom:1px solid ${BORDER};`;
+  const GOLD   = '#b08d2e';
+  const DARK   = '#141c2e';
+  const MUTED  = '#6b7899';
+  const GREEN  = '#18a96e';
+  const RED    = '#e04f4f';
+  const BLUE   = '#2d6be4';
+  const TEAL   = '#0ea4ac';
+  const BORDER = '#e3e7ef';
+  const F      = 'font-family:Arial,Helvetica,sans-serif;';
 
-  function trend(curr, prior, invert = false, unit = '') {
-    if (prior == null || prior === 0) return '';
+  // Section label style
+  const SL = `${F}font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1.4px;color:${MUTED};margin:0 0 12px 0;`;
+  // Table header cell style
+  const TH = `${F}font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:0.7px;color:${MUTED};padding:9px 14px;border-bottom:2px solid ${BORDER};background:#f8f9fb;white-space:nowrap;`;
+  // Table data cell style
+  const TD = `${F}font-size:13px;color:${DARK};padding:10px 14px;border-bottom:1px solid ${BORDER};`;
+
+  function trend(curr, prior) {
+    if (!prior) return '';
     const diff = curr - prior;
-    if (Math.abs(diff) < 0.01) return `<span style="color:${MUTED};font-size:10px;">No change</span>`;
-    const up   = diff > 0;
-    const good = invert ? !up : up;
-    const col  = good ? GREEN : RED;
-    const arrow = up ? '&#8593;' : '&#8595;';
-    const abs  = unit === '$' ? `$${Math.abs(diff).toFixed(2)}` : Math.abs(diff).toFixed(unit === '%' ? 1 : 0);
-    return `<span style="color:${col};font-size:10px;">${arrow} ${abs}${unit === '%' ? '%' : ''} vs prior 7d</span>`;
+    if (Math.abs(diff) < 0.005) return `<span style="${F}font-size:10px;color:${MUTED};">No change</span>`;
+    const col = diff > 0 ? GREEN : RED;
+    const arrow = diff > 0 ? '&#8593;' : '&#8595;';
+    return `<span style="${F}font-size:10px;color:${col};">${arrow}&nbsp;${Math.abs(diff)} vs prior 7d</span>`;
   }
 
-  function stat(label, value, sub, valueColor) {
-    sub = sub || '';
-    valueColor = valueColor || DARK;
-    return `<td valign="top" width="16%" style="padding:0 12px 0 0;">
-      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
-      <p style="${F}font-size:36px;font-weight:bold;line-height:1;color:${valueColor};margin:0;">${value}</p>
-      ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
-    </td>`;
-  }
-  function statMoney(label, value, sub) {
-    sub = sub || '';
-    return `<td valign="top" width="26%" style="padding:0 12px 0 0;">
-      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">${label}</p>
-      <p style="${F}font-size:26px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${value}</p>
-      ${sub ? `<p style="${F}font-size:11px;color:${MUTED};margin:5px 0 0 0;">${sub}</p>` : ''}
-    </td>`;
-  }
-  function statCPL(cpl) {
-    const val = cpl !== null ? `$${cpl.toFixed(2)}` : '-';
-    return `<td valign="top" width="21%" style="padding:0 12px 0 0;">
-      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Lead</p>
-      <p style="${F}font-size:26px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
-      <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
-    </td>`;
-  }
-  function statCPI(cpi) {
-    const val = cpi !== null ? `$${cpi.toFixed(2)}` : '-';
-    return `<td valign="top" width="21%" style="padding:0;">
-      <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 6px 0;">Cost / Install</p>
-      <p style="${F}font-size:26px;font-weight:bold;line-height:1;color:${DARK};margin:0;">${val}</p>
-      <p style="${F}font-size:10px;color:${MUTED};margin:4px 0 0 0;">ex-GST</p>
-    </td>`;
+  // ── Stat grid: 5 equal cells in one bordered table row ──
+  function statGrid(cells) {
+    const last = cells.length - 1;
+    const tds = cells.map((c, i) => {
+      const br = i < last ? `border-right:1px solid ${BORDER};` : '';
+      return `<td valign="top" width="20%" style="padding:16px 14px;${br}vertical-align:top;">
+        <p style="${F}font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin:0 0 8px 0;">${c.label}</p>
+        <p style="${F}font-size:28px;font-weight:bold;line-height:1;color:${c.color || DARK};margin:0;">${c.value}</p>
+        ${c.sub ? `<p style="${F}font-size:10px;color:${MUTED};margin:5px 0 0 0;line-height:1.4;">${c.sub}</p>` : ''}
+      </td>`;
+    }).join('');
+    return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-collapse:collapse;">\n<tr>${tds}</tr>\n</table>`;
   }
 
   const SOURCE_COLORS = {
     Meta: BLUE, Google: GREEN, 'Organic Search': '#7251c2',
     'Organic Social': '#d98c1e', Direct: TEAL, Referral: '#6b7899', Unknown: '#94a3b8',
-  };
-  const PLATFORM_COLORS_EMAIL = {
-    Meta: BLUE, Google: GREEN, 'Organic Social': GOLD,
-    Direct: '#7251c2', Referral: TEAL, Unknown: MUTED,
   };
 
   function buildSection(label, accentColor, opps, metaSpendToday, metaSpendLast7, googleSpendToday, googleSpendLast7, showMeta) {
@@ -545,212 +520,156 @@ function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
     const last7KPIs  = calcKPIs(filterRange(opps, last7.from,  last7.to));
     const prior7KPIs = calcKPIs(filterRange(opps, prior7.from, prior7.to));
 
-    const totalSpendToday = metaSpendToday + googleSpendToday;
-    const totalSpendLast7 = metaSpendLast7 + googleSpendLast7;
+    const spendToday = metaSpendToday + googleSpendToday;
+    const spendLast7 = metaSpendLast7 + googleSpendLast7;
 
-    const todayCPL = todayKPIs.total > 0 && totalSpendToday > 0 ? totalSpendToday / todayKPIs.total : null;
-    const todayCPI = todayKPIs.inst  > 0 && totalSpendToday > 0 ? totalSpendToday / todayKPIs.inst  : null;
-    const last7CPL = last7KPIs.total > 0 && totalSpendLast7 > 0 ? totalSpendLast7 / last7KPIs.total : null;
-    const last7CPI = last7KPIs.inst  > 0 && totalSpendLast7 > 0 ? totalSpendLast7 / last7KPIs.inst  : null;
+    const todayCPL = todayKPIs.total > 0 && spendToday > 0 ? spendToday / todayKPIs.total : null;
+    const todayCPI = todayKPIs.inst  > 0 && spendToday > 0 ? spendToday / todayKPIs.inst  : null;
+    const last7CPL = last7KPIs.total > 0 && spendLast7 > 0 ? spendLast7 / last7KPIs.total : null;
+    const last7CPI = last7KPIs.inst  > 0 && spendLast7 > 0 ? spendLast7 / last7KPIs.inst  : null;
 
-    const todayLeads = filterRange(opps, today.from, today.to);
+    const spendSubToday = showMeta
+      ? `Meta $${metaSpendToday.toFixed(2)} + Google $${googleSpendToday.toFixed(2)}`
+      : `Google $${googleSpendToday.toFixed(2)}`;
+    const spendSubLast7 = showMeta
+      ? `Meta $${metaSpendLast7.toFixed(2)} + Google $${googleSpendLast7.toFixed(2)}`
+      : `Google $${googleSpendLast7.toFixed(2)}`;
+
+    // Source pills for today
     const todaySrcCount = {};
-    todayLeads.forEach(r => {
+    filterRange(opps, today.from, today.to).forEach(r => {
       const src = r.source || 'Unknown';
       todaySrcCount[src] = (todaySrcCount[src] || 0) + 1;
     });
-    const todaySourcePills = Object.entries(todaySrcCount)
+    const pills = Object.entries(todaySrcCount)
       .sort((a, b) => b[1] - a[1])
       .map(([src, cnt]) => {
         const col = SOURCE_COLORS[src] || '#94a3b8';
-        const lbl = displaySourceLabel(src);
-        return `<span style="display:inline-block;background:${col}18;border:1px solid ${col}44;color:${col};font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:20px;margin:0 4px 4px 0;">${cnt === 1 ? '1' : cnt} ${lbl}</span>`;
+        return `<span style="display:inline-block;background:${col}18;border:1px solid ${col}44;color:${col};${F}font-size:11px;font-weight:bold;padding:3px 10px;border-radius:20px;margin:0 4px 4px 0;">${cnt} ${displaySourceLabel(src)}</span>`;
       }).join('');
 
-    const spendSubToday = showMeta
-      ? `Meta $${metaSpendToday.toFixed(2)}&nbsp;+&nbsp;Google $${googleSpendToday.toFixed(2)}`
-      : `Google $${googleSpendToday.toFixed(2)}`;
-    const spendSubLast7 = showMeta
-      ? `Meta $${metaSpendLast7.toFixed(2)}&nbsp;+&nbsp;Google $${googleSpendLast7.toFixed(2)}`
-      : `Google $${googleSpendLast7.toFixed(2)}`;
+    // Stage table rows (today)
+    const stageRows = todayKPIs.breakdown.length > 0
+      ? todayKPIs.breakdown.map(({ stage, count }) => {
+          const display = stage === 'Won/Installed' ? 'Installed' : stage === 'Qualified/IHA Complete' ? 'Qualified' : stage;
+          const pct = todayKPIs.total > 0 ? ((count / todayKPIs.total) * 100).toFixed(1) : '0';
+          const barW = Math.round((count / todayKPIs.total) * 100);
+          return `<tr>
+            <td style="${TD}width:55%;">${display}</td>
+            <td style="${TD}text-align:center;font-weight:bold;width:60px;">${count}</td>
+            <td style="${TD}width:120px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="width:${barW}%;background:${accentColor}55;height:6px;border-radius:3px 0 0 3px;font-size:0;">&nbsp;</td>
+                  ${barW < 100 ? `<td style="width:${100-barW}%;height:6px;font-size:0;">&nbsp;</td>` : ''}
+                </tr>
+              </table>
+              <p style="${F}font-size:11px;color:${MUTED};margin:3px 0 0 0;">${pct}%</p>
+            </td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="3" style="padding:14px;${F}font-size:13px;color:${MUTED};text-align:center;">No leads recorded today</td></tr>`;
 
+    // Daily breakdown rows
     const dayRows = dailyDates.map((day, i) => {
       const kpi      = calcKPIs(filterRange(opps, day, day));
       const isToday  = i === 0;
       const dayLabel = isToday ? 'Today'
         : new Date(day + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-      const rowBg      = isToday ? '#fffdf5' : '#ffffff';
-      const fw         = isToday ? 'bold' : 'normal';
-      const labelColor = isToday ? GOLD : DARK;
-      const B          = `border-bottom:1px solid ${BORDER};`;
+      const bg  = isToday ? '#fffdf5' : '#ffffff';
+      const fw  = isToday ? 'bold' : 'normal';
+      const lc  = isToday ? GOLD : DARK;
+      const B   = `border-bottom:1px solid ${BORDER};background:${bg};`;
       return `<tr>
-        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${labelColor};background-color:${rowBg};${B}">${dayLabel}</td>
-        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${DARK};text-align:center;background-color:${rowBg};${B}">${kpi.total}</td>
-        <td style="padding:10px 12px;${F}font-size:13px;font-weight:${fw};color:${kpi.inst > 0 ? GREEN : DARK};text-align:center;background-color:${rowBg};${B}">${kpi.inst}</td>
-        <td style="padding:10px 12px;${F}font-size:13px;color:${MUTED};text-align:center;background-color:${rowBg};${B}">${kpi.closeRate}%</td>
-        <td style="padding:10px 12px;${F}font-size:13px;color:${kpi.notInt > 0 ? RED : MUTED};text-align:center;background-color:${rowBg};${B}">${kpi.notInt}</td>
+        <td style="${TD}font-weight:${fw};color:${lc};${B}">${dayLabel}</td>
+        <td style="${TD}text-align:center;font-weight:${fw};${B}">${kpi.total}</td>
+        <td style="${TD}text-align:center;font-weight:${fw};color:${kpi.inst > 0 ? GREEN : DARK};${B}">${kpi.inst}</td>
+        <td style="${TD}text-align:center;color:${MUTED};${B}">${kpi.closeRate}%</td>
+        <td style="${TD}text-align:center;color:${kpi.notInt > 0 ? RED : MUTED};${B}">${kpi.notInt}</td>
       </tr>`;
     }).join('');
 
-    const stageRows = todayKPIs.breakdown.length > 0
-      ? todayKPIs.breakdown.map(({ stage, count }) => {
-          const display = stage === 'Won/Installed' ? 'Installed' : stage === 'Qualified/IHA Complete' ? 'Qualified' : stage;
-          const pct     = todayKPIs.total > 0 ? ((count / todayKPIs.total) * 100).toFixed(1) : '0';
-          const B = `border-bottom:1px solid ${BORDER};`;
-          return `<tr>
-            <td style="padding:10px 12px;${F}font-size:13px;color:${DARK};${B}">${display}</td>
-            <td style="padding:10px 12px;${F}font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${count}</td>
-            <td style="padding:10px 12px;${F}font-size:13px;color:${MUTED};text-align:right;${B}">${pct}%</td>
-          </tr>`;
-        }).join('')
-      : `<tr><td colspan="3" style="padding:16px 12px;${F}font-size:13px;color:${MUTED};text-align:center;">No leads recorded today</td></tr>`;
-
-    const journeyRows = last7KPIs.journeyPaths.length > 0
-      ? last7KPIs.journeyPaths.map(({ platform, t, i, subPaths }) => {
-          const col      = PLATFORM_COLORS_EMAIL[platform] || MUTED;
-          const pPct     = t > 0 ? ((i / t) * 100).toFixed(1) : '0.0';
-          const hasMulti = subPaths.length > 0;
-          const B = `border-bottom:1px solid ${BORDER};`;
-          const subRows  = hasMulti ? subPaths.map(([lbl, sv]) => {
-            const sPct = sv.t > 0 ? ((sv.i / sv.t) * 100).toFixed(1) : '0.0';
-            return `<tr>
-              <td style="padding:8px 12px 8px 22px;${F}font-size:12px;color:${MUTED};${B}">&#8627; ${lbl}</td>
-              <td style="padding:8px 12px;${F}font-size:12px;color:${DARK};text-align:center;${B}">${sv.t}</td>
-              <td style="padding:8px 12px;${F}font-size:12px;color:${DARK};text-align:center;${B}">${sv.i}</td>
-              <td style="padding:8px 12px;${F}font-size:12px;color:${MUTED};text-align:center;${B}">${sPct}%</td>
-            </tr>`;
-          }).join('') : '';
-          const totalLabel = hasMulti ? `${platform} (total)` : platform;
-          const totalRow   = `<tr>
-            <td style="padding:10px 12px;${F}font-size:13px;font-weight:bold;color:${col};${B}">${totalLabel}</td>
-            <td style="padding:10px 12px;${F}font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${t}</td>
-            <td style="padding:10px 12px;${F}font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${i}</td>
-            <td style="padding:10px 12px;${F}font-size:13px;font-weight:bold;color:${DARK};text-align:center;${B}">${pPct}%</td>
-          </tr>`;
-          return subRows + totalRow;
-        }).join('')
-      : `<tr><td colspan="4" style="padding:16px 12px;${F}font-size:13px;color:${MUTED};text-align:center;">No attribution data available</td></tr>`;
+    const P = 'padding:24px 32px 0;'; // section padding
 
     return `
-    <!-- ===== SECTION: ${label} ===== -->
-    <tr>
-      <td style="padding:24px 32px 0;">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td style="border-left:4px solid ${accentColor};padding:10px 0 10px 16px;background-color:#fafbfc;">
-              <p style="${F}font-size:15px;font-weight:bold;color:${DARK};margin:0;">${label}</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
+    <!-- ===== ${label} ===== -->
+    <tr><td style="${P}background:#ffffff;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="border-left:4px solid ${accentColor};padding:10px 0 10px 16px;background:#fafbfc;">
+            <p style="${F}font-size:15px;font-weight:bold;color:${DARK};margin:0;">${label}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
 
-    <!-- TODAY KPIs -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:20px 32px 0;">
-        <p style="${sec}">Today &mdash; ${today.from}</p>
-        ${todayKPIs.total === 0 ? `<p style="${F}font-size:12px;font-weight:bold;color:#f59e0b;margin:0 0 14px 0;">&#9888;&nbsp; No new leads recorded today.</p>` : ''}
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:18px;">
-          <tr>
-            ${stat('New Leads', todayKPIs.total)}
-            ${stat('Installed', todayKPIs.inst, `${todayKPIs.closeRate}% close rate`, todayKPIs.inst > 0 ? GREEN : DARK)}
-            ${statMoney('Ad Spend', totalSpendToday > 0 ? `$${totalSpendToday.toFixed(2)}` : '&mdash;', spendSubToday)}
-            ${statCPL(todayCPL)}
-            ${statCPI(todayCPI)}
-          </tr>
-        </table>
-        ${todayKPIs.total > 0 ? `<div style="margin-top:14px;line-height:1.8;"><span style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:${MUTED};margin-right:8px;">Sources</span>${todaySourcePills}</div>` : ''}
-      </td>
-    </tr>
+    <!-- TODAY -->
+    <tr><td style="${P}background:#ffffff;">
+      <p style="${SL}">Today &mdash; ${today.from}</p>
+      ${todayKPIs.total === 0 ? `<p style="${F}font-size:12px;font-weight:bold;color:#d97706;margin:0 0 12px 0;">&#9888; No new leads recorded today.</p>` : ''}
+      ${statGrid([
+        { label: 'New Leads',    value: todayKPIs.total, color: DARK },
+        { label: 'Installed',    value: todayKPIs.inst,  color: todayKPIs.inst > 0 ? GREEN : DARK, sub: `${todayKPIs.closeRate}% close rate` },
+        { label: 'Ad Spend',     value: spendToday > 0 ? `$${spendToday.toFixed(2)}` : '&mdash;', sub: spendSubToday },
+        { label: 'Cost / Lead',  value: todayCPL !== null ? `$${todayCPL.toFixed(2)}` : '&mdash;', sub: 'ex-GST' },
+        { label: 'Cost / Install', value: todayCPI !== null ? `$${todayCPI.toFixed(2)}` : '&mdash;', sub: 'ex-GST' },
+      ])}
+      ${todayKPIs.total > 0 ? `<p style="margin:10px 0 0 0;">${pills}</p>` : ''}
+    </td></tr>
 
-    <!-- LAST 7 DAYS KPIs -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:20px 32px 0;">
-        <p style="${sec}">Last 7 Days</p>
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BORDER};padding-top:18px;">
-          <tr>
-            ${stat('Leads', last7KPIs.total, (() => { const t = trend(last7KPIs.total, prior7KPIs.total); return t || '&nbsp;'; })())}
-            ${stat('Installed', last7KPIs.inst, (() => { const t = trend(last7KPIs.inst, prior7KPIs.inst); return t || '&nbsp;'; })(), last7KPIs.inst > 0 ? GREEN : DARK)}
-            ${statMoney('Ad Spend', `$${totalSpendLast7.toFixed(2)}`, spendSubLast7)}
-            ${statCPL(last7CPL)}
-            ${statCPI(last7CPI)}
-          </tr>
-        </table>
-      </td>
-    </tr>
+    <!-- PIPELINE STAGES: TODAY -->
+    <tr><td style="${P}background:#ffffff;">
+      <p style="${SL}">Pipeline Stages &mdash; Today</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
+        <tr>
+          <td style="${TH}text-align:left;">Stage</td>
+          <td style="${TH}text-align:center;width:60px;">Count</td>
+          <td style="${TH}width:120px;">Share</td>
+        </tr>
+        ${stageRows}
+      </table>
+    </td></tr>
+
+    <!-- LAST 7 DAYS -->
+    <tr><td style="${P}background:#ffffff;">
+      <p style="${SL}">Last 7 Days</p>
+      ${statGrid([
+        { label: 'Leads',        value: last7KPIs.total, sub: trend(last7KPIs.total, prior7KPIs.total) },
+        { label: 'Installed',    value: last7KPIs.inst,  color: last7KPIs.inst > 0 ? GREEN : DARK, sub: trend(last7KPIs.inst, prior7KPIs.inst) || `${last7KPIs.closeRate}% close rate` },
+        { label: 'Ad Spend',     value: `$${spendLast7.toFixed(2)}`, sub: spendSubLast7 },
+        { label: 'Cost / Lead',  value: last7CPL !== null ? `$${last7CPL.toFixed(2)}` : '&mdash;', sub: 'ex-GST' },
+        { label: 'Cost / Install', value: last7CPI !== null ? `$${last7CPI.toFixed(2)}` : '&mdash;', sub: 'ex-GST' },
+      ])}
+    </td></tr>
 
     <!-- DAILY BREAKDOWN -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:20px 32px 0;">
-        <p style="${sec}">Daily Breakdown</p>
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-          <tr>
-            <td style="${th}text-align:left;width:38%;">Day</td>
-            <td style="${th}text-align:center;">Leads</td>
-            <td style="${th}text-align:center;">Installed</td>
-            <td style="${th}text-align:center;">Close %</td>
-            <td style="${th}text-align:center;">Not Int.</td>
-          </tr>
-          ${dayRows}
-          <tr bgcolor="#f8f9fb">
-            <td style="${td0}font-weight:bold;border-bottom:none;">7-Day Total</td>
-            <td style="${td0}text-align:center;font-weight:bold;border-bottom:none;">${last7KPIs.total}</td>
-            <td style="${td0}text-align:center;font-weight:bold;color:${last7KPIs.inst > 0 ? GREEN : DARK};border-bottom:none;">${last7KPIs.inst}</td>
-            <td style="${td0}text-align:center;border-bottom:none;">${last7KPIs.closeRate}%</td>
-            <td style="${td0}text-align:center;border-bottom:none;">${last7KPIs.notInt}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
+    <tr><td style="${P}padding-bottom:0;background:#ffffff;">
+      <p style="${SL}">Daily Breakdown &mdash; Last 7 Days</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
+        <tr>
+          <td style="${TH}text-align:left;">Day</td>
+          <td style="${TH}text-align:center;width:70px;">Leads</td>
+          <td style="${TH}text-align:center;width:80px;">Installed</td>
+          <td style="${TH}text-align:center;width:70px;">Close %</td>
+          <td style="${TH}text-align:center;width:70px;">Not Int.</td>
+        </tr>
+        ${dayRows}
+        <tr style="background:#f8f9fb;">
+          <td style="${TD}font-weight:bold;border-bottom:none;">7-Day Total</td>
+          <td style="${TD}text-align:center;font-weight:bold;border-bottom:none;">${last7KPIs.total}</td>
+          <td style="${TD}text-align:center;font-weight:bold;color:${last7KPIs.inst > 0 ? GREEN : DARK};border-bottom:none;">${last7KPIs.inst}</td>
+          <td style="${TD}text-align:center;color:${MUTED};border-bottom:none;">${last7KPIs.closeRate}%</td>
+          <td style="${TD}text-align:center;color:${MUTED};border-bottom:none;">${last7KPIs.notInt}</td>
+        </tr>
+      </table>
+    </td></tr>
 
-    <!-- STAGE BREAKDOWN (TODAY) -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:20px 32px 0;">
-        <p style="${sec}">Pipeline Stages &mdash; Today</p>
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-          <tr>
-            <td style="${th}text-align:left;">Stage</td>
-            <td style="${th}text-align:center;width:80px;">Count</td>
-            <td style="${th}text-align:right;width:70px;">Share</td>
-          </tr>
-          ${stageRows}
-        </table>
-      </td>
-    </tr>
-
-    <!-- LEAD SOURCES & JOURNEY PATHS (LAST 7 DAYS) -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:20px 32px 0;">
-        <p style="${sec}">Lead Sources &amp; Journey Paths &mdash; Last 7 Days</p>
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};">
-          <tr>
-            <td style="${th}text-align:left;">Source / Path</td>
-            <td style="${th}text-align:center;width:70px;">Leads</td>
-            <td style="${th}text-align:center;width:70px;">Installed</td>
-            <td style="${th}text-align:center;width:70px;">Close %</td>
-          </tr>
-          ${journeyRows}
-          <tr bgcolor="#000000">
-            <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;">All Sources</td>
-            <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.total}</td>
-            <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.inst}</td>
-            <td style="${F}font-size:12px;font-weight:bold;color:#fff;padding:10px 12px;text-align:center;">${last7KPIs.closeRate}%</td>
-          </tr>
-        </table>
-        <p style="${F}font-size:10px;color:${MUTED};margin:8px 0 0 0;line-height:1.6;">
-          Path notation: first touch &#8594; last touch. "Landing Page" = offers.goldsure.com.au or /smoke-alarm.
-        </p>
-      </td>
-    </tr>
-
-    <!-- SECTION DIVIDER -->
-    <tr>
-      <td bgcolor="#ffffff" style="padding:28px 32px 8px;">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr><td height="1" bgcolor="${BORDER}" style="font-size:0;line-height:0;">&nbsp;</td></tr>
-        </table>
-      </td>
-    </tr>`;
+    <!-- DIVIDER -->
+    <tr><td style="padding:28px 32px 0;background:#ffffff;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr><td height="1" bgcolor="${BORDER}" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+    </td></tr>`;
   }
 
   const smokeSection = buildSection(
@@ -769,44 +688,49 @@ function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Goldsure Daily Report</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f0f2f5;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f2f5">
-<tr><td align="center" style="padding:24px 16px;">
-<table width="620" cellpadding="0" cellspacing="0" border="0">
+<body style="margin:0;padding:0;background-color:#eef0f4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef0f4">
+<tr><td align="center" style="padding:28px 16px;">
+<table width="620" cellpadding="0" cellspacing="0" border="0" style="border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
   <!-- HEADER -->
   <tr>
-    <td bgcolor="#000000" style="padding:28px 32px 24px;border-radius:6px 6px 0 0;">
+    <td bgcolor="#0d1117" style="padding:28px 32px 26px;border-radius:8px 8px 0 0;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td valign="middle">
             <img src="https://raw.githubusercontent.com/vigneshkcom/Goldsure/277e079b062a260a6792933542c58229d3801b86/assets/goldsure-inverted-logo.jpg"
-                 alt="Goldsure" width="110" style="display:block;border:0;" />
-            <p style="${F}font-size:11px;color:${GOLD};margin:5px 0 0 0;letter-spacing:0.3px;">Daily Performance Report</p>
+                 alt="Goldsure" width="100" style="display:block;border:0;" />
+            <p style="${F}font-size:10px;color:${GOLD};margin:6px 0 0 0;letter-spacing:1px;text-transform:uppercase;">Daily Performance Report</p>
           </td>
-          <td align="right" valign="top">
-            <p style="${F}font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);margin:0 0 4px 0;">Daily Report</p>
-            <p style="${F}font-size:12px;color:#ffffff;margin:0;">${dateStr}</p>
+          <td align="right" valign="middle">
+            <p style="${F}font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin:0 0 5px 0;">Report Date</p>
+            <p style="${F}font-size:13px;color:#ffffff;margin:0;font-weight:bold;">${dateStr}</p>
           </td>
         </tr>
       </table>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);">
-        <tr><td style="padding-top:18px;">
-          <p style="${F}font-size:17px;font-weight:bold;color:#ffffff;margin:0 0 6px 0;">Hi Vignesh,</p>
-          <p style="${F}font-size:13px;color:rgba(255,255,255,0.65);line-height:1.6;margin:0;">Here is today's performance summary for Smoke Alarms and Hot Water Systems.</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);">
+        <tr><td>
+          <p style="${F}font-size:15px;font-weight:bold;color:#ffffff;margin:0 0 4px 0;">Hi Vignesh,</p>
+          <p style="${F}font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;margin:0;">Here is today's performance summary for Smoke Alarms and Hot Water Systems.</p>
         </td></tr>
       </table>
     </td>
   </tr>
 
-  ${smokeSection}
-  ${hwsSection}
+  <!-- WHITE BODY -->
+  <tr><td bgcolor="#ffffff">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      ${smokeSection}
+      ${hwsSection}
+    </table>
+  </td></tr>
 
   <!-- FOOTER -->
   <tr>
-    <td bgcolor="#000000" style="padding:18px 32px;border-radius:0 0 6px 6px;" align="center">
-      <p style="${F}font-size:12px;font-weight:bold;color:#ffffff;margin:0 0 3px 0;">Goldsure Pty Ltd</p>
-      <p style="${F}font-size:10px;color:rgba(255,255,255,0.4);margin:0;">Suite 4, Level 1, 293 High Street, Preston VIC 3072 &nbsp;&bull;&nbsp; Auto-generated</p>
+    <td bgcolor="#0d1117" style="padding:16px 32px;border-radius:0 0 8px 8px;" align="center">
+      <p style="${F}font-size:11px;font-weight:bold;color:rgba(255,255,255,0.7);margin:0 0 2px 0;">Goldsure Pty Ltd</p>
+      <p style="${F}font-size:10px;color:rgba(255,255,255,0.3);margin:0;">Suite 4, Level 1, 293 High Street, Preston VIC 3072 &bull; Auto-generated report</p>
     </td>
   </tr>
 
@@ -816,8 +740,6 @@ function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
 </body>
 </html>`;
 }
-
-
 
 // Handler
 export default async function handler(req, res) {
