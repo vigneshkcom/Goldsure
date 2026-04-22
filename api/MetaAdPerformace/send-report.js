@@ -579,7 +579,7 @@ function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
       const bg  = isToday ? '#fffdf5' : '#ffffff';
       const fw  = isToday ? 'bold' : 'normal';
       const lc  = isToday ? GOLD : DARK;
-      const B   = `border-bottom:1px solid ${BORDER};background:${bg};`;
+      const B   = `border-bottom:${isToday ? `2px solid ${accentColor}` : `1px solid ${BORDER}`};background:${bg};`;
       return `<tr>
         <td style="${TD}font-weight:${fw};color:${lc};${B}">${dayLabel}</td>
         <td style="${TD}text-align:center;font-weight:${fw};${B}">${kpi.total}</td>
@@ -711,8 +711,7 @@ function buildEmail({ today, last7, prior7, dailyDates, dateStr, smoke, hws }) {
       </table>
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);">
         <tr><td>
-          <p style="${F}font-size:15px;font-weight:bold;color:#ffffff;margin:0 0 4px 0;">Hi Vignesh,</p>
-          <p style="${F}font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;margin:0;">Here is today's performance summary for Smoke Alarms and Hot Water Systems.</p>
+          <p style="${F}font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;margin:0;">Today's performance summary &mdash; Smoke Alarms &amp; Hot Water Systems.</p>
         </td></tr>
       </table>
     </td>
@@ -749,7 +748,7 @@ export default async function handler(req, res) {
   }
 
   const resendKey  = process.env.RESEND_API_KEY || '';
-  const recipients = ['vignesh@goldsure.com.au'];
+  const recipients = ['vignesh@goldsure.com.au', 'accounts@goldsure.com.au'];
 
   if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
   if (!process.env.GHL_API_KEY) return res.status(500).json({ error: 'GHL_API_KEY not set' });
