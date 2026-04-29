@@ -242,6 +242,7 @@ const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let ghlOppData = {};  // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
 let ghlStages  = [];  // [{ id, name, position }] for Smoke Alarms pipeline
+let ghlStagesLoaded = false;
 
 window.addEventListener('DOMContentLoaded', () => {
   loadQuotes();
@@ -282,6 +283,7 @@ async function loadGhlStages(quotes) {
     if (res.ok) map = await res.json();
   } catch(e) { console.warn('GHL stage fetch failed', e); }
   ghlOppData = map; // store globally (keys are already lowercased emails)
+  ghlStagesLoaded = true;
   quotes.forEach(q => {
     const el = document.getElementById(`ghl-${q.id}`);
     if (!el) return;
@@ -472,6 +474,10 @@ function renderTable() {
     const menuItems = ['sent','accepted','rejected','installed'].map(s =>
       `<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`
     ).join('');
+    const ghlEmail = (q.customer_email || '').toLowerCase().trim();
+    const ghlD = ghlOppData[ghlEmail];
+    const ghlBadgeText = ghlStagesLoaded ? (ghlD?.stage || '—') : '…';
+    const ghlBadgeCls  = ghlStagesLoaded ? ghlBadgeClass(ghlD?.stage) : 'badge badge-ghl-loading';
     return `<tr>
       <td class="td-date">${date}</td>
       <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub" style="color:#9ca3af;">${esc(q.customer_address)}</div>`:''}</td>
@@ -481,7 +487,7 @@ function renderTable() {
       <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
       <td>${renderDaysPill(quoteAgeDays, 4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
-      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc((q.customer_email||'').toLowerCase().trim())}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="badge badge-ghl-loading">…</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
+      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc((q.customer_email||'').toLowerCase().trim())}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${q._reminderSending ? 'Sending…' : 'Remind'}</button></div></td>
       <td>${renderDaysPill(reminderAgeDays, 2)}</td>
       <td><span class="count-badge${reminderCount > 0 ? ' has-reminders' : ''}">${reminderCount}</span></td>
