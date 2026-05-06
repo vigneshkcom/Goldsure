@@ -1099,7 +1099,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       </div>
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-lbl">INSTALLED (WON)</div><div class="kpi-val cg" id="hws-inst">0</div><div class="kpi-sub">Installed stage</div></div>
-        <div class="kpi"><div class="kpi-lbl">LOST / COLD</div><div class="kpi-val cr" id="hws-ni">0</div><div class="kpi-sub">Not Interested + Not Reachable + Out of Area + Quote Lost</div></div>
+        <div class="kpi"><div class="kpi-lbl">LOST / COLD</div><div class="kpi-val cr" id="hws-ni">0</div><div class="kpi-sub">Not Interested + Not Reachable + Out of Area + Quote Lost + Unserviceable</div></div>
         <div class="kpi"><div class="kpi-lbl">CLOSE RATE</div><div class="kpi-val" id="hws-rate">0%</div><div class="kpi-sub">Installed ÷ Total Leads</div></div>
         <div class="kpi"><div class="kpi-lbl">IN PROGRESS</div><div class="kpi-val" id="hws-other">0</div><div class="kpi-sub">New Lead + Follow Up</div></div>
       </div>
@@ -1400,7 +1400,7 @@ const STAGE_COLORS = {
   'New Lead':'#94a3b8','Quote Sent':'#2d6be4','Follow-Up':'#0ea4ac','Follow Up':'#0ea4ac',
   'Shopping Around':'#e0833b','Won/Installed':'#18a96e','Installed':'#18a96e',
   'IHA Booked':'#2d6be4','Qualified/IHA Complete':'#0ea4ac',
-  'Quote Not Accepted (Lost)':'#c0392b','Today':'#f39c12'
+  'Quote Not Accepted (Lost)':'#c0392b','Unserviceable':'#607d8b','Today':'#f39c12'
 };
 const SRC_COLORS = ['#1877f2','#18a96e','#d98c1e','#7251c2','#e04f4f','#0ea4ac','#e0833b','#94a3b8'];
 
@@ -2246,7 +2246,7 @@ function renderHws(){
   const from = document.getElementById('dateFrom').value, to = document.getElementById('dateTo').value;
   const total = leads.length;
   const inst  = leads.filter(r=>r.stage==='Installed'||r.stage==='Won/Installed'||/^won$/i.test(r.stage)).length;
-  const ni    = leads.filter(r=>/not.?interest|spam/i.test(r.stage)||r.stage==='Quote Not Accepted (Lost)'||r.stage==='Out of Area'||r.stage==='Not Reachable').length;
+  const ni    = leads.filter(r=>/not.?interest|spam/i.test(r.stage)||r.stage==='Quote Not Accepted (Lost)'||r.stage==='Out of Area'||r.stage==='Not Reachable'||r.stage==='Unserviceable').length;
   const other = total - inst - ni;
 
   // Meta: API reports inc-GST → divide by 1.1 to get ex-GST
@@ -2281,7 +2281,7 @@ function renderHws(){
 
 function renderStagesAndSources(leads, total, totalAdSpend, product){
   const stageCount={};leads.forEach(r=>stageCount[r.stage]=(stageCount[r.stage]||0)+1);
-  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
+  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Unserviceable','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
   const sorted=stageOrder.filter(s=>stageCount[s]).map(s=>[s,stageCount[s]]).concat(Object.entries(stageCount).filter(([s])=>!stageOrder.includes(s)).sort((a,b)=>b[1]-a[1]));
   const max=Math.max(...sorted.map(([,v])=>v),1);
   document.getElementById('stage-rows').innerHTML=sorted.map(([s,cnt])=>{ const col=STAGE_COLORS[s]||'#94a3b8'; let dn=s; if(s==='Won/Installed') dn='Installed'; else if(s==='Qualified/IHA Complete') dn='Qualified'; return `<div class="sr"><div class="sdot" style="background:${col}"></div><span class="sname">${dn}</span><div class="btrack"><div class="bfill" style="width:${(cnt/max*100).toFixed(1)}%;background:${col}"></div></div><span class="snums">${cnt} · ${total?((cnt/total*100).toFixed(1)):'0'}%</span></div>`; }).join('')||'<span>No data</span>';
@@ -2452,7 +2452,7 @@ function fmtDay(k){ return new Date(k+'T00:00').toLocaleDateString('en-AU',{week
 function renderVolume(smokeLeads,hwsLeads){ renderVolumeTable(smokeLeads,'smoke-vol-head','smoke-vol-body'); renderVolumeTable(hwsLeads,'hws-vol-head','hws-vol-body'); }
 
 function renderVolumeTable(data,headId,bodyId){
-  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
+  const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Unserviceable','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
   const stageCount={};data.forEach(r=>{stageCount[r.stage]=(stageCount[r.stage]||0)+1;});
   const stages=stageOrder.filter(s=>stageCount[s]).concat(Object.keys(stageCount).filter(s=>!stageOrder.includes(s)).sort());
   const buckets={};
@@ -2476,7 +2476,7 @@ function renderFunnel(leads, total, product) {
 
   const isInstalled = r => /install|won/i.test(r.stage);
   const isQuoted    = r => /quote sent|quote|iha|qualified|follow.?up|shopping/i.test(r.stage);
-  const isLost      = r => /not.?interest|spam|not.?reach|out.?of.?area|lost/i.test(r.stage);
+  const isLost      = r => /not.?interest|spam|not.?reach|out.?of.?area|lost|unserviceable/i.test(r.stage);
 
   const totalLeads  = total;
   const contacted   = leads.filter(r => !r.stage.toLowerCase().includes('new lead')).length;
