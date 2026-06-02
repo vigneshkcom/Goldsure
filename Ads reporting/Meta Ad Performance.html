@@ -906,6 +906,7 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="product-toggle">
         <button class="toggle-btn active" id="toggleSmoke" onclick="switchProduct('smoke')">Smoke Alarm</button>
         <button class="toggle-btn" id="toggleHws" onclick="switchProduct('hws')">HWS</button>
+        <button class="toggle-btn" id="toggleAircon" onclick="switchProduct('aircon')">Aircon</button>
       </div>
       <span id="ghl-live-indicator" style="display:none;" class="ghl-live-badge"><span class="ghl-live-dot"></span>GHL Live</span>
       <span id="meta-live-indicator" style="display:none;" class="meta-live-badge"><span class="meta-live-dot"></span>Meta Live</span>
@@ -1108,6 +1109,22 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
     <!-- smoke-metrics-row: hidden — CPL, CPI, Margin now in column layout above -->
     <div class="metrics-row" id="smoke-metrics-row" style="display:none !important;"></div>
 
+    <!-- Aircon KPIs -->
+    <div id="aircon-kpis" class="product-kpis" style="display:none;">
+      <div class="financial-kpis" style="grid-template-columns:repeat(4,1fr);">
+        <div class="fin-card"><div class="fin-label">TOTAL AD SPEND</div><div class="fin-value" id="aircon-spend-val">$0</div><div class="fin-note">Google ex-GST</div></div>
+        <div class="fin-card"><div class="fin-label">↳ GOOGLE SPEND</div><div class="fin-value" id="aircon-google-spend" style="font-size:15px;">$0</div><div class="fin-note">Live API ÷ 1.1 ex-GST</div></div>
+        <div class="fin-card"><div class="fin-label">TOTAL LEADS</div><div class="fin-value cb" id="aircon-leads-val">0</div><div class="fin-note">Pipeline leads in date range</div></div>
+        <div class="fin-card"><div class="fin-label">COST PER LEAD</div><div class="fin-value" id="aircon-kpi-cpl">—</div><div class="fin-note">Google Spend ÷ Leads</div></div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-lbl">INSTALLED (WON)</div><div class="kpi-val cg" id="aircon-inst">0</div><div class="kpi-sub">Installed stage</div></div>
+        <div class="kpi"><div class="kpi-lbl">LOST / COLD</div><div class="kpi-val cr" id="aircon-ni">0</div><div class="kpi-sub">Not Interested + Not Reachable + Out of Area + Lost + Unserviceable</div></div>
+        <div class="kpi"><div class="kpi-lbl">CLOSE RATE</div><div class="kpi-val" id="aircon-rate">0%</div><div class="kpi-sub">Installed ÷ Total Leads</div></div>
+        <div class="kpi"><div class="kpi-lbl">IN PROGRESS</div><div class="kpi-val" id="aircon-other">0</div><div class="kpi-sub">New Lead + Follow Up</div></div>
+      </div>
+    </div>
+
     <!-- CPL / CPI / Conv — HWS -->
     <div class="metrics-row" id="hws-metrics-row" style="display:none;">
       <div class="metric-card">
@@ -1206,6 +1223,11 @@ input[type="date"], select { font-family: 'Sora', sans-serif; font-size: 12px; b
       <div class="ctitle">HWS LEAD VOLUME</div>
       <div class="vtable-wrap"><table class="vtable"><thead id="hws-vol-head"></thead><tbody id="hws-vol-body"></tbody></table></div>
     </div>
+
+    <div class="card" id="aircon-vol-card" style="display:none;margin-bottom:16px;">
+      <div class="ctitle">AIRCON LEAD VOLUME</div>
+      <div class="vtable-wrap"><table class="vtable"><thead id="aircon-vol-head"></thead><tbody id="aircon-vol-body"></tbody></table></div>
+    </div>
   </main>
 
   <footer style="background:var(--surface);border-top:1px solid var(--border);padding:20px 28px;margin-top:8px;">
@@ -1253,7 +1275,7 @@ function toAestDate(utcStr) {
 // ══════════════════════════════════════════════════════════════
 //  GLOBAL STATE
 // ══════════════════════════════════════════════════════════════
-let SMOKE_CRM = [], HWS_CRM = [];
+let SMOKE_CRM = [], HWS_CRM = [], AIRCON_CRM = [];
 let SMOKE_SPEND = [], HWS_SPEND = [];
 let SMOKE_SPEND_ALL = [], HWS_SPEND_ALL = [];
 
@@ -1263,7 +1285,7 @@ let META_TOKEN = '';
 let GHL_CONNECTED = false;
 let META_CONNECTED = false;
 
-let SMOKE_PIPELINE_ID = '', HWS_PIPELINE_ID = '';
+let SMOKE_PIPELINE_ID = '', HWS_PIPELINE_ID = '', AIRCON_PIPELINE_ID = '';
 let GHL_PIPELINES = [];
 
 // ── Date overrides: email → 'YYYY-MM-DD' loaded from Supabase "Webco Created Dates" ──
@@ -1288,8 +1310,9 @@ let GHL_OPPORTUNITIES_RAW = null;
 const GOOGLE_SMOKE_START = '2026-01-01'; // Smoke campaigns only from this date onwards
 const HWS_START          = '2026-04-21'; // HWS Google Ads resumed from this date
 
-let LIVE_GOOGLE_SPEND_SMOKE = null;  // null = not yet loaded
-let LIVE_GOOGLE_SPEND_HWS   = null;
+let LIVE_GOOGLE_SPEND_SMOKE  = null;  // null = not yet loaded
+let LIVE_GOOGLE_SPEND_HWS    = null;
+let LIVE_GOOGLE_SPEND_AIRCON = null;
 let LIVE_GOOGLE_SPEND_LOADING = false;
 // Track the date range that was last fetched so we can detect when it changes
 let LIVE_GOOGLE_SPEND_FROM = null;
@@ -1361,16 +1384,26 @@ async function fetchLiveGoogleSpend(userTriggered = false) {
       fetches.push(Promise.resolve(0));
     }
 
-    const [smokeTotal, hwsTotal] = await Promise.all(fetches);
-    LIVE_GOOGLE_SPEND_SMOKE = smokeTotal;
-    LIVE_GOOGLE_SPEND_HWS   = hwsTotal;
+    // Aircon: filter by "Aircon" campaign name, no date cap
+    fetches.push(
+      fetch(`/api/MetaAdPerformace/google-spend?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&filter=Aircon`)
+        .then(r => r.json())
+        .then(d => d.success ? d.total_spend : 0)
+        .catch(() => 0)
+    );
+
+    const [smokeTotal, hwsTotal, airconTotal] = await Promise.all(fetches);
+    LIVE_GOOGLE_SPEND_SMOKE  = smokeTotal;
+    LIVE_GOOGLE_SPEND_HWS    = hwsTotal;
+    LIVE_GOOGLE_SPEND_AIRCON = airconTotal;
     LIVE_GOOGLE_SPEND_FROM  = from;
     LIVE_GOOGLE_SPEND_TO    = to;
     updateGoogleUploadStatus('ok');
   } catch (err) {
     console.error('[google-spend] Fetch failed:', err);
-    LIVE_GOOGLE_SPEND_SMOKE = 0;
-    LIVE_GOOGLE_SPEND_HWS   = 0;
+    LIVE_GOOGLE_SPEND_SMOKE  = 0;
+    LIVE_GOOGLE_SPEND_HWS    = 0;
+    LIVE_GOOGLE_SPEND_AIRCON = 0;
     updateGoogleUploadStatus('error', err.message ?? 'Network error');
   } finally {
     LIVE_GOOGLE_SPEND_LOADING = false;
@@ -1889,16 +1922,19 @@ function buildCRMMapFromOpportunities(opps, contactAttrMap) {
   const stageNameMap = {};
   GHL_PIPELINES.forEach(p => p.stages.forEach(s => { stageNameMap[s.id] = s.name; }));
   mapped.forEach(r => { if (r.stageId && stageNameMap[r.stageId]) r.stage = stageNameMap[r.stageId]; });
-  if (SMOKE_PIPELINE_ID || HWS_PIPELINE_ID) {
-    SMOKE_CRM = SMOKE_PIPELINE_ID ? mapped.filter(r => r.pipelineId === SMOKE_PIPELINE_ID) : mapped.filter(r => !/hws|hot.?water|sales/i.test(r.pipeline));
-    HWS_CRM   = HWS_PIPELINE_ID ? mapped.filter(r => r.pipelineId === HWS_PIPELINE_ID) : mapped.filter(r => r.pipelineId !== SMOKE_PIPELINE_ID);
+  if (SMOKE_PIPELINE_ID || HWS_PIPELINE_ID || AIRCON_PIPELINE_ID) {
+    SMOKE_CRM  = SMOKE_PIPELINE_ID  ? mapped.filter(r => r.pipelineId === SMOKE_PIPELINE_ID)  : mapped.filter(r => !/hws|hot.?water|sales|aircon|air.?con/i.test(r.pipeline));
+    HWS_CRM    = HWS_PIPELINE_ID    ? mapped.filter(r => r.pipelineId === HWS_PIPELINE_ID)    : mapped.filter(r => /hws|hot.?water/i.test(r.pipeline));
+    AIRCON_CRM = AIRCON_PIPELINE_ID ? mapped.filter(r => r.pipelineId === AIRCON_PIPELINE_ID) : mapped.filter(r => /aircon|air.?con|air.?condition/i.test(r.pipeline));
   } else {
     const pipelineNames = [...new Set(mapped.map(r => r.pipeline).filter(Boolean))];
-    const smokeName = pipelineNames.find(p => /smoke/i.test(p)) || '';
-    SMOKE_CRM = smokeName ? mapped.filter(r => r.pipeline === smokeName) : mapped;
-    HWS_CRM   = mapped.filter(r => r.pipeline !== smokeName);
+    const smokeName  = pipelineNames.find(p => /smoke/i.test(p)) || '';
+    const airconName = pipelineNames.find(p => /aircon|air.?con/i.test(p)) || '';
+    SMOKE_CRM  = smokeName  ? mapped.filter(r => r.pipeline === smokeName)  : mapped;
+    HWS_CRM    = mapped.filter(r => r.pipeline !== smokeName && r.pipeline !== airconName);
+    AIRCON_CRM = airconName ? mapped.filter(r => r.pipeline === airconName) : [];
   }
-  if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0) { SMOKE_CRM = mapped; HWS_CRM = mapped; }
+  if (SMOKE_CRM.length === 0 && HWS_CRM.length === 0 && AIRCON_CRM.length === 0) { SMOKE_CRM = mapped; HWS_CRM = mapped; }
   return mapped;
 }
 
@@ -1929,17 +1965,19 @@ async function loadGHLDataFast() {
     try {
       const pipeJson = await ghlFetch(`/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`);
       GHL_PIPELINES = (pipeJson.pipelines || []).map(p => ({ id: p.id, name: p.name, stages: (p.stages || []).map(s => ({ id: s.id, name: s.name })) }));
-      const smokePipe = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
-      const hwsPipe  = GHL_PIPELINES.find(p => /hws|hot.?water|water/i.test(p.name));
-      if (smokePipe && !SMOKE_PIPELINE_ID) SMOKE_PIPELINE_ID = smokePipe.id;
-      if (hwsPipe && !HWS_PIPELINE_ID) HWS_PIPELINE_ID = hwsPipe.id;
+      const smokePipe  = GHL_PIPELINES.find(p => /smoke/i.test(p.name));
+      const hwsPipe    = GHL_PIPELINES.find(p => /hws|hot.?water|water/i.test(p.name));
+      const airconPipe = GHL_PIPELINES.find(p => /aircon|air.?con|air.?conditioning|hvac/i.test(p.name));
+      if (smokePipe  && !SMOKE_PIPELINE_ID)  SMOKE_PIPELINE_ID  = smokePipe.id;
+      if (hwsPipe    && !HWS_PIPELINE_ID)    HWS_PIPELINE_ID    = hwsPipe.id;
+      if (airconPipe && !AIRCON_PIPELINE_ID) AIRCON_PIPELINE_ID = airconPipe.id;
     } catch (e) {}
   }
   const opps = await fetchAllOpportunities();
   GHL_OPPORTUNITIES_RAW = opps;
   const mapped = buildCRMMapFromOpportunities(opps, {});
   if (typeof console !== 'undefined' && console.log) console.log('[GHL] Fast load complete: opportunities=', opps.length, 'mapped=', mapped.length, 'sources (raw)=', countSources(SMOKE_CRM, HWS_CRM));
-  if (statusEl) statusEl.innerText = `GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS)`;
+  if (statusEl) statusEl.innerText = `GHL: ${mapped.length} opportunities (${SMOKE_CRM.length} Smoke / ${HWS_CRM.length} HWS / ${AIRCON_CRM.length} Aircon)`;
   const metaRefresh = document.getElementById('meta-last-refresh');
   if (metaRefresh) metaRefresh.innerText = 'Last refresh: ' + new Date().toLocaleTimeString('en-AU');
 }
@@ -2107,7 +2145,7 @@ async function loadMetaSpend(){
     const [smokeData,hwsData]=await Promise.all([fetchMetaInsights(SMOKE_ACCOUNT,META_TOKEN,since,until),fetchMetaInsights(HWS_ACCOUNT,META_TOKEN,since,until)]);
     SMOKE_SPEND_ALL=smokeData; HWS_SPEND_ALL=hwsData; SMOKE_SPEND=smokeData; HWS_SPEND=hwsData;
     document.getElementById('meta-last-refresh').innerText='Last refresh: '+new Date().toLocaleTimeString('en-AU');
-    if(currentProduct==='smoke') renderSmoke(); else renderHws();
+    if(currentProduct==='smoke') renderSmoke(); else if(currentProduct==='hws') renderHws(); else renderAircon();
   }catch(e){ console.error('Meta API failed:',e); }
 }
 
@@ -2141,11 +2179,14 @@ function switchProduct(prod){
   currentProduct=prod;
   document.getElementById('toggleSmoke').classList.toggle('active',prod==='smoke');
   document.getElementById('toggleHws').classList.toggle('active',prod==='hws');
-  document.getElementById('active-product-indicator').innerText=prod==='smoke'?'Smoke Alarms':'Hot Water System';
+  document.getElementById('toggleAircon').classList.toggle('active',prod==='aircon');
+  document.getElementById('active-product-indicator').innerText=prod==='smoke'?'Smoke Alarms':prod==='hws'?'Hot Water System':'Aircon';
   document.getElementById('smoke-kpis').style.display=prod==='smoke'?'block':'none';
   document.getElementById('hws-kpis').style.display=prod==='hws'?'block':'none';
+  document.getElementById('aircon-kpis').style.display=prod==='aircon'?'block':'none';
   document.getElementById('smoke-vol-card').style.display=prod==='smoke'?'block':'none';
   document.getElementById('hws-vol-card').style.display=prod==='hws'?'block':'none';
+  document.getElementById('aircon-vol-card').style.display=prod==='aircon'?'block':'none';
   document.getElementById('smoke-metrics-row').style.display=prod==='smoke'?'grid':'none';
   document.getElementById('hws-metrics-row').style.display=prod==='hws'?'grid':'none';
   // Snap FROM date to HWS_START when switching to HWS (no data exists before that date)
@@ -2167,13 +2208,14 @@ function renderCurrentProduct(){
   if (from && to && (from !== LIVE_GOOGLE_SPEND_FROM || to !== LIVE_GOOGLE_SPEND_TO)) {
     fetchLiveGoogleSpend();
   }
-  if(currentProduct==='smoke') renderSmoke(); else renderHws();
+  if(currentProduct==='smoke') renderSmoke(); else if(currentProduct==='hws') renderHws(); else renderAircon();
 }
 
 function getFilteredCRM(prod){
   const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
   const src=document.getElementById('filterSource').value, pip=document.getElementById('filterPipeline').value;
-  return (prod==='smoke'?SMOKE_CRM:HWS_CRM).filter(r=>(!from||r.created>=from)&&(!to||r.created<=to)&&(!src||r.source===src)&&(!pip||r.pipeline===pip));
+  const base = prod==='smoke' ? SMOKE_CRM : prod==='hws' ? HWS_CRM : AIRCON_CRM;
+  return base.filter(r=>(!from||r.created>=from)&&(!to||r.created<=to)&&(!src||r.source===src)&&(!pip||r.pipeline===pip));
 }
 function getFilteredSpend(prod){
   const from=document.getElementById('dateFrom').value, to=document.getElementById('dateTo').value;
@@ -2279,6 +2321,32 @@ function renderHws(){
   renderStagesAndSources(leads, total, totalAdSpend, 'hws');
 }
 
+function renderAircon(){
+  updateMetaPanelDisplay();
+  const leads = getFilteredCRM('aircon');
+  const from  = document.getElementById('dateFrom').value;
+  const to    = document.getElementById('dateTo').value;
+  const total = leads.length;
+  const inst  = leads.filter(r=>r.stage==='Installed'||r.stage==='Won/Installed'||/^won$/i.test(r.stage)).length;
+  const ni    = leads.filter(r=>/not.?interest|spam/i.test(r.stage)||r.stage==='Quote Not Accepted (Lost)'||r.stage==='Out of Area'||r.stage==='Not Reachable'||r.stage==='Unserviceable').length;
+  const other = total - inst - ni;
+
+  const googleSpendRaw = LIVE_GOOGLE_SPEND_AIRCON !== null ? LIVE_GOOGLE_SPEND_AIRCON : 0;
+  const googleSpend    = googleSpendRaw / 1.1;
+
+  document.getElementById('aircon-spend-val').innerText    = `$${googleSpend.toFixed(2)}`;
+  document.getElementById('aircon-google-spend').innerText = `$${googleSpend.toFixed(2)}`;
+  document.getElementById('aircon-leads-val').innerText    = total;
+  document.getElementById('aircon-inst').innerText         = inst;
+  document.getElementById('aircon-ni').innerText           = ni;
+  document.getElementById('aircon-rate').innerText         = total ? ((inst/total*100).toFixed(1))+'%' : '0%';
+  document.getElementById('aircon-other').innerText        = other;
+  document.getElementById('aircon-kpi-cpl').innerText      = total > 0 ? `$${(googleSpend/total).toFixed(2)}` : '—';
+  document.getElementById('lead-count').innerHTML          = `<strong>${total}</strong> leads (Aircon)`;
+
+  renderStagesAndSources(leads, total, googleSpend, 'aircon');
+}
+
 function renderStagesAndSources(leads, total, totalAdSpend, product){
   const stageCount={};leads.forEach(r=>stageCount[r.stage]=(stageCount[r.stage]||0)+1);
   const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Unserviceable','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
@@ -2297,7 +2365,7 @@ function renderStagesAndSources(leads, total, totalAdSpend, product){
   document.getElementById('src-tbody').innerHTML=sortedSrc.map(([src,v],idx)=>`<tr><td><span class="scdot" style="background:${SRC_COLORS[idx%SRC_COLORS.length]}"></span>${displaySourceLabel(src)}</td><td>${v.t}</td><td style="color:var(--green);font-weight:600">${v.i}</td><td>${((v.i/v.t*100)||0).toFixed(1)}%</td></tr>`).join('')||'<tr><td colspan="4">No sources</td></tr>';
 
   renderJourneyPaths(leads);
-  renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'));
+  renderVolume(getFilteredCRM('smoke'),getFilteredCRM('hws'),getFilteredCRM('aircon'));
   renderFunnel(leads, total, product);
   renderSpendLeadsChart(leads, product);
 }
@@ -2449,7 +2517,7 @@ function getWeekStart(d){ let dt=new Date(d+'T00:00:00'),day=dt.getDay(),diff=da
 function fmtWeek(k){ let s=new Date(k+'T00:00:00'),e=new Date(s);e.setDate(e.getDate()+6);const o={day:'numeric',month:'short'};return s.toLocaleDateString('en-AU',o)+' – '+e.toLocaleDateString('en-AU',o); }
 function fmtDay(k){ return new Date(k+'T00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'}); }
 
-function renderVolume(smokeLeads,hwsLeads){ renderVolumeTable(smokeLeads,'smoke-vol-head','smoke-vol-body'); renderVolumeTable(hwsLeads,'hws-vol-head','hws-vol-body'); }
+function renderVolume(smokeLeads,hwsLeads,airconLeads){ renderVolumeTable(smokeLeads,'smoke-vol-head','smoke-vol-body'); renderVolumeTable(hwsLeads,'hws-vol-head','hws-vol-body'); renderVolumeTable(airconLeads||[],'aircon-vol-head','aircon-vol-body'); }
 
 function renderVolumeTable(data,headId,bodyId){
   const stageOrder=['Not Interested/Spam','Not Reachable','Out of Area','Quote Not Accepted (Lost)','Unserviceable','Won/Installed','Installed','IHA Booked','Qualified/IHA Complete','Quote Sent','Follow-Up','Follow Up','Shopping Around','New Lead','Today'];
