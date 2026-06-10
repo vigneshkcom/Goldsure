@@ -45,32 +45,42 @@ export default async function handler(req, res) {
       if (!phones.length) return res.status(200).json({});
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
-      if (!apiKey || !locationId) return res.status(200).json({});
+      if (!apiKey || !locationId) {
+        return res.status(200).json(req.query.debug ? { error: 'GHL env not set', hasKey: !!apiKey, hasLocation: !!locationId } : {});
+      }
 
-      // Match on the last 9 digits so +61407640879, 0407 640 879, 407640879 all align
-      const last9 = s => String(s || '').replace(/\D/g, '').slice(-9);
+      const debug   = !!req.query.debug;
+      const last9   = s => String(s || '').replace(/\D/g, '').slice(-9);
       const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
       const out = {};
+      const diag = [];
 
       await Promise.all(phones.map(async (phone) => {
         const target = last9(phone);
         if (target.length < 6) return;
-        try {
-          const r = await fetch(
-            `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(target)}&limit=10`,
-            { headers }
-          );
-          if (!r.ok) return;
-          const d = await r.json();
-          const match = (d.contacts || []).find(c => last9(c.phone) === target);
-          if (match) {
-            const name = [match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '';
-            if (name) out[phone] = name;
-          }
-        } catch {}
+        // Query GHL with the full number as stored (E.164), then national, then bare —
+        // first format that returns a contact whose last-9 digits match wins.
+        const variants = [phone, phone.replace(/^\+/, ''), '0' + target, target];
+        for (const q of [...new Set(variants)]) {
+          try {
+            const r = await fetch(
+              `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`,
+              { headers }
+            );
+            const d = r.ok ? await r.json() : {};
+            const candidates = d.contacts || [];
+            if (debug) diag.push({ phone, query: q, status: r.status, returned: candidates.length,
+              candidates: candidates.slice(0, 5).map(c => ({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name, phone: c.phone, last9: last9(c.phone) })) });
+            const match = candidates.find(c => last9(c.phone) === target);
+            if (match) {
+              const name = [match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '';
+              if (name) { out[phone] = name; return; }
+            }
+          } catch (e) { if (debug) diag.push({ phone, query: q, error: String(e) }); }
+        }
       }));
 
-      return res.status(200).json(out);
+      return res.status(200).json(debug ? { results: out, diag } : out);
     }
 
     const { phone } = req.query;
