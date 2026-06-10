@@ -116,9 +116,17 @@ export default async function handler(req, res) {
   // Configure webhook URL in SMS Gate app:
   //   https://portal.goldsure.com.au/api/battery/request-callback?action=webhook
   if (body.action === 'webhook' || req.query.action === 'webhook') {
-    const { messageId, message, phoneNumber, receivedAt } = body;
+    console.log('[Webhook] inbound payload:', JSON.stringify(body));
+
+    // SMS Gate may use different field names across versions — handle all variants
+    const phoneNumber = body.phoneNumber || body.from || body.sender || body.source || body.phone;
+    const message     = body.message    || body.text   || body.content || body.body;
+    const messageId   = body.messageId  || body.id     || body.msgId   || null;
+    const receivedAt  = body.receivedAt || body.timestamp || body.date || new Date().toISOString();
+
     if (!phoneNumber || !message) {
-      return res.status(400).json({ error: 'phoneNumber and message are required' });
+      console.error('[Webhook] missing fields. Body was:', JSON.stringify(body));
+      return res.status(400).json({ error: 'phoneNumber and message are required', received: body });
     }
 
     await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
@@ -134,8 +142,8 @@ export default async function handler(req, res) {
         message,
         direction: 'inbound',
         status: 'received',
-        sms_gate_id: messageId || null,
-        created_at: receivedAt || new Date().toISOString(),
+        sms_gate_id: messageId,
+        created_at: receivedAt,
       }),
     });
 
