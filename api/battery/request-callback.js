@@ -12,6 +12,14 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 
+  // Title-case names that come back all-lower or all-upper from GHL ("karen parsons"
+  // → "Karen Parsons"), but leave deliberately mixed-case names ("McDonald") alone.
+  const tidyName = (name) => {
+    if (!name) return name;
+    if (name !== name.toLowerCase() && name !== name.toUpperCase()) return name;
+    return name.toLowerCase().replace(/(^|[\s'’\-])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+  };
+
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
     // GHL contact search (used by new-conversation picker in the SMS UI)
@@ -31,7 +39,7 @@ export default async function handler(req, res) {
         .filter(c => c.phone)
         .map(c => ({
           id:    c.id,
-          name:  [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || c.phone,
+          name:  tidyName([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '') || c.phone,
           phone: c.phone,
           email: c.email || '',
         }));
@@ -74,7 +82,7 @@ export default async function handler(req, res) {
             const match = candidates.find(c => last9(c.phone) === target);
             if (match) {
               const name = [match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '';
-              if (name) { out[phone] = name; return; }
+              if (name) { out[phone] = tidyName(name); return; }
             }
           } catch (e) { if (debug) diag.push({ phone, query: q, error: String(e) }); }
         }
