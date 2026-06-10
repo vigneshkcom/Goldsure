@@ -1208,12 +1208,25 @@
   }
 
   // ── Send ───────────────────────────────────────────────────────────────────
+  // Hard stop: a message containing an unfilled {{placeholder}} must never
+  // reach a customer. Selects the placeholder so it can be typed over.
+  function blockUnfilledVars(input, message) {
+    const unfilled = message.match(/\{\{[^}]*\}\}/);
+    if (!unfilled) return false;
+    const start = input.value.indexOf(unfilled[0]);
+    input.focus();
+    if (start !== -1) input.setSelectionRange(start, start + unfilled[0].length);
+    alert(`Hold on — the message still contains ${unfilled[0]}.\n\nType the ${unfilled[0].includes('contact') ? "customer's name" : 'missing detail'} over the highlighted text, then send.`);
+    return true;
+  }
+
   async function sendMessage() {
     if (!activePhone) return;
     if (noteMode) return saveNote();
     const input = document.getElementById('msgInput');
     const message = input.value.trim();
     if (!message) return;
+    if (blockUnfilledVars(input, message)) return;
 
     const btn = document.getElementById('sendBtn');
     btn.disabled = true;
@@ -1471,13 +1484,26 @@
     if (!firstName && activePhone && ghlNames[activePhone]) {
       firstName = ghlNames[activePhone].trim().split(/\s+/)[0];
     }
+    // Unknown contact and the template needs a name → ask right now
+    if (!firstName && body.includes('{{contact.first_name}}')) {
+      firstName = (prompt("Customer's first name?\n\n(fills {{contact.first_name}} — will also show in the sidebar)") || '').trim();
+      if (firstName && custInput) custInput.value = firstName;
+    }
     if (firstName) {
       text = text.replaceAll('{{contact.first_name}}', firstName);
       saveCustomerName(firstName); // remember it for the sidebar
     }
 
-    // Substitute {{user.first_name}}
-    const staffName = (localStorage.getItem('staffFirstName') || '').trim();
+    // Substitute {{user.first_name}} — ask once if never set, then remember
+    let staffName = (localStorage.getItem('staffFirstName') || '').trim();
+    if (!staffName && body.includes('{{user.first_name}}')) {
+      staffName = (prompt('Your first name?\n\n(fills {{user.first_name}} — saved for next time)') || '').trim();
+      if (staffName) {
+        localStorage.setItem('staffFirstName', staffName);
+        const n = document.getElementById('tplNameInput');
+        if (n) n.value = staffName;
+      }
+    }
     if (staffName) text = text.replaceAll('{{user.first_name}}', staffName);
 
     const input = document.getElementById('msgInput');
@@ -1566,6 +1592,7 @@
     const input = document.getElementById('msgInput');
     const message = input.value.trim();
     if (!message) { alert('Enter a message first.'); return; }
+    if (blockUnfilledVars(input, message)) return;
     const schedTime = document.getElementById('schedTime').value;
     if (!schedTime) { alert('Pick a send time.'); return; }
     const sendAt = new Date(schedTime).toISOString();
