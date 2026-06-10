@@ -362,9 +362,10 @@
     /* ── Templates panel ─────────────────────────────── */
     .tpl-panel { display: none; border-top: 1px solid var(--border); max-height: 300px; overflow-y: auto; flex-shrink: 0; }
     .tpl-panel.open { display: block; }
-    .tpl-name-row { display: flex; align-items: center; gap: 8px; padding: 9px 22px; border-bottom: 1px solid var(--border); background: var(--purple-soft); }
+    .tpl-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 22px; border-bottom: 1px solid var(--border); background: var(--purple-soft); }
+    .tpl-field { display: flex; align-items: center; gap: 7px; }
     .tpl-name-row label { font-size: 11.5px; font-weight: 600; color: var(--purple); white-space: nowrap; }
-    .tpl-name-input { flex: 1; max-width: 180px; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; font-family: inherit; font-size: 12.5px; outline: none; background: #fff; }
+    .tpl-name-input { width: 150px; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; font-family: inherit; font-size: 12.5px; outline: none; background: #fff; }
     .tpl-name-input:focus { border-color: var(--purple); }
     .tpl-name-hint { font-size: 11px; color: var(--purple); opacity: 0.75; }
     .tpl-folder-hd { display: flex; align-items: center; justify-content: space-between; padding: 9px 22px; background: var(--page); border-bottom: 1px solid var(--border); cursor: pointer; font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.9px; text-transform: uppercase; user-select: none; }
@@ -706,6 +707,9 @@
     document.querySelectorAll('.contact').forEach(el =>
       el.classList.toggle('active', el.dataset.phone === phone));
 
+    // Keep the templates' Customer field in sync if the panel is open
+    if (document.getElementById('tplPanel').classList.contains('open')) renderTemplates();
+
     clearInterval(pollTimer);
     await reloadMessages();
     pollTimer = setInterval(reloadMessages, 20000);
@@ -933,13 +937,22 @@
 
   function renderTemplates() {
     const staffName = localStorage.getItem('staffFirstName') || '';
+    const custName = (activePhone && ghlNames[activePhone])
+      ? ghlNames[activePhone].trim().split(/\s+/)[0] : '';
     const panel = document.getElementById('tplPanel');
     let html = `
       <div class="tpl-name-row">
-        <label>Your name:</label>
-        <input class="tpl-name-input" id="tplNameInput" value="${esc(staffName)}" placeholder="e.g. David"
-          oninput="localStorage.setItem('staffFirstName',this.value.trim())" />
-        <span class="tpl-name-hint">fills {{user.first_name}}</span>
+        <div class="tpl-field">
+          <label>Your name:</label>
+          <input class="tpl-name-input" id="tplNameInput" value="${esc(staffName)}" placeholder="e.g. David"
+            oninput="localStorage.setItem('staffFirstName',this.value.trim())" />
+        </div>
+        <div class="tpl-field">
+          <label>Customer:</label>
+          <input class="tpl-name-input" id="tplCustInput" value="${esc(custName)}" placeholder="e.g. John"
+            onchange="saveCustomerName(this.value)" />
+        </div>
+        <span class="tpl-name-hint">→ fills {{user.first_name}} &amp; {{contact.first_name}}</span>
       </div>`;
 
     TEMPLATES.forEach((folder, fi) => {
@@ -1001,13 +1014,33 @@
     }
   }
 
+  // Persist a manually-typed customer first name (used for unknown/new contacts).
+  // Won't downgrade a full GHL name ("Karen Parsons") unless the first name changed.
+  function saveCustomerName(val) {
+    const name = (val || '').trim();
+    if (!activePhone || !name) return;
+    const existing = ghlNames[activePhone];
+    const existingFirst = existing ? existing.trim().split(/\s+/)[0].toLowerCase() : '';
+    if (existing && existingFirst === name.toLowerCase()) return; // unchanged, keep full name
+    saveGhlName(activePhone, name);
+    renderContacts(allContacts);
+    document.getElementById('chatPhone').textContent = name;
+    document.getElementById('chatAvatar').textContent = nameInitials(name, activePhone);
+  }
+
   function applyTemplate(body) {
     let text = body;
 
-    // Substitute {{contact.first_name}}
-    const firstName = (activePhone && ghlNames[activePhone])
-      ? ghlNames[activePhone].trim().split(/\s+/)[0] : null;
-    if (firstName) text = text.replaceAll('{{contact.first_name}}', firstName);
+    // Substitute {{contact.first_name}} — manual Customer field first, then GHL cache
+    const custInput = document.getElementById('tplCustInput');
+    let firstName = custInput ? custInput.value.trim() : '';
+    if (!firstName && activePhone && ghlNames[activePhone]) {
+      firstName = ghlNames[activePhone].trim().split(/\s+/)[0];
+    }
+    if (firstName) {
+      text = text.replaceAll('{{contact.first_name}}', firstName);
+      saveCustomerName(firstName); // remember it for the sidebar
+    }
 
     // Substitute {{user.first_name}}
     const staffName = (localStorage.getItem('staffFirstName') || '').trim();
