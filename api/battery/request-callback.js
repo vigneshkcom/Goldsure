@@ -30,6 +30,19 @@ export default async function handler(req, res) {
     return s;
   };
 
+  // Opt-out state = most recent optout/optin marker row for this number.
+  // Markers are set on inbound messages by the webhook (STOP → optout, START → optin).
+  const isOptedOut = async (phone) => {
+    try {
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=in.(optout,optin)&order=created_at.desc&limit=1&select=status`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const rows = await r.json();
+      return Array.isArray(rows) && rows[0] && rows[0].status === 'optout';
+    } catch { return false; }
+  };
+
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
     // Debug: last 25 rows as saved (newest receive-time first) — use to check
@@ -112,6 +125,115 @@ export default async function handler(req, res) {
       return res.status(200).json(debug ? { results: out, diag } : out);
     }
 
+    // GHL opportunities: phones → { name, contactId, pipeline, stage, value, link }
+    // Powers the stage pill in the sidebar and the pipeline chips in the chat header.
+    if (req.query.action === 'ghl-opps') {
+      const phones = String(req.query.phones || '')
+        .split(',').map(p => p.trim()).filter(Boolean).slice(0, 15);
+      if (!phones.length) return res.status(200).json({});
+      const apiKey     = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) return res.status(200).json({});
+
+      const last9   = s => String(s || '').replace(/\D/g, '').slice(-9);
+      const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+
+      // Pipeline + stage id → name maps (one call covers every contact)
+      let pipes = [];
+      try {
+        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers });
+        if (pRes.ok) pipes = (await pRes.json()).pipelines || [];
+      } catch {}
+      const pipeName  = pid => (pipes.find(p => p.id === pid) || {}).name || '';
+      const stageName = (pid, sid) => {
+        const p = pipes.find(x => x.id === pid);
+        return p ? ((p.stages || []).find(s => s.id === sid) || {}).name || '' : '';
+      };
+
+      const out = {};
+      await Promise.all(phones.map(async (phone) => {
+        let contactId = phones.length === 1 ? (req.query.cid || null) : null;
+        let name = '';
+        if (!contactId) {
+          const target = last9(phone);
+          if (target.length < 6) return;
+          const variants = [...new Set([phone, phone.replace(/^\+/, ''), '0' + target, target])];
+          for (const q of variants) {
+            try {
+              const r = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`, { headers });
+              if (!r.ok) continue;
+              const d = await r.json();
+              const match = (d.contacts || []).find(c => last9(c.phone) === target);
+              if (match) {
+                contactId = match.id;
+                name = tidyName([match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '');
+                break;
+              }
+            } catch {}
+          }
+        }
+        if (!contactId) { out[phone] = { none: true }; return; }
+
+        const info = {
+          name, contactId,
+          link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contactId}`,
+        };
+        try {
+          const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contactId)}`, { headers });
+          if (oRes.ok) {
+            const opps = (await oRes.json()).opportunities || [];
+            const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+            const opp = opps.filter(o => o.status === 'open').sort(byUpdated)[0] || opps.sort(byUpdated)[0];
+            if (opp) {
+              info.pipeline  = pipeName(opp.pipelineId);
+              info.stage     = stageName(opp.pipelineId, opp.pipelineStageId);
+              info.value     = opp.monetaryValue || 0;
+              info.oppStatus = opp.status || '';
+            }
+          }
+        } catch {}
+        out[phone] = info;
+      }));
+
+      return res.status(200).json(out);
+    }
+
+    // Delivery status: poll SMS Gate for outbound message states and persist
+    // delivered/failed back to Supabase so polling stops once final.
+    if (req.query.action === 'delivery') {
+      const ids = String(req.query.ids || '')
+        .split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
+      if (!ids.length) return res.status(200).json({ states: {}, changed: 0 });
+      const user = process.env.SMSGATE_USERNAME;
+      const pass = process.env.SMSGATE_PASSWORD;
+      if (!user || !pass) return res.status(200).json({ states: {}, changed: 0 });
+      const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+
+      const states = {};
+      let changed = 0;
+      for (const id of ids) {
+        try {
+          const r = await fetch(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(id)}`, {
+            headers: { Authorization: `Basic ${credentials}` },
+          });
+          if (!r.ok) continue;
+          const d = await r.json();
+          const st = String(d.state || '').toLowerCase();
+          states[id] = st;
+          const newStatus = st === 'delivered' ? 'delivered' : st === 'failed' ? 'failed' : null;
+          if (newStatus) {
+            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?sms_gate_id=eq.${encodeURIComponent(id)}&direction=eq.outbound&status=neq.${newStatus}`, {
+              method: 'PATCH',
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ status: newStatus }),
+            });
+            changed++;
+          }
+        } catch {}
+      }
+      return res.status(200).json({ states, changed });
+    }
+
     const { phone } = req.query;
 
     if (phone) {
@@ -152,6 +274,17 @@ export default async function handler(req, res) {
               claimed = await claimRes.json().catch(() => []);
             } catch (e) { console.error('[Schedule claim]', e.message); }
             if (!Array.isArray(claimed) || !claimed.length) { m.status = 'sending'; continue; }
+
+            // Customer may have opted out after this was scheduled
+            if (await isOptedOut(m.phone_number)) {
+              await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
+                method: 'PATCH',
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+                body: JSON.stringify({ status: 'cancelled' }),
+              });
+              m.status = 'cancelled';
+              continue;
+            }
 
             try {
               const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
@@ -291,6 +424,12 @@ export default async function handler(req, res) {
   if (body.action === 'schedule') {
     const { phone, message, sendAt } = body;
     if (!phone || !message || !sendAt) return res.status(400).json({ error: 'phone, message and sendAt required' });
+    if (await isOptedOut(phone)) {
+      return res.status(403).json({
+        error: 'This customer has opted out (replied STOP). Scheduling is blocked.',
+        optedOut: true,
+      });
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -338,6 +477,13 @@ export default async function handler(req, res) {
     const { phone, message } = body;
     if (!phone || !message) {
       return res.status(400).json({ error: 'phone and message are required' });
+    }
+
+    if (await isOptedOut(phone)) {
+      return res.status(403).json({
+        error: 'This customer has opted out (replied STOP). Sending is blocked. They can reply START to re-subscribe.',
+        optedOut: true,
+      });
     }
 
     const user = process.env.SMSGATE_USERNAME;
@@ -442,6 +588,18 @@ export default async function handler(req, res) {
       receivedAt = new Date().toISOString();
     }
 
+    // STOP / opt-out detection (SPAM Act). Single-word commands or explicit
+    // phrases only, so "please stop by anytime" doesn't trigger it.
+    let inboundStatus = 'received';
+    const trimmed = String(message).trim();
+    if (/^(stop|unsubscribe|opt[ -]?out)[\s.!]*$/i.test(trimmed) ||
+        /\bunsubscribe\b/i.test(trimmed) ||
+        /\b(do not (contact|text|message)( me)?|remove me from)\b/i.test(trimmed)) {
+      inboundStatus = 'optout';
+    } else if (/^(start|unstop|resubscribe|opt[ -]?in)[\s.!]*$/i.test(trimmed)) {
+      inboundStatus = 'optin';
+    }
+
     const supaHeaders = {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
@@ -473,7 +631,7 @@ export default async function handler(req, res) {
         phone_number: phoneNumber,
         message,
         direction: 'inbound',
-        status: 'received',
+        status: inboundStatus,
         sms_gate_id: messageId,
         created_at: receivedAt,
       }),

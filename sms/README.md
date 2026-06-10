@@ -78,7 +78,16 @@ SMS permissions granted, app set to start on boot.
 | `POST {action:'sync', days}` | Trigger `inbox/export` so the phone re-fires received-SMS webhooks |
 | `POST` webhook (nested `{event, payload:{...}}`) | Inbound SMS → Supabase (deduped by `sms_gate_id`, insert verified — failures return 500 so SMS Gate retries) |
 | `GET ?action=recent` | Debug: last 25 saved rows — check if a missing reply reached the DB |
+| `GET ?action=ghl-opps&phones=...` | GHL pipeline stage, opportunity value + contact link per phone |
+| `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
+
+## Opt-out (SPAM Act)
+A reply of STOP / UNSUBSCRIBE / OPT OUT marks the number opted out (the inbound row
+gets `status='optout'`). Sending and scheduling to that number are blocked (403) and
+pending scheduled messages are cancelled at fire time. A reply of START / UNSTOP
+re-subscribes. The UI shows a red banner and disables the composer; internal notes
+still work.
 
 ## Troubleshooting
 - **Replies not appearing:** confirm RCS is OFF on the gateway phone (most common cause).

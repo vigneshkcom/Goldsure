@@ -392,6 +392,17 @@
     .tab-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; align-items: center; justify-content: center; background: #ea5455; color: #fff; border-radius: 9px; font-size: 10.5px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
     .tab-badge.show { display: inline-flex; }
 
+    /* ── Pipeline stage + delivery + opt-out ─────────── */
+    .stage-pill { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--purple-soft); color: var(--purple); font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 8px; flex-shrink: 0; letter-spacing: 0.2px; }
+    .contact.active .stage-pill { background: #fff; }
+    .chat-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--purple-soft); color: var(--purple); font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 9px; text-decoration: none; vertical-align: middle; }
+    .chat-chip.value { background: #e8f9f0; color: #1f9d57; }
+    a.chat-chip:hover { background: var(--purple); color: #fff; }
+    .msg-meta .check.sent { color: var(--faint); }
+    .meta-fail { color: #ea5455; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+    .optout-banner { display: none; align-items: center; gap: 8px; padding: 9px 22px; background: #fdeaea; color: #b42318; font-size: 12.5px; font-weight: 600; border-bottom: 1px solid #f3b0a8; }
+    .optout-banner.show { display: flex; }
+
     /* ── Note mode + schedule ────────────────────────── */
     .composer-box.note-mode { border-color: #f0b429; background: #fffaf0; }
     .composer-box.note-mode .composer-footer { background: #fff5e0; }
@@ -504,7 +515,7 @@
         <div class="avatar" id="chatAvatar"></div>
         <div class="chat-header-info">
           <div class="chat-name-lg" id="chatPhone"></div>
-          <div class="chat-sub">SMS · via SMS Gate</div>
+          <div class="chat-sub">SMS · via SMS Gate <span id="chatChips"></span></div>
         </div>
         <div class="header-actions">
           <button class="icon-btn" onclick="reloadMessages()" title="Refresh">
@@ -515,6 +526,10 @@
           </button>
         </div>
       </header>
+
+      <div class="optout-banner" id="optoutBanner">
+        ⛔ This customer opted out (replied STOP). Sending is disabled — they can text START to re-subscribe. Internal notes still work.
+      </div>
 
       <div class="messages" id="messages">
         <div class="msg-loading">Loading messages…</div>
@@ -599,7 +614,15 @@
   // Phone → name cache persisted in localStorage (only successful matches are stored)
   let ghlNames = {};
   try { ghlNames = JSON.parse(localStorage.getItem('ghlNames') || '{}'); } catch {}
-  const ghlChecked = new Set(); // phones already looked up this session (hit or miss)
+
+  // Phone → GHL pipeline info { name, contactId, pipeline, stage, value, link, t }
+  let ghlInfo = {};
+  try { ghlInfo = JSON.parse(localStorage.getItem('ghlInfo') || '{}'); } catch {}
+  const saveGhlInfo = () => { try { localStorage.setItem('ghlInfo', JSON.stringify(ghlInfo)); } catch {} };
+  const INFO_TTL = 12 * 3600 * 1000;   // refresh pipeline data after 12h
+  const oppChecked = new Set();        // phones queried this session
+  let optedOut = false;                // active conversation opt-out state
+  let deliveryBusy = false;            // delivery poll re-entrancy guard
 
   function saveGhlName(phone, name) {
     if (!name || name === phone) return;
@@ -607,29 +630,75 @@
     try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
   }
 
-  // Auto-resolve customer names from GHL for any conversation we don't already know
-  async function resolveNames(contacts) {
+  // Auto-resolve names + pipeline info from GHL. Batched (15 per call), cached
+  // for 12h in localStorage; the 25s background poll picks up the next batch.
+  async function resolveGhl(contacts) {
     const phones = contacts
       .map(c => c.phone_number)
-      .filter(p => p && !ghlNames[p] && !ghlChecked.has(p));
+      .filter(p => {
+        if (!p || oppChecked.has(p)) return false;
+        const i = ghlInfo[p];
+        return !(i && i.t && Date.now() - i.t < INFO_TTL);
+      })
+      .slice(0, 15);
     if (!phones.length) return;
-    phones.forEach(p => ghlChecked.add(p));
+    phones.forEach(p => oppChecked.add(p));
     try {
-      const res = await fetch(`${API}?action=ghl-lookup&phones=${encodeURIComponent(phones.join(','))}`);
+      const res = await fetch(`${API}?action=ghl-opps&phones=${encodeURIComponent(phones.join(','))}`);
       if (!res.ok) return;
-      const map = await res.json();
-      let changed = false;
-      for (const p in map) {
-        if (map[p] && ghlNames[p] !== map[p]) { ghlNames[p] = map[p]; changed = true; }
-      }
-      if (!changed) return;
-      try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
-      rerenderContacts();
-      // Refresh the open chat header if its name just resolved
-      if (activePhone && ghlNames[activePhone]) {
+      mergeGhlInfo(await res.json());
+    } catch {}
+  }
+
+  function mergeGhlInfo(map) {
+    let changed = false;
+    for (const p in map) {
+      const d = map[p] || {};
+      d.t = Date.now();
+      ghlInfo[p] = d;
+      changed = true;
+      if (d.name && ghlNames[p] !== d.name) { ghlNames[p] = d.name; }
+    }
+    if (!changed) return;
+    saveGhlInfo();
+    try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+    rerenderContacts();
+    if (activePhone) {
+      if (ghlNames[activePhone]) {
         document.getElementById('chatPhone').textContent = ghlNames[activePhone];
         document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[activePhone], activePhone);
       }
+      updateHeaderInfo(activePhone);
+    }
+  }
+
+  // Pipeline chips in the chat header (stage · value · GHL link)
+  function updateHeaderInfo(phone) {
+    const el = document.getElementById('chatChips');
+    if (!el) return;
+    const info = ghlInfo[phone];
+    let html = '';
+    if (info && info.stage) {
+      const stageTitle = [info.pipeline, info.stage].filter(Boolean).join(' – ');
+      html += `<span class="chat-chip" title="${esc(stageTitle)}">${esc(info.pipeline ? info.pipeline + ' · ' : '')}${esc(info.stage)}</span> `;
+      if (info.value) html += `<span class="chat-chip value">$${Number(info.value).toLocaleString()}</span> `;
+    }
+    if (info && info.link) {
+      html += `<a class="chat-chip" href="${esc(info.link)}" target="_blank" rel="noopener">Open in GHL ↗</a>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // Refresh the open conversation's pipeline info (cheap single-phone call,
+  // skips the contact search when we already know the GHL contact id)
+  async function refreshActiveInfo(phone) {
+    const i = ghlInfo[phone];
+    updateHeaderInfo(phone);
+    if (i && i.t && Date.now() - i.t < 5 * 60 * 1000) return;
+    const cid = i && i.contactId ? `&cid=${encodeURIComponent(i.contactId)}` : '';
+    try {
+      const res = await fetch(`${API}?action=ghl-opps&phones=${encodeURIComponent(phone)}${cid}`);
+      if (res.ok) mergeGhlInfo(await res.json());
     } catch {}
   }
 
@@ -650,7 +719,7 @@
       // Seed notification baseline so we don't alert for the existing backlog
       allContacts.forEach(c => { prevLatest[c.phone_number] = c.created_at; });
       rerenderContacts();
-      resolveNames(allContacts);
+      resolveGhl(allContacts);
     } catch {
       document.getElementById('contactsList').innerHTML =
         '<div class="empty-list">Could not load conversations.<br>Check the deployment logs.</div>';
@@ -672,7 +741,7 @@
       }
       allContacts = list;
       rerenderContacts();
-      resolveNames(allContacts);
+      resolveGhl(allContacts);
     } catch {}
   }
 
@@ -711,12 +780,15 @@
       const displayName = name || c.phone_number;
       const subLine = name ? `<span style="font-size:11px;color:var(--faint);font-weight:400">${esc(c.phone_number)}</span>` : '';
       const unread = isUnread(c);
+      const info = ghlInfo[c.phone_number];
+      const pill = info && info.stage
+        ? `<span class="stage-pill" title="${esc([info.pipeline, info.stage].filter(Boolean).join(' – '))}">${esc(info.stage)}</span>` : '';
       return `
       <div class="contact ${c.phone_number === activePhone ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
         <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
         <div class="contact-body">
           <div class="contact-line1">
-            <span class="contact-name">${esc(displayName)}</span>
+            <span style="display:flex;align-items:center;gap:6px;min-width:0;"><span class="contact-name">${esc(displayName)}</span>${pill}</span>
             <span class="contact-right">
               <span class="contact-time">${esc(relTime(c.created_at))}</span>
               ${unread ? '<span class="unread-dot"></span>' : ''}
@@ -829,9 +901,15 @@
 
     if (noteMode) toggleNoteMode();
     if (schedBarOpen) toggleSchedule();
+
+    // Reset opt-out lock until this thread's messages tell us otherwise
+    optedOut = false;
+    applyComposerLock();
+    refreshActiveInfo(phone);
+
     clearInterval(pollTimer);
     await reloadMessages();
-    pollTimer = setInterval(reloadMessages, 20000);
+    pollTimer = setInterval(() => reloadMessages(), 20000);
     document.getElementById('msgInput').focus();
   }
 
@@ -949,20 +1027,58 @@
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────
-  async function reloadMessages() {
+  async function reloadMessages(skipDelivery) {
     if (!activePhone) return;
     try {
       const res = await fetch(`${API}?phone=${encodeURIComponent(activePhone)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Load failed');
-      renderMessages(Array.isArray(data) ? data : []);
+      const msgs = Array.isArray(data) ? data : [];
+      renderMessages(msgs);
+
+      // Opt-out lock: latest STOP/START marker decides
+      const flags = msgs.filter(m => m.status === 'optout' || m.status === 'optin');
+      optedOut = flags.length ? flags[flags.length - 1].status === 'optout' : false;
+      applyComposerLock();
+
       // Keep the open conversation marked as read
       lastSeen[activePhone] = new Date().toISOString();
       saveLastSeen();
+
+      if (!skipDelivery) checkDelivery(msgs);
     } catch (err) {
       document.getElementById('messages').innerHTML =
         `<div class="msg-loading">Could not load messages: ${esc(err.message)}</div>`;
     }
+  }
+
+  // Poll SMS Gate for delivery state of recent outbound messages still at 'sent'
+  async function checkDelivery(msgs) {
+    if (deliveryBusy) return;
+    const ids = msgs
+      .filter(m => m.direction === 'outbound' && m.status === 'sent' && m.sms_gate_id &&
+                   !String(m.sms_gate_id).startsWith('sched:') &&
+                   Date.now() - new Date(m.created_at) < 48 * 3600 * 1000)
+      .slice(-10)
+      .map(m => m.sms_gate_id);
+    if (!ids.length) return;
+    deliveryBusy = true;
+    try {
+      const res = await fetch(`${API}?action=delivery&ids=${encodeURIComponent(ids.join(','))}`);
+      const data = await res.json();
+      if (data.changed) await reloadMessages(true);
+    } catch {} finally {
+      deliveryBusy = false;
+    }
+  }
+
+  // Disable SMS sending for opted-out customers (internal notes stay available)
+  function applyComposerLock() {
+    const lockSend = optedOut && !noteMode;
+    document.getElementById('msgInput').disabled = lockSend;
+    document.getElementById('sendBtn').disabled = lockSend;
+    document.getElementById('schedBtn').disabled = optedOut;
+    document.getElementById('optoutBanner').classList.toggle('show', optedOut);
   }
 
   function renderMessages(messages) {
@@ -1009,13 +1125,24 @@
 
       const out = m.direction === 'outbound';
       const failCls = m.status === 'failed' ? ' failed' : '';
+      let tick = '';
+      if (out) {
+        if (m.status === 'delivered') {
+          tick = '<span class="check" title="Delivered"><svg width="17" height="13" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 6 6 17 2 13"/><polyline points="26 6 16 17 14 15"/></svg></span>';
+        } else if (m.status === 'failed') {
+          tick = '<span class="meta-fail" title="Failed to send">✕ Failed</span>';
+        } else {
+          tick = '<span class="check sent" title="Sent"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
+        }
+      }
+      const optTag = !out && m.status === 'optout' ? ' <span class="meta-fail">⛔ Opted out</span>' : '';
       html += `
         <div class="msg-group ${out ? 'out' : 'in'}${failCls}">
           ${out ? `<div class="msg-sender">${esc(AGENT_NAME)}</div>` : ''}
           <div class="bubble">${esc(m.message)}</div>
           <div class="msg-meta">
             <span>${esc(fullTime(d))}</span>
-            ${out ? '<span class="check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>' : ''}
+            ${tick}${optTag}
           </div>
         </div>`;
     }
@@ -1049,6 +1176,10 @@
       if (data.success) {
         await reloadMessages();
         await loadContacts();
+      } else if (res.status === 403 && data.optedOut) {
+        alert(data.error);
+        input.value = saved;
+        await reloadMessages();
       } else if (data.help) {
         document.getElementById('chatActive').classList.remove('open');
         document.getElementById('welcome').style.display = 'none';
@@ -1306,6 +1437,7 @@
     if (noteMode && schedBarOpen) { schedBarOpen = false; document.getElementById('schedBar').classList.remove('show'); document.getElementById('schedBtn').classList.remove('active'); }
     // hide/show schedule button
     document.getElementById('schedBtn').style.visibility = noteMode ? 'hidden' : '';
+    applyComposerLock();
     input.focus();
   }
 
