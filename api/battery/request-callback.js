@@ -14,6 +14,30 @@ export default async function handler(req, res) {
 
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
+    // GHL contact search (used by new-conversation picker in the SMS UI)
+    if (req.query.action === 'ghl-contacts') {
+      const q = (req.query.q || '').trim();
+      if (!q) return res.status(200).json([]);
+      const apiKey    = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) return res.status(200).json([]);
+      const ghlRes = await fetch(
+        `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`,
+        { headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' } }
+      );
+      if (!ghlRes.ok) return res.status(200).json([]);
+      const ghlData = await ghlRes.json();
+      const contacts = (ghlData.contacts || [])
+        .filter(c => c.phone)
+        .map(c => ({
+          id:    c.id,
+          name:  [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || c.phone,
+          phone: c.phone,
+          email: c.email || '',
+        }));
+      return res.status(200).json(contacts);
+    }
+
     const { phone } = req.query;
 
     if (phone) {

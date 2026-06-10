@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SMS – Goldsure</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Cpath d='M6 8h20c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-9l-4 4v-4H6c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z' fill='white'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -132,10 +133,37 @@
     .new-panel { display: none; margin-top: 12px; padding: 12px; background: var(--page); border-radius: 10px; }
     .new-panel.open { display: block; }
     .new-panel label { font-size: 11px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px; }
-    .new-panel input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 13px; margin-bottom: 8px; outline: none; }
+    .new-panel input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; background: #fff; }
     .new-panel input:focus { border-color: var(--purple); }
-    .new-panel button { width: 100%; background: var(--purple); color: #fff; border: none; padding: 9px; border-radius: 8px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    .new-panel button { width: 100%; background: var(--purple); color: #fff; border: none; padding: 9px; border-radius: 8px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .new-panel button:hover { background: var(--purple-dark); }
+
+    /* GHL contact search dropdown */
+    .ghl-wrap { position: relative; }
+    .ghl-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(47,43,61,0.14);
+      z-index: 20;
+      max-height: 210px;
+      overflow-y: auto;
+    }
+    .ghl-option {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .ghl-option:last-child { border-bottom: none; }
+    .ghl-option:hover { background: var(--purple-soft); }
+    .ghl-option-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .ghl-option-phone { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .ghl-searching { padding: 12px; font-size: 12.5px; color: var(--muted); text-align: center; }
 
     /* ── Contact list ────────────────────────────────────────── */
     .contacts { flex: 1; overflow-y: auto; padding: 8px; }
@@ -367,8 +395,11 @@
       </div>
 
       <div class="new-panel" id="newPanel">
-        <label>Phone number</label>
-        <input type="tel" id="newPhone" placeholder="+61 412 345 678" />
+        <label>Search customer or enter number</label>
+        <div class="ghl-wrap">
+          <input type="text" id="newPhone" placeholder="Name, phone or email…" autocomplete="off" oninput="onNewInput(this)" onkeydown="onNewKeydown(event)" />
+          <div class="ghl-dropdown" id="ghlDropdown"></div>
+        </div>
         <button onclick="openNewConversation()">Start Conversation</button>
       </div>
     </div>
@@ -451,8 +482,24 @@
   let activePhone = null;
   let pollTimer = null;
   let allContacts = [];
+  let ghlTimer = null;
+
+  // Phone → name cache persisted in localStorage
+  let ghlNames = {};
+  try { ghlNames = JSON.parse(localStorage.getItem('ghlNames') || '{}'); } catch {}
+
+  function saveGhlName(phone, name) {
+    if (!name || name === phone) return;
+    ghlNames[phone] = name;
+    try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+  }
 
   loadContacts();
+
+  // Close GHL dropdown when clicking outside the panel
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#newPanel')) closeGhlDropdown();
+  });
 
   // ── Contacts ───────────────────────────────────────────────────────────────
   async function loadContacts() {
@@ -471,10 +518,12 @@
   function filterContacts(query) {
     const q = query.trim().toLowerCase();
     if (!q) return renderContacts(allContacts);
-    renderContacts(allContacts.filter(c =>
-      (c.phone_number || '').toLowerCase().includes(q) ||
-      (c.message || '').toLowerCase().includes(q)
-    ));
+    renderContacts(allContacts.filter(c => {
+      const name = (ghlNames[c.phone_number] || '').toLowerCase();
+      return (c.phone_number || '').toLowerCase().includes(q) ||
+             (c.message || '').toLowerCase().includes(q) ||
+             name.includes(q);
+    }));
   }
 
   function renderContacts(contacts) {
@@ -483,37 +532,96 @@
       el.innerHTML = '<div class="empty-list">No conversations yet.<br>Tap <b>+ New Message</b> to start one.</div>';
       return;
     }
-    el.innerHTML = contacts.map(c => `
+    el.innerHTML = contacts.map(c => {
+      const name = ghlNames[c.phone_number];
+      const displayName = name || c.phone_number;
+      const subLine = name ? `<span style="font-size:11px;color:var(--faint);font-weight:400">${esc(c.phone_number)}</span>` : '';
+      return `
       <div class="contact ${c.phone_number === activePhone ? 'active' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
-        <div class="avatar">${esc(initials(c.phone_number))}</div>
+        <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
         <div class="contact-body">
           <div class="contact-line1">
-            <span class="contact-name">${esc(c.phone_number)}</span>
+            <span class="contact-name">${esc(displayName)}</span>
             <span class="contact-time">${esc(relTime(c.created_at))}</span>
           </div>
           <div class="contact-preview">
+            ${subLine}
             <span class="dir">${c.direction === 'outbound' ? '↑' : '↓'}</span>
             <span>${esc(c.message)}</span>
           </div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   // ── New conversation ───────────────────────────────────────────────────────
   function toggleNewPanel() {
     const p = document.getElementById('newPanel');
     p.classList.toggle('open');
-    if (p.classList.contains('open')) document.getElementById('newPhone').focus();
+    if (p.classList.contains('open')) {
+      document.getElementById('newPhone').value = '';
+      closeGhlDropdown();
+      document.getElementById('newPhone').focus();
+    }
   }
 
   function openNewConversation() {
     const raw = document.getElementById('newPhone').value.trim();
     if (!raw) return;
+    closeGhlDropdown();
     const phone = normalisePhone(raw);
     document.getElementById('newPhone').value = '';
     document.getElementById('newPanel').classList.remove('open');
     selectChat(phone);
+  }
+
+  function onNewInput(el) {
+    clearTimeout(ghlTimer);
+    const val = el.value.trim();
+    if (!val) { closeGhlDropdown(); return; }
+    ghlTimer = setTimeout(() => searchGHL(val), 300);
+  }
+
+  function onNewKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); openNewConversation(); }
+    if (e.key === 'Escape') { closeGhlDropdown(); }
+  }
+
+  async function searchGHL(q) {
+    const dd = document.getElementById('ghlDropdown');
+    dd.innerHTML = '<div class="ghl-searching">Searching…</div>';
+    dd.style.display = 'block';
+    try {
+      const res = await fetch(`${API}?action=ghl-contacts&q=${encodeURIComponent(q)}`);
+      const contacts = await res.json();
+      if (!Array.isArray(contacts) || !contacts.length) {
+        dd.style.display = 'none';
+        return;
+      }
+      dd.innerHTML = contacts.map(c => `
+        <div class="ghl-option" onclick="pickGhlContact('${esc(c.phone)}','${esc(c.name)}')">
+          <div class="ghl-option-name">${esc(c.name)}</div>
+          <div class="ghl-option-phone">${esc(c.phone)}${c.email ? ' · ' + esc(c.email) : ''}</div>
+        </div>
+      `).join('');
+      dd.style.display = 'block';
+    } catch {
+      dd.style.display = 'none';
+    }
+  }
+
+  function pickGhlContact(phone, name) {
+    closeGhlDropdown();
+    document.getElementById('newPanel').classList.remove('open');
+    const normalised = normalisePhone(phone);
+    saveGhlName(normalised, name);
+    selectChat(normalised);
+  }
+
+  function closeGhlDropdown() {
+    const dd = document.getElementById('ghlDropdown');
+    if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+    clearTimeout(ghlTimer);
   }
 
   // ── Select / close conversation ────────────────────────────────────────────
@@ -525,8 +633,9 @@
     document.getElementById('chatActive').classList.add('open');
     document.getElementById('page').classList.add('chat-open');
 
-    document.getElementById('chatPhone').textContent = phone;
-    document.getElementById('chatAvatar').textContent = initials(phone);
+    const displayName = ghlNames[phone] || phone;
+    document.getElementById('chatPhone').textContent = displayName;
+    document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[phone], phone);
 
     document.querySelectorAll('.contact').forEach(el =>
       el.classList.toggle('active', el.dataset.phone === phone));
@@ -718,6 +827,13 @@
   function initials(phone) {
     const digits = String(phone || '').replace(/\D/g, '');
     return digits.length >= 2 ? digits.slice(-2) : (phone || '').slice(-2);
+  }
+
+  function nameInitials(name, phone) {
+    if (!name) return initials(phone);
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
   }
 
   function normalisePhone(p) {
