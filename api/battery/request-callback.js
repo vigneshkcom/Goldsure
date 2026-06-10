@@ -47,6 +47,77 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
+  // ── POST action=sync: pull received messages from SMS Gate API ──────────────
+  if (body.action === 'sync') {
+    const user = process.env.SMSGATE_USERNAME;
+    const pass = process.env.SMSGATE_PASSWORD;
+    if (!user || !pass) {
+      return res.status(503).json({ error: 'SMS Gateway credentials not configured.' });
+    }
+
+    const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+
+    // Fetch last 50 received messages from SMS Gate
+    const sgRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages?limit=50', {
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+
+    if (!sgRes.ok) {
+      const detail = await sgRes.text();
+      console.error('[Sync] SMS Gate fetch failed:', sgRes.status, detail);
+      return res.status(502).json({ error: 'SMS Gate fetch failed', detail });
+    }
+
+    const sgMessages = await sgRes.json();
+    console.log('[Sync] SMS Gate response sample:', JSON.stringify(sgMessages).slice(0, 500));
+
+    // Filter inbound only — field name varies by API version
+    const received = (Array.isArray(sgMessages) ? sgMessages : sgMessages.results || sgMessages.messages || [])
+      .filter(m => {
+        const dir = m.direction || m.type || m.kind || '';
+        const state = m.state || m.status || '';
+        return dir.toLowerCase().includes('in') || dir.toLowerCase() === 'received' || state.toLowerCase() === 'received';
+      });
+
+    let saved = 0;
+    for (const m of received) {
+      const phoneNumber = m.phoneNumber || m.from || m.sender || m.source;
+      const message     = m.message    || m.text   || m.content || m.body;
+      const messageId   = m.id         || m.messageId || null;
+      const receivedAt  = m.receivedAt || m.createdAt || m.timestamp || new Date().toISOString();
+
+      if (!phoneNumber || !message) continue;
+
+      // Upsert — skip if this sms_gate_id already stored
+      const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=ignore-duplicates,return=minimal',
+        },
+        body: JSON.stringify({
+          phone_number: phoneNumber,
+          message,
+          direction: 'inbound',
+          status: 'received',
+          sms_gate_id: messageId,
+          created_at: receivedAt,
+        }),
+      });
+
+      if (upsertRes.ok) saved++;
+    }
+
+    return res.status(200).json({
+      success: true,
+      fetched: received.length,
+      saved,
+      raw: sgMessages, // helps debug field names
+    });
+  }
+
   // ── POST action=send: outbound SMS ──────────────────────────────────────────
   if (body.action === 'send') {
     const { phone, message } = body;

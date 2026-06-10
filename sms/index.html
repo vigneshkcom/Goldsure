@@ -386,6 +386,7 @@ CREATE INDEX ON sms_messages (phone_number, created_at);</code><br><br>
           <div class="phone" id="chatPhone"></div>
           <div class="sub">SMS &middot; via SMS Gate</div>
         </div>
+        <button class="refresh-btn" onclick="syncInbox()" id="syncBtn" title="Pull received messages from SMS Gate">&#8595; Sync Inbox</button>
         <button class="refresh-btn" onclick="reloadMessages()">&#8635; Refresh</button>
       </div>
 
@@ -498,6 +499,34 @@ CREATE INDEX ON sms_messages (phone_number, created_at);</code><br><br>
     pollTimer = setInterval(reloadMessages, 20000);
 
     document.getElementById('msgInput').focus();
+  }
+
+  async function syncInbox() {
+    const btn = document.getElementById('syncBtn');
+    const prev = btn.textContent;
+    btn.textContent = 'Syncing…';
+    btn.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync' }),
+      });
+      const data = await res.json();
+      console.log('[Sync]', data);
+      if (data.success) {
+        await reloadMessages();
+        await loadContacts();
+        btn.textContent = `✓ ${data.saved} new`;
+        setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2500);
+        return;
+      }
+      alert('Sync failed: ' + (data.error || 'Unknown error'));
+    } catch (err) {
+      alert('Network error during sync');
+    }
+    btn.textContent = prev;
+    btn.disabled = false;
   }
 
   async function reloadMessages() {
