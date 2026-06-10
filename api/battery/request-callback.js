@@ -114,6 +114,24 @@ export default async function handler(req, res) {
         if (user && pass) {
           const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
           for (const m of pastDue) {
+            // Claim the row first (scheduled → sending). PostgREST only returns
+            // rows it actually updated, so if a concurrent/overlapping poll has
+            // already claimed this one, we get nothing back and skip it — the
+            // message can never be sent twice.
+            let claimed = [];
+            try {
+              const claimRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}&status=eq.scheduled`,
+                {
+                  method: 'PATCH',
+                  headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+                  body: JSON.stringify({ status: 'sending' }),
+                }
+              );
+              claimed = await claimRes.json().catch(() => []);
+            } catch (e) { console.error('[Schedule claim]', e.message); }
+            if (!Array.isArray(claimed) || !claimed.length) { m.status = 'sending'; continue; }
+
             try {
               const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
                 method: 'POST',
@@ -140,14 +158,17 @@ export default async function handler(req, res) {
       return res.status(200).json(messages);
     }
 
-    // Contacts: deduplicate to latest message per phone number
+    // Contacts: deduplicate to latest message per phone number.
+    // Skip internal notes and cancelled rows so they don't masquerade as the
+    // conversation's latest message in the sidebar preview.
     const supaRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at&order=created_at.desc&limit=500`,
+      `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status&order=created_at.desc&limit=500`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await supaRes.json();
     const seen = new Set();
     const contacts = (Array.isArray(rows) ? rows : []).filter(r => {
+      if (r.status === 'note' || r.status === 'cancelled') return false;
       if (seen.has(r.phone_number)) return false;
       seen.add(r.phone_number);
       return true;
@@ -266,6 +287,28 @@ export default async function handler(req, res) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ status: 'cancelled' }),
     });
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=delete-thread: PIN-gated hard delete of a whole conversation ─
+  // Requires a 4-digit PIN that matches SMS_DELETE_PIN (defaults to 4321 if the
+  // env var isn't set). Removes every row for that phone number from Supabase.
+  if (body.action === 'delete-thread') {
+    const { phone, pin } = body;
+    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const expected = process.env.SMS_DELETE_PIN || '4321';
+    if (String(pin || '') !== String(expected)) {
+      return res.status(403).json({ error: 'Incorrect PIN' });
+    }
+    const delRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}`,
+      { method: 'DELETE', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: 'return=minimal' } }
+    );
+    if (!delRes.ok && delRes.status !== 204) {
+      const detail = await delRes.text();
+      console.error('[Delete thread] failed', delRes.status, detail);
+      return res.status(502).json({ error: 'Delete failed', detail });
+    }
     return res.status(200).json({ success: true });
   }
 

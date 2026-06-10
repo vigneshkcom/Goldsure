@@ -128,6 +128,7 @@
     }
     .icon-btn:hover { color: var(--purple); border-color: var(--purple); background: var(--purple-soft); }
     .icon-btn:disabled { opacity: 0.6; cursor: default; }
+    .icon-btn.danger:hover { color: #ea5455; border-color: #ea5455; background: #fdeaea; }
 
     /* New conversation panel */
     .new-panel { display: none; margin-top: 12px; padding: 12px; background: var(--page); border-radius: 10px; }
@@ -509,6 +510,9 @@
           <button class="icon-btn" onclick="reloadMessages()" title="Refresh">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
+          <button class="icon-btn danger" onclick="deleteThread()" title="Delete this conversation">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
         </div>
       </header>
 
@@ -837,6 +841,43 @@
     document.getElementById('welcome').style.display = '';
     activePhone = null;
     clearInterval(pollTimer);
+  }
+
+  // ── Delete conversation (PIN-gated) ────────────────────────────────────────
+  async function deleteThread() {
+    if (!activePhone) return;
+    const phone = activePhone;
+    const name = ghlNames[phone] || phone;
+    const pin = prompt(
+      `Delete the entire conversation with ${name}?\n\n` +
+      `This permanently removes every message from the database and cannot be undone.\n\n` +
+      `Enter your 4-digit PIN to confirm:`
+    );
+    if (pin === null) return;                       // cancelled
+    if (!/^\d{4}$/.test(pin.trim())) { alert('PIN must be 4 digits.'); return; }
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-thread', phone, pin: pin.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        delete lastSeen[phone]; saveLastSeen();
+        delete prevLatest[phone];
+        delete ghlNames[phone];
+        try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+        closeChat();
+        await loadContacts();
+      } else if (res.status === 403) {
+        alert('Incorrect PIN. The conversation was not deleted.');
+      } else {
+        alert('Could not delete: ' + (data.error || 'Unknown error'));
+      }
+    } catch {
+      alert('Network error while deleting.');
+    }
   }
 
   // ── Notifications ──────────────────────────────────────────────────────────
