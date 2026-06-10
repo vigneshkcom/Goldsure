@@ -382,6 +382,15 @@
     .tpl-use-btn { flex-shrink: 0; background: var(--purple); color: #fff; border: none; padding: 5px 13px; border-radius: 7px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.1s; pointer-events: none; }
     .tpl-item:hover .tpl-use-btn { background: var(--purple-dark); }
 
+    /* ── Unread + notifications ──────────────────────── */
+    .icon-btn.active { color: var(--purple); border-color: var(--purple); background: var(--purple-soft); }
+    .contact.unread .contact-name { font-weight: 700; }
+    .contact.unread .contact-preview span:last-child { color: var(--text); font-weight: 500; }
+    .contact-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); flex-shrink: 0; }
+    .tab-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; align-items: center; justify-content: center; background: #ea5455; color: #fff; border-radius: 9px; font-size: 10.5px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+    .tab-badge.show { display: inline-flex; }
+
     /* Scrollbars */
     .contacts::-webkit-scrollbar, .messages::-webkit-scrollbar { width: 6px; }
     .contacts::-webkit-scrollbar-thumb, .messages::-webkit-scrollbar-thumb { background: #dcdae8; border-radius: 3px; }
@@ -411,7 +420,7 @@
       </div>
 
       <div class="sidebar-tabs">
-        <button class="tab active">Inbox Chat</button>
+        <button class="tab active">Inbox Chat<span class="tab-badge" id="inboxBadge"></span></button>
         <button class="tab" onclick="toggleNewPanel()">+ New Message</button>
       </div>
 
@@ -420,6 +429,9 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input class="search" id="searchInput" placeholder="Search conversations" oninput="filterContacts(this.value)" />
         </div>
+        <button class="icon-btn" id="bellBtn" onclick="toggleNotify()" title="Enable desktop notifications for new replies">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
         <button class="icon-btn" id="syncBtn" onclick="syncInbox()" title="Sync inbox – pull recent replies">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -518,10 +530,22 @@
 <script>
   const API = '/api/battery/request-callback';
   const AGENT_NAME = 'Goldsure';
+  const DEFAULT_TITLE = 'SMS – Goldsure';
+  const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Cpath d='M6 8h20c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-9l-4 4v-4H6c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z' fill='white'/%3E%3C/svg%3E";
   let activePhone = null;
   let pollTimer = null;
   let allContacts = [];
   let ghlTimer = null;
+
+  // Unread tracking + notifications
+  let lastSeen = {};                  // phone → ISO of newest message the user has viewed
+  try { lastSeen = JSON.parse(localStorage.getItem('lastSeen') || '{}'); } catch {}
+  const saveLastSeen = () => { try { localStorage.setItem('lastSeen', JSON.stringify(lastSeen)); } catch {} };
+  const prevLatest = {};              // phone → created_at seen last poll (notification de-dup, in-memory)
+  let notifyEnabled = localStorage.getItem('notifyEnabled') === '1';
+
+  const isUnread = c => c.direction === 'inbound' &&
+    new Date(c.created_at) > new Date(lastSeen[c.phone_number] || 0);
 
   // Phone → name cache persisted in localStorage (only successful matches are stored)
   let ghlNames = {};
@@ -551,7 +575,7 @@
       }
       if (!changed) return;
       try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
-      renderContacts(allContacts);
+      rerenderContacts();
       // Refresh the open chat header if its name just resolved
       if (activePhone && ghlNames[activePhone]) {
         document.getElementById('chatPhone').textContent = ghlNames[activePhone];
@@ -574,7 +598,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       allContacts = Array.isArray(data) ? data : [];
-      renderContacts(allContacts);
+      // Seed notification baseline so we don't alert for the existing backlog
+      allContacts.forEach(c => { prevLatest[c.phone_number] = c.created_at; });
+      rerenderContacts();
       resolveNames(allContacts);
     } catch {
       document.getElementById('contactsList').innerHTML =
@@ -582,15 +608,47 @@
     }
   }
 
+  // Background refresh: detect new inbound replies → notify, then re-render
+  async function refreshContacts() {
+    try {
+      const res = await fetch(API);
+      const data = await res.json();
+      if (!res.ok) return;
+      const list = Array.isArray(data) ? data : [];
+      for (const c of list) {
+        const prev = prevLatest[c.phone_number];
+        const isNewInbound = c.direction === 'inbound' && (!prev || new Date(c.created_at) > new Date(prev));
+        if (isNewInbound && c.phone_number !== activePhone) fireNotification(c);
+        prevLatest[c.phone_number] = c.created_at;
+      }
+      allContacts = list;
+      rerenderContacts();
+      resolveNames(allContacts);
+    } catch {}
+  }
+
+  // Re-render respecting the current search filter
+  function rerenderContacts() {
+    filterContacts(document.getElementById('searchInput').value || '');
+  }
+
   function filterContacts(query) {
     const q = query.trim().toLowerCase();
-    if (!q) return renderContacts(allContacts);
-    renderContacts(allContacts.filter(c => {
+    const list = !q ? allContacts : allContacts.filter(c => {
       const name = (ghlNames[c.phone_number] || '').toLowerCase();
       return (c.phone_number || '').toLowerCase().includes(q) ||
              (c.message || '').toLowerCase().includes(q) ||
              name.includes(q);
-    }));
+    });
+    renderContacts(list);
+  }
+
+  function updateUnreadUI() {
+    const n = allContacts.filter(isUnread).length;
+    document.title = n ? `(${n}) ${DEFAULT_TITLE}` : DEFAULT_TITLE;
+    const badge = document.getElementById('inboxBadge');
+    badge.textContent = n;
+    badge.classList.toggle('show', n > 0);
   }
 
   function renderContacts(contacts) {
@@ -603,13 +661,17 @@
       const name = ghlNames[c.phone_number];
       const displayName = name || c.phone_number;
       const subLine = name ? `<span style="font-size:11px;color:var(--faint);font-weight:400">${esc(c.phone_number)}</span>` : '';
+      const unread = isUnread(c);
       return `
-      <div class="contact ${c.phone_number === activePhone ? 'active' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
+      <div class="contact ${c.phone_number === activePhone ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
         <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
         <div class="contact-body">
           <div class="contact-line1">
             <span class="contact-name">${esc(displayName)}</span>
-            <span class="contact-time">${esc(relTime(c.created_at))}</span>
+            <span class="contact-right">
+              <span class="contact-time">${esc(relTime(c.created_at))}</span>
+              ${unread ? '<span class="unread-dot"></span>' : ''}
+            </span>
           </div>
           <div class="contact-preview">
             ${subLine}
@@ -619,6 +681,7 @@
         </div>
       </div>`;
     }).join('');
+    updateUnreadUI();
   }
 
   // ── New conversation ───────────────────────────────────────────────────────
@@ -710,6 +773,11 @@
     // Keep the templates' Customer field in sync if the panel is open
     if (document.getElementById('tplPanel').classList.contains('open')) renderTemplates();
 
+    // Mark this conversation as read
+    lastSeen[phone] = new Date().toISOString();
+    saveLastSeen();
+    rerenderContacts();
+
     clearInterval(pollTimer);
     await reloadMessages();
     pollTimer = setInterval(reloadMessages, 20000);
@@ -723,6 +791,45 @@
     activePhone = null;
     clearInterval(pollTimer);
   }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  function toggleNotify() {
+    if (!('Notification' in window)) { alert('This browser does not support desktop notifications.'); return; }
+    if (notifyEnabled) {
+      notifyEnabled = false;
+      localStorage.setItem('notifyEnabled', '0');
+      updateBellUI();
+      return;
+    }
+    Notification.requestPermission().then(perm => {
+      notifyEnabled = perm === 'granted';
+      localStorage.setItem('notifyEnabled', notifyEnabled ? '1' : '0');
+      if (!notifyEnabled) alert('Notifications are blocked. Enable them for this site in your browser settings.');
+      updateBellUI();
+    });
+  }
+
+  function updateBellUI() {
+    document.getElementById('bellBtn').classList.toggle('active', notifyEnabled);
+  }
+
+  function fireNotification(c) {
+    if (!notifyEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    if (document.visibilityState === 'visible' && c.phone_number === activePhone) return;
+    const name = ghlNames[c.phone_number] || c.phone_number;
+    try {
+      const n = new Notification('New SMS · ' + name, { body: c.message, icon: FAVICON, tag: c.phone_number });
+      n.onclick = () => { window.focus(); selectChat(c.phone_number); n.close(); };
+    } catch {}
+  }
+
+  // Reconcile saved preference with the actual browser permission, then poll
+  if (notifyEnabled && (!('Notification' in window) || Notification.permission !== 'granted')) {
+    notifyEnabled = false;
+    localStorage.setItem('notifyEnabled', '0');
+  }
+  updateBellUI();
+  setInterval(refreshContacts, 25000);
 
   // ── Sync inbox (inbox/export → webhooks → Supabase) ────────────────────────
   async function syncInbox() {
@@ -761,6 +868,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Load failed');
       renderMessages(Array.isArray(data) ? data : []);
+      // Keep the open conversation marked as read
+      lastSeen[activePhone] = new Date().toISOString();
+      saveLastSeen();
     } catch (err) {
       document.getElementById('messages').innerHTML =
         `<div class="msg-loading">Could not load messages: ${esc(err.message)}</div>`;
@@ -1023,7 +1133,7 @@
     const existingFirst = existing ? existing.trim().split(/\s+/)[0].toLowerCase() : '';
     if (existing && existingFirst === name.toLowerCase()) return; // unchanged, keep full name
     saveGhlName(activePhone, name);
-    renderContacts(allContacts);
+    rerenderContacts();
     document.getElementById('chatPhone').textContent = name;
     document.getElementById('chatAvatar').textContent = nameInitials(name, activePhone);
   }
