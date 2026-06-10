@@ -674,6 +674,7 @@
         document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[activePhone], activePhone);
       }
       updateHeaderInfo(activePhone);
+      if (document.getElementById('tplPanel').classList.contains('open')) renderTemplates();
     }
   }
 
@@ -701,6 +702,12 @@
       html += `<a class="chat-chip" href="${esc(info.link)}" target="_blank" rel="noopener">Open in GHL ↗</a>`;
     }
     el.innerHTML = html;
+
+    // Notes post to the GHL contact record — pointless for numbers not in GHL
+    const notInGhl = info && info.none;
+    const noteBtn = document.getElementById('noteToggleBtn');
+    if (noteBtn) noteBtn.style.display = notInGhl ? 'none' : '';
+    if (notInGhl && noteMode) toggleNoteMode();
   }
 
   // Move the contact's opportunity to another stage straight from the portal
@@ -1320,27 +1327,44 @@
   }
 
   // ── Templates ──────────────────────────────────────────────────────────────
+  const CONSENT_BODY =
+`Hi {{contact.first_name}}, \n\nThank you for your recent call regarding energy efficient upgrades at your property. To assist you further, we need your consent to proceed. Please reply to this message with 'YES' via SMS to confirm your consent and our team will be in contact to continue the upgrade process.\n\nWe look forward to hearing back from you and exploring how we can help you achieve your energy efficiency goals.\n\nBest regards, \nGoldsure Pty Ltd`;
+
+  // `match` is tested against the contact's GHL pipeline name to decide which
+  // folders to show. Contacts not in GHL (or with an unrecognised pipeline) see all.
   const TEMPLATES = [
-    { folder: 'Smoke Alarms', open: true, items: [
+    { folder: 'Smoke Alarms', match: /smoke/i, open: true, items: [
       { name: 'Not Reachable', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your smoke alarm upgrade enquiry but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar- or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \nGoldsure Pty Ltd \n0403 600 331\n07 2145 5155` },
       { name: 'Quote Sent (No Answer)', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on 07 2145 5155, or book a convenient time for a call using this link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-\n\nKind regards, \nGoldsure Pty Ltd\n0403 600 331\n07 2145 5155` },
     ]},
-    { folder: 'HWS', open: false, items: [
+    { folder: 'HWS', match: /hws|hot ?water/i, open: false, items: [
       { name: 'Consent Form – Jotform', body:
 `Hi {{contact.first_name}},\n\nTo proceed with your hot water system installation, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check rebate eligibility and book your installation.\n\nThank you,\nGoldsure Pty Ltd\n03 7050 2846` },
       { name: 'IHA Appointment – Next Day Reminder', body:
 `Hi {{contact.first_name}},\n\nJust a reminder your Home Assessment is booked in for tomorrow.\n\nTo speed up your rebate approval, please have ready:\n-Licence, passport or Medicare card\n-Latest ATO Notice of Assessment\n-Pension card (if applicable)\n\nPlease reply to confirm you will be home with the documents, or reply if you would like to reschedule.\n\nQuestions? \nCall 03 7050 2846.\nThanks, Goldsure Pty Ltd` },
+      { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
     ]},
-    { folder: 'General', open: false, items: [
-      { name: 'Referral / Incoming Call – Consent', body:
-`Hi {{contact.first_name}}, \n\nThank you for your recent call regarding energy efficient upgrades at your property. To assist you further, we need your consent to proceed. Please reply to this message with 'YES' via SMS to confirm your consent and our team will be in contact to continue the upgrade process.\n\nWe look forward to hearing back from you and exploring how we can help you achieve your energy efficiency goals.\n\nBest regards, \nGoldsure Pty Ltd` },
+    { folder: 'Aircon', match: /air ?con|\ba\/?c\b/i, open: false, items: [
+      { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
     ]},
   ];
 
   // Track open/closed state per folder
   const tplFolderOpen = TEMPLATES.map(f => f.open);
+
+  // Folders shown depend on the customer's GHL pipeline. Contacts not in GHL
+  // or in an unrecognised pipeline get every folder.
+  function visibleTemplateFolders() {
+    const info = activePhone ? ghlInfo[activePhone] : null;
+    const pipeline = info && info.pipeline;
+    if (pipeline) {
+      const matched = TEMPLATES.filter(f => f.match && f.match.test(pipeline));
+      if (matched.length) return matched;
+    }
+    return TEMPLATES;
+  }
 
   function renderTemplates() {
     const staffName = localStorage.getItem('staffFirstName') || '';
@@ -1362,7 +1386,10 @@
         <span class="tpl-name-hint">→ fills {{user.first_name}} &amp; {{contact.first_name}}</span>
       </div>`;
 
-    TEMPLATES.forEach((folder, fi) => {
+    const folders = visibleTemplateFolders();
+    folders.forEach(folder => {
+      const fi = TEMPLATES.indexOf(folder);
+      if (folders.length === 1) tplFolderOpen[fi] = true;
       const isOpen = tplFolderOpen[fi];
       html += `
       <div class="tpl-folder-hd ${isOpen ? '' : 'closed'}" data-fi="${fi}">
