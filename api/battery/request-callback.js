@@ -38,6 +38,41 @@ export default async function handler(req, res) {
       return res.status(200).json(contacts);
     }
 
+    // GHL reverse lookup: phone numbers → customer names (resolves sidebar names)
+    if (req.query.action === 'ghl-lookup') {
+      const phones = String(req.query.phones || '')
+        .split(',').map(p => p.trim()).filter(Boolean).slice(0, 50);
+      if (!phones.length) return res.status(200).json({});
+      const apiKey     = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) return res.status(200).json({});
+
+      // Match on the last 9 digits so +61407640879, 0407 640 879, 407640879 all align
+      const last9 = s => String(s || '').replace(/\D/g, '').slice(-9);
+      const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+      const out = {};
+
+      await Promise.all(phones.map(async (phone) => {
+        const target = last9(phone);
+        if (target.length < 6) return;
+        try {
+          const r = await fetch(
+            `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(target)}&limit=10`,
+            { headers }
+          );
+          if (!r.ok) return;
+          const d = await r.json();
+          const match = (d.contacts || []).find(c => last9(c.phone) === target);
+          if (match) {
+            const name = [match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '';
+            if (name) out[phone] = name;
+          }
+        } catch {}
+      }));
+
+      return res.status(200).json(out);
+    }
+
     const { phone } = req.query;
 
     if (phone) {

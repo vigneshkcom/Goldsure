@@ -484,14 +484,41 @@
   let allContacts = [];
   let ghlTimer = null;
 
-  // Phone → name cache persisted in localStorage
+  // Phone → name cache persisted in localStorage (only successful matches are stored)
   let ghlNames = {};
   try { ghlNames = JSON.parse(localStorage.getItem('ghlNames') || '{}'); } catch {}
+  const ghlChecked = new Set(); // phones already looked up this session (hit or miss)
 
   function saveGhlName(phone, name) {
     if (!name || name === phone) return;
     ghlNames[phone] = name;
     try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+  }
+
+  // Auto-resolve customer names from GHL for any conversation we don't already know
+  async function resolveNames(contacts) {
+    const phones = contacts
+      .map(c => c.phone_number)
+      .filter(p => p && !ghlNames[p] && !ghlChecked.has(p));
+    if (!phones.length) return;
+    phones.forEach(p => ghlChecked.add(p));
+    try {
+      const res = await fetch(`${API}?action=ghl-lookup&phones=${encodeURIComponent(phones.join(','))}`);
+      if (!res.ok) return;
+      const map = await res.json();
+      let changed = false;
+      for (const p in map) {
+        if (map[p] && ghlNames[p] !== map[p]) { ghlNames[p] = map[p]; changed = true; }
+      }
+      if (!changed) return;
+      try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+      renderContacts(allContacts);
+      // Refresh the open chat header if its name just resolved
+      if (activePhone && ghlNames[activePhone]) {
+        document.getElementById('chatPhone').textContent = ghlNames[activePhone];
+        document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[activePhone], activePhone);
+      }
+    } catch {}
   }
 
   loadContacts();
@@ -509,6 +536,7 @@
       if (!res.ok) throw new Error(data.error || 'Failed');
       allContacts = Array.isArray(data) ? data : [];
       renderContacts(allContacts);
+      resolveNames(allContacts);
     } catch {
       document.getElementById('contactsList').innerHTML =
         '<div class="empty-list">Could not load conversations.<br>Check the deployment logs.</div>';
