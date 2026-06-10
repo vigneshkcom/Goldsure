@@ -510,18 +510,23 @@ CREATE INDEX ON sms_messages (phone_number, created_at);</code><br><br>
       const res = await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync' }),
+        body: JSON.stringify({ action: 'sync', days: 3 }),
       });
       const data = await res.json();
       console.log('[Sync]', data);
       if (data.success) {
-        await reloadMessages();
-        await loadContacts();
-        btn.textContent = `✓ ${data.saved} new`;
+        // Export is async — the device fires webhooks over the next few seconds.
+        // Poll a few times so new replies appear without a manual refresh.
+        for (let i = 1; i <= 4; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          await reloadMessages();
+          await loadContacts();
+        }
+        btn.textContent = '✓ Synced';
         setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2500);
         return;
       }
-      alert('Sync failed: ' + (data.error || 'Unknown error'));
+      alert('Sync failed: ' + (data.error || JSON.stringify(data)));
     } catch (err) {
       alert('Network error during sync');
     }

@@ -47,7 +47,12 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
-  // ── POST action=sync: pull received messages from SMS Gate API ──────────────
+  // ── POST action=sync: trigger SMS Gate inbox export ─────────────────────────
+  // SMS Gate has no pull endpoint for received messages — the documented method
+  // is POST /messages/inbox/export, which makes the device re-fire sms:received
+  // webhooks for the given window. Those land back on this same endpoint (below)
+  // and get written to Supabase. So: trigger export → wait a few seconds in the
+  // UI → reload.
   if (body.action === 'sync') {
     const user = process.env.SMSGATE_USERNAME;
     const pass = process.env.SMSGATE_PASSWORD;
@@ -56,65 +61,31 @@ export default async function handler(req, res) {
     }
 
     const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+    const days  = Math.min(parseInt(body.days, 10) || 3, 30);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const until = new Date().toISOString();
 
-    // Fetch last 50 received messages from SMS Gate
-    const sgRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages?limit=50', {
-      headers: { Authorization: `Basic ${credentials}` },
+    const exportBody = { since, until };
+    if (process.env.SMSGATE_DEVICE_ID) exportBody.deviceId = process.env.SMSGATE_DEVICE_ID;
+
+    const exportRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages/inbox/export', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(exportBody),
     });
 
-    if (!sgRes.ok) {
-      const detail = await sgRes.text();
-      console.error('[Sync] SMS Gate fetch failed:', sgRes.status, detail);
-      return res.status(502).json({ error: 'SMS Gate fetch failed', detail });
-    }
+    const detail = await exportRes.text();
+    console.log('[Sync] inbox/export status', exportRes.status, detail);
 
-    const sgMessages = await sgRes.json();
-    console.log('[Sync] SMS Gate response sample:', JSON.stringify(sgMessages).slice(0, 500));
-
-    // Filter inbound only — field name varies by API version
-    const received = (Array.isArray(sgMessages) ? sgMessages : sgMessages.results || sgMessages.messages || [])
-      .filter(m => {
-        const dir = m.direction || m.type || m.kind || '';
-        const state = m.state || m.status || '';
-        return dir.toLowerCase().includes('in') || dir.toLowerCase() === 'received' || state.toLowerCase() === 'received';
-      });
-
-    let saved = 0;
-    for (const m of received) {
-      const phoneNumber = m.phoneNumber || m.from || m.sender || m.source;
-      const message     = m.message    || m.text   || m.content || m.body;
-      const messageId   = m.id         || m.messageId || null;
-      const receivedAt  = m.receivedAt || m.createdAt || m.timestamp || new Date().toISOString();
-
-      if (!phoneNumber || !message) continue;
-
-      // Upsert — skip if this sms_gate_id already stored
-      const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'resolution=ignore-duplicates,return=minimal',
-        },
-        body: JSON.stringify({
-          phone_number: phoneNumber,
-          message,
-          direction: 'inbound',
-          status: 'received',
-          sms_gate_id: messageId,
-          created_at: receivedAt,
-        }),
-      });
-
-      if (upsertRes.ok) saved++;
+    if (!exportRes.ok) {
+      return res.status(502).json({ error: 'Inbox export failed', status: exportRes.status, detail });
     }
 
     return res.status(200).json({
       success: true,
-      fetched: received.length,
-      saved,
-      raw: sgMessages, // helps debug field names
+      triggered: true,
+      since,
+      note: 'Export requested. Received messages arrive via webhook within a few seconds.',
     });
   }
 
@@ -186,20 +157,28 @@ export default async function handler(req, res) {
   // ── POST action=webhook: inbound SMS from SMS Gate ──────────────────────────
   // Webhook URL (no query params needed):
   //   https://portal.goldsure.com.au/api/battery/request-callback
-  // Auto-detected: payload has phoneNumber/from/sender but no action or fullName
+  //
+  // Real SMS Gate webhooks are NESTED under `payload`:
+  //   { "event": "sms:received",
+  //     "payload": { "messageId", "message", "phoneNumber", "receivedAt" } }
+  // We read from body.payload first, then fall back to the flat body so manual
+  // tests and older formats still work.
+  const p = body.payload && typeof body.payload === 'object' ? body.payload : body;
+
   const isSmsGateWebhook =
     body.action === 'webhook' ||
     req.query.action === 'webhook' ||
-    (!body.action && !body.fullName && (body.phoneNumber || body.from || body.sender) && (body.message || body.text || body.content));
+    (typeof body.event === 'string' && body.event.toLowerCase().includes('received')) ||
+    (!body.action && !body.fullName && (p.phoneNumber || p.from || p.sender) && (p.message || p.text || p.content));
 
   if (isSmsGateWebhook) {
     console.log('[Webhook] inbound payload:', JSON.stringify(body));
 
     // SMS Gate may use different field names across versions — handle all variants
-    const phoneNumber = body.phoneNumber || body.from || body.sender || body.source || body.phone;
-    const message     = body.message    || body.text   || body.content || body.body;
-    const messageId   = body.messageId  || body.id     || body.msgId   || null;
-    const receivedAt  = body.receivedAt || body.timestamp || body.date || new Date().toISOString();
+    const phoneNumber = p.phoneNumber || p.from || p.sender || p.source || p.phone;
+    const message     = p.message     || p.text || p.content || p.body;
+    const messageId   = p.messageId   || p.id   || p.msgId   || null;
+    const receivedAt  = p.receivedAt  || p.timestamp || p.date || new Date().toISOString();
 
     if (!phoneNumber || !message) {
       console.error('[Webhook] missing fields. Body was:', JSON.stringify(body));
