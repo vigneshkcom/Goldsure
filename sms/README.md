@@ -80,6 +80,7 @@ SMS permissions granted, app set to start on boot.
 | `GET ?action=recent` | Debug: last 25 saved rows — check if a missing reply reached the DB |
 | `GET ?action=ghl-opps&phones=...` | GHL pipeline stage, opportunity value + contact link per phone |
 | `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
+| `GET ?action=stats&tzo=...` | Dashboard aggregates: today/7d/30d volumes, 14-day chart, needs-reply, scheduled, failed, opt-outs |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
 
 ## Opt-out (SPAM Act)

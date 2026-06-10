@@ -240,6 +240,106 @@ export default async function handler(req, res) {
       return res.status(200).json({ states, changed });
     }
 
+    // Dashboard stats: 30-day aggregates + scheduled queue + opt-out count.
+    // `tzo` = client timezone offset minutes (Date.getTimezoneOffset()) so day
+    // buckets ("today", the 14-day chart) follow the viewer's local midnight.
+    if (req.query.action === 'stats') {
+      const tzo = parseInt(req.query.tzo, 10) || 0;
+      const since = new Date(Date.now() - 30 * 86400000).toISOString();
+      const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+      const [rowsRes, schedRes, markersRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,status,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=2000`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,sms_gate_id&status=eq.scheduled&limit=50`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,status,created_at&status=in.(optout,optin)&order=created_at.desc&limit=1000`, { headers }),
+      ]);
+      const rows = await rowsRes.json().catch(() => []);
+      const schedRows = await schedRes.json().catch(() => []);
+      const markers = await markersRes.json().catch(() => []);
+
+      // Local calendar-day key for a timestamp, shifted by the client's offset
+      const dayKey = (iso) => new Date(new Date(iso).getTime() - tzo * 60000).toISOString().slice(0, 10);
+      const todayKey = dayKey(new Date().toISOString());
+
+      const daily = [];
+      const dailyIdx = {};
+      for (let i = 13; i >= 0; i--) {
+        const key = dayKey(new Date(Date.now() - i * 86400000).toISOString());
+        dailyIdx[key] = daily.length;
+        daily.push({ date: key, sent: 0, received: 0 });
+      }
+
+      const today = { sent: 0, received: 0 };
+      const week = { sent: 0, received: 0, delivered: 0, failed: 0 };
+      const month = { sent: 0, received: 0 };
+      const weekCut = Date.now() - 7 * 86400000;
+      const latestByPhone = {};
+      const phonesSeen = new Set();
+
+      for (const r of (Array.isArray(rows) ? rows : [])) {
+        const st = r.status;
+        // Internal rows aren't traffic. optout/optin ARE inbound texts (STOP/START)
+        // so they still count as received.
+        if (st === 'note' || st === 'cancelled' || st === 'scheduled' || st === 'sending') continue;
+        const isOut = r.direction === 'outbound';
+        const isIn = r.direction === 'inbound';
+        phonesSeen.add(r.phone_number);
+        const key = dayKey(r.created_at);
+        const t = new Date(r.created_at).getTime();
+
+        if (isOut) month.sent++; else if (isIn) month.received++;
+        if (key === todayKey) { if (isOut) today.sent++; else if (isIn) today.received++; }
+        if (key in dailyIdx) {
+          if (isOut) daily[dailyIdx[key]].sent++;
+          else if (isIn) daily[dailyIdx[key]].received++;
+        }
+        if (t >= weekCut) {
+          if (isOut) {
+            week.sent++;
+            if (st === 'delivered') week.delivered++;
+            if (st === 'failed') week.failed++;
+          } else if (isIn) week.received++;
+        }
+        // rows are newest-first → first row seen per phone is its latest message
+        if (!latestByPhone[r.phone_number]) latestByPhone[r.phone_number] = r;
+      }
+
+      // Conversations whose latest message is an unanswered customer reply
+      const needsReply = Object.values(latestByPhone)
+        .filter(r => r.direction === 'inbound' && r.status === 'received')
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 20)
+        .map(r => ({ phone: r.phone_number, preview: String(r.message || '').slice(0, 90), at: r.created_at }));
+
+      const failed = (Array.isArray(rows) ? rows : [])
+        .filter(r => r.direction === 'outbound' && r.status === 'failed' && new Date(r.created_at).getTime() >= weekCut)
+        .slice(0, 10)
+        .map(r => ({ phone: r.phone_number, preview: String(r.message || '').slice(0, 90), at: r.created_at }));
+
+      // Currently opted out = newest marker per phone is 'optout'
+      const markerSeen = new Set();
+      let optedOut = 0;
+      for (const m of (Array.isArray(markers) ? markers : [])) {
+        if (markerSeen.has(m.phone_number)) continue;
+        markerSeen.add(m.phone_number);
+        if (m.status === 'optout') optedOut++;
+      }
+
+      const scheduled = (Array.isArray(schedRows) ? schedRows : [])
+        .map(s => ({
+          phone: s.phone_number,
+          at: (typeof s.sms_gate_id === 'string' && s.sms_gate_id.startsWith('sched:')) ? s.sms_gate_id.slice(6) : null,
+          preview: String(s.message || '').slice(0, 90),
+        }))
+        .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+
+      return res.status(200).json({
+        today, week, month, daily,
+        activeContacts: phonesSeen.size,
+        needsReply, scheduled, failed, optedOut,
+      });
+    }
+
     const { phone } = req.query;
 
     if (phone) {
