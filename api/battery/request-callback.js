@@ -270,10 +270,8 @@ export default async function handler(req, res) {
       }
 
       const today = { sent: 0, received: 0 };
-      const week = { sent: 0, received: 0, delivered: 0, failed: 0 };
       const month = { sent: 0, received: 0 };
       const weekCut = Date.now() - 7 * 86400000;
-      const latestByPhone = {};
       const phonesSeen = new Set();
 
       for (const r of (Array.isArray(rows) ? rows : [])) {
@@ -285,7 +283,6 @@ export default async function handler(req, res) {
         const isIn = r.direction === 'inbound';
         phonesSeen.add(r.phone_number);
         const key = dayKey(r.created_at);
-        const t = new Date(r.created_at).getTime();
 
         if (isOut) month.sent++; else if (isIn) month.received++;
         if (key === todayKey) { if (isOut) today.sent++; else if (isIn) today.received++; }
@@ -293,23 +290,7 @@ export default async function handler(req, res) {
           if (isOut) daily[dailyIdx[key]].sent++;
           else if (isIn) daily[dailyIdx[key]].received++;
         }
-        if (t >= weekCut) {
-          if (isOut) {
-            week.sent++;
-            if (st === 'delivered') week.delivered++;
-            if (st === 'failed') week.failed++;
-          } else if (isIn) week.received++;
-        }
-        // rows are newest-first → first row seen per phone is its latest message
-        if (!latestByPhone[r.phone_number]) latestByPhone[r.phone_number] = r;
       }
-
-      // Conversations whose latest message is an unanswered customer reply
-      const needsReply = Object.values(latestByPhone)
-        .filter(r => r.direction === 'inbound' && r.status === 'received')
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 20)
-        .map(r => ({ phone: r.phone_number, preview: String(r.message || '').slice(0, 90), at: r.created_at }));
 
       const failed = (Array.isArray(rows) ? rows : [])
         .filter(r => r.direction === 'outbound' && r.status === 'failed' && new Date(r.created_at).getTime() >= weekCut)
@@ -334,9 +315,9 @@ export default async function handler(req, res) {
         .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
 
       return res.status(200).json({
-        today, week, month, daily,
+        today, month, daily,
         activeContacts: phonesSeen.size,
-        needsReply, scheduled, failed, optedOut,
+        scheduled, failed, optedOut,
       });
     }
 
