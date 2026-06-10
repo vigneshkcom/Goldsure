@@ -113,9 +113,15 @@ export default async function handler(req, res) {
   }
 
   // ── POST action=webhook: inbound SMS from SMS Gate ──────────────────────────
-  // Configure webhook URL in SMS Gate app:
-  //   https://portal.goldsure.com.au/api/battery/request-callback?action=webhook
-  if (body.action === 'webhook' || req.query.action === 'webhook') {
+  // Webhook URL (no query params needed):
+  //   https://portal.goldsure.com.au/api/battery/request-callback
+  // Auto-detected: payload has phoneNumber/from/sender but no action or fullName
+  const isSmsGateWebhook =
+    body.action === 'webhook' ||
+    req.query.action === 'webhook' ||
+    (!body.action && !body.fullName && (body.phoneNumber || body.from || body.sender) && (body.message || body.text || body.content));
+
+  if (isSmsGateWebhook) {
     console.log('[Webhook] inbound payload:', JSON.stringify(body));
 
     // SMS Gate may use different field names across versions — handle all variants
