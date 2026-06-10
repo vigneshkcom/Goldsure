@@ -74,6 +74,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         phoneNumbers: [phone],
         textMessage: { text: message },
+        ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
       }),
     });
 
