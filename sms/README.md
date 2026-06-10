@@ -76,11 +76,17 @@ SMS permissions granted, app set to start on boot.
 | `GET ?phone=+61...` | Conversation history for one number |
 | `POST {action:'send', phone, message}` | Send an SMS |
 | `POST {action:'sync', days}` | Trigger `inbox/export` so the phone re-fires received-SMS webhooks |
-| `POST` webhook (nested `{event, payload:{...}}`) | Inbound SMS → Supabase |
+| `POST` webhook (nested `{event, payload:{...}}`) | Inbound SMS → Supabase (deduped by `sms_gate_id`, insert verified — failures return 500 so SMS Gate retries) |
+| `GET ?action=recent` | Debug: last 25 saved rows — check if a missing reply reached the DB |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
 
 ## Troubleshooting
 - **Replies not appearing:** confirm RCS is OFF on the gateway phone (most common cause).
+- **Some replies missing:** open `/api/battery/request-callback?action=recent` — if the
+  message is there but not in the chat, it's a display issue; if it's absent, the webhook
+  never fired (check phone online, battery Unrestricted, RCS off for that sender) or the
+  insert failed (Vercel logs, search `insert FAILED`). Use **Sync Inbox** to backfill —
+  it is now safe to run repeatedly (duplicates are skipped).
 - **Pull recent messages manually:** click **Sync Inbox** in the chat — triggers `inbox/export`.
 - **Nothing sends:** check `SMSGATE_*` env vars are set and the phone shows "ONLINE".
 - **Inspect inbound payloads:** Vercel → Functions → Logs, search `[Webhook]`.

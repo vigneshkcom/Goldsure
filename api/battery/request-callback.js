@@ -20,8 +20,29 @@ export default async function handler(req, res) {
     return name.toLowerCase().replace(/(^|[\s'’\-])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
   };
 
+  // Normalise AU mobile formats to E.164 so inbound replies land in the same
+  // thread as outbound sends (0412… / 61412… / +61412… are all the one number).
+  // Non-matching values (shortcodes, alphanumeric sender IDs) pass through as-is.
+  const normalizeAuPhone = (raw) => {
+    const s = String(raw || '').replace(/[\s\-().]/g, '');
+    if (/^04\d{8}$/.test(s)) return '+61' + s.slice(1);
+    if (/^614\d{8}$/.test(s)) return '+' + s;
+    return s;
+  };
+
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
+    // Debug: last 25 rows as saved (newest receive-time first) — use to check
+    // whether a missing reply ever reached the database at all.
+    if (req.query.action === 'recent') {
+      const supaRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,direction,status,created_at,message,sms_gate_id&order=created_at.desc&limit=25`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const rows = await supaRes.json();
+      return res.status(200).json(rows);
+    }
+
     // GHL contact search (used by new-conversation picker in the SMS UI)
     if (req.query.action === 'ghl-contacts') {
       const q = (req.query.q || '').trim();
@@ -398,24 +419,56 @@ export default async function handler(req, res) {
     console.log('[Webhook] inbound payload:', JSON.stringify(body));
 
     // SMS Gate may use different field names across versions — handle all variants
-    const phoneNumber = p.phoneNumber || p.from || p.sender || p.source || p.phone;
-    const message     = p.message     || p.text || p.content || p.body;
-    const messageId   = p.messageId   || p.id   || p.msgId   || null;
-    const receivedAt  = p.receivedAt  || p.timestamp || p.date || new Date().toISOString();
+    const phoneRaw  = p.phoneNumber || p.from || p.sender || p.source || p.phone;
+    let   message   = p.message     || p.text || p.content || p.body;
+    const messageId = p.messageId   || p.id   || p.msgId   || null;
 
-    if (!phoneNumber || !message) {
+    // Media/MMS messages can arrive with no text body — keep a placeholder
+    // rather than dropping them with a 400.
+    if (!message && phoneRaw) {
+      message = '[Media message received — view on the gateway phone]';
+    }
+
+    if (!phoneRaw || !message) {
       console.error('[Webhook] missing fields. Body was:', JSON.stringify(body));
       return res.status(400).json({ error: 'phoneNumber and message are required', received: body });
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+    const phoneNumber = normalizeAuPhone(phoneRaw);
+
+    // Sanitise the timestamp — an unparseable value would make the insert fail
+    let receivedAt = p.receivedAt || p.timestamp || p.date;
+    if (!receivedAt || isNaN(new Date(receivedAt).getTime())) {
+      receivedAt = new Date().toISOString();
+    }
+
+    const supaHeaders = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    };
+
+    // De-dup: Sync (inbox/export) re-fires webhooks for messages we already
+    // have. Skip the insert if this SMS Gate message id is already stored.
+    if (messageId) {
+      try {
+        const dupRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_messages?sms_gate_id=eq.${encodeURIComponent(messageId)}&direction=eq.inbound&select=id&limit=1`,
+          { headers: supaHeaders }
+        );
+        const dups = await dupRes.json().catch(() => []);
+        if (Array.isArray(dups) && dups.length) {
+          return res.status(200).json({ success: true, duplicate: true });
+        }
+      } catch (e) { console.error('[Webhook] dup-check failed (continuing):', e.message); }
+    }
+
+    // The insert MUST be verified — returning 200 on a failed insert tells
+    // SMS Gate the message was delivered and it is silently lost forever.
+    // A non-2xx response makes SMS Gate retry the webhook.
+    const insRes = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
       method: 'POST',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
+      headers: { ...supaHeaders, Prefer: 'return=minimal' },
       body: JSON.stringify({
         phone_number: phoneNumber,
         message,
@@ -425,6 +478,12 @@ export default async function handler(req, res) {
         created_at: receivedAt,
       }),
     });
+
+    if (!insRes.ok) {
+      const detail = await insRes.text();
+      console.error('[Webhook] Supabase insert FAILED', insRes.status, detail);
+      return res.status(500).json({ error: 'Database insert failed', status: insRes.status, detail });
+    }
 
     return res.status(200).json({ success: true });
   }
