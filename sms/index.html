@@ -301,7 +301,7 @@
 
     /* Composer */
     .composer { border-top: 1px solid var(--border); padding: 16px 22px 18px; }
-    .composer-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .composer-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
     .composer-box {
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -350,6 +350,36 @@
     }
     .send-btn:hover { background: var(--purple-dark); }
     .send-btn:disabled { background: var(--faint); cursor: not-allowed; }
+
+    .tpl-toggle-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: 1px solid var(--border); background: var(--page); color: var(--muted);
+      padding: 5px 11px; border-radius: 7px; font-size: 11.5px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .tpl-toggle-btn:hover, .tpl-toggle-btn.active { background: var(--purple-soft); color: var(--purple); border-color: var(--purple); }
+
+    /* ── Templates panel ─────────────────────────────── */
+    .tpl-panel { display: none; border-top: 1px solid var(--border); max-height: 300px; overflow-y: auto; flex-shrink: 0; }
+    .tpl-panel.open { display: block; }
+    .tpl-name-row { display: flex; align-items: center; gap: 8px; padding: 9px 22px; border-bottom: 1px solid var(--border); background: var(--purple-soft); }
+    .tpl-name-row label { font-size: 11.5px; font-weight: 600; color: var(--purple); white-space: nowrap; }
+    .tpl-name-input { flex: 1; max-width: 180px; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px; font-family: inherit; font-size: 12.5px; outline: none; background: #fff; }
+    .tpl-name-input:focus { border-color: var(--purple); }
+    .tpl-name-hint { font-size: 11px; color: var(--purple); opacity: 0.75; }
+    .tpl-folder-hd { display: flex; align-items: center; justify-content: space-between; padding: 9px 22px; background: var(--page); border-bottom: 1px solid var(--border); cursor: pointer; font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.9px; text-transform: uppercase; user-select: none; }
+    .tpl-folder-hd:hover { color: var(--purple); }
+    .tpl-folder-hd .chevron { transition: transform 0.15s; flex-shrink: 0; }
+    .tpl-folder-hd.closed .chevron { transform: rotate(-90deg); }
+    .tpl-items.closed { display: none; }
+    .tpl-item { display: flex; align-items: center; gap: 14px; padding: 10px 22px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .tpl-item:last-child { border-bottom: none; }
+    .tpl-item:hover { background: var(--purple-soft); }
+    .tpl-item-body { flex: 1; min-width: 0; }
+    .tpl-item-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .tpl-item-preview { font-size: 11.5px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tpl-use-btn { flex-shrink: 0; background: var(--purple); color: #fff; border: none; padding: 5px 13px; border-radius: 7px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.1s; pointer-events: none; }
+    .tpl-item:hover .tpl-use-btn { background: var(--purple-dark); }
 
     /* Scrollbars */
     .contacts::-webkit-scrollbar, .messages::-webkit-scrollbar { width: 6px; }
@@ -448,10 +478,18 @@
         <div class="msg-loading">Loading messages…</div>
       </div>
 
+      <div class="tpl-panel" id="tplPanel"></div>
+
       <div class="composer">
         <div class="composer-label">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          Message Content
+          <span style="display:flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Message Content
+          </span>
+          <button class="tpl-toggle-btn" id="tplToggleBtn" onclick="toggleTemplates()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Templates
+          </button>
         </div>
         <div class="composer-box">
           <textarea
@@ -868,6 +906,130 @@
     const clean = p.replace(/\s/g, '');
     if (/^04\d{8}$/.test(clean)) return '+61' + clean.slice(1);
     return clean;
+  }
+
+  // ── Templates ──────────────────────────────────────────────────────────────
+  const TEMPLATES = [
+    { folder: 'Smoke Alarms', open: true, items: [
+      { name: 'Not Reachable', body:
+`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your smoke alarm upgrade enquiry but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar- or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \nGoldsure Pty Ltd \n0403 600 331\n07 2145 5155` },
+      { name: 'Quote Sent (No Answer)', body:
+`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on 07 2145 5155, or book a convenient time for a call using this link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-\n\nKind regards, \nGoldsure Pty Ltd\n0403 600 331\n07 2145 5155` },
+    ]},
+    { folder: 'HWS', open: false, items: [
+      { name: 'Consent Form – Jotform', body:
+`Hi {{contact.first_name}},\n\nTo proceed with your hot water system installation, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check rebate eligibility and book your installation.\n\nThank you,\nGoldsure Pty Ltd\n03 7050 2846` },
+      { name: 'IHA Appointment – Next Day Reminder', body:
+`Hi {{contact.first_name}},\n\nJust a reminder your Home Assessment is booked in for tomorrow.\n\nTo speed up your rebate approval, please have ready:\n-Licence, passport or Medicare card\n-Latest ATO Notice of Assessment\n-Pension card (if applicable)\n\nPlease reply to confirm you will be home with the documents, or reply if you would like to reschedule.\n\nQuestions? \nCall 03 7050 2846.\nThanks, Goldsure Pty Ltd` },
+    ]},
+    { folder: 'General', open: false, items: [
+      { name: 'Referral / Incoming Call – Consent', body:
+`Hi {{contact.first_name}}, \n\nThank you for your recent call regarding energy efficient upgrades at your property. To assist you further, we need your consent to proceed. Please reply to this message with 'YES' via SMS to confirm your consent and our team will be in contact to continue the upgrade process.\n\nWe look forward to hearing back from you and exploring how we can help you achieve your energy efficiency goals.\n\nBest regards, \nGoldsure Pty Ltd` },
+    ]},
+  ];
+
+  // Track open/closed state per folder
+  const tplFolderOpen = TEMPLATES.map(f => f.open);
+
+  function renderTemplates() {
+    const staffName = localStorage.getItem('staffFirstName') || '';
+    const panel = document.getElementById('tplPanel');
+    let html = `
+      <div class="tpl-name-row">
+        <label>Your name:</label>
+        <input class="tpl-name-input" id="tplNameInput" value="${esc(staffName)}" placeholder="e.g. David"
+          oninput="localStorage.setItem('staffFirstName',this.value.trim())" />
+        <span class="tpl-name-hint">fills {{user.first_name}}</span>
+      </div>`;
+
+    TEMPLATES.forEach((folder, fi) => {
+      const isOpen = tplFolderOpen[fi];
+      html += `
+      <div class="tpl-folder-hd ${isOpen ? '' : 'closed'}" data-fi="${fi}">
+        <span>${esc(folder.folder)}</span>
+        <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="tpl-items ${isOpen ? '' : 'closed'}">`;
+      folder.items.forEach((item, ii) => {
+        const preview = item.body.split('\n')[0];
+        html += `
+        <div class="tpl-item" data-fi="${fi}" data-ii="${ii}">
+          <div class="tpl-item-body">
+            <div class="tpl-item-name">${esc(item.name)}</div>
+            <div class="tpl-item-preview">${esc(preview)}</div>
+          </div>
+          <button class="tpl-use-btn">Use</button>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+
+    panel.innerHTML = html;
+  }
+
+  // Event delegation for the template panel
+  document.getElementById('tplPanel').addEventListener('click', e => {
+    // Folder toggle
+    const hd = e.target.closest('.tpl-folder-hd');
+    if (hd) {
+      const fi = parseInt(hd.dataset.fi, 10);
+      tplFolderOpen[fi] = !tplFolderOpen[fi];
+      hd.classList.toggle('closed', !tplFolderOpen[fi]);
+      hd.nextElementSibling.classList.toggle('closed', !tplFolderOpen[fi]);
+      return;
+    }
+    // Template item
+    const item = e.target.closest('.tpl-item');
+    if (item) {
+      const fi = parseInt(item.dataset.fi, 10);
+      const ii = parseInt(item.dataset.ii, 10);
+      applyTemplate(TEMPLATES[fi].items[ii].body);
+    }
+  });
+
+  function toggleTemplates() {
+    const panel = document.getElementById('tplPanel');
+    const btn   = document.getElementById('tplToggleBtn');
+    const opening = !panel.classList.contains('open');
+    if (opening) {
+      renderTemplates();
+      panel.classList.add('open');
+      btn.classList.add('active');
+    } else {
+      panel.classList.remove('open');
+      btn.classList.remove('active');
+    }
+  }
+
+  function applyTemplate(body) {
+    let text = body;
+
+    // Substitute {{contact.first_name}}
+    const firstName = (activePhone && ghlNames[activePhone])
+      ? ghlNames[activePhone].trim().split(/\s+/)[0] : null;
+    if (firstName) text = text.replaceAll('{{contact.first_name}}', firstName);
+
+    // Substitute {{user.first_name}}
+    const staffName = (localStorage.getItem('staffFirstName') || '').trim();
+    if (staffName) text = text.replaceAll('{{user.first_name}}', staffName);
+
+    const input = document.getElementById('msgInput');
+    input.value = text;
+    autoResize(input);
+    updateCharCount(text);
+
+    // Close templates panel
+    document.getElementById('tplPanel').classList.remove('open');
+    document.getElementById('tplToggleBtn').classList.remove('active');
+
+    input.focus();
+
+    // Select first unfilled {{variable}} so staff can immediately replace it
+    const varStart = text.indexOf('{{');
+    if (varStart !== -1) {
+      const varEnd = text.indexOf('}}', varStart) + 2;
+      input.setSelectionRange(varStart, varEnd);
+    }
   }
 </script>
 </body>
