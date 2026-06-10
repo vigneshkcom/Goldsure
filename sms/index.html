@@ -398,6 +398,10 @@
     .chat-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--purple-soft); color: var(--purple); font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 9px; text-decoration: none; vertical-align: middle; }
     .chat-chip.value { background: #e8f9f0; color: #1f9d57; }
     a.chat-chip:hover { background: var(--purple); color: #fff; }
+    .stage-select { appearance: none; -webkit-appearance: none; border: 1px solid var(--purple); background: var(--purple-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237367f0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 7px center / 9px; color: var(--purple); font-size: 10.5px; font-weight: 600; padding: 2px 22px 2px 9px; border-radius: 9px; font-family: inherit; cursor: pointer; vertical-align: middle; max-width: 230px; }
+    .stage-select:hover { background-color: #e6e2fb; }
+    .stage-select:focus { outline: none; box-shadow: 0 0 0 2px rgba(115,103,240,0.25); }
+    .stage-select:disabled { opacity: 0.5; cursor: wait; }
     .msg-meta .check.sent { color: var(--faint); }
     .meta-fail { color: #ea5455; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
     .optout-banner { display: none; align-items: center; gap: 8px; padding: 9px 22px; background: #fdeaea; color: #b42318; font-size: 12.5px; font-weight: 600; border-bottom: 1px solid #f3b0a8; }
@@ -672,21 +676,63 @@
     }
   }
 
-  // Pipeline chips in the chat header (stage · value · GHL link)
+  // Pipeline chips in the chat header: pipeline pill, editable stage dropdown,
+  // value, GHL link
   function updateHeaderInfo(phone) {
     const el = document.getElementById('chatChips');
     if (!el) return;
     const info = ghlInfo[phone];
     let html = '';
-    if (info && info.stage) {
-      const stageTitle = [info.pipeline, info.stage].filter(Boolean).join(' – ');
-      html += `<span class="chat-chip" title="${esc(stageTitle)}">${esc(info.pipeline ? info.pipeline + ' · ' : '')}${esc(info.stage)}</span> `;
-      if (info.value) html += `<span class="chat-chip value">$${Number(info.value).toLocaleString()}</span> `;
+    if (info && info.pipeline) {
+      html += `<span class="chat-chip">${esc(info.pipeline)}</span> `;
     }
+    if (info && info.stages && info.stages.length && info.opportunityId) {
+      html += `<select class="stage-select" onchange="changeStage(this)" title="Update pipeline stage in GHL">` +
+        info.stages.map(s =>
+          `<option value="${esc(s.id)}" ${s.id === info.stageId ? 'selected' : ''}>${esc(s.name)}</option>`
+        ).join('') +
+        `</select> `;
+    } else if (info && info.stage) {
+      html += `<span class="chat-chip">${esc(info.stage)}</span> `;
+    }
+    if (info && info.value) html += `<span class="chat-chip value">$${Number(info.value).toLocaleString()}</span> `;
     if (info && info.link) {
       html += `<a class="chat-chip" href="${esc(info.link)}" target="_blank" rel="noopener">Open in GHL ↗</a>`;
     }
     el.innerHTML = html;
+  }
+
+  // Move the contact's opportunity to another stage straight from the portal
+  async function changeStage(sel) {
+    const phone = activePhone;
+    const info = ghlInfo[phone];
+    if (!info || !info.opportunityId) return;
+    const stageId = sel.value;
+    const prev = info.stageId;
+    sel.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-stage', opportunityId: info.opportunityId, pipelineId: info.pipelineId, stageId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        info.stageId = stageId;
+        info.stage = (info.stages.find(s => s.id === stageId) || {}).name || info.stage;
+        info.t = Date.now();
+        saveGhlInfo();
+        rerenderContacts();
+      } else {
+        alert('Could not update stage: ' + (data.error || 'Unknown error'));
+        sel.value = prev;
+      }
+    } catch {
+      alert('Network error updating stage');
+      sel.value = prev;
+    } finally {
+      sel.disabled = false;
+    }
   }
 
   // Refresh the open conversation's pipeline info (cheap single-phone call,
@@ -694,7 +740,9 @@
   async function refreshActiveInfo(phone) {
     const i = ghlInfo[phone];
     updateHeaderInfo(phone);
-    if (i && i.t && Date.now() - i.t < 5 * 60 * 1000) return;
+    const fresh = i && i.t && Date.now() - i.t < 5 * 60 * 1000;
+    const missingStages = i && i.stage && !i.stages;   // cached before dropdown existed
+    if (fresh && !missingStages) return;
     const cid = i && i.contactId ? `&cid=${encodeURIComponent(i.contactId)}` : '';
     try {
       const res = await fetch(`${API}?action=ghl-opps&phones=${encodeURIComponent(phone)}${cid}`);

@@ -185,10 +185,16 @@ export default async function handler(req, res) {
             const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
             const opp = opps.filter(o => o.status === 'open').sort(byUpdated)[0] || opps.sort(byUpdated)[0];
             if (opp) {
-              info.pipeline  = pipeName(opp.pipelineId);
-              info.stage     = stageName(opp.pipelineId, opp.pipelineStageId);
-              info.value     = opp.monetaryValue || 0;
-              info.oppStatus = opp.status || '';
+              info.pipeline      = pipeName(opp.pipelineId);
+              info.stage         = stageName(opp.pipelineId, opp.pipelineStageId);
+              info.value         = opp.monetaryValue || 0;
+              info.oppStatus     = opp.status || '';
+              info.opportunityId = opp.id;
+              info.pipelineId    = opp.pipelineId;
+              info.stageId       = opp.pipelineStageId;
+              // Stage list for this contact's pipeline → powers the stage dropdown
+              const pipe = pipes.find(x => x.id === opp.pipelineId);
+              info.stages = pipe ? (pipe.stages || []).map(s => ({ id: s.id, name: s.name })) : [];
             }
           }
         } catch {}
@@ -447,6 +453,25 @@ export default async function handler(req, res) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ status: 'cancelled' }),
     });
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=update-stage: move a GHL opportunity to another stage ───────
+  if (body.action === 'update-stage') {
+    const { opportunityId, pipelineId, stageId } = body;
+    if (!opportunityId || !stageId) return res.status(400).json({ error: 'opportunityId and stageId required' });
+    const apiKey = process.env.GHL_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'GHL not configured' });
+    const r = await fetch(`https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opportunityId)}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipelineId, pipelineStageId: stageId }),
+    });
+    if (!r.ok) {
+      const detail = await r.text();
+      console.error('[GHL update-stage]', r.status, detail);
+      return res.status(502).json({ error: 'GHL rejected the stage update', detail });
+    }
     return res.status(200).json({ success: true });
   }
 
