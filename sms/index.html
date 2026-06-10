@@ -391,6 +391,31 @@
     .tab-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; align-items: center; justify-content: center; background: #ea5455; color: #fff; border-radius: 9px; font-size: 10.5px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
     .tab-badge.show { display: inline-flex; }
 
+    /* ── Note mode + schedule ────────────────────────── */
+    .composer-box.note-mode { border-color: #f0b429; background: #fffaf0; }
+    .composer-box.note-mode .composer-footer { background: #fff5e0; }
+    .composer-box.note-mode .char-info { display: none; }
+    .note-opts { display: none; align-items: center; gap: 8px; padding: 10px 22px 0; font-size: 12px; color: #8a6d1a; cursor: pointer; user-select: none; }
+    .note-opts.show { display: flex; }
+    .note-opts input { accent-color: #f0b429; width: 15px; height: 15px; }
+    .schedule-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; border: 1px solid var(--border); background: #fff; color: var(--muted); border-radius: 9px; cursor: pointer; transition: all 0.15s; }
+    .schedule-btn:hover, .schedule-btn.active { color: var(--purple); border-color: var(--purple); background: var(--purple-soft); }
+    .schedule-bar { display: none; align-items: center; gap: 8px; padding: 11px 16px; border-top: 1px solid var(--border); background: var(--purple-soft); font-size: 12.5px; color: var(--text); flex-wrap: wrap; }
+    .schedule-bar.show { display: flex; }
+    .schedule-bar input { border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; font-family: inherit; font-size: 12.5px; outline: none; }
+    .sched-confirm { background: var(--purple); color: #fff; border: none; padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .sched-confirm:hover { background: var(--purple-dark); }
+    .sched-cancel { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; font-family: inherit; }
+
+    /* Internal note + scheduled message bubbles */
+    .msg-note { align-self: center; max-width: 80%; background: #fff8e6; border: 1px solid #f3d57e; border-radius: 12px; padding: 9px 14px; margin: 8px 0; font-size: 13px; color: #7a5d10; line-height: 1.5; white-space: pre-wrap; }
+    .msg-note .note-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #b88a14; display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+    .msg-note .note-meta { font-size: 10.5px; color: #b6962f; margin-top: 5px; }
+    .msg-group.scheduled .bubble { background: #ede9fe; color: var(--purple-dark); border: 1px dashed var(--purple); }
+    .msg-group.failed .bubble { background: #fdeaea; color: #b42318; border: 1px solid #f3b0a8; }
+    .sched-label { font-size: 11px; color: var(--purple); font-weight: 600; margin-top: 5px; padding: 0 4px; display: flex; align-items: center; gap: 8px; }
+    .sched-cancel-link { background: none; border: none; color: #ea5455; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; text-decoration: underline; }
+
     /* Scrollbars */
     .contacts::-webkit-scrollbar, .messages::-webkit-scrollbar { width: 6px; }
     .contacts::-webkit-scrollbar-thumb, .messages::-webkit-scrollbar-thumb { background: #dcdae8; border-radius: 3px; }
@@ -499,12 +524,18 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             Message Content
           </span>
-          <button class="tpl-toggle-btn" id="tplToggleBtn" onclick="toggleTemplates()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            Templates
-          </button>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <button class="tpl-toggle-btn" id="noteToggleBtn" onclick="toggleNoteMode()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Note
+            </button>
+            <button class="tpl-toggle-btn" id="tplToggleBtn" onclick="toggleTemplates()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Templates
+            </button>
+          </span>
         </div>
-        <div class="composer-box">
+        <div class="composer-box" id="composerBox">
           <textarea
             class="msg-input"
             id="msgInput"
@@ -513,12 +544,24 @@
             oninput="onInputChange(this)"
             onkeydown="onKeydown(event)"
           ></textarea>
+          <div class="schedule-bar" id="schedBar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Send at:</span>
+            <input type="datetime-local" id="schedTime" />
+            <button class="sched-confirm" onclick="confirmSchedule()">Schedule</button>
+            <button class="sched-cancel" onclick="toggleSchedule()">Cancel</button>
+          </div>
           <div class="composer-footer">
             <span class="char-info" id="charCount"><b>0</b> / 160 characters<span class="parts">GSM · 1 part</span></span>
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-              Send
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="schedule-btn" id="schedBtn" onclick="toggleSchedule()" title="Schedule send" style="height:38px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </button>
+              <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                Send
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -536,6 +579,8 @@
   let pollTimer = null;
   let allContacts = [];
   let ghlTimer = null;
+  let noteMode = false;
+  let schedBarOpen = false;
 
   // Unread tracking + notifications
   let lastSeen = {};                  // phone → ISO of newest message the user has viewed
@@ -778,6 +823,8 @@
     saveLastSeen();
     rerenderContacts();
 
+    if (noteMode) toggleNoteMode();
+    if (schedBarOpen) toggleSchedule();
     clearInterval(pollTimer);
     await reloadMessages();
     pollTimer = setInterval(reloadMessages, 20000);
@@ -887,15 +934,46 @@
     let html = '';
     let lastDate = '';
     for (const m of messages) {
+      if (m.status === 'cancelled') continue;
+
       const d = new Date(m.created_at);
       const dateStr = d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
       if (dateStr !== lastDate) {
         html += `<div class="date-sep">${dateStr}</div>`;
         lastDate = dateStr;
       }
+
+      if (m.status === 'note') {
+        html += `<div class="msg-note">
+          <div class="note-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Internal Note</div>
+          ${esc(m.message)}
+          <div class="note-meta">${esc(fullTime(d))}</div>
+        </div>`;
+        continue;
+      }
+
+      if (m.status === 'scheduled') {
+        const sendAt = m.sms_gate_id && m.sms_gate_id.startsWith('sched:')
+          ? new Date(m.sms_gate_id.replace('sched:', '')) : null;
+        const schedLabel = sendAt
+          ? sendAt.toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+          : 'Scheduled';
+        html += `<div class="msg-group out scheduled">
+          <div class="msg-sender">${esc(AGENT_NAME)}</div>
+          <div class="bubble">${esc(m.message)}</div>
+          <div class="sched-label">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Scheduled for ${esc(schedLabel)}
+            <button class="sched-cancel-link" onclick="cancelScheduled(${Number(m.id)})">Cancel</button>
+          </div>
+        </div>`;
+        continue;
+      }
+
       const out = m.direction === 'outbound';
+      const failCls = m.status === 'failed' ? ' failed' : '';
       html += `
-        <div class="msg-group ${out ? 'out' : 'in'}">
+        <div class="msg-group ${out ? 'out' : 'in'}${failCls}">
           ${out ? `<div class="msg-sender">${esc(AGENT_NAME)}</div>` : ''}
           <div class="bubble">${esc(m.message)}</div>
           <div class="msg-meta">
@@ -911,6 +989,7 @@
   // ── Send ───────────────────────────────────────────────────────────────────
   async function sendMessage() {
     if (!activePhone) return;
+    if (noteMode) return saveNote();
     const input = document.getElementById('msgInput');
     const message = input.value.trim();
     if (!message) return;
@@ -1172,6 +1251,117 @@
     if (varStart !== -1) {
       const varEnd = text.indexOf('}}', varStart) + 2;
       input.setSelectionRange(varStart, varEnd);
+    }
+  }
+  // ── Note mode ──────────────────────────────────────────────────────────────
+  function toggleNoteMode() {
+    noteMode = !noteMode;
+    document.getElementById('composerBox').classList.toggle('note-mode', noteMode);
+    document.getElementById('noteToggleBtn').classList.toggle('active', noteMode);
+    const input = document.getElementById('msgInput');
+    input.placeholder = noteMode
+      ? 'Write an internal note… (staff only, also posted to GHL contact)'
+      : 'Type your message…';
+    const sendSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+    const noteSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    document.getElementById('sendBtn').innerHTML = noteMode ? `Save Note ${noteSvg}` : `Send ${sendSvg}`;
+    // schedule and note modes are mutually exclusive
+    if (noteMode && schedBarOpen) { schedBarOpen = false; document.getElementById('schedBar').classList.remove('show'); document.getElementById('schedBtn').classList.remove('active'); }
+    // hide/show schedule button
+    document.getElementById('schedBtn').style.visibility = noteMode ? 'hidden' : '';
+    input.focus();
+  }
+
+  async function saveNote() {
+    const input = document.getElementById('msgInput');
+    const message = input.value.trim();
+    if (!message) return;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    const saved = input.value;
+    input.value = ''; autoResize(input); updateCharCount('');
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'note', phone: activePhone, message }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await reloadMessages();
+      } else {
+        alert('Could not save note: ' + (data.error || 'Unknown error'));
+        input.value = saved;
+      }
+    } catch {
+      alert('Network error saving note');
+      input.value = saved;
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  // ── Schedule send ──────────────────────────────────────────────────────────
+  function toggleSchedule() {
+    if (noteMode) return;
+    schedBarOpen = !schedBarOpen;
+    document.getElementById('schedBar').classList.toggle('show', schedBarOpen);
+    document.getElementById('schedBtn').classList.toggle('active', schedBarOpen);
+    if (schedBarOpen) {
+      const dt = new Date(Date.now() + 3600000);
+      dt.setSeconds(0, 0);
+      document.getElementById('schedTime').value =
+        new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
+  }
+
+  async function confirmSchedule() {
+    const input = document.getElementById('msgInput');
+    const message = input.value.trim();
+    if (!message) { alert('Enter a message first.'); return; }
+    const schedTime = document.getElementById('schedTime').value;
+    if (!schedTime) { alert('Pick a send time.'); return; }
+    const sendAt = new Date(schedTime).toISOString();
+    if (new Date(sendAt) <= new Date()) { alert('Schedule time must be in the future.'); return; }
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'schedule', phone: activePhone, message, sendAt }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        input.value = ''; autoResize(input); updateCharCount('');
+        schedBarOpen = true; toggleSchedule(); // close bar
+        await reloadMessages();
+        await loadContacts();
+      } else {
+        alert('Could not schedule: ' + (data.error || 'Unknown error'));
+      }
+    } catch {
+      alert('Network error scheduling message');
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  async function cancelScheduled(id) {
+    if (!confirm('Cancel this scheduled message?')) return;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel-schedule', id }),
+      });
+      const data = await res.json();
+      if (data.success) await reloadMessages();
+      else alert('Could not cancel: ' + (data.error || 'Unknown error'));
+    } catch {
+      alert('Network error');
     }
   }
 </script>

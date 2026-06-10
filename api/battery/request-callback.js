@@ -100,7 +100,44 @@ export default async function handler(req, res) {
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await supaRes.json();
-      return res.status(200).json(Array.isArray(rows) ? rows : []);
+      const messages = Array.isArray(rows) ? rows : [];
+
+      // Fire any past-due scheduled messages (best-effort, async)
+      const pastDue = messages.filter(m =>
+        m.status === 'scheduled' &&
+        typeof m.sms_gate_id === 'string' && m.sms_gate_id.startsWith('sched:') &&
+        new Date(m.sms_gate_id.replace('sched:', '')) <= new Date()
+      );
+      if (pastDue.length) {
+        const user = process.env.SMSGATE_USERNAME;
+        const pass = process.env.SMSGATE_PASSWORD;
+        if (user && pass) {
+          const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+          for (const m of pastDue) {
+            try {
+              const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+                method: 'POST',
+                headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  phoneNumbers: [m.phone_number],
+                  textMessage: { text: m.message },
+                  ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
+                }),
+              });
+              const newStatus = smsRes.ok ? 'sent' : 'failed';
+              const smsData = smsRes.ok ? await smsRes.json().catch(() => ({})) : {};
+              await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
+                method: 'PATCH',
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+                body: JSON.stringify({ status: newStatus, sms_gate_id: smsData.id || m.sms_gate_id }),
+              });
+              m.status = newStatus;
+            } catch (e) { console.error('[Schedule fire]', e.message); }
+          }
+        }
+      }
+
+      return res.status(200).json(messages);
     }
 
     // Contacts: deduplicate to latest message per phone number
@@ -164,6 +201,72 @@ export default async function handler(req, res) {
       since,
       note: 'Export requested. Received messages arrive via webhook within a few seconds.',
     });
+  }
+
+  // ── POST action=note: save internal note + post to GHL ─────────────────────
+  if (body.action === 'note') {
+    const { phone, message } = body;
+    if (!phone || !message) return res.status(400).json({ error: 'phone and message required' });
+
+    // Save to Supabase
+    await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ phone_number: phone, message, direction: 'outbound', status: 'note' }),
+    });
+
+    // Post to GHL contact notes (best-effort)
+    const apiKey = process.env.GHL_API_KEY;
+    const locationId = process.env.GHL_LOCATION_ID;
+    if (apiKey && locationId) {
+      try {
+        const last9 = s => String(s || '').replace(/\D/g, '').slice(-9);
+        const target = last9(phone);
+        const variants = [...new Set([phone, phone.replace(/^\+/, ''), '0' + target, target])];
+        let contactId = null;
+        const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+        for (const q of variants) {
+          const r = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`, { headers: hdrs });
+          if (!r.ok) continue;
+          const d = await r.json();
+          const match = (d.contacts || []).find(c => last9(c.phone) === target);
+          if (match) { contactId = match.id; break; }
+        }
+        if (contactId) {
+          await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/notes`, {
+            method: 'POST',
+            headers: { ...hdrs, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ body: `[SMS Portal Note]\n${message}` }),
+          });
+        }
+      } catch (e) { console.error('[GHL note]', e.message); }
+    }
+
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=schedule: save a scheduled outbound SMS ─────────────────────
+  if (body.action === 'schedule') {
+    const { phone, message, sendAt } = body;
+    if (!phone || !message || !sendAt) return res.status(400).json({ error: 'phone, message and sendAt required' });
+    await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ phone_number: phone, message, direction: 'outbound', status: 'scheduled', sms_gate_id: `sched:${sendAt}` }),
+    });
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=cancel-schedule: mark a scheduled message as cancelled ───────
+  if (body.action === 'cancel-schedule') {
+    const { id } = body;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: 'cancelled' }),
+    });
+    return res.status(200).json({ success: true });
   }
 
   // ── POST action=send: outbound SMS ──────────────────────────────────────────
