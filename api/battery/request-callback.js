@@ -321,6 +321,73 @@ export default async function handler(req, res) {
       });
     }
 
+    // Fire all past-due scheduled messages across every phone (used by the bulk
+    // send poller in the UI so messages fire even without opening each conversation).
+    if (req.query.action === 'fire-scheduled') {
+      const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const schedRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id,phone_number,message,sms_gate_id&order=created_at.asc&limit=10`,
+        { headers: ah }
+      );
+      const all = await schedRes.json().catch(() => []);
+      const pastDue = (Array.isArray(all) ? all : []).filter(m => {
+        if (!m.sms_gate_id || !m.sms_gate_id.startsWith('sched:')) return false;
+        const ts = new Date(m.sms_gate_id.slice(6, 32));
+        return !isNaN(ts) && ts <= new Date();
+      });
+
+      const user = process.env.SMSGATE_USERNAME;
+      const pass = process.env.SMSGATE_PASSWORD;
+      let fired = 0;
+      if (user && pass) {
+        const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+        for (const m of pastDue) {
+          if (await isOptedOut(m.phone_number)) {
+            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
+              method: 'PATCH',
+              headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ status: 'cancelled' }),
+            });
+            continue;
+          }
+          const claimRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}&status=eq.scheduled`,
+            { method: 'PATCH', headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+              body: JSON.stringify({ status: 'sending' }) }
+          );
+          const claimed = await claimRes.json().catch(() => []);
+          if (!Array.isArray(claimed) || !claimed.length) continue;
+          try {
+            const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+              method: 'POST',
+              headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phoneNumbers: [m.phone_number],
+                textMessage: { text: m.message },
+                ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
+              }),
+            });
+            const newStatus = smsRes.ok ? 'sent' : 'failed';
+            const smsData = smsRes.ok ? await smsRes.json().catch(() => ({})) : {};
+            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
+              method: 'PATCH',
+              headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ status: newStatus, ...(smsData.id ? { sms_gate_id: smsData.id } : {}) }),
+            });
+            if (smsRes.ok) fired++;
+          } catch {}
+        }
+      }
+
+      // Total remaining scheduled (so the UI knows when it's done)
+      const remRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id&limit=1000`,
+        { headers: ah }
+      );
+      const remRows = await remRes.json().catch(() => []);
+      return res.status(200).json({ fired, remaining: Array.isArray(remRows) ? remRows.length : 0 });
+    }
+
     const { phone } = req.query;
 
     if (phone) {
@@ -522,6 +589,51 @@ export default async function handler(req, res) {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ phone_number: phone, message, direction: 'outbound', status: 'scheduled', sms_gate_id: `sched:${sendAt}` }),
     });
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=bulk-send: schedule N messages with staggered fire times ──────
+  if (body.action === 'bulk-send') {
+    const phones  = (Array.isArray(body.phones) ? body.phones : []).slice(0, 500);
+    const msgTpl  = String(body.message || '').trim();
+    const names   = (body.names && typeof body.names === 'object') ? body.names : {};
+    const intervalMs = Math.max(5000, Math.min(3600000, (parseInt(body.intervalSeconds) || 60) * 1000));
+
+    if (!phones.length || !msgTpl) return res.status(400).json({ error: 'phones and message required' });
+
+    const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    const results = [];
+    let slot = 0; // counts only the messages actually scheduled (skips don't consume a slot)
+
+    for (const rawPhone of phones) {
+      const phone = normalizeAuPhone(rawPhone);
+      if (await isOptedOut(phone)) { results.push({ phone, status: 'skipped', reason: 'opted-out' }); continue; }
+      const firstName = names[rawPhone] || names[phone] || '';
+      const text = msgTpl.replace(/\{\{contact\.first_name\}\}/g, firstName);
+      const fireAt = new Date(Date.now() + slot * intervalMs).toISOString();
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+        method: 'POST',
+        headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt }),
+      });
+      results.push({ phone, status: r.ok ? 'scheduled' : 'error', fireAt });
+      if (r.ok) slot++;
+    }
+    return res.status(200).json({ results });
+  }
+
+  // ── POST action=cancel-bulk: cancel all future scheduled messages for a set of phones
+  if (body.action === 'cancel-bulk') {
+    const phones = (Array.isArray(body.phones) ? body.phones : []).map(p => normalizeAuPhone(p));
+    if (!phones.length) return res.status(400).json({ error: 'phones required' });
+    const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    // Cancel scheduled rows for these phones (future ones only — those still 'scheduled')
+    const inList = phones.map(p => `"${p.replace(/"/g, '')}"`).join(',');
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&phone_number=in.(${encodeURIComponent(inList)})`,
+      { method: 'PATCH', headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'cancelled' }) }
+    );
     return res.status(200).json({ success: true });
   }
 
