@@ -389,56 +389,116 @@ export default async function handler(req, res) {
     }
 
     // Return all GHL pipelines with their stages — used to populate the bulk SMS
-    // pipeline/stage filter dropdowns.
+    // pipeline/stage filter dropdowns. On failure the response carries GHL's own
+    // status + message (and ?debug=1 adds env state) so production failures are
+    // diagnosable from the browser without Vercel log access.
     if (req.query.action === 'ghl-pipelines') {
+      res.setHeader('Cache-Control', 'no-store');
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
-      if (!apiKey || !locationId) return res.status(200).json({ error: 'GHL not configured on server' });
+      const debug      = !!req.query.debug;
+      const dbg = (extra) => debug ? {
+        hasKey: !!apiKey, keyLength: (apiKey || '').length,
+        locationId: locationId || null, ...extra,
+      } : {};
+      if (!apiKey || !locationId) {
+        return res.status(200).json({ error: 'GHL not configured on server — set GHL_API_KEY and GHL_LOCATION_ID in Vercel', ...dbg() });
+      }
       try {
         const r = await fetch(
           `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
           { headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' } }
         );
-        if (!r.ok) return res.status(200).json({ error: `GHL responded ${r.status}` });
-        const { pipelines } = await r.json();
-        if (!pipelines || !pipelines.length) return res.status(200).json({ error: 'GHL returned no pipelines' });
+        const raw = await r.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch {}
+        if (!r.ok) {
+          const ghlMsg = data && (data.message || data.error) ? String(data.message || data.error).slice(0, 160) : '';
+          console.error('[ghl-pipelines] GHL error', r.status, raw.slice(0, 400));
+          return res.status(200).json({
+            error: `GHL responded ${r.status}${ghlMsg ? ': ' + ghlMsg : ''}`,
+            ...dbg({ ghlStatus: r.status, ghlBody: raw.slice(0, 400) }),
+          });
+        }
+        const pipelines = (data && data.pipelines) || [];
+        if (!pipelines.length) {
+          console.error('[ghl-pipelines] empty pipeline list. Body:', raw.slice(0, 400));
+          return res.status(200).json({
+            error: 'GHL returned no pipelines — check GHL_LOCATION_ID matches the location that owns the pipelines',
+            ...dbg({ ghlStatus: r.status, ghlBody: raw.slice(0, 400) }),
+          });
+        }
         return res.status(200).json(
           pipelines.map(p => ({
             id: p.id, name: p.name,
             stages: (p.stages || []).map(s => ({ id: s.id, name: s.name })),
           }))
         );
-      } catch (e) { return res.status(200).json({ error: 'GHL request failed: ' + e.message }); }
+      } catch (e) {
+        console.error('[ghl-pipelines] fetch threw', e.message);
+        return res.status(200).json({ error: 'GHL request failed: ' + e.message, ...dbg() });
+      }
     }
 
     // Return contacts (phone + name) for every open opportunity in a given pipeline
     // stage — powers "load all from GHL stage" in bulk SMS.
     if (req.query.action === 'ghl-stage-contacts') {
+      res.setHeader('Cache-Control', 'no-store');
       const stageId    = String(req.query.stageId || '').trim();
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
       if (!stageId) return res.status(200).json({ error: 'stageId required' });
-      if (!apiKey || !locationId) return res.status(200).json({ error: 'GHL not configured on server' });
+      if (!apiKey || !locationId) return res.status(200).json({ error: 'GHL not configured on server — set GHL_API_KEY and GHL_LOCATION_ID in Vercel' });
       const ghlHeaders = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
       try {
         const r = await fetch(
           `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&pipeline_stage_id=${encodeURIComponent(stageId)}&status=open&limit=100`,
           { headers: ghlHeaders }
         );
-        if (!r.ok) return res.status(200).json({ error: `GHL responded ${r.status}` });
-        const { opportunities } = await r.json();
+        const raw = await r.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch {}
+        if (!r.ok) {
+          const ghlMsg = data && (data.message || data.error) ? String(data.message || data.error).slice(0, 160) : '';
+          console.error('[ghl-stage-contacts] GHL error', r.status, raw.slice(0, 400));
+          return res.status(200).json({ error: `GHL responded ${r.status}${ghlMsg ? ': ' + ghlMsg : ''}` });
+        }
+        const opportunities = (data && data.opportunities) || [];
         const out = [];
-        for (const opp of (opportunities || [])) {
+        const missingPhone = []; // opps whose embedded contact had no usable phone
+        for (const opp of opportunities) {
           const c = opp.contact || {};
-          let phone = normalizeAuPhone(c.phone || '');
-          if (!phone) continue;
+          const phone = normalizeAuPhone(c.phone || '');
           const name = tidyName([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '');
-          out.push({ phone, name });
+          if (phone && /\d{6,}/.test(phone)) out.push({ phone, name });
+          else if (c.id || opp.contactId) missingPhone.push(c.id || opp.contactId);
+        }
+        // Some GHL responses embed the contact without a phone — fetch those
+        // contacts individually so stages still load completely.
+        if (missingPhone.length) {
+          await Promise.all([...new Set(missingPhone)].slice(0, 50).map(async (cid) => {
+            try {
+              const cr = await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(cid)}`, { headers: ghlHeaders });
+              if (!cr.ok) return;
+              const cd = await cr.json();
+              const c = cd.contact || cd || {};
+              const phone = normalizeAuPhone(c.phone || '');
+              if (!phone || !/\d{6,}/.test(phone)) return;
+              const name = tidyName([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '');
+              out.push({ phone, name });
+            } catch {}
+          }));
+        }
+        if (!out.length && opportunities.length) {
+          return res.status(200).json({ error: `Stage has ${opportunities.length} open opportunit${opportunities.length > 1 ? 'ies' : 'y'} but none have a contact phone number` });
         }
         // Deduplicate by phone (can be multiple opps per contact)
         const seen = new Set();
         return res.status(200).json(out.filter(x => seen.has(x.phone) ? false : (seen.add(x.phone), true)));
-      } catch (e) { return res.status(200).json({ error: 'GHL request failed: ' + e.message }); }
+      } catch (e) {
+        console.error('[ghl-stage-contacts] fetch threw', e.message);
+        return res.status(200).json({ error: 'GHL request failed: ' + e.message });
+      }
     }
 
     const { phone } = req.query;

@@ -789,7 +789,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v5</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v6</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1585,6 +1585,7 @@
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
   let bulkPipelinesError = '';       // detail for the retry status line
+  let bulkPipelinesSource = '';      // 'api' (live) or 'cache' (ghlInfo fallback)
   let bulkPipelinesAttempts = 0;     // silent auto-retries (covers deploy races)
   let bulkFilterPipeline = '';       // selected pipeline ID
   let bulkFilterStage    = '';       // selected stage ID
@@ -1685,7 +1686,8 @@
         <button class="bulk-load-btn" id="bulkLoadBtn" onclick="loadGhlStageContacts()"
           ${canLoad ? '' : 'disabled'}>${bulkFilterLoading ? 'Loading…' : 'Load contacts'}</button>
       </div>
-      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''}. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a></div>` : ''}
+      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''}. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
+      ${pipesReady && bulkPipelinesSource === 'cache' ? `<div class="bulk-filter-status err">Live GHL fetch failed${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''} (showing pipelines from this browser's cache). <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
       ${bulkFilterMsg.text ? `<div class="bulk-filter-status ${bulkFilterMsg.cls}">${esc(bulkFilterMsg.text)}</div>` : ''}
     </div>`;
 
@@ -1858,7 +1860,8 @@
   // ── Pipeline / Stage filter ────────────────────────────────────────────────
   async function loadBulkPipelines(force) {
     if (bulkPipelinesLoading) return;
-    if (bulkPipelinesCache && bulkPipelinesCache.length && !force) return; // good data already
+    // Live data is final for the session; cache-sourced data re-attempts the API
+    if (bulkPipelinesCache && bulkPipelinesCache.length && bulkPipelinesSource === 'api' && !force) return;
     bulkPipelinesLoading = true;
     bulkPipelinesError = '';
     rerenderBulkIfOpen();
@@ -1898,46 +1901,20 @@
       }
     } catch(e) { bulkPipelinesError = 'network error: ' + e.message; }
 
-    // Fallback 1: ghlInfo sidebar cache — accept entries even without stages list
+    if (pipes) bulkPipelinesSource = 'api';
+
+    // Fallback: ghlInfo sidebar cache. Only pipelines WITH a stage list are
+    // usable — without stages the Stage dropdown is dead and "Load contacts"
+    // can never run, which just masks the real failure.
     if (!pipes) {
       const map = {};
       Object.values(ghlInfo).forEach(i => {
-        if (i && i.pipelineId && i.pipeline) {
-          if (!map[i.pipelineId]) {
-            map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: [] };
-          }
-          if (Array.isArray(i.stages) && i.stages.length && !map[i.pipelineId].stages.length) {
-            map[i.pipelineId].stages = i.stages;
-          }
+        if (i && i.pipelineId && i.pipeline && Array.isArray(i.stages) && i.stages.length) {
+          map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: i.stages };
         }
       });
       const fb = Object.values(map);
-      if (fb.length) pipes = fb;
-    }
-
-    // Fallback 2: call ghl-opps for a batch of known contacts to extract pipeline+stage data
-    // (ghl-opps is the same GHL call and is proven to work — it powers sidebar pipeline pills)
-    if (!pipes && allContacts.length) {
-      try {
-        const phones = allContacts.slice(0, 15).map(c => c.phone_number);
-        const r2 = await fetch(`${API}?action=ghl-opps&phones=${encodeURIComponent(phones.join(','))}&t=${Date.now()}`, { cache: 'no-store' });
-        if (r2.ok) {
-          const oppsData = await r2.json().catch(() => ({}));
-          const pipeMap = {};
-          Object.values(oppsData).forEach(info => {
-            if (info && info.pipelineId && info.pipeline) {
-              if (!pipeMap[info.pipelineId]) {
-                pipeMap[info.pipelineId] = { id: info.pipelineId, name: info.pipeline, stages: [] };
-              }
-              if (Array.isArray(info.stages) && info.stages.length && !pipeMap[info.pipelineId].stages.length) {
-                pipeMap[info.pipelineId].stages = info.stages;
-              }
-            }
-          });
-          const opsFb = Object.values(pipeMap);
-          if (opsFb.length) pipes = opsFb;
-        }
-      } catch {}
+      if (fb.length) { pipes = fb; bulkPipelinesSource = 'cache'; }
     }
 
     bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
