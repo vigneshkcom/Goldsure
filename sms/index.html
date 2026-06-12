@@ -789,7 +789,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS</div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v4</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1011,6 +1011,7 @@
       allContacts.forEach(c => { prevLatest[c.phone_number] = c.created_at; });
       rerenderContacts();
       resolveGhl(allContacts);
+      bulkOnContactsUpdated();
     } catch {
       document.getElementById('contactsList').innerHTML =
         '<div class="empty-list">Could not load conversations.<br>Check the deployment logs.</div>';
@@ -1584,7 +1585,7 @@
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
   let bulkPipelinesError = '';       // detail for the retry status line
-  let bulkPipelinesRetried = false;  // one silent auto-retry (covers deploy races)
+  let bulkPipelinesAttempts = 0;     // silent auto-retries (covers deploy races)
   let bulkFilterPipeline = '';       // selected pipeline ID
   let bulkFilterStage    = '';       // selected stage ID
   let bulkFilterLoading  = false;
@@ -1616,7 +1617,7 @@
 
   function openBulkSend() {
     document.getElementById('bulkOverlay').classList.add('show');
-    bulkPipelinesRetried = false; // re-arm the auto-retry for this open
+    bulkPipelinesAttempts = 0; // re-arm the auto-retries for this open
     renderBulkSetup();
     loadBulkPipelines();
   }
@@ -1874,6 +1875,8 @@
         bulkPipelinesError = d.error;
       } else if (Array.isArray(d) && d.length && d[0] && d[0].phone_number) {
         bulkPipelinesError = 'portal API still deploying — wait a minute, then Retry';
+      } else if (Array.isArray(d) && !d.length) {
+        bulkPipelinesError = 'old API build answered empty — retrying';
       } else if (!r.ok) {
         bulkPipelinesError = 'API error ' + r.status;
       }
@@ -1896,10 +1899,9 @@
     bulkPipelinesLoading = false;
     rerenderBulkIfOpen();
 
-    // One silent auto-retry shortly after a failure — covers the window where
-    // Vercel is still rolling out the new API build.
-    if (!pipes && !bulkPipelinesRetried) {
-      bulkPipelinesRetried = true;
+    // Silent auto-retries after a failure — covers the window where Vercel is
+    // still rolling out the new API build.
+    if (!pipes && ++bulkPipelinesAttempts < 3) {
       setTimeout(() => loadBulkPipelines(true), 4000);
     }
   }
@@ -1908,6 +1910,14 @@
     if (document.getElementById('bulkOverlay').classList.contains('show') && !bulkProgress) {
       renderBulkSetup();
     }
+  }
+
+  // Called when the sidebar contact list finishes loading — refreshes the
+  // modal's contact list if it was opened before contacts arrived.
+  function bulkOnContactsUpdated() {
+    if (!document.getElementById('bulkOverlay').classList.contains('show') || bulkProgress) return;
+    const s = document.getElementById('bulkSearch');
+    renderBulkContactList(s ? s.value : '');
   }
 
   function onBulkPipelineChange(pipelineId) {
