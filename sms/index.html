@@ -490,6 +490,19 @@
     .bulk-send-btn:disabled { opacity: 0.55; cursor: default; }
     .bulk-cancel-btn { background: var(--page); color: var(--muted); border: 1px solid var(--border); padding: 10px 18px; border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
     .bulk-cancel-btn:hover { border-color: #ea5455; color: #ea5455; }
+
+    /* Review-before-send screen */
+    .bulk-review-summary { background: var(--purple-soft); border-radius: 9px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 10px; }
+    .bulk-review-summary b { color: var(--purple); }
+    .bulk-review-msg-label { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 5px; }
+    .bulk-review-msg { background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; margin-bottom: 10px; max-height: 120px; overflow-y: auto; }
+    .bulk-review-list { background: #fff; border-radius: 10px; box-shadow: var(--shadow); max-height: 280px; overflow-y: auto; }
+    .bulk-review-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .bulk-review-item:last-child { border-bottom: none; }
+    .bulk-review-noname { font-size: 10.5px; color: #ff9f43; font-weight: 600; }
+    .bulk-review-remove { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 3px 7px; border-radius: 6px; flex-shrink: 0; }
+    .bulk-review-remove:hover { color: #ea5455; background: #fdeaea; }
+    .bulk-cancel-note { font-size: 11.5px; color: var(--muted); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
     /* Progress view */
     .bulk-progress-bar-wrap { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
     .bulk-progress-bar { height: 100%; background: var(--purple); border-radius: 4px; transition: width 0.4s; }
@@ -789,7 +802,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v10</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v11</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1594,6 +1607,8 @@
   let bulkFilterMsg      = { text: '', cls: '' };
   let bulkCsvOpen        = false;
   let bulkCsvRows        = [];       // parsed CSV preview rows
+  let bulkReviewMode     = false;    // showing the review-before-send screen
+  let bulkMsgDraft       = '';       // preserves the message across screen switches
 
   // Background scheduler — fires past-due scheduled messages every 30s
   let bgFireTimer = null;
@@ -1642,6 +1657,7 @@
 
   function closeBulkSend() {
     document.getElementById('bulkOverlay').classList.remove('show');
+    bulkReviewMode = false; // reopening lands on the setup screen (selection + message kept)
     if (bulkProgress && bulkProgress.pollTimer) { clearInterval(bulkProgress.pollTimer); bulkProgress.pollTimer = null; }
   }
 
@@ -1664,6 +1680,7 @@
 
   function renderBulkSetup() {
     if (bulkProgress) { renderBulkProgress(); return; }
+    if (bulkReviewMode) { renderBulkReview(); return; }
 
     const contacts = getBulkContacts();
     const INTERVALS = [30, 60, 120, 300, 600, 1800];
@@ -1671,7 +1688,8 @@
       `<button class="bulk-interval-btn ${bulkInterval === s && !bulkCustom ? 'active' : ''}"
         onclick="setBulkInterval(${s})">${bulkIntervalLabel(s)}</button>`).join('');
     const msgEl = document.getElementById('bulkMsgInput');
-    const currentMsg = msgEl ? msgEl.value : '';
+    const currentMsg = msgEl ? msgEl.value : bulkMsgDraft;
+    bulkMsgDraft = currentMsg;
 
     // Pipeline/stage filter — three states: loading / loaded / failed (retry)
     const pipesReady = Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length > 0;
@@ -1789,7 +1807,7 @@
     </div>
     <div class="bulk-footer">
       <button class="bulk-cancel-btn" onclick="closeBulkSend()">Cancel</button>
-      <button class="bulk-send-btn" id="bulkSendBtn" onclick="startBulkSend()">Send Bulk SMS</button>
+      <button class="bulk-send-btn" id="bulkSendBtn" onclick="startBulkSend()">Review &amp; Send</button>
     </div>`;
 
     document.getElementById('bulkBody').innerHTML = html;
@@ -1808,7 +1826,7 @@
     list.innerHTML = contacts.map(c => {
       const checked = bulkSelected.has(c.phone);
       const label = c.name || c.phone;
-      const tag = c.source === 'extra' ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">GHL</span>` : '';
+      const tag = c.source === 'extra' ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">${esc(c.origin || 'GHL')}</span>` : '';
       return `
       <label class="bulk-contact-item">
         <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleBulkContact('${esc(c.phone)}', this.checked)" />
@@ -1856,6 +1874,7 @@
   function applyBulkCustom(val) { const n = parseInt(val, 10); if (n >= 5) { bulkInterval = n; updateBulkPreview(); } }
 
   function updateBulkCharCount(text) {
+    bulkMsgDraft = text;
     const { len, parts, encoding } = smsInfo(text);
     const row = document.getElementById('bulkCharRow');
     if (row) row.textContent = `${len} chars · ${parts} SMS · ${encoding}`;
@@ -2039,7 +2058,7 @@
         // Merge into bulkExtraContacts + auto-select all
         contacts.forEach(c => {
           if (c.name) saveGhlName(c.phone, c.name);
-          if (!bulkExtraContacts.find(e => e.phone === c.phone)) bulkExtraContacts.push(c);
+          if (!bulkExtraContacts.find(e => e.phone === c.phone)) bulkExtraContacts.push({ ...c, origin: 'GHL' });
           bulkSelected.add(c.phone);
         });
         const pipeName = pipe ? pipe.name : '';
@@ -2163,26 +2182,108 @@
   function applyBulkCsv() {
     bulkCsvRows.filter(r => r.ok && !r.dup).forEach(r => {
       if (r.name) saveGhlName(r.phone, r.name);
-      if (!bulkExtraContacts.find(e => e.phone === r.phone)) bulkExtraContacts.push({ phone: r.phone, name: r.name });
+      if (!bulkExtraContacts.find(e => e.phone === r.phone)) bulkExtraContacts.push({ phone: r.phone, name: r.name, origin: 'CSV' });
       bulkSelected.add(r.phone);
     });
     bulkCsvRows = []; // clear preview after applying
     renderBulkSetup();
   }
 
-  // ── Bulk send + progress ───────────────────────────────────────────────────
-  async function startBulkSend() {
-    const msg = (document.getElementById('bulkMsgInput') || {}).value || '';
+  // ── Bulk review + send + progress ──────────────────────────────────────────
+  // Step 1: "Review & Send" shows every recipient first — nothing is scheduled
+  // until the user confirms from the review screen.
+  function startBulkSend() {
+    const msgEl = document.getElementById('bulkMsgInput');
+    const msg = msgEl ? msgEl.value : bulkMsgDraft;
     if (!msg.trim()) { alert('Please write a message first.'); return; }
+    if (!bulkSelected.size) { alert('Please select at least one contact.'); return; }
+    bulkMsgDraft = msg;
+    bulkReviewMode = true;
+    renderBulkReview();
+  }
+
+  function bulkReviewRecipients() {
+    const byPhone = {};
+    getBulkContacts().forEach(c => { byPhone[c.phone] = c; });
+    return [...bulkSelected].map(p => {
+      const c = byPhone[p] || {};
+      return {
+        phone: p,
+        name: ghlNames[p] || c.name || '',
+        origin: c.source === 'extra' ? (c.origin || 'GHL') : '',
+      };
+    });
+  }
+
+  function renderBulkReview() {
+    const recipients = bulkReviewRecipients();
+    const n = recipients.length;
+    const usesName = /\{\{contact\.first_name\}\}/.test(bulkMsgDraft);
+    const noName = usesName ? recipients.filter(r => !r.name).length : 0;
+
+    const rows = recipients.map(r => {
+      const originTag = r.origin ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">${esc(r.origin)}</span>` : '';
+      const nameWarn = usesName && !r.name ? ` <span class="bulk-review-noname">no name saved</span>` : '';
+      return `
+      <div class="bulk-review-item">
+        <div class="bulk-contact-avatar">${esc(nameInitials(r.name, r.phone))}</div>
+        <div class="bulk-contact-info">
+          <div class="bulk-contact-name">${esc(r.name || r.phone)}${originTag}${nameWarn}</div>
+          ${r.name ? `<div class="bulk-contact-phone">${esc(r.phone)}</div>` : ''}
+        </div>
+        <button class="bulk-review-remove" onclick="removeBulkReviewContact('${esc(r.phone)}')" title="Remove this contact from the send">✕</button>
+      </div>`;
+    }).join('');
+
+    const example = recipients.find(r => r.name);
+    const exampleHtml = usesName && example ? `
+      <div class="bulk-review-msg-label" style="margin-top:2px">Example — as ${esc(example.name)} will receive it</div>
+      <div class="bulk-review-msg">${esc(bulkMsgDraft.replace(/\{\{contact\.first_name\}\}/g, example.name.trim().split(/\s+/)[0]))}</div>` : '';
+
+    document.getElementById('bulkSub').textContent = 'Nothing has been sent yet — check the recipients below, then confirm.';
+    document.getElementById('bulkBody').innerHTML = `
+    <div class="bulk-review-summary"><b>${n} contact${n === 1 ? '' : 's'}</b> will receive this SMS · 1 every ${bulkIntervalLabel(bulkInterval)}${n > 1 ? ` · spread over ${fmtBulkDuration(n, bulkInterval)}` : ''}${noName ? `<br><span style="font-size:11px;color:#ff9f43">⚠️ ${noName} contact${noName === 1 ? ' has' : 's have'} no saved name — {{contact.first_name}} will be blank for them</span>` : ''}</div>
+    <div class="bulk-review-msg-label">Message</div>
+    <div class="bulk-review-msg">${esc(bulkMsgDraft)}</div>
+    ${exampleHtml}
+    <div class="bulk-sec-title" style="margin-bottom:6px">Recipients (${n}) <span style="font-weight:600;letter-spacing:0;text-transform:none">click ✕ to remove a contact</span></div>
+    <div class="bulk-review-list">${rows}</div>
+    <div class="bulk-footer">
+      <button class="bulk-cancel-btn" onclick="backToBulkSetup()">← Back to edit</button>
+      <button class="bulk-send-btn" id="bulkSendBtn" onclick="confirmBulkSend()">Confirm &amp; Send to ${n}</button>
+    </div>`;
+  }
+
+  function removeBulkReviewContact(phone) {
+    bulkSelected.delete(phone);
+    if (!bulkSelected.size) { backToBulkSetup(); return; }
+    renderBulkReview();
+  }
+
+  function backToBulkSetup() {
+    bulkReviewMode = false;
+    document.getElementById('bulkSub').textContent = 'Select contacts, write your message and pick an interval.';
+    renderBulkSetup();
+  }
+
+  // Step 2: actually schedule the messages (only reachable from the review screen)
+  async function confirmBulkSend() {
+    const msg = bulkMsgDraft;
+    if (!msg.trim()) { alert('Please write a message first.'); backToBulkSetup(); return; }
     const sel = [...bulkSelected];
-    if (!sel.length) { alert('Please select at least one contact.'); return; }
+    if (!sel.length) { alert('Please select at least one contact.'); backToBulkSetup(); return; }
 
     const btn = document.getElementById('bulkSendBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Scheduling…'; }
 
-    // Build names map (phone → first name) from ghlNames
+    // Build names map (phone → first name) from ghlNames + loaded/CSV contacts
+    const byPhone = {};
+    getBulkContacts().forEach(c => { byPhone[c.phone] = c; });
     const names = {};
-    sel.forEach(p => { const full = ghlNames[p] || ''; if (full) names[p] = full.trim().split(/\s+/)[0]; });
+    sel.forEach(p => {
+      const full = ghlNames[p] || (byPhone[p] && byPhone[p].name) || '';
+      if (full) names[p] = full.trim().split(/\s+/)[0];
+    });
 
     let results = [];
     try {
@@ -2196,13 +2297,15 @@
       results = d.results || [];
     } catch (e) {
       alert('Failed to schedule bulk send: ' + e.message);
-      if (btn) { btn.disabled = false; btn.textContent = 'Send Bulk SMS'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Send to ' + sel.length; }
       return;
     }
 
+    bulkReviewMode = false;
+
     const items = results.map(r => ({
       phone:  r.phone,
-      name:   ghlNames[r.phone] || r.phone,
+      name:   ghlNames[r.phone] || (byPhone[r.phone] && byPhone[r.phone].name) || r.phone,
       fireAt: r.fireAt || null,
       status: r.status === 'skipped' ? 'skipped' : (r.status === 'scheduled' ? 'pending' : 'error'),
     }));
@@ -2242,10 +2345,11 @@
 
     const rows = items.map(it => {
       let icon = '⏳', statusText = '', statusCls = 'pending';
-      if (it.status === 'sent')    { icon = '✓'; statusCls = 'sent';    statusText = 'Sent'; }
-      if (it.status === 'failed')  { icon = '✗'; statusCls = 'failed';  statusText = 'Failed'; }
-      if (it.status === 'skipped') { icon = '⊘'; statusCls = 'skipped'; statusText = 'Opted out – skipped'; }
-      if (it.status === 'error')   { icon = '✗'; statusCls = 'failed';  statusText = 'Error'; }
+      if (it.status === 'sent')      { icon = '✓'; statusCls = 'sent';    statusText = 'Sent'; }
+      if (it.status === 'failed')    { icon = '✗'; statusCls = 'failed';  statusText = 'Failed'; }
+      if (it.status === 'skipped')   { icon = '⊘'; statusCls = 'skipped'; statusText = 'Opted out – skipped'; }
+      if (it.status === 'cancelled') { icon = '⊘'; statusCls = 'skipped'; statusText = 'Cancelled'; }
+      if (it.status === 'error')     { icon = '✗'; statusCls = 'failed';  statusText = 'Error'; }
       if (it.status === 'pending') {
         const s = it.fireAt ? Math.max(0, Math.ceil((new Date(it.fireAt) - Date.now()) / 1000)) : 0;
         statusText = s > 0 ? `in ${s < 60 ? s + 's' : Math.ceil(s / 60) + 'min'}` : 'Sending…';
@@ -2260,12 +2364,17 @@
       </div>`;
     }).join('');
 
+    const cancelledNote = items.some(i => i.status === 'cancelled')
+      ? `<div class="bulk-cancel-note">⊘ <b>Cancelled</b> = the SMS was stopped before it sent. These contacts are <b>not</b> opted out — only a customer replying STOP opts them out — so you can include them in a future bulk send.</div>`
+      : '';
+
     document.getElementById('bulkBody').innerHTML = `
     <div class="bulk-progress-bar-wrap"><div class="bulk-progress-bar" style="width:${pct}%"></div></div>
     <div class="bulk-progress-text">${done} of ${items.length} sent</div>
     <div class="bulk-prog-list">${rows}</div>
+    ${cancelledNote}
     <div class="bulk-footer">
-      <button class="bulk-cancel-btn" onclick="cancelBulkRemaining()">Cancel Remaining</button>
+      ${items.some(i => i.status === 'pending') ? '<button class="bulk-cancel-btn" onclick="cancelBulkRemaining()">Cancel Remaining</button>' : ''}
       <button class="bulk-send-btn" onclick="resetBulkSend()">New Bulk Send</button>
     </div>`;
 
@@ -2277,15 +2386,18 @@
     const phones = bulkProgress.items.filter(i => i.status === 'pending').map(i => i.phone);
     if (!phones.length) return;
     try { await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel-bulk', phones }) }); } catch {}
-    bulkProgress.items.forEach(i => { if (i.status === 'pending') i.status = 'skipped'; });
+    // Cancelling only stops the scheduled sends — it does NOT opt anyone out.
+    bulkProgress.items.forEach(i => { if (i.status === 'pending') i.status = 'cancelled'; });
     if (bulkProgress.pollTimer) { clearInterval(bulkProgress.pollTimer); bulkProgress.pollTimer = null; }
-    document.getElementById('bulkSub').textContent = 'Cancelled remaining messages.';
+    document.getElementById('bulkSub').textContent = 'Remaining messages cancelled — these contacts are NOT opted out.';
     renderBulkProgress();
   }
 
   function resetBulkSend() {
     if (bulkProgress && bulkProgress.pollTimer) clearInterval(bulkProgress.pollTimer);
     bulkProgress = null;
+    bulkReviewMode = false;
+    bulkMsgDraft = '';
     bulkSelected.clear();
     bulkExtraContacts = [];
     bulkCsvRows = [];
