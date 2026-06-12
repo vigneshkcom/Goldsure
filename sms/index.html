@@ -789,7 +789,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v6</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v8</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1585,6 +1585,7 @@
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
   let bulkPipelinesError = '';       // detail for the retry status line
+  let bulkPipelinesRequested = false; // avoid showing an error before first fetch starts
   let bulkPipelinesSource = '';      // 'api' (live) or 'cache' (ghlInfo fallback)
   let bulkPipelinesAttempts = 0;     // silent auto-retries (covers deploy races)
   let bulkFilterPipeline = '';       // selected pipeline ID
@@ -1619,8 +1620,9 @@
   function openBulkSend() {
     document.getElementById('bulkOverlay').classList.add('show');
     bulkPipelinesAttempts = 0; // re-arm the auto-retries for this open
-    renderBulkSetup();
-    loadBulkPipelines();
+    // Start with a real loading state instead of rendering the failure line
+    // before the first network request has even started.
+    retryBulkPipelines();
   }
 
   function closeBulkSend() {
@@ -1667,7 +1669,7 @@
       ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
       : '';
     const canLoad = bulkFilterPipeline && bulkFilterStage && !bulkFilterLoading;
-    const pipesFailed = !pipesReady && !bulkPipelinesLoading;
+    const pipesFailed = bulkPipelinesRequested && !pipesReady && !bulkPipelinesLoading;
 
     const filterHtml = `
     <div class="bulk-filter-box">
@@ -1686,8 +1688,8 @@
         <button class="bulk-load-btn" id="bulkLoadBtn" onclick="loadGhlStageContacts()"
           ${canLoad ? '' : 'disabled'}>${bulkFilterLoading ? 'Loading…' : 'Load contacts'}</button>
       </div>
-      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''}. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
-      ${pipesReady && bulkPipelinesSource === 'cache' ? `<div class="bulk-filter-status err">Live GHL fetch failed${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''} (showing pipelines from this browser's cache). <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
+      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''}. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="retryBulkPipelines()">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
+      ${pipesReady && bulkPipelinesSource === 'cache' ? `<div class="bulk-filter-status err">Live GHL fetch failed${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''} (showing pipelines from this browser's cache). <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="retryBulkPipelines()">Retry</a> · <a style="color:var(--purple);cursor:pointer;font-weight:600" href="${API}?action=ghl-pipelines&debug=1" target="_blank" rel="noopener">Diagnose</a></div>` : ''}
       ${bulkFilterMsg.text ? `<div class="bulk-filter-status ${bulkFilterMsg.cls}">${esc(bulkFilterMsg.text)}</div>` : ''}
     </div>`;
 
@@ -1858,19 +1860,34 @@
   }
 
   // ── Pipeline / Stage filter ────────────────────────────────────────────────
+  function retryBulkPipelines() {
+    // If a previous render/fetch exception left the loading guard stuck on,
+    // force it open so the Retry link can always recover the modal.
+    bulkPipelinesRequested = true;
+    bulkPipelinesLoading = false;
+    bulkPipelinesCache = null;
+    bulkPipelinesSource = '';
+    bulkPipelinesError = '';
+    loadBulkPipelines(true);
+  }
+
   async function loadBulkPipelines(force) {
-    if (bulkPipelinesLoading) return;
+    bulkPipelinesRequested = true;
+    if (bulkPipelinesLoading && !force) return;
+    if (force) bulkPipelinesLoading = false;
     // Live data is final for the session; cache-sourced data re-attempts the API
     if (bulkPipelinesCache && bulkPipelinesCache.length && bulkPipelinesSource === 'api' && !force) return;
+
     bulkPipelinesLoading = true;
     bulkPipelinesError = '';
-    rerenderBulkIfOpen();
 
     let pipes = null;
     try {
+      try { rerenderBulkIfOpen(); } catch (e) { console.error('Bulk SMS pre-render failed', e); }
+
       const r = await fetch(`${API}?action=ghl-pipelines&t=${Date.now()}`, { cache: 'no-store' });
       // Read as text first so we can show the raw content if parsing fails
-      const raw = await r.text().catch(() => '');
+      const raw = await r.text();
       let d = null;
       try { d = JSON.parse(raw); } catch { /* non-JSON */ }
 
@@ -1899,30 +1916,37 @@
       } else {
         bulkPipelinesError = 'unexpected shape (' + typeof d + ')';
       }
-    } catch(e) { bulkPipelinesError = 'network error: ' + e.message; }
 
-    if (pipes) bulkPipelinesSource = 'api';
+      if (pipes) bulkPipelinesSource = 'api';
 
-    // Fallback: ghlInfo sidebar cache. Only pipelines WITH a stage list are
-    // usable — without stages the Stage dropdown is dead and "Load contacts"
-    // can never run, which just masks the real failure.
-    if (!pipes) {
-      const map = {};
-      Object.values(ghlInfo).forEach(i => {
-        if (i && i.pipelineId && i.pipeline && Array.isArray(i.stages) && i.stages.length) {
-          map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: i.stages };
-        }
-      });
-      const fb = Object.values(map);
-      if (fb.length) { pipes = fb; bulkPipelinesSource = 'cache'; }
+      // Fallback: ghlInfo sidebar cache. Only pipelines WITH a stage list are
+      // usable — without stages the Stage dropdown is dead and "Load contacts"
+      // can never run, which just masks the real failure.
+      if (!pipes) {
+        const map = {};
+        Object.values(ghlInfo).forEach(i => {
+          if (i && i.pipelineId && i.pipeline && Array.isArray(i.stages) && i.stages.length) {
+            map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: i.stages };
+          }
+        });
+        const fb = Object.values(map);
+        if (fb.length) { pipes = fb; bulkPipelinesSource = 'cache'; }
+      }
+
+      if (!pipes && !bulkPipelinesError) bulkPipelinesError = 'no usable pipelines returned';
+      bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
+    } catch (e) {
+      console.error('loadBulkPipelines failed', e);
+      bulkPipelinesCache = null;
+      bulkPipelinesSource = '';
+      bulkPipelinesError = 'JavaScript error: ' + (e && e.message ? e.message : String(e));
+    } finally {
+      bulkPipelinesLoading = false;
+      try { rerenderBulkIfOpen(); } catch (e) { console.error('Bulk SMS final render failed', e); }
     }
 
-    bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
-    bulkPipelinesLoading = false;
-    rerenderBulkIfOpen();
-
     // Silent auto-retries — covers Vercel cold-start or brief GHL flakiness
-    if (!pipes && ++bulkPipelinesAttempts < 3) {
+    if (!bulkPipelinesCache && ++bulkPipelinesAttempts < 3) {
       setTimeout(() => loadBulkPipelines(true), 4000);
     }
   }
