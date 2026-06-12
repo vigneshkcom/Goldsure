@@ -506,6 +506,14 @@
     .bulk-prog-status.pending { color: var(--purple); }
     .bulk-prog-status.failed { color: #ea5455; }
     .bulk-prog-status.skipped { color: var(--muted); }
+    .bulk-prog-status.cancelled { color: var(--muted); }
+    .bulk-review-box { background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); margin-top:8px; overflow:hidden; }
+    .bulk-review-head { padding:8px 10px; display:flex; justify-content:space-between; gap:8px; align-items:center; font-size:11px; color:var(--muted); border-bottom:1px solid var(--border); }
+    .bulk-review-list { max-height:150px; overflow-y:auto; }
+    .bulk-review-row { display:flex; justify-content:space-between; gap:8px; padding:7px 10px; border-bottom:1px solid var(--border); font-size:11.5px; }
+    .bulk-review-row:last-child { border-bottom:none; }
+    .bulk-review-name { font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bulk-review-meta { color:var(--muted); white-space:nowrap; }
     /* Pipeline/stage filter row */
     .bulk-filter-box { background: #fff; border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px; margin-bottom: 8px; }
     .bulk-filter-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
@@ -789,7 +797,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v7</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v11</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1582,8 +1590,11 @@
   let bulkCustom        = false;
   let bulkProgress      = null;      // { items, pollTimer }
   let bulkExtraContacts = [];        // GHL-stage + CSV contacts (not in SMS inbox)
+  let bulkStageLoadedPhones = new Set(); // phones auto-selected from the latest GHL stage load
+  let bulkStageLoadedMeta = {};      // phone → { pipeline, stage } for the latest GHL stage load
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
+  let bulkPipelinesRequested = false;
   let bulkPipelinesError = '';       // detail for the retry status line
   let bulkPipelinesSource = '';      // 'api' (live) or 'cache' (ghlInfo fallback)
   let bulkPipelinesAttempts = 0;     // silent auto-retries (covers deploy races)
@@ -1612,15 +1623,31 @@
   function getBulkContacts() {
     const inboxPhones = new Set(allContacts.map(c => c.phone_number));
     const all = allContacts.map(c => ({ phone: c.phone_number, name: ghlNames[c.phone_number] || '', source: 'inbox' }));
-    bulkExtraContacts.forEach(c => { if (!inboxPhones.has(c.phone)) all.push({ ...c, source: 'extra' }); });
+    bulkExtraContacts.forEach(c => { if (!inboxPhones.has(c.phone)) all.push({ ...c, source: c.sourceType || 'extra' }); });
     return all;
+  }
+
+  function resetBulkPipelineLoad({ keepApiCache = false } = {}) {
+    const keepCache = keepApiCache && bulkPipelinesSource === 'api' && Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length;
+    bulkPipelinesLoading = false;
+    bulkPipelinesRequested = false;
+    bulkPipelinesError = '';
+    if (!keepCache) {
+      bulkPipelinesCache = null;
+      bulkPipelinesSource = '';
+      bulkFilterPipeline = '';
+      bulkFilterStage = '';
+    }
   }
 
   function openBulkSend() {
     document.getElementById('bulkOverlay').classList.add('show');
     bulkPipelinesAttempts = 0; // re-arm the auto-retries for this open
+    resetBulkPipelineLoad({ keepApiCache: true });
+    bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
     renderBulkSetup();
-    loadBulkPipelines();
+    loadBulkPipelines(true);
   }
 
   function closeBulkSend() {
@@ -1659,15 +1686,15 @@
     // Pipeline/stage filter — three states: loading / loaded / failed (retry)
     const pipesReady = Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length > 0;
     const pipeOpts = pipesReady
-      ? bulkPipelinesCache.map(p => `<option value="${esc(p.id)}" ${bulkFilterPipeline === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
+      ? bulkPipelinesCache.map(p => `<option value="${esc(p.id)}" ${bulkFilterPipeline === p.id ? 'selected' : ''}>${esc(p.name || p.id)}</option>`).join('')
       : '';
     const pipePlaceholder = bulkPipelinesLoading ? 'Loading pipelines…' : '— Pipeline —';
     const selectedPipe = pipesReady ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
     const stageOpts = selectedPipe
-      ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+      ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name || s.id)}</option>`).join('')
       : '';
     const canLoad = bulkFilterPipeline && bulkFilterStage && !bulkFilterLoading;
-    const pipesFailed = !pipesReady && !bulkPipelinesLoading;
+    const pipesFailed = bulkPipelinesRequested && !!bulkPipelinesError && !pipesReady && !bulkPipelinesLoading;
 
     const filterHtml = `
     <div class="bulk-filter-box">
@@ -1721,6 +1748,8 @@
       ${csvValidCount ? `<button class="bulk-csv-add-btn" onclick="applyBulkCsv()">Add ${csvValidCount} contact${csvValidCount > 1 ? 's' : ''} to selection</button>` : ''}
     </div>`;
 
+    const selectedPreviewHtml = renderBulkSelectedPreview();
+
     const html = `
     ${filterHtml}
     ${csvHtml}
@@ -1740,6 +1769,7 @@
         <div class="bulk-sel-bar" style="margin-top:6px">
           <span style="color:var(--muted)" id="bulkSelCount">${bulkSelected.size} selected</span>
         </div>
+        ${selectedPreviewHtml}
       </div>
       <div class="bulk-compose-col">
         <div>
@@ -1791,7 +1821,8 @@
     list.innerHTML = contacts.map(c => {
       const checked = bulkSelected.has(c.phone);
       const label = c.name || c.phone;
-      const tag = c.source === 'extra' ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">GHL</span>` : '';
+      const sourceLabel = c.source === 'ghl-stage' ? 'GHL' : (c.source === 'csv' ? 'CSV' : '');
+      const tag = sourceLabel ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">${sourceLabel}</span>` : '';
       return `
       <label class="bulk-contact-item">
         <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleBulkContact('${esc(c.phone)}', this.checked)" />
@@ -1806,9 +1837,46 @@
 
   function filterBulkContacts(val) { renderBulkContactList(val); }
 
+
+  function getBulkSelectedContacts() {
+    const byPhone = new Map(getBulkContacts().map(c => [c.phone, c]));
+    return [...bulkSelected].map(phone => {
+      const base = byPhone.get(phone) || { phone, name: ghlNames[phone] || '', source: '' };
+      const stageMeta = bulkStageLoadedMeta[phone];
+      return stageMeta ? { ...base, source: 'ghl-stage', ...stageMeta } : base;
+    });
+  }
+
+  function renderBulkSelectedPreview() {
+    const selected = getBulkSelectedContacts();
+    if (!selected.length) {
+      return `<div class="bulk-review-box" id="bulkReviewWrap"><div class="bulk-review-head"><b>Review recipients before sending</b><span>0 selected</span></div><div style="padding:8px 10px;font-size:11.5px;color:var(--muted)">Load or tick contacts, then review every recipient here before sending.</div></div>`;
+    }
+    const rows = selected.map(c => {
+      const label = c.name || c.phone;
+      const origin = c.source === 'ghl-stage'
+        ? [c.pipeline, c.stage].filter(Boolean).join(' / ')
+        : (c.source === 'csv' ? 'CSV' : 'Inbox');
+      return `<div class="bulk-review-row">
+        <span class="bulk-review-name">${esc(label)}</span>
+        <span class="bulk-review-meta">${esc(c.phone)}${origin ? ' · ' + esc(origin) : ''}</span>
+      </div>`;
+    }).join('');
+    return `<div class="bulk-review-box" id="bulkReviewWrap">
+      <div class="bulk-review-head"><b>Review recipients before sending</b><span>${selected.length} selected</span></div>
+      <div class="bulk-review-list">${rows}</div>
+    </div>`;
+  }
+
+  function updateBulkSelectedPreview() {
+    const wrap = document.getElementById('bulkReviewWrap');
+    if (wrap) wrap.outerHTML = renderBulkSelectedPreview();
+  }
+
   function toggleBulkContact(phone, on) {
     if (on) bulkSelected.add(phone); else bulkSelected.delete(phone);
     updateBulkPreview();
+    updateBulkSelectedPreview();
     const sc = document.getElementById('bulkSelCount');
     if (sc) sc.textContent = bulkSelected.size + ' selected';
   }
@@ -1820,6 +1888,7 @@
     const sc = document.getElementById('bulkSelCount');
     if (sc) sc.textContent = bulkSelected.size + ' selected';
     updateBulkPreview();
+    updateBulkSelectedPreview();
   }
 
   function bulkSelectNone() {
@@ -1829,6 +1898,7 @@
     const sc = document.getElementById('bulkSelCount');
     if (sc) sc.textContent = '0 selected';
     updateBulkPreview();
+    updateBulkSelectedPreview();
   }
 
   function setBulkInterval(s) { bulkInterval = s; bulkCustom = false; renderBulkSetup(); }
@@ -1839,7 +1909,7 @@
   function applyBulkCustom(val) { const n = parseInt(val, 10); if (n >= 5) { bulkInterval = n; updateBulkPreview(); } }
 
   function updateBulkCharCount(text) {
-    const { len, parts, encoding } = smsStats(text);
+    const { len, parts, encoding } = smsInfo(text);
     const row = document.getElementById('bulkCharRow');
     if (row) row.textContent = `${len} chars · ${parts} SMS · ${encoding}`;
   }
@@ -1859,13 +1929,24 @@
 
   // ── Pipeline / Stage filter ────────────────────────────────────────────────
   function retryBulkPipelines() {
-    // If a previous render/fetch exception left the loading guard stuck on,
-    // force it open so the Retry link can always recover the modal.
-    bulkPipelinesLoading = false;
-    bulkPipelinesCache = null;
-    bulkPipelinesSource = '';
-    bulkPipelinesError = '';
+    resetBulkPipelineLoad();
+    bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
+    rerenderBulkIfOpen();
     loadBulkPipelines(true);
+  }
+
+  function normalizeBulkPipelinesResponse(d) {
+    if (!Array.isArray(d) || !d.length) return [];
+    return d
+      .filter(p => p && p.id && Array.isArray(p.stages))
+      .map(p => ({
+        id: String(p.id),
+        name: p.name || String(p.id),
+        stages: p.stages
+          .filter(s => s && s.id)
+          .map(s => ({ id: String(s.id), name: s.name || String(s.id) }))
+      }));
   }
 
   async function loadBulkPipelines(force) {
@@ -1875,6 +1956,7 @@
     if (bulkPipelinesCache && bulkPipelinesCache.length && bulkPipelinesSource === 'api' && !force) return;
 
     bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
     bulkPipelinesError = '';
 
     let pipes = null;
@@ -1892,10 +1974,11 @@
           // Contacts list returned — API still on old build
           bulkPipelinesError = 'API still deploying — wait a minute, then Retry';
         } else {
-          // Accept anything that looks like pipeline objects (has id + stages)
-          const valid = d.filter(p => p && p.id && Array.isArray(p.stages));
+          // Accept the production Diagnose shape: pipeline id + stages array.
+          // Names are optional because the UI can fall back to IDs.
+          const valid = normalizeBulkPipelinesResponse(d);
           if (valid.length) {
-            pipes = valid.map(p => ({ id: p.id, name: p.name || p.id, stages: p.stages }));
+            pipes = valid;
           } else {
             bulkPipelinesError = 'unexpected API response — retrying';
           }
@@ -1913,7 +1996,10 @@
         bulkPipelinesError = 'unexpected shape (' + typeof d + ')';
       }
 
-      if (pipes) bulkPipelinesSource = 'api';
+      if (pipes) {
+        bulkPipelinesSource = 'api';
+        bulkPipelinesError = '';
+      }
 
       // Fallback: ghlInfo sidebar cache. Only pipelines WITH a stage list are
       // usable — without stages the Stage dropdown is dead and "Load contacts"
@@ -1931,6 +2017,7 @@
 
       if (!pipes && !bulkPipelinesError) bulkPipelinesError = 'no usable pipelines returned';
       bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
+      if (bulkPipelinesSource === 'api' && bulkPipelinesCache) bulkPipelinesError = '';
     } catch (e) {
       console.error('loadBulkPipelines failed', e);
       bulkPipelinesCache = null;
@@ -1975,36 +2062,61 @@
     if (btn) btn.disabled = !stageId;
   }
 
+  function normalizeBulkStageContacts(data) {
+    if (!Array.isArray(data)) return [];
+    const seen = new Set();
+    return data.reduce((contacts, c) => {
+      const phone = normalisePhone(String((c && (c.phone || c.phone_number)) || ''));
+      if (!/^\+?\d{7,15}$/.test(phone) || seen.has(phone)) return contacts;
+      seen.add(phone);
+      contacts.push({ phone, name: (c && c.name) ? String(c.name) : '' });
+      return contacts;
+    }, []);
+  }
+
   async function loadGhlStageContacts() {
     if (!bulkFilterStage || bulkFilterLoading) return;
     bulkFilterLoading = true;
     const pipe = bulkPipelinesCache ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
     const stage = pipe ? pipe.stages.find(s => s.id === bulkFilterStage) : null;
-    renderBulkSetup(); // show loading state
     try {
-      const r = await fetch(`${API}?action=ghl-stage-contacts&stageId=${encodeURIComponent(bulkFilterStage)}&t=${Date.now()}`, { cache: 'no-store' });
+      renderBulkSetup(); // show loading state
+      const r = await fetch(`${API}?action=ghl-stage-contacts&pipelineId=${encodeURIComponent(bulkFilterPipeline)}&stageId=${encodeURIComponent(bulkFilterStage)}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await r.json().catch(() => null);
-      const contacts = Array.isArray(data) ? data : [];
+      const contacts = normalizeBulkStageContacts(data);
       if (data && !Array.isArray(data) && data.error) {
         bulkFilterMsg = { text: `Failed: ${data.error}`, cls: 'err' };
       } else if (!contacts.length) {
         bulkFilterMsg = { text: `No open contacts found in "${stage ? stage.name : 'this stage'}"`, cls: '' };
       } else {
-        // Merge into bulkExtraContacts + auto-select all
-        contacts.forEach(c => {
-          if (c.name) saveGhlName(c.phone, c.name);
-          if (!bulkExtraContacts.find(e => e.phone === c.phone)) bulkExtraContacts.push(c);
-          bulkSelected.add(c.phone);
-        });
         const pipeName = pipe ? pipe.name : '';
         const stageName = stage ? stage.name : '';
+        // Replace the previous GHL-stage load so stale contacts from an older
+        // pipeline/stage cannot remain selected by accident.
+        bulkStageLoadedPhones.forEach(phone => bulkSelected.delete(phone));
+        bulkExtraContacts = bulkExtraContacts.filter(e => e.sourceType !== 'ghl-stage');
+        bulkStageLoadedPhones = new Set();
+        bulkStageLoadedMeta = {};
+
+        // Merge into bulkExtraContacts + auto-select all loaded contacts.
+        contacts.forEach(c => {
+          if (c.name) saveGhlName(c.phone, c.name);
+          if (!bulkExtraContacts.find(e => e.phone === c.phone)) {
+            bulkExtraContacts.push({ ...c, sourceType: 'ghl-stage', pipeline: pipeName, stage: stageName });
+          }
+          bulkSelected.add(c.phone);
+          bulkStageLoadedPhones.add(c.phone);
+          bulkStageLoadedMeta[c.phone] = { pipeline: pipeName, stage: stageName };
+        });
         bulkFilterMsg = { text: `✓ ${contacts.length} contact${contacts.length > 1 ? 's' : ''} loaded from ${pipeName} – ${stageName}`, cls: 'ok' };
       }
-    } catch {
-      bulkFilterMsg = { text: 'Failed to load — check GHL API key', cls: 'err' };
+    } catch (e) {
+      console.error('loadGhlStageContacts failed', e);
+      bulkFilterMsg = { text: 'Failed to load contacts: ' + (e && e.message ? e.message : String(e)), cls: 'err' };
+    } finally {
+      bulkFilterLoading = false;
+      renderBulkSetup();
     }
-    bulkFilterLoading = false;
-    renderBulkSetup();
   }
 
   // Insert a {{placeholder}} at the cursor position in the bulk message box
@@ -2115,7 +2227,7 @@
   function applyBulkCsv() {
     bulkCsvRows.filter(r => r.ok && !r.dup).forEach(r => {
       if (r.name) saveGhlName(r.phone, r.name);
-      if (!bulkExtraContacts.find(e => e.phone === r.phone)) bulkExtraContacts.push({ phone: r.phone, name: r.name });
+      if (!bulkExtraContacts.find(e => e.phone === r.phone)) bulkExtraContacts.push({ phone: r.phone, name: r.name, sourceType: 'csv' });
       bulkSelected.add(r.phone);
     });
     bulkCsvRows = []; // clear preview after applying
@@ -2157,6 +2269,7 @@
       name:   ghlNames[r.phone] || r.phone,
       fireAt: r.fireAt || null,
       status: r.status === 'skipped' ? 'skipped' : (r.status === 'scheduled' ? 'pending' : 'error'),
+      reason: r.reason || '',
     }));
 
     bulkProgress = { items, pollTimer: null };
@@ -2189,14 +2302,25 @@
 
   function renderBulkProgress() {
     const { items } = bulkProgress;
-    const done = items.filter(i => i.status === 'sent' || i.status === 'failed').length;
+    const done = items.filter(i => ['sent', 'failed', 'skipped', 'cancelled', 'error'].includes(i.status)).length;
+    const sentCount = items.filter(i => i.status === 'sent').length;
+    const cancelledCount = items.filter(i => i.status === 'cancelled').length;
+    const skippedCount = items.filter(i => i.status === 'skipped').length;
+    const errorCount = items.filter(i => i.status === 'failed' || i.status === 'error').length;
+    const pendingCount = items.filter(i => i.status === 'pending').length;
     const pct  = items.length ? Math.round((done / items.length) * 100) : 0;
+    const progressBits = [`${sentCount} of ${items.length} sent`];
+    if (pendingCount) progressBits.push(`${pendingCount} pending`);
+    if (cancelledCount) progressBits.push(`${cancelledCount} cancelled`);
+    if (skippedCount) progressBits.push(`${skippedCount} opted out/skipped`);
+    if (errorCount) progressBits.push(`${errorCount} failed`);
 
     const rows = items.map(it => {
       let icon = '⏳', statusText = '', statusCls = 'pending';
       if (it.status === 'sent')    { icon = '✓'; statusCls = 'sent';    statusText = 'Sent'; }
       if (it.status === 'failed')  { icon = '✗'; statusCls = 'failed';  statusText = 'Failed'; }
-      if (it.status === 'skipped') { icon = '⊘'; statusCls = 'skipped'; statusText = 'Opted out – skipped'; }
+      if (it.status === 'skipped') { icon = '⊘'; statusCls = 'skipped'; statusText = it.reason === 'opted-out' ? 'Opted out – skipped' : 'Skipped'; }
+      if (it.status === 'cancelled') { icon = '⊘'; statusCls = 'cancelled'; statusText = 'Cancelled'; }
       if (it.status === 'error')   { icon = '✗'; statusCls = 'failed';  statusText = 'Error'; }
       if (it.status === 'pending') {
         const s = it.fireAt ? Math.max(0, Math.ceil((new Date(it.fireAt) - Date.now()) / 1000)) : 0;
@@ -2214,10 +2338,10 @@
 
     document.getElementById('bulkBody').innerHTML = `
     <div class="bulk-progress-bar-wrap"><div class="bulk-progress-bar" style="width:${pct}%"></div></div>
-    <div class="bulk-progress-text">${done} of ${items.length} sent</div>
+    <div class="bulk-progress-text">${progressBits.join(' · ')}</div>
     <div class="bulk-prog-list">${rows}</div>
     <div class="bulk-footer">
-      <button class="bulk-cancel-btn" onclick="cancelBulkRemaining()">Cancel Remaining</button>
+      ${items.some(i => i.status === 'pending') ? '<button class="bulk-cancel-btn" onclick="cancelBulkRemaining()">Cancel Remaining</button>' : ''}
       <button class="bulk-send-btn" onclick="resetBulkSend()">New Bulk Send</button>
     </div>`;
 
@@ -2229,7 +2353,7 @@
     const phones = bulkProgress.items.filter(i => i.status === 'pending').map(i => i.phone);
     if (!phones.length) return;
     try { await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel-bulk', phones }) }); } catch {}
-    bulkProgress.items.forEach(i => { if (i.status === 'pending') i.status = 'skipped'; });
+    bulkProgress.items.forEach(i => { if (i.status === 'pending') i.status = 'cancelled'; });
     if (bulkProgress.pollTimer) { clearInterval(bulkProgress.pollTimer); bulkProgress.pollTimer = null; }
     document.getElementById('bulkSub').textContent = 'Cancelled remaining messages.';
     renderBulkProgress();
@@ -2240,6 +2364,8 @@
     bulkProgress = null;
     bulkSelected.clear();
     bulkExtraContacts = [];
+    bulkStageLoadedPhones = new Set();
+    bulkStageLoadedMeta = {};
     bulkCsvRows = [];
     bulkFilterMsg = { text: '', cls: '' };
     document.getElementById('bulkSub').textContent = 'Select contacts, write your message and pick an interval.';

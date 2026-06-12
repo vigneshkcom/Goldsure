@@ -445,6 +445,7 @@ export default async function handler(req, res) {
     if (req.query.action === 'ghl-stage-contacts') {
       res.setHeader('Cache-Control', 'no-store');
       const stageId    = String(req.query.stageId || '').trim();
+      const pipelineId = String(req.query.pipelineId || '').trim();
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
       if (!stageId) return res.status(200).json({ error: 'stageId required' });
@@ -452,7 +453,7 @@ export default async function handler(req, res) {
       const ghlHeaders = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
       try {
         const r = await fetch(
-          `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&pipeline_stage_id=${encodeURIComponent(stageId)}&status=open&limit=100`,
+          `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}${pipelineId ? '&pipeline_id=' + encodeURIComponent(pipelineId) : ''}&pipeline_stage_id=${encodeURIComponent(stageId)}&status=open&limit=100`,
           { headers: ghlHeaders }
         );
         const raw = await r.text();
@@ -463,7 +464,12 @@ export default async function handler(req, res) {
           console.error('[ghl-stage-contacts] GHL error', r.status, raw.slice(0, 400));
           return res.status(200).json({ error: `GHL responded ${r.status}${ghlMsg ? ': ' + ghlMsg : ''}` });
         }
-        const opportunities = (data && data.opportunities) || [];
+        const opportunities = ((data && data.opportunities) || [])
+          .filter(opp => {
+            if (!pipelineId) return true;
+            const oppPipelineId = opp.pipelineId || opp.pipeline_id || (opp.pipeline && opp.pipeline.id) || '';
+            return oppPipelineId === pipelineId;
+          });
         const out = [];
         const missingPhone = []; // opps whose embedded contact had no usable phone
         for (const opp of opportunities) {
