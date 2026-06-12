@@ -789,7 +789,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v4</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v5</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1866,41 +1866,85 @@
     let pipes = null;
     try {
       const r = await fetch(`${API}?action=ghl-pipelines&t=${Date.now()}`, { cache: 'no-store' });
-      const d = await r.json().catch(() => null);
-      // Validate the shape — a stale API build answers this URL with the
-      // contacts list, which would render as a dropdown full of blanks.
-      if (Array.isArray(d) && d.length && d.every(p => p && p.id && p.name && Array.isArray(p.stages))) {
-        pipes = d;
+      // Read as text first so we can show the raw content if parsing fails
+      const raw = await r.text().catch(() => '');
+      let d = null;
+      try { d = JSON.parse(raw); } catch { /* non-JSON */ }
+
+      if (Array.isArray(d) && d.length) {
+        if (d[0] && d[0].phone_number) {
+          // Contacts list returned — API still on old build
+          bulkPipelinesError = 'API still deploying — wait a minute, then Retry';
+        } else {
+          // Accept anything that looks like pipeline objects (has id + stages)
+          const valid = d.filter(p => p && p.id && Array.isArray(p.stages));
+          if (valid.length) {
+            pipes = valid.map(p => ({ id: p.id, name: p.name || p.id, stages: p.stages }));
+          } else {
+            bulkPipelinesError = 'unexpected API response — retrying';
+          }
+        }
       } else if (d && d.error) {
         bulkPipelinesError = d.error;
-      } else if (Array.isArray(d) && d.length && d[0] && d[0].phone_number) {
-        bulkPipelinesError = 'portal API still deploying — wait a minute, then Retry';
       } else if (Array.isArray(d) && !d.length) {
-        bulkPipelinesError = 'old API build answered empty — retrying';
+        bulkPipelinesError = 'GHL returned no pipelines';
       } else if (!r.ok) {
-        bulkPipelinesError = 'API error ' + r.status;
+        bulkPipelinesError = 'server error ' + r.status;
+      } else if (d === null) {
+        // Non-JSON 200 — show a snippet so we can diagnose what was returned
+        bulkPipelinesError = 'non-JSON response: ' + raw.slice(0, 80).replace(/\s+/g, ' ');
+      } else {
+        bulkPipelinesError = 'unexpected shape (' + typeof d + ')';
       }
-    } catch { bulkPipelinesError = 'network error'; }
+    } catch(e) { bulkPipelinesError = 'network error: ' + e.message; }
 
-    // Fallback: rebuild from the ghlInfo sidebar cache (each cached contact
-    // carries its pipeline's full stage list)
+    // Fallback 1: ghlInfo sidebar cache — accept entries even without stages list
     if (!pipes) {
       const map = {};
       Object.values(ghlInfo).forEach(i => {
-        if (i && i.pipelineId && i.pipeline && Array.isArray(i.stages) && i.stages.length) {
-          map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: i.stages };
+        if (i && i.pipelineId && i.pipeline) {
+          if (!map[i.pipelineId]) {
+            map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: [] };
+          }
+          if (Array.isArray(i.stages) && i.stages.length && !map[i.pipelineId].stages.length) {
+            map[i.pipelineId].stages = i.stages;
+          }
         }
       });
       const fb = Object.values(map);
       if (fb.length) pipes = fb;
     }
 
+    // Fallback 2: call ghl-opps for a batch of known contacts to extract pipeline+stage data
+    // (ghl-opps is the same GHL call and is proven to work — it powers sidebar pipeline pills)
+    if (!pipes && allContacts.length) {
+      try {
+        const phones = allContacts.slice(0, 15).map(c => c.phone_number);
+        const r2 = await fetch(`${API}?action=ghl-opps&phones=${encodeURIComponent(phones.join(','))}&t=${Date.now()}`, { cache: 'no-store' });
+        if (r2.ok) {
+          const oppsData = await r2.json().catch(() => ({}));
+          const pipeMap = {};
+          Object.values(oppsData).forEach(info => {
+            if (info && info.pipelineId && info.pipeline) {
+              if (!pipeMap[info.pipelineId]) {
+                pipeMap[info.pipelineId] = { id: info.pipelineId, name: info.pipeline, stages: [] };
+              }
+              if (Array.isArray(info.stages) && info.stages.length && !pipeMap[info.pipelineId].stages.length) {
+                pipeMap[info.pipelineId].stages = info.stages;
+              }
+            }
+          });
+          const opsFb = Object.values(pipeMap);
+          if (opsFb.length) pipes = opsFb;
+        }
+      } catch {}
+    }
+
     bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
     bulkPipelinesLoading = false;
     rerenderBulkIfOpen();
 
-    // Silent auto-retries after a failure — covers the window where Vercel is
-    // still rolling out the new API build.
+    // Silent auto-retries — covers Vercel cold-start or brief GHL flakiness
     if (!pipes && ++bulkPipelinesAttempts < 3) {
       setTimeout(() => loadBulkPipelines(true), 4000);
     }
