@@ -1616,6 +1616,7 @@
 
   function openBulkSend() {
     document.getElementById('bulkOverlay').classList.add('show');
+    bulkPipelinesRetried = false; // re-arm the auto-retry for this open
     renderBulkSetup();
     loadBulkPipelines();
   }
@@ -1863,7 +1864,7 @@
 
     let pipes = null;
     try {
-      const r = await fetch(`${API}?action=ghl-pipelines`);
+      const r = await fetch(`${API}?action=ghl-pipelines&t=${Date.now()}`, { cache: 'no-store' });
       const d = await r.json().catch(() => null);
       // Validate the shape — a stale API build answers this URL with the
       // contacts list, which would render as a dropdown full of blanks.
@@ -1930,7 +1931,7 @@
     const stage = pipe ? pipe.stages.find(s => s.id === bulkFilterStage) : null;
     renderBulkSetup(); // show loading state
     try {
-      const r = await fetch(`${API}?action=ghl-stage-contacts&stageId=${encodeURIComponent(bulkFilterStage)}`);
+      const r = await fetch(`${API}?action=ghl-stage-contacts&stageId=${encodeURIComponent(bulkFilterStage)}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await r.json().catch(() => null);
       const contacts = Array.isArray(data) ? data : [];
       if (data && !Array.isArray(data) && data.error) {
