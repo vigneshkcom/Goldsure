@@ -388,6 +388,57 @@ export default async function handler(req, res) {
       return res.status(200).json({ fired, remaining: Array.isArray(remRows) ? remRows.length : 0 });
     }
 
+    // Return all GHL pipelines with their stages — used to populate the bulk SMS
+    // pipeline/stage filter dropdowns.
+    if (req.query.action === 'ghl-pipelines') {
+      const apiKey     = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) return res.status(200).json([]);
+      try {
+        const r = await fetch(
+          `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
+          { headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' } }
+        );
+        if (!r.ok) return res.status(200).json([]);
+        const { pipelines } = await r.json();
+        return res.status(200).json(
+          (pipelines || []).map(p => ({
+            id: p.id, name: p.name,
+            stages: (p.stages || []).map(s => ({ id: s.id, name: s.name })),
+          }))
+        );
+      } catch { return res.status(200).json([]); }
+    }
+
+    // Return contacts (phone + name) for every open opportunity in a given pipeline
+    // stage — powers "load all from GHL stage" in bulk SMS.
+    if (req.query.action === 'ghl-stage-contacts') {
+      const stageId    = String(req.query.stageId || '').trim();
+      const apiKey     = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!stageId || !apiKey || !locationId) return res.status(200).json([]);
+      const ghlHeaders = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+      try {
+        const r = await fetch(
+          `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&pipeline_stage_id=${encodeURIComponent(stageId)}&status=open&limit=100`,
+          { headers: ghlHeaders }
+        );
+        if (!r.ok) return res.status(200).json([]);
+        const { opportunities } = await r.json();
+        const out = [];
+        for (const opp of (opportunities || [])) {
+          const c = opp.contact || {};
+          let phone = normalizeAuPhone(c.phone || '');
+          if (!phone) continue;
+          const name = tidyName([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '');
+          out.push({ phone, name });
+        }
+        // Deduplicate by phone (can be multiple opps per contact)
+        const seen = new Set();
+        return res.status(200).json(out.filter(x => seen.has(x.phone) ? false : (seen.add(x.phone), true)));
+      } catch { return res.status(200).json([]); }
+    }
+
     const { phone } = req.query;
 
     if (phone) {
