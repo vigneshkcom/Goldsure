@@ -500,6 +500,7 @@
     .bulk-review-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
     .bulk-review-item:last-child { border-bottom: none; }
     .bulk-review-noname { font-size: 10.5px; color: #ff9f43; font-weight: 600; }
+    .bulk-src-tag { font-size: 9px; color: var(--purple); font-weight: 700; margin-left: 4px; white-space: nowrap; }
     .bulk-review-remove { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 3px 7px; border-radius: 6px; flex-shrink: 0; }
     .bulk-review-remove:hover { color: #ea5455; background: #fdeaea; }
     .bulk-cancel-note { font-size: 11.5px; color: var(--muted); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
@@ -802,7 +803,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v11</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v12</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1624,12 +1625,33 @@
     if (!bgFireTimer) bgFireTimer = setTimeout(bgFireScheduled, 5000);
   }
 
-  // Unified contact pool: inbox + GHL-stage / CSV extras, deduped by phone
+  // Unified contact pool: inbox + GHL-stage / CSV extras, deduped by phone.
+  // Inbox contacts that were also loaded from a GHL stage keep that
+  // pipeline/stage info so the lists can show where they came from.
   function getBulkContacts() {
+    const extraByPhone = {};
+    bulkExtraContacts.forEach(c => { extraByPhone[c.phone] = c; });
     const inboxPhones = new Set(allContacts.map(c => c.phone_number));
-    const all = allContacts.map(c => ({ phone: c.phone_number, name: ghlNames[c.phone_number] || '', source: 'inbox' }));
+    const all = allContacts.map(c => {
+      const x = extraByPhone[c.phone_number] || {};
+      return { phone: c.phone_number, name: ghlNames[c.phone_number] || x.name || '', source: 'inbox', origin: x.origin || '', pipeline: x.pipeline || '', stage: x.stage || '' };
+    });
     bulkExtraContacts.forEach(c => { if (!inboxPhones.has(c.phone)) all.push({ ...c, source: 'extra' }); });
     return all;
+  }
+
+  // Tag text for where a contact came from: "Pipeline › Stage" for GHL
+  // loads, 'CSV' for uploads, '' for plain inbox contacts.
+  function bulkOriginLabel(c) {
+    if (c.pipeline || c.stage) return [c.pipeline, c.stage].filter(Boolean).join(' › ');
+    return c.origin || '';
+  }
+
+  function bulkOriginTag(c) {
+    const label = bulkOriginLabel(c);
+    if (!label) return '';
+    const title = label === 'CSV' ? 'Added from CSV upload' : 'Loaded from GHL: ' + label;
+    return `<span class="bulk-src-tag" title="${esc(title)}">${esc(label)}</span>`;
   }
 
   function resetBulkPipelineLoad({ keepApiCache = false } = {}) {
@@ -1826,7 +1848,7 @@
     list.innerHTML = contacts.map(c => {
       const checked = bulkSelected.has(c.phone);
       const label = c.name || c.phone;
-      const tag = c.source === 'extra' ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">${esc(c.origin || 'GHL')}</span>` : '';
+      const tag = bulkOriginTag(c);
       return `
       <label class="bulk-contact-item">
         <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleBulkContact('${esc(c.phone)}', this.checked)" />
@@ -2055,14 +2077,18 @@
       } else if (!contacts.length) {
         bulkFilterMsg = { text: `No open contacts found in "${stage ? stage.name : 'this stage'}"`, cls: '' };
       } else {
-        // Merge into bulkExtraContacts + auto-select all
-        contacts.forEach(c => {
-          if (c.name) saveGhlName(c.phone, c.name);
-          if (!bulkExtraContacts.find(e => e.phone === c.phone)) bulkExtraContacts.push({ ...c, origin: 'GHL' });
-          bulkSelected.add(c.phone);
-        });
+        // Merge into bulkExtraContacts + auto-select all. Each contact keeps
+        // the pipeline/stage it was loaded from (latest load wins) so the
+        // picker and review lists show exactly where it came from.
         const pipeName = pipe ? pipe.name : '';
         const stageName = stage ? stage.name : '';
+        contacts.forEach(c => {
+          if (c.name) saveGhlName(c.phone, c.name);
+          const existing = bulkExtraContacts.find(e => e.phone === c.phone);
+          if (existing) { existing.origin = 'GHL'; existing.pipeline = pipeName; existing.stage = stageName; }
+          else bulkExtraContacts.push({ ...c, origin: 'GHL', pipeline: pipeName, stage: stageName });
+          bulkSelected.add(c.phone);
+        });
         bulkFilterMsg = { text: `✓ ${contacts.length} contact${contacts.length > 1 ? 's' : ''} loaded from ${pipeName} – ${stageName}`, cls: 'ok' };
       }
     } catch (e) {
@@ -2210,7 +2236,9 @@
       return {
         phone: p,
         name: ghlNames[p] || c.name || '',
-        origin: c.source === 'extra' ? (c.origin || 'GHL') : '',
+        origin: c.origin || '',
+        pipeline: c.pipeline || '',
+        stage: c.stage || '',
       };
     });
   }
@@ -2222,7 +2250,7 @@
     const noName = usesName ? recipients.filter(r => !r.name).length : 0;
 
     const rows = recipients.map(r => {
-      const originTag = r.origin ? `<span style="font-size:9px;color:var(--purple);font-weight:700;margin-left:4px">${esc(r.origin)}</span>` : '';
+      const originTag = bulkOriginTag(r);
       const nameWarn = usesName && !r.name ? ` <span class="bulk-review-noname">no name saved</span>` : '';
       return `
       <div class="bulk-review-item">
