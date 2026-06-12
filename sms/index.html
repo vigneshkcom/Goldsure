@@ -542,6 +542,10 @@
     .bulk-csv-add-btn { width: 100%; margin-top: 9px; background: var(--green); color: #fff; border: none; padding: 8px; border-radius: 8px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: opacity 0.12s; }
     .bulk-csv-add-btn:hover { opacity: 0.88; }
     .bulk-csv-add-btn:disabled { opacity: 0.45; cursor: default; }
+    .bulk-csv-sample { font-size: 11.5px; color: var(--purple); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+    .bulk-csv-sample:hover { text-decoration: underline; }
+    .bulk-dyn-select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 7px; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--purple); background: #fff; cursor: pointer; outline: none; text-transform: none; letter-spacing: 0; max-width: 180px; }
+    .bulk-dyn-select:hover, .bulk-dyn-select:focus { border-color: var(--purple); }
     @media (max-width: 820px) {
       .bulk-cols { flex-direction: column; }
       .bulk-contacts-col { width: 100%; min-width: 0; }
@@ -1577,7 +1581,8 @@
   let bulkCustom        = false;
   let bulkProgress      = null;      // { items, pollTimer }
   let bulkExtraContacts = [];        // GHL-stage + CSV contacts (not in SMS inbox)
-  let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }]
+  let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
+  let bulkPipelinesLoading = false;
   let bulkFilterPipeline = '';       // selected pipeline ID
   let bulkFilterStage    = '';       // selected stage ID
   let bulkFilterLoading  = false;
@@ -1646,23 +1651,26 @@
     const msgEl = document.getElementById('bulkMsgInput');
     const currentMsg = msgEl ? msgEl.value : '';
 
-    // Pipeline/stage filter — build dropdown HTML from cached pipelines
-    const pipeOpts = bulkPipelinesCache
+    // Pipeline/stage filter — three states: loading / loaded / failed (retry)
+    const pipesReady = Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length > 0;
+    const pipeOpts = pipesReady
       ? bulkPipelinesCache.map(p => `<option value="${esc(p.id)}" ${bulkFilterPipeline === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
       : '';
-    const selectedPipe = bulkPipelinesCache ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
+    const pipePlaceholder = bulkPipelinesLoading ? 'Loading pipelines…' : '— Pipeline —';
+    const selectedPipe = pipesReady ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
     const stageOpts = selectedPipe
       ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
       : '';
     const canLoad = bulkFilterPipeline && bulkFilterStage && !bulkFilterLoading;
+    const pipesFailed = !pipesReady && !bulkPipelinesLoading;
 
     const filterHtml = `
     <div class="bulk-filter-box">
       <div class="bulk-sec-title" style="margin-bottom:8px">Load contacts from GHL Pipeline / Stage</div>
       <div class="bulk-filter-row">
         <select class="bulk-filter-select" id="bulkPipelineSel" onchange="onBulkPipelineChange(this.value)"
-          ${!bulkPipelinesCache ? 'disabled' : ''}>
-          <option value="">— Pipeline —</option>
+          ${!pipesReady ? 'disabled' : ''}>
+          <option value="">${pipePlaceholder}</option>
           ${pipeOpts}
         </select>
         <select class="bulk-filter-select" id="bulkStageSel" onchange="onBulkStageChange(this.value)"
@@ -1673,6 +1681,7 @@
         <button class="bulk-load-btn" id="bulkLoadBtn" onclick="loadGhlStageContacts()"
           ${canLoad ? '' : 'disabled'}>${bulkFilterLoading ? 'Loading…' : 'Load contacts'}</button>
       </div>
+      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a></div>` : ''}
       ${bulkFilterMsg.text ? `<div class="bulk-filter-status ${bulkFilterMsg.cls}">${esc(bulkFilterMsg.text)}</div>` : ''}
     </div>`;
 
@@ -1695,6 +1704,12 @@
           <b>Choose a file</b> or drag &amp; drop<br>
           <span class="bulk-csv-hint">CSV / TSV — columns: <code>phone</code> (required), <code>name</code> (optional)</span>
         </div>
+      </div>
+      <div style="text-align:right;margin-top:7px">
+        <a class="bulk-csv-sample" onclick="downloadSampleCsv()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download sample CSV
+        </a>
       </div>
       ${csvPreviewHtml}
       ${csvValidCount ? `<button class="bulk-csv-add-btn" onclick="applyBulkCsv()">Add ${csvValidCount} contact${csvValidCount > 1 ? 's' : ''} to selection</button>` : ''}
@@ -1722,9 +1737,15 @@
       </div>
       <div class="bulk-compose-col">
         <div>
-          <div class="bulk-sec-title">Message</div>
+          <div class="bulk-sec-title">
+            Message
+            <select class="bulk-dyn-select" onchange="insertBulkDynamic(this)">
+              <option value="">⚡ Insert dynamic value…</option>
+              <option value="{{contact.first_name}}">Contact first name</option>
+            </select>
+          </div>
           <textarea class="bulk-textarea" id="bulkMsgInput"
-            placeholder="Type your message… Use {{contact.first_name}} to personalise."
+            placeholder="Type your message… Use the ⚡ menu above to personalise with each contact's name."
             oninput="updateBulkCharCount(this.value)">${esc(currentMsg)}</textarea>
           <div class="bulk-char-row" id="bulkCharRow"></div>
         </div>
@@ -1831,13 +1852,44 @@
   }
 
   // ── Pipeline / Stage filter ────────────────────────────────────────────────
-  async function loadBulkPipelines() {
-    if (bulkPipelinesCache) return; // already loaded this session
+  async function loadBulkPipelines(force) {
+    if (bulkPipelinesLoading) return;
+    if (bulkPipelinesCache && bulkPipelinesCache.length && !force) return; // good data already
+    bulkPipelinesLoading = true;
+    rerenderBulkIfOpen();
+
+    let pipes = null;
     try {
       const r = await fetch(`${API}?action=ghl-pipelines`);
-      bulkPipelinesCache = r.ok ? await r.json() : [];
-    } catch { bulkPipelinesCache = []; }
-    // Re-render the filter row now that we have data (only if modal is open)
+      if (r.ok) {
+        const d = await r.json();
+        // Validate the shape — a stale API build answers this URL with the
+        // contacts list, which would render as a dropdown full of blanks.
+        if (Array.isArray(d) && d.length && d.every(p => p && p.id && p.name && Array.isArray(p.stages))) {
+          pipes = d;
+        }
+      }
+    } catch {}
+
+    // Fallback: rebuild from the ghlInfo sidebar cache (each cached contact
+    // carries its pipeline's full stage list)
+    if (!pipes) {
+      const map = {};
+      Object.values(ghlInfo).forEach(i => {
+        if (i && i.pipelineId && i.pipeline && Array.isArray(i.stages) && i.stages.length) {
+          map[i.pipelineId] = { id: i.pipelineId, name: i.pipeline, stages: i.stages };
+        }
+      });
+      const fb = Object.values(map);
+      if (fb.length) pipes = fb;
+    }
+
+    bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
+    bulkPipelinesLoading = false;
+    rerenderBulkIfOpen();
+  }
+
+  function rerenderBulkIfOpen() {
     if (document.getElementById('bulkOverlay').classList.contains('show') && !bulkProgress) {
       renderBulkSetup();
     }
@@ -1886,7 +1938,35 @@
     renderBulkSetup();
   }
 
+  // Insert a {{placeholder}} at the cursor position in the bulk message box
+  function insertBulkDynamic(sel) {
+    const token = sel.value;
+    sel.selectedIndex = 0;
+    if (!token) return;
+    const ta = document.getElementById('bulkMsgInput');
+    if (!ta) return;
+    const start = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+    const end   = ta.selectionEnd   != null ? ta.selectionEnd   : ta.value.length;
+    ta.value = ta.value.slice(0, start) + token + ta.value.slice(end);
+    const pos = start + token.length;
+    ta.focus();
+    ta.setSelectionRange(pos, pos);
+    updateBulkCharCount(ta.value);
+  }
+
   // ── CSV Upload ─────────────────────────────────────────────────────────────
+  function downloadSampleCsv() {
+    const csv = 'phone,name\n0412345678,John\n+61423456789,Sarah\n0434567890,Mike\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bulk-sms-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
   function toggleBulkCsv() {
     bulkCsvOpen = !bulkCsvOpen;
     const body = document.getElementById('bulkCsvBody');
