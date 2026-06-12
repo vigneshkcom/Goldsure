@@ -393,21 +393,22 @@ export default async function handler(req, res) {
     if (req.query.action === 'ghl-pipelines') {
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
-      if (!apiKey || !locationId) return res.status(200).json([]);
+      if (!apiKey || !locationId) return res.status(200).json({ error: 'GHL not configured on server' });
       try {
         const r = await fetch(
           `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
           { headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' } }
         );
-        if (!r.ok) return res.status(200).json([]);
+        if (!r.ok) return res.status(200).json({ error: `GHL responded ${r.status}` });
         const { pipelines } = await r.json();
+        if (!pipelines || !pipelines.length) return res.status(200).json({ error: 'GHL returned no pipelines' });
         return res.status(200).json(
-          (pipelines || []).map(p => ({
+          pipelines.map(p => ({
             id: p.id, name: p.name,
             stages: (p.stages || []).map(s => ({ id: s.id, name: s.name })),
           }))
         );
-      } catch { return res.status(200).json([]); }
+      } catch (e) { return res.status(200).json({ error: 'GHL request failed: ' + e.message }); }
     }
 
     // Return contacts (phone + name) for every open opportunity in a given pipeline
@@ -416,14 +417,15 @@ export default async function handler(req, res) {
       const stageId    = String(req.query.stageId || '').trim();
       const apiKey     = process.env.GHL_API_KEY;
       const locationId = process.env.GHL_LOCATION_ID;
-      if (!stageId || !apiKey || !locationId) return res.status(200).json([]);
+      if (!stageId) return res.status(200).json({ error: 'stageId required' });
+      if (!apiKey || !locationId) return res.status(200).json({ error: 'GHL not configured on server' });
       const ghlHeaders = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
       try {
         const r = await fetch(
           `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&pipeline_stage_id=${encodeURIComponent(stageId)}&status=open&limit=100`,
           { headers: ghlHeaders }
         );
-        if (!r.ok) return res.status(200).json([]);
+        if (!r.ok) return res.status(200).json({ error: `GHL responded ${r.status}` });
         const { opportunities } = await r.json();
         const out = [];
         for (const opp of (opportunities || [])) {
@@ -436,7 +438,7 @@ export default async function handler(req, res) {
         // Deduplicate by phone (can be multiple opps per contact)
         const seen = new Set();
         return res.status(200).json(out.filter(x => seen.has(x.phone) ? false : (seen.add(x.phone), true)));
-      } catch { return res.status(200).json([]); }
+      } catch (e) { return res.status(200).json({ error: 'GHL request failed: ' + e.message }); }
     }
 
     const { phone } = req.query;

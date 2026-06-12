@@ -1583,6 +1583,8 @@
   let bulkExtraContacts = [];        // GHL-stage + CSV contacts (not in SMS inbox)
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
+  let bulkPipelinesError = '';       // detail for the retry status line
+  let bulkPipelinesRetried = false;  // one silent auto-retry (covers deploy races)
   let bulkFilterPipeline = '';       // selected pipeline ID
   let bulkFilterStage    = '';       // selected stage ID
   let bulkFilterLoading  = false;
@@ -1681,7 +1683,7 @@
         <button class="bulk-load-btn" id="bulkLoadBtn" onclick="loadGhlStageContacts()"
           ${canLoad ? '' : 'disabled'}>${bulkFilterLoading ? 'Loading…' : 'Load contacts'}</button>
       </div>
-      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a></div>` : ''}
+      ${pipesFailed ? `<div class="bulk-filter-status err">Couldn't load pipelines from GHL${bulkPipelinesError ? ' — ' + esc(bulkPipelinesError) : ''}. <a style="color:var(--purple);cursor:pointer;font-weight:600" onclick="loadBulkPipelines(true)">Retry</a></div>` : ''}
       ${bulkFilterMsg.text ? `<div class="bulk-filter-status ${bulkFilterMsg.cls}">${esc(bulkFilterMsg.text)}</div>` : ''}
     </div>`;
 
@@ -1856,20 +1858,25 @@
     if (bulkPipelinesLoading) return;
     if (bulkPipelinesCache && bulkPipelinesCache.length && !force) return; // good data already
     bulkPipelinesLoading = true;
+    bulkPipelinesError = '';
     rerenderBulkIfOpen();
 
     let pipes = null;
     try {
       const r = await fetch(`${API}?action=ghl-pipelines`);
-      if (r.ok) {
-        const d = await r.json();
-        // Validate the shape — a stale API build answers this URL with the
-        // contacts list, which would render as a dropdown full of blanks.
-        if (Array.isArray(d) && d.length && d.every(p => p && p.id && p.name && Array.isArray(p.stages))) {
-          pipes = d;
-        }
+      const d = await r.json().catch(() => null);
+      // Validate the shape — a stale API build answers this URL with the
+      // contacts list, which would render as a dropdown full of blanks.
+      if (Array.isArray(d) && d.length && d.every(p => p && p.id && p.name && Array.isArray(p.stages))) {
+        pipes = d;
+      } else if (d && d.error) {
+        bulkPipelinesError = d.error;
+      } else if (Array.isArray(d) && d.length && d[0] && d[0].phone_number) {
+        bulkPipelinesError = 'portal API still deploying — wait a minute, then Retry';
+      } else if (!r.ok) {
+        bulkPipelinesError = 'API error ' + r.status;
       }
-    } catch {}
+    } catch { bulkPipelinesError = 'network error'; }
 
     // Fallback: rebuild from the ghlInfo sidebar cache (each cached contact
     // carries its pipeline's full stage list)
@@ -1887,6 +1894,13 @@
     bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
     bulkPipelinesLoading = false;
     rerenderBulkIfOpen();
+
+    // One silent auto-retry shortly after a failure — covers the window where
+    // Vercel is still rolling out the new API build.
+    if (!pipes && !bulkPipelinesRetried) {
+      bulkPipelinesRetried = true;
+      setTimeout(() => loadBulkPipelines(true), 4000);
+    }
   }
 
   function rerenderBulkIfOpen() {
@@ -1917,8 +1931,11 @@
     renderBulkSetup(); // show loading state
     try {
       const r = await fetch(`${API}?action=ghl-stage-contacts&stageId=${encodeURIComponent(bulkFilterStage)}`);
-      const contacts = r.ok ? await r.json() : [];
-      if (!contacts.length) {
+      const data = await r.json().catch(() => null);
+      const contacts = Array.isArray(data) ? data : [];
+      if (data && !Array.isArray(data) && data.error) {
+        bulkFilterMsg = { text: `Failed: ${data.error}`, cls: 'err' };
+      } else if (!contacts.length) {
         bulkFilterMsg = { text: `No open contacts found in "${stage ? stage.name : 'this stage'}"`, cls: '' };
       } else {
         // Merge into bulkExtraContacts + auto-select all
