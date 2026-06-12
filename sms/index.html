@@ -789,7 +789,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v7</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v10</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1584,6 +1584,7 @@
   let bulkExtraContacts = [];        // GHL-stage + CSV contacts (not in SMS inbox)
   let bulkPipelinesCache = null;     // [{ id, name, stages:[{id,name}] }] — null until a good load
   let bulkPipelinesLoading = false;
+  let bulkPipelinesRequested = false;
   let bulkPipelinesError = '';       // detail for the retry status line
   let bulkPipelinesSource = '';      // 'api' (live) or 'cache' (ghlInfo fallback)
   let bulkPipelinesAttempts = 0;     // silent auto-retries (covers deploy races)
@@ -1616,11 +1617,27 @@
     return all;
   }
 
+  function resetBulkPipelineLoad({ keepApiCache = false } = {}) {
+    const keepCache = keepApiCache && bulkPipelinesSource === 'api' && Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length;
+    bulkPipelinesLoading = false;
+    bulkPipelinesRequested = false;
+    bulkPipelinesError = '';
+    if (!keepCache) {
+      bulkPipelinesCache = null;
+      bulkPipelinesSource = '';
+      bulkFilterPipeline = '';
+      bulkFilterStage = '';
+    }
+  }
+
   function openBulkSend() {
     document.getElementById('bulkOverlay').classList.add('show');
     bulkPipelinesAttempts = 0; // re-arm the auto-retries for this open
+    resetBulkPipelineLoad({ keepApiCache: true });
+    bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
     renderBulkSetup();
-    loadBulkPipelines();
+    loadBulkPipelines(true);
   }
 
   function closeBulkSend() {
@@ -1659,15 +1676,15 @@
     // Pipeline/stage filter — three states: loading / loaded / failed (retry)
     const pipesReady = Array.isArray(bulkPipelinesCache) && bulkPipelinesCache.length > 0;
     const pipeOpts = pipesReady
-      ? bulkPipelinesCache.map(p => `<option value="${esc(p.id)}" ${bulkFilterPipeline === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
+      ? bulkPipelinesCache.map(p => `<option value="${esc(p.id)}" ${bulkFilterPipeline === p.id ? 'selected' : ''}>${esc(p.name || p.id)}</option>`).join('')
       : '';
     const pipePlaceholder = bulkPipelinesLoading ? 'Loading pipelines…' : '— Pipeline —';
     const selectedPipe = pipesReady ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
     const stageOpts = selectedPipe
-      ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+      ? selectedPipe.stages.map(s => `<option value="${esc(s.id)}" ${bulkFilterStage === s.id ? 'selected' : ''}>${esc(s.name || s.id)}</option>`).join('')
       : '';
     const canLoad = bulkFilterPipeline && bulkFilterStage && !bulkFilterLoading;
-    const pipesFailed = !pipesReady && !bulkPipelinesLoading;
+    const pipesFailed = bulkPipelinesRequested && !!bulkPipelinesError && !pipesReady && !bulkPipelinesLoading;
 
     const filterHtml = `
     <div class="bulk-filter-box">
@@ -1839,7 +1856,7 @@
   function applyBulkCustom(val) { const n = parseInt(val, 10); if (n >= 5) { bulkInterval = n; updateBulkPreview(); } }
 
   function updateBulkCharCount(text) {
-    const { len, parts, encoding } = smsStats(text);
+    const { len, parts, encoding } = smsInfo(text);
     const row = document.getElementById('bulkCharRow');
     if (row) row.textContent = `${len} chars · ${parts} SMS · ${encoding}`;
   }
@@ -1859,13 +1876,24 @@
 
   // ── Pipeline / Stage filter ────────────────────────────────────────────────
   function retryBulkPipelines() {
-    // If a previous render/fetch exception left the loading guard stuck on,
-    // force it open so the Retry link can always recover the modal.
-    bulkPipelinesLoading = false;
-    bulkPipelinesCache = null;
-    bulkPipelinesSource = '';
-    bulkPipelinesError = '';
+    resetBulkPipelineLoad();
+    bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
+    rerenderBulkIfOpen();
     loadBulkPipelines(true);
+  }
+
+  function normalizeBulkPipelinesResponse(d) {
+    if (!Array.isArray(d) || !d.length) return [];
+    return d
+      .filter(p => p && p.id && Array.isArray(p.stages))
+      .map(p => ({
+        id: String(p.id),
+        name: p.name || String(p.id),
+        stages: p.stages
+          .filter(s => s && s.id)
+          .map(s => ({ id: String(s.id), name: s.name || String(s.id) }))
+      }));
   }
 
   async function loadBulkPipelines(force) {
@@ -1875,6 +1903,7 @@
     if (bulkPipelinesCache && bulkPipelinesCache.length && bulkPipelinesSource === 'api' && !force) return;
 
     bulkPipelinesLoading = true;
+    bulkPipelinesRequested = true;
     bulkPipelinesError = '';
 
     let pipes = null;
@@ -1892,10 +1921,11 @@
           // Contacts list returned — API still on old build
           bulkPipelinesError = 'API still deploying — wait a minute, then Retry';
         } else {
-          // Accept anything that looks like pipeline objects (has id + stages)
-          const valid = d.filter(p => p && p.id && Array.isArray(p.stages));
+          // Accept the production Diagnose shape: pipeline id + stages array.
+          // Names are optional because the UI can fall back to IDs.
+          const valid = normalizeBulkPipelinesResponse(d);
           if (valid.length) {
-            pipes = valid.map(p => ({ id: p.id, name: p.name || p.id, stages: p.stages }));
+            pipes = valid;
           } else {
             bulkPipelinesError = 'unexpected API response — retrying';
           }
@@ -1913,7 +1943,10 @@
         bulkPipelinesError = 'unexpected shape (' + typeof d + ')';
       }
 
-      if (pipes) bulkPipelinesSource = 'api';
+      if (pipes) {
+        bulkPipelinesSource = 'api';
+        bulkPipelinesError = '';
+      }
 
       // Fallback: ghlInfo sidebar cache. Only pipelines WITH a stage list are
       // usable — without stages the Stage dropdown is dead and "Load contacts"
@@ -1931,6 +1964,7 @@
 
       if (!pipes && !bulkPipelinesError) bulkPipelinesError = 'no usable pipelines returned';
       bulkPipelinesCache = pipes; // stays null on total failure so Retry can refetch
+      if (bulkPipelinesSource === 'api' && bulkPipelinesCache) bulkPipelinesError = '';
     } catch (e) {
       console.error('loadBulkPipelines failed', e);
       bulkPipelinesCache = null;
@@ -1975,16 +2009,28 @@
     if (btn) btn.disabled = !stageId;
   }
 
+  function normalizeBulkStageContacts(data) {
+    if (!Array.isArray(data)) return [];
+    const seen = new Set();
+    return data.reduce((contacts, c) => {
+      const phone = normalisePhone(String((c && (c.phone || c.phone_number)) || ''));
+      if (!/^\+?\d{7,15}$/.test(phone) || seen.has(phone)) return contacts;
+      seen.add(phone);
+      contacts.push({ phone, name: (c && c.name) ? String(c.name) : '' });
+      return contacts;
+    }, []);
+  }
+
   async function loadGhlStageContacts() {
     if (!bulkFilterStage || bulkFilterLoading) return;
     bulkFilterLoading = true;
     const pipe = bulkPipelinesCache ? bulkPipelinesCache.find(p => p.id === bulkFilterPipeline) : null;
     const stage = pipe ? pipe.stages.find(s => s.id === bulkFilterStage) : null;
-    renderBulkSetup(); // show loading state
     try {
+      renderBulkSetup(); // show loading state
       const r = await fetch(`${API}?action=ghl-stage-contacts&stageId=${encodeURIComponent(bulkFilterStage)}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await r.json().catch(() => null);
-      const contacts = Array.isArray(data) ? data : [];
+      const contacts = normalizeBulkStageContacts(data);
       if (data && !Array.isArray(data) && data.error) {
         bulkFilterMsg = { text: `Failed: ${data.error}`, cls: 'err' };
       } else if (!contacts.length) {
@@ -2000,11 +2046,13 @@
         const stageName = stage ? stage.name : '';
         bulkFilterMsg = { text: `✓ ${contacts.length} contact${contacts.length > 1 ? 's' : ''} loaded from ${pipeName} – ${stageName}`, cls: 'ok' };
       }
-    } catch {
-      bulkFilterMsg = { text: 'Failed to load — check GHL API key', cls: 'err' };
+    } catch (e) {
+      console.error('loadGhlStageContacts failed', e);
+      bulkFilterMsg = { text: 'Failed to load contacts: ' + (e && e.message ? e.message : String(e)), cls: 'err' };
+    } finally {
+      bulkFilterLoading = false;
+      renderBulkSetup();
     }
-    bulkFilterLoading = false;
-    renderBulkSetup();
   }
 
   // Insert a {{placeholder}} at the cursor position in the bulk message box
