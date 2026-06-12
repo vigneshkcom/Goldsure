@@ -585,6 +585,11 @@
     .contact.unread .contact-preview span:last-child { color: var(--text); font-weight: 500; }
     .contact-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); flex-shrink: 0; }
+    /* Collapsed bulk-send group in the sidebar */
+    .contact.bulk-group { background: var(--purple-soft); }
+    .contact.bulk-group:hover { background: #e6e2fb; }
+    .contact.bulk-child { margin-left: 14px; border-left: 3px solid var(--purple-soft); border-radius: 0 10px 10px 0; }
+    .contact.bulk-child.active { background: var(--purple-soft); }
     .tab-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; align-items: center; justify-content: center; background: #ea5455; color: #fff; border-radius: 9px; font-size: 10.5px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
     .tab-badge.show { display: inline-flex; }
 
@@ -803,7 +808,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v12</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v13</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -851,6 +856,8 @@
   let activePhone = null;
   let pollTimer = null;
   let allContacts = [];
+  let bulkThreads = { count: 0, latest: null, contacts: [] }; // bulk-only conversations, collapsed behind one sidebar row
+  let bulkGroupOpen = false;
   let ghlTimer = null;
   let noteMode = false;
   let schedBarOpen = false;
@@ -1015,16 +1022,28 @@
   });
 
   // ── Contacts ───────────────────────────────────────────────────────────────
+  // Bulk-only conversations (collapsed sidebar group). On failure keep the
+  // current value so a transient error doesn't make the group flicker away.
+  async function fetchBulkThreads() {
+    try {
+      const r = await fetch(`${API}?action=bulk-threads`);
+      const d = await r.json();
+      if (r.ok && d && Array.isArray(d.contacts)) return d;
+    } catch {}
+    return bulkThreads;
+  }
+
   async function loadContacts() {
     try {
-      const res = await fetch(API);
+      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads()]);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       allContacts = Array.isArray(data) ? data : [];
+      bulkThreads = bData;
       // Seed notification baseline so we don't alert for the existing backlog
       allContacts.forEach(c => { prevLatest[c.phone_number] = c.created_at; });
       rerenderContacts();
-      resolveGhl(allContacts);
+      resolveGhl(allContacts.concat(bulkThreads.contacts));
       bulkOnContactsUpdated();
     } catch {
       document.getElementById('contactsList').innerHTML =
@@ -1035,7 +1054,7 @@
   // Background refresh: detect new inbound replies → notify, then re-render
   async function refreshContacts() {
     try {
-      const res = await fetch(API);
+      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads()]);
       const data = await res.json();
       if (!res.ok) return;
       const list = Array.isArray(data) ? data : [];
@@ -1046,8 +1065,9 @@
         prevLatest[c.phone_number] = c.created_at;
       }
       allContacts = list;
+      bulkThreads = bData;
       rerenderContacts();
-      resolveGhl(allContacts);
+      resolveGhl(allContacts.concat(bulkThreads.contacts));
     } catch {}
   }
 
@@ -1058,13 +1078,17 @@
 
   function filterContacts(query) {
     const q = query.trim().toLowerCase();
-    const list = !q ? allContacts : allContacts.filter(c => {
+    const match = c => {
       const name = (ghlNames[c.phone_number] || '').toLowerCase();
       return (c.phone_number || '').toLowerCase().includes(q) ||
              (c.message || '').toLowerCase().includes(q) ||
              name.includes(q);
-    });
-    renderContacts(list);
+    };
+    const list = !q ? allContacts : allContacts.filter(match);
+    // While searching, matching bulk-only conversations appear inline as
+    // normal results (the collapsed group row only shows when not searching)
+    const bulkMatches = q ? bulkThreads.contacts.filter(match) : [];
+    renderContacts(list, q, bulkMatches);
   }
 
   function updateUnreadUI() {
@@ -1075,40 +1099,79 @@
     badge.classList.toggle('show', n > 0);
   }
 
-  function renderContacts(contacts) {
+  function contactRowHtml(c, extraCls) {
+    const name = ghlNames[c.phone_number];
+    const displayName = name || c.phone_number;
+    const subLine = name ? `<span style="font-size:11px;color:var(--faint);font-weight:400">${esc(c.phone_number)}</span>` : '';
+    const unread = isUnread(c);
+    const info = ghlInfo[c.phone_number];
+    const pill = info && info.pipeline
+      ? `<span class="stage-pill" title="${esc([info.pipeline, info.stage].filter(Boolean).join(' – '))}">${esc(info.pipeline)}</span>` : '';
+    return `
+    <div class="contact ${extraCls || ''} ${c.phone_number === activePhone ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
+      <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
+      <div class="contact-body">
+        <div class="contact-line1">
+          <span class="contact-name">${esc(displayName)}</span>
+          <span class="contact-right">
+            <span class="contact-time">${esc(relTime(c.created_at))}</span>
+            ${unread ? '<span class="unread-dot"></span>' : ''}
+          </span>
+        </div>
+        ${pill ? `<div class="contact-pill-row">${pill}</div>` : ''}
+        <div class="contact-preview">
+          ${subLine}
+          <span class="dir">${c.direction === 'outbound' ? '↑' : '↓'}</span>
+          <span>${esc(c.message)}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Summary row + (when open) the bulk-only conversations beneath it
+  function bulkGroupHtml() {
+    const n = bulkThreads.count;
+    const t = bulkThreads.latest ? relTime(bulkThreads.latest) : '';
+    const row = `
+    <div class="contact bulk-group" onclick="toggleBulkGroup()" title="Customers who only received bulk SMS and haven't replied yet">
+      <div class="avatar" style="background:var(--purple-soft);color:var(--purple)">📢</div>
+      <div class="contact-body">
+        <div class="contact-line1">
+          <span class="contact-name">Bulk sends</span>
+          <span class="contact-right"><span class="contact-time">${esc(t)}</span></span>
+        </div>
+        <div class="contact-preview"><span>${n} contact${n === 1 ? '' : 's'} · no reply yet · click to ${bulkGroupOpen ? 'hide' : 'view'}</span></div>
+      </div>
+    </div>`;
+    const children = bulkGroupOpen ? bulkThreads.contacts.map(c => contactRowHtml(c, 'bulk-child')).join('') : '';
+    return row + children;
+  }
+
+  function toggleBulkGroup() {
+    bulkGroupOpen = !bulkGroupOpen;
+    rerenderContacts();
+  }
+
+  function renderContacts(contacts, q, bulkMatches) {
     const el = document.getElementById('contactsList');
-    if (!contacts.length) {
+    const showGroup = !q && bulkThreads.count > 0;
+    if (!contacts.length && !showGroup && !(bulkMatches && bulkMatches.length)) {
       el.innerHTML = '<div class="empty-list">No conversations yet.<br>Tap <b>+ New Message</b> to start one.</div>';
       return;
     }
-    el.innerHTML = contacts.map(c => {
-      const name = ghlNames[c.phone_number];
-      const displayName = name || c.phone_number;
-      const subLine = name ? `<span style="font-size:11px;color:var(--faint);font-weight:400">${esc(c.phone_number)}</span>` : '';
-      const unread = isUnread(c);
-      const info = ghlInfo[c.phone_number];
-      const pill = info && info.pipeline
-        ? `<span class="stage-pill" title="${esc([info.pipeline, info.stage].filter(Boolean).join(' – '))}">${esc(info.pipeline)}</span>` : '';
-      return `
-      <div class="contact ${c.phone_number === activePhone ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
-        <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
-        <div class="contact-body">
-          <div class="contact-line1">
-            <span class="contact-name">${esc(displayName)}</span>
-            <span class="contact-right">
-              <span class="contact-time">${esc(relTime(c.created_at))}</span>
-              ${unread ? '<span class="unread-dot"></span>' : ''}
-            </span>
-          </div>
-          ${pill ? `<div class="contact-pill-row">${pill}</div>` : ''}
-          <div class="contact-preview">
-            ${subLine}
-            <span class="dir">${c.direction === 'outbound' ? '↑' : '↓'}</span>
-            <span>${esc(c.message)}</span>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    const parts = [];
+    let groupPlaced = !showGroup;
+    contacts.forEach(c => {
+      // Group row slots into the list by its latest send time
+      if (!groupPlaced && bulkThreads.latest && new Date(bulkThreads.latest) >= new Date(c.created_at)) {
+        parts.push(bulkGroupHtml());
+        groupPlaced = true;
+      }
+      parts.push(contactRowHtml(c, ''));
+    });
+    if (!groupPlaced) parts.push(bulkGroupHtml());
+    if (bulkMatches && bulkMatches.length) parts.push(bulkMatches.map(c => contactRowHtml(c, '')).join(''));
+    el.innerHTML = parts.join('');
     updateUnreadUI();
   }
 
@@ -1443,13 +1506,14 @@
         }
       }
       const optTag = !out && m.status === 'optout' ? ' <span class="meta-fail">⛔ Opted out</span>' : '';
+      const bulkTag = out && m.is_bulk ? ' <span style="color:var(--purple);font-weight:600" title="Sent as part of a bulk SMS">📢 Bulk</span>' : '';
       html += `
         <div class="msg-group ${out ? 'out' : 'in'}${failCls}">
           ${out ? `<div class="msg-sender">${esc(AGENT_NAME)}</div>` : ''}
           <div class="bubble">${esc(m.message)}</div>
           <div class="msg-meta">
             <span>${esc(fullTime(d))}</span>
-            ${tick}${optTag}
+            ${tick}${optTag}${bulkTag}
           </div>
         </div>`;
     }
@@ -1625,18 +1689,23 @@
     if (!bgFireTimer) bgFireTimer = setTimeout(bgFireScheduled, 5000);
   }
 
-  // Unified contact pool: inbox + GHL-stage / CSV extras, deduped by phone.
-  // Inbox contacts that were also loaded from a GHL stage keep that
+  // Unified contact pool: inbox + bulk-only threads + GHL-stage / CSV extras,
+  // deduped by phone. Contacts that were loaded from a GHL stage keep that
   // pipeline/stage info so the lists can show where they came from.
   function getBulkContacts() {
     const extraByPhone = {};
     bulkExtraContacts.forEach(c => { extraByPhone[c.phone] = c; });
-    const inboxPhones = new Set(allContacts.map(c => c.phone_number));
-    const all = allContacts.map(c => {
-      const x = extraByPhone[c.phone_number] || {};
-      return { phone: c.phone_number, name: ghlNames[c.phone_number] || x.name || '', source: 'inbox', origin: x.origin || '', pipeline: x.pipeline || '', stage: x.stage || '' };
-    });
-    bulkExtraContacts.forEach(c => { if (!inboxPhones.has(c.phone)) all.push({ ...c, source: 'extra' }); });
+    const seen = new Set();
+    const all = [];
+    const pushKnown = phone => {
+      if (seen.has(phone)) return;
+      seen.add(phone);
+      const x = extraByPhone[phone] || {};
+      all.push({ phone, name: ghlNames[phone] || x.name || '', source: 'inbox', origin: x.origin || '', pipeline: x.pipeline || '', stage: x.stage || '' });
+    };
+    allContacts.forEach(c => pushKnown(c.phone_number));
+    bulkThreads.contacts.forEach(c => pushKnown(c.phone_number));
+    bulkExtraContacts.forEach(c => { if (!seen.has(c.phone)) { seen.add(c.phone); all.push({ ...c, source: 'extra' }); } });
     return all;
   }
 
@@ -2314,6 +2383,7 @@
     });
 
     let results = [];
+    let sendWarning = '';
     try {
       const r = await fetch(API, {
         method: 'POST',
@@ -2323,6 +2393,7 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       results = d.results || [];
+      sendWarning = d.warning || '';
     } catch (e) {
       alert('Failed to schedule bulk send: ' + e.message);
       if (btn) { btn.disabled = false; btn.textContent = 'Confirm & Send to ' + sel.length; }
@@ -2339,7 +2410,8 @@
     }));
 
     bulkProgress = { items, pollTimer: null };
-    document.getElementById('bulkSub').textContent = `Sending ${items.filter(i => i.status === 'pending').length} messages…`;
+    document.getElementById('bulkSub').textContent = `Sending ${items.filter(i => i.status === 'pending').length} messages…`
+      + (sendWarning ? ` ⚠ ${sendWarning}` : '');
     renderBulkProgress();
 
     ensureBgFire();

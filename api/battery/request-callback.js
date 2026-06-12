@@ -388,6 +388,47 @@ export default async function handler(req, res) {
       return res.status(200).json({ fired, remaining: Array.isArray(remRows) ? remRows.length : 0 });
     }
 
+    // Bulk-only conversations: phones whose only (non-cancelled) activity is
+    // bulk sends. The sidebar shows these collapsed behind one summary row;
+    // the moment a customer replies (or is messaged manually) they gain a
+    // non-bulk row and move to the main contacts list instead.
+    // Returns { count, latest, contacts } — empty until the is_bulk column exists.
+    if (req.query.action === 'bulk-threads') {
+      res.setHeader('Cache-Control', 'no-store');
+      const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const bulkRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status&is_bulk=is.true&order=created_at.desc&limit=500`,
+        { headers: ah }
+      );
+      if (!bulkRes.ok) return res.status(200).json({ count: 0, latest: null, contacts: [] });
+      const bulkRows = await bulkRes.json().catch(() => []);
+      const latestBulk = [];
+      const seenBulk = new Set();
+      for (const r of (Array.isArray(bulkRows) ? bulkRows : [])) {
+        if (r.status === 'cancelled') continue; // never sent — next-older sent row (if any) represents the thread
+        if (seenBulk.has(r.phone_number)) continue;
+        seenBulk.add(r.phone_number);
+        latestBulk.push(r);
+      }
+      if (!latestBulk.length) return res.status(200).json({ count: 0, latest: null, contacts: [] });
+
+      // Drop phones with any real (non-bulk) activity — those live in the main list
+      const realRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,status&is_bulk=not.is.true&order=created_at.desc&limit=500`,
+        { headers: ah }
+      );
+      const realRows = realRes.ok ? await realRes.json().catch(() => []) : [];
+      const realPhones = new Set((Array.isArray(realRows) ? realRows : [])
+        .filter(r => r.status !== 'note' && r.status !== 'cancelled')
+        .map(r => r.phone_number));
+      const contacts = latestBulk.filter(r => !realPhones.has(r.phone_number));
+      return res.status(200).json({
+        count: contacts.length,
+        latest: contacts.length ? contacts[0].created_at : null,
+        contacts,
+      });
+    }
+
     // Return all GHL pipelines with their stages — used to populate the bulk SMS
     // pipeline/stage filter dropdowns. On failure the response carries GHL's own
     // status + message (and ?debug=1 adds env state) so production failures are
@@ -582,10 +623,18 @@ export default async function handler(req, res) {
     // Contacts: deduplicate to latest message per phone number.
     // Skip internal notes and cancelled rows so they don't masquerade as the
     // conversation's latest message in the sidebar preview.
-    const supaRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status&order=created_at.desc&limit=500`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    );
+    // Bulk-send rows are excluded entirely: a blast must not flood the
+    // sidebar, reshuffle it, or push real conversations out of the 500-row
+    // window. Conversations appear here through their real (non-bulk)
+    // activity only; bulk-only threads are served by ?action=bulk-threads.
+    // Falls back to the unfiltered query until the is_bulk column exists.
+    const listUrl = (excludeBulk) =>
+      `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status` +
+      (excludeBulk ? '&is_bulk=not.is.true' : '') +
+      `&order=created_at.desc&limit=500`;
+    const listHeaders = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    let supaRes = await fetch(listUrl(true), { headers: listHeaders });
+    if (!supaRes.ok) supaRes = await fetch(listUrl(false), { headers: listHeaders });
     const rows = await supaRes.json();
     const seen = new Set();
     const contacts = (Array.isArray(rows) ? rows : []).filter(r => {
@@ -715,6 +764,16 @@ export default async function handler(req, res) {
     if (!phones.length || !msgTpl) return res.status(400).json({ error: 'phones and message required' });
 
     const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+    // Tag rows as bulk so the sidebar can collapse them. Only possible once
+    // the is_bulk column exists (ALTER TABLE in sms/README.md) — without it,
+    // degrade to untagged rows rather than failing the whole send.
+    let hasBulkCol = false;
+    try {
+      const probe = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=is_bulk&limit=1`, { headers: ah });
+      hasBulkCol = probe.ok;
+    } catch {}
+
     const results = [];
     let slot = 0; // counts only the messages actually scheduled (skips don't consume a slot)
 
@@ -727,12 +786,15 @@ export default async function handler(req, res) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
         method: 'POST',
         headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt }),
+        body: JSON.stringify({ phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt, ...(hasBulkCol ? { is_bulk: true } : {}) }),
       });
       results.push({ phone, status: r.ok ? 'scheduled' : 'error', fireAt });
       if (r.ok) slot++;
     }
-    return res.status(200).json({ results });
+    return res.status(200).json({
+      results,
+      ...(hasBulkCol ? {} : { warning: 'is_bulk column missing — run the ALTER TABLE in sms/README.md so bulk sends collapse in the sidebar' }),
+    });
   }
 
   // ── POST action=cancel-bulk: cancel all future scheduled messages for a set of phones

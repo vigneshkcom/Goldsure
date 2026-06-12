@@ -38,10 +38,27 @@ CREATE TABLE sms_messages (
   direction text CHECK (direction IN ('outbound','inbound')),
   status text DEFAULT 'pending',
   sms_gate_id text,
+  is_bulk boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 CREATE INDEX ON sms_messages (phone_number, created_at);
+CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
 ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;
+```
+
+**Migration for existing installs** (required for the collapsed bulk-sends
+sidebar group — until it's run, bulk sends behave like before and the
+bulk-send response carries a `warning`):
+```sql
+ALTER TABLE sms_messages ADD COLUMN is_bulk boolean DEFAULT false;
+CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
+```
+Optionally retro-tag past blasts so they collapse too (adjust the text to
+match the message that was sent):
+```sql
+UPDATE sms_messages SET is_bulk = true
+WHERE direction = 'outbound'
+  AND message LIKE 'Hi, Goldsure here. You recently enquired%';
 ```
 
 ### 3. Webhooks (register via SMS Gate API — the app has no webhook UI)
@@ -81,7 +98,18 @@ SMS permissions granted, app set to start on boot.
 | `GET ?action=ghl-opps&phones=...` | GHL pipeline stage, opportunity value + contact link per phone |
 | `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
 | `GET ?action=stats&tzo=...` | Dashboard aggregates: today/30d volumes, 14-day chart, scheduled, failed, opt-outs |
+| `GET ?action=bulk-threads` | Bulk-only conversations (no reply / no manual message yet) for the collapsed sidebar group |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
+
+## Bulk sends & the sidebar
+Bulk SMS rows are tagged `is_bulk = true` when scheduled. The contacts list
+excludes bulk rows entirely, so a 100-customer blast neither floods the
+sidebar nor pushes real conversations out of its 500-row window. Customers
+whose only activity is bulk sends sit collapsed behind a single
+"📢 Bulk sends" row (click to expand); as soon as one replies — or is
+messaged manually — they move into the main list like any normal
+conversation. Bulk messages stay in each customer's thread (marked 📢) for
+history and SPAM Act records.
 
 ## Opt-out (SPAM Act)
 A reply of STOP / UNSUBSCRIBE / OPT OUT marks the number opted out (the inbound row
