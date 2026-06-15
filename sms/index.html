@@ -808,7 +808,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v14</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v15</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1830,6 +1830,10 @@
     const csvIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
     const csvPreviewHtml = bulkCsvRows.length ? renderCsvPreviewHtml() : '';
     const csvValidCount = bulkCsvRows.filter(r => r.ok && !r.dup).length;
+    const csvDupCount   = bulkCsvRows.filter(r => r.ok && r.dup).length;
+    const csvBadCount   = bulkCsvRows.filter(r => !r.ok).length;
+    const csvSummary = bulkCsvRows.length ? `<div style="font-size:11.5px;color:var(--muted);margin-top:8px">
+      <b style="color:var(--green)">${csvValidCount}</b> to add${csvDupCount ? ` · <b style="color:var(--muted)">${csvDupCount}</b> duplicate number${csvDupCount > 1 ? 's' : ''} (same number more than once)` : ''}${csvBadCount ? ` · <b style="color:#ea5455">${csvBadCount}</b> invalid` : ''}</div>` : '';
     const csvHtml = `
     <div class="bulk-csv-hd ${bulkCsvOpen ? 'open' : ''}" onclick="toggleBulkCsv()">
       <span class="bulk-csv-hd-text">Upload CSV</span>
@@ -1853,6 +1857,7 @@
         </a>
       </div>
       ${csvPreviewHtml}
+      ${csvSummary}
       ${csvValidCount ? `<button class="bulk-csv-add-btn" onclick="applyBulkCsv()">Add ${csvValidCount} contact${csvValidCount > 1 ? 's' : ''} to selection</button>` : ''}
     </div>`;
 
@@ -2253,6 +2258,7 @@
     const nIdx = hasHeader ? nameIdx  : 1;
 
     const rows = [];
+    const seenInFile = new Set(); // catch the same number repeated within this file
     dataLines.forEach(line => {
       if (!line.trim()) return;
       const cells = splitLine(line);
@@ -2260,8 +2266,10 @@
       const rawName  = nIdx >= 0 ? (cells[nIdx] || '') : '';
       const phone = normalisePhone(rawPhone);
       const ok    = /^\+\d{7,15}$/.test(phone);
-      const dup   = ok && bulkSelected.has(phone);
-      rows.push({ rawPhone, phone, name: rawName, ok, dup });
+      const dupSelected = ok && bulkSelected.has(phone); // already in the current selection
+      const dupInFile   = ok && seenInFile.has(phone);   // same number earlier in this file
+      if (ok) seenInFile.add(phone);
+      rows.push({ rawPhone, phone, name: rawName, ok, dup: dupSelected || dupInFile, dupSelected, dupInFile });
     });
     return rows;
   }
@@ -2271,7 +2279,8 @@
     const rowsHtml = bulkCsvRows.slice(0, 50).map(r => {
       const cls = !r.ok ? 'bad' : (r.dup ? 'dup' : '');
       const icon = !r.ok ? '✗' : (r.dup ? '·' : '✓');
-      const err  = !r.ok ? `<span class="bulk-csv-err">invalid</span>` : (r.dup ? `<span class="bulk-csv-err" style="color:var(--muted)">already selected</span>` : '');
+      const dupText = r.dupInFile && !r.dupSelected ? 'duplicate number' : 'already selected';
+      const err  = !r.ok ? `<span class="bulk-csv-err">invalid</span>` : (r.dup ? `<span class="bulk-csv-err" style="color:var(--muted)">${dupText}</span>` : '');
       return `<div class="bulk-csv-row ${cls}">
         <span class="bulk-csv-icon">${icon}</span>
         <span class="bulk-csv-name">${esc(r.name || '(no name)')}</span>
