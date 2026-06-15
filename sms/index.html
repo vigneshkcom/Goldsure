@@ -808,7 +808,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v16</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v17</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1045,6 +1045,10 @@
       rerenderContacts();
       resolveGhl(allContacts.concat(bulkThreads.contacts));
       bulkOnContactsUpdated();
+      // Resume firing any queued scheduled/bulk messages as soon as the portal
+      // opens (e.g. after an accidental close+reopen). Self-terminates when the
+      // queue is empty, so it's a no-op when there's nothing scheduled.
+      ensureBgFire();
     } catch {
       document.getElementById('contactsList').innerHTML =
         '<div class="empty-list">Could not load conversations.<br>Check the deployment logs.</div>';
@@ -1684,15 +1688,19 @@
   let bulkReviewMode     = false;    // showing the review-before-send screen
   let bulkMsgDraft       = '';       // preserves the message across screen switches
 
-  // Background scheduler — fires past-due scheduled messages every 30s
+  // Background scheduler — fires past-due scheduled messages every 30s while the
+  // portal is open. Self-sustaining only while a queue exists, and survives
+  // transient network errors (only a confirmed empty queue stops it), so it
+  // keeps draining after a reopen without depending on the GitHub Actions cron.
   let bgFireTimer = null;
   async function bgFireScheduled() {
+    let remaining = -1; // -1 = unknown (error) → keep polling to be safe
     try {
       const r = await fetch(`${API}?action=fire-scheduled`);
       const d = await r.json();
-      if (d.remaining > 0) bgFireTimer = setTimeout(bgFireScheduled, 30000);
-      else bgFireTimer = null;
-    } catch { bgFireTimer = null; }
+      remaining = typeof d.remaining === 'number' ? d.remaining : -1;
+    } catch { remaining = -1; }
+    bgFireTimer = (remaining === 0) ? null : setTimeout(bgFireScheduled, 30000);
   }
   function ensureBgFire() {
     if (!bgFireTimer) bgFireTimer = setTimeout(bgFireScheduled, 5000);
