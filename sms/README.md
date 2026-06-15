@@ -99,7 +99,32 @@ SMS permissions granted, app set to start on boot.
 | `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
 | `GET ?action=stats&tzo=...` | Dashboard aggregates: today/30d volumes, 14-day chart, scheduled, failed, opt-outs |
 | `GET ?action=bulk-threads` | Bulk-only conversations (no reply / no manual message yet) for the collapsed sidebar group |
+| `GET ?action=fire-scheduled` | Send all past-due scheduled/bulk messages (drains in batches within a time budget). Returns `{fired, failed, cancelled, remaining}` |
+| `GET ?action=bulk-status&ids=...` | Real status of specific scheduled rows so the bulk progress screen reflects sent/failed/cancelled accurately |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
+
+## Scheduled & bulk sending (how messages actually go out)
+Bulk/scheduled messages are saved with `status='scheduled'` and a fire time in
+`sms_gate_id` (`sched:<ISO>`). Something must call `?action=fire-scheduled` for
+them to send. Three things do:
+
+1. **GitHub Actions cron — the reliable one.** `.github/workflows/fire-scheduled-sms.yml`
+   pings the endpoint every 5 minutes, so messages send even with no portal
+   open. Runs from the **default branch** only; enable it under the repo's
+   **Actions** tab if Actions are off. It hits the public production URL and
+   needs no secrets. (Vercel Hobby crons can't run more than daily, hence
+   GitHub Actions. For tighter timing, Vercel Pro's 1-min cron or an external
+   cron service pointed at the same URL also work.)
+2. **Bulk progress screen** polls every 5s while open (fast feedback).
+3. **Opening a conversation** fires that contact's past-due messages.
+
+Each message is claimed (`scheduled→sending`) before sending, so concurrent
+triggers can never double-send. The progress screen reads back the true
+per-message status — it no longer marks a row "sent" just because its send
+time passed.
+
+> ⚠️ The gateway phone must be online for sends to actually leave. Android may
+> also prompt to allow bulk SMS the first time; approve it on the device.
 
 ## Bulk sends & the sidebar
 Bulk SMS rows are tagged `is_bulk = true` when scheduled. The contacts list

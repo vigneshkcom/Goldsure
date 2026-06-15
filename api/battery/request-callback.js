@@ -325,33 +325,43 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fire all past-due scheduled messages across every phone (used by the bulk
-    // send poller in the UI so messages fire even without opening each conversation).
+    // Fire all past-due scheduled messages across every phone. Driven by:
+    //   • the GitHub Actions cron (every 5 min) so sends happen with no portal open
+    //   • the bulk-send progress poller and the per-conversation open path in the UI
+    // Drains in batches within a time budget so a backlog clears quickly without
+    // ever exceeding the serverless function timeout. Per-message claim
+    // (scheduled→sending) guarantees a message is never sent twice.
     if (req.query.action === 'fire-scheduled') {
       const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
-      const schedRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id,phone_number,message,sms_gate_id&order=created_at.asc&limit=10`,
-        { headers: ah }
-      );
-      const all = await schedRes.json().catch(() => []);
-      const pastDue = (Array.isArray(all) ? all : []).filter(m => {
-        if (!m.sms_gate_id || !m.sms_gate_id.startsWith('sched:')) return false;
-        const ts = new Date(m.sms_gate_id.slice(6, 32));
-        return !isNaN(ts) && ts <= new Date();
-      });
-
       const user = process.env.SMSGATE_USERNAME;
       const pass = process.env.SMSGATE_PASSWORD;
-      let fired = 0;
-      if (user && pass) {
-        const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+      const credentials = (user && pass) ? Buffer.from(`${user}:${pass}`).toString('base64') : null;
+      const deadline = Date.now() + 8000; // stay safely under the 10s default timeout
+      let fired = 0, failed = 0, cancelled = 0;
+      const processed = []; // [{id, status}] so the UI can reflect the real outcome
+
+      while (credentials && Date.now() < deadline) {
+        const schedRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id,phone_number,message,sms_gate_id&order=created_at.asc&limit=25`,
+          { headers: ah }
+        );
+        const all = await schedRes.json().catch(() => []);
+        const pastDue = (Array.isArray(all) ? all : []).filter(m => {
+          if (!m.sms_gate_id || !m.sms_gate_id.startsWith('sched:')) return false;
+          const ts = new Date(m.sms_gate_id.slice(6, 32));
+          return !isNaN(ts) && ts <= new Date();
+        });
+        if (!pastDue.length) break; // nothing due right now (older rows are future-dated)
+
         for (const m of pastDue) {
+          if (Date.now() >= deadline) break;
           if (await isOptedOut(m.phone_number)) {
             await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
               method: 'PATCH',
               headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({ status: 'cancelled' }),
             });
+            cancelled++; processed.push({ id: m.id, status: 'cancelled' });
             continue;
           }
           const claimRes = await fetch(
@@ -360,7 +370,7 @@ export default async function handler(req, res) {
               body: JSON.stringify({ status: 'sending' }) }
           );
           const claimed = await claimRes.json().catch(() => []);
-          if (!Array.isArray(claimed) || !claimed.length) continue;
+          if (!Array.isArray(claimed) || !claimed.length) continue; // claimed by a concurrent run
           try {
             const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
               method: 'POST',
@@ -378,18 +388,50 @@ export default async function handler(req, res) {
               headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({ status: newStatus, ...(smsData.id ? { sms_gate_id: smsData.id } : {}) }),
             });
-            if (smsRes.ok) fired++;
-          } catch {}
+            if (smsRes.ok) { fired++; processed.push({ id: m.id, status: 'sent' }); }
+            else { failed++; processed.push({ id: m.id, status: 'failed' }); }
+          } catch (e) {
+            // Network/send error after claiming — mark failed so it isn't stuck
+            // 'sending' forever (and won't be re-sent, since it's no longer scheduled).
+            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?id=eq.${encodeURIComponent(m.id)}`, {
+              method: 'PATCH',
+              headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ status: 'failed' }),
+            }).catch(() => {});
+            failed++; processed.push({ id: m.id, status: 'failed' });
+          }
         }
       }
 
-      // Total remaining scheduled (so the UI knows when it's done)
+      // Total remaining scheduled (so callers know whether to keep draining)
       const remRes = await fetch(
         `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id&limit=1000`,
         { headers: ah }
       );
       const remRows = await remRes.json().catch(() => []);
-      return res.status(200).json({ fired, remaining: Array.isArray(remRows) ? remRows.length : 0 });
+      return res.status(200).json({
+        fired, failed, cancelled, processed,
+        remaining: Array.isArray(remRows) ? remRows.length : 0,
+        ...(credentials ? {} : { error: 'SMS gateway credentials not configured' }),
+      });
+    }
+
+    // Status of specific scheduled rows by id — lets the bulk-send progress
+    // screen show the *real* outcome (sent / failed / cancelled / still pending)
+    // instead of guessing from the clock.
+    if (req.query.action === 'bulk-status') {
+      const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const ids = String(req.query.ids || '')
+        .split(',').map(s => s.trim())
+        .filter(s => /^[0-9a-fA-F-]{6,40}$/.test(s)) // uuids only
+        .slice(0, 500);
+      if (!ids.length) return res.status(200).json({ statuses: [] });
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?id=in.(${ids.join(',')})&select=id,status`,
+        { headers: ah }
+      );
+      const rows = r.ok ? await r.json().catch(() => []) : [];
+      return res.status(200).json({ statuses: Array.isArray(rows) ? rows : [] });
     }
 
     // Bulk-only conversations: phones whose only (non-cancelled) activity is
@@ -789,10 +831,12 @@ export default async function handler(req, res) {
       const fireAt = new Date(Date.now() + slot * intervalMs).toISOString();
       const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
         method: 'POST',
-        headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=representation' },
         body: JSON.stringify({ phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt, ...(hasBulkCol ? { is_bulk: true } : {}) }),
       });
-      results.push({ phone, status: r.ok ? 'scheduled' : 'error', fireAt });
+      let id = null;
+      if (r.ok) { const ins = await r.json().catch(() => []); id = Array.isArray(ins) && ins[0] ? ins[0].id : null; }
+      results.push({ phone, status: r.ok ? 'scheduled' : 'error', fireAt, id });
       if (r.ok) slot++;
     }
     return res.status(200).json({

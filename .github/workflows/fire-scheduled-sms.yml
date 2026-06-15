@@ -1,0 +1,38 @@
+name: Fire scheduled SMS
+
+# Sends any past-due scheduled / bulk SMS even when nobody has the portal open.
+# Vercel's Hobby plan only allows once-a-day crons, so this pings the public
+# fire-scheduled endpoint every 5 minutes (GitHub's minimum cron interval).
+# The endpoint claims each message (scheduled -> sending) before sending, so
+# overlapping runs can never send a message twice.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}   # lets you trigger a run by hand from the Actions tab
+
+# Never let two runs overlap.
+concurrency:
+  group: fire-scheduled-sms
+  cancel-in-progress: false
+
+jobs:
+  fire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain the scheduled SMS queue
+        run: |
+          URL='https://portal.goldsure.com.au/api/battery/request-callback?action=fire-scheduled'
+          # Each call sends for up to ~8s then returns how many are still queued.
+          # Loop so a backlog clears within this run; stop as soon as it's empty.
+          for i in $(seq 1 10); do
+            resp=$(curl -sS --max-time 60 "$URL") || { echo "curl failed (attempt $i)"; sleep 10; continue; }
+            echo "Attempt $i: $resp"
+            remaining=$(echo "$resp" | jq -r '.remaining // empty' 2>/dev/null || echo '')
+            if [ -z "$remaining" ] || [ "$remaining" = "0" ]; then
+              echo "Queue empty — done."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Still draining after 10 passes; the next scheduled run will continue."

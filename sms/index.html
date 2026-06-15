@@ -808,7 +808,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v15</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v16</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -2422,6 +2422,7 @@
 
     const items = results.map(r => ({
       phone:  r.phone,
+      id:     r.id || null,
       name:   ghlNames[r.phone] || (byPhone[r.phone] && byPhone[r.phone].name) || r.phone,
       fireAt: r.fireAt || null,
       status: r.status === 'skipped' ? 'skipped' : (r.status === 'scheduled' ? 'pending' : 'error'),
@@ -2433,26 +2434,54 @@
     renderBulkProgress();
 
     ensureBgFire();
-    bulkProgress.pollTimer = setInterval(async () => {
-      try { await fetch(`${API}?action=fire-scheduled`); updateBulkProgressState(); } catch {}
-    }, 5000);
-    updateBulkProgressState();
+    bulkProgress.pollTimer = setInterval(refreshBulkProgress, 5000);
+    refreshBulkProgress();
   }
 
-  function updateBulkProgressState() {
+  // Poll the server: trigger any due sends, then read the REAL status of each
+  // scheduled row (sent / failed / cancelled / still pending) — never guess from
+  // the clock. Rows without an id (pre-migration) fall back to clock-based
+  // optimism so the bar still advances.
+  async function refreshBulkProgress() {
     if (!bulkProgress) return;
+    try { await fetch(`${API}?action=fire-scheduled`); } catch {}
+
+    const pendingIds = bulkProgress.items.filter(i => i.status === 'pending' && i.id).map(i => i.id);
+    if (pendingIds.length) {
+      try {
+        const r = await fetch(`${API}?action=bulk-status&ids=${encodeURIComponent(pendingIds.join(','))}`);
+        const d = await r.json();
+        const byId = {};
+        (d.statuses || []).forEach(s => { byId[s.id] = s.status; });
+        bulkProgress.items.forEach(it => {
+          if (it.status !== 'pending' || !it.id) return;
+          const st = byId[it.id];
+          if (st === 'sent' || st === 'delivered') it.status = 'sent';
+          else if (st === 'failed') it.status = 'failed';
+          else if (st === 'cancelled') it.status = 'cancelled';
+          // 'scheduled' / 'sending' stay pending
+        });
+      } catch {}
+    }
+
+    // Fallback for any pending items we can't verify by id
     const now = Date.now();
-    let changed = false;
     bulkProgress.items.forEach(it => {
-      if (it.status === 'pending' && it.fireAt && new Date(it.fireAt).getTime() + 6000 <= now) {
-        it.status = 'sent'; changed = true;
+      if (it.status === 'pending' && !it.id && it.fireAt && new Date(it.fireAt).getTime() + 6000 <= now) {
+        it.status = 'sent';
       }
     });
-    if (changed) renderBulkProgress();
+
+    renderBulkProgress();
+
     const pending = bulkProgress.items.filter(i => i.status === 'pending').length;
     if (!pending && bulkProgress.pollTimer) {
       clearInterval(bulkProgress.pollTimer); bulkProgress.pollTimer = null;
-      document.getElementById('bulkSub').textContent = 'All messages sent!';
+      const sent = bulkProgress.items.filter(i => i.status === 'sent').length;
+      const failed = bulkProgress.items.filter(i => i.status === 'failed').length;
+      const cancelled = bulkProgress.items.filter(i => i.status === 'cancelled').length;
+      document.getElementById('bulkSub').textContent =
+        `Done — ${sent} sent` + (failed ? `, ${failed} failed` : '') + (cancelled ? `, ${cancelled} cancelled` : '') + '.';
     }
   }
 
