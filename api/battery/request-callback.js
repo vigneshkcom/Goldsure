@@ -24,9 +24,13 @@ export default async function handler(req, res) {
   // thread as outbound sends (0412… / 61412… / +61412… are all the one number).
   // Non-matching values (shortcodes, alphanumeric sender IDs) pass through as-is.
   const normalizeAuPhone = (raw) => {
-    const s = String(raw || '').replace(/[\s\-().]/g, '');
-    if (/^04\d{8}$/.test(s)) return '+61' + s.slice(1);
-    if (/^614\d{8}$/.test(s)) return '+' + s;
+    let s = String(raw || '').replace(/[\s\-().]/g, '');
+    if (!s) return s;
+    if (s[0] === '+') return s;                          // already E.164
+    if (s.startsWith('0061')) s = s.slice(2);            // 0061… intl prefix → 61…
+    if (/^61\d{9}$/.test(s)) return '+' + s;             // 61451898761 → +61451898761
+    if (/^0\d{9}$/.test(s)) return '+61' + s.slice(1);   // 0451898761 / 0712345678 → +61…
+    if (/^4\d{8}$/.test(s)) return '+61' + s;            // 451898761 — leading 0 dropped by Excel
     return s;
   };
 

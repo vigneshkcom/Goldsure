@@ -808,7 +808,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v13</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v14</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -1647,10 +1647,19 @@
     return name.slice(0, 2).toUpperCase();
   }
 
+  // Normalise AU phone formats to E.164 (+61…). Handles the ways numbers
+  // commonly arrive — including spreadsheet/CSV exports that strip the leading
+  // 0 (451898761) or add the country code without a + (61451898761), and
+  // numbers typed with spaces/dashes/brackets.
   function normalisePhone(p) {
-    const clean = p.replace(/\s/g, '');
-    if (/^04\d{8}$/.test(clean)) return '+61' + clean.slice(1);
-    return clean;
+    let s = String(p || '').replace(/[\s\-().]/g, '');
+    if (!s) return '';
+    if (s[0] === '+') return s;                          // already E.164 — trust it
+    if (s.startsWith('0061')) s = s.slice(2);            // 0061… intl prefix → 61…
+    if (/^61\d{9}$/.test(s)) return '+' + s;             // 61451898761 → +61451898761
+    if (/^0\d{9}$/.test(s))  return '+61' + s.slice(1);  // 0451898761 / 0712345678 → +61…
+    if (/^4\d{8}$/.test(s))  return '+61' + s;           // 451898761 — leading 0 dropped by Excel
+    return s;                                            // unrecognised — validation flags it
   }
 
   // ── Bulk Send ──────────────────────────────────────────────────────────────
