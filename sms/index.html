@@ -667,11 +667,15 @@
     .pv-back { position: absolute; left: 0; font-size: 22px; color: var(--purple); line-height: 1; font-weight: 300; }
     .pv-sender { font-size: 14px; font-weight: 800; color: var(--text); max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pv-day { text-align: center; font-size: 10.5px; color: var(--faint); margin-bottom: 12px; }
-    .pv-bubble { align-self: flex-start; max-width: 85%; background: #eceaf3; color: #1a1a2e; font-size: 13px; line-height: 1.5; padding: 9px 13px; border-radius: 16px; border-bottom-left-radius: 5px; white-space: pre-wrap; word-break: break-word; }
+    .pv-bubble { max-width: 86%; font-size: 13px; line-height: 1.5; padding: 8px 12px; border-radius: 16px; white-space: pre-wrap; word-break: break-word; margin-bottom: 7px; }
+    .pv-bubble.pv-in  { align-self: flex-start; background: #eceaf3; color: #1a1a2e; border-bottom-left-radius: 5px; }
+    .pv-bubble.pv-out { align-self: flex-end;   background: var(--purple); color: #fff; border-bottom-right-radius: 5px; }
+    .pv-bubble.pv-out a { color: #fff; }
     .pv-bubble.empty { color: var(--faint); font-style: italic; background: #f4f4f7; }
-    .pv-bubble.note { background: #fff7e6; color: #8a6d3b; border: 1px solid #ffe2a8; border-bottom-left-radius: 16px; }
+    .pv-bubble.pv-draft { opacity: .6; outline: 1.5px dashed rgba(115,103,240,.5); }
     .pv-bubble a { color: #2f6fed; text-decoration: underline; word-break: break-all; }
-    .pv-foot { margin-top: auto; padding-top: 12px; font-size: 10px; color: var(--faint); text-align: center; }
+    .pv-note-cap { align-self: center; text-align: center; font-size: 11px; color: #8a6d3b; background: #fff7e6; border: 1px solid #ffe2a8; border-radius: 8px; padding: 6px 10px; margin: 4px 4px 7px; }
+    .pv-foot { margin-top: 8px; font-size: 10px; color: var(--faint); text-align: center; }
     /* lock-screen view */
     .phone.lock .phone-screen { background: linear-gradient(165deg, #5b54a8 0%, #7d74d6 55%, #b3a9ee 100%); padding: 30px 13px; }
     .lock-time { text-align: center; color: #fff; font-size: 46px; font-weight: 300; letter-spacing: 1px; margin-top: 2px; text-shadow: 0 1px 6px rgba(0,0,0,.15); }
@@ -880,7 +884,7 @@
   <div class="bulk-card" onclick="event.stopPropagation()">
     <div class="bulk-head">
       <div class="bulk-head-text">
-        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v18</span></div>
+        <div class="bulk-title">Bulk SMS <span style="font-size:10px;font-weight:600;color:var(--faint)" title="page build — confirms your tab is running the latest version">v19</span></div>
         <div class="bulk-sub" id="bulkSub">Select contacts, write your message and pick an interval.</div>
       </div>
       <button class="icon-btn" onclick="closeBulkSend()" title="Close">
@@ -933,6 +937,7 @@
   let ghlTimer = null;
   let noteMode = false;
   let previewMode = 'message'; // live phone preview: 'message' | 'lock'
+  let currentThreadMsgs = [];  // messages of the open conversation (for the phone preview)
   let schedBarOpen = false;
 
   // Unread tracking + notifications
@@ -1367,7 +1372,9 @@
     document.getElementById('chatActive').classList.remove('open');
     document.getElementById('welcome').style.display = '';
     activePhone = null;
+    currentThreadMsgs = [];
     clearInterval(pollTimer);
+    updatePhonePreview();
   }
 
   // ── Delete conversation (PIN-gated) ────────────────────────────────────────
@@ -1483,7 +1490,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Load failed');
       const msgs = Array.isArray(data) ? data : [];
+      currentThreadMsgs = msgs;
       renderMessages(msgs);
+      updatePhonePreview();
 
       // Opt-out lock: latest STOP/START marker decides
       const flags = msgs.filter(m => m.status === 'optout' || m.status === 'optin');
@@ -1683,6 +1692,15 @@
     return esc(text).replace(/(https?:\/\/[^\s]+)/g, '<a>$1</a>');
   }
 
+  // Friendly day label for the phone thread ("Today" / "Yesterday" / "Tue 16 Jun")
+  function pvDayLabel(d) {
+    const t = new Date();
+    if (d.toDateString() === t.toDateString()) return 'Today';
+    const y = new Date(t); y.setDate(y.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
   function updatePhonePreview() {
     const screen = document.getElementById('phoneScreen');
     if (!screen) return;
@@ -1690,8 +1708,8 @@
     const raw = input ? input.value : '';
     const hasText = raw.trim().length > 0;
     const now = new Date();
-    const time = now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true });
 
+    // Lock screen: just the incoming notification for the message being composed
     if (previewMode === 'lock') {
       const text = hasText ? previewLinkify(raw) : 'Start typing to preview…';
       screen.innerHTML = `
@@ -1705,20 +1723,36 @@
       return;
     }
 
-    let bubble;
-    if (noteMode) {
-      bubble = `<div class="pv-bubble note">${hasText ? previewLinkify(raw) : 'Internal note — the customer will not receive this.'}</div>`;
-    } else if (hasText) {
-      bubble = `<div class="pv-bubble">${previewLinkify(raw)}</div>`;
-    } else {
-      bubble = `<div class="pv-bubble empty">Start typing to preview…</div>`;
+    // In-message: the real thread as the CUSTOMER sees it — our messages arrive on
+    // the left (incoming), their replies on the right. Internal notes, cancelled
+    // and not-yet-sent scheduled rows are excluded (the customer never sees them).
+    let html = `<div class="pv-header"><span class="pv-back">‹</span><span class="pv-sender">${esc(AGENT_NAME)}</span></div>`;
+    let lastDay = '';
+    const thread = (currentThreadMsgs || []).filter(m =>
+      m.status !== 'note' && m.status !== 'cancelled' && m.status !== 'scheduled');
+
+    for (const m of thread) {
+      const d = new Date(m.created_at);
+      const day = pvDayLabel(d);
+      if (day !== lastDay) { html += `<div class="pv-day">${esc(day)}</div>`; lastDay = day; }
+      const out = m.direction === 'outbound'; // from us → customer receives it → left bubble
+      html += `<div class="pv-bubble ${out ? 'pv-in' : 'pv-out'}">${previewLinkify(m.message || '')}</div>`;
     }
+
+    if (noteMode) {
+      html += `<div class="pv-note-cap">📝 Internal note — the customer won't see this</div>`;
+    } else if (hasText) {
+      const today = pvDayLabel(now);
+      if (today !== lastDay) { html += `<div class="pv-day">${esc(today)}</div>`; }
+      html += `<div class="pv-bubble pv-in pv-draft">${previewLinkify(raw)}</div>`;
+    } else if (!thread.length) {
+      html += `<div class="pv-bubble pv-in empty">Start typing to preview…</div>`;
+    }
+
     const { len, parts, encoding } = smsInfo(raw);
-    screen.innerHTML = `
-      <div class="pv-header"><span class="pv-back">‹</span><span class="pv-sender">${esc(noteMode ? 'Internal note' : AGENT_NAME)}</span></div>
-      <div class="pv-day">Today ${esc(time)}</div>
-      ${bubble}
-      <div class="pv-foot">${len} chars · ${parts} SMS · ${encoding}</div>`;
+    html += `<div class="pv-foot">${len} chars · ${parts} SMS · ${encoding}</div>`;
+    screen.innerHTML = html;
+    screen.scrollTop = screen.scrollHeight;
   }
   function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
 
