@@ -435,28 +435,39 @@ export default async function handler(req, res) {
     }
 
     // Bulk-only conversations: phones whose only (non-cancelled) activity is
-    // bulk sends. The sidebar shows these collapsed behind one summary row;
-    // the moment a customer replies (or is messaged manually) they gain a
-    // non-bulk row and move to the main contacts list instead.
-    // Returns { count, latest, contacts } — empty until the is_bulk column exists.
+    // bulk sends. The sidebar shows these collapsed behind one named group per
+    // campaign; the moment a customer replies (or is messaged manually) they
+    // gain a non-bulk row and move to the main contacts list instead.
+    // Returns { campaigns: [{ name, count, latest, contacts }], count, latest }.
     if (req.query.action === 'bulk-threads') {
       res.setHeader('Cache-Control', 'no-store');
       const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
-      const bulkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status&is_bulk=is.true&order=created_at.desc&limit=500`,
+      const empty = { campaigns: [], count: 0, latest: null };
+
+      // Try selecting campaign too; fall back if the column doesn't exist yet
+      let bulkRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status,campaign&is_bulk=is.true&order=created_at.desc&limit=500`,
         { headers: ah }
       );
-      if (!bulkRes.ok) return res.status(200).json({ count: 0, latest: null, contacts: [] });
+      if (!bulkRes.ok) {
+        bulkRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status&is_bulk=is.true&order=created_at.desc&limit=500`,
+          { headers: ah }
+        );
+      }
+      if (!bulkRes.ok) return res.status(200).json(empty);
       const bulkRows = await bulkRes.json().catch(() => []);
+
+      // Latest non-cancelled bulk row per phone (carries that phone's campaign)
       const latestBulk = [];
       const seenBulk = new Set();
       for (const r of (Array.isArray(bulkRows) ? bulkRows : [])) {
-        if (r.status === 'cancelled') continue; // never sent — next-older sent row (if any) represents the thread
+        if (r.status === 'cancelled') continue;
         if (seenBulk.has(r.phone_number)) continue;
         seenBulk.add(r.phone_number);
         latestBulk.push(r);
       }
-      if (!latestBulk.length) return res.status(200).json({ count: 0, latest: null, contacts: [] });
+      if (!latestBulk.length) return res.status(200).json(empty);
 
       // Drop phones with any real (non-bulk) activity — those live in the main list
       const realRes = await fetch(
@@ -468,10 +479,26 @@ export default async function handler(req, res) {
         .filter(r => r.status !== 'note' && r.status !== 'cancelled')
         .map(r => r.phone_number));
       const contacts = latestBulk.filter(r => !realPhones.has(r.phone_number));
+      if (!contacts.length) return res.status(200).json(empty);
+
+      // Group by campaign name (untagged / legacy rows fall under "Bulk sends")
+      const groups = new Map();
+      for (const c of contacts) {
+        const name = (c.campaign && String(c.campaign).trim()) || 'Bulk sends';
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(c);
+      }
+      const campaigns = [...groups.entries()].map(([name, list]) => ({
+        name,
+        count: list.length,
+        latest: list[0] ? list[0].created_at : null, // list keeps desc order from the source
+        contacts: list,
+      })).sort((a, b) => new Date(b.latest) - new Date(a.latest));
+
       return res.status(200).json({
+        campaigns,
         count: contacts.length,
-        latest: contacts.length ? contacts[0].created_at : null,
-        contacts,
+        latest: campaigns.length ? campaigns[0].latest : null,
       });
     }
 
@@ -806,18 +833,23 @@ export default async function handler(req, res) {
     const msgTpl  = String(body.message || '').trim();
     const names   = (body.names && typeof body.names === 'object') ? body.names : {};
     const intervalMs = Math.max(5000, Math.min(3600000, (parseInt(body.intervalSeconds) || 60) * 1000));
+    const campaign = String(body.campaign || '').trim().slice(0, 120) || null;
 
     if (!phones.length || !msgTpl) return res.status(400).json({ error: 'phones and message required' });
 
     const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
 
-    // Tag rows as bulk so the sidebar can collapse them. Only possible once
-    // the is_bulk column exists (ALTER TABLE in sms/README.md) — without it,
-    // degrade to untagged rows rather than failing the whole send.
-    let hasBulkCol = false;
+    // Tag rows as bulk (so the sidebar can collapse them) and with the campaign
+    // name (so each campaign gets its own group). Each tag is only written if its
+    // column exists (ALTER TABLE in sms/README.md) — otherwise degrade gracefully.
+    let hasBulkCol = false, hasCampaignCol = false;
     try {
       const probe = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=is_bulk&limit=1`, { headers: ah });
       hasBulkCol = probe.ok;
+    } catch {}
+    try {
+      const probe = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?select=campaign&limit=1`, { headers: ah });
+      hasCampaignCol = probe.ok;
     } catch {}
 
     const results = [];
@@ -832,17 +864,21 @@ export default async function handler(req, res) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
         method: 'POST',
         headers: { ...ah, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify({ phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt, ...(hasBulkCol ? { is_bulk: true } : {}) }),
+        body: JSON.stringify({
+          phone_number: phone, message: text, direction: 'outbound', status: 'scheduled', sms_gate_id: 'sched:' + fireAt,
+          ...(hasBulkCol ? { is_bulk: true } : {}),
+          ...(hasCampaignCol && campaign ? { campaign } : {}),
+        }),
       });
       let id = null;
       if (r.ok) { const ins = await r.json().catch(() => []); id = Array.isArray(ins) && ins[0] ? ins[0].id : null; }
       results.push({ phone, status: r.ok ? 'scheduled' : 'error', fireAt, id });
       if (r.ok) slot++;
     }
-    return res.status(200).json({
-      results,
-      ...(hasBulkCol ? {} : { warning: 'is_bulk column missing — run the ALTER TABLE in sms/README.md so bulk sends collapse in the sidebar' }),
-    });
+    const warnings = [];
+    if (!hasBulkCol) warnings.push('is_bulk column missing — run the ALTER TABLE in sms/README.md so bulk sends collapse in the sidebar');
+    else if (!hasCampaignCol && campaign) warnings.push('campaign column missing — run "ALTER TABLE sms_messages ADD COLUMN campaign text;" so campaigns get their own named group');
+    return res.status(200).json({ results, ...(warnings.length ? { warning: warnings.join(' · ') } : {}) });
   }
 
   // ── POST action=cancel-bulk: cancel all future scheduled messages for a set of phones

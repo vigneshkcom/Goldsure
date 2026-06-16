@@ -39,6 +39,7 @@ CREATE TABLE sms_messages (
   status text DEFAULT 'pending',
   sms_gate_id text,
   is_bulk boolean DEFAULT false,
+  campaign text,
   created_at timestamptz DEFAULT now()
 );
 CREATE INDEX ON sms_messages (phone_number, created_at);
@@ -47,11 +48,13 @@ ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;
 ```
 
 **Migration for existing installs** (required for the collapsed bulk-sends
-sidebar group — until it's run, bulk sends behave like before and the
-bulk-send response carries a `warning`):
+sidebar group and per-campaign naming — until each is run, that feature
+degrades gracefully and the bulk-send response carries a `warning`):
 ```sql
 ALTER TABLE sms_messages ADD COLUMN is_bulk boolean DEFAULT false;
 CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
+-- per-campaign groups (each bulk send gets its own named sidebar group):
+ALTER TABLE sms_messages ADD COLUMN campaign text;
 ```
 Optionally retro-tag past blasts so they collapse too (adjust the text to
 match the message that was sent):
@@ -98,7 +101,7 @@ SMS permissions granted, app set to start on boot.
 | `GET ?action=ghl-opps&phones=...` | GHL pipeline stage, opportunity value + contact link per phone |
 | `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
 | `GET ?action=stats&tzo=...` | Dashboard aggregates: today/30d volumes, 14-day chart, scheduled, failed, opt-outs |
-| `GET ?action=bulk-threads` | Bulk-only conversations (no reply / no manual message yet) for the collapsed sidebar group |
+| `GET ?action=bulk-threads` | Bulk-only conversations (no reply yet) grouped by campaign: `{campaigns:[{name,count,latest,contacts}],count,latest}` |
 | `GET ?action=fire-scheduled` | Send all past-due scheduled/bulk messages (drains in batches within a time budget). Returns `{fired, failed, cancelled, remaining}` |
 | `GET ?action=bulk-status&ids=...` | Real status of specific scheduled rows so the bulk progress screen reflects sent/failed/cancelled accurately |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
@@ -126,15 +129,17 @@ time passed.
 > ⚠️ The gateway phone must be online for sends to actually leave. Android may
 > also prompt to allow bulk SMS the first time; approve it on the device.
 
-## Bulk sends & the sidebar
-Bulk SMS rows are tagged `is_bulk = true` when scheduled. The contacts list
-excludes bulk rows entirely, so a 100-customer blast neither floods the
-sidebar nor pushes real conversations out of its 500-row window. Customers
-whose only activity is bulk sends sit collapsed behind a single
-"📢 Bulk sends" row (click to expand); as soon as one replies — or is
-messaged manually — they move into the main list like any normal
-conversation. Bulk messages stay in each customer's thread (marked 📢) for
-history and SPAM Act records.
+## Bulk sends, campaigns & the sidebar
+Bulk SMS rows are tagged `is_bulk = true` and with the `campaign` name entered
+on the compose screen. The contacts list excludes bulk rows entirely, so a
+100-customer blast neither floods the sidebar nor pushes real conversations out
+of its 500-row window. Customers whose only activity is bulk sends sit
+collapsed behind one **"📢 &lt;campaign name&gt;"** group per campaign (click to
+expand); a contact is grouped under their most recent campaign. As soon as one
+replies — or is messaged manually — they move into the main list like any
+normal conversation. Bulk messages stay in each customer's thread (marked
+"📢 &lt;campaign&gt;") for history and SPAM Act records. Legacy bulk rows with no
+campaign fall under a "Bulk sends" group.
 
 ## Opt-out (SPAM Act)
 A reply of STOP / UNSUBSCRIBE / OPT OUT marks the number opted out (the inbound row
