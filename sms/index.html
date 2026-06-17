@@ -788,7 +788,7 @@
         <div class="avatar" id="chatAvatar"></div>
         <div class="chat-header-info">
           <div class="chat-name-lg" id="chatPhone"></div>
-          <div class="chat-sub">SMS · via SMS Gate <span id="chatChips"></span></div>
+          <div class="chat-sub"><span id="chatSubPhone"></span>SMS · via SMS Gate <span id="chatChips"></span></div>
         </div>
         <div class="header-actions">
           <button class="icon-btn" onclick="reloadMessages()" title="Refresh">
@@ -1012,10 +1012,7 @@
     try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
     rerenderContacts();
     if (activePhone) {
-      if (ghlNames[activePhone]) {
-        document.getElementById('chatPhone').textContent = ghlNames[activePhone];
-        document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[activePhone], activePhone);
-      }
+      if (ghlNames[activePhone]) setChatHeader(activePhone);
       updateHeaderInfo(activePhone);
       if (document.getElementById('tplPanel').classList.contains('open')) renderTemplates();
     }
@@ -1340,6 +1337,18 @@
     clearTimeout(ghlTimer);
   }
 
+  // Render the chat header's name + number. Title shows the customer name (or the
+  // number if none); the subtitle shows the number too so it's visible even when
+  // a name is present.
+  function setChatHeader(phone) {
+    const name = ghlNames[phone] || '';
+    document.getElementById('chatPhone').textContent = name || phone;
+    document.getElementById('chatAvatar').textContent = nameInitials(name, phone);
+    const sub = document.getElementById('chatSubPhone');
+    // Drop the redundant number when the title is already the number
+    if (sub) sub.textContent = name ? (phone + ' · ') : '';
+  }
+
   // ── Select / close conversation ────────────────────────────────────────────
   async function selectChat(phone) {
     activePhone = phone;
@@ -1349,9 +1358,7 @@
     document.getElementById('chatActive').classList.add('open');
     document.getElementById('page').classList.add('chat-open');
 
-    const displayName = ghlNames[phone] || phone;
-    document.getElementById('chatPhone').textContent = displayName;
-    document.getElementById('chatAvatar').textContent = nameInitials(ghlNames[phone], phone);
+    setChatHeader(phone);
 
     document.querySelectorAll('.contact').forEach(el =>
       el.classList.toggle('active', el.dataset.phone === phone));
@@ -3009,8 +3016,7 @@
     if (existing && existingFirst === name.toLowerCase()) return; // unchanged, keep full name
     saveGhlName(activePhone, name);
     rerenderContacts();
-    document.getElementById('chatPhone').textContent = name;
-    document.getElementById('chatAvatar').textContent = nameInitials(name, activePhone);
+    setChatHeader(activePhone);
   }
 
   function applyTemplate(body, folderIdx) {
