@@ -1381,7 +1381,8 @@
 
     clearInterval(pollTimer);
     await reloadMessages();
-    pollTimer = setInterval(() => reloadMessages(), 20000);
+    // Poll the open thread every 5s so replies show up quickly (was 20s).
+    pollTimer = setInterval(() => reloadMessages(), 5000);
     document.getElementById('msgInput').focus();
     updatePhonePreview();
   }
@@ -1470,7 +1471,24 @@
     localStorage.setItem('notifyEnabled', '0');
   }
   updateBellUI();
-  setInterval(refreshContacts, 25000);
+  // Refresh the conversation list every 5s (was 25s) so new inbound replies —
+  // and their desktop notifications — surface quickly instead of up to ~25s late.
+  setInterval(refreshContacts, 5000);
+
+  // Background tabs have their timers heavily throttled by the browser, which can
+  // stretch the polls above to a minute or more. So the moment the portal regains
+  // focus/visibility, refresh immediately instead of waiting for the next tick.
+  let lastReturnRefresh = 0;
+  function refreshOnReturn() {
+    if (document.visibilityState === 'hidden') return;
+    const now = Date.now();
+    if (now - lastReturnRefresh < 1500) return; // collapse the focus+visibility burst
+    lastReturnRefresh = now;
+    refreshContacts();
+    if (activePhone) reloadMessages();
+  }
+  document.addEventListener('visibilitychange', refreshOnReturn);
+  window.addEventListener('focus', refreshOnReturn);
 
   // ── Sync inbox (inbox/export → webhooks → Supabase) ────────────────────────
   async function syncInbox() {
