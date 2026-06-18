@@ -1162,9 +1162,21 @@ export default async function handler(req, res) {
     const phoneNumber = normalizeAuPhone(phoneRaw);
 
     // Sanitise the timestamp — an unparseable value would make the insert fail
-    let receivedAt = p.receivedAt || p.timestamp || p.date;
+    const rawTs = p.receivedAt || p.timestamp || p.date;
+    let receivedAt = rawTs;
     if (!receivedAt || isNaN(new Date(receivedAt).getTime())) {
       receivedAt = new Date().toISOString();
+    }
+
+    // Diagnostic: how stale is this message when the webhook reaches us? A large
+    // value points upstream — the gateway phone / SMS Gate cloud delivered the
+    // webhook late (usually Android battery optimisation / Doze on the phone),
+    // NOT the portal, which shows messages within ~5s of them hitting Supabase.
+    if (rawTs && !isNaN(new Date(rawTs).getTime())) {
+      const ageMin = Math.round((Date.now() - new Date(rawTs).getTime()) / 60000);
+      console.log(`[Webhook] message age at receipt: ${ageMin} min (sent ${rawTs})`);
+    } else {
+      console.log('[Webhook] no usable timestamp in payload — cannot measure delivery delay');
     }
 
     // STOP / opt-out detection (SPAM Act). Single-word commands or explicit
@@ -1255,15 +1267,25 @@ export default async function handler(req, res) {
   </td></tr></table>
 </body></html>`;
         const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${tag ? '\n' + tag + '\n' : ''}\nReply in the portal: ${portalUrl}`;
-        const mailRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'Goldsure SMS <vignesh@goldsure.com.au>',
-            to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
-            subject, html, text,
-          }),
-        });
+        // Bound the email so it can never delay the webhook's 200 ACK to SMS Gate
+        // (the message is already saved above; email is best-effort).
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4000);
+        let mailRes;
+        try {
+          mailRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'Goldsure SMS <vignesh@goldsure.com.au>',
+              to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+              subject, html, text,
+            }),
+            signal: ctrl.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
         if (!mailRes.ok) console.error('[Webhook] notify email failed:', mailRes.status, await mailRes.text());
       } else {
         console.warn('[Webhook] RESEND_API_KEY not set — inbound email notification skipped');
