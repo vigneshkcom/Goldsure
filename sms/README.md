@@ -28,6 +28,7 @@ server (`api.sms-gate.app`) only relays. Received SMS are pushed to our endpoint
 | `SMSGATE_DEVICE_ID` | SMS Gate app → Home → Cloud server → Device ID |
 | `SUPABASE_SERVICE_ROLE_KEY` | *(recommended)* Supabase → Project Settings → API → `service_role` secret. Lets **Delete conversation** bypass Row Level Security and actually remove rows; without it, deletes fall back to the anon key and silently fail if RLS is on. Server-side only — never exposed to the browser. |
 | `SMS_DELETE_PIN` | *(optional)* PIN guarding **Delete** and **Mark all read** (default `4321`). |
+| `RESEND_API_KEY` | [Resend](https://resend.com) API key. Emails a copy of every inbound SMS to the team (and powers the battery callback email). If unset, inbound emails are simply skipped. |
 
 (Reuses existing `SUPABASE_URL` and `SUPABASE_ANON_KEY` for storage.)
 
@@ -115,7 +116,7 @@ SMS permissions granted, app set to start on boot.
 | `GET ?phone=+61...` | Conversation history for one number |
 | `POST {action:'send', phone, message}` | Send an SMS |
 | `POST {action:'sync', days}` | Trigger `inbox/export` so the phone re-fires received-SMS webhooks |
-| `POST` webhook (nested `{event, payload:{...}}`) | Inbound SMS → Supabase (deduped by `sms_gate_id`, insert verified — failures return 500 so SMS Gate retries) |
+| `POST` webhook (nested `{event, payload:{...}}`) | Inbound SMS → Supabase (deduped by `sms_gate_id`, insert verified — failures return 500 so SMS Gate retries). New messages also email the team via Resend (best-effort) |
 | `GET ?action=recent` | Debug: last 25 saved rows — check if a missing reply reached the DB |
 | `GET ?action=ghl-opps&phones=...` | GHL pipeline stage, opportunity value + contact link per phone |
 | `GET ?action=delivery&ids=...` | Poll SMS Gate delivery state; persists delivered/failed to Supabase |
@@ -169,6 +170,17 @@ gets `status='optout'`). Sending and scheduling to that number are blocked (403)
 pending scheduled messages are cancelled at fire time. A reply of START / UNSTOP
 re-subscribes. The UI shows a red banner and disables the composer; internal notes
 still work.
+
+## Email notifications for inbound SMS
+Every **new** inbound SMS also emails a copy to the team so replies aren't missed
+even with no portal open. Recipients are hardcoded to **vignesh@goldsure.com.au**
+and **david@goldsure.com.au** (sent from `vignesh@goldsure.com.au` via Resend). It
+fires only for genuinely new messages — duplicates from **Sync Inbox** don't
+re-email — and is best-effort: if Resend fails, the message is still saved and the
+webhook still returns 200 (so SMS Gate doesn't retry). STOP/START replies email too,
+flagged as opt-out/opt-in. Requires `RESEND_API_KEY`; without it the email is
+silently skipped. To change recipients, edit the `to:` array in the webhook block
+of `api/battery/request-callback.js`.
 
 ## Unread badge & read-state
 The sidebar's **Inbox Chat** count and the per-row unread dots are driven by a

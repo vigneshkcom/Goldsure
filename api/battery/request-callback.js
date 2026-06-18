@@ -1222,6 +1222,56 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Database insert failed', status: insRes.status, detail });
     }
 
+    // Email the team a copy of every new inbound SMS (best-effort). This runs only
+    // for genuinely new messages — duplicates from Sync/inbox-export return above,
+    // so it never re-emails. An email failure must NOT fail the webhook, or SMS
+    // Gate would retry and we'd double-save, so it's fully wrapped in try/catch.
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const htmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const receivedLocal = new Date(receivedAt).toLocaleString('en-AU', {
+          timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short',
+        });
+        const portalUrl = 'https://portal.goldsure.com.au/sms/';
+        const tag = inboundStatus === 'optout' ? 'Opt-out (STOP) — sending is now blocked for this number.'
+                  : inboundStatus === 'optin'  ? 'Opt-in (START) — this number has re-subscribed.'
+                  : '';
+        const subject = inboundStatus === 'optout' ? `SMS opt-out (STOP) from ${phoneNumber}`
+                      : inboundStatus === 'optin'  ? `SMS opt-in (START) from ${phoneNumber}`
+                      : `New SMS from ${phoneNumber}`;
+        const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 0;"><tr><td align="center">
+    <table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(20,20,40,.08);">
+      <tr><td style="background:#7367f0;padding:18px 24px;"><span style="font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;">Goldsure SMS &middot; New reply</span></td></tr>
+      <tr><td style="padding:24px;">
+        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">From</p>
+        <p style="margin:0 0 16px;font-size:18px;font-weight:bold;color:#141c2e;">${htmlEsc(phoneNumber)}</p>
+        <div style="background:#f3f2ff;border-left:3px solid #7367f0;border-radius:8px;padding:14px 16px;font-size:15px;line-height:1.5;color:#1f2937;white-space:pre-wrap;">${htmlEsc(message)}</div>
+        ${tag ? `<p style="margin:16px 0 0;font-size:13px;font-weight:bold;color:#b45309;">${htmlEsc(tag)}</p>` : ''}
+        <p style="margin:18px 0 0;font-size:12px;color:#9ca3af;">Received ${htmlEsc(receivedLocal)} (Melbourne time)</p>
+        <a href="${portalUrl}" style="display:inline-block;margin-top:18px;background:#7367f0;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 20px;border-radius:8px;">Open SMS portal to reply</a>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+        const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${tag ? '\n' + tag + '\n' : ''}\nReply in the portal: ${portalUrl}`;
+        const mailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'Goldsure SMS <vignesh@goldsure.com.au>',
+            to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+            subject, html, text,
+          }),
+        });
+        if (!mailRes.ok) console.error('[Webhook] notify email failed:', mailRes.status, await mailRes.text());
+      } else {
+        console.warn('[Webhook] RESEND_API_KEY not set — inbound email notification skipped');
+      }
+    } catch (e) {
+      console.error('[Webhook] notify email error (continuing):', e.message);
+    }
+
     return res.status(200).json({ success: true });
   }
 
