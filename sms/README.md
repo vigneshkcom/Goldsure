@@ -26,6 +26,8 @@ server (`api.sms-gate.app`) only relays. Received SMS are pushed to our endpoint
 | `SMSGATE_USERNAME` | SMS Gate app → Home → Cloud server → Username |
 | `SMSGATE_PASSWORD` | SMS Gate app → Home → Cloud server → Password |
 | `SMSGATE_DEVICE_ID` | SMS Gate app → Home → Cloud server → Device ID |
+| `SUPABASE_SERVICE_ROLE_KEY` | *(recommended)* Supabase → Project Settings → API → `service_role` secret. Lets **Delete conversation** bypass Row Level Security and actually remove rows; without it, deletes fall back to the anon key and silently fail if RLS is on. Server-side only — never exposed to the browser. |
+| `SMS_DELETE_PIN` | *(optional)* PIN guarding **Delete** and **Mark all read** (default `4321`). |
 
 (Reuses existing `SUPABASE_URL` and `SUPABASE_ANON_KEY` for storage.)
 
@@ -192,6 +194,10 @@ the table.
   it is now safe to run repeatedly (duplicates are skipped).
 - **Pull recent messages manually:** click **Sync Inbox** in the chat — triggers `inbox/export`.
 - **Nothing sends:** check `SMSGATE_*` env vars are set and the phone shows "ONLINE".
+- **Delete doesn't remove the row (it stays in Supabase):** the delete uses the
+  `service_role` key and now verifies the deleted count. If it reports "Nothing was
+  deleted", Row Level Security is blocking it — either set `SUPABASE_SERVICE_ROLE_KEY`
+  in Vercel, or run `ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;` in Supabase.
 - **Inspect inbound payloads:** Vercel → Functions → Logs, search `[Webhook]`.
 - **Webhook payloads are nested** under `payload` — the handler reads `body.payload`
   first, then falls back to flat fields.

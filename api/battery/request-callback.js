@@ -11,6 +11,10 @@
 export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+  // Service-role key bypasses Row Level Security — needed for privileged ops like
+  // hard-deletes (the anon key is subject to RLS, which can silently delete 0 rows
+  // and still return 204). Server-side only; falls back to anon if it isn't set.
+  const SUPABASE_ADMIN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
 
   // Title-case names that come back all-lower or all-upper from GHL ("karen parsons"
   // → "Karen Parsons"), but leave deliberately mixed-case names ("McDonald") alone.
@@ -964,16 +968,35 @@ export default async function handler(req, res) {
     if (String(pin || '') !== String(expected)) {
       return res.status(403).json({ error: 'Incorrect PIN' });
     }
+    // Hard delete via the service-role key so it bypasses RLS, and ask Supabase to
+    // return the deleted rows (return=representation) so we can VERIFY something was
+    // actually removed. return=minimal gives 204 even when RLS silently deletes 0
+    // rows — which is why deletions could vanish from view yet stay in the database.
+    const adminHeaders = { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}` };
     const delRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}`,
-      { method: 'DELETE', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: 'return=minimal' } }
+      `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&select=id`,
+      { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=representation' } }
     );
-    if (!delRes.ok && delRes.status !== 204) {
+    if (!delRes.ok) {
       const detail = await delRes.text();
       console.error('[Delete thread] failed', delRes.status, detail);
       return res.status(502).json({ error: 'Delete failed', detail });
     }
-    return res.status(200).json({ success: true });
+    const deletedRows = await delRes.json().catch(() => []);
+    const deleted = Array.isArray(deletedRows) ? deletedRows.length : 0;
+    // Tidy up the shared read-state row for this number too (best-effort).
+    fetch(`${SUPABASE_URL}/rest/v1/sms_read_state?phone_number=eq.${encodeURIComponent(phone)}`,
+      { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=minimal' } }).catch(() => {});
+    if (deleted === 0) {
+      // Nothing was removed — almost always RLS blocking the key. Tell the truth
+      // instead of the phantom success that return=minimal used to report.
+      console.error('[Delete thread] 0 rows deleted for', phone, '— likely RLS/permissions');
+      return res.status(200).json({
+        success: false,
+        error: 'Nothing was deleted — Supabase blocked it (Row Level Security). In Vercel set SUPABASE_SERVICE_ROLE_KEY, or in Supabase run: ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;',
+      });
+    }
+    return res.status(200).json({ success: true, deleted });
   }
 
   // ── POST action=mark-read: mark one thread read in the shared read-state ─────
