@@ -60,6 +60,33 @@ export default async function handler(req, res) {
       return res.status(200).json(rows);
     }
 
+    // Shared read-state for the unread badge. Lives server-side so "read" is the
+    // same on every browser/device (the old localStorage version was per-browser,
+    // which is why a fresh browser showed every conversation as unread). The
+    // reserved row phone_number='__ALL__' holds the global "mark all read" time.
+    // Returns { allReadAt:<ISO|null>, seen:{ "<phone>":"<ISO>" } }. If the table
+    // hasn't been created yet it returns empty state, so the UI falls back to its
+    // local cache instead of breaking.
+    if (req.query.action === 'read-state') {
+      try {
+        const r = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_read_state?select=phone_number,last_seen_at`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+        );
+        if (!r.ok) return res.status(200).json({ allReadAt: null, seen: {}, warning: 'read-state table missing' });
+        const rows = await r.json();
+        const seen = {};
+        let allReadAt = null;
+        for (const row of (Array.isArray(rows) ? rows : [])) {
+          if (row.phone_number === '__ALL__') allReadAt = row.last_seen_at;
+          else seen[row.phone_number] = row.last_seen_at;
+        }
+        return res.status(200).json({ allReadAt, seen });
+      } catch (e) {
+        return res.status(200).json({ allReadAt: null, seen: {}, warning: 'read-state unavailable' });
+      }
+    }
+
     // GHL contact search (used by new-conversation picker in the SMS UI)
     if (req.query.action === 'ghl-contacts') {
       const q = (req.query.q || '').trim();
@@ -947,6 +974,58 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'Delete failed', detail });
     }
     return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=mark-read: mark one thread read in the shared read-state ─────
+  // Fire-and-forget from the UI when a conversation is opened, so reading it on
+  // one browser clears its unread badge on every other browser/device too. Upsert
+  // is keyed on phone_number (primary key). No PIN — normal staff action.
+  if (body.action === 'mark-read') {
+    const { phone } = body;
+    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_read_state`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ phone_number: phone, last_seen_at: new Date().toISOString() }),
+    });
+    if (!r.ok) {
+      const detail = await r.text();
+      console.error('[mark-read] upsert failed', r.status, detail);
+      // Don't fail the UI — read-state simply stays local until the table exists.
+      return res.status(200).json({ success: false, warning: 'read-state not persisted' });
+    }
+    return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=mark-all-read: PIN-gated "mark everything read" (shared) ─────
+  // Sets the global read marker (row '__ALL__') so every conversation counts as
+  // read for everyone, on every device. Same PIN as delete-thread (SMS_DELETE_PIN,
+  // defaults to 4321), verified here on the server so it never ships in the page.
+  if (body.action === 'mark-all-read') {
+    const expected = process.env.SMS_DELETE_PIN || '4321';
+    if (String(body.pin || '') !== String(expected)) {
+      return res.status(403).json({ error: 'Incorrect PIN' });
+    }
+    const nowIso = new Date().toISOString();
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/sms_read_state`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ phone_number: '__ALL__', last_seen_at: nowIso }),
+    });
+    if (!r.ok) {
+      const detail = await r.text();
+      console.error('[mark-all-read] failed', r.status, detail);
+      return res.status(502).json({ error: 'Could not save — has the sms_read_state table been created?', detail });
+    }
+    return res.status(200).json({ success: true, allReadAt: nowIso });
   }
 
   // ── POST action=send: outbound SMS ──────────────────────────────────────────

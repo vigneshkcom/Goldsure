@@ -745,6 +745,9 @@
         <button class="icon-btn" id="syncBtn" onclick="syncInbox()" title="Sync inbox – pull recent replies">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
+        <button class="icon-btn" id="markReadBtn" onclick="markAllRead()" title="Mark all conversations as read (PIN)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
       </div>
 
       <div class="new-panel" id="newPanel">
@@ -950,14 +953,28 @@
   let schedBarOpen = false;
 
   // Unread tracking + notifications
-  let lastSeen = {};                  // phone → ISO of newest message the user has viewed
+  let lastSeen = {};                  // phone → ISO of newest message viewed (server-synced; localStorage = cache)
   try { lastSeen = JSON.parse(localStorage.getItem('lastSeen') || '{}'); } catch {}
   const saveLastSeen = () => { try { localStorage.setItem('lastSeen', JSON.stringify(lastSeen)); } catch {} };
   const prevLatest = {};              // phone → created_at seen last poll (notification de-dup, in-memory)
+
+  // Global "mark all read" marker (ms epoch). Shared via the server so an admin's
+  // "Mark all read" clears the unread badge on every browser/device. Cached in
+  // localStorage for instant first paint; the authoritative value is merged in
+  // from the server (loadReadState) on load and on every background poll.
+  let allReadAt = 0;
+  try { allReadAt = Number(localStorage.getItem('allReadAt')) || 0; } catch {}
+  const saveAllReadAt = () => { try { localStorage.setItem('allReadAt', String(allReadAt)); } catch {} };
+
   let notifyEnabled = localStorage.getItem('notifyEnabled') === '1';
 
+  // A conversation is unread if its latest message is inbound and newer than both
+  // the per-thread last-seen time and the global "mark all read" marker.
   const isUnread = c => c.direction === 'inbound' &&
-    new Date(c.created_at) > new Date(lastSeen[c.phone_number] || 0);
+    new Date(c.created_at).getTime() > Math.max(
+      new Date(lastSeen[c.phone_number] || 0).getTime(),
+      allReadAt
+    );
 
   // Phone → name cache persisted in localStorage (only successful matches are stored)
   let ghlNames = {};
@@ -1121,9 +1138,47 @@
     return bulkThreads;
   }
 
+  // ── Shared read-state sync ───────────────────────────────────────────────────
+  // Pull the server's read-state and merge it in. Reads only ever move forward in
+  // time, so we take the max of local vs server (monotonic) — this both stops a
+  // freshly-opened thread flickering back to unread and lets a read on one
+  // browser/device clear the unread here within one poll cycle.
+  async function loadReadState() {
+    try {
+      const r = await fetch(`${API}?action=read-state`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const seen = (data && data.seen) || {};
+      let changed = false;
+      for (const phone in seen) {
+        if (!lastSeen[phone] || new Date(seen[phone]) > new Date(lastSeen[phone])) {
+          lastSeen[phone] = seen[phone]; changed = true;
+        }
+      }
+      const serverAll = data && data.allReadAt ? new Date(data.allReadAt).getTime() : 0;
+      if (serverAll > allReadAt) { allReadAt = serverAll; saveAllReadAt(); }
+      if (changed) saveLastSeen();
+    } catch {}
+  }
+
+  // Tell the server a thread has been read (deduped on its newest message, so an
+  // idle open thread doesn't POST on every poll). Fire-and-forget.
+  let lastServerMark = {};   // phone → newest msg ISO already acknowledged to the server
+  function markThreadReadOnServer(phone, newestIso) {
+    if (!phone) return;
+    const key = newestIso || '';
+    if (lastServerMark[phone] === key) return;   // nothing new since last push
+    lastServerMark[phone] = key;
+    fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark-read', phone }),
+    }).catch(() => {});
+  }
+
   async function loadContacts() {
     try {
-      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads()]);
+      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads(), loadReadState()]);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       allContacts = Array.isArray(data) ? data : [];
@@ -1147,7 +1202,7 @@
   // Background refresh: detect new inbound replies → notify, then re-render
   async function refreshContacts() {
     try {
-      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads()]);
+      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads(), loadReadState()]);
       const data = await res.json();
       if (!res.ok) return;
       const list = Array.isArray(data) ? data : [];
@@ -1434,6 +1489,44 @@
     }
   }
 
+  // ── Mark all read (PIN-gated, shared across all devices) ─────────────────────
+  // Uses the same PIN as delete (SMS_DELETE_PIN, default 4321), verified on the
+  // server so the code never ships in the page. Sets the global read marker, so
+  // the unread badge clears for everyone, everywhere.
+  async function markAllRead() {
+    const pin = prompt(
+      `Mark ALL conversations as read?\n\n` +
+      `This clears the unread badge for everyone, on every device.\n\n` +
+      `Enter your 4-digit PIN to confirm:`
+    );
+    if (pin === null) return;                       // cancelled
+    if (!/^\d{4}$/.test(pin.trim())) { alert('PIN must be 4 digits.'); return; }
+
+    const btn = document.getElementById('markReadBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-all-read', pin: pin.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        allReadAt = data.allReadAt ? new Date(data.allReadAt).getTime() : Date.now();
+        saveAllReadAt();
+        rerenderContacts();
+      } else if (res.status === 403) {
+        alert('Incorrect PIN. Nothing was changed.');
+      } else {
+        alert('Could not mark all as read: ' + (data.error || 'Unknown error'));
+      }
+    } catch {
+      alert('Network error while marking all as read.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   // ── Notifications ──────────────────────────────────────────────────────────
   function toggleNotify() {
     if (!('Notification' in window)) { alert('This browser does not support desktop notifications.'); return; }
@@ -1539,6 +1632,9 @@
       // Keep the open conversation marked as read
       lastSeen[activePhone] = new Date().toISOString();
       saveLastSeen();
+      // Push this read up to the shared server state (deduped on the newest
+      // message) so other browsers/devices clear this thread's unread too.
+      markThreadReadOnServer(activePhone, msgs.length ? msgs[msgs.length - 1].created_at : null);
 
       if (!skipDelivery) checkDelivery(msgs);
     } catch (err) {

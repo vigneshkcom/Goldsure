@@ -45,6 +45,15 @@ CREATE TABLE sms_messages (
 CREATE INDEX ON sms_messages (phone_number, created_at);
 CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
 ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;
+
+-- Shared read-state for the unread badge, so "read" is the same on every
+-- browser/device instead of per-browser localStorage. The reserved row
+-- phone_number='__ALL__' stores the global "Mark all read" timestamp.
+CREATE TABLE sms_read_state (
+  phone_number text PRIMARY KEY,
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE sms_read_state DISABLE ROW LEVEL SECURITY;
 ```
 
 **Migration for existing installs** (required for the collapsed bulk-sends
@@ -55,6 +64,14 @@ ALTER TABLE sms_messages ADD COLUMN is_bulk boolean DEFAULT false;
 CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
 -- per-campaign groups (each bulk send gets its own named sidebar group):
 ALTER TABLE sms_messages ADD COLUMN campaign text;
+-- shared unread state (the unread badge syncs across browsers; until this table
+-- exists the badge silently falls back to per-browser localStorage and "Mark
+-- all read" returns an error):
+CREATE TABLE IF NOT EXISTS sms_read_state (
+  phone_number text PRIMARY KEY,
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE sms_read_state DISABLE ROW LEVEL SECURITY;
 ```
 Optionally retro-tag past blasts so they collapse too (adjust the text to
 match the message that was sent):
@@ -104,6 +121,9 @@ SMS permissions granted, app set to start on boot.
 | `GET ?action=bulk-threads` | Bulk-only conversations (no reply yet) grouped by campaign: `{campaigns:[{name,count,latest,contacts}],count,latest}` |
 | `GET ?action=fire-scheduled` | Send all past-due scheduled/bulk messages (drains in batches within a time budget). Returns `{fired, failed, cancelled, remaining}` |
 | `GET ?action=bulk-status&ids=...` | Real status of specific scheduled rows so the bulk progress screen reflects sent/failed/cancelled accurately |
+| `GET ?action=read-state` | Shared unread state `{allReadAt, seen:{phone:ISO}}` driving the unread badge across all browsers/devices |
+| `POST {action:'mark-read', phone}` | Mark one thread read for everyone (fired when a conversation is opened) |
+| `POST {action:'mark-all-read', pin}` | PIN-gated: mark every conversation read on all devices (same PIN as delete) |
 | `POST {fullName, phone, ...}` | Legacy battery callback email (unchanged) |
 
 ## Scheduled & bulk sending (how messages actually go out)
@@ -147,6 +167,21 @@ gets `status='optout'`). Sending and scheduling to that number are blocked (403)
 pending scheduled messages are cancelled at fire time. A reply of START / UNSTOP
 re-subscribes. The UI shows a red banner and disables the composer; internal notes
 still work.
+
+## Unread badge & read-state
+The sidebar's **Inbox Chat** count and the per-row unread dots are driven by a
+shared server table (`sms_read_state`), so "read" is the same on every browser
+and device — opening a thread on one clears its unread everywhere within one poll
+(~5s). A conversation counts as unread when its latest message is inbound **and**
+newer than both that thread's last-seen time and the global "mark all read" marker.
+
+The **✓ Mark all read** button (sidebar, beside Sync) clears the whole badge for
+everyone at once. It's PIN-gated with the same PIN as delete (`SMS_DELETE_PIN`,
+default `4321`), verified server-side so the PIN never ships in the page. Until the
+`sms_read_state` table exists, the badge silently falls back to the old per-browser
+behaviour (each browser tracks its own reads in `localStorage`, so a fresh browser
+shows everything unread) and "Mark all read" returns an error asking you to create
+the table.
 
 ## Troubleshooting
 - **Replies not appearing:** confirm RCS is OFF on the gateway phone (most common cause).
