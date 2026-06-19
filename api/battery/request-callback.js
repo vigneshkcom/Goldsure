@@ -1258,39 +1258,62 @@ export default async function handler(req, res) {
           timeZone: 'Australia/Melbourne', hour: 'numeric', minute: '2-digit', hour12: true,
         });
         const preheader = String(message).replace(/\s+/g, ' ').trim().slice(0, 110);
+        const messageHtml = htmlEsc(message).replace(/\n/g, '<br>');
+        const FONT = "'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
         const html = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background-color:#eceef3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#eceef3;font-size:1px;line-height:1px;">${htmlEsc(preheader)}</div>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eceef3;padding:42px 16px;"><tr><td align="center">
-    <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:22px;box-shadow:0 12px 34px rgba(60,55,110,.16);">
-      <tr><td style="padding:18px 20px 21px;">
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td width="30" valign="middle" style="vertical-align:middle;">
-            <table cellpadding="0" cellspacing="0"><tr>
-              <td width="30" height="30" align="center" valign="middle" style="width:30px;height:30px;background:${accent};border-radius:9px;text-align:center;vertical-align:middle;">
-                <table cellpadding="0" cellspacing="0" align="center"><tr><td width="15" height="11" style="width:15px;height:11px;background:#ffffff;border-radius:4px 4px 4px 0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+<style>body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}img{-ms-interpolation-mode:bicubic;border:0;}</style>
+</head>
+<body style="margin:0;padding:0;background-color:#eceef3;" bgcolor="#eceef3">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;opacity:0;font-size:1px;line-height:1px;color:#eceef3;">${htmlEsc(preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eceef3" style="background-color:#eceef3;"><tr><td align="center" style="padding:40px 16px;">
+    <!--[if mso]><table role="presentation" align="center" width="480" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+    <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:480px;">
+
+      <tr><td bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e4e6ee;border-radius:18px;box-shadow:0 12px 30px rgba(60,55,110,.14);padding:18px 20px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td width="32" valign="middle" style="vertical-align:middle;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td width="30" height="30" align="center" valign="middle" bgcolor="${accent}" style="width:30px;height:30px;background-color:${accent};border-radius:9px;text-align:center;vertical-align:middle;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td width="14" height="11" bgcolor="#ffffff" style="width:14px;height:11px;background-color:#ffffff;border-radius:4px 4px 4px 0;font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td></tr></table>
               </td>
             </tr></table>
           </td>
-          <td valign="middle" style="vertical-align:middle;padding-left:10px;">
-            <span style="font-size:11px;font-weight:bold;letter-spacing:.8px;text-transform:uppercase;color:#9094a3;">Goldsure SMS</span>
-          </td>
-          <td valign="middle" align="right" style="vertical-align:middle;text-align:right;">
-            <span style="font-size:11px;color:#b4b8c4;">${htmlEsc(receivedTime)}</span>
-          </td>
+          <td valign="middle" style="vertical-align:middle;padding-left:10px;font-family:${FONT};font-size:11px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;color:#9094a3;">Goldsure SMS</td>
+          <td valign="middle" align="right" style="vertical-align:middle;text-align:right;font-family:${FONT};font-size:11px;color:#b4b8c4;">${htmlEsc(receivedTime)}</td>
         </tr></table>
-        <p style="margin:15px 0 3px;font-size:16px;font-weight:700;color:#1c1c2b;">${htmlEsc(phoneNumber)}</p>
-        <p style="margin:0;font-size:15px;line-height:1.5;color:#4a4d5e;white-space:pre-wrap;word-break:break-word;">${htmlEsc(message)}</p>
-        ${statusNote ? `<p style="margin:13px 0 0;font-size:12.5px;font-weight:bold;color:${accent};">${htmlEsc(statusNote)}</p>` : ''}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:14px;font-family:${FONT};">
+          <div style="font-size:16px;line-height:20px;font-weight:bold;color:#1c1c2b;padding-bottom:4px;">${htmlEsc(phoneNumber)}</div>
+          <div style="font-size:15px;line-height:22px;color:#4a4d5e;word-break:break-word;">${messageHtml}</div>
+          ${statusNote ? `<div style="font-size:12px;line-height:17px;font-weight:bold;color:${accent};padding-top:12px;">${htmlEsc(statusNote)}</div>` : ''}
+        </td></tr></table>
       </td></tr>
+
+      <tr><td height="22" style="height:22px;line-height:22px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+
+      <tr><td align="center">
+        <!--[if mso]>
+        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${portalUrl}" style="height:46px;v-text-anchor:middle;width:220px;" arcsize="26%" stroke="f" fillcolor="${accent}">
+          <w:anchorlock/>
+          <center style="color:#ffffff;font-family:${FONT};font-size:14px;font-weight:bold;">Open SMS Portal &#8594;</center>
+        </v:roundrect>
+        <![endif]-->
+        <!--[if !mso]><!-->
+        <a href="${portalUrl}" style="display:inline-block;background-color:${accent};border-radius:12px;padding:13px 32px;font-family:${FONT};font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">Open SMS Portal &#8594;</a>
+        <!--<![endif]-->
+      </td></tr>
+
+      <tr><td height="14" style="height:14px;line-height:14px;font-size:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+
+      <tr><td align="center" style="font-family:${FONT};font-size:11px;line-height:16px;color:#a3a7b5;">Received ${htmlEsc(receivedLocal)} &middot; Melbourne time</td></tr>
+
     </table>
-    <table cellpadding="0" cellspacing="0" style="margin-top:22px;"><tr>
-      <td style="background:${accent};border-radius:12px;">
-        <a href="${portalUrl}" style="display:inline-block;padding:13px 30px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open SMS Portal &nbsp;&rarr;</a>
-      </td>
-    </tr></table>
-    <p style="margin:15px 0 0;font-size:11px;color:#a3a7b5;">Received ${htmlEsc(receivedLocal)} &middot; Melbourne time</p>
+    <!--[if mso]></td></tr></table><![endif]-->
   </td></tr></table>
 </body></html>`;
         const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${statusNote ? '\n' + statusNote + '\n' : ''}\nReply in the portal: ${portalUrl}`;
