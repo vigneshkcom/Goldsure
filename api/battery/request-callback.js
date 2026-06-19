@@ -1245,23 +1245,49 @@ export default async function handler(req, res) {
           timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short',
         });
         const portalUrl = 'https://portal.goldsure.com.au/sms/';
-        const tag = inboundStatus === 'optout' ? 'Opt-out (STOP) — sending is now blocked for this number.'
-                  : inboundStatus === 'optin'  ? 'Opt-in (START) — this number has re-subscribed.'
+        const isOut = inboundStatus === 'optout';
+        const isIn  = inboundStatus === 'optin';
+        const eyebrowLabel = isOut ? 'SMS Opt-out · STOP' : isIn ? 'SMS Opt-in · START' : 'New SMS Reply';
+        const eyebrowColor = isOut ? '#c0392b' : isIn ? '#1e8e5a' : '#b08d2e';
+        const tag = isOut ? 'This number has opted out — sending is now blocked.'
+                  : isIn  ? 'This number has re-subscribed.'
                   : '';
-        const subject = inboundStatus === 'optout' ? `SMS opt-out (STOP) from ${phoneNumber}`
-                      : inboundStatus === 'optin'  ? `SMS opt-in (START) from ${phoneNumber}`
-                      : `New SMS from ${phoneNumber}`;
-        const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 0;"><tr><td align="center">
-    <table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(20,20,40,.08);">
-      <tr><td style="background:#7367f0;padding:18px 24px;"><span style="font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;">Goldsure SMS &middot; New reply</span></td></tr>
-      <tr><td style="padding:24px;">
-        <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">From</p>
-        <p style="margin:0 0 16px;font-size:18px;font-weight:bold;color:#141c2e;">${htmlEsc(phoneNumber)}</p>
-        <div style="background:#f3f2ff;border-left:3px solid #7367f0;border-radius:8px;padding:14px 16px;font-size:15px;line-height:1.5;color:#1f2937;white-space:pre-wrap;">${htmlEsc(message)}</div>
-        ${tag ? `<p style="margin:16px 0 0;font-size:13px;font-weight:bold;color:#b45309;">${htmlEsc(tag)}</p>` : ''}
-        <p style="margin:18px 0 0;font-size:12px;color:#9ca3af;">Received ${htmlEsc(receivedLocal)} (Melbourne time)</p>
-        <a href="${portalUrl}" style="display:inline-block;margin-top:18px;background:#7367f0;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 20px;border-radius:8px;">Open SMS portal to reply</a>
+        const subject = isOut ? `SMS opt-out (STOP) from ${phoneNumber}`
+                      : isIn  ? `SMS opt-in (START) from ${phoneNumber}`
+                      :         `New SMS from ${phoneNumber}`;
+        const preheader = String(message).replace(/\s+/g, ' ').trim().slice(0, 110);
+        const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f5f6f8;font-family:Arial,Helvetica,sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f5f6f8;font-size:1px;line-height:1px;">${htmlEsc(preheader)}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f6f8;padding:40px 0;"><tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
+      <tr><td style="background-color:#ffffff;padding:20px 32px;border-bottom:3px solid #b08d2e;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td><img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" height="32" style="display:block;height:32px;border:0;"></td>
+          <td align="right" style="font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#6b7899;">Customer SMS</td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="background-color:#ffffff;padding:30px 32px 6px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
+        <p style="margin:0 0 7px;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:${eyebrowColor};">${eyebrowLabel}</p>
+        <h1 style="margin:0 0 4px;font-size:24px;font-weight:700;color:#141c2e;line-height:1.25;">${htmlEsc(phoneNumber)}</h1>
+        <p style="margin:0 0 22px;font-size:12px;color:#6b7899;">Received ${htmlEsc(receivedLocal)} &middot; Melbourne time</p>
+      </td></tr>
+      <tr><td style="background-color:#ffffff;padding:0 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8fa;border:1px solid #e3e7ef;border-left:4px solid #b08d2e;border-radius:8px;">
+          <tr><td style="padding:18px 20px;font-size:16px;line-height:1.6;color:#141c2e;white-space:pre-wrap;word-break:break-word;">${htmlEsc(message)}</td></tr>
+        </table>
+        ${tag ? `<p style="margin:16px 0 0;font-size:13px;font-weight:bold;color:${eyebrowColor};">${htmlEsc(tag)}</p>` : ''}
+      </td></tr>
+      <tr><td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
+        <table cellpadding="0" cellspacing="0"><tr>
+          <td style="background-color:#141c2e;border-radius:8px;">
+            <a href="${portalUrl}" style="display:inline-block;padding:14px 30px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">Open SMS Portal &rarr;</a>
+          </td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:18px 32px 0;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9aa3b5;line-height:1.5;">Sent because a customer replied to a Goldsure SMS &middot; <a href="${portalUrl}" style="color:#b08d2e;text-decoration:none;">open the portal</a></p>
       </td></tr>
     </table>
   </td></tr></table>
