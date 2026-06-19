@@ -1247,52 +1247,53 @@ export default async function handler(req, res) {
         const portalUrl = 'https://portal.goldsure.com.au/sms/';
         const isOut = inboundStatus === 'optout';
         const isIn  = inboundStatus === 'optin';
-        const eyebrowLabel = isOut ? 'SMS Opt-out · STOP' : isIn ? 'SMS Opt-in · START' : 'New SMS Reply';
-        const eyebrowColor = isOut ? '#c0392b' : isIn ? '#1e8e5a' : '#b08d2e';
-        const tag = isOut ? 'This number has opted out — sending is now blocked.'
-                  : isIn  ? 'This number has re-subscribed.'
-                  : '';
+        const accent = isOut ? '#ea5455' : isIn ? '#28c76f' : '#7367f0';
+        const statusNote = isOut ? 'Replied STOP — sending to this number is now blocked.'
+                         : isIn  ? 'Replied START — this number has re-subscribed.'
+                         : '';
         const subject = isOut ? `SMS opt-out (STOP) from ${phoneNumber}`
                       : isIn  ? `SMS opt-in (START) from ${phoneNumber}`
                       :         `New SMS from ${phoneNumber}`;
+        const receivedTime = new Date(receivedAt).toLocaleString('en-AU', {
+          timeZone: 'Australia/Melbourne', hour: 'numeric', minute: '2-digit', hour12: true,
+        });
         const preheader = String(message).replace(/\s+/g, ' ').trim().slice(0, 110);
         const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background-color:#f5f6f8;font-family:Arial,Helvetica,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f5f6f8;font-size:1px;line-height:1px;">${htmlEsc(preheader)}</div>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f6f8;padding:40px 0;"><tr><td align="center">
-    <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
-      <tr><td style="background-color:#ffffff;padding:20px 32px;border-bottom:3px solid #b08d2e;">
+<body style="margin:0;padding:0;background-color:#eceef3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#eceef3;font-size:1px;line-height:1px;">${htmlEsc(preheader)}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eceef3;padding:42px 16px;"><tr><td align="center">
+    <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:22px;box-shadow:0 12px 34px rgba(60,55,110,.16);">
+      <tr><td style="padding:18px 20px 21px;">
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td><img src="https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" height="32" style="display:block;height:32px;border:0;"></td>
-          <td align="right" style="font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#6b7899;">Customer SMS</td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="background-color:#ffffff;padding:30px 32px 6px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
-        <p style="margin:0 0 7px;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:${eyebrowColor};">${eyebrowLabel}</p>
-        <h1 style="margin:0 0 4px;font-size:24px;font-weight:700;color:#141c2e;line-height:1.25;">${htmlEsc(phoneNumber)}</h1>
-        <p style="margin:0 0 22px;font-size:12px;color:#6b7899;">Received ${htmlEsc(receivedLocal)} &middot; Melbourne time</p>
-      </td></tr>
-      <tr><td style="background-color:#ffffff;padding:0 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8fa;border:1px solid #e3e7ef;border-left:4px solid #b08d2e;border-radius:8px;">
-          <tr><td style="padding:18px 20px;font-size:16px;line-height:1.6;color:#141c2e;white-space:pre-wrap;word-break:break-word;">${htmlEsc(message)}</td></tr>
-        </table>
-        ${tag ? `<p style="margin:16px 0 0;font-size:13px;font-weight:bold;color:${eyebrowColor};">${htmlEsc(tag)}</p>` : ''}
-      </td></tr>
-      <tr><td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
-        <table cellpadding="0" cellspacing="0"><tr>
-          <td style="background-color:#141c2e;border-radius:8px;">
-            <a href="${portalUrl}" style="display:inline-block;padding:14px 30px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">Open SMS Portal &rarr;</a>
+          <td width="30" valign="middle" style="vertical-align:middle;">
+            <table cellpadding="0" cellspacing="0"><tr>
+              <td width="30" height="30" align="center" valign="middle" style="width:30px;height:30px;background:${accent};border-radius:9px;text-align:center;vertical-align:middle;">
+                <table cellpadding="0" cellspacing="0" align="center"><tr><td width="15" height="11" style="width:15px;height:11px;background:#ffffff;border-radius:4px 4px 4px 0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+              </td>
+            </tr></table>
+          </td>
+          <td valign="middle" style="vertical-align:middle;padding-left:10px;">
+            <span style="font-size:11px;font-weight:bold;letter-spacing:.8px;text-transform:uppercase;color:#9094a3;">Goldsure SMS</span>
+          </td>
+          <td valign="middle" align="right" style="vertical-align:middle;text-align:right;">
+            <span style="font-size:11px;color:#b4b8c4;">${htmlEsc(receivedTime)}</span>
           </td>
         </tr></table>
-      </td></tr>
-      <tr><td style="padding:18px 32px 0;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#9aa3b5;line-height:1.5;">Sent because a customer replied to a Goldsure SMS &middot; <a href="${portalUrl}" style="color:#b08d2e;text-decoration:none;">open the portal</a></p>
+        <p style="margin:15px 0 3px;font-size:16px;font-weight:700;color:#1c1c2b;">${htmlEsc(phoneNumber)}</p>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#4a4d5e;white-space:pre-wrap;word-break:break-word;">${htmlEsc(message)}</p>
+        ${statusNote ? `<p style="margin:13px 0 0;font-size:12.5px;font-weight:bold;color:${accent};">${htmlEsc(statusNote)}</p>` : ''}
       </td></tr>
     </table>
+    <table cellpadding="0" cellspacing="0" style="margin-top:22px;"><tr>
+      <td style="background:${accent};border-radius:12px;">
+        <a href="${portalUrl}" style="display:inline-block;padding:13px 30px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open SMS Portal &nbsp;&rarr;</a>
+      </td>
+    </tr></table>
+    <p style="margin:15px 0 0;font-size:11px;color:#a3a7b5;">Received ${htmlEsc(receivedLocal)} &middot; Melbourne time</p>
   </td></tr></table>
 </body></html>`;
-        const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${tag ? '\n' + tag + '\n' : ''}\nReply in the portal: ${portalUrl}`;
+        const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${statusNote ? '\n' + statusNote + '\n' : ''}\nReply in the portal: ${portalUrl}`;
         // Bound the email so it can never delay the webhook's 200 ACK to SMS Gate
         // (the message is already saved above; email is best-effort).
         const ctrl = new AbortController();
