@@ -51,6 +51,39 @@ export default async function handler(req, res) {
     } catch { return false; }
   };
 
+  // Best-effort GHL customer name for a phone number (last-9-digit match), bounded
+  // so it can never hang a request. Returns '' on miss/error/timeout. Same lookup
+  // approach as the ghl-opps / ghl-lookup actions.
+  const ghlNameForPhone = async (phone) => {
+    const apiKey = process.env.GHL_API_KEY;
+    const locationId = process.env.GHL_LOCATION_ID;
+    if (!apiKey || !locationId || !phone) return '';
+    const last9 = s => String(s || '').replace(/\D/g, '').slice(-9);
+    const target = last9(phone);
+    if (target.length < 6) return '';
+    const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+    const variants = [...new Set([phone, phone.replace(/^\+/, ''), '0' + target, target])];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    try {
+      for (const q of variants) {
+        try {
+          const r = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`, { headers, signal: ctrl.signal });
+          if (!r.ok) continue;
+          const d = await r.json();
+          const match = (d.contacts || []).find(c => last9(c.phone) === target);
+          if (match) {
+            const name = tidyName([match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '');
+            if (name) return name;
+          }
+        } catch { /* try the next phone-format variant */ }
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    return '';
+  };
+
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
     // Debug: last 25 rows as saved (newest receive-time first) — use to check
@@ -1251,9 +1284,12 @@ export default async function handler(req, res) {
         const statusNote = isOut ? 'Replied STOP — sending to this number is now blocked.'
                          : isIn  ? 'Replied START — this number has re-subscribed.'
                          : '';
-        const subject = isOut ? `SMS opt-out (STOP) from ${phoneNumber}`
-                      : isIn  ? `SMS opt-in (START) from ${phoneNumber}`
-                      :         `New SMS from ${phoneNumber}`;
+        // Best-effort customer name from GHL (bounded; falls back to the number).
+        const customerName = await ghlNameForPhone(phoneNumber);
+        const who = customerName || phoneNumber;
+        const subject = isOut ? `SMS opt-out (STOP) from ${who}`
+                      : isIn  ? `SMS opt-in (START) from ${who}`
+                      :         `New SMS from ${who}`;
         const receivedTime = new Date(receivedAt).toLocaleString('en-AU', {
           timeZone: 'Australia/Melbourne', hour: 'numeric', minute: '2-digit', hour12: true,
         });
@@ -1288,7 +1324,8 @@ export default async function handler(req, res) {
           <td valign="middle" align="right" style="vertical-align:middle;text-align:right;font-family:${FONT};font-size:11px;color:#b4b8c4;">${htmlEsc(receivedTime)}</td>
         </tr></table>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:14px;font-family:${FONT};">
-          <div style="font-size:16px;line-height:20px;font-weight:bold;color:#1c1c2b;padding-bottom:4px;">${htmlEsc(phoneNumber)}</div>
+          <div style="font-size:16px;line-height:20px;font-weight:bold;color:#1c1c2b;padding-bottom:${customerName ? '1px' : '4px'};">${htmlEsc(who)}</div>
+          ${customerName ? `<div style="font-size:12px;line-height:15px;color:#9094a3;padding-bottom:6px;">${htmlEsc(phoneNumber)}</div>` : ''}
           <div style="font-size:15px;line-height:22px;color:#4a4d5e;word-break:break-word;">${messageHtml}</div>
           ${statusNote ? `<div style="font-size:12px;line-height:17px;font-weight:bold;color:${accent};padding-top:12px;">${htmlEsc(statusNote)}</div>` : ''}
         </td></tr></table>
@@ -1316,7 +1353,7 @@ export default async function handler(req, res) {
     <!--[if mso]></td></tr></table><![endif]-->
   </td></tr></table>
 </body></html>`;
-        const text = `New SMS from ${phoneNumber}\n${receivedLocal} (Melbourne time)\n\n${message}\n${statusNote ? '\n' + statusNote + '\n' : ''}\nReply in the portal: ${portalUrl}`;
+        const text = `New SMS from ${who}${customerName ? ' (' + phoneNumber + ')' : ''}\n${receivedLocal} (Melbourne time)\n\n${message}\n${statusNote ? '\n' + statusNote + '\n' : ''}\nReply in the portal: ${portalUrl}`;
         // Bound the email so it can never delay the webhook's 200 ACK to SMS Gate
         // (the message is already saved above; email is best-effort).
         const ctrl = new AbortController();
