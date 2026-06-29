@@ -249,7 +249,7 @@ export default async function handler(req, res) {
       // weeks client-side, so week navigation is instant for the volumes involved.
       if (c.action === 'list') {
         const r = await fetch(
-          `${TABLE}?select=id,job_number,booked_date,install_date,notes,created_at&order=booked_date.desc,created_at.desc&limit=1000`,
+          `${TABLE}?select=id,job_number,booked_date,install_date,notes,agent,created_at&order=booked_date.desc,created_at.desc&limit=1000`,
           { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
         );
         if (!r.ok) {
@@ -273,6 +273,7 @@ export default async function handler(req, res) {
           booked_date: bookedDate,
           install_date: String(job.install_date || '').trim() || null,
           notes: String(job.notes || '').trim() || null,
+          agent: String(job.agent || '').trim() || null,
         };
         const r = await fetch(TABLE, {
           method: 'POST',

@@ -31,11 +31,23 @@ CREATE TABLE commission_jobs (
   booked_date  date NOT NULL,
   install_date date,
   notes        text,
+  agent        text,
   created_at   timestamptz DEFAULT now()
 );
 CREATE INDEX ON commission_jobs (booked_date);
 ALTER TABLE commission_jobs DISABLE ROW LEVEL SECURITY;
 ```
+
+**Already created the table without `agent`?** Add the column:
+
+```sql
+ALTER TABLE commission_jobs ADD COLUMN agent text;
+```
+
+The **Agent** name (top-right of the page, defaults to *Shanira*) is stamped onto
+each job as it's added and shown on the report and CSV. It's remembered per browser
+so it stays pre-filled. Until the column exists, adding a job fails — run the
+migration above first.
 
 If you leave Row Level Security **on** instead, set `SUPABASE_SERVICE_ROLE_KEY` in
 Vercel so **Delete** can still remove rows (an RLS-blocked anon delete returns 204
@@ -56,7 +68,7 @@ Reuses the env vars already set for the SMS gateway — no new ones needed:
 | Body | Purpose |
 |------|---------|
 | `{ commission: { action:'list' } }` | All jobs (newest booked first); grouped into weeks client-side |
-| `{ commission: { action:'add', job:{ job_number, booked_date, install_date, notes } } }` | Insert a job; returns the saved row |
+| `{ commission: { action:'add', job:{ job_number, booked_date, install_date, notes, agent } } }` | Insert a job; returns the saved row |
 | `{ commission: { action:'delete', id } }` | Delete a job by id (service-role key, verified count) |
 
 ## Downloads
