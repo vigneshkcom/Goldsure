@@ -929,6 +929,7 @@
     <button class="name-opt" onclick="pickStaff('David')">David</button>
     <button class="name-opt" onclick="pickStaff('Vignesh')">Vignesh</button>
     <button class="name-opt" onclick="pickStaff('Amit')">Amit</button>
+    <button class="name-opt" onclick="pickStaff('Shanira')">Shanira</button>
   </div>
 </div>
 
@@ -3164,7 +3165,15 @@
     }
     if (staffName) text = text.replaceAll('{{user.first_name}}', staffName);
     const directPhone = STAFF_PHONES[staffName];
-    if (directPhone) text = text.replaceAll('{{user.phone}}', directPhone);
+    if (directPhone) {
+      text = text.replaceAll('{{user.phone}}', directPhone);
+    } else {
+      // Staff without a personal direct line (e.g. Shanira — smoke alarms, QLD)
+      // drop the "(Direct: …)" part of the signature entirely instead of leaving
+      // a placeholder. The pipeline number still appears below the name.
+      text = text.replace(/ *\(Direct:\s*\{\{user\.phone\}\}\)/g, '');
+      text = text.replaceAll('{{user.phone}}', '');
+    }
 
     const folderName = (folderIdx !== undefined) ? TEMPLATES[folderIdx].folder : null;
     const pipelinePhone = folderName ? PIPELINE_PHONES[folderName] : null;
