@@ -27,27 +27,43 @@ to the week of its **Booked Date**. Use the ‹ › arrows to move between weeks
 ```sql
 CREATE TABLE commission_jobs (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  job_number   text NOT NULL,
-  booked_date  date NOT NULL,
-  install_date date,
-  notes        text,
-  agent        text,
-  created_at   timestamptz DEFAULT now()
+  job_number     text NOT NULL,
+  booked_date    date NOT NULL,
+  install_date   date,
+  customer_name  text,
+  customer_phone text,
+  lead_type      text,
+  notes          text,
+  agent          text,
+  created_at     timestamptz DEFAULT now()
 );
 CREATE INDEX ON commission_jobs (booked_date);
 ALTER TABLE commission_jobs DISABLE ROW LEVEL SECURITY;
 ```
 
-**Already created the table without `agent`?** Add the column:
+**Already created the table without the newer columns?** Add them:
 
 ```sql
-ALTER TABLE commission_jobs ADD COLUMN agent text;
+ALTER TABLE commission_jobs ADD COLUMN IF NOT EXISTS agent          text;
+ALTER TABLE commission_jobs ADD COLUMN IF NOT EXISTS customer_name  text;
+ALTER TABLE commission_jobs ADD COLUMN IF NOT EXISTS customer_phone text;
+ALTER TABLE commission_jobs ADD COLUMN IF NOT EXISTS lead_type      text;
 ```
 
 The **Agent** name (top-right of the page, defaults to *Shanira*) is stamped onto
 each job as it's added and shown on the report and CSV. It's remembered per browser
-so it stays pre-filled. Until the column exists, adding a job fails — run the
+so it stays pre-filled. Until the columns exist, adding a job fails — run the
 migration above first.
+
+**Lead type** is a dropdown — *Digital*, *Letterbox*, or *Direct Phone Call* —
+captured per job and shown on the report and CSV.
+
+**Find customer** searches the **Smoke Alarm pipeline in GoHighLevel** by name or
+phone and fills in the customer name + phone on selection. It reuses the existing
+server-side GHL proxy (`/api/MetaAdPerformace/ghl`) and config endpoint that the
+Meta Ad Performance dashboard already uses, so it needs `GHL_API_KEY` +
+`GHL_LOCATION_ID` set in Vercel (already configured). If GHL is unreachable, the
+agent can still type the customer in manually.
 
 If you leave Row Level Security **on** instead, set `SUPABASE_SERVICE_ROLE_KEY` in
 Vercel so **Delete** can still remove rows (an RLS-blocked anon delete returns 204
@@ -68,14 +84,17 @@ Reuses the env vars already set for the SMS gateway — no new ones needed:
 | Body | Purpose |
 |------|---------|
 | `{ commission: { action:'list' } }` | All jobs (newest booked first); grouped into weeks client-side |
-| `{ commission: { action:'add', job:{ job_number, booked_date, install_date, notes, agent } } }` | Insert a job; returns the saved row |
+| `{ commission: { action:'add', job:{ job_number, booked_date, install_date, customer_name, customer_phone, lead_type, notes, agent } } }` | Insert a job; returns the saved row |
 | `{ commission: { action:'delete', id } }` | Delete a job by id (service-role key, verified count) |
+
+Customer search is done **client-side** against the existing `/api/MetaAdPerformace/ghl`
+proxy (Smoke Alarm pipeline) — it does not go through this handler.
 
 ## Downloads
 
 - **PDF** — opens a branded, print-ready report in a new tab and triggers the print
   dialog; choose **Save as PDF** (or print). Allow pop-ups for `portal.goldsure.com.au`.
-- **CSV** — `Job Number, Booked Date, Installation Date, Notes` for the viewed week,
+- **CSV** — `Agent, Job Number, Customer, Phone, Lead Type, Booked Date, Installation Date, Notes` for the viewed week,
   ready for Excel/Sheets.
 
 Both files are named `Goldsure_Commission_<weekStart>_to_<weekEnd>`.
