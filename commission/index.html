@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commission Job Log – Goldsure</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23b08d2e'/%3E%3Cpath d='M9 17l4 4 10-10' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #b08d2e;
+      --gold-soft: #faf6ec;
+      --ink: #1d1d1f;
+      --page: #f3f3f5;
+      --card: #ffffff;
+      --text: #2c2c33;
+      --muted: #8a8a93;
+      --border: #e7e7ec;
+      --red: #c0392b;
+      --green: #1e8e4f;
+      --r: 14px;
+      --shadow: 0 2px 10px rgba(20,20,30,0.06), 0 1px 3px rgba(20,20,30,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--page);
+      color: var(--text);
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 22px 18px 60px; }
+
+    /* Header */
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { height: 34px; width: auto; display: block; }
+    .brand .title { font-size: 13px; font-weight: 700; letter-spacing: .4px; }
+    .brand .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .back-link { font-size: 12px; color: var(--muted); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+    .back-link:hover { color: var(--gold); }
+
+    .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px 22px; margin-bottom: 18px; }
+    .card-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+
+    /* Add form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1.4fr auto; gap: 12px; align-items: end; }
+    .field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .field input, .field textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px;
+      font-family: inherit; font-size: 13.5px; color: var(--text); background: #fff; outline: none; transition: border-color .15s;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--gold); }
+    .field textarea { resize: vertical; min-height: 42px; }
+    button {
+      font-family: inherit; cursor: pointer; border: none; border-radius: 9px; font-weight: 600; font-size: 13px;
+      padding: 10px 18px; transition: filter .15s, background .15s, border-color .15s; white-space: nowrap;
+    }
+    .btn-gold { background: var(--gold); color: #fff; }
+    .btn-gold:hover { filter: brightness(1.07); }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Week bar */
+    .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+    .weekbar-left { display: flex; align-items: center; gap: 10px; }
+    .week-range { font-size: 16px; font-weight: 700; color: var(--ink); }
+    .week-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .nav-btn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--border); border-radius: 9px; color: var(--text); }
+    .nav-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .weekbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .today-btn { font-size: 12px; padding: 8px 12px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--muted); padding: 10px 12px; border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    tbody td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13.5px; vertical-align: top; }
+    tbody tr:hover { background: var(--gold-soft); }
+    .job-no { font-weight: 700; color: var(--ink); }
+    .muted-cell { color: var(--muted); }
+    .del-btn { background: none; border: none; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+    .del-btn:hover { color: var(--red); }
+    .empty { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13.5px; }
+    .count-pill { display: inline-block; background: var(--gold-soft); color: var(--gold); font-weight: 700; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin-left: 8px; vertical-align: middle; }
+
+    .toast {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--ink); color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); }
+
+    @media (max-width: 760px) {
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid .field-notes, .form-grid .field-submit { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" />
+        <div>
+          <div class="title">Commission Job Log</div>
+          <div class="sub">Weekly job tracking · Mon → Sun</div>
+        </div>
+      </div>
+      <a href="/index.html" class="back-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Portal
+      </a>
+    </div>
+
+    <!-- Add job -->
+    <div class="card">
+      <div class="card-label">Add a Job</div>
+      <form id="addForm" class="form-grid" autocomplete="off">
+        <div class="field">
+          <label for="jobNumber">Job Number / ID *</label>
+          <input id="jobNumber" name="jobNumber" type="text" placeholder="e.g. JOB-1042" required />
+        </div>
+        <div class="field">
+          <label for="bookedDate">Booked Date *</label>
+          <input id="bookedDate" name="bookedDate" type="date" required />
+        </div>
+        <div class="field">
+          <label for="installDate">Installation Date Booked</label>
+          <input id="installDate" name="installDate" type="date" />
+        </div>
+        <div class="field field-notes">
+          <label for="notes">Notes</label>
+          <input id="notes" name="notes" type="text" placeholder="Optional — customer, suburb, etc." />
+        </div>
+        <div class="field field-submit">
+          <button type="submit" class="btn-gold" id="addBtn">Add Job</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Week view -->
+    <div class="card">
+      <div class="weekbar">
+        <div class="weekbar-left">
+          <button class="nav-btn" id="prevWeek" title="Previous week" aria-label="Previous week">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div>
+            <div class="week-range" id="weekRange">—</div>
+            <div class="week-meta" id="weekMeta">Week ending Sunday</div>
+          </div>
+          <button class="nav-btn" id="nextWeek" title="Next week" aria-label="Next week">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="btn-ghost today-btn" id="todayBtn">This week</button>
+        </div>
+        <div class="weekbar-actions">
+          <button class="btn-ghost" id="csvBtn">⬇ Download CSV</button>
+          <button class="btn-gold" id="pdfBtn">⬇ Download PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Jobs table -->
+    <div class="card">
+      <div class="card-label">Jobs This Week<span class="count-pill" id="countPill">0</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Job No.</th>
+              <th>Booked Date</th>
+              <th>Installation Date</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="jobsBody">
+            <tr><td colspan="5" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = '/api/smoke-alarms/reports';
+    const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
+
+    let allJobs = [];        // every job from Supabase
+    let weekStart = null;    // Monday of the currently viewed week (local Date @ 00:00)
+
+    // ── Date helpers (local time, Monday-start weeks) ──
+    function startOfWeek(d) {
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const day = x.getDay();               // 0=Sun … 6=Sat
+      const diff = day === 0 ? -6 : 1 - day; // back to Monday
+      x.setDate(x.getDate() + diff);
+      return x;
+    }
+    function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    function ymd(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    // Parse a 'YYYY-MM-DD' string into a local Date (avoids UTC off-by-one).
+    function parseYmd(s) {
+      if (!s) return null;
+      const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
+    function fmtLong(d) { return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }); }
+    function fmtShort(s) {
+      const d = parseYmd(s);
+      return d ? d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    }
+
+    function weekEndOf(start) { return addDays(start, 6); }
+    function jobsForWeek(start) {
+      const s = ymd(start), e = ymd(weekEndOf(start));
+      return allJobs
+        .filter(j => j.booked_date && j.booked_date.slice(0, 10) >= s && j.booked_date.slice(0, 10) <= e)
+        .sort((a, b) => (a.booked_date || '').localeCompare(b.booked_date || '') || (a.created_at || '').localeCompare(b.created_at || ''));
+    }
+
+    // ── Toast ──
+    let toastTimer;
+    function toast(msg, isErr) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
+    }
+
+    // ── API ──
+    async function call(payload) {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commission: payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    async function loadJobs() {
+      try {
+        const data = await call({ action: 'list' });
+        allJobs = Array.isArray(data.jobs) ? data.jobs : [];
+        render();
+      } catch (e) {
+        document.getElementById('jobsBody').innerHTML =
+          '<tr><td colspan="5" class="empty">Could not load jobs. ' + escapeHtml(e.message) + '</td></tr>';
+      }
+    }
+
+    // ── Render ──
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function render() {
+      const end = weekEndOf(weekStart);
+      const year = end.getFullYear();
+      document.getElementById('weekRange').textContent = fmtLong(weekStart) + ' – ' + fmtLong(end) + ' ' + year;
+      document.getElementById('weekMeta').textContent = 'Week ending Sunday ' + end.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      const jobs = jobsForWeek(weekStart);
+      document.getElementById('countPill').textContent = jobs.length;
+      const body = document.getElementById('jobsBody');
+      if (!jobs.length) {
+        body.innerHTML = '<tr><td colspan="5" class="empty">No jobs booked in this week yet.</td></tr>';
+        return;
+      }
+      body.innerHTML = jobs.map(j => `
+        <tr>
+          <td class="job-no">${escapeHtml(j.job_number)}</td>
+          <td>${fmtShort(j.booked_date)}</td>
+          <td class="${j.install_date ? '' : 'muted-cell'}">${j.install_date ? fmtShort(j.install_date) : 'Not set'}</td>
+          <td class="${j.notes ? '' : 'muted-cell'}">${j.notes ? escapeHtml(j.notes) : '—'}</td>
+          <td><button class="del-btn" data-id="${escapeHtml(j.id)}" title="Delete job">Delete</button></td>
+        </tr>`).join('');
+      body.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => deleteJob(b.dataset.id)));
+    }
+
+    // ── Mutations ──
+    async function addJob(e) {
+      e.preventDefault();
+      const btn = document.getElementById('addBtn');
+      const job = {
+        job_number: document.getElementById('jobNumber').value.trim(),
+        booked_date: document.getElementById('bookedDate').value,
+        install_date: document.getElementById('installDate').value,
+        notes: document.getElementById('notes').value.trim(),
+      };
+      if (!job.job_number || !job.booked_date) { toast('Job number and booked date are required.', true); return; }
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const data = await call({ action: 'add', job });
+        if (data.job) allJobs.unshift(data.job);
+        // Jump to the week of the job we just added so it's visible.
+        const bd = parseYmd(job.booked_date);
+        if (bd) weekStart = startOfWeek(bd);
+        render();
+        document.getElementById('addForm').reset();
+        document.getElementById('jobNumber').focus();
+        toast('Job added.');
+      } catch (e) {
+        toast(e.message || 'Could not save job.', true);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Add Job';
+      }
+    }
+
+    async function deleteJob(id) {
+      if (!confirm('Delete this job? This cannot be undone.')) return;
+      try {
+        const data = await call({ action: 'delete', id });
+        if (data.success === false) { toast(data.warning || 'Nothing was deleted.', true); return; }
+        allJobs = allJobs.filter(j => String(j.id) !== String(id));
+        render();
+        toast('Job deleted.');
+      } catch (e) {
+        toast(e.message || 'Could not delete job.', true);
+      }
+    }
+
+    // ── Downloads ──
+    function weekLabel() {
+      const end = weekEndOf(weekStart);
+      return ymd(weekStart) + '_to_' + ymd(end);
+    }
+    function downloadCsv() {
+      const jobs = jobsForWeek(weekStart);
+      if (!jobs.length) { toast('No jobs in this week to export.', true); return; }
+      const rows = [['Job Number', 'Booked Date', 'Installation Date', 'Notes']];
+      jobs.forEach(j => rows.push([
+        j.job_number || '',
+        j.booked_date ? j.booked_date.slice(0, 10) : '',
+        j.install_date ? j.install_date.slice(0, 10) : '',
+        j.notes || '',
+      ]));
+      const csv = rows.map(r => r.map(cell => {
+        const s = String(cell);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',')).join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Goldsure_Commission_' + weekLabel() + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('CSV downloaded.');
+    }
+
+    function downloadPdf() {
+      const jobs = jobsForWeek(weekStart);
+      if (!jobs.length) { toast('No jobs in this week to export.', true); return; }
+      const start = weekStart, end = weekEndOf(weekStart);
+      const period = fmtLong(start) + ' – ' + fmtLong(end) + ' ' + end.getFullYear();
+      const ending = end.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const rowsHtml = jobs.map((j, i) => `
+        <tr style="background:${i % 2 ? '#faf8f3' : '#ffffff'};">
+          <td style="padding:10px 12px;font-size:13px;font-weight:bold;color:#000;border-bottom:1px solid #ece8df;">${escapeHtml(j.job_number)}</td>
+          <td style="padding:10px 12px;font-size:13px;color:#333;border-bottom:1px solid #ece8df;">${fmtShort(j.booked_date)}</td>
+          <td style="padding:10px 12px;font-size:13px;color:${j.install_date ? '#333' : '#bbb'};border-bottom:1px solid #ece8df;">${j.install_date ? fmtShort(j.install_date) : 'Not set'}</td>
+          <td style="padding:10px 12px;font-size:13px;color:${j.notes ? '#333' : '#bbb'};border-bottom:1px solid #ece8df;">${j.notes ? escapeHtml(j.notes) : '—'}</td>
+        </tr>`).join('');
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Goldsure Commission Report — ${period}</title></head>
+      <body style="margin:0;padding:0;background:#e4e0d8;font-family:Arial,Helvetica,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#e4e0d8;"><tr><td align="center" style="padding:28px 0 36px;">
+          <table width="640" cellpadding="0" cellspacing="0" style="background:#fff;">
+            <tr><td align="center" style="padding:24px 32px 6px;"><img src="${LOGO}" alt="Goldsure" width="170" style="display:block;width:170px;border:0;"></td></tr>
+            <tr><td align="center" style="padding:0 32px 16px;"><p style="margin:0;font-size:8px;font-weight:bold;letter-spacing:5px;text-transform:uppercase;color:#b08d2e;">Weekly Commission Report</p></td></tr>
+            <tr><td height="2" style="font-size:2px;line-height:2px;background:#b08d2e;">&nbsp;</td></tr>
+            <tr><td style="padding:20px 30px 6px;">
+              <p style="margin:0 0 3px;font-size:18px;font-weight:bold;color:#000;">${period}</p>
+              <p style="margin:0;font-size:12px;color:#999;">Week ending <strong style="color:#333;">${ending}</strong></p>
+            </td></tr>
+            <tr><td style="padding:8px 30px 4px;">
+              <table cellpadding="0" cellspacing="0" style="border:1px solid #e0dcd2;">
+                <tr>
+                  <td style="padding:12px 18px;border-right:1px solid #e0dcd2;">
+                    <p style="margin:0 0 4px;font-size:8px;letter-spacing:3px;text-transform:uppercase;color:#aaa;">Total Jobs Booked</p>
+                    <p style="margin:0;font-size:26px;font-weight:bold;color:#000;line-height:1;">${jobs.length}</p>
+                  </td>
+                  <td style="padding:12px 18px;">
+                    <p style="margin:0 0 4px;font-size:8px;letter-spacing:3px;text-transform:uppercase;color:#aaa;">Reporting Period</p>
+                    <p style="margin:0;font-size:13px;font-weight:bold;color:#000;">Monday – Sunday</p>
+                  </td>
+                </tr>
+              </table>
+            </td></tr>
+            <tr><td style="padding:16px 30px 28px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e0dcd2;">
+                <tr style="background:#000;">
+                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Job No.</td>
+                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Booked Date</td>
+                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Installation Date</td>
+                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;">Notes</td>
+                </tr>
+                ${rowsHtml}
+              </table>
+            </td></tr>
+            <tr><td align="center" style="padding:14px 28px;background:#000;">
+              <p style="margin:0 0 3px;font-size:9px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+              <p style="margin:0;font-size:10px;color:#555;line-height:1.7;">ABN: 66 683 305 106 &middot; Queensland, Australia<br>Generated ${new Date().toLocaleString('en-AU')}</p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+        <script>window.onload=function(){setTimeout(function(){window.print();},350);};<\/script>
+      </body></html>`;
+
+      const w = window.open('', '_blank');
+      if (!w) { toast('Pop-up blocked — allow pop-ups to download the PDF.', true); return; }
+      w.document.open(); w.document.write(html); w.document.close();
+      toast('Opening PDF — choose “Save as PDF”.');
+    }
+
+    // ── Wire up ──
+    document.getElementById('addForm').addEventListener('submit', addJob);
+    document.getElementById('prevWeek').addEventListener('click', () => { weekStart = addDays(weekStart, -7); render(); });
+    document.getElementById('nextWeek').addEventListener('click', () => { weekStart = addDays(weekStart, 7); render(); });
+    document.getElementById('todayBtn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); render(); });
+    document.getElementById('csvBtn').addEventListener('click', downloadCsv);
+    document.getElementById('pdfBtn').addEventListener('click', downloadPdf);
+
+    // Default booked date to today for convenience.
+    document.getElementById('bookedDate').value = ymd(new Date());
+    weekStart = startOfWeek(new Date());
+    render();
+    loadJobs();
+  </script>
+</body>
+</html>

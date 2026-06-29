@@ -228,6 +228,105 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
+  // ── Route: commission job tracker (Supabase CRUD) ──
+  // Powers /commission/ — the weekly commission job log. Routed on body.commission,
+  // shaped { action:'list'|'add'|'delete', ... }. Stored in the `commission_jobs`
+  // Supabase table. Kept here (not a new file) to stay under Vercel's 12-function limit.
+  if (body.commission !== undefined) {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+    // Service-role key bypasses Row Level Security so deletes actually remove the row
+    // (an RLS-blocked anon delete returns 204 having deleted nothing). Falls back to anon.
+    const SUPABASE_ADMIN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      return res.status(500).json({ error: 'Supabase is not configured on the server.' });
+    }
+    const TABLE = `${SUPABASE_URL}/rest/v1/commission_jobs`;
+    const c = body.commission || {};
+
+    try {
+      // List jobs (newest booked first). The page fetches all and groups into Mon–Sun
+      // weeks client-side, so week navigation is instant for the volumes involved.
+      if (c.action === 'list') {
+        const r = await fetch(
+          `${TABLE}?select=id,job_number,booked_date,install_date,notes,created_at&order=booked_date.desc,created_at.desc&limit=1000`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+        );
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Commission] list failed:', detail);
+          return res.status(500).json({ error: 'Failed to load jobs.', detail });
+        }
+        return res.status(200).json({ jobs: await r.json() });
+      }
+
+      // Add a job. job_number + booked_date are required; install_date + notes optional.
+      if (c.action === 'add') {
+        const job = c.job || {};
+        const jobNumber = String(job.job_number || '').trim();
+        const bookedDate = String(job.booked_date || '').trim();
+        if (!jobNumber || !bookedDate) {
+          return res.status(400).json({ error: 'Job number and booked date are required.' });
+        }
+        const row = {
+          job_number: jobNumber,
+          booked_date: bookedDate,
+          install_date: String(job.install_date || '').trim() || null,
+          notes: String(job.notes || '').trim() || null,
+        };
+        const r = await fetch(TABLE, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify(row),
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Commission] add failed:', detail);
+          return res.status(500).json({ error: 'Failed to save job.', detail });
+        }
+        const inserted = await r.json();
+        return res.status(200).json({ job: Array.isArray(inserted) ? inserted[0] : inserted });
+      }
+
+      // Delete a job by id (service-role key so RLS can't silently no-op it).
+      if (c.action === 'delete') {
+        const id = String(c.id || '').trim();
+        if (!id) return res.status(400).json({ error: 'Job id is required.' });
+        const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: {
+            apikey: SUPABASE_ADMIN_KEY,
+            Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
+            Prefer: 'return=representation',
+          },
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Commission] delete failed:', detail);
+          return res.status(500).json({ error: 'Failed to delete job.', detail });
+        }
+        const removed = await r.json().catch(() => []);
+        if (!Array.isArray(removed) || removed.length === 0) {
+          return res.status(200).json({
+            success: false,
+            warning: 'Nothing was deleted — Row Level Security may be blocking it. Set SUPABASE_SERVICE_ROLE_KEY or disable RLS on commission_jobs.',
+          });
+        }
+        return res.status(200).json({ success: true, deleted: removed.length });
+      }
+
+      return res.status(400).json({ error: `Unknown commission action: ${c.action}` });
+    } catch (err) {
+      console.error('[Commission] server error:', err);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+
   // ── Route: install-summary relay (pre-built HTML from frontend) ──
   if (body.html !== undefined) {
     const { from, to, subject, html } = body;
