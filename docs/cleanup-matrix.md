@@ -21,7 +21,6 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 - `/Ads reporting/`
 - `/Ads reporting/Meta Ad Performance.html`
 - `/Air-Cons/`
-- `/Air-Cons/aux-mini-vrf-pricing.html`
 - `/api/`
 - `/api/battery/request-callback.js`
 - `/api/MetaAdPerformace/auth.js`
@@ -117,7 +116,6 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 | `/Ads reporting/` | folder | live reporting section with inconsistent public naming | clearly active / confusing by name only | rename later | high |
 | `/Ads reporting/Meta Ad Performance.html` | browser page | reporting dashboard UI | clearly active / confusing by name only | document better | high |
 | `/Air-Cons/` | folder | live aircon tool section with inconsistent public naming | clearly active / confusing by name only | rename later | high |
-| `/Air-Cons/aux-mini-vrf-pricing.html` | browser page | AUX pricing and export tool | clearly active | keep | medium-high |
 | `/api/` | folder | live serverless routes and template/report generation | clearly active / shared infrastructure | keep | very high |
 | `/api/battery/request-callback.js` | API route | battery callback submission and email HTML | clearly active / shared infrastructure | keep | very high |
 | `/api/MetaAdPerformace/` | folder | live reporting route namespace with typo in path | clearly active / confusing by name only | rename later | very high |

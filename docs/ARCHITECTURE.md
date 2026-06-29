@@ -68,16 +68,6 @@ This document is the practical repo map for day-to-day work. Use it to answer:
 - Risky to change: high because public path is live
 - Open this when: you are working on reporting UI, ad reporting, or the Meta/Google dashboard
 
-### `/Air-Cons/`
-
-- Type: folder containing `browser page`
-- Purpose: air-conditioning pricing and calculator tooling
-- Live/active: yes
-- Shared: limited
-- Likely legacy: no, but naming is legacy/inconsistent
-- Risky to change: high because public path is live
-- Open this when: you are working on the AUX pricing calculator or its export output
-
 ### `/api/`
 
 - Type: folder containing `API route` files and server-side template/report code
@@ -204,17 +194,6 @@ These sections list the files that are most important when working in each folde
   - Risky to change: high
 - Notes: calls `/api/MetaAdPerformace/*`; contains report/export presentation logic
 - Notes (2026-03): source/journey-path logic now normalizes to `Meta` vs `Google` and shows landing pages as a journey path detail
-
-### `/Air-Cons/`
-
-- [aux-mini-vrf-pricing.html](/Air-Cons/aux-mini-vrf-pricing.html)
-  - Type: `browser page`
-  - Purpose: AUX Mini VRF pricing tool and browser-side export flow
-  - Live/active: yes
-  - Shared: no
-  - Likely legacy: no
-  - Risky to change: medium to high
-  - Notes: includes browser-generated export/report behavior
 
 ### `/api/`
 

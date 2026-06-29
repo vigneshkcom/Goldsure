@@ -44,16 +44,6 @@ Important files:
 - `/Battery/thank-you.html`
 - `/Battery/battery-roi.html`
 
-### Air-Cons
-
-If you are looking for the aircon pricing page or its export/report logic, start in:
-
-- `/Air-Cons/`
-
-Important file:
-
-- `/Air-Cons/aux-mini-vrf-pricing.html`
-
 ### Reporting
 
 If you are looking for the ad reporting dashboard or daily email reporting logic, start in:
@@ -135,7 +125,6 @@ Use this shortcut:
 
 - Smoke alarms: `/smoke-alarms/`
 - Battery: `/Battery/`
-- Aircons: `/Air-Cons/`
 - Reporting dashboard: `/Ads reporting/`
 - APIs and emails: `/api/`
 - Logos and images: `/assets/`
@@ -153,7 +142,6 @@ Do not casually rename, move, or delete:
 - anything in `/smoke-alarms/calendar/`
 - `/smoke-alarms/calculatorpdf.html`
 - `/Battery/`
-- `/Air-Cons/`
 - `/Ads reporting/`
 
 ## Better Detailed Docs

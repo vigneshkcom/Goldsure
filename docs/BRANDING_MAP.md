@@ -28,7 +28,7 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - generated browser-side exports on dark or branded report surfaces
   - contexts where the normal logo does not have enough contrast
 - Current known usage:
-  - browser/report flow in [Air-Cons/aux-mini-vrf-pricing.html](../Air-Cons/aux-mini-vrf-pricing.html)
+  - none currently — the AUX Mini VRF pricing tool that used it was removed
 - Should not be used:
   - as the default portal header logo
   - as a favicon or PWA icon
