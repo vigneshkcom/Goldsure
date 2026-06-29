@@ -55,11 +55,13 @@ each job as it's added and shown on the report and CSV. It's remembered per brow
 so it stays pre-filled. Until the columns exist, adding a job fails — run the
 migration above first.
 
-**Lead type** is a dropdown — *Digital*, *Letterbox*, or *Direct Phone Call* —
-captured per job and shown on the report and CSV.
+**Lead source** is an editable field with *Digital*, *Letterbox*, and *Direct Phone
+Call* as suggestions. When a customer is selected it is auto-filled from the GHL
+opportunity's source (falling through `source` / `opportunitySource` / `leadSource`
+/ a recognised tag); the agent can still type or pick a value if GHL has none.
 
 **Find customer** searches the **Smoke Alarm pipeline in GoHighLevel** by name or
-phone and fills in the customer name + phone on selection. It reuses the existing
+phone and fills in the customer name (and lead source) on selection. It reuses the existing
 server-side GHL proxy (`/api/MetaAdPerformace/ghl`) and config endpoint that the
 Meta Ad Performance dashboard already uses, so it needs `GHL_API_KEY` +
 `GHL_LOCATION_ID` set in Vercel (already configured). If GHL is unreachable, the
@@ -94,7 +96,7 @@ proxy (Smoke Alarm pipeline) — it does not go through this handler.
 
 - **PDF** — opens a branded, print-ready report in a new tab and triggers the print
   dialog; choose **Save as PDF** (or print). Allow pop-ups for `portal.goldsure.com.au`.
-- **CSV** — `Agent, Job Number, Customer, Phone, Lead Type, Booked Date, Installation Date, Notes` for the viewed week,
+- **CSV** — `Agent, Job Number, Customer, Lead Source, Booked Date, Installation Date, Notes` for the viewed week,
   ready for Excel/Sheets.
 
 Both files are named `Goldsure_Commission_<weekStart>_to_<weekEnd>`.

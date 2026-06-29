@@ -58,6 +58,7 @@
     }
     .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--gold); }
     .field textarea { resize: vertical; min-height: 42px; }
+    .field-cust { grid-column: span 2; }
     .field-notes { grid-column: span 2; }
     .field-submit { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
 
@@ -167,26 +168,22 @@
       </div>
 
       <form id="addForm" class="form-grid" autocomplete="off">
-        <div class="field">
+        <div class="field field-cust">
           <label for="customerName">Customer Name</label>
           <input id="customerName" name="customerName" type="text" placeholder="Customer name" />
         </div>
         <div class="field">
-          <label for="customerPhone">Customer Phone</label>
-          <input id="customerPhone" name="customerPhone" type="text" placeholder="Phone" />
-        </div>
-        <div class="field">
-          <label for="leadType">Lead Type</label>
-          <select id="leadType" name="leadType">
-            <option value="">— Select —</option>
-            <option value="Digital">Digital</option>
-            <option value="Letterbox">Letterbox</option>
-            <option value="Direct Phone Call">Direct Phone Call</option>
-          </select>
+          <label for="leadType">Lead Source</label>
+          <input id="leadType" name="leadType" type="text" list="leadTypeOptions" placeholder="Auto-filled from GHL, or pick" />
+          <datalist id="leadTypeOptions">
+            <option value="Digital"></option>
+            <option value="Letterbox"></option>
+            <option value="Direct Phone Call"></option>
+          </datalist>
         </div>
         <div class="field">
           <label for="jobNumber">Job Number / ID *</label>
-          <input id="jobNumber" name="jobNumber" type="text" placeholder="e.g. JOB-1042" required />
+          <input id="jobNumber" name="jobNumber" type="text" required />
         </div>
         <div class="field">
           <label for="bookedDate">Booked Date *</label>
@@ -238,7 +235,7 @@
             <tr>
               <th>Job No.</th>
               <th>Customer</th>
-              <th>Lead Type</th>
+              <th>Lead Source</th>
               <th>Booked Date</th>
               <th>Installation Date</th>
               <th>Notes</th>
@@ -361,7 +358,7 @@
         return;
       }
       body.innerHTML = jobs.map(j => {
-        const cust = [j.customer_name, j.customer_phone].filter(Boolean).map(escapeHtml).join('<br>');
+        const cust = j.customer_name ? escapeHtml(j.customer_name) : '';
         return `
         <tr>
           <td class="job-no">${escapeHtml(j.job_number)}</td>
@@ -384,8 +381,7 @@
         booked_date: document.getElementById('bookedDate').value,
         install_date: document.getElementById('installDate').value,
         customer_name: document.getElementById('customerName').value.trim(),
-        customer_phone: document.getElementById('customerPhone').value.trim(),
-        lead_type: document.getElementById('leadType').value,
+        lead_type: document.getElementById('leadType').value.trim(),
         notes: document.getElementById('notes').value.trim(),
         agent: currentAgent(),
       };
@@ -431,12 +427,11 @@
     function downloadCsv() {
       const jobs = jobsForWeek(weekStart);
       if (!jobs.length) { toast('No jobs in this week to export.', true); return; }
-      const rows = [['Agent', 'Job Number', 'Customer', 'Phone', 'Lead Type', 'Booked Date', 'Installation Date', 'Notes']];
+      const rows = [['Agent', 'Job Number', 'Customer', 'Lead Source', 'Booked Date', 'Installation Date', 'Notes']];
       jobs.forEach(j => rows.push([
         j.agent || currentAgent(),
         j.job_number || '',
         j.customer_name || '',
-        j.customer_phone || '',
         j.lead_type || '',
         j.booked_date ? j.booked_date.slice(0, 10) : '',
         j.install_date ? j.install_date.slice(0, 10) : '',
@@ -463,7 +458,7 @@
       const ending = end.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       const agent = agentsLabel(jobs);
       const rowsHtml = jobs.map((j, i) => {
-        const custCell = [j.customer_name, j.customer_phone].filter(Boolean).map(escapeHtml).join('<br>');
+        const custCell = j.customer_name ? escapeHtml(j.customer_name) : '';
         return `
         <tr style="background:${i % 2 ? '#faf8f3' : '#ffffff'};">
           <td style="padding:10px 12px;font-size:13px;font-weight:bold;color:#000;border-bottom:1px solid #ece8df;">${escapeHtml(j.job_number)}</td>
@@ -509,7 +504,7 @@
                 <tr style="background:#000;">
                   <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Job No.</td>
                   <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Customer</td>
-                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Lead Type</td>
+                  <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Lead Source</td>
                   <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Booked Date</td>
                   <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#fff;">Installation Date</td>
                   <td style="padding:10px 12px;font-size:8px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;">Notes</td>
@@ -595,7 +590,9 @@
 
     function selectCustomer(o) {
       document.getElementById('customerName').value = o._name || '';
-      document.getElementById('customerPhone').value = o._phone || '';
+      // Auto-fill the lead source from GHL when the opportunity has one; otherwise
+      // leave it for the agent to pick. Don't overwrite a non-empty GHL source.
+      if (o._source) document.getElementById('leadType').value = o._source;
       clearCustomerSearch();
       document.getElementById('jobNumber').focus();
     }
@@ -608,12 +605,19 @@
         const path = `/opportunities/search?location_id=${ghlLocationId}&pipeline_id=${smokePipelineId}&q=${encodeURIComponent(q)}&limit=20`;
         const data = await ghlFetch(path);
         if (seq !== custSeq) return;  // a newer search superseded this one
-        const opps = (data.opportunities || []).map(o => ({
-          _name: (o.contact && (o.contact.name || o.contact.companyName)) || o.name || '',
-          _phone: (o.contact && o.contact.phone) || '',
-          _email: (o.contact && o.contact.email) || '',
-          _stage: (o.pipelineStage && o.pipelineStage.name) || o.status || '',
-        }));
+        const opps = (data.opportunities || []).map(o => {
+          const tagSrc = Array.isArray(o.tags)
+            ? (o.tags.find(t => /facebook|instagram|meta|google|letterbox|digital|phone/i.test(t || '')) || '')
+            : '';
+          return {
+            _name: (o.contact && (o.contact.name || o.contact.companyName)) || o.name || '',
+            _phone: (o.contact && o.contact.phone) || '',
+            _email: (o.contact && o.contact.email) || '',
+            _stage: (o.pipelineStage && o.pipelineStage.name) || o.status || '',
+            // GHL "lead source" for the opportunity — falls through the source fields.
+            _source: (o.source || o.opportunitySource || o.leadSource || tagSrc || '').trim(),
+          };
+        });
         custStatus.textContent = '';
         renderCustResults(opps);
       } catch (e) {
