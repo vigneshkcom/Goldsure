@@ -168,13 +168,17 @@
       </div>
 
       <form id="addForm" class="form-grid" autocomplete="off">
+        <div class="field">
+          <label for="jobNumber">Job Number / ID *</label>
+          <input id="jobNumber" name="jobNumber" type="text" required />
+        </div>
         <div class="field field-cust">
-          <label for="customerName">Customer Name</label>
-          <input id="customerName" name="customerName" type="text" placeholder="Customer name" />
+          <label for="customerName">Customer Name *</label>
+          <input id="customerName" name="customerName" type="text" placeholder="Customer name" required />
         </div>
         <div class="field">
-          <label for="leadType">Lead Source</label>
-          <input id="leadType" name="leadType" type="text" list="leadTypeOptions" placeholder="Auto-filled from GHL, or pick" />
+          <label for="leadType">Lead Source *</label>
+          <input id="leadType" name="leadType" type="text" list="leadTypeOptions" placeholder="Auto-filled from GHL, or pick" required />
           <datalist id="leadTypeOptions">
             <option value="Digital"></option>
             <option value="Letterbox"></option>
@@ -182,16 +186,12 @@
           </datalist>
         </div>
         <div class="field">
-          <label for="jobNumber">Job Number / ID *</label>
-          <input id="jobNumber" name="jobNumber" type="text" required />
-        </div>
-        <div class="field">
           <label for="bookedDate">Booked Date *</label>
           <input id="bookedDate" name="bookedDate" type="date" required />
         </div>
         <div class="field">
-          <label for="installDate">Installation Date Booked</label>
-          <input id="installDate" name="installDate" type="date" />
+          <label for="installDate">Installation Date Booked *</label>
+          <input id="installDate" name="installDate" type="date" required />
         </div>
         <div class="field field-notes">
           <label for="notes">Notes</label>
@@ -385,7 +385,10 @@
         notes: document.getElementById('notes').value.trim(),
         agent: currentAgent(),
       };
-      if (!job.job_number || !job.booked_date) { toast('Job number and booked date are required.', true); return; }
+      if (!job.job_number || !job.customer_name || !job.lead_type || !job.booked_date || !job.install_date) {
+        toast('Job number, customer name, lead source, booked date and installation date are all required.', true);
+        return;
+      }
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const data = await call({ action: 'add', job });
