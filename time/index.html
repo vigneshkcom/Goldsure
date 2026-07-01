@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker – Goldsure</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M16 11v5l3 2' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #7367f0;
+      --purple-dark: #5e52d6;
+      --purple-soft: #f3f2ff;
+      --ink: #1d1d1f;
+      --page: #f3f3f5;
+      --card: #ffffff;
+      --text: #2c2c33;
+      --muted: #8a8a93;
+      --border: #e7e7ec;
+      --red: #ea5455;
+      --green: #28c76f;
+      --r: 14px;
+      --shadow: 0 2px 10px rgba(20,20,30,0.06), 0 1px 3px rgba(20,20,30,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--page); color: var(--text); font-size: 14px;
+      -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 22px 18px 60px; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { height: 34px; width: auto; display: block; }
+    .brand .title { font-size: 13px; font-weight: 700; letter-spacing: .4px; }
+    .brand .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .back-link { font-size: 12px; color: var(--muted); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+    .back-link:hover { color: var(--purple); }
+    .agentbox { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; box-shadow: var(--shadow); }
+    .agentbox label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--purple); }
+    .agentbox input { border: none; outline: none; font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--text); width: 130px; padding: 2px 0; background: transparent; }
+
+    .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px 22px; margin-bottom: 18px; }
+    .card-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--purple); margin-bottom: 14px; }
+
+    /* Clock hero */
+    .clock-card { text-align: center; padding: 32px 22px 30px; }
+    .clock-status { font-size: 11px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; }
+    .clock-card.live .clock-status { color: var(--green); }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(40,199,111,.5); animation: pulse 1.6s infinite; display: none; }
+    .clock-card.live .live-dot { display: inline-block; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(40,199,111,.5);} 70% { box-shadow: 0 0 0 7px rgba(40,199,111,0);} 100% { box-shadow: 0 0 0 0 rgba(40,199,111,0);} }
+    .clock-timer { font-size: 54px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; margin: 10px 0 4px; line-height: 1; }
+    .clock-card.live .clock-timer { color: var(--purple); }
+    .clock-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; min-height: 18px; }
+    .clock-btn {
+      font-family: inherit; cursor: pointer; border: none; font-size: 16px; font-weight: 700; color: #fff;
+      padding: 15px 46px; border-radius: 13px; background: var(--purple); box-shadow: 0 8px 20px rgba(115,103,240,.32);
+      transition: filter .15s, transform .05s; letter-spacing: .3px;
+    }
+    .clock-btn:hover { filter: brightness(1.06); }
+    .clock-btn:active { transform: translateY(1px); }
+    .clock-btn.out { background: var(--red); box-shadow: 0 8px 20px rgba(234,84,85,.3); }
+    .clock-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+    /* Week bar */
+    .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+    .weekbar-left { display: flex; align-items: center; gap: 10px; }
+    .week-range { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .week-total { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .week-total b { color: var(--purple); font-size: 13px; }
+    button.nav-btn, button.btn-ghost, button.btn-purple { font-family: inherit; cursor: pointer; border-radius: 9px; font-weight: 600; font-size: 13px; transition: filter .15s, border-color .15s, color .15s; }
+    .nav-btn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--border); color: var(--text); }
+    .nav-btn:hover { border-color: var(--purple); color: var(--purple); }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--border); padding: 8px 13px; }
+    .btn-ghost:hover { border-color: var(--purple); color: var(--purple); }
+    .btn-purple { background: var(--purple); color: #fff; border: none; padding: 9px 16px; }
+    .btn-purple:hover { filter: brightness(1.06); }
+    .today-btn { font-size: 12px; padding: 8px 12px; }
+    .weekbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+    tbody td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; white-space: nowrap; }
+    tbody tr:hover { background: var(--purple-soft); }
+    .day-cell { font-weight: 700; color: var(--ink); }
+    .dur-cell { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .muted-cell { color: var(--muted); }
+    .running { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 12.5px; }
+    .running .live-dot { display: inline-block; }
+    .warn-pill { display: inline-block; background: #fff4e5; color: #e08a00; font-weight: 700; font-size: 10.5px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+    .row-actions { text-align: right; }
+    .icon-act { background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px 7px; font-size: 12.5px; font-weight: 600; font-family: inherit; border-radius: 7px; }
+    .icon-act:hover { color: var(--purple); background: var(--purple-soft); }
+    .icon-act.del:hover { color: var(--red); background: #fdeaea; }
+    .icon-act.stop { color: var(--red); }
+    .empty { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13.5px; }
+    .total-row td { border-top: 2px solid var(--border); border-bottom: none; font-weight: 800; color: var(--ink); font-size: 14px; padding-top: 14px; }
+    .total-row .dur-cell { color: var(--purple); }
+
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(29,29,31,.45); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    .modal.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(20,20,40,.28); width: 340px; max-width: 100%; padding: 22px 24px; }
+    .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+    .modal .field { margin-bottom: 12px; }
+    .modal .field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .modal .field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 13.5px; color: var(--text); outline: none; }
+    .modal .field input:focus { border-color: var(--purple); }
+    .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 8px; }
+    .modal-actions .right { display: flex; gap: 8px; }
+    .btn-del-text { background: none; border: none; color: var(--red); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 4px; }
+    .btn-del-text:hover { text-decoration: underline; }
+
+    .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 120; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: var(--red); }
+
+    @media (max-width: 560px) {
+      .clock-timer { font-size: 46px; }
+      thead th:nth-child(2), tbody td:nth-child(2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" />
+        <div>
+          <div class="title">Time Tracker</div>
+          <div class="sub">Clock in / clock out · weekly hours</div>
+        </div>
+      </div>
+      <div class="agentbox">
+        <label for="agent">Agent</label>
+        <input id="agent" type="text" placeholder="Your name" list="agentOptions" autocomplete="off" />
+        <datalist id="agentOptions"><option value="Shanira"></option></datalist>
+      </div>
+      <a href="/index.html" class="back-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Portal
+      </a>
+    </div>
+
+    <!-- Clock hero -->
+    <div class="card clock-card" id="clockCard">
+      <div class="clock-status"><span class="live-dot"></span><span id="clockStatus">Not clocked in</span></div>
+      <div class="clock-timer" id="clockTimer">00:00:00</div>
+      <div class="clock-sub" id="clockSub">Enter your name, then tap Clock In to start your shift.</div>
+      <button class="clock-btn" id="clockBtn" disabled>Clock In</button>
+    </div>
+
+    <!-- Week bar -->
+    <div class="card">
+      <div class="weekbar">
+        <div class="weekbar-left">
+          <button class="nav-btn" id="prevWeek" title="Previous week" aria-label="Previous week">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div>
+            <div class="week-range" id="weekRange">—</div>
+            <div class="week-total" id="weekTotal">This week: <b>0h 0m</b></div>
+          </div>
+          <button class="nav-btn" id="nextWeek" title="Next week" aria-label="Next week">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="btn-ghost today-btn" id="todayBtn">This week</button>
+        </div>
+        <div class="weekbar-actions">
+          <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timesheet -->
+    <div class="card">
+      <div class="card-label">Timesheet</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th></th></tr>
+          </thead>
+          <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-box">
+      <div class="modal-title">Edit entry</div>
+      <div class="modal-sub" id="editSub">Fix a wrong or forgotten clock-out.</div>
+      <div class="field">
+        <label for="editIn">Clock in</label>
+        <input id="editIn" type="datetime-local" />
+      </div>
+      <div class="field">
+        <label for="editOut">Clock out <span style="font-weight:400;">(leave blank if still running)</span></label>
+        <input id="editOut" type="datetime-local" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-del-text" id="editDelete">Delete entry</button>
+        <div class="right">
+          <button class="btn-ghost" id="editCancel">Cancel</button>
+          <button class="btn-purple" id="editSave">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = '/api/smoke-alarms/reports';
+    const DEFAULT_AGENT = 'Shanira';
+    const LONG_SHIFT_MS = 18 * 3600 * 1000;   // flag an open shift running longer than this
+
+    let openEntry = null;     // current open shift for this agent (or null)
+    let allEntries = [];      // every entry for this agent
+    let weekStart = null;     // Monday of the viewed week (local Date @ 00:00)
+    let tickTimer = null;     // live clock interval
+    let editingId = null;
+
+    const $ = id => document.getElementById(id);
+    const agentInput = $('agent');
+    function currentAgent() { return (agentInput.value || '').trim(); }
+
+    // ── Toast ──
+    let toastTimer;
+    function toast(msg, isErr) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = 'toast'; }, 3200);
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ── Date / duration helpers (local time) ──
+    function startOfWeek(d) {
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const day = x.getDay();
+      x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day));
+      return x;
+    }
+    function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    function endOfWeek(start) { const x = addDays(start, 7); return x; }   // exclusive
+    function fmtDay(iso) { return new Date(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }); }
+    function fmtTime(iso) { return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase(); }
+    function entryMs(e) {
+      const start = new Date(e.clock_in).getTime();
+      const end = e.clock_out ? new Date(e.clock_out).getTime() : Date.now();
+      return Math.max(0, end - start);
+    }
+    function fmtDur(ms) {
+      const mins = Math.floor(ms / 60000);
+      const h = Math.floor(mins / 60), m = mins % 60;
+      return h + 'h ' + m + 'm';
+    }
+    function fmtClock(ms) {
+      const s = Math.floor(ms / 1000);
+      const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      return hh + ':' + mm + ':' + ss;
+    }
+    // ISO → value for <input type="datetime-local"> (local), and back.
+    function toLocalInput(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const p = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+    function fromLocalInput(v) { return v ? new Date(v).toISOString() : null; }
+
+    // ── API ──
+    async function call(payload) {
+      const res = await fetch(API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: { agent: currentAgent(), ...payload } }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    // ── Clock state ──
+    function renderClock() {
+      const card = $('clockCard'), btn = $('clockBtn');
+      const hasAgent = !!currentAgent();
+      if (openEntry) {
+        card.classList.add('live');
+        $('clockStatus').textContent = 'On the clock';
+        $('clockSub').textContent = 'Started ' + fmtTime(openEntry.clock_in) + ' · ' + fmtDay(openEntry.clock_in);
+        btn.textContent = 'Clock Out'; btn.classList.add('out'); btn.disabled = false;
+        tickNow();
+      } else {
+        card.classList.remove('live');
+        $('clockStatus').textContent = 'Not clocked in';
+        $('clockTimer').textContent = '00:00:00';
+        $('clockSub').textContent = hasAgent ? 'Tap Clock In to start your shift.' : 'Enter your name, then tap Clock In to start your shift.';
+        btn.textContent = 'Clock In'; btn.classList.remove('out'); btn.disabled = !hasAgent;
+      }
+    }
+    function tickNow() { if (openEntry) $('clockTimer').textContent = fmtClock(entryMs(openEntry)); }
+    function startTick() { stopTick(); tickTimer = setInterval(tickNow, 1000); }
+    function stopTick() { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
+
+    async function refreshStatus() {
+      if (!currentAgent()) { openEntry = null; renderClock(); return; }
+      try {
+        const data = await call({ action: 'status' });
+        openEntry = data.open || null;
+        renderClock();
+        if (openEntry) startTick(); else stopTick();
+      } catch (e) { /* leave last known state */ }
+    }
+
+    async function toggleClock() {
+      if (!currentAgent()) { toast('Enter your name first.', true); agentInput.focus(); return; }
+      const btn = $('clockBtn'); btn.disabled = true;
+      try {
+        if (openEntry) {
+          await call({ action: 'clock-out' });
+          openEntry = null; stopTick();
+          toast('Clocked out.');
+        } else {
+          const data = await call({ action: 'clock-in' });
+          openEntry = data.entry || null;
+          if (data.alreadyOpen) toast('You were already clocked in.'); else toast('Clocked in.');
+          startTick();
+        }
+        renderClock();
+        await loadEntries();
+      } catch (e) {
+        toast(e.message || 'Something went wrong.', true);
+      } finally {
+        btn.disabled = !currentAgent();
+      }
+    }
+
+    // ── Timesheet ──
+    async function loadEntries() {
+      if (!currentAgent()) { allEntries = []; render(); return; }
+      try {
+        const data = await call({ action: 'list' });
+        allEntries = Array.isArray(data.entries) ? data.entries : [];
+        render();
+      } catch (e) {
+        $('rows').innerHTML = '<tr><td colspan="5" class="empty">Could not load timesheet. ' + escapeHtml(e.message) + '</td></tr>';
+      }
+    }
+    function entriesForWeek() {
+      const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
+      return allEntries
+        .filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; })
+        .sort((a, b) => new Date(a.clock_in) - new Date(b.clock_in));
+    }
+    function render() {
+      const end = addDays(weekStart, 6);
+      $('weekRange').textContent =
+        weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' +
+        end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      const rows = entriesForWeek();
+      const totalMs = rows.reduce((sum, e) => sum + entryMs(e), 0);
+      $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
+
+      const body = $('rows');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="empty">No shifts recorded this week.</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(e => {
+        const running = !e.clock_out;
+        const longRun = running && (Date.now() - new Date(e.clock_in).getTime() > LONG_SHIFT_MS);
+        const outCell = running
+          ? `<span class="running"><span class="live-dot"></span>In progress</span>${longRun ? '<span class="warn-pill">forgot to clock out?</span>' : ''}`
+          : fmtTime(e.clock_out);
+        return `<tr>
+          <td class="day-cell">${escapeHtml(fmtDay(e.clock_in))}</td>
+          <td>${escapeHtml(fmtTime(e.clock_in))}</td>
+          <td class="${running ? '' : ''}">${outCell}</td>
+          <td class="dur-cell">${escapeHtml(fmtDur(entryMs(e)))}</td>
+          <td class="row-actions">
+            ${running ? `<button class="icon-act stop" data-stop="${escapeHtml(e.id)}" title="Clock out now">Stop</button>` : ''}
+            <button class="icon-act" data-edit="${escapeHtml(e.id)}" title="Edit">Edit</button>
+          </td>
+        </tr>`;
+      }).join('') +
+        `<tr class="total-row"><td>Total</td><td></td><td></td><td class="dur-cell">${escapeHtml(fmtDur(totalMs))}</td><td></td></tr>`;
+
+      body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.edit)));
+      body.querySelectorAll('[data-stop]').forEach(b => b.addEventListener('click', () => stopEntry(b.dataset.stop)));
+    }
+
+    // Clock out a specific running row (e.g. someone else's device left it open).
+    async function stopEntry(id) {
+      const e = allEntries.find(x => String(x.id) === String(id));
+      if (!e) return;
+      try {
+        await call({ action: 'update', id, clock_out: new Date().toISOString() });
+        if (openEntry && String(openEntry.id) === String(id)) { openEntry = null; stopTick(); renderClock(); }
+        toast('Clocked out.');
+        await refreshStatus(); await loadEntries();
+      } catch (err) { toast(err.message || 'Could not clock out.', true); }
+    }
+
+    // ── Edit modal ──
+    function openEdit(id) {
+      const e = allEntries.find(x => String(x.id) === String(id));
+      if (!e) return;
+      editingId = id;
+      $('editSub').textContent = fmtDay(e.clock_in);
+      $('editIn').value = toLocalInput(e.clock_in);
+      $('editOut').value = toLocalInput(e.clock_out);
+      $('editModal').classList.add('open');
+    }
+    function closeEdit() { $('editModal').classList.remove('open'); editingId = null; }
+    async function saveEdit() {
+      if (!editingId) return;
+      const clockIn = fromLocalInput($('editIn').value);
+      const clockOut = fromLocalInput($('editOut').value);
+      if (!clockIn) { toast('Clock-in time is required.', true); return; }
+      if (clockOut && new Date(clockOut) < new Date(clockIn)) { toast('Clock-out must be after clock-in.', true); return; }
+      try {
+        await call({ action: 'update', id: editingId, clock_in: clockIn, clock_out: clockOut });
+        closeEdit();
+        toast('Entry updated.');
+        await refreshStatus(); await loadEntries();
+      } catch (e) { toast(e.message || 'Could not update entry.', true); }
+    }
+    async function deleteEntry() {
+      if (!editingId) return;
+      if (!confirm('Delete this shift entry? This cannot be undone.')) return;
+      const id = editingId;
+      try {
+        const data = await call({ action: 'delete', id });
+        if (data.success === false) { toast(data.warning || 'Nothing was deleted.', true); return; }
+        closeEdit();
+        toast('Entry deleted.');
+        await refreshStatus(); await loadEntries();
+      } catch (e) { toast(e.message || 'Could not delete entry.', true); }
+    }
+
+    // ── CSV ──
+    function downloadCsv() {
+      const rows = entriesForWeek();
+      if (!rows.length) { toast('No shifts this week to export.', true); return; }
+      const out = [['Agent', 'Day', 'Clock In', 'Clock Out', 'Hours (decimal)', 'Hours']];
+      rows.forEach(e => {
+        const dec = (entryMs(e) / 3600000).toFixed(2);
+        out.push([
+          e.agent || currentAgent(),
+          new Date(e.clock_in).toLocaleDateString('en-AU'),
+          new Date(e.clock_in).toLocaleString('en-AU'),
+          e.clock_out ? new Date(e.clock_out).toLocaleString('en-AU') : 'still running',
+          dec, fmtDur(entryMs(e)),
+        ]);
+      });
+      const totalDec = (rows.reduce((s, e) => s + entryMs(e), 0) / 3600000).toFixed(2);
+      out.push(['', '', '', 'TOTAL', totalDec, fmtDur(rows.reduce((s, e) => s + entryMs(e), 0))]);
+      const csv = out.map(r => r.map(c => { const s = String(c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const wl = weekStart.toISOString().slice(0, 10);
+      a.download = 'Goldsure_Timesheet_' + (currentAgent() || 'agent') + '_' + wl + '.csv';
+      a.click(); URL.revokeObjectURL(a.href);
+      toast('CSV downloaded.');
+    }
+
+    // ── Wire up ──
+    $('clockBtn').addEventListener('click', toggleClock);
+    $('prevWeek').addEventListener('click', () => { weekStart = addDays(weekStart, -7); render(); });
+    $('nextWeek').addEventListener('click', () => { weekStart = addDays(weekStart, 7); render(); });
+    $('todayBtn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); render(); });
+    $('csvBtn').addEventListener('click', downloadCsv);
+    $('editCancel').addEventListener('click', closeEdit);
+    $('editSave').addEventListener('click', saveEdit);
+    $('editDelete').addEventListener('click', deleteEntry);
+    $('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEdit(); });
+
+    // Agent field — remembered per browser (each agent uses their own device).
+    agentInput.value = localStorage.getItem('timeAgent') || DEFAULT_AGENT;
+    async function onAgentChange() {
+      const v = currentAgent();
+      localStorage.setItem('timeAgent', v);
+      stopTick(); openEntry = null;
+      await refreshStatus();
+      await loadEntries();
+    }
+    agentInput.addEventListener('change', onAgentChange);
+
+    // Refresh when the tab regains focus, so a clock-in/out done on another device shows here.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshStatus(); loadEntries(); } });
+
+    weekStart = startOfWeek(new Date());
+    renderClock();
+    refreshStatus();
+    loadEntries();
+  </script>
+</body>
+</html>

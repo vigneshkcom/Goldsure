@@ -228,105 +228,157 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
-  // ── Route: commission job tracker (Supabase CRUD) ──
-  // Powers /commission/ — the weekly commission job log. Routed on body.commission,
-  // shaped { action:'list'|'add'|'delete', ... }. Stored in the `commission_jobs`
-  // Supabase table. Kept here (not a new file) to stay under Vercel's 12-function limit.
-  if (body.commission !== undefined) {
+  // ── Route: time tracker (clock in / out, Supabase CRUD) ──
+  // Powers /time/ — the agent clock in/out timesheet. Routed on body.time, shaped
+  // { action:'status'|'clock-in'|'clock-out'|'list'|'update'|'delete', agent, ... }.
+  // Stored in the `time_entries` table (an OPEN shift = clock_out IS NULL, so the
+  // clock keeps running server-side even with no tab open). Kept here (not a new
+  // file) to stay under Vercel's 12-function limit.
+  if (body.time !== undefined) {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
-    // Service-role key bypasses Row Level Security so deletes actually remove the row
-    // (an RLS-blocked anon delete returns 204 having deleted nothing). Falls back to anon.
+    // Service-role key bypasses Row Level Security so updates/deletes actually take
+    // (an RLS-blocked anon write returns 204 having changed nothing). Falls back to anon.
     const SUPABASE_ADMIN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       return res.status(500).json({ error: 'Supabase is not configured on the server.' });
     }
-    const TABLE = `${SUPABASE_URL}/rest/v1/commission_jobs`;
-    const c = body.commission || {};
+    const TABLE = `${SUPABASE_URL}/rest/v1/time_entries`;
+    const anonH = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    const adminH = { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}` };
+    const COLS = 'id,agent,clock_in,clock_out,note';
+    const t = body.time || {};
+    const agent = String(t.agent || '').trim();
 
     try {
-      // List jobs (newest booked first). The page fetches all and groups into Mon–Sun
-      // weeks client-side, so week navigation is instant for the volumes involved.
-      if (c.action === 'list') {
+      // Current open shift for an agent (clock_out is null), if any.
+      if (t.action === 'status') {
+        if (!agent) return res.status(400).json({ error: 'Agent is required.' });
         const r = await fetch(
-          `${TABLE}?select=id,job_number,booked_date,install_date,customer_name,customer_phone,lead_type,notes,agent,created_at&order=booked_date.desc,created_at.desc&limit=1000`,
-          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+          `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null&order=clock_in.desc&limit=1&select=${COLS}`,
+          { headers: anonH }
         );
         if (!r.ok) {
           const detail = await r.text();
-          console.error('[Commission] list failed:', detail);
-          return res.status(500).json({ error: 'Failed to load jobs.', detail });
+          console.error('[Time] status failed:', detail);
+          return res.status(500).json({ error: 'Failed to load status.', detail });
         }
-        return res.status(200).json({ jobs: await r.json() });
+        const rows = await r.json();
+        return res.status(200).json({ open: Array.isArray(rows) && rows.length ? rows[0] : null });
       }
 
-      // Add a job. job_number + booked_date are required; install_date + notes optional.
-      if (c.action === 'add') {
-        const job = c.job || {};
-        const jobNumber = String(job.job_number || '').trim();
-        const bookedDate = String(job.booked_date || '').trim();
-        if (!jobNumber || !bookedDate) {
-          return res.status(400).json({ error: 'Job number and booked date are required.' });
+      // Clock in: open a new entry. If already clocked in, return the existing open one.
+      if (t.action === 'clock-in') {
+        if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        const existing = await fetch(
+          `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null&order=clock_in.desc&limit=1&select=${COLS}`,
+          { headers: anonH }
+        );
+        const openRows = existing.ok ? await existing.json() : [];
+        if (Array.isArray(openRows) && openRows.length) {
+          return res.status(200).json({ entry: openRows[0], alreadyOpen: true });
         }
-        const row = {
-          job_number: jobNumber,
-          booked_date: bookedDate,
-          install_date: String(job.install_date || '').trim() || null,
-          customer_name: String(job.customer_name || '').trim() || null,
-          customer_phone: String(job.customer_phone || '').trim() || null,
-          lead_type: String(job.lead_type || '').trim() || null,
-          notes: String(job.notes || '').trim() || null,
-          agent: String(job.agent || '').trim() || null,
-        };
         const r = await fetch(TABLE, {
           method: 'POST',
-          headers: {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify(row),
+          headers: { ...anonH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify({ agent, clock_in: new Date().toISOString() }),
         });
         if (!r.ok) {
           const detail = await r.text();
-          console.error('[Commission] add failed:', detail);
-          return res.status(500).json({ error: 'Failed to save job.', detail });
+          console.error('[Time] clock-in failed:', detail);
+          return res.status(500).json({ error: 'Failed to clock in.', detail });
         }
         const inserted = await r.json();
-        return res.status(200).json({ job: Array.isArray(inserted) ? inserted[0] : inserted });
+        return res.status(200).json({ entry: Array.isArray(inserted) ? inserted[0] : inserted });
       }
 
-      // Delete a job by id (service-role key so RLS can't silently no-op it).
-      if (c.action === 'delete') {
-        const id = String(c.id || '').trim();
-        if (!id) return res.status(400).json({ error: 'Job id is required.' });
+      // Clock out: close this agent's open entry (set clock_out = now).
+      if (t.action === 'clock-out') {
+        if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        const r = await fetch(
+          `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null`,
+          {
+            method: 'PATCH',
+            headers: { ...anonH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+            body: JSON.stringify({ clock_out: new Date().toISOString() }),
+          }
+        );
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Time] clock-out failed:', detail);
+          return res.status(500).json({ error: 'Failed to clock out.', detail });
+        }
+        const closed = await r.json().catch(() => []);
+        if (!Array.isArray(closed) || closed.length === 0) {
+          return res.status(200).json({ success: false, warning: 'You were not clocked in.' });
+        }
+        return res.status(200).json({ success: true, entry: closed[0] });
+      }
+
+      // List entries (newest first), optionally filtered by agent. Page groups by week.
+      if (t.action === 'list') {
+        const filter = agent ? `agent=eq.${encodeURIComponent(agent)}&` : '';
+        const r = await fetch(
+          `${TABLE}?${filter}select=${COLS}&order=clock_in.desc&limit=2000`,
+          { headers: anonH }
+        );
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Time] list failed:', detail);
+          return res.status(500).json({ error: 'Failed to load entries.', detail });
+        }
+        return res.status(200).json({ entries: await r.json() });
+      }
+
+      // Update an entry by id (fix a forgotten clock-out or a wrong time).
+      if (t.action === 'update') {
+        const id = String(t.id || '').trim();
+        if (!id) return res.status(400).json({ error: 'Entry id is required.' });
+        const patch = {};
+        if (t.clock_in !== undefined) patch.clock_in = t.clock_in || null;
+        if (t.clock_out !== undefined) patch.clock_out = t.clock_out || null;
+        if (t.note !== undefined) patch.note = String(t.note || '').trim() || null;
+        if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update.' });
         const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-          headers: {
-            apikey: SUPABASE_ADMIN_KEY,
-            Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
-            Prefer: 'return=representation',
-          },
+          method: 'PATCH',
+          headers: { ...adminH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify(patch),
         });
         if (!r.ok) {
           const detail = await r.text();
-          console.error('[Commission] delete failed:', detail);
-          return res.status(500).json({ error: 'Failed to delete job.', detail });
+          console.error('[Time] update failed:', detail);
+          return res.status(500).json({ error: 'Failed to update entry.', detail });
+        }
+        const updated = await r.json().catch(() => []);
+        if (!Array.isArray(updated) || updated.length === 0) {
+          return res.status(200).json({ success: false, warning: 'Nothing was updated — RLS may be blocking it. Set SUPABASE_SERVICE_ROLE_KEY or disable RLS on time_entries.' });
+        }
+        return res.status(200).json({ success: true, entry: updated[0] });
+      }
+
+      // Delete an entry by id (service-role key so RLS can't silently no-op it).
+      if (t.action === 'delete') {
+        const id = String(t.id || '').trim();
+        if (!id) return res.status(400).json({ error: 'Entry id is required.' });
+        const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { ...adminH, Prefer: 'return=representation' },
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Time] delete failed:', detail);
+          return res.status(500).json({ error: 'Failed to delete entry.', detail });
         }
         const removed = await r.json().catch(() => []);
         if (!Array.isArray(removed) || removed.length === 0) {
-          return res.status(200).json({
-            success: false,
-            warning: 'Nothing was deleted — Row Level Security may be blocking it. Set SUPABASE_SERVICE_ROLE_KEY or disable RLS on commission_jobs.',
-          });
+          return res.status(200).json({ success: false, warning: 'Nothing was deleted — RLS may be blocking it. Set SUPABASE_SERVICE_ROLE_KEY or disable RLS on time_entries.' });
         }
         return res.status(200).json({ success: true, deleted: removed.length });
       }
 
-      return res.status(400).json({ error: `Unknown commission action: ${c.action}` });
+      return res.status(400).json({ error: `Unknown time action: ${t.action}` });
     } catch (err) {
-      console.error('[Commission] server error:', err);
+      console.error('[Time] server error:', err);
       return res.status(500).json({ error: 'Internal server error.' });
     }
   }
