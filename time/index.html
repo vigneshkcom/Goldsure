@@ -9,28 +9,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --purple: #7367f0;
-      --purple-dark: #5e52d6;
-      --purple-soft: #f3f2ff;
-      --ink: #1d1d1f;
-      --page: #f3f3f5;
-      --card: #ffffff;
-      --text: #2c2c33;
-      --muted: #8a8a93;
-      --border: #e7e7ec;
-      --red: #ea5455;
-      --green: #28c76f;
-      --r: 14px;
-      --shadow: 0 2px 10px rgba(20,20,30,0.06), 0 1px 3px rgba(20,20,30,0.04);
+      --purple: #7367f0; --purple-dark: #5e52d6; --purple-soft: #f3f2ff;
+      --ink: #1d1d1f; --page: #f3f3f5; --card: #ffffff; --text: #2c2c33;
+      --muted: #8a8a93; --border: #e7e7ec; --red: #ea5455; --green: #28c76f;
+      --r: 14px; --shadow: 0 2px 10px rgba(20,20,30,0.06), 0 1px 3px rgba(20,20,30,0.04);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--page); color: var(--text); font-size: 14px;
-      -webkit-font-smoothing: antialiased; min-height: 100vh;
-    }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--page); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased; min-height: 100vh; }
     a { color: inherit; }
-    .wrap { max-width: 820px; margin: 0 auto; padding: 22px 18px 60px; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 22px 18px 60px; }
 
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     .brand { display: flex; align-items: center; gap: 12px; }
@@ -46,33 +33,21 @@
     .agent-label { font-size: 8.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
     .agent-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
 
-    /* Who's clocking in? picker */
-    .pick-box { width: 380px; text-align: center; }
-    .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
-    .pick-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 12px; border: 1.5px solid var(--border); border-radius: 14px; background: #fff; cursor: pointer; font-family: inherit; transition: border-color .15s, background .15s, transform .05s; }
-    .pick-btn:hover { border-color: var(--purple); background: var(--purple-soft); }
-    .pick-btn:active { transform: translateY(1px); }
-    .pick-btn .pick-av { width: 54px; height: 54px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-    .pick-btn .pick-nm { font-size: 15px; font-weight: 700; color: var(--ink); }
-
     .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px 22px; margin-bottom: 18px; }
     .card-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--purple); margin-bottom: 14px; }
 
     /* Clock hero */
     .clock-card { text-align: center; padding: 32px 22px 30px; }
+    body.manager-mode #clockCard { display: none; }
     .clock-status { font-size: 11px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; }
     .clock-card.live .clock-status { color: var(--green); }
     .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(40,199,111,.5); animation: pulse 1.6s infinite; display: none; }
-    .clock-card.live .live-dot { display: inline-block; }
+    .clock-card.live .live-dot, .running .live-dot { display: inline-block; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(40,199,111,.5);} 70% { box-shadow: 0 0 0 7px rgba(40,199,111,0);} 100% { box-shadow: 0 0 0 0 rgba(40,199,111,0);} }
     .clock-timer { font-size: 54px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 1px; margin: 10px 0 4px; line-height: 1; }
     .clock-card.live .clock-timer { color: var(--purple); }
     .clock-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; min-height: 18px; }
-    .clock-btn {
-      font-family: inherit; cursor: pointer; border: none; font-size: 16px; font-weight: 700; color: #fff;
-      padding: 15px 46px; border-radius: 13px; background: var(--purple); box-shadow: 0 8px 20px rgba(115,103,240,.32);
-      transition: filter .15s, transform .05s; letter-spacing: .3px;
-    }
+    .clock-btn { font-family: inherit; cursor: pointer; border: none; font-size: 16px; font-weight: 700; color: #fff; padding: 15px 46px; border-radius: 13px; background: var(--purple); box-shadow: 0 8px 20px rgba(115,103,240,.32); transition: filter .15s, transform .05s; letter-spacing: .3px; }
     .clock-btn:hover { filter: brightness(1.06); }
     .clock-btn:active { transform: translateY(1px); }
     .clock-btn.out { background: var(--red); box-shadow: 0 8px 20px rgba(234,84,85,.3); }
@@ -104,7 +79,6 @@
     .dur-cell { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
     .muted-cell { color: var(--muted); }
     .running { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 12.5px; }
-    .running .live-dot { display: inline-block; }
     .warn-pill { display: inline-block; background: #fff4e5; color: #e08a00; font-weight: 700; font-size: 10.5px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
     .row-actions { text-align: right; }
     .icon-act { background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px 7px; font-size: 12.5px; font-weight: 600; font-family: inherit; border-radius: 7px; }
@@ -114,9 +88,11 @@
     .empty { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13.5px; }
     .total-row td { border-top: 2px solid var(--border); border-bottom: none; font-weight: 800; color: var(--ink); font-size: 14px; padding-top: 14px; }
     .total-row .dur-cell { color: var(--purple); }
+    .agent-col { display: none; }
+    body.manager-mode .agent-col { display: table-cell; }
 
     /* Modal */
-    .modal { display: none; position: fixed; inset: 0; background: rgba(29,29,31,.45); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(29,29,31,.5); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
     .modal.open { display: flex; }
     .modal-box { background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(20,20,40,.28); width: 340px; max-width: 100%; padding: 22px 24px; }
     .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
@@ -130,13 +106,28 @@
     .btn-del-text { background: none; border: none; color: var(--red); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 4px; }
     .btn-del-text:hover { text-decoration: underline; }
 
+    /* Login picker */
+    .pick-box { width: 380px; text-align: center; }
+    .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .pick-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 12px; border: 1.5px solid var(--border); border-radius: 14px; background: #fff; cursor: pointer; font-family: inherit; transition: border-color .15s, background .15s, transform .05s; }
+    .pick-btn:hover { border-color: var(--purple); background: var(--purple-soft); }
+    .pick-btn:active { transform: translateY(1px); }
+    .pick-btn .pick-av { width: 54px; height: 54px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .pick-btn .pick-nm { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .pick-manager { margin-top: 16px; width: 100%; background: none; border: none; color: var(--muted); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 9px; border-radius: 8px; }
+    .pick-manager:hover { color: var(--purple); background: var(--purple-soft); }
+    .pin-input { width: 100%; text-align: center; letter-spacing: 8px; font-size: 24px; font-weight: 700; padding: 12px; border: 1.5px solid var(--border); border-radius: 11px; outline: none; font-family: inherit; margin-top: 6px; color: var(--ink); }
+    .pin-input:focus { border-color: var(--purple); }
+    .pin-err { color: var(--red); font-size: 12.5px; font-weight: 600; min-height: 16px; margin-top: 9px; }
+    .pin-actions { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+
     .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 120; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.err { background: var(--red); }
 
     @media (max-width: 560px) {
       .clock-timer { font-size: 46px; }
-      thead th:nth-child(2), tbody td:nth-child(2) { display: none; }
+      thead th:nth-child(3), tbody td:nth-child(3) { display: none; }
     }
   </style>
 </head>
@@ -150,10 +141,10 @@
           <div class="sub">Clock in / clock out · weekly hours</div>
         </div>
       </div>
-      <button class="agentbox" id="agentChip" type="button" title="Switch agent">
+      <button class="agentbox" id="agentChip" type="button" title="Switch">
         <span class="agent-avatar" id="agentAvatar">–</span>
         <span class="agent-meta">
-          <span class="agent-label">Clocking in as</span>
+          <span class="agent-label" id="agentLabel">Clocking in as</span>
           <span class="agent-name" id="agentName">Select…</span>
         </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b4b8c4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -164,11 +155,11 @@
       </a>
     </div>
 
-    <!-- Clock hero -->
+    <!-- Clock hero (agent mode) -->
     <div class="card clock-card" id="clockCard">
       <div class="clock-status"><span class="live-dot"></span><span id="clockStatus">Not clocked in</span></div>
       <div class="clock-timer" id="clockTimer">00:00:00</div>
-      <div class="clock-sub" id="clockSub">Enter your name, then tap Clock In to start your shift.</div>
+      <div class="clock-sub" id="clockSub">Tap Clock In to start your shift.</div>
       <button class="clock-btn" id="clockBtn" disabled>Clock In</button>
     </div>
 
@@ -196,13 +187,13 @@
 
     <!-- Timesheet -->
     <div class="card">
-      <div class="card-label">Timesheet</div>
+      <div class="card-label" id="sheetLabel">Timesheet</div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th></th></tr>
+            <tr><th class="agent-col">Agent</th><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th></th></tr>
           </thead>
-          <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+          <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -213,14 +204,8 @@
     <div class="modal-box">
       <div class="modal-title">Edit entry</div>
       <div class="modal-sub" id="editSub">Fix a wrong or forgotten clock-out.</div>
-      <div class="field">
-        <label for="editIn">Clock in</label>
-        <input id="editIn" type="datetime-local" />
-      </div>
-      <div class="field">
-        <label for="editOut">Clock out <span style="font-weight:400;">(leave blank if still running)</span></label>
-        <input id="editOut" type="datetime-local" />
-      </div>
+      <div class="field"><label for="editIn">Clock in</label><input id="editIn" type="datetime-local" /></div>
+      <div class="field"><label for="editOut">Clock out <span style="font-weight:400;">(leave blank if still running)</span></label><input id="editOut" type="datetime-local" /></div>
       <div class="modal-actions">
         <button class="btn-del-text" id="editDelete">Delete entry</button>
         <div class="right">
@@ -231,12 +216,25 @@
     </div>
   </div>
 
-  <!-- Who's clocking in? -->
+  <!-- Login: who + PIN -->
   <div class="modal" id="pickModal">
     <div class="modal-box pick-box">
-      <div class="modal-title">Who's clocking in?</div>
-      <div class="modal-sub">Select your name to continue.</div>
-      <div class="pick-grid" id="pickGrid"></div>
+      <div id="pickWho">
+        <div class="modal-title">Who's clocking in?</div>
+        <div class="modal-sub">Select your name to continue.</div>
+        <div class="pick-grid" id="pickGrid"></div>
+        <button class="pick-manager" id="pickManagerBtn">🔒 Manager view (all agents)</button>
+      </div>
+      <div id="pinScreen" style="display:none;">
+        <div class="modal-title" id="pinTitle">Enter PIN</div>
+        <div class="modal-sub" id="pinSub">Keeps your hours private.</div>
+        <input class="pin-input" id="pinInput" type="password" inputmode="numeric" maxlength="10" placeholder="••••" autocomplete="off" />
+        <div class="pin-err" id="pinErr"></div>
+        <div class="pin-actions">
+          <button class="btn-ghost" id="pinBack">Back</button>
+          <button class="btn-purple" id="pinGo">Continue</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -244,85 +242,115 @@
 
   <script>
     const API = '/api/smoke-alarms/reports';
-    const LONG_SHIFT_MS = 18 * 3600 * 1000;   // flag an open shift running longer than this
+    const AGENTS = ['David', 'Shanira'];       // the two people who clock in
+    const LONG_SHIFT_MS = 18 * 3600 * 1000;    // flag an open shift running longer than this
 
-    let openEntry = null;     // current open shift for this agent (or null)
-    let allEntries = [];      // every entry for this agent
-    let weekStart = null;     // Monday of the viewed week (local Date @ 00:00)
-    let tickTimer = null;     // live clock interval
+    let mode = 'agent';        // 'agent' | 'manager'
+    let selectedAgent = '';    // current agent (agent mode)
+    let authPin = '';          // PIN sent with API calls (agent's or manager's)
+    let pendingTarget = '';    // who we're entering a PIN for ('MANAGER' or an agent)
+    let openEntry = null;
+    let allEntries = [];
+    let weekStart = null;
+    let tickTimer = null;
     let editingId = null;
 
     const $ = id => document.getElementById(id);
-    const AGENTS = ['David', 'Shanira'];   // the two people who clock in
-    let selectedAgent = '';
     function currentAgent() { return selectedAgent; }
     function initials(name) { return (name || '').trim().slice(0, 2).toUpperCase() || '–'; }
 
-    // ── Toast ──
     let toastTimer;
     function toast(msg, isErr) {
-      const t = $('toast');
-      t.textContent = msg;
-      t.className = 'toast show' + (isErr ? ' err' : '');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => { t.className = 'toast'; }, 3200);
+      const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = 'toast'; }, 3200);
     }
-    function escapeHtml(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
     // ── Date / duration helpers (local time) ──
-    function startOfWeek(d) {
-      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const day = x.getDay();
-      x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day));
-      return x;
-    }
+    function startOfWeek(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = x.getDay(); x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day)); return x; }
     function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-    function endOfWeek(start) { const x = addDays(start, 7); return x; }   // exclusive
+    function endOfWeek(start) { return addDays(start, 7); }   // exclusive
     function fmtDay(iso) { return new Date(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }); }
     function fmtTime(iso) { return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase(); }
-    function entryMs(e) {
-      const start = new Date(e.clock_in).getTime();
-      const end = e.clock_out ? new Date(e.clock_out).getTime() : Date.now();
-      return Math.max(0, end - start);
-    }
-    function fmtDur(ms) {
-      const mins = Math.floor(ms / 60000);
-      const h = Math.floor(mins / 60), m = mins % 60;
-      return h + 'h ' + m + 'm';
-    }
-    function fmtClock(ms) {
-      const s = Math.floor(ms / 1000);
-      const hh = String(Math.floor(s / 3600)).padStart(2, '0');
-      const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-      const ss = String(s % 60).padStart(2, '0');
-      return hh + ':' + mm + ':' + ss;
-    }
-    // ISO → value for <input type="datetime-local"> (local), and back.
-    function toLocalInput(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      const p = n => String(n).padStart(2, '0');
-      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
-    }
+    function entryMs(e) { const start = new Date(e.clock_in).getTime(); const end = e.clock_out ? new Date(e.clock_out).getTime() : Date.now(); return Math.max(0, end - start); }
+    function fmtDur(ms) { const mins = Math.floor(ms / 60000); return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm'; }
+    function fmtClock(ms) { const s = Math.floor(ms / 1000); const p = n => String(n).padStart(2, '0'); return p(Math.floor(s / 3600)) + ':' + p(Math.floor((s % 3600) / 60)) + ':' + p(s % 60); }
+    function toLocalInput(iso) { if (!iso) return ''; const d = new Date(iso); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
     function fromLocalInput(v) { return v ? new Date(v).toISOString() : null; }
 
-    // ── API ──
+    // ── API (attaches the current agent + PIN; payload can override either) ──
     async function call(payload) {
       const res = await fetch(API, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ time: { agent: currentAgent(), ...payload } }),
+        body: JSON.stringify({ time: { agent: currentAgent(), pin: authPin, ...payload } }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Request failed');
+      if (!res.ok) { const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
       return data;
     }
+    // Verify a PIN for a target ('MANAGER' or an agent name). Returns true/false.
+    async function verifyPin(target, pin) {
+      try {
+        const d = await call({ action: 'verify', agent: target === 'MANAGER' ? '' : target, pin });
+        return !!d.ok;
+      } catch (e) { if (e.status === 403) return false; throw e; }
+    }
 
-    // ── Clock state ──
+    // ── Login / picker ──
+    function renderAgentChip() {
+      if (mode === 'manager') { $('agentAvatar').textContent = 'M'; $('agentLabel').textContent = 'Manager view'; $('agentName').textContent = 'All agents'; }
+      else { $('agentAvatar').textContent = selectedAgent ? initials(selectedAgent) : '–'; $('agentLabel').textContent = 'Clocking in as'; $('agentName').textContent = selectedAgent || 'Select…'; }
+    }
+    function showWho() {
+      $('pinScreen').style.display = 'none'; $('pickWho').style.display = '';
+      $('pickGrid').innerHTML = AGENTS.map(n => `<button class="pick-btn" data-agent="${escapeHtml(n)}"><span class="pick-av">${escapeHtml(initials(n))}</span><span class="pick-nm">${escapeHtml(n)}</span></button>`).join('');
+      $('pickGrid').querySelectorAll('[data-agent]').forEach(b => b.addEventListener('click', () => startAuth(b.dataset.agent)));
+    }
+    function openPicker() { showWho(); $('pickModal').classList.add('open'); }
+    function closePicker() { $('pickModal').classList.remove('open'); }
+    function showPin(target) {
+      pendingTarget = target;
+      $('pickWho').style.display = 'none'; $('pinScreen').style.display = '';
+      $('pinTitle').textContent = target === 'MANAGER' ? 'Manager PIN' : "Enter " + target + "'s PIN";
+      $('pinSub').textContent = target === 'MANAGER' ? 'View everyone’s hours.' : 'Keeps your hours private.';
+      $('pinErr').textContent = ''; $('pinInput').value = '';
+      setTimeout(() => $('pinInput').focus(), 50);
+    }
+    // Try the stored PIN first; if that fails (or PINs are on and none stored), ask.
+    async function startAuth(target) {
+      const storedPin = ((localStorage.getItem('timeMode') === 'manager') === (target === 'MANAGER') && (target === 'MANAGER' || localStorage.getItem('timeAgent') === target)) ? (localStorage.getItem('timePin') || '') : '';
+      try {
+        if (await verifyPin(target, storedPin)) { commit(target, storedPin); return; }
+      } catch (e) { toast(e.message || 'Network error.', true); return; }
+      showPin(target);
+    }
+    async function submitPin() {
+      const pin = ($('pinInput').value || '').trim();
+      try {
+        if (await verifyPin(pendingTarget, pin)) { commit(pendingTarget, pin); }
+        else { $('pinErr').textContent = 'Incorrect PIN. Try again.'; $('pinInput').select(); }
+      } catch (e) { $('pinErr').textContent = e.message || 'Network error.'; }
+    }
+    async function commit(target, pin) {
+      authPin = pin;
+      if (target === 'MANAGER') { mode = 'manager'; selectedAgent = ''; }
+      else { mode = 'agent'; selectedAgent = target; }
+      localStorage.setItem('timeMode', mode);
+      localStorage.setItem('timePin', pin);
+      if (mode === 'agent') localStorage.setItem('timeAgent', selectedAgent);
+      closePicker(); applyMode();
+      stopTick(); openEntry = null;
+      await refreshStatus(); await loadEntries();
+    }
+    function applyMode() {
+      document.body.classList.toggle('manager-mode', mode === 'manager');
+      $('sheetLabel').textContent = mode === 'manager' ? 'All agents' : 'Timesheet';
+      renderClock(); renderAgentChip();
+    }
+
+    // ── Clock (agent mode) ──
     function renderClock() {
       const card = $('clockCard'), btn = $('clockBtn');
-      const hasAgent = !!currentAgent();
       if (openEntry) {
         card.classList.add('live');
         $('clockStatus').textContent = 'On the clock';
@@ -333,8 +361,8 @@
         card.classList.remove('live');
         $('clockStatus').textContent = 'Not clocked in';
         $('clockTimer').textContent = '00:00:00';
-        $('clockSub').textContent = hasAgent ? 'Tap Clock In to start your shift.' : 'Enter your name, then tap Clock In to start your shift.';
-        btn.textContent = 'Clock In'; btn.classList.remove('out'); btn.disabled = !hasAgent;
+        $('clockSub').textContent = selectedAgent ? 'Tap Clock In to start your shift.' : 'Select who you are to start.';
+        btn.textContent = 'Clock In'; btn.classList.remove('out'); btn.disabled = !selectedAgent;
       }
     }
     function tickNow() { if (openEntry) $('clockTimer').textContent = fmtClock(entryMs(openEntry)); }
@@ -342,80 +370,68 @@
     function stopTick() { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
 
     async function refreshStatus() {
-      if (!currentAgent()) { openEntry = null; renderClock(); return; }
+      if (mode === 'manager' || !selectedAgent) { openEntry = null; stopTick(); return; }
       try {
         const data = await call({ action: 'status' });
         openEntry = data.open || null;
         renderClock();
         if (openEntry) startTick(); else stopTick();
-      } catch (e) { /* leave last known state */ }
+      } catch (e) { if (e.status === 403) { forceRelogin(); } }
     }
-
     async function toggleClock() {
-      if (!currentAgent()) { openPicker(); return; }
+      if (mode === 'manager') return;
+      if (!selectedAgent) { openPicker(); return; }
       const btn = $('clockBtn'); btn.disabled = true;
       try {
-        if (openEntry) {
-          await call({ action: 'clock-out' });
-          openEntry = null; stopTick();
-          toast('Clocked out.');
-        } else {
-          const data = await call({ action: 'clock-in' });
-          openEntry = data.entry || null;
-          if (data.alreadyOpen) toast('You were already clocked in.'); else toast('Clocked in.');
-          startTick();
-        }
-        renderClock();
-        await loadEntries();
-      } catch (e) {
-        toast(e.message || 'Something went wrong.', true);
-      } finally {
-        btn.disabled = !currentAgent();
-      }
+        if (openEntry) { await call({ action: 'clock-out' }); openEntry = null; stopTick(); toast('Clocked out.'); }
+        else { const data = await call({ action: 'clock-in' }); openEntry = data.entry || null; toast(data.alreadyOpen ? 'You were already clocked in.' : 'Clocked in.'); startTick(); }
+        renderClock(); await loadEntries();
+      } catch (e) { toast(e.message || 'Something went wrong.', true); }
+      finally { btn.disabled = !selectedAgent; }
     }
 
     // ── Timesheet ──
     async function loadEntries() {
-      if (!currentAgent()) { allEntries = []; render(); return; }
       try {
-        const data = await call({ action: 'list' });
-        allEntries = Array.isArray(data.entries) ? data.entries : [];
+        if (mode === 'manager') { const data = await call({ action: 'list-all', agent: '' }); allEntries = data.entries || []; }
+        else { if (!selectedAgent) { allEntries = []; render(); return; } const data = await call({ action: 'list' }); allEntries = data.entries || []; }
         render();
       } catch (e) {
-        $('rows').innerHTML = '<tr><td colspan="5" class="empty">Could not load timesheet. ' + escapeHtml(e.message) + '</td></tr>';
+        if (e.status === 403) { forceRelogin(); return; }
+        $('rows').innerHTML = '<tr><td colspan="6" class="empty">Could not load. ' + escapeHtml(e.message) + '</td></tr>';
       }
     }
     function entriesForWeek() {
       const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
       return allEntries
         .filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; })
-        .sort((a, b) => new Date(a.clock_in) - new Date(b.clock_in));
+        .sort((a, b) => mode === 'manager' ? ((a.agent || '').localeCompare(b.agent || '') || new Date(a.clock_in) - new Date(b.clock_in)) : (new Date(a.clock_in) - new Date(b.clock_in)));
     }
     function render() {
       const end = addDays(weekStart, 6);
-      $('weekRange').textContent =
-        weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' +
-        end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      $('weekRange').textContent = weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 
       const rows = entriesForWeek();
       const totalMs = rows.reduce((sum, e) => sum + entryMs(e), 0);
-      $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
+      if (mode === 'manager') {
+        const by = {}; rows.forEach(e => { by[e.agent] = (by[e.agent] || 0) + entryMs(e); });
+        const parts = Object.keys(by).sort().map(a => escapeHtml(a) + ': <b>' + fmtDur(by[a]) + '</b>');
+        $('weekTotal').innerHTML = (parts.join(' &nbsp;·&nbsp; ') || 'No shifts') + ' &nbsp;·&nbsp; Total: <b>' + fmtDur(totalMs) + '</b>';
+      } else {
+        $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
+      }
 
       const body = $('rows');
-      if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="5" class="empty">No shifts recorded this week.</td></tr>';
-        return;
-      }
+      if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">No shifts recorded this week.</td></tr>'; return; }
       body.innerHTML = rows.map(e => {
         const running = !e.clock_out;
         const longRun = running && (Date.now() - new Date(e.clock_in).getTime() > LONG_SHIFT_MS);
-        const outCell = running
-          ? `<span class="running"><span class="live-dot"></span>In progress</span>${longRun ? '<span class="warn-pill">forgot to clock out?</span>' : ''}`
-          : fmtTime(e.clock_out);
+        const outCell = running ? `<span class="running"><span class="live-dot"></span>In progress</span>${longRun ? '<span class="warn-pill">forgot to clock out?</span>' : ''}` : escapeHtml(fmtTime(e.clock_out));
         return `<tr>
+          <td class="agent-col day-cell">${escapeHtml(e.agent)}</td>
           <td class="day-cell">${escapeHtml(fmtDay(e.clock_in))}</td>
           <td>${escapeHtml(fmtTime(e.clock_in))}</td>
-          <td class="${running ? '' : ''}">${outCell}</td>
+          <td>${outCell}</td>
           <td class="dur-cell">${escapeHtml(fmtDur(entryMs(e)))}</td>
           <td class="row-actions">
             ${running ? `<button class="icon-act stop" data-stop="${escapeHtml(e.id)}" title="Clock out now">Stop</button>` : ''}
@@ -423,59 +439,42 @@
           </td>
         </tr>`;
       }).join('') +
-        `<tr class="total-row"><td>Total</td><td></td><td></td><td class="dur-cell">${escapeHtml(fmtDur(totalMs))}</td><td></td></tr>`;
+        `<tr class="total-row"><td class="agent-col"></td><td>Total</td><td></td><td></td><td class="dur-cell">${escapeHtml(fmtDur(totalMs))}</td><td></td></tr>`;
 
       body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.edit)));
       body.querySelectorAll('[data-stop]').forEach(b => b.addEventListener('click', () => stopEntry(b.dataset.stop)));
     }
 
-    // Clock out a specific running row (e.g. someone else's device left it open).
     async function stopEntry(id) {
-      const e = allEntries.find(x => String(x.id) === String(id));
-      if (!e) return;
       try {
         await call({ action: 'update', id, clock_out: new Date().toISOString() });
         if (openEntry && String(openEntry.id) === String(id)) { openEntry = null; stopTick(); renderClock(); }
-        toast('Clocked out.');
-        await refreshStatus(); await loadEntries();
+        toast('Clocked out.'); await refreshStatus(); await loadEntries();
       } catch (err) { toast(err.message || 'Could not clock out.', true); }
     }
 
     // ── Edit modal ──
     function openEdit(id) {
-      const e = allEntries.find(x => String(x.id) === String(id));
-      if (!e) return;
+      const e = allEntries.find(x => String(x.id) === String(id)); if (!e) return;
       editingId = id;
-      $('editSub').textContent = fmtDay(e.clock_in);
-      $('editIn').value = toLocalInput(e.clock_in);
-      $('editOut').value = toLocalInput(e.clock_out);
+      $('editSub').textContent = (e.agent ? e.agent + ' · ' : '') + fmtDay(e.clock_in);
+      $('editIn').value = toLocalInput(e.clock_in); $('editOut').value = toLocalInput(e.clock_out);
       $('editModal').classList.add('open');
     }
     function closeEdit() { $('editModal').classList.remove('open'); editingId = null; }
     async function saveEdit() {
       if (!editingId) return;
-      const clockIn = fromLocalInput($('editIn').value);
-      const clockOut = fromLocalInput($('editOut').value);
+      const clockIn = fromLocalInput($('editIn').value), clockOut = fromLocalInput($('editOut').value);
       if (!clockIn) { toast('Clock-in time is required.', true); return; }
       if (clockOut && new Date(clockOut) < new Date(clockIn)) { toast('Clock-out must be after clock-in.', true); return; }
-      try {
-        await call({ action: 'update', id: editingId, clock_in: clockIn, clock_out: clockOut });
-        closeEdit();
-        toast('Entry updated.');
-        await refreshStatus(); await loadEntries();
-      } catch (e) { toast(e.message || 'Could not update entry.', true); }
+      try { await call({ action: 'update', id: editingId, clock_in: clockIn, clock_out: clockOut }); closeEdit(); toast('Entry updated.'); await refreshStatus(); await loadEntries(); }
+      catch (e) { toast(e.message || 'Could not update entry.', true); }
     }
     async function deleteEntry() {
       if (!editingId) return;
       if (!confirm('Delete this shift entry? This cannot be undone.')) return;
-      const id = editingId;
-      try {
-        const data = await call({ action: 'delete', id });
-        if (data.success === false) { toast(data.warning || 'Nothing was deleted.', true); return; }
-        closeEdit();
-        toast('Entry deleted.');
-        await refreshStatus(); await loadEntries();
-      } catch (e) { toast(e.message || 'Could not delete entry.', true); }
+      try { const data = await call({ action: 'delete', id: editingId }); if (data.success === false) { toast(data.warning || 'Nothing was deleted.', true); return; } closeEdit(); toast('Entry deleted.'); await refreshStatus(); await loadEntries(); }
+      catch (e) { toast(e.message || 'Could not delete entry.', true); }
     }
 
     // ── CSV ──
@@ -483,26 +482,21 @@
       const rows = entriesForWeek();
       if (!rows.length) { toast('No shifts this week to export.', true); return; }
       const out = [['Agent', 'Day', 'Clock In', 'Clock Out', 'Hours (decimal)', 'Hours']];
-      rows.forEach(e => {
-        const dec = (entryMs(e) / 3600000).toFixed(2);
-        out.push([
-          e.agent || currentAgent(),
-          new Date(e.clock_in).toLocaleDateString('en-AU'),
-          new Date(e.clock_in).toLocaleString('en-AU'),
-          e.clock_out ? new Date(e.clock_out).toLocaleString('en-AU') : 'still running',
-          dec, fmtDur(entryMs(e)),
-        ]);
-      });
-      const totalDec = (rows.reduce((s, e) => s + entryMs(e), 0) / 3600000).toFixed(2);
-      out.push(['', '', '', 'TOTAL', totalDec, fmtDur(rows.reduce((s, e) => s + entryMs(e), 0))]);
+      rows.forEach(e => out.push([e.agent || '', new Date(e.clock_in).toLocaleDateString('en-AU'), new Date(e.clock_in).toLocaleString('en-AU'), e.clock_out ? new Date(e.clock_out).toLocaleString('en-AU') : 'still running', (entryMs(e) / 3600000).toFixed(2), fmtDur(entryMs(e))]));
+      const totMs = rows.reduce((s, e) => s + entryMs(e), 0);
+      out.push(['', '', '', 'TOTAL', (totMs / 3600000).toFixed(2), fmtDur(totMs)]);
       const csv = out.map(r => r.map(c => { const s = String(c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      const wl = weekStart.toISOString().slice(0, 10);
-      a.download = 'Goldsure_Timesheet_' + (currentAgent() || 'agent') + '_' + wl + '.csv';
-      a.click(); URL.revokeObjectURL(a.href);
-      toast('CSV downloaded.');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'Goldsure_Timesheet_' + (mode === 'manager' ? 'ALL' : (selectedAgent || 'agent')) + '_' + weekStart.toISOString().slice(0, 10) + '.csv';
+      a.click(); URL.revokeObjectURL(a.href); toast('CSV downloaded.');
+    }
+
+    // ── Session ──
+    function forceRelogin() {
+      authPin = ''; localStorage.removeItem('timePin');
+      stopTick(); openEntry = null; allEntries = [];
+      toast('Please sign in again.', true); openPicker();
     }
 
     // ── Wire up ──
@@ -515,47 +509,26 @@
     $('editSave').addEventListener('click', saveEdit);
     $('editDelete').addEventListener('click', deleteEntry);
     $('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEdit(); });
-
-    // Agent picker — "Who's clocking in?" (David / Shanira). Remembered per browser
-    // so each person's own device stays set to them; the chip switches agents.
-    function renderAgentChip() {
-      $('agentAvatar').textContent = selectedAgent ? initials(selectedAgent) : '–';
-      $('agentName').textContent = selectedAgent || 'Select…';
-    }
-    function openPicker() {
-      $('pickGrid').innerHTML = AGENTS.map(n =>
-        `<button class="pick-btn" data-agent="${escapeHtml(n)}"><span class="pick-av">${escapeHtml(initials(n))}</span><span class="pick-nm">${escapeHtml(n)}</span></button>`
-      ).join('');
-      $('pickGrid').querySelectorAll('[data-agent]').forEach(b => b.addEventListener('click', () => pickAgent(b.dataset.agent)));
-      $('pickModal').classList.add('open');
-    }
-    async function pickAgent(name) {
-      selectedAgent = name;
-      localStorage.setItem('timeAgent', name);
-      renderAgentChip();
-      $('pickModal').classList.remove('open');
-      stopTick(); openEntry = null;
-      renderClock();
-      await refreshStatus();
-      await loadEntries();
-    }
     $('agentChip').addEventListener('click', openPicker);
-    // Allow dismissing the picker by clicking outside only once an agent is set.
-    $('pickModal').addEventListener('click', e => { if (e.target === $('pickModal') && selectedAgent) $('pickModal').classList.remove('open'); });
+    $('pickManagerBtn').addEventListener('click', () => startAuth('MANAGER'));
+    $('pinBack').addEventListener('click', showWho);
+    $('pinGo').addEventListener('click', submitPin);
+    $('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+    $('pickModal').addEventListener('click', e => { if (e.target === $('pickModal') && (selectedAgent || mode === 'manager')) closePicker(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (selectedAgent || mode === 'manager')) { refreshStatus(); loadEntries(); } });
 
-    // Restore the remembered agent; if none (or unknown), force the picker on load.
-    const savedAgent = localStorage.getItem('timeAgent');
-    selectedAgent = AGENTS.includes(savedAgent) ? savedAgent : '';
-    renderAgentChip();
-    if (!selectedAgent) openPicker();
-
-    // Refresh when the tab regains focus, so a clock-in/out done on another device shows here.
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshStatus(); loadEntries(); } });
-
+    // ── Boot: restore session, else show the picker ──
     weekStart = startOfWeek(new Date());
-    renderClock();
-    refreshStatus();
-    loadEntries();
+    (async function boot() {
+      const savedMode = localStorage.getItem('timeMode');
+      const savedAgent = localStorage.getItem('timeAgent');
+      const savedPin = localStorage.getItem('timePin') || '';
+      try {
+        if (savedMode === 'manager') { if (await verifyPin('MANAGER', savedPin)) { await commit('MANAGER', savedPin); return; } }
+        else if (AGENTS.includes(savedAgent)) { if (await verifyPin(savedAgent, savedPin)) { await commit(savedAgent, savedPin); return; } }
+      } catch (e) { /* fall through to picker */ }
+      applyMode(); openPicker();
+    })();
   </script>
 </body>
 </html>

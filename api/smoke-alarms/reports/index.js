@@ -228,9 +228,9 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
-  // ── Route: time tracker (clock in / out, Supabase CRUD) ──
+  // ── Route: time tracker (clock in / out, Supabase CRUD + PIN access control) ──
   // Powers /time/ — the agent clock in/out timesheet. Routed on body.time, shaped
-  // { action:'status'|'clock-in'|'clock-out'|'list'|'update'|'delete', agent, ... }.
+  // { action:'verify'|'status'|'clock-in'|'clock-out'|'list'|'list-all'|'update'|'delete', agent, pin, ... }.
   // Stored in the `time_entries` table (an OPEN shift = clock_out IS NULL, so the
   // clock keeps running server-side even with no tab open). Kept here (not a new
   // file) to stay under Vercel's 12-function limit.
@@ -250,10 +250,44 @@ export default async function handler(req, res) {
     const t = body.time || {};
     const agent = String(t.agent || '').trim();
 
+    // ── Access control: the manager PIN sees everyone; each agent's PIN sees only
+    // their own. PINs live in env vars (never sent to the browser). If NO PINs are
+    // configured the tracker stays open — set the env vars to switch privacy on:
+    //   TIME_MANAGER_PIN = "1234"
+    //   TIME_AGENT_PINS  = {"David":"1111","Shanira":"2222"}
+    const managerPin = String(process.env.TIME_MANAGER_PIN || '');
+    let agentPins = {};
+    try { agentPins = JSON.parse(process.env.TIME_AGENT_PINS || '{}'); } catch { agentPins = {}; }
+    const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
+    const pin = String(t.pin || '');
+    const isManager = pinsOn && managerPin !== '' && pin === managerPin;
+    const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
+
     try {
+      // Verify a PIN (used by the login screen) — returns the caller's role, or 403.
+      if (t.action === 'verify') {
+        if (!pinsOn) return res.status(200).json({ ok: true, role: 'open' });
+        if (isManager) return res.status(200).json({ ok: true, role: 'manager' });
+        if (agentOk(agent)) return res.status(200).json({ ok: true, role: 'agent' });
+        return res.status(403).json({ ok: false, error: 'Incorrect PIN.' });
+      }
+
+      // Manager only: every agent's entries (powers the all-agents overview).
+      if (t.action === 'list-all') {
+        if (pinsOn && !isManager) return res.status(403).json({ error: 'Manager PIN required.' });
+        const r = await fetch(`${TABLE}?select=${COLS}&order=clock_in.desc&limit=5000`, { headers: anonH });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[Time] list-all failed:', detail);
+          return res.status(500).json({ error: 'Failed to load entries.', detail });
+        }
+        return res.status(200).json({ entries: await r.json() });
+      }
+
       // Current open shift for an agent (clock_out is null), if any.
       if (t.action === 'status') {
         if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        if (!agentOk(agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const r = await fetch(
           `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null&order=clock_in.desc&limit=1&select=${COLS}`,
           { headers: anonH }
@@ -270,6 +304,7 @@ export default async function handler(req, res) {
       // Clock in: open a new entry. If already clocked in, return the existing open one.
       if (t.action === 'clock-in') {
         if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        if (!agentOk(agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const existing = await fetch(
           `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null&order=clock_in.desc&limit=1&select=${COLS}`,
           { headers: anonH }
@@ -295,6 +330,7 @@ export default async function handler(req, res) {
       // Clock out: close this agent's open entry (set clock_out = now).
       if (t.action === 'clock-out') {
         if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        if (!agentOk(agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const r = await fetch(
           `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null`,
           {
@@ -315,11 +351,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, entry: closed[0] });
       }
 
-      // List entries (newest first), optionally filtered by agent. Page groups by week.
+      // List ONE agent's entries (newest first). Requires that agent's PIN (or manager).
       if (t.action === 'list') {
-        const filter = agent ? `agent=eq.${encodeURIComponent(agent)}&` : '';
+        if (!agent) return res.status(400).json({ error: 'Agent is required.' });
+        if (!agentOk(agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const r = await fetch(
-          `${TABLE}?${filter}select=${COLS}&order=clock_in.desc&limit=2000`,
+          `${TABLE}?agent=eq.${encodeURIComponent(agent)}&select=${COLS}&order=clock_in.desc&limit=2000`,
           { headers: anonH }
         );
         if (!r.ok) {
@@ -334,6 +371,11 @@ export default async function handler(req, res) {
       if (t.action === 'update') {
         const id = String(t.id || '').trim();
         if (!id) return res.status(400).json({ error: 'Entry id is required.' });
+        if (pinsOn && !isManager) {
+          const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=agent&limit=1`, { headers: anonH });
+          const owner = cur.ok ? ((await cur.json())[0] || {}).agent : null;
+          if (!agentOk(owner)) return res.status(403).json({ error: 'Incorrect PIN.' });
+        }
         const patch = {};
         if (t.clock_in !== undefined) patch.clock_in = t.clock_in || null;
         if (t.clock_out !== undefined) patch.clock_out = t.clock_out || null;
@@ -360,6 +402,11 @@ export default async function handler(req, res) {
       if (t.action === 'delete') {
         const id = String(t.id || '').trim();
         if (!id) return res.status(400).json({ error: 'Entry id is required.' });
+        if (pinsOn && !isManager) {
+          const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=agent&limit=1`, { headers: anonH });
+          const owner = cur.ok ? ((await cur.json())[0] || {}).agent : null;
+          if (!agentOk(owner)) return res.status(403).json({ error: 'Incorrect PIN.' });
+        }
         const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: { ...adminH, Prefer: 'return=representation' },

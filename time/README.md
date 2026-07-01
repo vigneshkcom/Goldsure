@@ -39,14 +39,33 @@ ALTER TABLE time_entries DISABLE ROW LEVEL SECURITY;
 > Row Level Security); otherwise it falls back to the anon key, which only works
 > while RLS is off.
 
+## Access control (private per agent)
+
+Each agent's data is **private** — enforced on the server, so one agent can't load
+another's hours even by calling the API directly. Set these in **Vercel → Environment
+Variables**:
+
+| Variable | Example | Purpose |
+|----------|---------|---------|
+| `TIME_AGENT_PINS` | `{"David":"1111","Shanira":"2222"}` | Per-agent PINs (JSON). An agent's PIN only ever returns their own entries. |
+| `TIME_MANAGER_PIN` | `9999` | Manager PIN — unlocks the **all-agents** view (everyone's timesheets, totals and CSV). |
+
+The `/time` page asks for the PIN on login and remembers it per browser. **If neither
+variable is set, the tracker stays open** (no PIN) — so set them to switch privacy on.
+PINs live only in env vars and are validated server-side; they are never sent to the browser.
+
 ## API actions (`POST { time: {...} }`)
+
+Every request also carries a `pin` (the agent's or the manager's).
 
 | Request | Purpose |
 |---------|---------|
+| `{ action:'verify', agent, pin }` | Check a PIN on login → `{ ok, role }` or 403 |
 | `{ action:'status', agent }` | The agent's current open shift, or `null` |
 | `{ action:'clock-in', agent }` | Open a shift now (returns the existing open one if already clocked in) |
 | `{ action:'clock-out', agent }` | Close the agent's open shift |
-| `{ action:'list', agent }` | All shifts for the agent (the page groups them into Mon–Sun weeks) |
+| `{ action:'list', agent }` | The agent's own shifts (page groups them into Mon–Sun weeks) |
+| `{ action:'list-all' }` | **Manager PIN only** — every agent's shifts, for the overview |
 | `{ action:'update', id, clock_in?, clock_out?, note? }` | Fix a wrong or forgotten time |
 | `{ action:'delete', id }` | Remove a shift entry |
 
