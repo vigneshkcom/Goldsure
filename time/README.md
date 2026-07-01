@@ -13,9 +13,10 @@ then close the tab / shut the laptop / switch to their phone, and the shift keep
 running. Reopening `/time/` reads the open shift back and shows a live timer
 computed from the stored start time. **No tab needs to stay open.**
 
-Each agent is identified by the **Agent** name field (remembered per browser, so
-each person's own device stays set to them). Hours = `clock_out − clock_in`; an
-open shift counts up to "now".
+On open, a **"Who's clocking in?"** picker asks the agent to select their name
+(**David** or **Shanira**); the choice is remembered per browser and the top-bar
+chip switches agents. Hours = `clock_out − clock_in`; an open shift counts up to
+"now". (To change the agent list, edit the `AGENTS` array in `time/index.html`.)
 
 ## Required Supabase table
 

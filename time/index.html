@@ -39,9 +39,21 @@
     .brand .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .back-link { font-size: 12px; color: var(--muted); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
     .back-link:hover { color: var(--purple); }
-    .agentbox { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; box-shadow: var(--shadow); }
-    .agentbox label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--purple); }
-    .agentbox input { border: none; outline: none; font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--text); width: 130px; padding: 2px 0; background: transparent; }
+    .agentbox { display: inline-flex; align-items: center; gap: 9px; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 6px 12px 6px 8px; box-shadow: var(--shadow); cursor: pointer; font-family: inherit; }
+    .agentbox:hover { border-color: var(--purple); }
+    .agent-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--purple-soft); color: var(--purple); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .agent-meta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+    .agent-label { font-size: 8.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+    .agent-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+
+    /* Who's clocking in? picker */
+    .pick-box { width: 380px; text-align: center; }
+    .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .pick-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 12px; border: 1.5px solid var(--border); border-radius: 14px; background: #fff; cursor: pointer; font-family: inherit; transition: border-color .15s, background .15s, transform .05s; }
+    .pick-btn:hover { border-color: var(--purple); background: var(--purple-soft); }
+    .pick-btn:active { transform: translateY(1px); }
+    .pick-btn .pick-av { width: 54px; height: 54px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .pick-btn .pick-nm { font-size: 15px; font-weight: 700; color: var(--ink); }
 
     .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px 22px; margin-bottom: 18px; }
     .card-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--purple); margin-bottom: 14px; }
@@ -138,11 +150,14 @@
           <div class="sub">Clock in / clock out · weekly hours</div>
         </div>
       </div>
-      <div class="agentbox">
-        <label for="agent">Agent</label>
-        <input id="agent" type="text" placeholder="Your name" list="agentOptions" autocomplete="off" />
-        <datalist id="agentOptions"><option value="Shanira"></option></datalist>
-      </div>
+      <button class="agentbox" id="agentChip" type="button" title="Switch agent">
+        <span class="agent-avatar" id="agentAvatar">–</span>
+        <span class="agent-meta">
+          <span class="agent-label">Clocking in as</span>
+          <span class="agent-name" id="agentName">Select…</span>
+        </span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b4b8c4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <a href="/index.html" class="back-link">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back to Portal
@@ -216,11 +231,19 @@
     </div>
   </div>
 
+  <!-- Who's clocking in? -->
+  <div class="modal" id="pickModal">
+    <div class="modal-box pick-box">
+      <div class="modal-title">Who's clocking in?</div>
+      <div class="modal-sub">Select your name to continue.</div>
+      <div class="pick-grid" id="pickGrid"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
     const API = '/api/smoke-alarms/reports';
-    const DEFAULT_AGENT = 'Shanira';
     const LONG_SHIFT_MS = 18 * 3600 * 1000;   // flag an open shift running longer than this
 
     let openEntry = null;     // current open shift for this agent (or null)
@@ -230,8 +253,10 @@
     let editingId = null;
 
     const $ = id => document.getElementById(id);
-    const agentInput = $('agent');
-    function currentAgent() { return (agentInput.value || '').trim(); }
+    const AGENTS = ['David', 'Shanira'];   // the two people who clock in
+    let selectedAgent = '';
+    function currentAgent() { return selectedAgent; }
+    function initials(name) { return (name || '').trim().slice(0, 2).toUpperCase() || '–'; }
 
     // ── Toast ──
     let toastTimer;
@@ -327,7 +352,7 @@
     }
 
     async function toggleClock() {
-      if (!currentAgent()) { toast('Enter your name first.', true); agentInput.focus(); return; }
+      if (!currentAgent()) { openPicker(); return; }
       const btn = $('clockBtn'); btn.disabled = true;
       try {
         if (openEntry) {
@@ -491,16 +516,38 @@
     $('editDelete').addEventListener('click', deleteEntry);
     $('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEdit(); });
 
-    // Agent field — remembered per browser (each agent uses their own device).
-    agentInput.value = localStorage.getItem('timeAgent') || DEFAULT_AGENT;
-    async function onAgentChange() {
-      const v = currentAgent();
-      localStorage.setItem('timeAgent', v);
+    // Agent picker — "Who's clocking in?" (David / Shanira). Remembered per browser
+    // so each person's own device stays set to them; the chip switches agents.
+    function renderAgentChip() {
+      $('agentAvatar').textContent = selectedAgent ? initials(selectedAgent) : '–';
+      $('agentName').textContent = selectedAgent || 'Select…';
+    }
+    function openPicker() {
+      $('pickGrid').innerHTML = AGENTS.map(n =>
+        `<button class="pick-btn" data-agent="${escapeHtml(n)}"><span class="pick-av">${escapeHtml(initials(n))}</span><span class="pick-nm">${escapeHtml(n)}</span></button>`
+      ).join('');
+      $('pickGrid').querySelectorAll('[data-agent]').forEach(b => b.addEventListener('click', () => pickAgent(b.dataset.agent)));
+      $('pickModal').classList.add('open');
+    }
+    async function pickAgent(name) {
+      selectedAgent = name;
+      localStorage.setItem('timeAgent', name);
+      renderAgentChip();
+      $('pickModal').classList.remove('open');
       stopTick(); openEntry = null;
+      renderClock();
       await refreshStatus();
       await loadEntries();
     }
-    agentInput.addEventListener('change', onAgentChange);
+    $('agentChip').addEventListener('click', openPicker);
+    // Allow dismissing the picker by clicking outside only once an agent is set.
+    $('pickModal').addEventListener('click', e => { if (e.target === $('pickModal') && selectedAgent) $('pickModal').classList.remove('open'); });
+
+    // Restore the remembered agent; if none (or unknown), force the picker on load.
+    const savedAgent = localStorage.getItem('timeAgent');
+    selectedAgent = AGENTS.includes(savedAgent) ? savedAgent : '';
+    renderAgentChip();
+    if (!selectedAgent) openPicker();
 
     // Refresh when the tab regains focus, so a clock-in/out done on another device shows here.
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshStatus(); loadEntries(); } });
