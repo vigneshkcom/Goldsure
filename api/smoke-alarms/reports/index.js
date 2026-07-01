@@ -251,13 +251,12 @@ export default async function handler(req, res) {
     const agent = String(t.agent || '').trim();
 
     // ── Access control: the manager PIN sees everyone; each agent's PIN sees only
-    // their own. PINs live in env vars (never sent to the browser). If NO PINs are
-    // configured the tracker stays open — set the env vars to switch privacy on:
-    //   TIME_MANAGER_PIN = "1234"
-    //   TIME_AGENT_PINS  = {"David":"1111","Shanira":"2222"}
-    const managerPin = String(process.env.TIME_MANAGER_PIN || '');
-    let agentPins = {};
-    try { agentPins = JSON.parse(process.env.TIME_AGENT_PINS || '{}'); } catch { agentPins = {}; }
+    // their own. Defaults are baked in here so privacy works without any Vercel
+    // setup; set TIME_MANAGER_PIN / TIME_AGENT_PINS in Vercel to override or rotate
+    // them without a code change. Validated server-side; never sent to the browser.
+    const managerPin = String(process.env.TIME_MANAGER_PIN || '4895');
+    let agentPins = { David: '1018', Shanira: '5220' };
+    try { if (process.env.TIME_AGENT_PINS) agentPins = JSON.parse(process.env.TIME_AGENT_PINS); } catch { /* keep the built-in defaults */ }
     const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
     const pin = String(t.pin || '');
     const isManager = pinsOn && managerPin !== '' && pin === managerPin;

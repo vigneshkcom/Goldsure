@@ -50,9 +50,10 @@ Variables**:
 | `TIME_AGENT_PINS` | `{"David":"1111","Shanira":"2222"}` | Per-agent PINs (JSON). An agent's PIN only ever returns their own entries. |
 | `TIME_MANAGER_PIN` | `9999` | Manager PIN — unlocks the **all-agents** view (everyone's timesheets, totals and CSV). |
 
-The `/time` page asks for the PIN on login and remembers it per browser. **If neither
-variable is set, the tracker stays open** (no PIN) — so set them to switch privacy on.
-PINs live only in env vars and are validated server-side; they are never sent to the browser.
+The `/time` page asks for the PIN on login and remembers it per browser. **Default PINs
+are baked into the handler** (`api/smoke-alarms/reports`), so privacy is on out of the
+box; set `TIME_MANAGER_PIN` / `TIME_AGENT_PINS` in Vercel to override or rotate them
+without a code change. PINs are validated server-side and are never sent to the browser.
 
 ## API actions (`POST { time: {...} }`)
 
