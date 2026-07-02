@@ -262,6 +262,66 @@ export default async function handler(req, res) {
     const isManager = pinsOn && managerPin !== '' && pin === managerPin;
     const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
 
+    // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
+    let rates = { David: 10.42, Shanira: 25 };
+    try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
+    const rateFor = (a) => Number(rates[a]) || 0;
+
+    // Manager notification emails (best-effort, bounded so they never delay a clock
+    // action; the message is already saved before we email). To vignesh@ by default.
+    const MANAGER_EMAIL = process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au';
+    const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
+    const escH = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const mel = (iso, opts) => new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', ...opts });
+    const durStrOf = (ms) => { const m = Math.floor(ms / 60000); return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
+    const emailShell = (eyebrow, bodyRows) => `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eceef3;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#eceef3" style="background:#eceef3;"><tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:100%;background:#ffffff;border:1px solid #e4e6ee;border-radius:14px;overflow:hidden;">
+      <tr><td style="padding:20px 28px;border-bottom:3px solid #7367f0;"><table width="100%"><tr>
+        <td><img src="${LOGO}" alt="Goldsure" height="30" style="height:30px;display:block;border:0;"></td>
+        <td align="right" style="font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#7367f0;">${escH(eyebrow)}</td>
+      </tr></table></td></tr>
+      ${bodyRows}
+    </table>
+  </td></tr></table>
+</body></html>`;
+    const clockInEmail = (a, whenStr) => emailShell('Time Tracker · Clock In', `
+      <tr><td style="padding:26px 28px;">
+        <p style="margin:0 0 4px;font-size:13px;color:#8a8a93;">Clocked in</p>
+        <p style="margin:0 0 14px;font-size:22px;font-weight:800;color:#1d1d1f;">${escH(a)}</p>
+        <div style="background:#f3f2ff;border-left:4px solid #7367f0;border-radius:8px;padding:14px 16px;font-size:15px;color:#1d1d1f;">Started <b>${escH(whenStr)}</b> <span style="color:#8a8a93;">(Melbourne time)</span></div>
+      </td></tr>`);
+    const row2 = (label, val, first) => `<tr><td style="padding:12px 16px;background:#f7f8fa;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;width:42%;">${escH(label)}</td><td style="padding:12px 16px;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:14px;font-weight:600;color:#1d1d1f;">${escH(val)}</td></tr>`;
+    const clockOutEmail = (a, dayStr, inStr, outStr, dur, rate, earnStr) => emailShell('Time Tracker · Shift Complete', `
+      <tr><td style="padding:24px 28px 6px;">
+        <p style="margin:0 0 4px;font-size:13px;color:#8a8a93;">Shift complete</p>
+        <p style="margin:0 0 2px;font-size:22px;font-weight:800;color:#1d1d1f;">${escH(a)}</p>
+        <p style="margin:0 0 16px;font-size:13px;color:#8a8a93;">${escH(dayStr)}</p>
+      </td></tr>
+      <tr><td style="padding:0 28px 24px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e7e7ec;border-radius:10px;overflow:hidden;">
+        ${row2('Clock in', inStr, true)}
+        ${row2('Clock out', outStr)}
+        ${row2('Hours worked', dur)}
+        ${row2('Rate', '$' + rate.toFixed(2) + '/hr')}
+        <tr><td style="padding:14px 16px;background:#7367f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Earned</td><td style="padding:14px 16px;background:#7367f0;font-size:18px;font-weight:800;color:#ffffff;">${escH(earnStr)}</td></tr>
+      </table></td></tr>`);
+    const sendManagerMail = async (subject, html, text) => {
+      if (!process.env.RESEND_API_KEY) { console.warn('[Time] RESEND_API_KEY not set — email skipped'); return; }
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'Goldsure Time <vignesh@goldsure.com.au>', to: [MANAGER_EMAIL], subject, html, text }),
+          signal: ctrl.signal,
+        });
+        if (!r.ok) console.error('[Time] email failed', r.status, await r.text());
+      } catch (e) { console.error('[Time] email error (continuing):', e.message); }
+      finally { clearTimeout(timer); }
+    };
+
     try {
       // Verify a PIN (used by the login screen) — returns the caller's role, or 403.
       if (t.action === 'verify') {
@@ -323,7 +383,14 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Failed to clock in.', detail });
         }
         const inserted = await r.json();
-        return res.status(200).json({ entry: Array.isArray(inserted) ? inserted[0] : inserted });
+        const inEntry = Array.isArray(inserted) ? inserted[0] : inserted;
+        const whenStr = mel(inEntry.clock_in, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+        await sendManagerMail(
+          `${agent} clocked IN — ${mel(inEntry.clock_in, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+          clockInEmail(agent, whenStr),
+          `${agent} clocked in at ${whenStr} (Melbourne time).`
+        );
+        return res.status(200).json({ entry: inEntry });
       }
 
       // Clock out: close this agent's open entry (set clock_out = now).
@@ -347,7 +414,20 @@ export default async function handler(req, res) {
         if (!Array.isArray(closed) || closed.length === 0) {
           return res.status(200).json({ success: false, warning: 'You were not clocked in.' });
         }
-        return res.status(200).json({ success: true, entry: closed[0] });
+        const outEntry = closed[0];
+        const ms = Math.max(0, new Date(outEntry.clock_out).getTime() - new Date(outEntry.clock_in).getTime());
+        const rate = rateFor(agent);
+        const earnStr = '$' + ((ms / 3600000) * rate).toFixed(2);
+        const dayStr = mel(outEntry.clock_in, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        const inStr = mel(outEntry.clock_in, { hour: 'numeric', minute: '2-digit', hour12: true });
+        const outStr = mel(outEntry.clock_out, { hour: 'numeric', minute: '2-digit', hour12: true });
+        const dur = durStrOf(ms);
+        await sendManagerMail(
+          `${agent} clocked OUT — ${dur} (${earnStr})`,
+          clockOutEmail(agent, dayStr, inStr, outStr, dur, rate, earnStr),
+          `${agent} clocked out. ${dayStr}. In ${inStr}, out ${outStr}. ${dur} at $${rate.toFixed(2)}/hr = ${earnStr}.`
+        );
+        return res.status(200).json({ success: true, entry: outEntry });
       }
 
       // List ONE agent's entries (newest first). Requires that agent's PIN (or manager).

@@ -70,6 +70,19 @@ Every request also carries a `pin` (the agent's or the manager's).
 | `{ action:'update', id, clock_in?, clock_out?, note? }` | Fix a wrong or forgotten time |
 | `{ action:'delete', id }` | Remove a shift entry |
 
+## Pay rates & manager emails
+
+Rates are **$10.42/hr** (David) and **$25/hr** (Shanira), baked into the handler;
+override with a `TIME_RATES` env var (JSON, e.g. `{"David":10.42,"Shanira":25}`).
+Earnings = hours × rate. Each agent sees their own earnings; the manager view and CSV
+show everyone's.
+
+On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** via
+Resend — the clock-out one is a branded report with the shift times, hours, rate and
+earnings (Print → Save as PDF for a file). Best-effort and bounded, so an email hiccup
+never blocks a clock action. Change the recipient with `TIME_MANAGER_EMAIL`; requires
+`RESEND_API_KEY` (already set).
+
 ## Forgotten clock-out
 
 If someone forgets to clock out, the shift shows **"In progress"** and, after 18h,
