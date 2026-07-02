@@ -89,8 +89,8 @@
     .empty { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13.5px; }
     .total-row td { border-top: 2px solid var(--border); border-bottom: none; font-weight: 800; color: var(--ink); font-size: 14px; padding-top: 14px; }
     .total-row .dur-cell { color: var(--purple); }
-    .agent-col { display: none; }
-    body.manager-mode .agent-col { display: table-cell; }
+    .agent-col, .earn-col { display: none; }
+    body.manager-mode .agent-col, body.manager-mode .earn-col { display: table-cell; }
 
     /* Modal */
     .modal { display: none; position: fixed; inset: 0; background: rgba(29,29,31,.5); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
@@ -192,7 +192,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th class="agent-col">Agent</th><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Earned</th><th></th></tr>
+            <tr><th class="agent-col">Agent</th><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th class="earn-col">Earned</th><th></th></tr>
           </thead>
           <tbody id="rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
         </table>
@@ -244,8 +244,10 @@
   <script>
     const API = '/api/smoke-alarms/reports';
     const AGENTS = ['David', 'Shanira'];       // the two people who clock in
-    const RATES = { David: 10.42, Shanira: 25 };   // $/hr — must match TIME_RATES on the server
-    const rateFor = a => RATES[a] || 0;
+    // Pay rates come from the server (manager only) — never hardcoded here, so an
+    // agent can't read their rate/earnings from the page. Empty in agent mode.
+    let rates = {};
+    const rateFor = a => Number(rates[a]) || 0;
     const earnOf = e => (entryMs(e) / 3600000) * rateFor(e.agent);
     const money = n => '$' + (Number(n) || 0).toFixed(2);
     const LONG_SHIFT_MS = 18 * 3600 * 1000;    // flag an open shift running longer than this
@@ -398,8 +400,8 @@
     // ── Timesheet ──
     async function loadEntries() {
       try {
-        if (mode === 'manager') { const data = await call({ action: 'list-all', agent: '' }); allEntries = data.entries || []; }
-        else { if (!selectedAgent) { allEntries = []; render(); return; } const data = await call({ action: 'list' }); allEntries = data.entries || []; }
+        if (mode === 'manager') { const data = await call({ action: 'list-all', agent: '' }); allEntries = data.entries || []; rates = data.rates || {}; }
+        else { rates = {}; if (!selectedAgent) { allEntries = []; render(); return; } const data = await call({ action: 'list' }); allEntries = data.entries || []; }
         render();
       } catch (e) {
         if (e.status === 403) { forceRelogin(); return; }
@@ -425,7 +427,7 @@
         const parts = Object.keys(byMs).sort().map(a => escapeHtml(a) + ': <b>' + fmtDur(byMs[a]) + '</b> (' + money(byEarn[a]) + ')');
         $('weekTotal').innerHTML = (parts.join(' &nbsp;·&nbsp; ') || 'No shifts') + ' &nbsp;·&nbsp; Total: <b>' + fmtDur(totalMs) + '</b> (' + money(totalEarn) + ')';
       } else {
-        $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b> · <b>' + money(totalEarn) + '</b>';
+        $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
       }
 
       const body = $('rows');
@@ -440,14 +442,14 @@
           <td>${escapeHtml(fmtTime(e.clock_in))}</td>
           <td>${outCell}</td>
           <td class="dur-cell">${escapeHtml(fmtDur(entryMs(e)))}</td>
-          <td class="earn-cell">${escapeHtml(money(earnOf(e)))}</td>
+          <td class="earn-cell earn-col">${escapeHtml(money(earnOf(e)))}</td>
           <td class="row-actions">
             ${running ? `<button class="icon-act stop" data-stop="${escapeHtml(e.id)}" title="Clock out now">Stop</button>` : ''}
             <button class="icon-act" data-edit="${escapeHtml(e.id)}" title="Edit">Edit</button>
           </td>
         </tr>`;
       }).join('') +
-        `<tr class="total-row"><td class="agent-col"></td><td>Total</td><td></td><td></td><td class="dur-cell">${escapeHtml(fmtDur(totalMs))}</td><td class="earn-cell">${escapeHtml(money(totalEarn))}</td><td></td></tr>`;
+        `<tr class="total-row"><td class="agent-col"></td><td>Total</td><td></td><td></td><td class="dur-cell">${escapeHtml(fmtDur(totalMs))}</td><td class="earn-cell earn-col">${escapeHtml(money(totalEarn))}</td><td></td></tr>`;
 
       body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.edit)));
       body.querySelectorAll('[data-stop]').forEach(b => b.addEventListener('click', () => stopEntry(b.dataset.stop)));
@@ -489,11 +491,19 @@
     function downloadCsv() {
       const rows = entriesForWeek();
       if (!rows.length) { toast('No shifts this week to export.', true); return; }
-      const out = [['Agent', 'Day', 'Clock In', 'Clock Out', 'Hours (decimal)', 'Hours', 'Rate ($/hr)', 'Earned ($)']];
-      rows.forEach(e => out.push([e.agent || '', new Date(e.clock_in).toLocaleDateString('en-AU'), new Date(e.clock_in).toLocaleString('en-AU'), e.clock_out ? new Date(e.clock_out).toLocaleString('en-AU') : 'still running', (entryMs(e) / 3600000).toFixed(2), fmtDur(entryMs(e)), rateFor(e.agent).toFixed(2), earnOf(e).toFixed(2)]));
+      const showPay = mode === 'manager';   // agents never get pay columns in the CSV
+      const head = ['Agent', 'Day', 'Clock In', 'Clock Out', 'Hours (decimal)', 'Hours'];
+      if (showPay) head.push('Rate ($/hr)', 'Earned ($)');
+      const out = [head];
+      rows.forEach(e => {
+        const row = [e.agent || '', new Date(e.clock_in).toLocaleDateString('en-AU'), new Date(e.clock_in).toLocaleString('en-AU'), e.clock_out ? new Date(e.clock_out).toLocaleString('en-AU') : 'still running', (entryMs(e) / 3600000).toFixed(2), fmtDur(entryMs(e))];
+        if (showPay) row.push(rateFor(e.agent).toFixed(2), earnOf(e).toFixed(2));
+        out.push(row);
+      });
       const totMs = rows.reduce((s, e) => s + entryMs(e), 0);
-      const totEarn = rows.reduce((s, e) => s + earnOf(e), 0);
-      out.push(['', '', '', 'TOTAL', (totMs / 3600000).toFixed(2), fmtDur(totMs), '', totEarn.toFixed(2)]);
+      const totRow = ['', '', '', 'TOTAL', (totMs / 3600000).toFixed(2), fmtDur(totMs)];
+      if (showPay) totRow.push('', rows.reduce((s, e) => s + earnOf(e), 0).toFixed(2));
+      out.push(totRow);
       const csv = out.map(r => r.map(c => { const s = String(c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);

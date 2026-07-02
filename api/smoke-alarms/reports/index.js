@@ -340,7 +340,9 @@ export default async function handler(req, res) {
           console.error('[Time] list-all failed:', detail);
           return res.status(500).json({ error: 'Failed to load entries.', detail });
         }
-        return res.status(200).json({ entries: await r.json() });
+        // Rates go ONLY to the manager here — never in the per-agent `list` response,
+        // so agents can't read their pay rate/earnings from the page.
+        return res.status(200).json({ entries: await r.json(), rates });
       }
 
       // Current open shift for an agent (clock_out is null), if any.

@@ -74,8 +74,10 @@ Every request also carries a `pin` (the agent's or the manager's).
 
 Rates are **$10.42/hr** (David) and **$25/hr** (Shanira), baked into the handler;
 override with a `TIME_RATES` env var (JSON, e.g. `{"David":10.42,"Shanira":25}`).
-Earnings = hours × rate. Each agent sees their own earnings; the manager view and CSV
-show everyone's.
+Earnings = hours × rate. **Pay is manager-only** — agents never see any dollar figures.
+Rates are sent from the server to the manager view only (never in the per-agent page or
+its CSV), so an agent can't read their rate/earnings even from the page source. Earnings
+appear only in the manager view, the manager CSV, and the clock-out email.
 
 On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** via
 Resend — the clock-out one is a branded report with the shift times, hours, rate and
