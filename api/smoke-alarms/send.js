@@ -270,9 +270,15 @@ export default async function handler(req, res) {
         console.log('[QuoteSMS] skipped — SMSGATE credentials not configured');
       } else {
         const agentFirst = (agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+        // Mention the alarm count on installation quotes (an inspection quote
+        // has no alarm line items, so quoting a count there would mislead).
+        const alarmCount = parseInt(alarm_qty, 10) || 0;
+        const quoteSummary = (isInstall && alarmCount > 0)
+          ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${grand_total} total)`
+          : `Your smoke alarm quote (${grand_total} total)`;
         const smsText =
           `Hi ${customer_name}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-          `Your smoke alarm quote (${grand_total} total) has just been emailed to ${to_email}. ` +
+          `${quoteSummary} has just been emailed to ${to_email}. ` +
           `Please check your inbox and your spam/junk folder. If that email address is wrong ` +
           `or you can't find it, reply here or call us on 07 2145 5155 and we'll resend it. Thanks!`;
 
