@@ -66,15 +66,18 @@ async function sendReminderSms(data) {
     const isInstall  = data.service_type === 'Installation Quote';
     const alarmCount = qty(data.alarm_qty);
     const totalDisplay = money(data.grand_total_numeric ?? data.grand_total);
-    const quoteSummary = (isInstall && alarmCount > 0)
-      ? `your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${totalDisplay} total)`
-      : `your smoke alarm quote (${totalDisplay} total)`;
+    // "for 6 interconnected smoke alarms, total $621.00" on installs; inspection
+    // quotes have no alarm line items, so just state the total.
+    const quoteDetail = (isInstall && alarmCount > 0)
+      ? ` for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'}, total ${totalDisplay}`
+      : `, total ${totalDisplay}`;
 
     const smsText =
       `Hi ${data.customer_name || 'there'}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-      `Just a reminder that ${quoteSummary}, emailed to ${data.customer_email}, is still awaiting your approval. ` +
-      `Ready to proceed? Just tap Accept This Quote at the bottom of that email and we'll call you to book it in. ` +
-      `Any questions or need it resent? Reply here or call us on 07 2145 5155. Thanks!`;
+      `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
+      `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\n` +
+      `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +
+      `Thanks,\nGoldsure Pty Ltd`;
 
     const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
     const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
