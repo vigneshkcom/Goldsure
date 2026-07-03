@@ -72,7 +72,7 @@ Every request also carries a `pin` (the agent's or the manager's).
 
 ## Pay rates & manager emails
 
-Rates are **$10.42/hr** (David) and **$25/hr** (Shanira), baked into the handler;
+Rates are **$13.54/hr** (David) and **$25/hr** (Shanira), baked into the handler;
 override with a `TIME_RATES` env var (JSON, e.g. `{"David":10.42,"Shanira":25}`).
 Earnings = hours × rate. **Pay is manager-only** — agents never see any dollar figures.
 Rates are sent from the server to the manager view only (never in the per-agent page or
@@ -81,8 +81,8 @@ appear only in the manager view, the manager CSV, and the clock-out email.
 
 On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** and
 **amit@goldsure.com.au** via Resend — the clock-out one is a branded report with the
-shift times, hours, rate and earnings (Print → Save as PDF for a file). Best-effort and
-bounded, so an email hiccup never blocks a clock action. Change the recipients with
+shift times and hours only — **no pay figures** (earnings stay in the manager portal view).
+Best-effort and bounded, so an email hiccup never blocks a clock action. Change the recipients with
 `TIME_MANAGER_EMAIL` (comma-separated for several); requires `RESEND_API_KEY` (already set).
 
 ## Forgotten clock-out

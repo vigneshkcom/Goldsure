@@ -263,7 +263,7 @@ export default async function handler(req, res) {
     const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
 
     // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
-    let rates = { David: 10.42, Shanira: 25 };
+    let rates = { David: 13.54, Shanira: 25 };
     try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
     const rateFor = (a) => Number(rates[a]) || 0;
 
@@ -294,7 +294,7 @@ export default async function handler(req, res) {
         <div style="background:#f3f2ff;border-left:4px solid #7367f0;border-radius:8px;padding:14px 16px;font-size:15px;color:#1d1d1f;">Started <b>${escH(whenStr)}</b> <span style="color:#8a8a93;">(Melbourne time)</span></div>
       </td></tr>`);
     const row2 = (label, val, first) => `<tr><td style="padding:12px 16px;background:#f7f8fa;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;width:42%;">${escH(label)}</td><td style="padding:12px 16px;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:14px;font-weight:600;color:#1d1d1f;">${escH(val)}</td></tr>`;
-    const clockOutEmail = (a, dayStr, inStr, outStr, dur, rate, earnStr) => emailShell('Time Tracker · Shift Complete', `
+    const clockOutEmail = (a, dayStr, inStr, outStr, dur) => emailShell('Time Tracker · Shift Complete', `
       <tr><td style="padding:24px 28px 6px;">
         <p style="margin:0 0 4px;font-size:13px;color:#8a8a93;">Shift complete</p>
         <p style="margin:0 0 2px;font-size:22px;font-weight:800;color:#1d1d1f;">${escH(a)}</p>
@@ -303,9 +303,7 @@ export default async function handler(req, res) {
       <tr><td style="padding:0 28px 24px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e7e7ec;border-radius:10px;overflow:hidden;">
         ${row2('Clock in', inStr, true)}
         ${row2('Clock out', outStr)}
-        ${row2('Hours worked', dur)}
-        ${row2('Rate', '$' + rate.toFixed(2) + '/hr')}
-        <tr><td style="padding:14px 16px;background:#7367f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Earned</td><td style="padding:14px 16px;background:#7367f0;font-size:18px;font-weight:800;color:#ffffff;">${escH(earnStr)}</td></tr>
+        <tr><td style="padding:14px 16px;background:#7367f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Hours worked</td><td style="padding:14px 16px;background:#7367f0;font-size:18px;font-weight:800;color:#ffffff;">${escH(dur)}</td></tr>
       </table></td></tr>`);
     const sendManagerMail = async (subject, html, text) => {
       if (!process.env.RESEND_API_KEY) { console.warn('[Time] RESEND_API_KEY not set — email skipped'); return; }
@@ -419,16 +417,15 @@ export default async function handler(req, res) {
         }
         const outEntry = closed[0];
         const ms = Math.max(0, new Date(outEntry.clock_out).getTime() - new Date(outEntry.clock_in).getTime());
-        const rate = rateFor(agent);
-        const earnStr = '$' + ((ms / 3600000) * rate).toFixed(2);
         const dayStr = mel(outEntry.clock_in, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         const inStr = mel(outEntry.clock_in, { hour: 'numeric', minute: '2-digit', hour12: true });
         const outStr = mel(outEntry.clock_out, { hour: 'numeric', minute: '2-digit', hour12: true });
         const dur = durStrOf(ms);
+        // Time only — no pay in the email (earnings stay in the manager portal view).
         await sendManagerMail(
-          `${agent} clocked OUT — ${dur} (${earnStr})`,
-          clockOutEmail(agent, dayStr, inStr, outStr, dur, rate, earnStr),
-          `${agent} clocked out. ${dayStr}. In ${inStr}, out ${outStr}. ${dur} at $${rate.toFixed(2)}/hr = ${earnStr}.`
+          `${agent} clocked OUT — ${dur}`,
+          clockOutEmail(agent, dayStr, inStr, outStr, dur),
+          `${agent} clocked out. ${dayStr}. In ${inStr}, out ${outStr}. Hours worked: ${dur}.`
         );
         return res.status(200).json({ success: true, entry: outEntry });
       }
