@@ -267,6 +267,14 @@ export default async function handler(req, res) {
     try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
     const rateFor = (a) => Number(rates[a]) || 0;
 
+    // Per-agent billing details for the manager invoice PDF. Sent ONLY to the
+    // manager (in list-all), never to an agent's page. Override with TIME_AGENT_DETAILS.
+    let agentDetails = {
+      David:   { name: 'David', lines: ['2 Kaba Place, Field 40 New Subdivision', 'Lautoka, Fiji'], phone: '+679 507 5588', email: 'admin@optimumoutsourcing.org', abn: '', payName: 'Marijo Mcgoon', bsb: '736125', acct: '791581', payPhone: '' },
+      Shanira: { name: 'Shanira Gonzalez', lines: ['1/149 Carlton Rd', 'Dandenong North VIC 3175'], phone: '+61 473 196 332', email: '', abn: '94 293 140 554', payName: 'Shanira Gonzalez', bsb: '733186', acct: '584056', payPhone: '+61 473 196 332' },
+    };
+    try { if (process.env.TIME_AGENT_DETAILS) agentDetails = JSON.parse(process.env.TIME_AGENT_DETAILS); } catch { /* keep defaults */ }
+
     // Manager notification emails (best-effort, bounded so they never delay a clock
     // action; the message is already saved before we email). To vignesh@ by default.
     const MANAGER_EMAILS = (process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au,amit@goldsure.com.au')
@@ -341,7 +349,7 @@ export default async function handler(req, res) {
         }
         // Rates go ONLY to the manager here — never in the per-agent `list` response,
         // so agents can't read their pay rate/earnings from the page.
-        return res.status(200).json({ entries: await r.json(), rates });
+        return res.status(200).json({ entries: await r.json(), rates, details: agentDetails });
       }
 
       // Current open shift for an agent (clock_out is null), if any.

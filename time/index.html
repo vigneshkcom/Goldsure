@@ -258,6 +258,7 @@
     // Pay rates come from the server (manager only) — never hardcoded here, so an
     // agent can't read their rate/earnings from the page. Empty in agent mode.
     let rates = {};
+    let agentDetails = {};   // per-agent billing details (manager only, from the server)
     const rateFor = a => Number(rates[a]) || 0;
     const earnOf = e => (entryMs(e) / 3600000) * rateFor(e.agent);
     const money = n => '$' + (Number(n) || 0).toFixed(2);
@@ -415,8 +416,8 @@
     // ── Timesheet ──
     async function loadEntries() {
       try {
-        if (mode === 'manager') { const data = await call({ action: 'list-all', agent: '' }); allEntries = data.entries || []; rates = data.rates || {}; }
-        else { rates = {}; if (!selectedAgent) { allEntries = []; render(); return; } const data = await call({ action: 'list' }); allEntries = data.entries || []; }
+        if (mode === 'manager') { const data = await call({ action: 'list-all', agent: '' }); allEntries = data.entries || []; rates = data.rates || {}; agentDetails = data.details || {}; }
+        else { rates = {}; agentDetails = {}; if (!selectedAgent) { allEntries = []; render(); return; } const data = await call({ action: 'list' }); allEntries = data.entries || []; }
         render();
       } catch (e) {
         if (e.status === 403) { forceRelogin(); return; }
@@ -556,35 +557,62 @@
           <td style="${cell}color:#1d1d1f;text-align:right;font-weight:700;">${escapeHtml(money(earnOf(x)))}</td>
         </tr>`).join('');
       const th = 'padding:11px 14px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;';
+      const d = agentDetails[agent] || { name: agent, lines: [], payName: '', bsb: '', acct: '' };
+      const fromHtml = [
+        `<div style="font-size:16px;font-weight:700;">${escapeHtml(d.name || agent)}</div>`,
+        ...(d.lines || []).map(l => `<div style="font-size:12px;color:#6b6b73;margin-top:2px;">${escapeHtml(l)}</div>`),
+        d.abn ? `<div style="font-size:12px;color:#6b6b73;margin-top:2px;">ABN ${escapeHtml(d.abn)}</div>` : '',
+        d.phone ? `<div style="font-size:12px;color:#6b6b73;margin-top:2px;">${escapeHtml(d.phone)}</div>` : '',
+        d.email ? `<div style="font-size:12px;color:#6b6b73;margin-top:2px;">${escapeHtml(d.email)}</div>` : '',
+      ].join('');
+      const payHtml = [
+        d.payName ? `<div style="margin-bottom:3px;"><span style="color:#8a8a93;">Account name</span>&nbsp; <b>${escapeHtml(d.payName)}</b></div>` : '',
+        d.bsb ? `<div style="margin-bottom:3px;"><span style="color:#8a8a93;">BSB</span>&nbsp; <b>${escapeHtml(d.bsb)}</b></div>` : '',
+        d.acct ? `<div style="margin-bottom:3px;"><span style="color:#8a8a93;">Account number</span>&nbsp; <b>${escapeHtml(d.acct)}</b></div>` : '',
+        d.payPhone ? `<div><span style="color:#8a8a93;">Phone</span>&nbsp; <b>${escapeHtml(d.payPhone)}</b></div>` : '',
+      ].filter(Boolean).join('');
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${escapeHtml(invNo)} — ${escapeHtml(agent)}</title>
 <style>@page{margin:16mm;}body{margin:0;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style></head>
 <body><div style="max-width:720px;margin:0 auto;padding:26px;">
   <table width="100%" style="border-collapse:collapse;"><tr>
-    <td style="vertical-align:top;"><img src="${LOGO_URL}" alt="Goldsure" style="height:32px;display:block;"></td>
-    <td style="vertical-align:top;text-align:right;"><div style="font-size:26px;font-weight:800;letter-spacing:2px;">INVOICE</div><div style="font-size:12px;color:#8a8a93;margin-top:4px;">${escapeHtml(invNo)}</div></td>
+    <td style="vertical-align:top;"><div style="font-size:30px;font-weight:800;letter-spacing:3px;">INVOICE</div></td>
+    <td style="vertical-align:top;text-align:right;font-size:12px;color:#6b6b73;line-height:1.7;">
+      <div>Invoice&nbsp; <b style="color:#1d1d1f;">${escapeHtml(invNo)}</b></div>
+      <div>Date issued&nbsp; <b style="color:#1d1d1f;">${escapeHtml(issued)}</b></div>
+      <div>Period&nbsp; <b style="color:#1d1d1f;">${escapeHtml(period)}</b></div>
+    </td>
   </tr></table>
-  <div style="height:3px;background:#7367f0;margin:18px 0 24px;border-radius:2px;"></div>
-  <table width="100%" style="border-collapse:collapse;margin-bottom:22px;"><tr>
-    <td style="vertical-align:top;width:50%;"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">From</div><div style="font-size:16px;font-weight:700;">${escapeHtml(agent)}</div><div style="font-size:12px;color:#6b6b73;margin-top:2px;">Contractor</div></td>
-    <td style="vertical-align:top;width:50%;"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">Bill to</div><div style="font-size:16px;font-weight:700;">Goldsure Pty Ltd</div><div style="font-size:12px;color:#6b6b73;margin-top:2px;">ABN 66 683 305 106<br>Queensland, Australia</div></td>
-  </tr></table>
-  <table width="100%" style="border-collapse:collapse;margin-bottom:20px;font-size:12px;color:#6b6b73;"><tr>
-    <td>Date issued: <b style="color:#1d1d1f;">${escapeHtml(issued)}</b></td><td style="text-align:right;">Period: <b style="color:#1d1d1f;">${escapeHtml(period)}</b></td>
+  <div style="height:2px;background:#1d1d1f;margin:16px 0 24px;"></div>
+  <table width="100%" style="border-collapse:collapse;margin-bottom:24px;"><tr>
+    <td style="vertical-align:top;width:52%;padding-right:16px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">From</div>
+      ${fromHtml}
+    </td>
+    <td style="vertical-align:top;width:48%;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">Bill to</div>
+      <div style="font-size:16px;font-weight:700;">Goldsure Pty Ltd</div>
+      <div style="font-size:12px;color:#6b6b73;margin-top:2px;">Suite 4, 293 High St</div>
+      <div style="font-size:12px;color:#6b6b73;margin-top:2px;">Preston VIC 3072</div>
+      <div style="font-size:12px;color:#6b6b73;margin-top:2px;">ABN 66 683 305 106</div>
+    </td>
   </tr></table>
   <table width="100%" style="border-collapse:collapse;border:1px solid #eceef3;">
     <tr style="background:#f7f8fa;"><td style="${th}">Day</td><td style="${th}">Shift</td><td style="${th}text-align:right;">Hours</td><td style="${th}text-align:right;">Rate</td><td style="${th}text-align:right;">Amount</td></tr>
     ${rowsHtml}
     <tr><td colspan="2" style="padding:12px 14px;font-size:13px;font-weight:800;">Total</td><td style="padding:12px 14px;font-size:13px;font-weight:800;text-align:right;">${escapeHtml(fmtDur(totalMs))}</td><td></td><td style="padding:12px 14px;font-size:13px;font-weight:800;text-align:right;">${escapeHtml(money(total))}</td></tr>
   </table>
-  <table width="100%" style="border-collapse:collapse;margin-top:18px;"><tr>
-    <td style="width:55%;"></td>
-    <td style="width:45%;"><table width="100%" style="border-collapse:collapse;font-size:13px;">
+  <table width="100%" style="border-collapse:collapse;margin-top:20px;"><tr>
+    <td style="width:52%;vertical-align:top;padding-right:16px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:8px;">Payment details</div>
+      <div style="font-size:12.5px;line-height:1.6;">${payHtml || '<span style="color:#9aa0ab;">—</span>'}</div>
+    </td>
+    <td style="width:48%;vertical-align:top;"><table width="100%" style="border-collapse:collapse;font-size:13px;">
       <tr><td style="padding:6px 14px;color:#6b6b73;">Subtotal</td><td style="padding:6px 14px;text-align:right;">${escapeHtml(money(total))}</td></tr>
       <tr><td style="padding:6px 14px;color:#6b6b73;">GST (not applicable)</td><td style="padding:6px 14px;text-align:right;">$0.00</td></tr>
-      <tr><td style="padding:12px 14px;background:#7367f0;color:#fff;font-weight:800;">Total due</td><td style="padding:12px 14px;background:#7367f0;color:#fff;font-weight:800;text-align:right;">${escapeHtml(money(total))}</td></tr>
+      <tr><td style="padding:12px 14px;background:#1d1d1f;color:#fff;font-weight:800;">Total due</td><td style="padding:12px 14px;background:#1d1d1f;color:#fff;font-weight:800;text-align:right;">${escapeHtml(money(total))}</td></tr>
     </table></td>
   </tr></table>
-  <p style="font-size:11px;color:#9aa0ab;margin-top:22px;line-height:1.6;">No GST has been charged on this invoice — this is not a tax invoice.<br>Generated by the Goldsure Time Tracker.</p>
+  <p style="font-size:11px;color:#9aa0ab;margin-top:26px;line-height:1.6;">No GST has been charged on this invoice — this is not a tax invoice.</p>
 </div>
 <script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>
 </body></html>`;

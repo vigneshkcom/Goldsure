@@ -91,7 +91,10 @@ In the manager view, pick an agent from the **All agents** dropdown, choose the 
 then hit **🧾 Invoice PDF** — it opens a print-ready invoice **from that agent to Goldsure
 Pty Ltd** for that week (day, shift times, hours, rate, amount; **no GST** — not a tax
 invoice). Use the browser print dialog's *Save as PDF* to file it as a bill in Xero.
-Completed shifts only; manager view only (agents can't generate it).
+Completed shifts only; manager view only (agents can't generate it). There's **no
+Goldsure logo** (it's the agent billing Goldsure). Each agent's billing/payment details
+(address, ABN, bank account) live server-side in `TIME_AGENT_DETAILS` and are sent only
+to the manager — never to an agent's page.
 
 ## Forgotten clock-out
 
