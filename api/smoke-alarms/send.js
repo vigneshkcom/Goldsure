@@ -279,8 +279,10 @@ export default async function handler(req, res) {
         const smsText =
           `Hi ${customer_name}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
           `${quoteSummary} has just been emailed to ${to_email}. ` +
-          `Please check your inbox and your spam/junk folder. If that email address is wrong ` +
-          `or you can't find it, reply here or call us on 07 2145 5155 and we'll resend it. Thanks!`;
+          `Please check your inbox and your spam/junk folder. ` +
+          `Ready to proceed? Tap Accept This Quote at the bottom of the email (or here: ${acceptUrl}) ` +
+          `and we'll call you to book it in. ` +
+          `If that email address is wrong or you can't find it, reply here or call us on 07 2145 5155 and we'll resend it. Thanks!`;
 
         const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
