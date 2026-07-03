@@ -1270,7 +1270,10 @@ async function sendQuoteEmail() {
       console.error('API error:', err);
       showToast('Send failed — check console for details.');
     } else {
-      showToast(`Quote emailed to ${custEmail}`);
+      const data = await res.json().catch(() => ({}));
+      showToast(data.sms_sent
+        ? `Quote emailed to ${custEmail} + confirmation SMS sent to ${custPhone}`
+        : `Quote emailed to ${custEmail}`);
       closeEmailModal();
     }
   } catch (err) {

@@ -224,6 +224,106 @@ export default async function handler(req, res) {
   }
 
   // ════════════════════════════════════════════════════════════
+  // SEND CONFIRMATION SMS via SMS Gate — best-effort, non-fatal
+  //
+  // Once the quote email is out, text the customer so they know to look
+  // for it (and can flag a wrong/mistyped email address before it's lost
+  // to spam). Sent through the same SMS Gate gateway the SMS portal uses
+  // and logged to sms_messages so it appears in the customer's chat thread
+  // and picks up delivery tracking. Any failure here must NOT fail the
+  // request — the email has already been sent successfully.
+  // ════════════════════════════════════════════════════════════
+  let smsSent = false;
+  if (emailSuccess && customer_phone) {
+    try {
+      // Normalise AU mobile/landline formats to E.164 so any reply threads
+      // with this send in the SMS portal (mirrors the SMS handler).
+      const normalizeAuPhone = (raw) => {
+        let s = String(raw || '').replace(/[\s\-().]/g, '');
+        if (!s) return s;
+        if (s[0] === '+') return s;                          // already E.164
+        if (s.startsWith('0061')) s = s.slice(2);            // 0061… → 61…
+        if (/^61\d{9}$/.test(s)) return '+' + s;             // 61451898761 → +61…
+        if (/^0\d{9}$/.test(s)) return '+61' + s.slice(1);   // 0451898761 → +61…
+        if (/^4\d{8}$/.test(s)) return '+61' + s;            // 451898761 → +61…
+        return s;
+      };
+      const smsPhone = normalizeAuPhone(customer_phone);
+
+      // Respect SPAM Act opt-out: if this number replied STOP, skip the SMS.
+      let optedOut = false;
+      try {
+        const optRes = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(smsPhone)}&status=in.(optout,optin)&order=created_at.desc&limit=1&select=status`,
+          { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
+        );
+        const optRows = await optRes.json();
+        optedOut = Array.isArray(optRows) && optRows[0] && optRows[0].status === 'optout';
+      } catch (_) { /* if the check fails, still send the transactional confirmation */ }
+
+      const smsUser = process.env.SMSGATE_USERNAME;
+      const smsPass = process.env.SMSGATE_PASSWORD;
+
+      if (optedOut) {
+        console.log('[QuoteSMS] skipped — number opted out:', smsPhone);
+      } else if (!smsUser || !smsPass) {
+        console.log('[QuoteSMS] skipped — SMSGATE credentials not configured');
+      } else {
+        const agentFirst = (agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+        const smsText =
+          `Hi ${customer_name}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
+          `Your smoke alarm quote (${grand_total} total) has just been emailed to ${to_email}. ` +
+          `Please check your inbox and your spam/junk folder. If that email address is wrong ` +
+          `or you can't find it, reply here or call us on 07 2145 5155 and we'll resend it. Thanks!`;
+
+        const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
+        const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+          method: 'POST',
+          headers: { Authorization: `Basic ${smsCreds}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumbers: [smsPhone],
+            textMessage: { text: smsText },
+            ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
+          }),
+        });
+
+        if (smsRes.ok) {
+          smsSent = true;
+          const smsData = await smsRes.json().catch(() => ({}));
+          // Log to sms_messages so it shows in the customer's chat thread
+          // and gets delivery tracking (best-effort — never fail on this).
+          try {
+            await fetch(`${process.env.SUPABASE_URL}/rest/v1/sms_messages`, {
+              method: 'POST',
+              headers: {
+                apikey:          process.env.SUPABASE_ANON_KEY,
+                Authorization:   `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+                'Content-Type':  'application/json',
+                Prefer:          'return=minimal',
+              },
+              body: JSON.stringify({
+                phone_number: smsPhone,
+                message:      smsText,
+                direction:    'outbound',
+                status:       'sent',
+                sms_gate_id:  smsData.id || null,
+              }),
+            });
+          } catch (logErr) {
+            console.error('[QuoteSMS] Supabase log failed (non-fatal):', logErr.message);
+          }
+          console.log('[QuoteSMS] confirmation SMS sent to', smsPhone);
+        } else {
+          const detail = await smsRes.text().catch(() => '');
+          console.error('[QuoteSMS] SMS Gate rejected send:', smsRes.status, detail);
+        }
+      }
+    } catch (smsErr) {
+      console.error('[QuoteSMS] confirmation SMS failed (non-fatal):', smsErr.message);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
   // LOG TO SUPABASE — non-blocking, email already sent above
   //
   // FIX: previously the fetch response was never read or checked.
@@ -315,6 +415,6 @@ export default async function handler(req, res) {
       console.error('[Supabase] Network error during insert (non-fatal):', supaErr);
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, sms_sent: smsSent });
   }
 }
