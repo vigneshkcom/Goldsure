@@ -79,11 +79,11 @@ Rates are sent from the server to the manager view only (never in the per-agent 
 its CSV), so an agent can't read their rate/earnings even from the page source. Earnings
 appear only in the manager view, the manager CSV, and the clock-out email.
 
-On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** via
-Resend — the clock-out one is a branded report with the shift times, hours, rate and
-earnings (Print → Save as PDF for a file). Best-effort and bounded, so an email hiccup
-never blocks a clock action. Change the recipient with `TIME_MANAGER_EMAIL`; requires
-`RESEND_API_KEY` (already set).
+On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** and
+**amit@goldsure.com.au** via Resend — the clock-out one is a branded report with the
+shift times, hours, rate and earnings (Print → Save as PDF for a file). Best-effort and
+bounded, so an email hiccup never blocks a clock action. Change the recipients with
+`TIME_MANAGER_EMAIL` (comma-separated for several); requires `RESEND_API_KEY` (already set).
 
 ## Forgotten clock-out
 

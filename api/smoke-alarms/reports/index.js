@@ -269,7 +269,8 @@ export default async function handler(req, res) {
 
     // Manager notification emails (best-effort, bounded so they never delay a clock
     // action; the message is already saved before we email). To vignesh@ by default.
-    const MANAGER_EMAIL = process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au';
+    const MANAGER_EMAILS = (process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au,amit@goldsure.com.au')
+      .split(',').map(s => s.trim()).filter(Boolean);
     const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const escH = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const mel = (iso, opts) => new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', ...opts });
@@ -314,7 +315,7 @@ export default async function handler(req, res) {
         const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'Goldsure Time <vignesh@goldsure.com.au>', to: [MANAGER_EMAIL], subject, html, text }),
+          body: JSON.stringify({ from: 'Goldsure Time <vignesh@goldsure.com.au>', to: MANAGER_EMAILS, subject, html, text }),
           signal: ctrl.signal,
         });
         if (!r.ok) console.error('[Time] email failed', r.status, await r.text());
