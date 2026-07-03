@@ -360,8 +360,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to send reminder email.', detail: error });
     }
 
-    // Log a note on the customer's GHL contact/opportunity (best-effort).
-    await addGhlNote(customer_email, 'Reminder sent from Portal');
+    // Log a note on the customer's GHL contact/opportunity (best-effort),
+    // including which reminder this is (No. 1, 2, ...).
+    await addGhlNote(customer_email, `Reminder no. ${qty(reminder_count) + 1} sent from Portal`);
 
     // Also text the customer a reminder (best-effort — never fails the request,
     // the email has already gone out).
