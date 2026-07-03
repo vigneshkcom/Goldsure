@@ -694,7 +694,11 @@ async function sendReminder(id) {
 
     quote.reminder_count = data.reminder_count ?? (getReminderCount(quote) + 1);
     quote.last_reminder_sent_at = data.last_reminder_sent_at || new Date().toISOString();
-    showToast(data.warning ? 'Reminder sent, but tracking did not save.' : `Reminder sent to ${quote.customer_email}`);
+    showToast(
+      data.warning ? 'Reminder sent, but tracking did not save.'
+      : data.sms_sent ? `Reminder emailed to ${quote.customer_email} + SMS sent`
+      : `Reminder sent to ${quote.customer_email}`
+    );
   } catch (err) {
     console.error(err);
     showToast('Network error sending reminder.');

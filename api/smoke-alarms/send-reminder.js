@@ -20,6 +20,110 @@ function qty(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+// Normalise AU mobile/landline formats to E.164 so any reply threads with
+// this send in the SMS portal (mirrors the SMS handler and send.js).
+function normalizeAuPhone(raw) {
+  let s = String(raw || '').replace(/[\s\-().]/g, '');
+  if (!s) return s;
+  if (s[0] === '+') return s;                          // already E.164
+  if (s.startsWith('0061')) s = s.slice(2);            // 0061… → 61…
+  if (/^61\d{9}$/.test(s)) return '+' + s;             // 61451898761 → +61…
+  if (/^0\d{9}$/.test(s)) return '+61' + s.slice(1);   // 0451898761 → +61…
+  if (/^4\d{8}$/.test(s)) return '+61' + s;            // 451898761 → +61…
+  return s;
+}
+
+// Send a reminder SMS via SMS Gate, logged to sms_messages so it appears in
+// the customer's chat thread and gets delivery tracking. Best-effort: returns
+// true on success, false otherwise, and never throws. Respects SPAM Act
+// opt-out (skips numbers that replied STOP).
+async function sendReminderSms(data) {
+  const phone = normalizeAuPhone(data.customer_phone);
+  if (!phone) return false;
+
+  const smsUser = process.env.SMSGATE_USERNAME;
+  const smsPass = process.env.SMSGATE_PASSWORD;
+  if (!smsUser || !smsPass) {
+    console.log('[ReminderSMS] skipped — SMSGATE credentials not configured');
+    return false;
+  }
+
+  try {
+    // Respect opt-out: if this number replied STOP, don't text it.
+    try {
+      const optRes = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=in.(optout,optin)&order=created_at.desc&limit=1&select=status`,
+        { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
+      );
+      const optRows = await optRes.json();
+      if (Array.isArray(optRows) && optRows[0] && optRows[0].status === 'optout') {
+        console.log('[ReminderSMS] skipped — number opted out:', phone);
+        return false;
+      }
+    } catch (_) { /* if the check fails, still send the transactional reminder */ }
+
+    const agentFirst = (data.agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+    const isInstall  = data.service_type === 'Installation Quote';
+    const alarmCount = qty(data.alarm_qty);
+    const totalDisplay = money(data.grand_total_numeric ?? data.grand_total);
+    const quoteSummary = (isInstall && alarmCount > 0)
+      ? `your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${totalDisplay} total)`
+      : `your smoke alarm quote (${totalDisplay} total)`;
+
+    const smsText =
+      `Hi ${data.customer_name || 'there'}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
+      `Just a reminder that ${quoteSummary}, emailed to ${data.customer_email}, is still awaiting your approval. ` +
+      `Ready to proceed? Just tap Accept This Quote at the bottom of that email and we'll call you to book it in. ` +
+      `Any questions or need it resent? Reply here or call us on 07 2145 5155. Thanks!`;
+
+    const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
+    const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${smsCreds}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phoneNumbers: [phone],
+        textMessage: { text: smsText },
+        ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
+      }),
+    });
+
+    if (!smsRes.ok) {
+      const detail = await smsRes.text().catch(() => '');
+      console.error('[ReminderSMS] SMS Gate rejected send:', smsRes.status, detail);
+      return false;
+    }
+
+    const smsData = await smsRes.json().catch(() => ({}));
+    // Log to sms_messages so it shows in the chat thread (best-effort).
+    try {
+      await fetch(`${process.env.SUPABASE_URL}/rest/v1/sms_messages`, {
+        method: 'POST',
+        headers: {
+          apikey:         process.env.SUPABASE_ANON_KEY,
+          Authorization:  `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer:         'return=minimal',
+        },
+        body: JSON.stringify({
+          phone_number: phone,
+          message:      smsText,
+          direction:    'outbound',
+          status:       'sent',
+          sms_gate_id:  smsData.id || null,
+        }),
+      });
+    } catch (logErr) {
+      console.error('[ReminderSMS] Supabase log failed (non-fatal):', logErr.message);
+    }
+
+    console.log('[ReminderSMS] reminder SMS sent to', phone);
+    return true;
+  } catch (err) {
+    console.error('[ReminderSMS] reminder SMS failed (non-fatal):', err.message);
+    return false;
+  }
+}
+
 function buildReminderEmail(data) {
   const customerName = esc(data.customer_name || 'there');
   const reminderCount = qty(data.reminder_count) + 1;
@@ -215,6 +319,19 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to send reminder email.', detail: error });
     }
 
+    // Also text the customer a reminder (best-effort — never fails the request,
+    // the email has already gone out).
+    const smsSent = await sendReminderSms({
+      customer_name,
+      customer_email,
+      customer_phone,
+      agent_name,
+      service_type,
+      alarm_qty,
+      grand_total,
+      grand_total_numeric,
+    });
+
     const nowIso = new Date().toISOString();
     const nextReminderCount = qty(reminder_count) + 1;
     let warning = null;
@@ -247,6 +364,7 @@ export default async function handler(req, res) {
       success: true,
       reminder_count: nextReminderCount,
       last_reminder_sent_at: nowIso,
+      sms_sent: smsSent,
       warning,
     });
   } catch (err) {
