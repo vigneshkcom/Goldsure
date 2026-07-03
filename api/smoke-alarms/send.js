@@ -26,6 +26,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid required fields.' });
   }
 
+  // ── Controller state ──
+  // The Smoke Alarm Controller is an optional add-on. It should only appear
+  // as a line item on the quote when the agent actually selected it.
+  // When no controller is selected on an installation quote, we instead
+  // upsell it as a low-cost add-on the customer can request on the day.
+  const hasController = (parseInt(ctrl_qty, 10) || 0) > 0;
+  const isInstall     = service_type === 'Installation Quote';
+
   // ── Build Accept Quote URL using token ──
   const baseUrl   = process.env.SITE_URL || 'https://www.goldsure.com.au';
   const token     = quote_token || crypto.randomUUID();
@@ -71,12 +79,12 @@ export default async function handler(req, res) {
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$98.00</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarm_total}</td>
           </tr>
-          <tr bgcolor="#f9f9f9">
+          ${hasController ? `<tr bgcolor="#f9f9f9">
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Smoke Alarm Controller</span><br><span style="font-size:11px;color:#888888;">Remote control &amp; status display</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${ctrl_qty}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$49.00</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ctrl_total}</td>
-          </tr>
+          </tr>` : ''}
           <tr bgcolor="#ffffff">
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">${fee_label}</span><br><span style="font-size:11px;color:#888888;">${fee_amount} payable upfront to secure your booking</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">1</td>
@@ -88,6 +96,12 @@ export default async function handler(req, res) {
             <td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${grand_total}</td>
           </tr>
         </table>
+        ${(isInstall && !hasController) ? `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border:1px dashed #b08d2e;">
+          <tr><td style="padding:12px 14px;">
+            <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Optional Add-On &mdash; Smoke Alarm Controller</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;">Want to silence a nuisance alarm or check your alarms at the touch of a button? Ask our electrician about adding a Smoke Alarm Controller when he is on site &mdash; just <strong style="color:#000000;">$49</strong> extra, no need to arrange it in advance.</p>
+          </td></tr>
+        </table>` : ''}
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;">
           <tr><td style="padding:10px 14px;">
             <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Payment Structure</p>
