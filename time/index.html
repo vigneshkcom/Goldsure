@@ -68,6 +68,10 @@
     .btn-purple:hover { filter: brightness(1.06); }
     .today-btn { font-size: 12px; padding: 8px 12px; }
     .weekbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .mgr-only { display: none; }
+    body.manager-mode .mgr-only { display: inline-block; }
+    .mgr-filter { padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text); background: #fff; outline: none; cursor: pointer; }
+    .mgr-filter:focus { border-color: var(--purple); }
 
     /* Table */
     .table-wrap { overflow-x: auto; }
@@ -179,8 +183,14 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <button class="btn-ghost today-btn" id="todayBtn">This week</button>
+          <select id="mgrFilter" class="mgr-filter mgr-only" title="Filter and invoice by agent">
+            <option value="">All agents</option>
+            <option value="David">David</option>
+            <option value="Shanira">Shanira</option>
+          </select>
         </div>
         <div class="weekbar-actions">
+          <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
           <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
         </div>
       </div>
@@ -243,6 +253,7 @@
 
   <script>
     const API = '/api/smoke-alarms/reports';
+    const LOGO_URL = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const AGENTS = ['David', 'Shanira'];       // the two people who clock in
     // Pay rates come from the server (manager only) — never hardcoded here, so an
     // agent can't read their rate/earnings from the page. Empty in agent mode.
@@ -261,6 +272,7 @@
     let weekStart = null;
     let tickTimer = null;
     let editingId = null;
+    let mgrFilter = '';        // manager-view agent filter / invoice target ('' = all agents)
 
     const $ = id => document.getElementById(id);
     function currentAgent() { return selectedAgent; }
@@ -276,6 +288,7 @@
     // ── Date / duration helpers (local time) ──
     function startOfWeek(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = x.getDay(); x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day)); return x; }
     function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     function endOfWeek(start) { return addDays(start, 7); }   // exclusive
     function fmtDay(iso) { return new Date(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }); }
     function fmtTime(iso) { return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase(); }
@@ -352,6 +365,8 @@
     function applyMode() {
       document.body.classList.toggle('manager-mode', mode === 'manager');
       $('sheetLabel').textContent = mode === 'manager' ? 'All agents' : 'Timesheet';
+      if (mode !== 'manager') mgrFilter = '';
+      const mf = $('mgrFilter'); if (mf) mf.value = mgrFilter;
       renderClock(); renderAgentChip();
     }
 
@@ -410,9 +425,9 @@
     }
     function entriesForWeek() {
       const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
-      return allEntries
-        .filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; })
-        .sort((a, b) => mode === 'manager' ? ((a.agent || '').localeCompare(b.agent || '') || new Date(a.clock_in) - new Date(b.clock_in)) : (new Date(a.clock_in) - new Date(b.clock_in)));
+      let list = allEntries.filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; });
+      if (mode === 'manager' && mgrFilter) list = list.filter(x => x.agent === mgrFilter);
+      return list.sort((a, b) => mode === 'manager' ? ((a.agent || '').localeCompare(b.agent || '') || new Date(a.clock_in) - new Date(b.clock_in)) : (new Date(a.clock_in) - new Date(b.clock_in)));
     }
     function render() {
       const end = addDays(weekStart, 6);
@@ -511,6 +526,74 @@
       a.click(); URL.revokeObjectURL(a.href); toast('CSV downloaded.');
     }
 
+    // ── Invoice PDF (manager only) — a print-ready invoice FROM the selected agent
+    // TO Goldsure for the viewed week: days, hours, amount, no GST. Save as PDF for Xero.
+    function downloadInvoice() {
+      const agent = mgrFilter;
+      if (!agent) { toast('Pick an agent from the dropdown to make their invoice.', true); return; }
+      const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
+      const rows = allEntries.filter(x => {
+        if (x.agent !== agent || !x.clock_out) return false;   // completed shifts only
+        const t = new Date(x.clock_in).getTime();
+        return t >= s && t < e;
+      }).sort((a, b) => new Date(a.clock_in) - new Date(b.clock_in));
+      if (!rows.length) { toast('No completed shifts this week for ' + agent + '.', true); return; }
+
+      const rate = rateFor(agent);
+      const totalMs = rows.reduce((sum, x) => sum + entryMs(x), 0);
+      const total = rows.reduce((sum, x) => sum + earnOf(x), 0);
+      const wkEnd = addDays(weekStart, 6);
+      const issued = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+      const period = weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + wkEnd.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      const invNo = agent.slice(0, 3).toUpperCase() + '-' + ymd(weekStart).replace(/-/g, '');
+      const cell = 'padding:11px 14px;border-bottom:1px solid #eceef3;font-size:13px;';
+      const rowsHtml = rows.map(x => `
+        <tr>
+          <td style="${cell}color:#1d1d1f;">${escapeHtml(fmtDay(x.clock_in))}</td>
+          <td style="${cell}color:#6b6b73;">${escapeHtml(fmtTime(x.clock_in))} – ${escapeHtml(fmtTime(x.clock_out))}</td>
+          <td style="${cell}color:#1d1d1f;text-align:right;">${escapeHtml(fmtDur(entryMs(x)))}</td>
+          <td style="${cell}color:#6b6b73;text-align:right;">${escapeHtml(money(rate))}/hr</td>
+          <td style="${cell}color:#1d1d1f;text-align:right;font-weight:700;">${escapeHtml(money(earnOf(x)))}</td>
+        </tr>`).join('');
+      const th = 'padding:11px 14px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;';
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${escapeHtml(invNo)} — ${escapeHtml(agent)}</title>
+<style>@page{margin:16mm;}body{margin:0;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1d1d1f;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style></head>
+<body><div style="max-width:720px;margin:0 auto;padding:26px;">
+  <table width="100%" style="border-collapse:collapse;"><tr>
+    <td style="vertical-align:top;"><img src="${LOGO_URL}" alt="Goldsure" style="height:32px;display:block;"></td>
+    <td style="vertical-align:top;text-align:right;"><div style="font-size:26px;font-weight:800;letter-spacing:2px;">INVOICE</div><div style="font-size:12px;color:#8a8a93;margin-top:4px;">${escapeHtml(invNo)}</div></td>
+  </tr></table>
+  <div style="height:3px;background:#7367f0;margin:18px 0 24px;border-radius:2px;"></div>
+  <table width="100%" style="border-collapse:collapse;margin-bottom:22px;"><tr>
+    <td style="vertical-align:top;width:50%;"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">From</div><div style="font-size:16px;font-weight:700;">${escapeHtml(agent)}</div><div style="font-size:12px;color:#6b6b73;margin-top:2px;">Contractor</div></td>
+    <td style="vertical-align:top;width:50%;"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a93;margin-bottom:6px;">Bill to</div><div style="font-size:16px;font-weight:700;">Goldsure Pty Ltd</div><div style="font-size:12px;color:#6b6b73;margin-top:2px;">ABN 66 683 305 106<br>Queensland, Australia</div></td>
+  </tr></table>
+  <table width="100%" style="border-collapse:collapse;margin-bottom:20px;font-size:12px;color:#6b6b73;"><tr>
+    <td>Date issued: <b style="color:#1d1d1f;">${escapeHtml(issued)}</b></td><td style="text-align:right;">Period: <b style="color:#1d1d1f;">${escapeHtml(period)}</b></td>
+  </tr></table>
+  <table width="100%" style="border-collapse:collapse;border:1px solid #eceef3;">
+    <tr style="background:#f7f8fa;"><td style="${th}">Day</td><td style="${th}">Shift</td><td style="${th}text-align:right;">Hours</td><td style="${th}text-align:right;">Rate</td><td style="${th}text-align:right;">Amount</td></tr>
+    ${rowsHtml}
+    <tr><td colspan="2" style="padding:12px 14px;font-size:13px;font-weight:800;">Total</td><td style="padding:12px 14px;font-size:13px;font-weight:800;text-align:right;">${escapeHtml(fmtDur(totalMs))}</td><td></td><td style="padding:12px 14px;font-size:13px;font-weight:800;text-align:right;">${escapeHtml(money(total))}</td></tr>
+  </table>
+  <table width="100%" style="border-collapse:collapse;margin-top:18px;"><tr>
+    <td style="width:55%;"></td>
+    <td style="width:45%;"><table width="100%" style="border-collapse:collapse;font-size:13px;">
+      <tr><td style="padding:6px 14px;color:#6b6b73;">Subtotal</td><td style="padding:6px 14px;text-align:right;">${escapeHtml(money(total))}</td></tr>
+      <tr><td style="padding:6px 14px;color:#6b6b73;">GST (not applicable)</td><td style="padding:6px 14px;text-align:right;">$0.00</td></tr>
+      <tr><td style="padding:12px 14px;background:#7367f0;color:#fff;font-weight:800;">Total due</td><td style="padding:12px 14px;background:#7367f0;color:#fff;font-weight:800;text-align:right;">${escapeHtml(money(total))}</td></tr>
+    </table></td>
+  </tr></table>
+  <p style="font-size:11px;color:#9aa0ab;margin-top:22px;line-height:1.6;">No GST has been charged on this invoice — this is not a tax invoice.<br>Generated by the Goldsure Time Tracker.</p>
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>
+</body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) { toast('Pop-up blocked — allow pop-ups to make the invoice.', true); return; }
+      w.document.open(); w.document.write(html); w.document.close();
+      toast('Opening invoice — choose “Save as PDF”.');
+    }
+
     // ── Session ──
     function forceRelogin() {
       authPin = ''; localStorage.removeItem('timePin');
@@ -524,6 +607,8 @@
     $('nextWeek').addEventListener('click', () => { weekStart = addDays(weekStart, 7); render(); });
     $('todayBtn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); render(); });
     $('csvBtn').addEventListener('click', downloadCsv);
+    $('invoiceBtn').addEventListener('click', downloadInvoice);
+    $('mgrFilter').addEventListener('change', e => { mgrFilter = e.target.value; render(); });
     $('editCancel').addEventListener('click', closeEdit);
     $('editSave').addEventListener('click', saveEdit);
     $('editDelete').addEventListener('click', deleteEntry);

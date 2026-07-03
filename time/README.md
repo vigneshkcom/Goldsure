@@ -85,6 +85,14 @@ shift times and hours only — **no pay figures** (earnings stay in the manager 
 Best-effort and bounded, so an email hiccup never blocks a clock action. Change the recipients with
 `TIME_MANAGER_EMAIL` (comma-separated for several); requires `RESEND_API_KEY` (already set).
 
+## Invoice PDF (manager)
+
+In the manager view, pick an agent from the **All agents** dropdown, choose the week,
+then hit **🧾 Invoice PDF** — it opens a print-ready invoice **from that agent to Goldsure
+Pty Ltd** for that week (day, shift times, hours, rate, amount; **no GST** — not a tax
+invoice). Use the browser print dialog's *Save as PDF* to file it as a bill in Xero.
+Completed shifts only; manager view only (agents can't generate it).
+
 ## Forgotten clock-out
 
 If someone forgets to clock out, the shift shows **"In progress"** and, after 18h,
