@@ -511,6 +511,89 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Route: staff leave planner notification ──
+  // Powers /calendar/staff-leave-planner.html — when someone marks days as
+  // unavailable, the browser posts { leave: { staff_name, leave_type, reason,
+  // leave_start, leave_end, days } } and we email the manager a branded summary.
+  // Kept in this handler (routed on body.leave) to stay under Vercel's function limit.
+  if (body.leave !== undefined) {
+    const leave = body.leave || {};
+    const staffName = String(leave.staff_name || '').trim();
+    const leaveType = String(leave.leave_type || '').trim();
+    if (!staffName || !leave.leave_start || !leave.leave_end) {
+      return res.status(400).json({ error: 'Missing leave details (staff_name, leave_start, leave_end).' });
+    }
+
+    const NOTIFY_EMAIL = process.env.LEAVE_NOTIFY_EMAIL || 'vignesh@goldsure.com.au';
+    const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
+    const escL = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmtLeaveDate = (iso) => {
+      const d = new Date(String(iso) + 'T00:00:00');
+      return isNaN(d) ? String(iso) : d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    };
+    const startStr = fmtLeaveDate(leave.leave_start);
+    const endStr = fmtLeaveDate(leave.leave_end);
+    const rangeStr = leave.leave_start === leave.leave_end ? startStr : `${startStr} → ${endStr}`;
+    const days = Number(leave.days) || 1;
+    const reason = String(leave.reason || '').trim();
+
+    const row = (label, val, first) => `<tr><td style="padding:12px 16px;background:#f7f8fa;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;width:38%;">${escL(label)}</td><td style="padding:12px 16px;${first ? '' : 'border-top:1px solid #e7e7ec;'}font-size:14px;font-weight:600;color:#1d1d1f;">${escL(val)}</td></tr>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eceef3;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#eceef3" style="background:#eceef3;"><tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:100%;background:#ffffff;border:1px solid #e4e6ee;border-radius:14px;overflow:hidden;">
+      <tr><td style="padding:20px 28px;border-bottom:3px solid #caa84a;"><table width="100%"><tr>
+        <td><img src="${LOGO}" alt="Goldsure" height="30" style="height:30px;display:block;border:0;"></td>
+        <td align="right" style="font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#b8962e;">Staff Leave Planner</td>
+      </tr></table></td></tr>
+      <tr><td style="padding:26px 28px 8px;">
+        <p style="margin:0 0 4px;font-size:13px;color:#8a8a93;">Marked as unavailable</p>
+        <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1d1d1f;">${escL(staffName)}</p>
+      </td></tr>
+      <tr><td style="padding:0 28px 26px;"><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e7e7ec;border-radius:10px;overflow:hidden;">
+        ${row('Leave type', leaveType || 'Leave', true)}
+        ${row('Dates', rangeStr)}
+        ${row('Days', days + (days === 1 ? ' day' : ' days'))}
+        ${reason
+          ? `<tr><td style="padding:14px 16px;background:#caa84a;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Reason</td><td style="padding:14px 16px;background:#fbf6e8;font-size:14px;font-weight:600;color:#1d1d1f;">${escL(reason)}</td></tr>`
+          : ''}
+      </table></td></tr>
+      <tr><td style="padding:0 28px 28px;"><p style="margin:0;font-size:12px;color:#8a8a93;">Logged from the Goldsure Staff Leave Planner.</p></td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+    const text = `${staffName} marked as unavailable.\nLeave type: ${leaveType || 'Leave'}\nDates: ${rangeStr} (${days} ${days === 1 ? 'day' : 'days'})${reason ? `\nReason: ${reason}` : ''}`;
+
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[Leave] RESEND_API_KEY not set — email skipped');
+      return res.status(200).json({ success: false, skipped: true, warning: 'Email not configured on the server.' });
+    }
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Goldsure Leave Planner <vignesh@goldsure.com.au>',
+          to: [NOTIFY_EMAIL],
+          subject: `${staffName} unavailable — ${rangeStr}${leaveType ? ` (${leaveType})` : ''}`,
+          html,
+          text,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(async () => ({ error: await response.text() }));
+        console.error('[Leave] notification send failed:', error);
+        return res.status(500).json({ error: 'Failed to send email.', detail: error });
+      }
+      const result = await response.json();
+      return res.status(200).json({ success: true, id: result.id });
+    } catch (err) {
+      console.error('[Leave] notification server error:', err);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+
   // ── Route: install-summary relay (pre-built HTML from frontend) ──
   if (body.html !== undefined) {
     const { from, to, subject, html } = body;

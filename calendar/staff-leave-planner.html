@@ -559,7 +559,7 @@ select.fc {
       <label class="fl">Staff Member</label>
       <select class="fc" id="fStaff">
         <option value="">Select staff member...</option>
-        <option>Andrew McLeod</option>
+        <option>Shanira Gonzalez</option>
         <option>Adam Sicari</option>
         <option>Amit Chowdhary</option>
         <option>Vignesh Kirubakaran</option>
@@ -570,6 +570,10 @@ select.fc {
       <label class="fl">Leave Type</label>
       <input list="leaveTypes" class="fc" id="fType" placeholder="e.g. Annual, Holidays..." autocomplete="off">
       <datalist id="leaveTypes"></datalist>
+    </div>
+    <div class="fg">
+      <label class="fl">Reason / Note</label>
+      <input class="fc" id="fReason" placeholder="Reason for being unavailable (optional)" autocomplete="off">
     </div>
     <div class="f2">
       <div class="fg"><label class="fl">Start Date</label><input type="date" class="fc" id="fStart"></div>
@@ -606,7 +610,7 @@ const DAY_W  = 36;   // px — must match CSS --day-w
 const N_MTHS = 3;    // months displayed at once
 
 const STAFF = [
-  'Andrew McLeod',
+  'Shanira Gonzalez',
   'Adam Sicari',
   'Amit Chowdhary',
   'Vignesh Kirubakaran',
@@ -1213,6 +1217,7 @@ async function loadCalEvents() {
 async function saveLv() {
   const staff_name  = document.getElementById('fStaff').value;
   const leave_type  = document.getElementById('fType').value;
+  const reason      = document.getElementById('fReason').value.trim();
   const leave_start = document.getElementById('fStart').value;
   const leave_end   = document.getElementById('fEnd').value;
 
@@ -1226,6 +1231,8 @@ async function saveLv() {
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'Saving...';
 
+  // Reason is captured for the manager notification only; it is not written to the
+  // staff_leave_planner table so the DB insert keeps working against the existing schema.
   const entry = { staff_name, leave_type, leave_start, leave_end };
   try {
     const { data, error } = await sb.from('staff_leave_planner').insert([entry]).select();
@@ -1238,10 +1245,38 @@ async function saveLv() {
     toast('Saved locally (DB error: ' + e.message + ')', 'err');
   }
 
+  // Notify the manager that someone marked days as unavailable (best-effort).
+  notifyLeave({ staff_name, leave_type, reason, leave_start, leave_end });
+
   document.getElementById('lvCount').textContent = leaveData.length + ' leave entries';
   closeModal();
   render();
   btn.disabled = false; btn.textContent = 'Save Leave';
+}
+
+/* =====================================================
+   NOTIFY MANAGER — email vignesh@ when leave is marked
+   ─────────────────────────────────────────────────
+   Posts to the shared reports handler, which builds a
+   branded HTML email and relays it via Resend. Fire-and-
+   forget: a notification failure never blocks the save.
+===================================================== */
+async function notifyLeave(entry) {
+  const days = Math.round(
+    (new Date(entry.leave_end + 'T00:00:00') - new Date(entry.leave_start + 'T00:00:00'))
+    / 86400000) + 1;
+  try {
+    const res = await fetch('/api/smoke-alarms/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leave: { ...entry, days } }),
+    });
+    if (!res.ok) {
+      console.warn('[Leave] notification email failed:', res.status);
+    }
+  } catch (e) {
+    console.warn('[Leave] notification email error (continuing):', e.message);
+  }
 }
 
 /* =====================================================
@@ -1356,6 +1391,7 @@ function updateDragGhost(startDate, endDate) {
 function openModal(name, startDate, endDate) {
   document.getElementById('fStaff').value = name || '';
   document.getElementById('fType').value  = '';
+  document.getElementById('fReason').value = '';
   document.getElementById('fStart').value = startDate || '';
   document.getElementById('fEnd').value   = endDate || startDate || '';
   document.getElementById('moWrap').classList.add('open');
