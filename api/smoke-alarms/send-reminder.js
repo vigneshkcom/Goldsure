@@ -63,6 +63,7 @@ async function sendReminderSms(data) {
     } catch (_) { /* if the check fails, still send the transactional reminder */ }
 
     const agentFirst = (data.agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+    const customerFirst = (data.customer_name || 'there').trim().split(/\s+/)[0] || 'there';
     const isInstall  = data.service_type === 'Installation Quote';
     const alarmCount = qty(data.alarm_qty);
     const totalDisplay = money(data.grand_total_numeric ?? data.grand_total);
@@ -73,7 +74,7 @@ async function sendReminderSms(data) {
       : `, total ${totalDisplay}`;
 
     const smsText =
-      `Hi ${data.customer_name || 'there'}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
+      `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
       `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
       `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\n` +
       `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +

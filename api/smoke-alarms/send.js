@@ -270,6 +270,7 @@ export default async function handler(req, res) {
         console.log('[QuoteSMS] skipped — SMSGATE credentials not configured');
       } else {
         const agentFirst = (agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+        const customerFirst = (customer_name || 'there').trim().split(/\s+/)[0] || 'there';
         // Mention the alarm count on installation quotes (an inspection quote
         // has no alarm line items, so quoting a count there would mislead).
         const alarmCount = parseInt(alarm_qty, 10) || 0;
@@ -277,7 +278,7 @@ export default async function handler(req, res) {
           ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${grand_total} total)`
           : `Your smoke alarm quote (${grand_total} total)`;
         const smsText =
-          `Hi ${customer_name}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
+          `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
           `${quoteSummary} has just been emailed to ${to_email}. ` +
           `Please check your inbox and your spam/junk folder. ` +
           `Ready to proceed? Just tap Accept This Quote at the bottom of the email and we'll call you to book it in. ` +
@@ -327,6 +328,69 @@ export default async function handler(req, res) {
       }
     } catch (smsErr) {
       console.error('[QuoteSMS] confirmation SMS failed (non-fatal):', smsErr.message);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // LOG A NOTE ON THE GHL CONTACT/OPPORTUNITY — best-effort, non-fatal
+  //
+  // Finds the customer's GHL contact by email and adds a note recording
+  // that the quote was sent (agent, line items, total). The note appears
+  // on the contact and their opportunity timeline. Any failure here must
+  // NOT fail the request — the email has already been sent.
+  // ════════════════════════════════════════════════════════════
+  if (emailSuccess) {
+    try {
+      const ghlKey = process.env.GHL_API_KEY;
+      const ghlLoc = process.env.GHL_LOCATION_ID;
+      if (!ghlKey || !ghlLoc) {
+        console.log('[QuoteNote] skipped — GHL credentials not configured');
+      } else {
+        const ghlHeaders = { Authorization: `Bearer ${ghlKey}`, Version: '2021-07-28', Accept: 'application/json' };
+
+        // Find the contact by email (same lookup pattern as ghl.js).
+        const cRes = await fetch(
+          `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(ghlLoc)}&query=${encodeURIComponent(to_email)}&limit=5`,
+          { headers: ghlHeaders }
+        );
+        const cData = await cRes.json().catch(() => ({}));
+        const contacts = cData.contacts || [];
+        const contact = contacts.find(c => (c.email || '').toLowerCase() === String(to_email).toLowerCase()) || contacts[0];
+
+        if (!contact || !contact.id) {
+          console.log('[QuoteNote] no GHL contact found for', to_email);
+        } else {
+          const noteLines = [
+            'Smoke Alarm Quote sent',
+            `Agent: ${agent_name || 'Goldsure'}`,
+            `Service: ${service_type || 'Quote'}`,
+            `Alarms: ${alarm_qty} (${alarm_total})`,
+          ];
+          if ((parseInt(ctrl_qty, 10) || 0) > 0) noteLines.push(`Controller: ${ctrl_qty} (${ctrl_total})`);
+          noteLines.push(`${fee_label}: ${fee_amount}`);
+          noteLines.push(`Total (incl. GST): ${grand_total}`);
+          noteLines.push(`Emailed to: ${to_email}`);
+          if (customer_phone) noteLines.push(`Confirmation SMS: ${smsSent ? 'sent' : 'not sent'}`);
+
+          const nRes = await fetch(
+            `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`,
+            {
+              method: 'POST',
+              headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ body: noteLines.join('\n') }),
+            }
+          );
+
+          if (nRes.ok) {
+            console.log('[QuoteNote] GHL note added for contact', contact.id);
+          } else {
+            const detail = await nRes.text().catch(() => '');
+            console.error('[QuoteNote] GHL note failed:', nRes.status, detail.slice(0, 200));
+          }
+        }
+      }
+    } catch (noteErr) {
+      console.error('[QuoteNote] GHL note failed (non-fatal):', noteErr.message);
     }
   }
 
