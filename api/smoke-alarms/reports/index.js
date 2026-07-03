@@ -524,7 +524,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing leave details (staff_name, leave_start, leave_end).' });
     }
 
-    const NOTIFY_EMAIL = process.env.LEAVE_NOTIFY_EMAIL || 'vignesh@goldsure.com.au';
+    // Notify both the manager and Amit. Override with LEAVE_NOTIFY_EMAIL (comma-separated).
+    const NOTIFY_EMAILS = (process.env.LEAVE_NOTIFY_EMAIL || 'vignesh@goldsure.com.au,amit@goldsure.com.au')
+      .split(',').map(e => e.trim()).filter(Boolean);
     const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const escL = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const fmtLeaveDate = (iso) => {
@@ -575,7 +577,7 @@ export default async function handler(req, res) {
         headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: 'Goldsure Leave Planner <vignesh@goldsure.com.au>',
-          to: [NOTIFY_EMAIL],
+          to: NOTIFY_EMAILS,
           subject: `${staffName} unavailable — ${rangeStr}${leaveType ? ` (${leaveType})` : ''}`,
           html,
           text,
