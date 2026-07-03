@@ -360,24 +360,12 @@ export default async function handler(req, res) {
         if (!contact || !contact.id) {
           console.log('[QuoteNote] no GHL contact found for', to_email);
         } else {
-          const noteLines = [
-            'Smoke Alarm Quote sent',
-            `Agent: ${agent_name || 'Goldsure'}`,
-            `Service: ${service_type || 'Quote'}`,
-            `Alarms: ${alarm_qty} (${alarm_total})`,
-          ];
-          if ((parseInt(ctrl_qty, 10) || 0) > 0) noteLines.push(`Controller: ${ctrl_qty} (${ctrl_total})`);
-          noteLines.push(`${fee_label}: ${fee_amount}`);
-          noteLines.push(`Total (incl. GST): ${grand_total}`);
-          noteLines.push(`Emailed to: ${to_email}`);
-          if (customer_phone) noteLines.push(`Confirmation SMS: ${smsSent ? 'sent' : 'not sent'}`);
-
           const nRes = await fetch(
             `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`,
             {
               method: 'POST',
               headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ body: noteLines.join('\n') }),
+              body: JSON.stringify({ body: 'Quote sent from Portal' }),
             }
           );
 

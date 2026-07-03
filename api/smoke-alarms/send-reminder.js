@@ -33,6 +33,43 @@ function normalizeAuPhone(raw) {
   return s;
 }
 
+// Add a note to the customer's GHL contact (visible on their opportunity).
+// Best-effort: looks the contact up by email, never throws.
+async function addGhlNote(customerEmail, noteBody) {
+  const ghlKey = process.env.GHL_API_KEY;
+  const ghlLoc = process.env.GHL_LOCATION_ID;
+  if (!ghlKey || !ghlLoc || !customerEmail) {
+    if (!ghlKey || !ghlLoc) console.log('[ReminderNote] skipped — GHL credentials not configured');
+    return;
+  }
+  const ghlHeaders = { Authorization: `Bearer ${ghlKey}`, Version: '2021-07-28', Accept: 'application/json' };
+  try {
+    const cRes = await fetch(
+      `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(ghlLoc)}&query=${encodeURIComponent(customerEmail)}&limit=5`,
+      { headers: ghlHeaders }
+    );
+    const cData = await cRes.json().catch(() => ({}));
+    const contacts = cData.contacts || [];
+    const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customerEmail).toLowerCase()) || contacts[0];
+    if (!contact || !contact.id) {
+      console.log('[ReminderNote] no GHL contact found for', customerEmail);
+      return;
+    }
+    const nRes = await fetch(
+      `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`,
+      {
+        method: 'POST',
+        headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: noteBody }),
+      }
+    );
+    if (nRes.ok) console.log('[ReminderNote] GHL note added for contact', contact.id);
+    else console.error('[ReminderNote] GHL note failed:', nRes.status, (await nRes.text().catch(() => '')).slice(0, 200));
+  } catch (err) {
+    console.error('[ReminderNote] GHL note failed (non-fatal):', err.message);
+  }
+}
+
 // Send a reminder SMS via SMS Gate, logged to sms_messages so it appears in
 // the customer's chat thread and gets delivery tracking. Best-effort: returns
 // true on success, false otherwise, and never throws. Respects SPAM Act
@@ -322,6 +359,9 @@ export default async function handler(req, res) {
       const error = await resendResponse.json().catch(() => ({}));
       return res.status(500).json({ error: 'Failed to send reminder email.', detail: error });
     }
+
+    // Log a note on the customer's GHL contact/opportunity (best-effort).
+    await addGhlNote(customer_email, 'Reminder sent from Portal');
 
     // Also text the customer a reminder (best-effort — never fails the request,
     // the email has already gone out).
