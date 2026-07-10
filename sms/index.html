@@ -3017,12 +3017,13 @@
 
   // Five worded-differently "we missed you" messages per pipeline, so a lead
   // chased several times doesn't receive the exact same SMS each time. Send
-  // them in order (1st Attempt → 5th) as attempts fail. `topic` is the enquiry
-  // phrase for the pipeline. If `discount` ({ service, code, noteText }) is
-  // given, the 5th is a final "we've tried several times, here's $30 off if you
-  // call and quote this code" lure — the last touch before the lead is dumped —
-  // and it auto-logs `noteText` on the contact when sent (see pendingSendNote)
-  // so anyone who takes their call-back can honour the code.
+  // them in order (1st Attempt → Final) as attempts fail. `topic` is the enquiry
+  // phrase for the pipeline. The 5th is always a "we've tried several times, we
+  // won't keep bothering you" sign-off — the last touch before the lead is
+  // dumped. If `discount` ({ amount, service, code, noteText }) is given, that
+  // sign-off doubles as a final lure ("call and quote this code for $X off") and
+  // auto-logs `noteText` on the contact when sent (see pendingSendNote) so
+  // whoever takes the call-back knows exactly how to handle the discount.
   const NR_LINK = 'https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-';
   function notReachableTemplates(topic, discount) {
     const items = [
@@ -3036,10 +3037,13 @@
 `Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nI've tried reaching you a few times now about your ${topic} but keep just missing you. \n\nIf it's easier, reply here with a good time and I'll call you back then, or you can book a slot directly: ${NR_LINK}. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
     ];
     if (discount) {
-      items.push({ name: 'Not Reachable – $30 Off (Final)',
+      items.push({ name: `Not Reachable – Final (${discount.amount} Off)`,
         note: { text: discount.noteText, requires: discount.code },
         body:
-`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nWe've tried reaching you several times about your ${topic} but haven't been able to get through. \n\nBefore we close your file, we'd love to still help — give us a quick call on {{pipeline.phone}} and quote code ${discount.code}, and we'll take $30 off your ${discount.service}. \n\nHope to hear from you soon. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` });
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nWe've tried reaching you several times about your ${topic} but haven't been able to get through, so we won't keep bothering you. \n\nBefore we close your file though, we'd love to still help — give us a quick call on {{pipeline.phone}} and quote code ${discount.code}, and we'll take ${discount.amount} off your ${discount.service}. \n\nHope to hear from you soon. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` });
+    } else {
+      items.push({ name: 'Not Reachable – Final Sign-off', body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nWe've tried reaching you several times about your ${topic} without any luck, so we won't keep bothering you. \n\nIf you'd still like to go ahead down the track, just reply to this message or call us on {{pipeline.phone}} anytime — we'd be glad to help. \n\nAll the best, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` });
     }
     return items;
   }
@@ -3049,14 +3053,19 @@
   const TEMPLATES = [
     { folder: 'Smoke Alarms', match: /smoke/i, open: true, items: [
       ...notReachableTemplates('smoke alarm upgrade enquiry', {
+        amount: '$30',
         service: 'smoke alarm compliance service',
         code: 'SMOKE30',
-        noteText: '$30 off discount code SMOKE30 sent via SMS (final not-reachable follow-up). Apply $30 off the final bill if the customer calls back to book.' }),
+        noteText: '$30 off code SMOKE30 sent via SMS as the final not-reachable lure. Apply a genuine $30 off the final bill if the customer calls back to book.' }),
       { name: 'Quote Sent (No Answer)', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on {{pipeline.phone}}, or book a convenient time for a call using this link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-\n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
     ]},
     { folder: 'HWS', match: /hws|hot ?water/i, open: false, items: [
-      ...notReachableTemplates('hot water system enquiry'),
+      ...notReachableTemplates('hot water system enquiry', {
+        amount: '$100',
+        service: 'hot water system installation',
+        code: 'HWS100',
+        noteText: 'Tried this customer multiple times — sent the $100-off SMS (code HWS100) as the final not-reachable lure. WHEN QUOTING: add $100 to the normal price first, then "apply" the $100 off so the final figure is unchanged. E.g. if the job is $998, quote $1,098 and apply the $100 discount to land back at $998, so the customer feels they got the $100 off.' }),
       { name: 'Consent Form – Jotform', body:
 `Hi {{contact.first_name}},\n\nTo proceed with your hot water system installation, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check rebate eligibility and book your installation.\n\nThank you,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
       { name: 'IHA Appointment – Next Day Reminder', body:
