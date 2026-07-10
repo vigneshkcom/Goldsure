@@ -949,6 +949,10 @@
   }
   let ghlTimer = null;
   let noteMode = false;
+  // Set when a template that should auto-log a GHL note (e.g. the $30-off code)
+  // is applied. { text, requires }: after the SMS sends we post `text` as a note
+  // to the contact, but only if the sent message still contains `requires`.
+  let pendingSendNote = null;
   let previewMode = 'message'; // live phone preview: 'message' | 'lock'
   let currentThreadMsgs = [];  // messages of the open conversation (for the phone preview)
   let schedBarOpen = false;
@@ -1781,6 +1785,22 @@
       const data = await res.json();
 
       if (data.success) {
+        // Auto-log the discount note on the contact once the SMS actually sent,
+        // so anyone who calls back can honour the code. Best-effort: never block
+        // or alert on the message itself if the note fails.
+        if (pendingSendNote && (!pendingSendNote.requires || message.includes(pendingSendNote.requires))) {
+          const noteText = pendingSendNote.text;
+          pendingSendNote = null;
+          try {
+            await fetch(API, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'note', phone: activePhone, message: noteText }),
+            });
+          } catch { /* note is best-effort */ }
+        } else {
+          pendingSendNote = null;
+        }
         await reloadMessages();
         await loadContacts();
       } else if (res.status === 403 && data.optedOut) {
@@ -3020,6 +3040,8 @@
       ...notReachableTemplates('smoke alarm upgrade enquiry'),
       { name: 'Quote Sent (No Answer)', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on {{pipeline.phone}}, or book a convenient time for a call using this link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-\n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: '$30 Off – Booking Offer', note: { text: '$30 off discount code SMOKE30 sent via SMS. Apply $30 off the final bill if the customer calls to book.', requires: 'SMOKE30' }, body:
+`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nAs a thank-you for your smoke alarm upgrade enquiry, we'd like to offer you $30 off your smoke alarm compliance service. \n\nTo claim it, simply give us a call on {{pipeline.phone}} and quote your discount code SMOKE30 when you book — we'll take $30 off your final bill. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
     ]},
     { folder: 'HWS', match: /hws|hot ?water/i, open: false, items: [
       ...notReachableTemplates('hot water system enquiry'),
@@ -3113,7 +3135,7 @@
     if (item) {
       const fi = parseInt(item.dataset.fi, 10);
       const ii = parseInt(item.dataset.ii, 10);
-      applyTemplate(TEMPLATES[fi].items[ii].body, fi);
+      applyTemplate(TEMPLATES[fi].items[ii].body, fi, TEMPLATES[fi].items[ii].note);
     }
   });
 
@@ -3153,8 +3175,10 @@
     setChatHeader(activePhone);
   }
 
-  function applyTemplate(body, folderIdx) {
+  function applyTemplate(body, folderIdx, note) {
     let text = body;
+    // Remember any note this template should log once the SMS is sent.
+    pendingSendNote = note || null;
 
     // Substitute {{contact.first_name}} — manual Customer field first, then GHL cache
     const custInput = document.getElementById('tplCustInput');
