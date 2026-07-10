@@ -3048,11 +3048,34 @@
     return items;
   }
 
+  // Smoke Alarms gets its own, more professional not-reachable sequence built
+  // around Queensland's smoke alarm legislation: from 1 January 2027 every home
+  // must have interconnected photoelectric smoke alarms. Each message uses that
+  // deadline plus the "book early before prices rise / avoid the last-minute
+  // rush" angle. `discount` ({ amount, service, code, noteText }) drives the 5th
+  // and final lure, which auto-logs its note when sent (see pendingSendNote).
+  function smokeNotReachableTemplates(discount) {
+    return [
+      { name: 'Not Reachable – 1st Attempt', body:
+`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe recently tried to reach you regarding your smoke alarm upgrade enquiry. Under Queensland legislation, from 1 January 2027 every home must have interconnected photoelectric smoke alarms installed, and we'd be glad to help you meet these requirements. \n\nYou can book a convenient time for a quick call here: ${NR_LINK} or simply reply to this message and we'll be in touch. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – 2nd Attempt', body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nI tried calling again about upgrading your smoke alarms to meet Queensland's 1 January 2027 compliance requirements but wasn't able to reach you. \n\nGetting this sorted early means one less thing to worry about, and avoids the rush as the deadline approaches. You can pick a time that suits you here: ${NR_LINK} or reply to this message anytime. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – 3rd Attempt', body:
+`Hi {{contact.first_name}}, it's {{user.first_name}} from Goldsure. \n\nJust following up on your smoke alarm enquiry. With the 1 January 2027 deadline for interconnected photoelectric alarms approaching, demand is increasing and prices are expected to rise closer to the date, so it's well worth getting in early. \n\nWhen's a good time for a quick chat? Reply here or book directly: ${NR_LINK}. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – 4th Attempt', body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nI've tried reaching you a few times now about bringing your smoke alarms up to Queensland's 2027 standard. \n\nThere's no need to leave it until the last minute; booking now secures today's pricing and avoids the pre-deadline rush. Reply with a good time and I'll call you back, or book directly here: ${NR_LINK}. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: `Not Reachable – Final (${discount.amount} Off)`,
+        note: { text: discount.noteText, requires: discount.code },
+        body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nWe've tried reaching you several times about upgrading your smoke alarms for Queensland's 1 January 2027 compliance requirements, so we won't keep bothering you. \n\nBefore we close your file though, we'd like to help you get ahead of the deadline: give us a quick call on {{pipeline.phone}} and quote code ${discount.code}, and we'll take ${discount.amount} off your ${discount.service}. Booking early also helps you avoid the price increases expected as 2027 approaches. \n\nHope to hear from you soon. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+    ];
+  }
+
   // `match` is tested against the contact's GHL pipeline name to decide which
   // folders to show. Contacts not in GHL (or with an unrecognised pipeline) see all.
   const TEMPLATES = [
     { folder: 'Smoke Alarms', match: /smoke/i, open: true, items: [
-      ...notReachableTemplates('smoke alarm upgrade enquiry', {
+      ...smokeNotReachableTemplates({
         amount: '$30',
         service: 'smoke alarm compliance service',
         code: 'SMOKE30',
