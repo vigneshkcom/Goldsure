@@ -2995,18 +2995,34 @@
   const CONSENT_BODY =
 `Hi {{contact.first_name}}, \n\nThank you for your recent call regarding energy efficient upgrades at your property. To assist you further, we need your consent to proceed. Please reply to this message with 'YES' via SMS to confirm your consent and our team will be in contact to continue the upgrade process.\n\nWe look forward to hearing back from you and exploring how we can help you achieve your energy efficiency goals.\n\nBest regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}`;
 
+  // Several worded-differently "we missed you" messages per pipeline, so a
+  // lead who is chased more than once doesn't receive the exact same SMS each
+  // time. `topic` is the enquiry phrase for that pipeline. Pick the variant
+  // that matches how many times you've already tried (1st Attempt → Final).
+  const NR_LINK = 'https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-';
+  function notReachableTemplates(topic) {
+    return [
+      { name: 'Not Reachable – 1st Attempt', body:
+`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your ${topic} but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: ${NR_LINK} or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – Follow-up', body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here again. \n\nI tried giving you another call about your ${topic} but just missed you. \n\nNo problem at all — you can pick a time that suits you here: ${NR_LINK}, or simply reply to this message and I'll work around your schedule. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – Another Try', body:
+`Hi {{contact.first_name}}, it's {{user.first_name}} from Goldsure. \n\nStill keen to help with your ${topic} — I've tried reaching you by phone but haven't been able to get through. \n\nWhen's a good time to chat? Reply here with a time that works for you, or grab a slot directly: ${NR_LINK}. \n\nCheers, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Not Reachable – Final Check-in', body:
+`Hi {{contact.first_name}}, {{user.first_name}} from Goldsure here. \n\nI've tried a few times to reach you about your ${topic} without any luck, and I don't want to keep bothering you, so I'll leave it with you for now. \n\nIf you'd still like to go ahead, just reply to this message or book a quick call whenever suits: ${NR_LINK}. Happy to help whenever you're ready. \n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+    ];
+  }
+
   // `match` is tested against the contact's GHL pipeline name to decide which
   // folders to show. Contacts not in GHL (or with an unrecognised pipeline) see all.
   const TEMPLATES = [
     { folder: 'Smoke Alarms', match: /smoke/i, open: true, items: [
-      { name: 'Not Reachable', body:
-`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your smoke alarm upgrade enquiry but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar- or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      ...notReachableTemplates('smoke alarm upgrade enquiry'),
       { name: 'Quote Sent (No Answer)', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on {{pipeline.phone}}, or book a convenient time for a call using this link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar-\n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
     ]},
     { folder: 'HWS', match: /hws|hot ?water/i, open: false, items: [
-      { name: 'Not Reachable', body:
-`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your hot water system enquiry but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar- or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      ...notReachableTemplates('hot water system enquiry'),
       { name: 'Consent Form – Jotform', body:
 `Hi {{contact.first_name}},\n\nTo proceed with your hot water system installation, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check rebate eligibility and book your installation.\n\nThank you,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
       { name: 'IHA Appointment – Next Day Reminder', body:
@@ -3014,8 +3030,7 @@
       { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
     ]},
     { folder: 'Aircon', match: /air ?con|\ba\/?c\b/i, open: false, items: [
-      { name: 'Not Reachable', body:
-`Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling you regarding your air conditioning enquiry but couldn't reach you. \n\nYou can book in a time for a call using this calendar link: https://api.leadconnectorhq.com/widget/bookings/goldsure-booking-calendar- or message us here, and we'll get in touch with you at your preferred time. \n\nThanks, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      ...notReachableTemplates('air conditioning enquiry'),
       { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
     ]},
   ];
