@@ -940,6 +940,10 @@
   const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Cpath d='M6 8h20c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-9l-4 4v-4H6c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z' fill='white'/%3E%3C/svg%3E";
   let activePhone = null;
   let pollTimer = null;
+  // How often open views re-poll. Paused entirely while the tab is hidden —
+  // inbound SMS are still captured server-side by the webhook regardless, so
+  // nothing is missed; we refresh immediately when the tab is shown again.
+  const POLL_MS = 20000;
   let allContacts = [];
   let bulkThreads = { campaigns: [], count: 0, latest: null }; // bulk-only conversations, grouped by campaign
   let bulkGroupsOpen = new Set(); // campaign names currently expanded in the sidebar
@@ -1441,8 +1445,8 @@
 
     clearInterval(pollTimer);
     await reloadMessages();
-    // Poll the open thread every 5s so replies show up quickly (was 20s).
-    pollTimer = setInterval(() => reloadMessages(), 5000);
+    // Poll the open thread on the shared cadence (paused while tab hidden).
+    pollTimer = setInterval(() => reloadMessages(), POLL_MS);
     document.getElementById('msgInput').focus();
     updatePhonePreview();
   }
@@ -1569,24 +1573,37 @@
     localStorage.setItem('notifyEnabled', '0');
   }
   updateBellUI();
-  // Refresh the conversation list every 5s (was 25s) so new inbound replies —
-  // and their desktop notifications — surface quickly instead of up to ~25s late.
-  setInterval(refreshContacts, 5000);
 
-  // Background tabs have their timers heavily throttled by the browser, which can
-  // stretch the polls above to a minute or more. So the moment the portal regains
-  // focus/visibility, refresh immediately instead of waiting for the next tick.
-  let lastReturnRefresh = 0;
-  function refreshOnReturn() {
-    if (document.visibilityState === 'hidden') return;
-    const now = Date.now();
-    if (now - lastReturnRefresh < 1500) return; // collapse the focus+visibility burst
-    lastReturnRefresh = now;
-    refreshContacts();
-    if (activePhone) reloadMessages();
+  // ── Polling lifecycle ──────────────────────────────────────────────────────
+  // Refresh the conversation list on the shared cadence, but ONLY while the tab
+  // is visible. When hidden we stop every timer (an idle/background tab then makes
+  // no requests); inbound SMS are still captured server-side by the webhook and
+  // emailed to the team, so nothing is missed. On return we refresh immediately.
+  let contactsTimer = null;
+  function startPolling() {
+    if (!contactsTimer) contactsTimer = setInterval(refreshContacts, POLL_MS);
+    if (activePhone && !pollTimer) pollTimer = setInterval(() => reloadMessages(), POLL_MS);
   }
-  document.addEventListener('visibilitychange', refreshOnReturn);
-  window.addEventListener('focus', refreshOnReturn);
+  function stopPolling() {
+    if (contactsTimer) { clearInterval(contactsTimer); contactsTimer = null; }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  if (document.visibilityState !== 'hidden') startPolling();
+
+  let lastReturnRefresh = 0;
+  function onVisibility() {
+    if (document.visibilityState === 'hidden') { stopPolling(); return; }
+    // Visible again: catch up immediately, then resume the timers.
+    const now = Date.now();
+    if (now - lastReturnRefresh >= 1500) { // collapse the focus+visibility burst
+      lastReturnRefresh = now;
+      refreshContacts();
+      if (activePhone) reloadMessages();
+    }
+    startPolling();
+  }
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus', onVisibility);
 
   // ── Sync inbox (inbox/export → webhooks → Supabase) ────────────────────────
   async function syncInbox() {
