@@ -829,10 +829,10 @@ export default async function handler(req, res) {
     //    missing brochure can never fail the send. ──
     const SITE = 'https://portal.goldsure.com.au';
     const BROCHURES = {
-      // 'ECON-300SV':       `${SITE}/assets/hotwater/ECON-300SV.pdf`,
-      // 'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
-      // 'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
-      // 'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
+      'ECON-300SV':       `${SITE}/assets/hotwater/ECON-300SV.pdf`,
+      'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
+      'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
+      'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
     };
 
     // Build product line-item rows
@@ -861,7 +861,7 @@ export default async function handler(req, res) {
   <table role="presentation" width="600" border="0" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(20,28,46,0.08);">
 
     <!-- Header -->
-    <tr><td style="background:#0e1116;padding:22px 32px;">
+    <tr><td style="background:#000000;padding:22px 32px;">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
         <td valign="middle"><img src="${SITE}/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="150" style="display:block;width:150px;height:auto;"></td>
         <td valign="middle" align="right">
@@ -925,7 +925,7 @@ export default async function handler(req, res) {
 
     <!-- Out of pocket -->
     <tr><td style="padding:16px 32px 0;">
-      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#0e1116;border-radius:6px;"><tr>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#000000;border-radius:6px;"><tr>
         <td style="padding:16px 20px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9a13b;">Your Total Out-of-Pocket</td>
         <td style="padding:16px 20px;font-family:${FONT};font-size:24px;font-weight:700;color:#ffffff;text-align:right;">${money(total_out_of_pocket)}</td>
       </tr></table>
@@ -939,26 +939,25 @@ export default async function handler(req, res) {
       <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 30 days from ${quoteDate}.</div>
     </td></tr>
 
-    <!-- Payment + notes -->
+    <!-- Notes -->
     <tr><td style="padding:22px 32px 0;font-family:${FONT};">
-      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#f7f8fa;border-radius:6px;"><tr><td style="padding:14px 16px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#9aa2b1;margin-bottom:6px;">Payment Details</div>
-        <div style="font-size:12px;color:#3d4658;line-height:1.7;">Account Name: <strong style="color:#141c2e;">Goldsure Pty Ltd</strong> &nbsp;·&nbsp; BSB: <strong style="color:#141c2e;">063 147</strong> &nbsp;·&nbsp; Account: <strong style="color:#141c2e;">10928147</strong><br>Please use your name as the payment reference. Payment is due on completion of installation.</div>
-      </td></tr></table>
-      <p style="margin:14px 0 0;font-size:10px;color:#aeb4c0;line-height:1.6;">This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Rebate eligibility is subject to Solar Victoria and scheme approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty.</p>
+      <p style="margin:0;font-size:10px;color:#aeb4c0;line-height:1.6;">This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Rebate eligibility is subject to Solar Victoria and scheme approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty.</p>
     </td></tr>
 
     <!-- Signature -->
     <tr><td style="padding:20px 32px 24px;font-family:${FONT};">
-      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #eef0f4;"><tr><td style="padding-top:16px;">
-        <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(agent_name || 'The Goldsure Team')}</div>
-        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
-        <div style="font-size:12px;color:#5b6577;line-height:1.7;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a> &nbsp;·&nbsp; w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
-      </td></tr></table>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #eef0f4;"><tr>
+        <td valign="middle" style="padding:16px 16px 0 0;width:118px;"><img src="${SITE}/assets/goldsure-logo.jpg" alt="Goldsure" width="108" style="display:block;width:108px;height:auto;"></td>
+        <td valign="middle" style="padding:16px 0 0 16px;border-left:2px solid #b08d2e;">
+          <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(agent_name || 'The Goldsure Team')}</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.7;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a> &nbsp;·&nbsp; w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
+        </td>
+      </tr></table>
     </td></tr>
 
     <!-- Footer -->
-    <tr><td align="center" style="background:#0e1116;padding:16px 20px;font-family:${FONT};">
+    <tr><td align="center" style="background:#000000;padding:16px 20px;font-family:${FONT};">
       <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#c9a13b;margin-bottom:3px;">Goldsure Pty Ltd</div>
       <div style="font-size:10px;color:#8b93a3;line-height:1.5;">ABN 66 683 305 106 &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
     </td></tr>
@@ -1140,7 +1139,7 @@ export default async function handler(req, res) {
 <body style="margin:0;padding:0;background-color:#eef0f4;font-family:${FONT};color:#141c2e;">
 <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:36px 16px 48px;">
   <table role="presentation" width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
-    <tr><td style="background:#0e1116;padding:20px 28px;border-radius:6px 6px 0 0;">
+    <tr><td style="background:#000000;padding:20px 28px;border-radius:6px 6px 0 0;">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
         <td valign="middle"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="130" style="display:block;width:130px;height:auto;"></td>
         <td align="right" valign="middle"><span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c9a13b;">Internal · Hot Water</span></td>
@@ -1168,7 +1167,7 @@ export default async function handler(req, res) {
         <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Total (inc GST)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${money(total_inc_gst)}</td></tr>
         <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Payable at point of sale</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${money(total_after_pos_rebates)}</td></tr>
         ${Number(sv_delayed_rebate) > 0 ? `<tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Solar Victoria rebate (delayed)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;color:#18a96e;">− ${money(sv_delayed_rebate)}</td></tr>` : ''}
-        <tr style="background:#0e1116;"><td style="padding:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.6);">Out-of-Pocket</td><td align="right" style="padding:14px;font-size:18px;font-weight:700;color:#c9a13b;">${money(total_out_of_pocket)}</td></tr>
+        <tr style="background:#000000;"><td style="padding:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.6);">Out-of-Pocket</td><td align="right" style="padding:14px;font-size:18px;font-weight:700;color:#c9a13b;">${money(total_out_of_pocket)}</td></tr>
       </table>
 
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="padding:12px 16px;background:#eaf7f2;border-left:3px solid #18a96e;border-radius:0 4px 4px 0;">
