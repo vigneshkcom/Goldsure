@@ -919,7 +919,7 @@ export default async function handler(req, res) {
         <tr><td style="padding:8px 0;font-size:13px;color:#3d4658;">Small-scale Technology Certificate (STC) discount</td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;">− ${money(stc_total)}</td></tr>
         <tr><td style="padding:8px 0;font-size:13px;color:#3d4658;border-bottom:1px solid #eef0f4;">Victorian Energy Efficiency (VEEC) discount</td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">− ${money(veec_total)}</td></tr>
         <tr><td style="padding:10px 0;font-size:13px;color:#141c2e;font-weight:700;">Payable at point of sale</td><td style="padding:10px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(total_after_pos_rebates)}</td></tr>
-        <tr><td style="padding:8px 0;font-size:13px;color:#3d4658;border-top:1px solid #eef0f4;">Solar Victoria rebate <span style="color:#9aa2b1;">(paid to you after install)</span></td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-top:1px solid #eef0f4;">− ${money(sv_delayed_rebate)}</td></tr>
+        ${Number(sv_delayed_rebate) > 0 ? `<tr><td style="padding:8px 0;font-size:13px;color:#3d4658;border-top:1px solid #eef0f4;">Solar Victoria rebate <span style="color:#9aa2b1;">(paid to you after install)</span></td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-top:1px solid #eef0f4;">− ${money(sv_delayed_rebate)}</td></tr>` : ''}
       </table>
     </td></tr>
 
@@ -1167,7 +1167,7 @@ export default async function handler(req, res) {
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;border:1px solid #e3e7ef;border-radius:4px;">
         <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Total (inc GST)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${money(total_inc_gst)}</td></tr>
         <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Payable at point of sale</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${money(total_after_pos_rebates)}</td></tr>
-        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Solar Victoria rebate (delayed)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;color:#18a96e;">− ${money(sv_delayed_rebate)}</td></tr>
+        ${Number(sv_delayed_rebate) > 0 ? `<tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Solar Victoria rebate (delayed)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;color:#18a96e;">− ${money(sv_delayed_rebate)}</td></tr>` : ''}
         <tr style="background:#0e1116;"><td style="padding:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.6);">Out-of-Pocket</td><td align="right" style="padding:14px;font-size:18px;font-weight:700;color:#c9a13b;">${money(total_out_of_pocket)}</td></tr>
       </table>
 

@@ -125,6 +125,33 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
 .btn.primary:hover{background:var(--gold-light);}
 .btn:disabled{opacity:.5;cursor:not-allowed;}
 .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.sv-toggle{display:flex;align-items:flex-start;gap:9px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:11px 14px;margin:0 0 16px;font-size:12px;color:var(--text);line-height:1.45;cursor:pointer;}
+.sv-toggle input{width:17px;height:17px;margin-top:1px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;}
+.sv-toggle strong{color:var(--text);}
+/* Preview modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(14,17,22,.55);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;width:100%;max-width:620px;max-height:90vh;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border);background:var(--dark);}
+.modal-head h3{font-size:14px;font-weight:700;color:#fff;}
+.modal-head .mh-sub{font-size:11px;color:#8b93a3;margin-top:2px;}
+.modal-close{background:none;border:none;color:#8b93a3;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;}
+.modal-close:hover{color:#fff;}
+.modal-body{padding:22px;overflow-y:auto;}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--border);background:var(--surface2);}
+.pv-parties{display:flex;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.pv-block .pv-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.pv-block .pv-name{font-size:14px;font-weight:700;}
+.pv-block .pv-line{font-size:12px;color:var(--muted);line-height:1.6;}
+.pv-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
+.pv-table td{padding:7px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.pv-table td.r{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;}
+.pv-table tr.sub td{color:var(--muted);font-size:12px;border-bottom:none;padding:5px 0;}
+.pv-table tr.reb td{color:#0d7a4f;}
+.pv-table tr.grand td{font-weight:700;border-top:2px solid var(--dark);border-bottom:none;padding-top:9px;}
+.pv-oop{display:flex;justify-content:space-between;align-items:center;background:var(--dark);color:#fff;border-radius:8px;padding:13px 16px;margin-top:12px;}
+.pv-oop .l{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gold-light,#c9a13b);}
+.pv-oop .v{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;}
 .brochure-note{font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:9px 12px;margin-top:12px;display:flex;align-items:center;gap:8px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#141c2e;color:#fff;font-size:12px;font-weight:600;padding:11px 22px;border-radius:30px;border-left:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;max-width:90vw;text-align:center;}
 .toast.show{opacity:1;}
@@ -242,6 +269,8 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
         <div class="price-input-wrap"><span>$</span><input type="number" id="custPrice" min="0" step="0.01" placeholder="0.00" value="998" oninput="recalc()"></div>
       </div>
 
+      <label class="sv-toggle"><input type="checkbox" id="svEligible" checked onchange="recalc()"><span><strong>Solar Victoria eligible customer</strong> — applies the delayed Solar Victoria rebate (up to $1,000). Uncheck for non-SV customers; the rebate line is removed and the customer pays the full amount.</span></label>
+
       <div class="tot-row"><span class="lbl">Total (ex GST)</span><span class="val" id="totExGst">$0.00</span></div>
       <div class="tot-row"><span class="lbl">GST (10%)</span><span class="val" id="totGst">$0.00</span></div>
       <div class="tot-row grand"><span class="lbl">Total (inc GST)</span><span class="val" id="totIncGst">$0.00</span></div>
@@ -257,10 +286,12 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
       </div>
       <div class="result-row pos"><span class="lbl">Total After Point-of-Sale Rebates (inc GST)</span><span class="val" id="totAfterPos">$0.00</span></div>
 
-      <div class="section-band delayed">Less Delayed Rebates</div>
-      <div class="rebate-row">
-        <div><div class="rb-name">Solar Victoria (Delayed) Rebate</div><div class="rb-sub">Auto — matches the price, up to $1,000 maximum</div></div>
-        <div class="rb-val" id="svTotal" style="color:#9a5b06;">− $0.00</div>
+      <div id="delayedSection">
+        <div class="section-band delayed">Less Delayed Rebates</div>
+        <div class="rebate-row">
+          <div><div class="rb-name">Solar Victoria (Delayed) Rebate</div><div class="rb-sub">Auto — matches the price, up to $1,000 maximum</div></div>
+          <div class="rb-val" id="svTotal" style="color:#9a5b06;">− $0.00</div>
+        </div>
       </div>
       <div class="result-row oop"><span class="lbl">Total Out-of-Pocket (inc GST)</span><span class="val" id="totOop">$0.00</span></div>
 
@@ -270,10 +301,25 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
 
   <div class="actions">
     <button class="btn" onclick="downloadPDF()">⬇ Download PDF</button>
-    <button class="btn primary" id="sendBtn" onclick="sendQuote()">✉ Email Quote to Customer</button>
+    <button class="btn primary" id="sendBtn" onclick="openPreview()">✉ Preview &amp; Email Quote</button>
   </div>
   <p class="hint">The customer receives a Goldsure-branded quote email with the full rebate breakdown and the product brochure attached. The quote is logged to the Hot Water tracker and a note is added to their GHL contact.</p>
 </main>
+</div>
+
+<!-- Preview modal -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>Quote Preview</h3><div class="mh-sub">Review before it's emailed to the customer</div></div>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closePreview()">Cancel</button>
+      <button class="btn primary" id="confirmSendBtn" onclick="doSend()">✉ Confirm &amp; Send Email</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -320,7 +366,8 @@ function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
 // ── Reverse pricing: price (out-of-pocket) drives everything ──
 function recalc(){
   const price = round2(parseFloat(document.getElementById('custPrice').value)||0);
-  const sv = round2(Math.min(price, SV_MAX));         // SV rebate: price, capped at $1000
+  const svEligible = document.getElementById('svEligible').checked;
+  const sv = svEligible ? round2(Math.min(price, SV_MAX)) : 0;  // 0 for non-SV customers
   const afterPos = round2(price + sv);                // customer pays this at point of sale
   const totalInc = round2(afterPos + STC.total + VEEC.total);
   const subtotalEx = round2(totalInc / 1.1);
@@ -337,8 +384,9 @@ function recalc(){
   document.getElementById('totAfterPos').textContent = fmt.format(afterPos);
   document.getElementById('svTotal').textContent = '− ' + fmt.format(sv);
   document.getElementById('totOop').textContent = fmt.format(oop);
+  document.getElementById('delayedSection').style.display = svEligible ? '' : 'none';
 
-  calc = { subtotalEx, gst, totalInc, sv, afterPos, oop };
+  calc = { subtotalEx, gst, totalInc, sv, afterPos, oop, svEligible };
 }
 
 // ── GHL customer search ──
@@ -399,19 +447,61 @@ window.initAddressAutocomplete=function(){
 function onAddressInput(){ if(!document.getElementById('custAddress').value.trim()) setAddr('',''); }
 function setAddr(type,msg){ const b=document.getElementById('addrBadge'); b.innerHTML = msg ? `<span class="addr-badge ${type}">${msg}</span>` : ''; }
 
-// ── Send ──
-async function sendQuote(){
-  const name=document.getElementById('custName').value.trim();
-  const email=document.getElementById('custEmail').value.trim();
-  const phone=document.getElementById('custPhone').value.trim();
-  const address=document.getElementById('custAddress').value.trim();
-  const model=document.getElementById('tankModel').value;
-  if(!name){ showToast('Enter the customer name.'); return; }
-  if(!email || !email.includes('@')){ showToast('Enter a valid customer email.'); return; }
-  if(!model){ showToast('Select a tank model.'); return; }
+// ── Preview then send ──
+function currentCustomer(){
+  return {
+    name: document.getElementById('custName').value.trim(),
+    email: document.getElementById('custEmail').value.trim(),
+    phone: document.getElementById('custPhone').value.trim(),
+    address: document.getElementById('custAddress').value.trim(),
+    model: document.getElementById('tankModel').value,
+  };
+}
+function openPreview(){
+  const c=currentCustomer();
+  if(!c.name){ showToast('Enter the customer name.'); return; }
+  if(!c.email || !c.email.includes('@')){ showToast('Enter a valid customer email.'); return; }
+  if(!c.model){ showToast('Select a tank model.'); return; }
+  recalc();
+  document.getElementById('previewBody').innerHTML = `
+    <div class="pv-parties">
+      <div class="pv-block">
+        <div class="pv-lbl">To</div>
+        <div class="pv-name">${esc(c.name)}</div>
+        ${c.address?`<div class="pv-line">${esc(c.address)}</div>`:''}
+        ${c.phone?`<div class="pv-line">${esc(c.phone)}</div>`:''}
+        <div class="pv-line">${esc(c.email)}</div>
+      </div>
+      <div class="pv-block" style="text-align:right;">
+        <div class="pv-lbl">From</div>
+        <div class="pv-name">Goldsure Pty Ltd</div>
+        <div class="pv-line">Agent: ${esc(agent)}</div>
+      </div>
+    </div>
+    <table class="pv-table">
+      <tr><td>${esc(MODEL_LABEL[c.model]||c.model)}<br><span style="font-size:11px;color:var(--muted);">Primary Product · Qty 1</span></td><td class="r">${fmt.format(calc.subtotalEx)}</td></tr>
+      <tr class="sub"><td>Subtotal (ex GST)</td><td class="r">${fmt.format(calc.subtotalEx)}</td></tr>
+      <tr class="sub"><td>GST (10%)</td><td class="r">${fmt.format(calc.gst)}</td></tr>
+      <tr class="grand"><td>Total (inc GST)</td><td class="r">${fmt.format(calc.totalInc)}</td></tr>
+      <tr class="reb"><td>Less STC discount</td><td class="r">− ${fmt.format(STC.total)}</td></tr>
+      <tr class="reb"><td>Less VEEC discount</td><td class="r">− ${fmt.format(VEEC.total)}</td></tr>
+      <tr class="grand"><td>Payable at point of sale</td><td class="r">${fmt.format(calc.afterPos)}</td></tr>
+      ${calc.svEligible?`<tr class="reb"><td>Less Solar Victoria rebate (delayed)</td><td class="r">− ${fmt.format(calc.sv)}</td></tr>`:'<tr class="sub"><td colspan="2" style="font-style:italic;">Non-SV customer — no Solar Victoria rebate applied</td></tr>'}
+    </table>
+    <div class="pv-oop"><span class="l">Customer Out-of-Pocket</span><span class="v">${fmt.format(calc.oop)}</span></div>
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The tank-model brochure is attached automatically (when uploaded). A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
+  document.getElementById('previewModal').classList.add('open');
+}
+function closePreview(){ document.getElementById('previewModal').classList.remove('open'); }
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closePreview(); });
+
+async function doSend(){
+  const c=currentCustomer();
+  const name=c.name, email=c.email, phone=c.phone, address=c.address, model=c.model;
+  if(!name || !email || !model){ showToast('Missing customer details.'); return; }
   recalc();
 
-  const btn=document.getElementById('sendBtn'); btn.disabled=true; btn.textContent='Sending…';
+  const btn=document.getElementById('confirmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
   try{
     const res=await fetch('/api/battery/request-callback',{
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -429,9 +519,10 @@ async function sendQuote(){
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok){ showToast(data.error||'Send failed — check details.'); return; }
+    closePreview();
     showToast(data.sms_sent?`Quote emailed to ${email} + SMS sent`:`Quote emailed to ${email}`);
   }catch(e){ console.error(e); showToast('Network error — please try again.'); }
-  finally{ btn.disabled=false; btn.textContent='✉ Email Quote to Customer'; }
+  finally{ btn.disabled=false; btn.textContent='✉ Confirm & Send Email'; }
 }
 
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -522,7 +613,7 @@ function downloadPDF(){
     doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y-2,RX,y-2);
     doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...INK);
     doc.text('Payable at point of sale', ML, y+2); doc.text(m(calc.afterPos), RX, y+2, {align:'right'}); y+=8;
-    rebRow('Solar Victoria rebate (paid to you after install)', m(calc.sv));
+    if(calc.svEligible){ rebRow('Solar Victoria rebate (paid to you after install)', m(calc.sv)); }
 
     // Out of pocket box
     y+=1;
