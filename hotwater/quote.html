@@ -52,6 +52,16 @@ header{background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(10px
 .nav-btn{font-family:inherit;font-size:11px;font-weight:600;padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#54627a;cursor:pointer;text-decoration:none;transition:.15s;display:inline-flex;align-items:center;white-space:nowrap;}
 .nav-btn:hover{background:#f7f9fc;color:var(--text);border-color:var(--gold-line);}
 .nav-btn.logout:hover{color:var(--red);border-color:#f1c9c9;background:var(--red-soft);}
+@media(max-width:700px){
+  header{padding:0 12px;min-height:52px;gap:6px;flex-wrap:nowrap;}
+  .header-left{gap:8px;min-width:0;}
+  .header-logo img{height:26px;}
+  .meta-only{display:none;}
+  .portal-link{display:none;}
+  .header-right{gap:6px;}
+  .nav-btn{padding:6px 10px;font-size:10.5px;border-radius:8px;}
+  .agent-chip{padding:4px 9px;}
+}
 
 main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;}
@@ -214,15 +224,15 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
 <div id="app">
 <header>
   <div class="header-left">
-    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"><span class="logo-text">Goldsure <span>|</span></span></div>
-    <div class="hd"></div>
-    <span class="page-label">Hot Water · Quote Builder</span>
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+    <div class="hd meta-only"></div>
+    <span class="page-label meta-only">Hot Water · Quote Builder</span>
   </div>
   <div class="header-right">
     <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name" id="agentName">Agent</span></div>
-    <div class="hd"></div>
-    <a href="/" class="nav-btn">← Portal</a>
-    <a href="/hotwater/quote-tracker.html" class="nav-btn" target="_blank">Quote Tracker</a>
+    <div class="hd meta-only"></div>
+    <a href="/" class="nav-btn portal-link">← Portal</a>
+    <a href="/hotwater/quote-tracker.html" class="nav-btn" id="trackerLink" target="_blank">Quote Tracker</a>
     <button class="nav-btn logout" onclick="doLogout()">Sign Out</button>
   </div>
 </header>
@@ -362,13 +372,16 @@ let calc = {};
 function doLogin(){
   const a = document.getElementById('login-agent').value;
   if(!a){ document.getElementById('login-error').classList.add('show'); return; }
-  agent = a; sessionStorage.setItem('hw_agent', a); showApp();
+  agent = a; sessionStorage.setItem('hw_agent', a); localStorage.setItem('hw_agent', a); showApp();
 }
 function doLogout(){ sessionStorage.removeItem('hw_agent'); location.reload(); }
 function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('agentName').textContent = agent;
+  // Carry the agent to the tracker so the mobile view can scope to this agent.
+  const tl = document.getElementById('trackerLink');
+  if(tl) tl.href = '/hotwater/quote-tracker.html?agent=' + encodeURIComponent(agent);
   loadGoogleMaps();
   recalc();
 }

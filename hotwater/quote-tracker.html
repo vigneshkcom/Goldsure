@@ -124,20 +124,21 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#141c2e;color:#fff;font-size:12px;font-weight:600;padding:10px 22px;border-radius:30px;border-left:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
 .toast.show{opacity:1;}
 @media(max-width:1300px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.charts-grid{grid-template-columns:1fr}}
-@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}header{padding:0 16px}main{padding:16px}.filters-bar{flex-direction:column;align-items:flex-start}.filter-input{min-width:auto;width:100%}}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}header{padding:0 12px;min-height:52px;gap:6px}main{padding:16px}.filters-bar{flex-direction:column;align-items:flex-start}.filter-input{min-width:auto;width:100%}.meta-only{display:none!important}.header-logo img{height:26px}.nav-btn{padding:6px 10px;font-size:10.5px}}
+.scope-chip{display:inline-flex;align-items:center;gap:6px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;}
 </style>
 </head>
 <body>
 <header>
   <div class="header-left">
-    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"><span class="logo-text">Goldsure <span>|</span></span></div>
-    <div class="hd"></div>
-    <span class="page-label">Hot Water · Quote Tracker</span>
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+    <div class="hd meta-only"></div>
+    <span class="page-label" id="pageLabel">Hot Water · Quote Tracker</span>
   </div>
   <div class="header-right">
-    <a href="/" class="nav-btn">← Portal</a>
-    <a href="/hotwater/quote.html" class="nav-btn">← Quote Builder</a>
-    <button class="nav-btn" onclick="exportCSV()">⬇ Export CSV</button>
+    <a href="/" class="nav-btn meta-only">← Portal</a>
+    <a href="/hotwater/quote.html" class="nav-btn meta-only">← Quote Builder</a>
+    <button class="nav-btn meta-only" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="nav-btn" id="refreshBtn" onclick="loadQuotes()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
   </div>
 </header>
@@ -202,16 +203,35 @@ const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 
+// ── Mobile scoping: on a phone, a tracker opened from the builder (which passes
+//    ?agent=) shows ONLY that agent's quotes. Desktop always shows everyone. ──
+const IS_MOBILE = window.matchMedia('(max-width: 760px)').matches;
+const SCOPE_AGENT = (new URLSearchParams(location.search).get('agent') || localStorage.getItem('hw_agent') || '').trim();
+const MOBILE_SCOPED = IS_MOBILE && !!SCOPE_AGENT;
+
 window.addEventListener('DOMContentLoaded', loadQuotes);
 
 async function loadQuotes(){
   const btn=document.getElementById('refreshBtn'); btn.classList.add('spinning');
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?select=*&order=sent_at.desc&limit=1000`,{
+    let url = `${SUPABASE_URL}/rest/v1/hotwater_quotes?select=*&order=sent_at.desc&limit=1000`;
+    if(MOBILE_SCOPED) url += `&agent_name=eq.${encodeURIComponent(SCOPE_AGENT)}`;  // only this agent's rows reach the device
+    const res = await fetch(url,{
       headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'}
     });
     if(!res.ok){ showEmptyTable('Could not load data. Has the hotwater_quotes table been created?'); showToast('Error loading data.'); return; }
     allQuotes = await res.json();
+    if(MOBILE_SCOPED){
+      // Lock the view to this agent: hide the agent filter and show a chip.
+      const af=document.getElementById('filterAgent'); if(af) af.style.display='none';
+      const pl=document.getElementById('pageLabel'); if(pl) pl.textContent='My Quotes';
+      const rc=document.querySelector('.results-count');
+      if(rc && !document.getElementById('scopeChip')){
+        const chip=document.createElement('span'); chip.className='scope-chip'; chip.id='scopeChip';
+        chip.textContent='👤 '+SCOPE_AGENT+' — your quotes only';
+        rc.parentNode.insertBefore(chip, rc);
+      }
+    }
     renderKPIs(); renderCharts(); populateFilters(); applyFilters();
     showToast(`Loaded ${allQuotes.length} quote${allQuotes.length!==1?'s':''}`);
   }catch(e){ console.error(e); showEmptyTable('Network error.'); showToast('Network error.'); }
