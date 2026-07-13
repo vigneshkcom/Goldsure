@@ -840,10 +840,10 @@ export default async function handler(req, res) {
       const qty = Number(it.qty) || 0, rate = Number(it.rate) || 0;
       const lineTot = Math.round((qty * rate + Number.EPSILON) * 100) / 100;
       return `<tr bgcolor="#ffffff">
-        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;">${esc(it.name)}<br><span style="font-size:10px;color:#999999;">${esc(it.type || '')}</span></td>
-        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${qty}</td>
-        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${money(rate)}</td>
-        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${money(lineTot)}</td>
+        <td valign="top" style="padding:11px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;">${esc(it.name)}</td>
+        <td valign="top" style="padding:11px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;">${qty}</td>
+        <td valign="top" style="padding:11px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;">${money(rate)}</td>
+        <td valign="top" style="padding:11px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;">${money(lineTot)}</td>
       </tr>`;
     }).join('');
 
@@ -914,12 +914,12 @@ export default async function handler(req, res) {
 
     <!-- Rebates -->
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#9aa2b1;margin-bottom:8px;">Less Rebates</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#9aa2b1;margin-bottom:8px;padding-left:12px;">Less Rebates</div>
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        <tr><td style="padding:8px 0;font-size:13px;color:#3d4658;">Small-scale Technology Certificate (STC) discount</td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;">− ${money(stc_total)}</td></tr>
-        <tr><td style="padding:8px 0;font-size:13px;color:#3d4658;border-bottom:1px solid #eef0f4;">Victorian Energy Efficiency (VEEC) discount</td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">− ${money(veec_total)}</td></tr>
-        <tr><td style="padding:10px 0;font-size:13px;color:#141c2e;font-weight:700;">Payable at point of sale</td><td style="padding:10px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(total_after_pos_rebates)}</td></tr>
-        ${Number(sv_delayed_rebate) > 0 ? `<tr><td style="padding:8px 0;font-size:13px;color:#3d4658;border-top:1px solid #eef0f4;">Solar Victoria rebate <span style="color:#9aa2b1;">(paid to you after install)</span></td><td style="padding:8px 0;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-top:1px solid #eef0f4;">− ${money(sv_delayed_rebate)}</td></tr>` : ''}
+        <tr><td style="padding:8px 12px;font-size:13px;color:#3d4658;">Small-scale Technology Certificate (STC) discount</td><td style="padding:8px 12px;font-size:13px;color:#18a96e;text-align:right;font-weight:600;">− ${money(stc_total)}</td></tr>
+        <tr><td style="padding:8px 12px;font-size:13px;color:#3d4658;border-bottom:1px solid #eef0f4;">Victorian Energy Efficiency (VEEC) discount</td><td style="padding:8px 12px;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">− ${money(veec_total)}</td></tr>
+        <tr><td style="padding:10px 12px;font-size:13px;color:#141c2e;font-weight:700;">Payable at point of sale</td><td style="padding:10px 12px;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(total_after_pos_rebates)}</td></tr>
+        ${Number(sv_delayed_rebate) > 0 ? `<tr><td style="padding:8px 12px;font-size:13px;color:#3d4658;border-top:1px solid #eef0f4;">Solar Victoria rebate <span style="color:#9aa2b1;">(paid to you after install)</span></td><td style="padding:8px 12px;font-size:13px;color:#18a96e;text-align:right;font-weight:600;border-top:1px solid #eef0f4;">− ${money(sv_delayed_rebate)}</td></tr>` : ''}
       </table>
     </td></tr>
 
@@ -951,7 +951,7 @@ export default async function handler(req, res) {
         <td valign="middle" style="padding:16px 0 0 16px;border-left:2px solid #b08d2e;">
           <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(agent_name || 'The Goldsure Team')}</div>
           <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
-          <div style="font-size:12px;color:#5b6577;line-height:1.7;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a> &nbsp;·&nbsp; w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.85;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a><br>p: <a href="tel:0370502846" style="color:#5b6577;text-decoration:none;font-weight:600;">03 7050 2846</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
         </td>
       </tr></table>
     </td></tr>
@@ -1052,7 +1052,7 @@ export default async function handler(req, res) {
           if (contact?.id) {
             await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
               method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'} — ${tank_model || 'HWS'} · Out-of-pocket ${money(total_out_of_pocket)}` }),
+              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}` }),
             });
           }
         }
