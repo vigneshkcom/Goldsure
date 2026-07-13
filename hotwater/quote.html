@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Hot Water Quote Builder</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--surface3:#e8eaf0;
@@ -268,7 +269,7 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
   </div>
 
   <div class="actions">
-    <button class="btn" onclick="window.print()">🖨 Print / Save PDF</button>
+    <button class="btn" onclick="downloadPDF()">⬇ Download PDF</button>
     <button class="btn primary" id="sendBtn" onclick="sendQuote()">✉ Email Quote to Customer</button>
   </div>
   <p class="hint">The customer receives a Goldsure-branded quote email with the full rebate breakdown and the product brochure attached. The quote is logged to the Hot Water tracker and a note is added to their GHL contact.</p>
@@ -435,6 +436,130 @@ async function sendQuote(){
 
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+
+// ── Proper branded PDF via jsPDF ──
+function downloadPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){ showToast('PDF library still loading — try again in a moment.'); return; }
+  const model=document.getElementById('tankModel').value;
+  const name=document.getElementById('custName').value.trim();
+  if(!model){ showToast('Select a tank model first.'); return; }
+  if(!name){ showToast('Enter the customer name first.'); return; }
+  recalc();
+  const address=document.getElementById('custAddress').value.trim();
+  const phone=document.getElementById('custPhone').value.trim();
+  const email=document.getElementById('custEmail').value.trim();
+
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const PW=210, MR=16, ML=16, RX=PW-MR;
+  const GOLD=[176,141,46], DARK=[14,17,22], MUTED=[107,120,153], INK=[20,28,46], GREEN=[24,169,110], LINE=[227,231,239];
+  const m=v=>'$'+(Math.round((v+Number.EPSILON)*100)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const qno='HW-'+String(Date.now()).slice(-8);
+  const qdate=new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+
+  function build(){
+    // Header
+    doc.setFillColor(...DARK); doc.rect(0,0,PW,36,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(22);
+    doc.text('QUOTATION', RX, 17, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(190,190,195);
+    doc.text(`${qno}    ${qdate}`, RX, 25, {align:'right'});
+    doc.setFillColor(...GOLD); doc.rect(0,36,PW,1.2,'F');
+
+    // Parties
+    let y=49;
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('FROM', ML, y);
+    doc.setTextColor(...INK); doc.setFontSize(11); doc.text('Goldsure Pty Ltd', ML, y+6);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(9);
+    doc.text('ABN 66 683 305 106', ML, y+11.5);
+    doc.text('Suite 4, Level 1, 293 High Street', ML, y+16);
+    doc.text('Preston VIC 3072', ML, y+20.5);
+    doc.text('info@goldsure.com.au', ML, y+25);
+
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('PREPARED FOR', RX, y, {align:'right'});
+    doc.setTextColor(...INK); doc.setFontSize(11); doc.text(name, RX, y+6, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(9);
+    let ry=y+11.5;
+    if(address){ doc.splitTextToSize(address,78).forEach(l=>{ doc.text(l,RX,ry,{align:'right'}); ry+=4.5; }); }
+    if(phone){ doc.text(phone,RX,ry,{align:'right'}); ry+=4.5; }
+    if(email){ doc.text(email,RX,ry,{align:'right'}); }
+
+    // Line items table
+    y=86;
+    doc.setDrawColor(...DARK); doc.setLineWidth(0.5); doc.line(ML,y,RX,y);
+    doc.setTextColor(...INK); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text('ITEM', ML, y+5);
+    doc.text('QTY', ML+112, y+5, {align:'right'});
+    doc.text('RATE EX GST', ML+150, y+5, {align:'right'});
+    doc.text('TOTAL EX GST', RX, y+5, {align:'right'});
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y+7.5,RX,y+7.5);
+
+    y+=13.5;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...INK); doc.setFontSize(10);
+    const itemLines=doc.splitTextToSize(MODEL_LABEL[model]||model, 95);
+    doc.text(itemLines, ML, y);
+    doc.setTextColor(...MUTED); doc.setFontSize(8); doc.text('Primary Product', ML, y+4+((itemLines.length-1)*4.6));
+    doc.setTextColor(...INK); doc.setFontSize(10);
+    doc.text('1', ML+112, y, {align:'right'});
+    doc.text(m(calc.subtotalEx), ML+150, y, {align:'right'});
+    doc.text(m(calc.subtotalEx), RX, y, {align:'right'});
+    y+=Math.max(10, itemLines.length*4.6+6);
+
+    // Totals
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y,RX,y); y+=6;
+    const totRow=(label,val,bold)=>{ doc.setFont('helvetica',bold?'bold':'normal'); doc.setTextColor(bold?INK[0]:MUTED[0],bold?INK[1]:MUTED[1],bold?INK[2]:MUTED[2]); doc.setFontSize(bold?11:9.5); doc.text(label,ML+96,y); doc.setTextColor(...INK); doc.text(val,RX,y,{align:'right'}); y+=bold?7:5.5; };
+    totRow('Subtotal (ex GST)', m(calc.subtotalEx));
+    totRow('GST (10%)', m(calc.gst));
+    doc.setDrawColor(...DARK); doc.setLineWidth(0.4); doc.line(ML+96,y-1.5,RX,y-1.5); y+=2;
+    totRow('Total (inc GST)', m(calc.totalInc), true);
+
+    // Rebates
+    y+=4;
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('LESS REBATES', ML, y); y+=6;
+    const rebRow=(label,val)=>{ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(61,70,88); doc.text(label,ML,y); doc.setTextColor(...GREEN); doc.text('− '+val,RX,y,{align:'right'}); y+=6; };
+    rebRow('Small-scale Technology Certificate (STC) discount', m(STC.total));
+    rebRow('Victorian Energy Efficiency (VEEC) discount', m(VEEC.total));
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y-2,RX,y-2);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...INK);
+    doc.text('Payable at point of sale', ML, y+2); doc.text(m(calc.afterPos), RX, y+2, {align:'right'}); y+=8;
+    rebRow('Solar Victoria rebate (paid to you after install)', m(calc.sv));
+
+    // Out of pocket box
+    y+=1;
+    doc.setFillColor(...DARK); doc.roundedRect(ML,y,RX-ML,15,1.5,1.5,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('YOUR TOTAL OUT-OF-POCKET', ML+5, y+9);
+    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.text(m(calc.oop), RX-5, y+10, {align:'right'});
+    y+=24;
+
+    // Banking
+    doc.setFillColor(247,248,250); doc.roundedRect(ML,y,RX-ML,20,1.5,1.5,'F');
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.text('PAYMENT DETAILS', ML+4, y+5.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(61,70,88); doc.setFontSize(8.5);
+    doc.text('Account Name: Goldsure Pty Ltd    BSB: 063 147    Account: 10928147', ML+4, y+11);
+    doc.text('Please use your name as the payment reference. Payment is due on completion of installation.', ML+4, y+16);
+    y+=27;
+
+    // Disclaimer
+    doc.setTextColor(160,166,176); doc.setFont('helvetica','italic'); doc.setFontSize(7.5);
+    doc.splitTextToSize('This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Rebate eligibility is subject to Solar Victoria and scheme approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty.', RX-ML).forEach(l=>{ doc.text(l,ML,y); y+=3.8; });
+
+    // Footer bar
+    doc.setFillColor(...DARK); doc.rect(0,285,PW,12,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.text('GOLDSURE PTY LTD', PW/2, 290, {align:'center'});
+    doc.setTextColor(150,150,155); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text('ABN 66 683 305 106  ·  Suite 4, Level 1, 293 High Street, Preston VIC 3072  ·  info@goldsure.com.au', PW/2, 294, {align:'center'});
+
+    doc.save(`Goldsure Hot Water Quote - ${name}.pdf`);
+    showToast('PDF downloaded');
+  }
+
+  // Try to embed the logo; fall back to a wordmark if it can't be fetched
+  fetch('/assets/goldsure-inverted-logo.jpg').then(r=>r.blob()).then(b=>{
+    const fr=new FileReader();
+    fr.onload=e=>{ try{ doc.addImage(e.target.result,'JPEG',ML,9,34,18); }catch(_){ } build(); };
+    fr.onerror=()=>{ doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('GOLDSURE',ML,22); build(); };
+    fr.readAsDataURL(b);
+  }).catch(()=>{ doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('GOLDSURE',ML,22); build(); });
+}
 </script>
 </body>
 </html>

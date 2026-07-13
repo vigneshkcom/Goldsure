@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accept Your Quote · Goldsure</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#b08d2e;--gold-light:#c9a13b;--dark:#0e1116;--text:#141c2e;--muted:#6b7899;--green:#18a96e;--bg:#eef0f4;--border:#e3e7ef;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{background:#fff;width:100%;max-width:520px;border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(20,28,46,.12);}
+.card-head{background:var(--dark);padding:22px 30px;display:flex;align-items:center;justify-content:space-between;}
+.card-head img{height:30px;}
+.card-head .tag{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold-light);}
+.gold-rule{height:3px;background:var(--gold);}
+.body{padding:36px 30px 34px;text-align:center;}
+.spinner{width:44px;height:44px;border:4px solid #e3e7ef;border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 22px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.icon-badge{width:66px;height:66px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px;}
+.icon-badge.ok{background:#eaf7f2;color:var(--green);}
+.icon-badge.info{background:#fef7e7;color:var(--gold);}
+.icon-badge.err{background:#fdecec;color:#e04f4f;}
+h1{font-size:22px;font-weight:700;margin-bottom:10px;line-height:1.3;}
+.subtitle{font-size:14px;color:var(--muted);line-height:1.65;margin-bottom:22px;}
+.summary{text-align:left;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:0 0 22px;}
+.summary .row{display:flex;justify-content:space-between;padding:11px 16px;font-size:13px;border-bottom:1px solid var(--border);}
+.summary .row:last-child{border-bottom:none;}
+.summary .row .l{color:var(--muted);}
+.summary .row .v{font-weight:600;font-family:'JetBrains Mono',monospace;}
+.summary .row.total{background:var(--dark);}
+.summary .row.total .l{color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.5px;}
+.summary .row.total .v{color:var(--gold-light);font-size:16px;}
+.contact{font-size:13px;color:var(--muted);line-height:1.7;}
+.contact a{color:var(--gold);font-weight:600;text-decoration:none;}
+.foot{padding:16px;text-align:center;background:var(--dark);}
+.foot p{font-size:10px;color:#8b93a3;line-height:1.5;}
+.foot .b{color:var(--gold-light);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-head">
+    <img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure">
+    <span class="tag">Hot Water Quote</span>
+  </div>
+  <div class="gold-rule"></div>
+
+  <div class="body">
+    <!-- Loading -->
+    <div id="state-loading">
+      <div class="spinner"></div>
+      <h1>Processing your acceptance…</h1>
+      <p class="subtitle">One moment while we confirm your quote.</p>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success" class="hidden">
+      <div class="icon-badge ok">✓</div>
+      <h1>Quote Accepted — Thank You!</h1>
+      <p class="subtitle">Thanks for choosing Goldsure. Our team will call you shortly to confirm your installation date.</p>
+      <div class="summary" id="summaryBox"></div>
+      <p class="contact">Questions in the meantime? Email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></p>
+    </div>
+
+    <!-- Already accepted -->
+    <div id="state-already" class="hidden">
+      <div class="icon-badge info">✓</div>
+      <h1>Already Accepted</h1>
+      <p class="subtitle">This quote has already been accepted — our team will be in touch if they haven't already.</p>
+      <p class="contact">Questions? Email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></p>
+    </div>
+
+    <!-- Error -->
+    <div id="state-error" class="hidden">
+      <div class="icon-badge err">!</div>
+      <h1>Something Went Wrong</h1>
+      <p class="subtitle" id="errorMsg">We couldn't process your quote acceptance. Please contact us and we'll sort it out straight away.</p>
+      <p class="contact">Email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p class="b">Goldsure Pty Ltd</p>
+    <p>ABN 66 683 305 106 · Suite 4, Level 1, 293 High Street, Preston VIC 3072</p>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+
+function show(id){ ['loading','success','already','error'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id)); }
+function money(n){ return '$'+(parseFloat(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderSummary(row){
+  document.getElementById('summaryBox').innerHTML = `
+    ${row.tank_model?`<div class="row"><span class="l">Tank Model</span><span class="v" style="font-family:'Sora',sans-serif;">${esc(row.tank_model)}</span></div>`:''}
+    <div class="row"><span class="l">Total (inc GST)</span><span class="v">${money(row.total_inc_gst)}</span></div>
+    <div class="row"><span class="l">Solar Victoria rebate</span><span class="v" style="color:var(--green);">− ${money(row.sv_delayed_rebate)}</span></div>
+    <div class="row total"><span class="l">Your Out-of-Pocket</span><span class="v">${money(row.total_out_of_pocket)}</span></div>`;
+}
+
+(async function(){
+  const token = new URLSearchParams(location.search).get('token');
+  if(!token){ show('error'); document.getElementById('errorMsg').textContent='No quote reference found in this link. Please contact us directly.'; return; }
+  try{
+    const getRes = await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`, { headers: HEADERS });
+    if(!getRes.ok) throw new Error('lookup failed');
+    const rows = await getRes.json();
+    const row = Array.isArray(rows) && rows[0];
+    if(!row){ show('error'); document.getElementById('errorMsg').textContent='We could not find this quote. Please contact us directly.'; return; }
+
+    if(row.accepted === true || row.status === 'accepted'){ renderSummary(row); show('already'); return; }
+
+    const acceptedAt = new Date().toISOString();
+    const upd = await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?quote_token=eq.${encodeURIComponent(token)}`, {
+      method:'PATCH', headers:{...HEADERS, Prefer:'return=representation'},
+      body: JSON.stringify({ accepted:true, status:'accepted', accepted_at: acceptedAt })
+    });
+    if(!upd.ok) throw new Error('update failed');
+
+    // Notify the team (best-effort — success still shows even if this fails)
+    fetch('/api/battery/request-callback', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action:'hws-accept',
+        customer_name:row.customer_name, customer_email:row.customer_email, customer_phone:row.customer_phone,
+        customer_address:row.customer_address, agent_name:row.agent_name, tank_model:row.tank_model,
+        total_inc_gst:row.total_inc_gst, total_after_pos_rebates:row.total_after_pos_rebates,
+        sv_delayed_rebate:row.sv_delayed_rebate, total_out_of_pocket:row.total_out_of_pocket, accepted_at:acceptedAt,
+      })
+    }).catch(e=>console.warn('notify failed', e));
+
+    renderSummary(row); show('success');
+  }catch(err){
+    console.error(err); show('error');
+  }
+})();
+</script>
+</body>
+</html>
