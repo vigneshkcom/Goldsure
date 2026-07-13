@@ -830,6 +830,7 @@ export default async function handler(req, res) {
     const SITE = 'https://portal.goldsure.com.au';
     const BROCHURES = {
       'ECON-300SV':       `${SITE}/assets/hotwater/ECON-300SV.pdf`,
+      'EG290-FR':         `${SITE}/assets/hotwater/EG290-FR.pdf`,
       'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
       'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
       'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
