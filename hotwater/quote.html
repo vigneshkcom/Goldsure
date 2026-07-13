@@ -53,7 +53,16 @@ header{background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(10px
 .nav-btn:hover{background:#f7f9fc;color:var(--text);border-color:var(--gold-line);}
 .nav-btn.logout:hover{color:var(--red);border-color:#f1c9c9;background:var(--red-soft);}
 
-main{padding:18px 18px 30px;max-width:680px;margin:0 auto;}
+main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.col .card{margin-bottom:0;}
+.summary-card{position:sticky;top:70px;}
+.sum-product{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:2px 2px 11px;border-bottom:1px solid var(--line);margin-bottom:5px;}
+.sum-product .sp-name{font-size:13.5px;font-weight:600;line-height:1.3;}
+.sum-product .sp-tag{font-size:10.5px;color:var(--muted2);margin-top:3px;}
+.sum-product .sp-price{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;white-space:nowrap;}
+@media(max-width:860px){.layout{grid-template-columns:1fr;}.summary-card{position:static;}}
 
 /* ── Cards ── */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;overflow:visible;}
@@ -217,18 +226,21 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
 </header>
 
 <main>
-  <!-- Customer -->
-  <div class="card">
-    <div class="card-head"><span class="step-badge">Step 1</span><h3>Customer Details</h3></div>
-    <div class="card-body">
-      <div class="field">
-        <label>Find Customer in GHL</label>
-        <input type="text" id="ghlSearch" placeholder="Search by name, phone or email…" autocomplete="off" oninput="onGhlSearch()">
-        <div class="ghl-results" id="ghlResults"></div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Customer Name *</label><input type="text" id="custName" placeholder="Full name"></div>
-        <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
+ <div class="layout">
+  <!-- LEFT: inputs -->
+  <div class="col">
+    <div class="card">
+      <div class="card-head"><span class="step-badge">Step 1</span><h3>Customer Details</h3></div>
+      <div class="card-body">
+        <div class="field">
+          <label>Find Customer in GHL</label>
+          <input type="text" id="ghlSearch" placeholder="Search by name, phone or email…" autocomplete="off" oninput="onGhlSearch()">
+          <div class="ghl-results" id="ghlResults"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Customer Name *</label><input type="text" id="custName" placeholder="Full name"></div>
+          <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
+        </div>
         <div class="field"><label>Email *</label><input type="email" id="custEmail" placeholder="customer@example.com"></div>
         <div class="field">
           <label>Property Address (VIC only)</label>
@@ -237,88 +249,76 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Quote -->
-  <div class="card">
-    <div class="card-head"><span class="step-badge">Step 2</span><h3>Quotation</h3></div>
-    <div class="card-body">
-      <div class="q-wrap">
-        <table class="quote">
-          <thead>
-            <tr>
-              <th style="width:46%;">Item</th>
-              <th style="width:18%;">Type</th>
-              <th class="num" style="width:10%;">Qty</th>
-              <th class="num" style="width:13%;">Rate (ex GST)</th>
-              <th class="num" style="width:13%;">Total (ex GST)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <select class="model-select" id="tankModel" onchange="recalc()">
-                  <option value="">— Select tank model —</option>
-                  <option value="EG-330FRE-WR">EG-330FRE-WR</option>
-                  <option value="ECON-300RVW">ECON-300RVW</option>
-                  <option value="ECON-300RVW-2.0E">ECON-300RVW-2.0E</option>
-                  <option value="ECON-300SV">ECON-300SV</option>
-                  <option value="EG290-FR">EG290-FR</option>
-                </select>
-              </td>
-              <td><span class="type-tag">Primary Product</span></td>
-              <td class="num">1</td>
-              <td class="num" id="lineRate">$0.00</td>
-              <td class="num" id="lineTotal">$0.00</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Price driver -->
-      <div class="price-driver">
-        <div>
-          <div class="pd-label">Customer Out-of-Pocket Price</div>
-          <div class="pd-sub">Enter what the customer pays. Rebates &amp; product cost calculate automatically.</div>
+    <div class="card">
+      <div class="card-head"><span class="step-badge">Step 2</span><h3>System &amp; Price</h3></div>
+      <div class="card-body">
+        <div class="field">
+          <label>Tank Model *</label>
+          <select class="model-select" id="tankModel" onchange="recalc()">
+            <option value="">— Select tank model —</option>
+            <option value="EG-330FRE-WR">EG-330FRE-WR</option>
+            <option value="ECON-300RVW">ECON-300RVW</option>
+            <option value="ECON-300RVW-2.0E">ECON-300RVW-2.0E</option>
+            <option value="ECON-300SV">ECON-300SV</option>
+            <option value="EG290-FR">EG290-FR</option>
+          </select>
         </div>
-        <div class="price-input-wrap"><span>$</span><input type="number" id="custPrice" min="0" step="0.01" placeholder="0.00" value="998" oninput="recalc()"></div>
-      </div>
-
-      <label class="sv-toggle"><input type="checkbox" id="svEligible" checked onchange="recalc()"><span><strong>Solar Victoria eligible customer</strong> — applies the delayed Solar Victoria rebate (up to $1,000). Uncheck for non-SV customers; the rebate line is removed and the customer pays the full amount.</span></label>
-
-      <div class="tot-row"><span class="lbl">Total (ex GST)</span><span class="val" id="totExGst">$0.00</span></div>
-      <div class="tot-row"><span class="lbl">GST (10%)</span><span class="val" id="totGst">$0.00</span></div>
-      <div class="tot-row grand"><span class="lbl">Total (inc GST)</span><span class="val" id="totIncGst">$0.00</span></div>
-
-      <div class="section-band">Less Point-of-Sale Rebates (inc GST)</div>
-      <div class="rebate-row locked">
-        <div><div class="rb-name">Small-scale Technology Certificate Discount <span class="lock-tag">Fixed</span></div><div class="rb-sub">STC · 17 × $20.50</div></div>
-        <div class="rb-val" id="stcTotal">− $348.50</div>
-      </div>
-      <div class="rebate-row locked">
-        <div><div class="rb-name">Victorian Energy Efficiency Target Discount <span class="lock-tag">Fixed</span></div><div class="rb-sub">VEEC · 9 × $35.00</div></div>
-        <div class="rb-val" id="veecTotal">− $315.00</div>
-      </div>
-      <div class="result-row pos"><span class="lbl">Total After Point-of-Sale Rebates (inc GST)</span><span class="val" id="totAfterPos">$0.00</span></div>
-
-      <div id="delayedSection">
-        <div class="section-band delayed">Less Delayed Rebates</div>
-        <div class="rebate-row">
-          <div><div class="rb-name">Solar Victoria (Delayed) Rebate</div><div class="rb-sub">Auto — matches the price, up to $1,000 maximum</div></div>
-          <div class="rb-val" id="svTotal" style="color:#9a5b06;">− $0.00</div>
+        <div class="price-driver">
+          <div>
+            <div class="pd-label">Customer Out-of-Pocket Price</div>
+            <div class="pd-sub">What the customer pays. Everything else calculates from this.</div>
+          </div>
+          <div class="price-input-wrap"><span>$</span><input type="number" id="custPrice" min="0" step="0.01" placeholder="0.00" value="998" oninput="recalc()"></div>
         </div>
+        <label class="sv-toggle"><input type="checkbox" id="svEligible" checked onchange="recalc()"><span><strong>Solar Victoria eligible customer</strong> — applies the delayed SV rebate (up to $1,000). Uncheck for non-SV customers.</span></label>
       </div>
-      <div class="result-row oop"><span class="lbl">Total Out-of-Pocket (inc GST)</span><span class="val" id="totOop">$0.00</span></div>
-
-      <div class="brochure-note">📎 <span>The brochure for the selected tank model is automatically attached to the customer's email (once the PDF is uploaded to <code>/assets/hotwater/</code>).</span></div>
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn" onclick="downloadPDF()">⬇ Download PDF</button>
-    <button class="btn primary" id="sendBtn" onclick="openPreview()">✉ Preview &amp; Email Quote</button>
+  <!-- RIGHT: live summary -->
+  <div class="col">
+    <div class="card summary-card">
+      <div class="card-head"><h3>Quote Summary</h3></div>
+      <div class="card-body">
+        <div class="sum-product">
+          <div><div class="sp-name" id="sumModel">Select a tank model</div><div class="sp-tag">Primary Product · Qty 1</div></div>
+          <div class="sp-price" id="lineTotal">$0.00</div>
+        </div>
+
+        <div class="tot-row"><span class="lbl">Total (ex GST)</span><span class="val" id="totExGst">$0.00</span></div>
+        <div class="tot-row"><span class="lbl">GST (10%)</span><span class="val" id="totGst">$0.00</span></div>
+        <div class="tot-row grand"><span class="lbl">Total (inc GST)</span><span class="val" id="totIncGst">$0.00</span></div>
+
+        <div class="section-band">Less Point-of-Sale Rebates</div>
+        <div class="rebate-row locked">
+          <div><div class="rb-name">STC Discount <span class="lock-tag">Fixed</span></div><div class="rb-sub">17 × $20.50</div></div>
+          <div class="rb-val" id="stcTotal">− $348.50</div>
+        </div>
+        <div class="rebate-row locked">
+          <div><div class="rb-name">VEEC Discount <span class="lock-tag">Fixed</span></div><div class="rb-sub">9 × $35.00</div></div>
+          <div class="rb-val" id="veecTotal">− $315.00</div>
+        </div>
+        <div class="result-row pos"><span class="lbl">Payable at point of sale</span><span class="val" id="totAfterPos">$0.00</span></div>
+
+        <div id="delayedSection">
+          <div class="section-band delayed">Less Delayed Rebates</div>
+          <div class="rebate-row">
+            <div><div class="rb-name">Solar Victoria (Delayed)</div><div class="rb-sub">Up to $1,000, paid after install</div></div>
+            <div class="rb-val" id="svTotal">− $0.00</div>
+          </div>
+        </div>
+        <div class="result-row oop"><span class="lbl">Total Out-of-Pocket</span><span class="val" id="totOop">$0.00</span></div>
+
+        <div class="actions">
+          <button class="btn" onclick="downloadPDF()">⬇ PDF</button>
+          <button class="btn primary" id="sendBtn" onclick="openPreview()">✉ Preview &amp; Email</button>
+        </div>
+        <div class="brochure-note">📎 <span>The tank-model brochure is attached automatically to the customer's email. The quote is logged to the tracker and a note added to their GHL contact.</span></div>
+      </div>
+    </div>
   </div>
-  <p class="hint">The customer receives a Goldsure-branded quote email with the full rebate breakdown and the product brochure attached. The quote is logged to the Hot Water tracker and a note is added to their GHL contact.</p>
+ </div>
 </main>
 </div>
 
@@ -380,9 +380,11 @@ const fmt = new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
 function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
 
 // ── Reverse pricing: price (out-of-pocket) drives everything ──
+const $=id=>document.getElementById(id);
+const setTxt=(id,v)=>{ const e=$(id); if(e) e.textContent=v; };
 function recalc(){
-  const price = round2(parseFloat(document.getElementById('custPrice').value)||0);
-  const svEligible = document.getElementById('svEligible').checked;
+  const price = round2(parseFloat($('custPrice').value)||0);
+  const svEligible = $('svEligible').checked;
   const sv = svEligible ? round2(Math.min(price, SV_MAX)) : 0;  // 0 for non-SV customers
   const afterPos = round2(price + sv);                // customer pays this at point of sale
   const totalInc = round2(afterPos + STC.total + VEEC.total);
@@ -390,17 +392,18 @@ function recalc(){
   const gst = round2(totalInc - subtotalEx);
   const oop = price;                                  // out-of-pocket = the entered price
 
-  document.getElementById('lineRate').textContent = fmt.format(subtotalEx);
-  document.getElementById('lineTotal').textContent = fmt.format(subtotalEx);
-  document.getElementById('totExGst').textContent = fmt.format(subtotalEx);
-  document.getElementById('totGst').textContent = fmt.format(gst);
-  document.getElementById('totIncGst').textContent = fmt.format(totalInc);
-  document.getElementById('stcTotal').textContent = '− ' + fmt.format(STC.total);
-  document.getElementById('veecTotal').textContent = '− ' + fmt.format(VEEC.total);
-  document.getElementById('totAfterPos').textContent = fmt.format(afterPos);
-  document.getElementById('svTotal').textContent = '− ' + fmt.format(sv);
-  document.getElementById('totOop').textContent = fmt.format(oop);
-  document.getElementById('delayedSection').style.display = svEligible ? '' : 'none';
+  const model = $('tankModel').value;
+  setTxt('sumModel', model ? (MODEL_LABEL[model] || model) : 'Select a tank model');
+  setTxt('lineTotal', fmt.format(subtotalEx));
+  setTxt('totExGst', fmt.format(subtotalEx));
+  setTxt('totGst', fmt.format(gst));
+  setTxt('totIncGst', fmt.format(totalInc));
+  setTxt('stcTotal', '− ' + fmt.format(STC.total));
+  setTxt('veecTotal', '− ' + fmt.format(VEEC.total));
+  setTxt('totAfterPos', fmt.format(afterPos));
+  setTxt('svTotal', '− ' + fmt.format(sv));
+  setTxt('totOop', fmt.format(oop));
+  const ds = $('delayedSection'); if(ds) ds.style.display = svEligible ? '' : 'none';
 
   calc = { subtotalEx, gst, totalInc, sv, afterPos, oop, svEligible };
 }
@@ -505,7 +508,7 @@ function openPreview(){
       ${calc.svEligible?`<tr class="reb"><td>Less Solar Victoria rebate (delayed)</td><td class="r">− ${fmt.format(calc.sv)}</td></tr>`:'<tr class="sub"><td colspan="2" style="font-style:italic;">Non-SV customer — no Solar Victoria rebate applied</td></tr>'}
     </table>
     <div class="pv-oop"><span class="l">Customer Out-of-Pocket</span><span class="v">${fmt.format(calc.oop)}</span></div>
-    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The tank-model brochure is attached automatically (when uploaded). A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The tank-model brochure is attached automatically. A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
   document.getElementById('previewModal').classList.add('open');
 }
 function closePreview(){ document.getElementById('previewModal').classList.remove('open'); }
