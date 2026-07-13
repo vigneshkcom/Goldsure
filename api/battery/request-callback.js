@@ -789,6 +789,269 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST action=hws-quote: Hot Water System quote email + tracker row
+  //
+  // Fully self-contained and isolated. Returns early so it never touches the SMS
+  // or battery-callback code below. Hosted here (rather than a new /api file) only
+  // to stay within the Vercel Hobby 12-function limit — it does NOT share logic
+  // with, and cannot affect, the Smoke Alarm quote system.
+  //
+  // Does: builds a Goldsure-branded quote email (products + Solar Victoria rebate
+  // breakdown), attaches the tank-model brochure if one is uploaded, sends via
+  // Resend, texts a confirmation, logs a GHL contact note, and inserts a row into
+  // the `hotwater_quotes` Supabase table for the Hot Water tracker.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'hws-quote') {
+    const {
+      quote_token, agent_name, customer_name, customer_email, customer_phone,
+      customer_address, tank_model, line_items = [],
+      subtotal_ex_gst = 0, gst = 0, total_inc_gst = 0,
+      stc_qty = 0, stc_rate = 0, stc_total = 0,
+      veec_qty = 0, veec_rate = 0, veec_total = 0,
+      total_after_pos_rebates = 0, sv_delayed_rebate = 0, total_out_of_pocket = 0,
+      is_reminder = false, reminder_count = 0,
+    } = body;
+
+    if (!customer_name || !customer_email || !String(customer_email).includes('@')) {
+      return res.status(400).json({ error: 'Customer name and a valid email are required.' });
+    }
+
+    const token = quote_token || (globalThis.crypto?.randomUUID?.() || String(Date.now()));
+    const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100)
+      .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    // ── Per-model brochure map. Add entries as brochure PDFs are uploaded to
+    //    /assets/hotwater/. Only mapped + reachable files are attached, so a
+    //    missing brochure can never fail the send. ──
+    const SITE = 'https://portal.goldsure.com.au';
+    const BROCHURES = {
+      // 'ECON-300SV':       `${SITE}/assets/hotwater/ECON-300SV.pdf`,
+      // 'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
+      // 'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
+      // 'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
+    };
+
+    // Build product line-item rows
+    const itemRowsHtml = (Array.isArray(line_items) ? line_items : []).map((it) => {
+      const qty = Number(it.qty) || 0, rate = Number(it.rate) || 0;
+      const lineTot = Math.round((qty * rate + Number.EPSILON) * 100) / 100;
+      return `<tr bgcolor="#ffffff">
+        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;">${esc(it.name)}<br><span style="font-size:10px;color:#999999;">${esc(it.type || '')}</span></td>
+        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${qty}</td>
+        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${money(rate)}</td>
+        <td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${money(lineTot)}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Goldsure Hot Water Quote</title></head>
+<body style="margin:0;padding:0;background-color:#ebebeb;">
+<table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ebebeb"><tr><td align="center" style="padding:20px 16px;">
+  <table width="600" border="0" cellpadding="0" cellspacing="0" style="background:#ffffff;overflow:hidden;">
+    <tr><td bgcolor="#000000" align="center" style="padding:20px 32px 5px;"><img src="${SITE}/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="180" style="display:block;width:180px;height:auto;margin:0 auto;" /></td></tr>
+    <tr><td bgcolor="#000000" align="center" style="padding:0 32px 16px;"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Hot Water System Quote</p></td></tr>
+    <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+    <tr><td style="padding:24px 30px;background:#ffffff;">
+      <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#000000;">Hi ${esc(customer_name)},</p>
+      ${(customer_phone || customer_address) ? `<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#888888;line-height:1.6;">${esc(customer_phone || '')}${customer_phone && customer_address ? '<br>' : ''}${esc(customer_address || '')}</p>` : ''}
+      ${is_reminder ? `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:16px;background:#faf6ec;border-left:3px solid #b08d2e;"><tr><td style="padding:10px 14px;"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;"><strong>Just following up</strong> on the hot water system quote we sent you. Here it is again for your convenience — we'd love to help you upgrade.</p></td></tr></table>` : ''}
+      <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.6;">Thank you for choosing Goldsure. Please find your personalised heat pump hot water system quote below, including your Solar Victoria and energy-certificate rebates. Final assessment is confirmed by our licensed installer on the day.</p>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:14px;border:1px solid #e0e0e0;">
+        <tr bgcolor="#000000">
+          <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;">Item</td>
+          <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;text-align:center;">Qty</td>
+          <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;text-align:right;">Rate ex GST</td>
+          <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;text-align:right;">Total ex GST</td>
+        </tr>
+        ${itemRowsHtml}
+        <tr bgcolor="#f7f7f7"><td colspan="3" style="padding:7px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;text-align:right;">Total (ex GST)</td><td style="padding:7px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111111;text-align:right;font-weight:700;">${money(subtotal_ex_gst)}</td></tr>
+        <tr bgcolor="#f7f7f7"><td colspan="3" style="padding:7px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;text-align:right;">GST (10%)</td><td style="padding:7px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111111;text-align:right;font-weight:700;">${money(gst)}</td></tr>
+        <tr bgcolor="#efefef"><td colspan="3" style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000000;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Total (inc GST)</td><td style="padding:9px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000000;text-align:right;font-weight:700;">${money(total_inc_gst)}</td></tr>
+      </table>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:14px;border:1px solid #e0e0e0;">
+        <tr bgcolor="#000000"><td colspan="2" style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#b08d2e;">Less Point-of-Sale Rebates (inc GST)</td></tr>
+        <tr bgcolor="#ffffff"><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111111;border-top:1px solid #f0f0f0;">Small-scale Technology Certificate (STC) Discount<br><span style="font-size:10px;color:#999999;">${stc_qty} × ${money(stc_rate)}</span></td><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0d7a4f;text-align:right;font-weight:700;border-top:1px solid #f0f0f0;">− ${money(stc_total)}</td></tr>
+        <tr bgcolor="#ffffff"><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111111;border-top:1px solid #f0f0f0;">Victorian Energy Efficiency Target (VEEC) Discount<br><span style="font-size:10px;color:#999999;">${veec_qty} × ${money(veec_rate)}</span></td><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0d7a4f;text-align:right;font-weight:700;border-top:1px solid #f0f0f0;">− ${money(veec_total)}</td></tr>
+        <tr bgcolor="#eaf7f2"><td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#0d7a4f;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-top:1px solid #b0e8d2;">Total After Point-of-Sale Rebates</td><td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#18a96e;text-align:right;font-weight:700;border-top:1px solid #b0e8d2;">${money(total_after_pos_rebates)}</td></tr>
+      </table>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #f0c98a;">
+        <tr bgcolor="#b08d2e"><td colspan="2" style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#ffffff;">Less Delayed Rebate</td></tr>
+        <tr bgcolor="#ffffff"><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111111;">Solar Victoria (Delayed) Rebate<br><span style="font-size:10px;color:#999999;">Paid to you by Solar Victoria after installation</span></td><td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#9a5b06;text-align:right;font-weight:700;">− ${money(sv_delayed_rebate)}</td></tr>
+        <tr bgcolor="#fdf3e3"><td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9a5b06;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-top:1px solid #f0c98a;">Your Total Out-of-Pocket</td><td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#d98c1e;text-align:right;font-weight:700;border-top:1px solid #f0c98a;">${money(total_out_of_pocket)}</td></tr>
+      </table>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;"><tr><td style="padding:12px 14px;">
+        <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Banking Details</p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#333333;line-height:1.6;">Account Name: <strong>Goldsure Pty Ltd</strong><br>BSB: <strong>063 147</strong> &nbsp;·&nbsp; Account: <strong>10928147</strong><br>Reference: your name. Payment is due upon completion of installation.</p>
+      </td></tr></table>
+
+      <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#aaaaaa;font-style:italic;line-height:1.5;border-top:1px solid #eeeeee;padding-top:12px;">THIS IS NOT AN INVOICE. This quote is an estimate based on the information provided at the time. An invoice is issued after assessment, products installed and services rendered. Rebate eligibility is subject to Solar Victoria and scheme approval. All products carry a minimum 1-year warranty.</p>
+
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #e0e0e0;"><tr>
+        <td valign="middle" style="padding:14px 16px 14px 0;width:130px;"><img src="${SITE}/assets/goldsure-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;"></td>
+        <td valign="middle" style="padding:14px 0 14px 16px;border-left:2px solid #b08d2e;">
+          <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#000000;">${esc(agent_name || 'Goldsure')}</p>
+          <p style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+          <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#555555;line-height:1.6;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">info@goldsure.com.au</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:bold;">www.goldsure.com.au</a></p>
+        </td></tr></table>
+    </td></tr>
+    <tr><td bgcolor="#000000" align="center" style="padding:15px 20px;">
+      <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">Goldsure Pty Ltd</p>
+      <p style="margin:0 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#888888;line-height:1.5;">ABN: 66 683 305 106 &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072</p>
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#555555;line-height:1.4;">CONFIDENTIAL: This email and any attachments are intended solely for the named recipient.</p>
+    </td></tr>
+  </table>
+</td></tr></table></body></html>`;
+
+    // ── Attach the tank-model brochure if uploaded + reachable (best-effort) ──
+    const attachments = [];
+    const brochureUrl = BROCHURES[tank_model];
+    if (brochureUrl) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5000);
+        const bRes = await fetch(brochureUrl, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (bRes.ok) {
+          const buf = Buffer.from(await bRes.arrayBuffer());
+          attachments.push({ filename: `${tank_model} Brochure.pdf`, content: buf.toString('base64') });
+        } else {
+          console.warn('[HWS] brochure not reachable, sending without it:', brochureUrl, bRes.status);
+        }
+      } catch (e) {
+        console.warn('[HWS] brochure fetch failed, sending without it:', e.message);
+      }
+    }
+
+    // ── Send the quote email via Resend ──
+    let emailSuccess = false;
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [customer_email],
+          bcc: ['vignesh@goldsure.com.au'],
+          subject: is_reminder ? 'Reminder: Your Hot Water System Quote – Goldsure' : 'Your Hot Water System Quote – Goldsure',
+          html,
+          ...(attachments.length ? { attachments } : {}),
+        }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error('[HWS] Resend failed:', r.status, detail);
+        return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) });
+      }
+      emailSuccess = true;
+    } catch (e) {
+      console.error('[HWS] Resend error:', e.message);
+      return res.status(500).json({ error: 'Internal error sending email.' });
+    }
+
+    // ── Confirmation SMS (best-effort, non-fatal) ──
+    let smsSent = false;
+    if (emailSuccess && customer_phone) {
+      try {
+        const smsPhone = normalizeAuPhone(customer_phone);
+        const smsUser = process.env.SMSGATE_USERNAME, smsPass = process.env.SMSGATE_PASSWORD;
+        if (smsUser && smsPass && !(await isOptedOut(smsPhone))) {
+          const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+          const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
+          const smsText = `Hi ${custFirst}, this is ${agentFirst} from Goldsure. Your hot water system quote (out-of-pocket ${money(total_out_of_pocket)}) has just been emailed to ${customer_email}. Please check your inbox and spam folder. Reply here or call us if you have any questions. Thanks!`;
+          const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
+          const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+            method: 'POST',
+            headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
+          });
+          if (smsRes.ok) {
+            smsSent = true;
+            const smsData = await smsRes.json().catch(() => ({}));
+            fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ phone_number: smsPhone, message: smsText, direction: 'outbound', status: 'sent', sms_gate_id: smsData.id || null }),
+            }).catch(() => {});
+          }
+        }
+      } catch (e) { console.warn('[HWS] confirmation SMS failed (non-fatal):', e.message); }
+    }
+
+    // ── Log a note on the GHL contact (best-effort, non-fatal) ──
+    if (emailSuccess) {
+      try {
+        const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
+        if (apiKey && locationId) {
+          const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+          const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(customer_email)}&limit=5`, { headers: hdrs });
+          const cData = await cRes.json().catch(() => ({}));
+          const contacts = cData.contacts || [];
+          const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
+          if (contact?.id) {
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
+              method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'} — ${tank_model || 'HWS'} · Out-of-pocket ${money(total_out_of_pocket)}` }),
+            });
+          }
+        }
+      } catch (e) { console.warn('[HWS] GHL note failed (non-fatal):', e.message); }
+    }
+
+    // ── Reminder: bump the existing row instead of inserting a new one ──
+    if (emailSuccess && is_reminder) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?quote_token=eq.${encodeURIComponent(token)}`, {
+          method: 'PATCH',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ reminder_count: (Number(reminder_count) || 0) + 1, last_reminder_sent_at: new Date().toISOString() }),
+        });
+      } catch (e) { console.error('[HWS] reminder update error (non-fatal):', e.message); }
+      return res.status(200).json({ success: true, sms_sent: smsSent, reminder_count: (Number(reminder_count) || 0) + 1, last_reminder_sent_at: new Date().toISOString() });
+    }
+
+    // ── Log the quote to the hotwater_quotes tracker table (non-fatal) ──
+    if (emailSuccess) {
+      try {
+        const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            quote_token: token,
+            agent_name: agent_name || null,
+            customer_name: customer_name || null,
+            customer_email: customer_email || null,
+            customer_phone: customer_phone || null,
+            customer_address: customer_address || null,
+            tank_model: tank_model || null,
+            line_items: Array.isArray(line_items) ? line_items : [],
+            subtotal_ex_gst: Number(subtotal_ex_gst) || 0,
+            gst: Number(gst) || 0,
+            total_inc_gst: Number(total_inc_gst) || 0,
+            stc_qty: Number(stc_qty) || 0, stc_rate: Number(stc_rate) || 0, stc_total: Number(stc_total) || 0,
+            veec_qty: Number(veec_qty) || 0, veec_rate: Number(veec_rate) || 0, veec_total: Number(veec_total) || 0,
+            total_after_pos_rebates: Number(total_after_pos_rebates) || 0,
+            sv_delayed_rebate: Number(sv_delayed_rebate) || 0,
+            total_out_of_pocket: Number(total_out_of_pocket) || 0,
+            status: 'sent',
+            accepted: false,
+            reminder_count: 0,
+            sent_at: new Date().toISOString(),
+          }),
+        });
+        if (!supaRes.ok) console.error('[HWS] Supabase insert failed:', supaRes.status, (await supaRes.text()).slice(0, 300));
+      } catch (e) { console.error('[HWS] Supabase insert error (non-fatal):', e.message); }
+    }
+
+    return res.status(200).json({ success: true, sms_sent: smsSent, brochure_attached: attachments.length > 0 });
+  }
+
   // ── POST action=sync: trigger SMS Gate inbox export ─────────────────────────
   // SMS Gate has no pull endpoint for received messages — the documented method
   // is POST /messages/inbox/export, which makes the device re-fire sms:received

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Hot Water Quote Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--surface3:#e8eaf0;
+  --border:#e3e7ef;--border2:#d0d5df;--text:#141c2e;--muted:#6b7899;
+  --gold:#b08d2e;--gold-light:#caa535;--gold-bg:#fef7e7;--gold-border:#e8d28a;
+  --green:#18a96e;--green-bg:#eaf7f2;--amber:#d98c1e;--amber-bg:#fdf3e3;
+  --blue:#2d6be4;--blue-bg:#edf2fd;--red:#e04f4f;--red-bg:rgba(224,79,79,0.08);
+  --shadow:0 1px 4px rgba(0,0,0,0.06),0 6px 16px rgba(0,0,0,0.04);--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── Login ── */
+#login-screen{position:fixed;inset:0;background:#141c2e;display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.login-card{background:#fff;border-radius:16px;padding:38px 34px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.4);border-top:4px solid var(--gold);}
+.login-logo{text-align:center;margin-bottom:22px;}
+.login-logo img{height:40px;margin-bottom:14px;}
+.login-logo h2{font-size:18px;font-weight:700;}
+.login-logo p{font-size:12px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
+.login-field{margin-bottom:16px;}
+.login-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:6px;}
+.login-field select{width:100%;font-family:'Sora',sans-serif;font-size:14px;padding:11px 12px;border:1.5px solid var(--border2);border-radius:9px;background:var(--surface2);outline:none;}
+.login-field select:focus{border-color:var(--gold);background:#fff;}
+.login-btn{width:100%;background:var(--gold);color:#141c2e;font-family:'Sora',sans-serif;font-size:14px;font-weight:700;padding:12px;border:none;border-radius:9px;cursor:pointer;transition:.15s;}
+.login-btn:hover{background:var(--gold-light);}
+.login-error{display:none;background:var(--red-bg);color:var(--red);font-size:12px;font-weight:600;padding:9px 12px;border-radius:8px;margin-bottom:14px;text-align:center;}
+.login-error.show{display:block;}
+.login-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;}
+
+/* ── App shell ── */
+#app{display:none;}
+header{background:#fff;border-bottom:3px solid var(--gold);padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;min-height:60px;flex-wrap:wrap;}
+.header-left{display:flex;align-items:center;gap:16px;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.header-logo img{height:34px;width:auto;object-fit:contain;}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px;}
+.logo-text span{color:var(--gold);}
+.hd{width:1px;height:26px;background:rgba(0,0,0,0.1);}
+.page-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+.header-right{display:flex;align-items:center;gap:8px;}
+.agent-chip{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;}
+.agent-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.agent-name{font-size:12px;font-weight:600;}
+.nav-btn{font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:#4b5b7a;cursor:pointer;text-decoration:none;transition:.15s;display:inline-flex;align-items:center;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;}
+.nav-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--gold);}
+.nav-btn.logout:hover{color:var(--red);border-color:rgba(224,79,79,.4);}
+
+main{padding:24px 28px;max-width:1080px;margin:0 auto;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden;}
+.card-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface);}
+.card-head .step-badge{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-border);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+.card-head h3{font-size:14px;font-weight:700;}
+.card-body{padding:20px;}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;}
+.field input,.field select,.field textarea{width:100%;font-family:'Sora',sans-serif;font-size:14px;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--surface2);outline:none;transition:.15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);background:#fff;}
+.field textarea{resize:vertical;min-height:60px;}
+
+/* ── Quotation table ── */
+.q-wrap{overflow-x:auto;}
+table.quote{width:100%;border-collapse:collapse;min-width:640px;}
+table.quote th{background:#141c2e;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:10px 12px;text-align:left;}
+table.quote th.num{text-align:right;}
+table.quote td{padding:6px 12px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;}
+.cell-input{width:100%;font-family:'Sora',sans-serif;font-size:13px;padding:6px 8px;border:1px solid transparent;border-radius:6px;background:transparent;outline:none;}
+.cell-input:hover{background:var(--surface2);}
+.cell-input:focus{border-color:var(--gold);background:#fff;}
+.cell-input.num{text-align:right;font-family:'JetBrains Mono',monospace;}
+.cell-input.rate{max-width:120px;}
+.cell-input.qty{max-width:70px;}
+.type-select{font-family:'Sora',sans-serif;font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);outline:none;color:var(--muted);}
+.row-del{background:none;border:none;color:var(--red);cursor:pointer;font-size:15px;opacity:.55;padding:2px 6px;line-height:1;}
+.row-del:hover{opacity:1;}
+.add-row{margin:12px 0;text-align:center;}
+.add-btn{font-family:'Sora',sans-serif;font-size:12px;font-weight:700;padding:8px 16px;border:1.5px dashed var(--gold-border);border-radius:9px;background:var(--gold-bg);color:var(--gold);cursor:pointer;transition:.15s;}
+.add-btn:hover{background:#f8edc9;}
+
+/* Totals rows */
+.tot-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:13px;}
+.tot-row .lbl{color:var(--muted);font-weight:600;}
+.tot-row .val{font-family:'JetBrains Mono',monospace;font-weight:600;}
+.tot-row.grand{background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.tot-row.grand .lbl{color:var(--text);font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.5px;}
+.tot-row.grand .val{font-size:15px;}
+
+.section-band{background:#e8eaf0;border-top:2px solid var(--gold);padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text);margin-top:8px;display:flex;justify-content:space-between;}
+.section-band.delayed{border-top-color:var(--amber);}
+.rebate-row{display:grid;grid-template-columns:1fr 70px 110px 120px;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);font-size:13px;}
+.rebate-row .rb-name{color:var(--text);font-weight:600;}
+.rebate-row .rb-sub{font-size:10px;color:var(--muted);}
+.rebate-total{background:#fff9db;border:1px solid var(--gold-border);border-radius:6px;padding:6px 8px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px;}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:12px;font-weight:700;font-size:14px;margin-top:4px;border-radius:8px;}
+.result-row.pos{background:var(--green-bg);color:#0d7a4f;border:1px solid #b0e8d2;}
+.result-row.pos .val{color:var(--green);}
+.result-row.oop{background:var(--amber-bg);color:#9a5b06;border:1px solid #f0c98a;}
+.result-row.oop .val{color:#d98c1e;font-size:18px;}
+.result-row .val{font-family:'JetBrains Mono',monospace;}
+.result-row .lbl{text-transform:uppercase;font-size:11px;letter-spacing:.5px;}
+
+.actions{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px;}
+.btn{font-family:'Sora',sans-serif;font-size:13px;font-weight:700;padding:12px 22px;border-radius:10px;cursor:pointer;border:1px solid var(--border2);background:#fff;color:var(--text);transition:.15s;display:inline-flex;align-items:center;gap:8px;}
+.btn:hover{border-color:var(--gold);}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#141c2e;}
+.btn.primary:hover{background:var(--gold-light);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.brochure-note{font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:9px 12px;margin-top:12px;display:flex;align-items:center;gap:8px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#141c2e;color:#fff;font-size:12px;font-weight:600;padding:11px 22px;border-radius:30px;border-left:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;max-width:90vw;text-align:center;}
+.toast.show{opacity:1;}
+@media(max-width:680px){.grid2{grid-template-columns:1fr;}main{padding:16px;}header{padding:0 14px;}.rebate-row{grid-template-columns:1fr 56px 90px 100px;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <h2>Hot Water Quotes</h2>
+      <p>Agent Sign In</p>
+    </div>
+    <div class="login-error" id="login-error">Please select your name.</div>
+    <div class="login-field">
+      <label>Your Name</label>
+      <select id="login-agent">
+        <option value="">— Select your name —</option>
+        <option value="Vignesh">Vignesh</option>
+        <option value="David">David</option>
+        <option value="Amit">Amit</option>
+        <option value="Shanira">Shanira</option>
+        <option value="Adam">Adam</option>
+      </select>
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="login-hint">Your name appears on the quote you send.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <span class="logo-text">Goldsure <span>|</span></span>
+    </div>
+    <div class="hd"></div>
+    <span class="page-label">Hot Water · Quote Builder</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name" id="agentName">Agent</span></div>
+    <div class="hd"></div>
+    <a href="/" class="nav-btn">← Portal</a>
+    <a href="/hotwater/quote-tracker.html" class="nav-btn" target="_blank">Quote Tracker</a>
+    <button class="nav-btn logout" onclick="doLogout()">Sign Out</button>
+  </div>
+</header>
+
+<main>
+  <!-- Customer -->
+  <div class="card">
+    <div class="card-head"><span class="step-badge">Step 1</span><h3>Customer Details</h3></div>
+    <div class="card-body">
+      <div class="grid2">
+        <div class="field"><label>Customer Name *</label><input type="text" id="custName" placeholder="Full name"></div>
+        <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
+        <div class="field"><label>Email *</label><input type="email" id="custEmail" placeholder="customer@example.com"></div>
+        <div class="field"><label>Property Address</label><input type="text" id="custAddress" placeholder="Street, Suburb, VIC, Postcode"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quote -->
+  <div class="card">
+    <div class="card-head"><span class="step-badge">Step 2</span><h3>Quotation</h3>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Tank Model</label>
+        <select id="tankModel" class="type-select" style="font-size:13px;padding:7px 10px;" onchange="onModelChange()">
+          <option value="">— Select —</option>
+          <option value="EG-330FRE-WR">EG-330FRE-WR</option>
+          <option value="ECON-300RVW">ECON-300RVW</option>
+          <option value="ECON-300RVW-2.0E">ECON-300RVW-2.0E</option>
+          <option value="ECON-300SV">ECON-300SV</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="q-wrap">
+        <table class="quote">
+          <thead>
+            <tr>
+              <th style="width:38%;">Item</th>
+              <th style="width:22%;">Type</th>
+              <th class="num" style="width:12%;">Qty</th>
+              <th class="num" style="width:14%;">Rate (ex GST)</th>
+              <th class="num" style="width:14%;">Total (ex GST)</th>
+              <th style="width:36px;"></th>
+            </tr>
+          </thead>
+          <tbody id="itemRows"></tbody>
+        </table>
+      </div>
+      <div class="add-row"><button class="add-btn" onclick="addItem()">＋ Add Product</button></div>
+
+      <div class="tot-row"><span class="lbl">Total (ex GST)</span><span class="val" id="totExGst">$0.00</span></div>
+      <div class="tot-row"><span class="lbl">GST (10%)</span><span class="val" id="totGst">$0.00</span></div>
+      <div class="tot-row grand"><span class="lbl">Total (inc GST)</span><span class="val" id="totIncGst">$0.00</span></div>
+
+      <div class="section-band">Less Point-of-Sale Rebates <span style="font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;">Qty × Rate (inc GST)</span></div>
+      <div class="rebate-row">
+        <div><div class="rb-name">Small-scale Technology Certificate Discount</div><div class="rb-sub">STC · Calculation Discount</div></div>
+        <input class="cell-input num qty" id="stcQty" type="number" min="0" value="17" oninput="recalc()">
+        <input class="cell-input num rate" id="stcRate" type="number" min="0" step="0.01" value="20.50" oninput="recalc()">
+        <div class="rebate-total" id="stcTotal">$348.50</div>
+      </div>
+      <div class="rebate-row">
+        <div><div class="rb-name">Victorian Energy Efficiency Target Discount</div><div class="rb-sub">VEEC · Calculation Discount</div></div>
+        <input class="cell-input num qty" id="veecQty" type="number" min="0" value="9" oninput="recalc()">
+        <input class="cell-input num rate" id="veecRate" type="number" min="0" step="0.01" value="35.00" oninput="recalc()">
+        <div class="rebate-total" id="veecTotal">$315.00</div>
+      </div>
+
+      <div class="result-row pos"><span class="lbl">Total After Point-of-Sale Rebates (inc GST)</span><span class="val" id="totAfterPos">$0.00</span></div>
+
+      <div class="section-band delayed">Less Delayed Rebates</div>
+      <div class="rebate-row" style="grid-template-columns:1fr 120px;">
+        <div><div class="rb-name">Solar Victoria (Delayed) Rebate</div><div class="rb-sub">Paid to customer after installation by Solar Victoria</div></div>
+        <input class="cell-input num rate" id="svRebate" type="number" min="0" step="0.01" value="1000.00" oninput="recalc()" style="max-width:120px;">
+      </div>
+
+      <div class="result-row oop"><span class="lbl">Total Out-of-Pocket (after delayed rebates, inc GST)</span><span class="val" id="totOop">$0.00</span></div>
+
+      <div class="brochure-note">📎 <span>The product brochure for the selected tank model is automatically attached to the customer's email (once the brochure PDF is uploaded to <code>/assets/hotwater/</code>).</span></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" onclick="window.print()">🖨 Print / Save PDF</button>
+    <button class="btn primary" id="sendBtn" onclick="sendQuote()">✉ Email Quote to Customer</button>
+  </div>
+  <p class="hint">The customer receives a Goldsure-branded quote email with the full rebate breakdown and the product brochure attached. The quote is logged to the Hot Water tracker and a note is added to their GHL contact.</p>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Tank model defaults (rate ex GST). Editable per quote. Known rates seeded
+//    from sample quotes; others start at 0 for the agent to fill in. ──
+const MODEL_DEFAULTS = {
+  'EG-330FRE-WR':    { display: 'EG-330FRE-WR Heat Pump Hot Water System',       rate: 0 },
+  'ECON-300RVW':     { display: 'ECONOVA ECON-300RVW Heat Pump Hot Water System', rate: 0 },
+  'ECON-300RVW-2.0E':{ display: 'ECONOVA ECON-300RVW-2.0E Heat Pump Hot Water System', rate: 2601.36 },
+  'ECON-300SV':      { display: 'ECONOVA ECON-300SV Heat Pump Hot Water System',  rate: 2277.27 },
+};
+
+let agent = '';
+let items = []; // { name, type, qty, rate }
+
+// ── Auth ──
+function doLogin(){
+  const a = document.getElementById('login-agent').value;
+  if(!a){ document.getElementById('login-error').classList.add('show'); return; }
+  agent = a;
+  sessionStorage.setItem('hw_agent', a);
+  showApp();
+}
+function doLogout(){ sessionStorage.removeItem('hw_agent'); location.reload(); }
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('agentName').textContent = agent;
+}
+window.addEventListener('DOMContentLoaded', ()=>{
+  const saved = sessionStorage.getItem('hw_agent');
+  if(saved){ agent = saved; showApp(); }
+  // Seed default line items (mirrors the sample quote structure).
+  items = [
+    { name:'HWS Gas/Electric Upgrade Co-Payment Adjustment', type:'Co-Contribution', qty:1, rate:0 },
+    { name:'Wall Bracket Mounting', type:'Additional Product', qty:1, rate:90 },
+    { name:'', type:'Primary Product', qty:1, rate:0 },
+  ];
+  renderItems();
+  recalc();
+});
+
+// ── Line items ──
+function renderItems(){
+  const tb = document.getElementById('itemRows');
+  tb.innerHTML = items.map((it,i)=>`
+    <tr>
+      <td><input class="cell-input" value="${escAttr(it.name)}" placeholder="Product / service name" oninput="setItem(${i},'name',this.value)"></td>
+      <td>
+        <select class="type-select" onchange="setItem(${i},'type',this.value)">
+          ${['Primary Product','Additional Product','Co-Contribution'].map(t=>`<option ${t===it.type?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td class="num"><input class="cell-input num qty" type="number" min="0" value="${it.qty}" oninput="setItem(${i},'qty',this.value)"></td>
+      <td class="num"><input class="cell-input num rate" type="number" min="0" step="0.01" value="${it.rate}" oninput="setItem(${i},'rate',this.value)"></td>
+      <td class="num" id="lineTot${i}">$0.00</td>
+      <td><button class="row-del" onclick="delItem(${i})" title="Remove">🗑</button></td>
+    </tr>`).join('');
+  recalc();
+}
+function setItem(i,key,val){
+  items[i][key] = (key==='qty'||key==='rate') ? (parseFloat(val)||0) : val;
+  recalc();
+}
+function addItem(){ items.push({ name:'', type:'Additional Product', qty:1, rate:0 }); renderItems(); }
+function delItem(i){ items.splice(i,1); renderItems(); }
+
+function onModelChange(){
+  const m = document.getElementById('tankModel').value;
+  if(!m) return;
+  const def = MODEL_DEFAULTS[m];
+  // Fill the first Primary Product line with the chosen model.
+  let idx = items.findIndex(it=>it.type==='Primary Product');
+  if(idx === -1){ items.push({ name:'', type:'Primary Product', qty:1, rate:0 }); idx = items.length-1; }
+  items[idx].name = def.display;
+  items[idx].rate = def.rate;
+  renderItems();
+}
+
+// ── Money helpers ──
+const fmt = new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
+function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
+
+let calc = {};
+function recalc(){
+  let subtotal = 0;
+  items.forEach((it,i)=>{
+    const lt = round2((it.qty||0)*(it.rate||0));
+    const cell = document.getElementById('lineTot'+i);
+    if(cell) cell.textContent = fmt.format(lt);
+    subtotal += lt;
+  });
+  subtotal = round2(subtotal);
+  const gst = round2(subtotal*0.10);
+  const totalInc = round2(subtotal+gst);
+
+  const stcQty=parseFloat(document.getElementById('stcQty').value)||0;
+  const stcRate=parseFloat(document.getElementById('stcRate').value)||0;
+  const veecQty=parseFloat(document.getElementById('veecQty').value)||0;
+  const veecRate=parseFloat(document.getElementById('veecRate').value)||0;
+  const stcTotal=round2(stcQty*stcRate);
+  const veecTotal=round2(veecQty*veecRate);
+  const svRebate=round2(parseFloat(document.getElementById('svRebate').value)||0);
+
+  const afterPos=round2(totalInc-stcTotal-veecTotal);
+  const oop=round2(afterPos-svRebate);
+
+  document.getElementById('totExGst').textContent=fmt.format(subtotal);
+  document.getElementById('totGst').textContent=fmt.format(gst);
+  document.getElementById('totIncGst').textContent=fmt.format(totalInc);
+  document.getElementById('stcTotal').textContent=fmt.format(stcTotal);
+  document.getElementById('veecTotal').textContent=fmt.format(veecTotal);
+  document.getElementById('totAfterPos').textContent=fmt.format(afterPos);
+  document.getElementById('totOop').textContent=fmt.format(oop);
+
+  calc = { subtotal, gst, totalInc, stcQty, stcRate, stcTotal, veecQty, veecRate, veecTotal, svRebate, afterPos, oop };
+}
+
+// ── Send ──
+async function sendQuote(){
+  const name=document.getElementById('custName').value.trim();
+  const email=document.getElementById('custEmail').value.trim();
+  const phone=document.getElementById('custPhone').value.trim();
+  const address=document.getElementById('custAddress').value.trim();
+  const model=document.getElementById('tankModel').value;
+  if(!name){ showToast('Enter the customer name.'); return; }
+  if(!email || !email.includes('@')){ showToast('Enter a valid customer email.'); return; }
+  const primary = items.find(it=>it.type==='Primary Product' && it.name);
+  if(!primary){ showToast('Select a tank model / add the primary product.'); return; }
+
+  recalc();
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true; btn.textContent='Sending…';
+  try{
+    const res = await fetch('/api/battery/request-callback',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'hws-quote',
+        quote_token: (crypto.randomUUID?crypto.randomUUID():String(Date.now())),
+        agent_name: agent,
+        customer_name: name,
+        customer_email: email,
+        customer_phone: phone,
+        customer_address: address,
+        tank_model: model,
+        line_items: items.filter(it=>it.name),
+        subtotal_ex_gst: calc.subtotal,
+        gst: calc.gst,
+        total_inc_gst: calc.totalInc,
+        stc_qty: calc.stcQty, stc_rate: calc.stcRate, stc_total: calc.stcTotal,
+        veec_qty: calc.veecQty, veec_rate: calc.veecRate, veec_total: calc.veecTotal,
+        total_after_pos_rebates: calc.afterPos,
+        sv_delayed_rebate: calc.svRebate,
+        total_out_of_pocket: calc.oop,
+      }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error || 'Send failed — check details.'); return; }
+    showToast(data.sms_sent ? `Quote emailed to ${email} + SMS sent` : `Quote emailed to ${email}`);
+  }catch(e){
+    console.error(e); showToast('Network error — please try again.');
+  }finally{
+    btn.disabled=false; btn.textContent='✉ Email Quote to Customer';
+  }
+}
+
+// ── utils ──
+function escAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+</script>
+</body>
+</html>

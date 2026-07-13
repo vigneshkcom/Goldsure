@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Hot Water Quote Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--surface3:#e8eaf0;
+  --border:#e3e7ef;--border2:#d0d5df;--text:#141c2e;--muted:#6b7899;
+  --gold:#b08d2e;--gold-light:#caa535;--gold-bg:#fef7e7;--gold-border:#e8d28a;
+  --green:#18a96e;--green-bg:#eaf7f2;--green-border:#b0e8d2;
+  --amber:#d98c1e;--amber-bg:#fdf3e3;--blue:#2d6be4;--blue-bg:#edf2fd;
+  --red:#e04f4f;--red-bg:rgba(224,79,79,0.08);
+  --shadow:0 1px 4px rgba(0,0,0,0.06),0 6px 16px rgba(0,0,0,0.04);--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+header{background:#fff;border-bottom:3px solid var(--gold);padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;min-height:60px;flex-wrap:wrap;}
+.header-left{display:flex;align-items:center;gap:16px;}
+.header-logo{display:flex;align-items:center;gap:12px;}
+.header-logo img{height:34px;width:auto;object-fit:contain;}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px;}
+.logo-text span{color:var(--gold);}
+.hd{width:1px;height:26px;background:rgba(0,0,0,0.1);}
+.page-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+.header-right{display:flex;align-items:center;gap:8px;}
+.nav-btn{font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:7px 14px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:#4b5b7a;cursor:pointer;text-decoration:none;transition:.15s;display:inline-flex;align-items:center;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;}
+.nav-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--gold);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin-icon{display:inline-block;margin-right:5px;}
+.spinning .spin-icon{animation:spin .7s linear infinite;}
+main{padding:24px 28px;max-width:1400px;margin:0 auto;}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi-card.gold::before{background:var(--gold);}
+.kpi-card.green::before{background:var(--green);}
+.kpi-card.amber::before{background:var(--amber);}
+.kpi-card.blue::before{background:var(--blue);}
+.kpi-card.dark::before{background:#141c2e;}
+.kpi-card.teal::before{background:#0e9488;}
+.kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;}
+.kpi-val{font-size:24px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);line-height:1;}
+.kpi-card.gold .kpi-val{color:var(--gold);}
+.kpi-card.green .kpi-val{color:var(--green);}
+.kpi-card.amber .kpi-val{color:var(--amber);}
+.kpi-card.teal .kpi-val{color:#0e9488;}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);}
+.chart-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:16px;}
+.agent-bars{display:flex;flex-direction:column;gap:10px;}
+.agent-bar-row{display:flex;align-items:center;gap:12px;}
+.agent-bar-name{font-size:12px;font-weight:600;width:100px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.agent-bar-track{flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;}
+.agent-bar-fill{height:100%;background:var(--gold);border-radius:4px;transition:width .6s ease;}
+.agent-bar-val{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);width:28px;text-align:right;}
+.day-grid{display:flex;align-items:flex-end;gap:4px;height:80px;}
+.day-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.day-bar-track{width:100%;background:var(--surface2);border-radius:3px;display:flex;flex-direction:column;justify-content:flex-end;height:60px;overflow:hidden;border:1px solid var(--border);}
+.day-bar-fill{background:var(--gold);width:100%;border-radius:2px;transition:height .5s ease;min-height:2px;}
+.day-label{font-size:8px;color:var(--muted);}
+.filters-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;box-shadow:var(--shadow);}
+.filter-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);white-space:nowrap;}
+.filter-input,.filter-select{font-family:'Sora',sans-serif;font-size:12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);outline:none;transition:border-color .15s;}
+.filter-input{min-width:200px;}
+.filter-input:focus,.filter-select:focus{border-color:var(--gold);background:var(--surface);}
+.filter-divider{width:1px;height:22px;background:var(--border);}
+.clear-btn{font-family:'Sora',sans-serif;font-size:10px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;transition:all .15s;}
+.clear-btn:hover{color:var(--red);border-color:rgba(224,79,79,.4);background:var(--red-bg);}
+.results-count{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;}
+.results-count strong{color:var(--text);font-family:'JetBrains Mono',monospace;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
+.table-header-bar{padding:12px 18px;border-bottom:1px solid var(--border);}
+.table-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:1080px;}
+thead tr{background:var(--surface2);}
+th{padding:10px 14px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);white-space:normal;line-height:1.3;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:color .15s;}
+th:hover{color:var(--gold);}
+th.sorted{color:var(--gold);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--gold-bg);}
+td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
+.td-name{font-weight:600;}
+.td-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.td-mono-sub{font-family:'JetBrains Mono',monospace;font-weight:500;color:#4b5b7a;}
+.td-mono{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px;white-space:nowrap;}
+.td-gold{color:var(--gold);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
+.td-oop{color:var(--amber);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
+.td-date{font-size:11px;color:var(--muted);white-space:nowrap;}
+.model-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--blue-bg);color:var(--blue);border:1px solid rgba(45,107,228,.25);white-space:nowrap;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.badge::before{content:'●';font-size:6px;}
+.badge-sent{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(45,107,228,.25);}
+.badge-accepted{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+.badge-rejected{background:var(--red-bg);color:var(--red);border:1px solid rgba(224,79,79,.3);}
+.badge-installed{background:#f0f7ff;color:#1a56a0;border:1px solid #b3d1f5;}
+.status-btn{cursor:pointer;position:relative;border:none;background:none;padding:0;font:inherit;}
+.status-btn:hover .badge{opacity:.8;}
+.status-menu{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border2);border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.12);z-index:500;min-width:130px;overflow:hidden;display:none;}
+.status-menu.open{display:block;}
+.status-menu-item{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text);transition:background .1s;white-space:nowrap;}
+.status-menu-item:hover{background:var(--surface2);}
+.status-menu-item.active{color:var(--gold);}
+.status-menu-item .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-sent{background:var(--blue);}.dot-accepted{background:var(--green);}.dot-rejected{background:var(--red);}.dot-installed{background:#1a56a0;}
+.reminder-btn{font-family:'Sora',sans-serif;font-size:9px;font-weight:700;padding:5px 9px;border-radius:6px;border:1px solid rgba(176,141,46,.3);background:var(--gold-bg);color:var(--gold);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;transition:all .15s;}
+.reminder-btn:hover:not(:disabled){background:#f8edc9;border-color:rgba(176,141,46,.55);}
+.reminder-btn:disabled{opacity:.3;cursor:not-allowed;background:var(--surface2);color:var(--muted);border-color:var(--border);}
+.days-pill{display:inline-flex;align-items:center;justify-content:center;min-width:38px;padding:3px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+.days-pill.is-stale{background:var(--gold-bg);border-color:var(--gold-border);color:var(--gold);}
+.count-badge{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;}
+.empty-state{text-align:center;padding:60px 20px;}
+.empty-icon{font-size:36px;margin-bottom:14px;opacity:.3;}
+.empty-state h3{font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.empty-state p{font-size:12px;color:var(--muted);}
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px;height:12px;display:block;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton.w-20{width:20%}.skeleton.w-30{width:30%}.skeleton.w-40{width:40%}.skeleton.w-60{width:60%}.skeleton.w-80{width:80%}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#141c2e;color:#fff;font-size:12px;font-weight:600;padding:10px 22px;border-radius:30px;border-left:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.toast.show{opacity:1;}
+@media(max-width:1300px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.charts-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}header{padding:0 16px}main{padding:16px}.filters-bar{flex-direction:column;align-items:flex-start}.filter-input{min-width:auto;width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"><span class="logo-text">Goldsure <span>|</span></span></div>
+    <div class="hd"></div>
+    <span class="page-label">Hot Water · Quote Tracker</span>
+  </div>
+  <div class="header-right">
+    <a href="/" class="nav-btn">← Portal</a>
+    <a href="/hotwater/quote.html" class="nav-btn">← Quote Builder</a>
+    <button class="nav-btn" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="nav-btn" id="refreshBtn" onclick="loadQuotes()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div class="kpi-grid">
+    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Total inc GST pipeline</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Out-of-Pocket Pipeline</div><div class="kpi-val" id="kpi-oop">—</div><div class="kpi-sub">After all rebates</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
+    <div class="kpi-card dark"><div class="kpi-label">Rebates Passed On</div><div class="kpi-val" id="kpi-rebates">—</div><div class="kpi-sub">STC + VEEC + SV</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card"><div class="chart-title">Quotes by Agent</div><div class="agent-bars" id="agent-bars"><div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>Loading…</p></div></div></div>
+    <div class="chart-card"><div class="chart-title">Last 14 Days Activity</div><div class="day-grid" id="day-grid"></div></div>
+  </div>
+
+  <div class="filters-bar">
+    <span class="filter-label">Filter</span>
+    <input type="search" class="filter-input" id="searchInput" placeholder="Search name, email, phone, agent…" oninput="applyFilters()">
+    <div class="filter-divider"></div>
+    <select class="filter-select" id="filterModel" onchange="applyFilters()"><option value="">All Models</option></select>
+    <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
+    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="installed">Installed</option></select>
+    <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
+    <button class="clear-btn" onclick="clearFilters()">Clear</button>
+    <span class="results-count"><strong id="results-count">0</strong> quotes shown</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header-bar"><span class="table-title">Hot Water Quotes</span></div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Date ↕</th>
+            <th onclick="sortBy('customer_name')" data-col="customer_name">Customer ↕</th>
+            <th onclick="sortBy('agent_name')" data-col="agent_name">Agent ↕</th>
+            <th>Tank Model</th>
+            <th onclick="sortBy('total_inc_gst')" data-col="total_inc_gst">Total inc GST ↕</th>
+            <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket ↕</th>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
+            <th>Status</th>
+            <th>Send Reminder</th>
+            <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
+            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders ↕</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script data-cfasync="false">
+const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
+
+window.addEventListener('DOMContentLoaded', loadQuotes);
+
+async function loadQuotes(){
+  const btn=document.getElementById('refreshBtn'); btn.classList.add('spinning');
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?select=*&order=sent_at.desc&limit=1000`,{
+      headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'}
+    });
+    if(!res.ok){ showEmptyTable('Could not load data. Has the hotwater_quotes table been created?'); showToast('Error loading data.'); return; }
+    allQuotes = await res.json();
+    renderKPIs(); renderCharts(); populateFilters(); applyFilters();
+    showToast(`Loaded ${allQuotes.length} quote${allQuotes.length!==1?'s':''}`);
+  }catch(e){ console.error(e); showEmptyTable('Network error.'); showToast('Network error.'); }
+  finally{ btn.classList.remove('spinning'); }
+}
+
+function money(n){ return '$'+(parseFloat(n)||0).toLocaleString('en-AU',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
+function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
+function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
+
+function renderKPIs(){
+  const total=allQuotes.length;
+  const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
+  const revenue=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_inc_gst)||0),0);
+  const oop=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_out_of_pocket)||0),0);
+  const rebates=allQuotes.reduce((s,q)=>s+(parseFloat(q.stc_total)||0)+(parseFloat(q.veec_total)||0)+(parseFloat(q.sv_delayed_rebate)||0),0);
+  const avgOop=total?oop/total:0;
+  const rate=total?Math.round(accepted/total*100):0;
+  document.getElementById('kpi-revenue').textContent='$'+Math.round(revenue).toLocaleString('en-AU');
+  document.getElementById('kpi-oop').textContent='$'+Math.round(oop).toLocaleString('en-AU');
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-accepted').textContent=accepted;
+  document.getElementById('kpi-rate').textContent=`${rate}% conversion rate`;
+  document.getElementById('kpi-avg').textContent='$'+Math.round(avgOop).toLocaleString('en-AU');
+  document.getElementById('kpi-rebates').textContent='$'+Math.round(rebates).toLocaleString('en-AU');
+}
+
+function renderCharts(){
+  const agentMap={}; allQuotes.forEach(q=>{const a=q.agent_name||'Unknown';agentMap[a]=(agentMap[a]||0)+1;});
+  const agents=Object.entries(agentMap).sort((a,b)=>b[1]-a[1]).slice(0,8); const maxA=agents.length?agents[0][1]:1;
+  document.getElementById('agent-bars').innerHTML=agents.length
+    ? agents.map(([n,c])=>`<div class="agent-bar-row"><div class="agent-bar-name" title="${esc(n)}">${esc(n)}</div><div class="agent-bar-track"><div class="agent-bar-fill" style="width:${Math.round(c/maxA*100)}%"></div></div><div class="agent-bar-val">${c}</div></div>`).join('')
+    : '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>No data yet</p></div>';
+  const dayMap={},now=new Date();
+  for(let i=13;i>=0;i--){const d=new Date(now-i*864e5);dayMap[d.toISOString().slice(0,10)]=0;}
+  allQuotes.forEach(q=>{const k=q.sent_at?.slice(0,10); if(k&&k in dayMap)dayMap[k]++;});
+  const days=Object.entries(dayMap); const maxD=Math.max(...days.map(d=>d[1]),1);
+  document.getElementById('day-grid').innerHTML=days.map(([date,cnt])=>{
+    const label=new Date(date+'T12:00:00').toLocaleDateString('en-AU',{weekday:'narrow'});
+    return `<div class="day-col"><div class="day-bar-track"><div class="day-bar-fill" style="height:${Math.round(cnt/maxD*100)}%"></div></div><div class="day-label">${label}</div></div>`;
+  }).join('');
+}
+
+function populateFilters(){
+  const agents=[...new Set(allQuotes.map(q=>q.agent_name).filter(Boolean))].sort();
+  const models=[...new Set(allQuotes.map(q=>q.tank_model).filter(Boolean))].sort();
+  const aSel=document.getElementById('filterAgent'),aCur=aSel.value;
+  aSel.innerHTML='<option value="">All Agents</option>'; agents.forEach(a=>{const o=document.createElement('option');o.value=a.toLowerCase();o.text=a;aSel.appendChild(o);}); aSel.value=aCur;
+  const mSel=document.getElementById('filterModel'),mCur=mSel.value;
+  mSel.innerHTML='<option value="">All Models</option>'; models.forEach(m=>{const o=document.createElement('option');o.value=m.toLowerCase();o.text=m;mSel.appendChild(o);}); mSel.value=mCur;
+}
+
+function applyFilters(){
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  const model=document.getElementById('filterModel').value.toLowerCase();
+  const agent=document.getElementById('filterAgent').value.toLowerCase();
+  const status=document.getElementById('filterStatus').value.toLowerCase();
+  const period=document.getElementById('filterPeriod').value; const now=new Date();
+  filtered=allQuotes.filter(q=>{
+    const sentAt=new Date(q.sent_at);
+    if(search){const hay=`${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''} ${q.tank_model||''}`.toLowerCase(); if(!hay.includes(search))return false;}
+    if(model && (q.tank_model||'').toLowerCase()!==model) return false;
+    if(agent && (q.agent_name||'').toLowerCase()!==agent) return false;
+    if(status && (q.status||'').toLowerCase()!==status) return false;
+    if(period==='today'){const t=new Date();t.setHours(0,0,0,0); if(sentAt<t)return false;}
+    else if(period==='week'){ if(sentAt<new Date(now-7*864e5))return false; }
+    else if(period==='month'){ if(sentAt<new Date(now-30*864e5))return false; }
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
+    if(sortCol==='total_inc_gst'||sortCol==='total_out_of_pocket'||sortCol==='reminder_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(av<bv)return sortDir==='asc'?-1:1; if(av>bv)return sortDir==='asc'?1:-1; return 0;
+  });
+  document.getElementById('results-count').textContent=filtered.length;
+  renderTable();
+}
+function sortBy(col){ sortDir=(sortCol===col&&sortDir==='desc')?'asc':'desc'; sortCol=col; document.querySelectorAll('th').forEach(th=>th.classList.toggle('sorted',th.dataset.col===col)); applyFilters(); }
+function clearFilters(){ ['searchInput','filterModel','filterAgent','filterStatus','filterPeriod'].forEach(id=>document.getElementById(id).value=''); applyFilters(); }
+
+function renderTable(){
+  const tbody=document.getElementById('table-body');
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first hot water quote from the Quote Builder.</p></div></td></tr>`; return; }
+  tbody.innerHTML=filtered.map(q=>{
+    const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+    const st=(q.status||'sent').toLowerCase();
+    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st]||'badge-sent';
+    const canRemind=st==='sent'&&!!q.customer_email&&!!q.quote_token;
+    const menuItems=['sent','accepted','rejected','installed'].map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
+    return `<tr>
+      <td class="td-date">${date}</td>
+      <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}</td>
+      <td style="font-size:11px;">${esc(q.agent_name||'—')}</td>
+      <td>${q.tank_model?`<span class="model-badge">${esc(q.tank_model)}</span>`:'—'}</td>
+      <td class="td-gold">${money(q.total_inc_gst)}</td>
+      <td class="td-oop">${money(q.total_out_of_pocket)}</td>
+      <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
+      <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
+      <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
+      <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
+      <td><span class="count-badge">${getReminderCount(q)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
+
+function toggleMenu(e,btn){ e.stopPropagation(); const menu=btn.querySelector('.status-menu'); const open=menu.classList.contains('open'); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')); if(!open)menu.classList.add('open'); }
+document.addEventListener('click',()=>document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')));
+
+async function updateStatus(e,id,newStatus){
+  e.stopPropagation(); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open'));
+  if(!id){ showToast('No record ID.'); return; }
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?id=eq.${id}`,{
+      method:'PATCH',
+      headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json',Prefer:'return=minimal'},
+      body:JSON.stringify({status:newStatus,accepted:(newStatus==='accepted'||newStatus==='installed')})
+    });
+    if(!res.ok){ showToast('Update failed: '+(await res.text()).slice(0,80)); return; }
+    const q=allQuotes.find(x=>String(x.id)===String(id)); if(q){q.status=newStatus;q.accepted=(newStatus==='accepted'||newStatus==='installed');}
+    renderKPIs(); applyFilters(); showToast(`Status → ${newStatus.charAt(0).toUpperCase()+newStatus.slice(1)}`);
+  }catch(err){ console.error(err); showToast('Network error updating status.'); }
+}
+
+async function sendReminder(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
+  if(!q.customer_email){ showToast('This quote has no customer email.'); return; }
+  if((q.status||'sent').toLowerCase()!=='sent'){ showToast('Only quotes still marked Sent can receive reminders.'); return; }
+  q._reminderSending=true; applyFilters();
+  try{
+    const res=await fetch('/api/battery/request-callback',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'hws-quote', is_reminder:true,
+        quote_token:q.quote_token, agent_name:q.agent_name,
+        customer_name:q.customer_name, customer_email:q.customer_email, customer_phone:q.customer_phone, customer_address:q.customer_address,
+        tank_model:q.tank_model, line_items:q.line_items||[],
+        subtotal_ex_gst:q.subtotal_ex_gst, gst:q.gst, total_inc_gst:q.total_inc_gst,
+        stc_qty:q.stc_qty, stc_rate:q.stc_rate, stc_total:q.stc_total,
+        veec_qty:q.veec_qty, veec_rate:q.veec_rate, veec_total:q.veec_total,
+        total_after_pos_rebates:q.total_after_pos_rebates, sv_delayed_rebate:q.sv_delayed_rebate, total_out_of_pocket:q.total_out_of_pocket,
+        reminder_count:getReminderCount(q),
+      })
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error||'Reminder failed.'); return; }
+    q.reminder_count=data.reminder_count ?? (getReminderCount(q)+1);
+    q.last_reminder_sent_at=data.last_reminder_sent_at||new Date().toISOString();
+    showToast(data.sms_sent?`Reminder emailed to ${q.customer_email} + SMS`:`Reminder sent to ${q.customer_email}`);
+  }catch(err){ console.error(err); showToast('Network error sending reminder.'); }
+  finally{ q._reminderSending=false; applyFilters(); }
+}
+
+function exportCSV(){
+  if(!filtered.length){ showToast('No quotes to export.'); return; }
+  const headers=['Date Sent','Customer','Email','Phone','Agent','Tank Model','Total inc GST','Out-of-Pocket','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
+  const rows=filtered.map(q=>[
+    q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
+    q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.agent_name||'',q.tank_model||'',
+    q.total_inc_gst||'',q.total_out_of_pocket||'',daysSince(q.sent_at)??'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`goldsure-hotwater-quotes-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  showToast(`Exported ${filtered.length} quotes`);
+}
+</script>
+</body>
+</html>
