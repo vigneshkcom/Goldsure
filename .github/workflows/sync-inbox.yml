@@ -1,0 +1,40 @@
+name: Sync SMS inbox (safety net)
+
+# Reliability safety net for inbound SMS.
+#
+# Inbound texts are normally delivered in real time by the SMS Gate phone app,
+# which POSTs an sms:received webhook to /api/battery/request-callback. If that
+# push is delayed or dropped (usually Android battery optimisation / Doze on the
+# gateway phone), the message stays on the phone and never reaches the portal or
+# the notification email.
+#
+# This cron periodically asks SMS Gate to re-fire the last 30 minutes of received
+# messages. Any that were missed get written to the database and emailed; any that
+# already arrived are de-duplicated by their SMS Gate message id in the webhook
+# handler, so no duplicate rows and no duplicate emails are produced.
+#
+# The 30-minute window with a 10-minute schedule gives ~3x overlap, so a dropped
+# message is recovered within ~10 minutes even if nobody has the portal open.
+# GitHub cron timing is best-effort; the primary fix remains disabling battery
+# optimisation for the SMS Gate app on the gateway phone.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}   # lets you trigger a recovery run by hand from the Actions tab
+
+concurrency:
+  group: sync-inbox
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-export recent inbound SMS from the gateway
+        run: |
+          URL='https://portal.goldsure.com.au/api/battery/request-callback'
+          resp=$(curl -sS --max-time 30 -X POST "$URL" \
+            -H 'Content-Type: application/json' \
+            -d '{"action":"sync","minutes":30}') || { echo "curl failed"; exit 0; }
+          echo "Sync response: $resp"

@@ -1219,8 +1219,19 @@ export default async function handler(req, res) {
     }
 
     const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
-    const days  = Math.min(parseInt(body.days, 10) || 3, 30);
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    // Window to re-export. The scheduled safety-net cron passes a short `minutes`
+    // window (e.g. 30) so each run only re-fires the last few minutes of messages;
+    // the manual "Sync inbox" button keeps the wider day-based default. Re-fired
+    // messages are de-duplicated by sms_gate_id in the webhook branch below, so a
+    // short overlapping window never produces duplicate rows or duplicate emails.
+    let sinceMs;
+    if (body.minutes != null) {
+      sinceMs = Math.min(Math.max(parseInt(body.minutes, 10) || 0, 1), 1440) * 60 * 1000;
+    } else {
+      const days = Math.min(parseInt(body.days, 10) || 3, 30);
+      sinceMs = days * 24 * 60 * 60 * 1000;
+    }
+    const since = new Date(Date.now() - sinceMs).toISOString();
     const until = new Date().toISOString();
 
     const exportBody = { since, until };
