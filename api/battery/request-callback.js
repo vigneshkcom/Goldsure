@@ -1205,6 +1205,261 @@ export default async function handler(req, res) {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST action=aircon-quote: Aircon (multi-split VRF) quote email + tracker row
+  //
+  // Same isolated, early-return pattern as the Hot Water branch. Builds a
+  // Goldsure-branded Xero-style quote (line items, VEU/VEEC discount, GST,
+  // out-of-pocket), attaches the brochure if one is uploaded, sends via Resend,
+  // texts a confirmation, logs a GHL note, and inserts into `aircon_quotes`.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'aircon-quote') {
+    const {
+      quote_token, agent_name, customer_name, customer_email, customer_phone, customer_address,
+      line_items = [], veec_discount = 0,
+      products_ex_gst = 0, total_gst = 0, products_inc_gst = 0,
+      subtotal = 0, total_out_of_pocket = 0,
+      is_reminder = false, reminder_count = 0,
+    } = body;
+
+    if (!customer_name || !customer_email || !String(customer_email).includes('@')) {
+      return res.status(400).json({ error: 'Customer name and a valid email are required.' });
+    }
+
+    const token = quote_token || (globalThis.crypto?.randomUUID?.() || String(Date.now()));
+    const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100)
+      .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const SITE = 'https://portal.goldsure.com.au';
+    const BROCHURES = {
+      // 'aux': `${SITE}/assets/aircons/AUX-brochure.pdf`,   // add per-brand brochures as uploaded
+    };
+    const acceptUrl = `${SITE}/aircons/accept.html?token=${encodeURIComponent(token)}`;
+    const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+    const quoteNo = 'AC-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
+    const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+    const itemRowsHtml = (Array.isArray(line_items) ? line_items : []).map((it) => {
+      const qty = Number(it.qty) || 0, unit = Number(it.unit) || 0, amount = Number(it.amount) || 0;
+      return `<tr>
+        <td style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#141c2e;">${esc(it.name)}<br><span style="font-size:11px;color:#9aa2b1;">${qty} × ${money(unit)} ex GST</span></td>
+        <td style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#141c2e;text-align:right;font-weight:600;">${money(amount)}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Goldsure Aircon Quotation</title></head>
+<body style="margin:0;padding:0;background-color:#eef0f4;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#eef0f4;">Your Goldsure air conditioning quote — ${money(total_out_of_pocket)} out of pocket after the VEU discount.</div>
+<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:32px 14px 44px;">
+  <table role="presentation" width="600" border="0" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(20,28,46,0.08);">
+    <tr><td style="background:#000000;padding:22px 32px;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+        <td valign="middle"><img src="${SITE}/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="150" style="display:block;width:150px;height:auto;"></td>
+        <td valign="middle" align="right"><div style="font-family:${FONT};font-size:18px;font-weight:700;letter-spacing:5px;color:#c9a13b;">QUOTATION</div><div style="font-family:${FONT};font-size:11px;color:#8b93a3;margin-top:5px;">${quoteNo} &nbsp;·&nbsp; ${quoteDate}</div></td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="height:3px;background:#b08d2e;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="padding:26px 32px 8px;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+        <td valign="top" width="52%" style="font-family:${FONT};"><div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">Prepared For</div><div style="font-size:16px;font-weight:700;color:#141c2e;line-height:1.35;">${esc(customer_name)}</div>${customer_address ? `<div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">${esc(customer_address)}</div>` : ''}${customer_phone ? `<div style="font-size:12px;color:#5b6577;line-height:1.6;">${esc(customer_phone)}</div>` : ''}<div style="font-size:12px;color:#5b6577;line-height:1.6;">${esc(customer_email)}</div></td>
+        <td valign="top" width="48%" align="right" style="font-family:${FONT};"><div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">From</div><div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div><div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">ABN 66 683 305 106<br>Suite 4, 293 High St<br>Preston VIC 3072<br>info@goldsure.com.au</div></td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="padding:14px 32px 4px;font-family:${FONT};">
+      ${is_reminder ? `<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:14px;background:#fbf6e9;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;"><tr><td style="padding:11px 14px;font-size:13px;color:#5a4a1e;line-height:1.55;"><strong style="color:#141c2e;">Just following up</strong> on the quote below.</td></tr></table>` : ''}
+      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">Thank you for the opportunity to quote your air conditioning upgrade. Your price below already includes the Victorian Energy Upgrades discount. Final eligibility and installation details are confirmed on site by our licensed installer.</p>
+    </td></tr>
+    <tr><td style="padding:18px 32px 0;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr><td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-family:${FONT};font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;">Description</td><td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-family:${FONT};font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:right;">Amount</td></tr>
+        ${itemRowsHtml}
+        <tr><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;border-bottom:1px solid #eef0f4;">Victorian Energy Efficiency Target Discount<br><span style="font-size:11px;color:#9aa2b1;">Victorian Energy Upgrades (VEU)</span></td><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">− ${money(veec_discount)}</td></tr>
+        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;">Subtotal (ex GST)</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(subtotal)}</td></tr>
+        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;border-bottom:2px solid #141c2e;">Total GST 10%</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:2px solid #141c2e;">${money(total_gst)}</td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:16px 32px 0;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#000000;border-radius:6px;"><tr>
+        <td style="padding:16px 20px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9a13b;">Total Out-of-Pocket (AUD)</td>
+        <td style="padding:16px 20px;font-family:${FONT};font-size:24px;font-weight:700;color:#ffffff;text-align:right;">${money(total_out_of_pocket)}</td>
+      </tr></table>
+    </td></tr>
+    <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
+      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:16px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
+      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 7 days from ${quoteDate}.</div>
+    </td></tr>
+    <tr><td style="padding:22px 32px 0;font-family:${FONT};">
+      <p style="margin:0;font-size:10px;color:#aeb4c0;line-height:1.6;">This document is a quotation only. The value of the Victorian Energy Upgrades (VEU) discount may vary at the time of installation or certificate processing. However, the final out-of-pocket price of ${money(total_out_of_pocket)} is fixed for the equipment and scope quoted, subject to site conditions remaining as assessed and no additional works being required. This is not a tax invoice; a tax invoice is issued once installed.</p>
+    </td></tr>
+    <tr><td style="padding:20px 32px 24px;font-family:${FONT};">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #eef0f4;"><tr>
+        <td valign="middle" style="padding:16px 16px 0 0;width:118px;"><img src="${SITE}/assets/goldsure-logo.jpg" alt="Goldsure" width="108" style="display:block;width:108px;height:auto;"></td>
+        <td valign="middle" style="padding:16px 0 0 16px;border-left:2px solid #b08d2e;">
+          <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(agent_name || 'The Goldsure Team')}</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.85;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a><br>p: <a href="tel:0370502846" style="color:#5b6577;text-decoration:none;font-weight:600;">03 7050 2846</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
+        </td></tr></table>
+    </td></tr>
+    <tr><td align="center" style="background:#000000;padding:16px 20px;font-family:${FONT};"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#c9a13b;margin-bottom:3px;">Goldsure Pty Ltd</div><div style="font-size:10px;color:#8b93a3;line-height:1.5;">ABN 66 683 305 106 &nbsp;·&nbsp; Suite 4, 293 High St, Preston VIC 3072</div></td></tr>
+  </table>
+</td></tr></table></body></html>`;
+
+    // Attach brochure if mapped + reachable (best-effort)
+    const attachments = [];
+    const brochureUrl = BROCHURES.aux;
+    if (brochureUrl) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5000);
+        const bRes = await fetch(brochureUrl, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (bRes.ok) attachments.push({ filename: 'Aircon Brochure.pdf', content: Buffer.from(await bRes.arrayBuffer()).toString('base64') });
+      } catch (e) { console.warn('[Aircon] brochure fetch failed:', e.message); }
+    }
+
+    let emailSuccess = false;
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [customer_email],
+          bcc: ['vignesh@goldsure.com.au'],
+          subject: is_reminder ? 'Reminder: Your Air Conditioning Quote – Goldsure' : 'Your Air Conditioning Quote – Goldsure',
+          html,
+          ...(attachments.length ? { attachments } : {}),
+        }),
+      });
+      if (!r.ok) { const detail = await r.text(); console.error('[Aircon] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) }); }
+      emailSuccess = true;
+    } catch (e) { console.error('[Aircon] Resend error:', e.message); return res.status(500).json({ error: 'Internal error sending email.' }); }
+
+    // Confirmation SMS (best-effort)
+    let smsSent = false;
+    if (emailSuccess && customer_phone) {
+      try {
+        const smsPhone = normalizeAuPhone(customer_phone);
+        const smsUser = process.env.SMSGATE_USERNAME, smsPass = process.env.SMSGATE_PASSWORD;
+        if (smsUser && smsPass && !(await isOptedOut(smsPhone))) {
+          const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+          const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
+          const smsText = `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your air conditioning quote has been emailed to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Please check your inbox and spam/junk folder. Questions? Reply here or call 03 7050 2846. Thanks!`;
+          const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
+          const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+            method: 'POST', headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
+          });
+          if (smsRes.ok) {
+            smsSent = true;
+            const smsData = await smsRes.json().catch(() => ({}));
+            fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ phone_number: smsPhone, message: smsText, direction: 'outbound', status: 'sent', sms_gate_id: smsData.id || null }) }).catch(() => {});
+          }
+        }
+      } catch (e) { console.warn('[Aircon] confirmation SMS failed:', e.message); }
+    }
+
+    // GHL note (best-effort)
+    if (emailSuccess) {
+      try {
+        const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
+        if (apiKey && locationId) {
+          const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+          const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(customer_email)}&limit=5`, { headers: hdrs });
+          const cData = await cRes.json().catch(() => ({}));
+          const contacts = cData.contacts || [];
+          const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
+          if (contact?.id) {
+            const unitCount = (Array.isArray(line_items) ? line_items : []).reduce((s, l) => s + (Number(l.qty) || 0), 0);
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: `Aircon quote sent by ${agent_name || 'Goldsure'}\nUnits: ${unitCount}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}` }) });
+          }
+        }
+      } catch (e) { console.warn('[Aircon] GHL note failed:', e.message); }
+    }
+
+    // Reminder → bump existing row; else insert
+    if (emailSuccess && is_reminder) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/aircon_quotes?quote_token=eq.${encodeURIComponent(token)}`, { method: 'PATCH', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ reminder_count: (Number(reminder_count) || 0) + 1, last_reminder_sent_at: new Date().toISOString() }) });
+      } catch (e) { console.error('[Aircon] reminder update error:', e.message); }
+      return res.status(200).json({ success: true, sms_sent: smsSent, reminder_count: (Number(reminder_count) || 0) + 1, last_reminder_sent_at: new Date().toISOString() });
+    }
+    if (emailSuccess) {
+      try {
+        const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/aircon_quotes`, {
+          method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            quote_token: token, agent_name: agent_name || null,
+            customer_name: customer_name || null, customer_email: customer_email || null, customer_phone: customer_phone || null, customer_address: customer_address || null,
+            line_items: Array.isArray(line_items) ? line_items : [],
+            veec_discount: Number(veec_discount) || 0,
+            products_ex_gst: Number(products_ex_gst) || 0, total_gst: Number(total_gst) || 0, products_inc_gst: Number(products_inc_gst) || 0,
+            subtotal: Number(subtotal) || 0, total_out_of_pocket: Number(total_out_of_pocket) || 0,
+            status: 'sent', accepted: false, reminder_count: 0, sent_at: new Date().toISOString(),
+          }),
+        });
+        if (!supaRes.ok) console.error('[Aircon] Supabase insert failed:', supaRes.status, (await supaRes.text()).slice(0, 300));
+      } catch (e) { console.error('[Aircon] Supabase insert error:', e.message); }
+    }
+    return res.status(200).json({ success: true, sms_sent: smsSent, brochure_attached: attachments.length > 0 });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST action=aircon-accept: internal "quote accepted" notification email
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'aircon-accept') {
+    const {
+      customer_name, customer_email, customer_phone, customer_address, agent_name,
+      total_out_of_pocket = 0, veec_discount = 0, products_inc_gst = 0, accepted_at, line_items = [],
+    } = body;
+    if (!customer_name || !customer_email) return res.status(400).json({ error: 'Missing required fields.' });
+    const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+    const acceptedDisplay = new Date(accepted_at || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short' });
+    const unitList = (Array.isArray(line_items) ? line_items : []).map(l => `${Number(l.qty) || 0} × ${esc(l.name)}`).join('<br>') || '—';
+
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aircon Quote Accepted</title></head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:${FONT};color:#141c2e;">
+<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:36px 16px 48px;">
+  <table role="presentation" width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
+    <tr><td style="background:#000000;padding:20px 28px;border-radius:6px 6px 0 0;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td valign="middle"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="130" style="display:block;width:130px;height:auto;"></td><td align="right" valign="middle"><span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c9a13b;">Internal · Aircon</span></td></tr></table></td></tr>
+    <tr><td style="height:3px;background:#18a96e;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="background:#ffffff;padding:28px 28px 32px;border-radius:0 0 6px 6px;border:1px solid #e3e7ef;border-top:none;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;"><tr><td><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#18a96e;">Quote Accepted</p><p style="margin:0;font-size:22px;font-weight:700;color:#141c2e;line-height:1.2;">${esc(customer_name)}</p></td><td align="right" valign="top"><p style="margin:0;font-size:11px;color:#6b7899;">${esc(acceptedDisplay)}</p><p style="margin:4px 0 0;font-size:11px;color:#6b7899;">Agent: <strong style="color:#141c2e;">${esc(agent_name || '—')}</strong></p></td></tr></table>
+      <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Customer Details</p>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;border:1px solid #e3e7ef;border-radius:4px;">
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;width:32%;background:#f7f8fa;font-size:11px;color:#6b7899;">Email</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;"><a href="mailto:${esc(customer_email)}" style="color:#b08d2e;text-decoration:none;font-weight:600;">${esc(customer_email)}</a></td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Phone</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${esc(customer_phone || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Address</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;">${esc(customer_address || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;background:#f7f8fa;font-size:11px;color:#6b7899;vertical-align:top;">Units</td><td style="padding:10px 14px;font-size:13px;">${unitList}</td></tr>
+      </table>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;border:1px solid #e3e7ef;border-radius:4px;">
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">Total (inc GST)</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${money(products_inc_gst)}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#3d4658;">VEEC discount</td><td align="right" style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;color:#18a96e;">− ${money(veec_discount)}</td></tr>
+        <tr style="background:#000000;"><td style="padding:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.6);">Out-of-Pocket</td><td align="right" style="padding:14px;font-size:18px;font-weight:700;color:#c9a13b;">${money(total_out_of_pocket)}</td></tr>
+      </table>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="padding:12px 16px;background:#eaf7f2;border-left:3px solid #18a96e;border-radius:0 4px 4px 0;"><p style="margin:0;font-size:13px;color:#0d7a4f;line-height:1.6;"><strong style="color:#141c2e;">Next step:</strong> Call ${esc(String(customer_name).split(' ')[0])} to confirm the installation date and complete the booking.</p></td></tr></table>
+    </td></tr>
+    <tr><td align="center" style="padding:20px 0 0;"><p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#6b7899;">Goldsure Pty Ltd</p><p style="margin:0;font-size:11px;color:#9aa5b8;">ABN 66 683 305 106 &nbsp;·&nbsp; Preston VIC 3072</p></td></tr>
+  </table>
+</td></tr></table></body></html>`;
+
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Goldsure Quotes <info@goldsure.com.au>', to: ['info@goldsure.com.au'], subject: `Aircon Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`, html }),
+      });
+      if (!r.ok) { const detail = await r.text(); console.error('[Aircon accept] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
+      return res.status(200).json({ success: true });
+    } catch (e) { console.error('[Aircon accept] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
+  }
+
   // ── POST action=sync: trigger SMS Gate inbox export ─────────────────────────
   // SMS Gate has no pull endpoint for received messages — the documented method
   // is POST /messages/inbox/export, which makes the device re-fire sms:received

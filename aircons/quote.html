@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goldsure · Aircon Quote Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#eaeef3;--surface:#ffffff;--line:#e9edf3;--line-soft:#f1f4f8;
+  --text:#1b2431;--muted:#78859a;--muted2:#9aa5b4;
+  --gold:#b08d2e;--gold-2:#c9a13b;--gold-soft:#faf4e4;--gold-line:#eaddb4;
+  --green:#2f9e6b;--red:#e05656;--red-soft:#fdeded;--dark:#161c26;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 12px 32px rgba(16,24,40,.07);
+  --r:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+#login-screen{position:fixed;inset:0;background:radial-gradient(1100px 560px at 50% -12%,#232f42,#0f131b 70%);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.login-card{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:368px;box-shadow:0 30px 80px rgba(0,0,0,.5);}
+.login-logo{text-align:center;margin-bottom:22px;}
+.login-logo img{height:38px;margin-bottom:14px;}
+.login-logo h2{font-size:18px;font-weight:700;letter-spacing:-.3px;}
+.login-logo p{font-size:11px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:1.6px;}
+.login-field{margin-bottom:14px;}
+.login-field label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:6px;}
+.login-field select{width:100%;font-family:inherit;font-size:14px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#f7f9fc;outline:none;transition:.15s;}
+.login-field select:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,141,46,.13);}
+.login-btn{width:100%;background:var(--gold);color:#1b1405;font-family:inherit;font-size:14px;font-weight:700;padding:13px;border:none;border-radius:11px;cursor:pointer;transition:.15s;box-shadow:0 6px 18px rgba(176,141,46,.3);}
+.login-btn:hover{background:var(--gold-2);}
+.login-error{display:none;background:var(--red-soft);color:var(--red);font-size:12px;font-weight:600;padding:9px 12px;border-radius:9px;margin-bottom:14px;text-align:center;}
+.login-error.show{display:block;}
+.login-hint{font-size:11px;color:var(--muted2);text-align:center;margin-top:14px;}
+#app{display:none;}
+header{background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;min-height:54px;flex-wrap:wrap;gap:8px;}
+.header-left{display:flex;align-items:center;gap:13px;}
+.header-logo{display:flex;align-items:center;gap:10px;}
+.header-logo img{height:30px;width:auto;object-fit:contain;}
+.hd{width:1px;height:22px;background:var(--line);}
+.page-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);}
+.header-right{display:flex;align-items:center;gap:7px;}
+.agent-chip{display:flex;align-items:center;gap:7px;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:20px;padding:5px 12px;}
+.agent-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(47,158,107,.16);}
+.agent-name{font-size:12px;font-weight:600;}
+.nav-btn{font-family:inherit;font-size:11px;font-weight:600;padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#54627a;cursor:pointer;text-decoration:none;transition:.15s;display:inline-flex;align-items:center;white-space:nowrap;}
+.nav-btn:hover{background:#f7f9fc;color:var(--text);border-color:var(--gold-line);}
+.nav-btn.logout:hover{color:var(--red);border-color:#f1c9c9;background:var(--red-soft);}
+@media(max-width:700px){header{padding:0 12px;min-height:52px;gap:6px;flex-wrap:nowrap;}.header-left{gap:8px;min-width:0;}.header-logo img{height:26px;}.meta-only{display:none;}.portal-link{display:none;}.header-right{gap:6px;}.nav-btn{padding:6px 10px;font-size:10.5px;border-radius:8px;}.agent-chip{padding:4px 9px;}}
+main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.col .card{margin-bottom:0;}
+.summary-card{flex:1;display:flex;flex-direction:column;}
+.summary-card .card-body{flex:1;display:flex;flex-direction:column;}
+.summary-card .brochure-note{margin-top:auto;}
+@media(max-width:860px){.layout{grid-template-columns:1fr;}.summary-card{position:static;}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;overflow:visible;}
+.card-head{padding:14px 20px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line-soft);}
+.card-head .step-badge{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold-line);font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.6px;}
+.card-head h3{font-size:14px;font-weight:650;letter-spacing:-.2px;}
+.card-body{padding:16px 20px 18px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;}
+.field{margin-bottom:11px;position:relative;}
+.field label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px;}
+.field input,.field select{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#f8fafc;color:var(--text);outline:none;transition:.15s;}
+.field input:focus,.field select:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,141,46,.13);}
+.field input::placeholder{color:#a9b2bf;}
+.addr-badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:7px;}
+.addr-badge.valid{background:#eaf6f0;color:#1f7d52;}
+.addr-badge.invalid{background:var(--red-soft);color:var(--red);}
+.ghl-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 30px rgba(16,24,40,.16);z-index:200;margin-top:5px;max-height:270px;overflow-y:auto;display:none;}
+.ghl-results.open{display:block;}
+.ghl-item{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line-soft);transition:.1s;}
+.ghl-item:last-child{border-bottom:none;}
+.ghl-item:hover{background:var(--gold-soft);}
+.ghl-item .n{font-size:13px;font-weight:600;}
+.ghl-item .s{font-size:11px;color:var(--muted);margin-top:2px;}
+.ghl-item.empty{color:var(--muted2);font-size:12px;cursor:default;font-style:italic;}
+/* Product rows */
+.prod-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-soft);}
+.prod-row:last-of-type{border-bottom:none;}
+.pr-name{font-size:13px;font-weight:600;line-height:1.3;}
+.pr-sub{display:block;font-size:10.5px;font-weight:500;color:var(--muted2);margin-top:2px;}
+.pr-inputs{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.mini{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;color:var(--text);outline:none;text-align:right;transition:.15s;}
+.mini:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,141,46,.13);}
+.qty{width:62px;}
+.price{width:104px;}
+.mini-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted2);display:block;text-align:center;margin-bottom:3px;}
+.veec-driver,.price-driver{display:flex;align-items:center;justify-content:space-between;gap:14px;border-radius:13px;padding:12px 15px;margin:12px 0 0;flex-wrap:wrap;}
+.veec-driver{background:#f2f8f5;border:1px solid #cfe9dc;}
+.price-driver{background:linear-gradient(180deg,#fffdf7,#faf3e2);border:1px solid var(--gold-line);}
+.pd-label{font-size:12.5px;font-weight:700;}
+.pd-sub{font-size:11px;color:#9c8a5e;margin-top:2px;}
+.veec-driver .pd-sub{color:#5b8a72;}
+.money-wrap{display:flex;align-items:center;gap:3px;background:#fff;border:1.5px solid var(--gold);border-radius:11px;padding:5px 13px;box-shadow:0 2px 8px rgba(176,141,46,.16);}
+.money-wrap.green{border-color:#39a97a;box-shadow:0 2px 8px rgba(47,158,107,.14);}
+.money-wrap span{font-size:17px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace;}
+.money-wrap.green span{color:#2f9e6b;}
+.money-wrap input{width:120px;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--text);text-align:right;background:transparent;}
+/* Summary */
+.sum-line{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line-soft);font-size:13px;}
+.sum-line .sl-name{font-weight:500;}
+.sum-line .sl-sub{font-size:10.5px;color:var(--muted2);margin-top:2px;}
+.sum-line .sl-amt{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+.sum-line.disc .sl-amt{color:var(--green);}
+.sum-empty{font-size:12px;color:var(--muted2);font-style:italic;padding:12px 2px;}
+.tot-row{display:flex;justify-content:space-between;align-items:center;padding:7px 2px;font-size:13px;border-bottom:1px solid var(--line-soft);}
+.tot-row .lbl{color:var(--muted);font-weight:500;}
+.tot-row .val{font-family:'JetBrains Mono',monospace;font-weight:600;}
+.tot-row.grand{border-bottom:1.5px solid #cdd4de;padding:9px 2px;}
+.tot-row.grand .lbl{color:var(--text);font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.5px;}
+.tot-row.grand .val{font-size:15px;}
+.result-row{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.result-row.oop{margin-top:14px;background:linear-gradient(135deg,#212a39,#12161f);border-radius:14px;padding:16px 18px;box-shadow:0 10px 28px rgba(18,24,34,.28);}
+.result-row.oop .lbl{color:var(--gold-2);text-transform:uppercase;font-size:10.5px;font-weight:700;letter-spacing:.9px;}
+.result-row.oop .val{font-family:'JetBrains Mono',monospace;color:#fff;font-size:25px;font-weight:700;letter-spacing:-.5px;}
+.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;}
+.btn{font-family:inherit;font-size:13px;font-weight:650;padding:11px 20px;border-radius:11px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text);transition:.15s;display:inline-flex;align-items:center;gap:7px;}
+.btn:hover{border-color:var(--gold-line);color:var(--gold);background:#fffdf7;}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#1b1405;box-shadow:0 5px 16px rgba(176,141,46,.32);}
+.btn.primary:hover{background:var(--gold-2);color:#1b1405;border-color:var(--gold-2);}
+.btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
+.brochure-note{font-size:11px;color:var(--muted);background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:13px;display:flex;align-items:center;gap:8px;line-height:1.45;}
+.modal-overlay{position:fixed;inset:0;background:rgba(16,20,28,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;width:100%;max-width:560px;max-height:90vh;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.42);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;background:linear-gradient(135deg,#212a39,#12161f);}
+.modal-head h3{font-size:14px;font-weight:700;color:#fff;}
+.modal-head .mh-sub{font-size:11px;color:#93a0b4;margin-top:2px;}
+.modal-close{background:none;border:none;color:#93a0b4;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;}
+.modal-close:hover{color:#fff;}
+.modal-body{padding:22px;overflow-y:auto;}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);background:#f8fafc;}
+.pv-parties{display:flex;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+.pv-block .pv-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted2);margin-bottom:5px;}
+.pv-block .pv-name{font-size:14px;font-weight:700;}
+.pv-block .pv-line{font-size:12px;color:var(--muted);line-height:1.6;}
+.pv-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
+.pv-table td{padding:8px 0;font-size:13px;border-bottom:1px solid var(--line-soft);}
+.pv-table td.r{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+.pv-table tr.sub td{color:var(--muted);font-size:12px;border-bottom:none;padding:5px 0;}
+.pv-table tr.reb td{color:var(--green);}
+.pv-table tr.grand td{font-weight:700;border-top:1.5px solid #cdd4de;border-bottom:none;padding-top:9px;}
+.pv-oop{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#212a39,#12161f);color:#fff;border-radius:12px;padding:14px 18px;margin-top:14px;}
+.pv-oop .l{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--gold-2);}
+.pv-oop .v{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#161c26;color:#fff;font-size:12px;font-weight:600;padding:11px 22px;border-radius:30px;border-left:3px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .25s;pointer-events:none;z-index:9999;max-width:90vw;text-align:center;}
+.toast.show{opacity:1;}
+@media(max-width:640px){main{padding:14px 14px 24px;}.card-body{padding:14px 15px;}.grid2{grid-template-columns:1fr;}header{padding:0 14px;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <h2>Aircon Quotes</h2>
+      <p>Agent Sign In</p>
+    </div>
+    <div class="login-error" id="login-error">Please select your name.</div>
+    <div class="login-field">
+      <label>Your Name</label>
+      <select id="login-agent">
+        <option value="">— Select your name —</option>
+        <option value="Vignesh">Vignesh</option>
+        <option value="David">David</option>
+        <option value="Amit">Amit</option>
+        <option value="Shanira">Shanira</option>
+        <option value="Adam">Adam</option>
+      </select>
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="login-hint">Your name appears on the quote you send.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+<header>
+  <div class="header-left">
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+    <div class="hd meta-only"></div>
+    <span class="page-label meta-only">Aircon · Quote Builder</span>
+  </div>
+  <div class="header-right">
+    <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name" id="agentName">Agent</span></div>
+    <div class="hd meta-only"></div>
+    <a href="/" class="nav-btn portal-link">← Portal</a>
+    <a href="/aircons/quote-tracker.html" class="nav-btn" id="trackerLink" target="_blank">Quote Tracker</a>
+    <button class="nav-btn logout" onclick="doLogout()">Sign Out</button>
+  </div>
+</header>
+
+<main>
+ <div class="layout">
+  <!-- LEFT -->
+  <div class="col">
+    <div class="card">
+      <div class="card-head"><span class="step-badge">Step 1</span><h3>Customer Details</h3></div>
+      <div class="card-body">
+        <div class="field">
+          <label>Find Customer in GHL</label>
+          <input type="text" id="ghlSearch" placeholder="Search by name, phone or email…" autocomplete="off" oninput="onGhlSearch()">
+          <div class="ghl-results" id="ghlResults"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Customer Name *</label><input type="text" id="custName" placeholder="Full name"></div>
+          <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
+        </div>
+        <div class="field"><label>Email *</label><input type="email" id="custEmail" placeholder="customer@example.com"></div>
+        <div class="field">
+          <label>Property Address (VIC only)</label>
+          <input type="text" id="custAddress" placeholder="Start typing a Victorian address…" autocomplete="off" oninput="onAddressInput()">
+          <span id="addrBadge"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="step-badge">Step 2</span><h3>System &amp; Price</h3></div>
+      <div class="card-body">
+        <div class="prod-row">
+          <div class="pr-name">ECONOVA 3.6 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q36" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+        </div>
+        <div class="prod-row">
+          <div class="pr-name">ECONOVA 5.6 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q56" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+        </div>
+        <div class="prod-row">
+          <div class="pr-name">ECONOVA 7.8 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q78" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+        </div>
+        <div class="prod-row">
+          <div class="pr-name">ECONOVA ECO-ACV9-S Outdoor<span class="pr-sub">Multi-split · non-ducted VRF · price editable</span></div>
+          <div class="pr-inputs">
+            <div><span class="mini-lbl">Unit $ ex</span><input class="mini price" id="acvPrice" type="number" min="0" step="0.01" value="547.27" oninput="recalc()"></div>
+            <div><span class="mini-lbl">Qty</span><input class="mini qty" id="qACV" type="number" min="0" step="1" value="1" oninput="recalc()"></div>
+          </div>
+        </div>
+
+        <div class="veec-driver">
+          <div>
+            <div class="pd-label">Victorian Energy Efficiency (VEEC) Discount</div>
+            <div class="pd-sub">Editable. Auto-balances to your out-of-pocket target.</div>
+          </div>
+          <div class="money-wrap green"><span>$</span><input type="number" id="veecInput" min="0" step="0.01" value="0" oninput="onVeec()"></div>
+        </div>
+
+        <div class="price-driver">
+          <div>
+            <div class="pd-label">Total Out-of-Pocket (inc GST)</div>
+            <div class="pd-sub">Enter the fixed customer price — the VEEC discount adjusts to match.</div>
+          </div>
+          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="0" oninput="onOop()"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: summary -->
+  <div class="col">
+    <div class="card summary-card">
+      <div class="card-head"><h3>Quote Summary</h3></div>
+      <div class="card-body">
+        <div id="sumLines"></div>
+        <div class="tot-row"><span class="lbl">Subtotal (ex GST)</span><span class="val" id="sumSubtotal">$0.00</span></div>
+        <div class="tot-row grand"><span class="lbl">Total GST 10%</span><span class="val" id="sumGst">$0.00</span></div>
+        <div class="result-row oop"><span class="lbl">Total Out-of-Pocket (AUD)</span><span class="val" id="sumOop">$0.00</span></div>
+        <div class="actions">
+          <button class="btn" onclick="downloadPDF()">⬇ PDF</button>
+          <button class="btn primary" id="sendBtn" onclick="openPreview()">✉ Preview &amp; Email</button>
+        </div>
+        <div class="brochure-note">📎 <span>The AUX/ECONOVA brochure is attached to the customer's email. The quote is logged to the tracker and a note added to their GHL contact.</span></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</main>
+</div>
+
+<!-- Preview modal -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>Quote Preview</h3><div class="mh-sub">Review before it's emailed to the customer</div></div>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closePreview()">Cancel</button>
+      <button class="btn primary" id="confirmSendBtn" onclick="doSend()">✉ Confirm &amp; Send Email</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Fixed head pricing (constant per the reference quote) ──
+const HEAD_PRICE = 909.09;       // ex GST, fixed
+const GST_RATE = 0.10;
+const HEADS = [
+  { id:'q36', name:'ECONOVA 3.6 Head (VRF - R Range)' },
+  { id:'q56', name:'ECONOVA 5.6 Head (VRF - R Range)' },
+  { id:'q78', name:'ECONOVA 7.8 Head (VRF - R Range)' },
+];
+const ACV9_NAME = 'ECONOVA-ECO-ACV9-S-Non_Ducted — Multiple split (VRF)';
+
+let agent = '';
+let anchor = 'veec';   // which of {oop, veec} the agent last drove
+let calc = {};
+const $ = id => document.getElementById(id);
+const setTxt = (id,v) => { const e=$(id); if(e) e.textContent=v; };
+const fmt = new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
+function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+
+// ── Auth ──
+function doLogin(){
+  const a=$('login-agent').value;
+  if(!a){ $('login-error').classList.add('show'); return; }
+  agent=a; sessionStorage.setItem('ac_agent',a); localStorage.setItem('ac_agent',a); showApp();
+}
+function doLogout(){ sessionStorage.removeItem('ac_agent'); location.reload(); }
+function showApp(){
+  $('login-screen').style.display='none';
+  $('app').style.display='block';
+  $('agentName').textContent=agent;
+  const tl=$('trackerLink'); if(tl) tl.href='/aircons/quote-tracker.html?agent='+encodeURIComponent(agent);
+  loadGoogleMaps(); recalc();
+}
+window.addEventListener('DOMContentLoaded',()=>{ const s=sessionStorage.getItem('ac_agent'); if(s){ agent=s; showApp(); } });
+
+// ── Pricing: out-of-pocket anchors, VEEC flexes (per-line GST rounding) ──
+function buildLines(){
+  const lines=[];
+  HEADS.forEach(h=>{
+    const qty=parseInt($(h.id).value,10)||0;
+    if(qty>0){ const amount=round2(qty*HEAD_PRICE); lines.push({ name:h.name, qty, unit:HEAD_PRICE, amount, gst:round2(amount*GST_RATE) }); }
+  });
+  const acvQty=parseInt($('qACV').value,10)||0;
+  const acvPrice=round2(parseFloat($('acvPrice').value)||0);
+  if(acvQty>0 && acvPrice>0){ const amount=round2(acvQty*acvPrice); lines.push({ name:ACV9_NAME, qty:acvQty, unit:acvPrice, amount, gst:round2(amount*GST_RATE) }); }
+  return lines;
+}
+function onOop(){ anchor='oop'; recalc(); }
+function onVeec(){ anchor='veec'; recalc(); }
+function recalc(){
+  const lines=buildLines();
+  const productsEx=round2(lines.reduce((s,l)=>s+l.amount,0));
+  const gst=round2(lines.reduce((s,l)=>s+l.gst,0));          // per-line GST summed (matches Xero)
+  const productsInc=round2(productsEx+gst);
+
+  let veec, oop;
+  if(anchor==='oop'){
+    oop=round2(parseFloat($('oopInput').value)||0);
+    veec=round2(productsInc-oop);
+    $('veecInput').value=veec.toFixed(2);
+  } else {
+    veec=round2(parseFloat($('veecInput').value)||0);
+    oop=round2(productsInc-veec);
+    $('oopInput').value=oop.toFixed(2);
+  }
+  const subtotal=round2(productsEx-veec);   // Xero subtotal: net of the GST-free discount
+  const totalAud=round2(subtotal+gst);      // == oop
+
+  // render line items
+  const rows=lines.map(l=>`<div class="sum-line"><div><div class="sl-name">${esc(l.name)}</div><div class="sl-sub">${l.qty} × ${fmt.format(l.unit)}</div></div><div class="sl-amt">${fmt.format(l.amount)}</div></div>`);
+  rows.push(`<div class="sum-line disc"><div><div class="sl-name">Victorian Energy Efficiency Target Discount</div><div class="sl-sub">Victorian Energy Upgrades (VEU)</div></div><div class="sl-amt">− ${fmt.format(veec)}</div></div>`);
+  $('sumLines').innerHTML = lines.length ? rows.join('') : '<div class="sum-empty">Add units to build the quote…</div>' + rows[rows.length-1];
+
+  setTxt('sumSubtotal', fmt.format(subtotal));
+  setTxt('sumGst', fmt.format(gst));
+  setTxt('sumOop', fmt.format(totalAud));
+
+  calc = { lines, productsEx, gst, productsInc, veec, subtotal, totalAud, oop:totalAud };
+}
+
+// ── GHL customer search ──
+let ghlTimer=null;
+function onGhlSearch(){
+  const q=$('ghlSearch').value.trim(); const box=$('ghlResults');
+  clearTimeout(ghlTimer);
+  if(q.length<2){ box.classList.remove('open'); box.innerHTML=''; return; }
+  ghlTimer=setTimeout(async()=>{
+    try{
+      const res=await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
+      const list=res.ok?await res.json():[];
+      if(!Array.isArray(list)||!list.length){ box.innerHTML='<div class="ghl-item empty">No matching GHL contacts</div>'; box.classList.add('open'); return; }
+      box.innerHTML=list.map(c=>`<div class="ghl-item" onclick='pickGhl(${JSON.stringify(c).replace(/'/g,"&#39;")})'><div class="n">${esc(c.name||'—')}</div><div class="s">${esc(c.phone||'')}${c.email?' · '+esc(c.email):''}${c.address?' · '+esc(c.address):''}</div></div>`).join('');
+      box.classList.add('open');
+    }catch(e){ box.classList.remove('open'); }
+  },300);
+}
+function pickGhl(c){
+  $('custName').value=c.name||''; $('custPhone').value=c.phone||''; $('custEmail').value=c.email||'';
+  if(c.address){ $('custAddress').value=c.address; setAddr('valid','✓ From GHL — confirm it is a VIC address'); }
+  $('ghlResults').classList.remove('open'); $('ghlSearch').value=c.name||'';
+}
+document.addEventListener('click',(e)=>{ if(!e.target.closest('#ghlSearch')&&!e.target.closest('#ghlResults')) $('ghlResults').classList.remove('open'); });
+
+// ── Google Places address (VIC only) ──
+let mapsLoaded=false;
+function loadGoogleMaps(){
+  if(mapsLoaded) return; mapsLoaded=true;
+  fetch('/api/smoke-alarms/google-key').then(r=>r.json()).then(data=>{
+    if(!data.key) return;
+    const s=document.createElement('script');
+    s.src=`https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAddressAutocomplete`;
+    s.async=true; document.head.appendChild(s);
+  }).catch(()=>{});
+}
+window.initAddressAutocomplete=function(){
+  const input=$('custAddress'); if(!input||!window.google) return;
+  const ac=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:'au'},fields:['formatted_address','address_components'],types:['address']});
+  ac.addListener('place_changed',function(){
+    const place=ac.getPlace();
+    if(!place||!place.address_components){ setAddr('invalid','No address details found.'); input.value=''; return; }
+    let state=''; place.address_components.forEach(c=>{ if(c.types.includes('administrative_area_level_1')) state=c.short_name; });
+    if(state!=='VIC'){ setAddr('invalid',`❌ ${state||'Unknown'} addresses not serviced — Victoria only`); input.value=''; return; }
+    input.value=place.formatted_address; setAddr('valid','✓ Victorian address confirmed');
+  });
+};
+function onAddressInput(){ if(!$('custAddress').value.trim()) setAddr('',''); }
+function setAddr(type,msg){ const b=$('addrBadge'); b.innerHTML=msg?`<span class="addr-badge ${type}">${msg}</span>`:''; }
+
+// ── Preview + send ──
+function currentCustomer(){ return { name:$('custName').value.trim(), email:$('custEmail').value.trim(), phone:$('custPhone').value.trim(), address:$('custAddress').value.trim() }; }
+function openPreview(){
+  const c=currentCustomer();
+  if(!c.name){ showToast('Enter the customer name.'); return; }
+  if(!c.email||!c.email.includes('@')){ showToast('Enter a valid customer email.'); return; }
+  recalc();
+  if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
+  const lineRows=calc.lines.map(l=>`<tr><td>${esc(l.name)}<br><span style="font-size:11px;color:var(--muted);">${l.qty} × ${fmt.format(l.unit)}</span></td><td class="r">${fmt.format(l.amount)}</td></tr>`).join('');
+  $('previewBody').innerHTML=`
+    <div class="pv-parties">
+      <div class="pv-block"><div class="pv-lbl">To</div><div class="pv-name">${esc(c.name)}</div>${c.address?`<div class="pv-line">${esc(c.address)}</div>`:''}${c.phone?`<div class="pv-line">${esc(c.phone)}</div>`:''}<div class="pv-line">${esc(c.email)}</div></div>
+      <div class="pv-block" style="text-align:right;"><div class="pv-lbl">From</div><div class="pv-name">Goldsure Pty Ltd</div><div class="pv-line">Agent: ${esc(agent)}</div></div>
+    </div>
+    <table class="pv-table">
+      ${lineRows}
+      <tr class="reb"><td>Victorian Energy Efficiency Target Discount</td><td class="r">− ${fmt.format(calc.veec)}</td></tr>
+      <tr class="sub"><td>Subtotal (ex GST)</td><td class="r">${fmt.format(calc.subtotal)}</td></tr>
+      <tr class="grand"><td>Total GST 10%</td><td class="r">${fmt.format(calc.gst)}</td></tr>
+    </table>
+    <div class="pv-oop"><span class="l">Total Out-of-Pocket (AUD)</span><span class="v">${fmt.format(calc.totalAud)}</span></div>
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The brochure is attached automatically. A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
+  $('previewModal').classList.add('open');
+}
+function closePreview(){ $('previewModal').classList.remove('open'); }
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closePreview(); });
+
+async function doSend(){
+  const c=currentCustomer();
+  if(!c.name||!c.email){ showToast('Missing customer details.'); return; }
+  recalc();
+  if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
+  const btn=$('confirmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
+  try{
+    const res=await fetch('/api/battery/request-callback',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        action:'aircon-quote',
+        quote_token:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),
+        agent_name:agent, customer_name:c.name, customer_email:c.email, customer_phone:c.phone, customer_address:c.address,
+        line_items:calc.lines, veec_discount:calc.veec,
+        products_ex_gst:calc.productsEx, total_gst:calc.gst, products_inc_gst:calc.productsInc,
+        subtotal:calc.subtotal, total_out_of_pocket:calc.totalAud,
+      }),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error||'Send failed — check details.'); return; }
+    closePreview();
+    showToast(data.sms_sent?`Quote emailed to ${c.email} + SMS sent`:`Quote emailed to ${c.email}`);
+  }catch(e){ console.error(e); showToast('Network error — please try again.'); }
+  finally{ btn.disabled=false; btn.textContent='✉ Confirm & Send Email'; }
+}
+
+// ── Branded PDF (Xero-style quote) ──
+function downloadPDF(){
+  if(!window.jspdf||!window.jspdf.jsPDF){ showToast('PDF library still loading — try again in a moment.'); return; }
+  const c=currentCustomer();
+  if(!c.name){ showToast('Enter the customer name first.'); return; }
+  recalc();
+  if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+  const PW=210, ML=16, MR=16, RX=PW-MR;
+  const GOLD=[176,141,46], DARK=[0,0,0], MUTED=[107,120,153], INK=[20,28,46], GREEN=[24,169,110], LINE=[227,231,239];
+  const m=v=>'$'+(Math.round((v+Number.EPSILON)*100)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const qno='AC-'+String(Date.now()).slice(-8);
+  const today=new Date(), exp=new Date(Date.now()+7*864e5);
+  const d=x=>x.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
+
+  function build(){
+    doc.setFillColor(...DARK); doc.rect(0,0,PW,36,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.text('QUOTE',RX,17,{align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(190,190,195); doc.text(`${qno}   ${d(today)}`,RX,25,{align:'right'});
+    doc.setFillColor(...GOLD); doc.rect(0,36,PW,1.2,'F');
+
+    let y=49;
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('FROM',ML,y);
+    doc.setTextColor(...INK); doc.setFontSize(11); doc.text('Goldsure Pty Ltd',ML,y+6);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(9);
+    doc.text('ABN 66 683 305 106',ML,y+11.5); doc.text('Suite 4, 293 High St, Preston VIC 3072',ML,y+16); doc.text('info@goldsure.com.au',ML,y+20.5);
+    doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('PREPARED FOR',RX,y,{align:'right'});
+    doc.setTextColor(...INK); doc.setFontSize(11); doc.text(c.name,RX,y+6,{align:'right'});
+    doc.setFont('helvetica','normal'); doc.setTextColor(...MUTED); doc.setFontSize(9);
+    let ry=y+11.5; if(c.address){ doc.splitTextToSize(c.address,78).forEach(l=>{ doc.text(l,RX,ry,{align:'right'}); ry+=4.5; }); }
+    if(c.phone){ doc.text(c.phone,RX,ry,{align:'right'}); ry+=4.5; } if(c.email){ doc.text(c.email,RX,ry,{align:'right'}); }
+    doc.text('Expiry: '+d(exp),RX,Math.max(ry+2,y+25),{align:'right'});
+
+    y=86;
+    doc.setDrawColor(...DARK); doc.setLineWidth(0.5); doc.line(ML,y,RX,y);
+    doc.setTextColor(...INK); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text('DESCRIPTION',ML,y+5); doc.text('QTY',ML+108,y+5,{align:'right'}); doc.text('UNIT EX',ML+140,y+5,{align:'right'}); doc.text('AMOUNT',RX,y+5,{align:'right'});
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y+7.5,RX,y+7.5);
+    y+=13;
+    doc.setFont('helvetica','normal'); doc.setTextColor(...INK); doc.setFontSize(9.5);
+    calc.lines.forEach(l=>{
+      const nm=doc.splitTextToSize(l.name,78);
+      doc.text(nm,ML,y);
+      doc.text(String(l.qty),ML+108,y,{align:'right'});
+      doc.text(m(l.unit),ML+140,y,{align:'right'});
+      doc.text(m(l.amount),RX,y,{align:'right'});
+      y+=Math.max(6, nm.length*4.4);
+    });
+    // VEEC discount line
+    doc.setTextColor(...GREEN);
+    doc.text('Victorian Energy Efficiency Target Discount',ML,y);
+    doc.text('− '+m(calc.veec),RX,y,{align:'right'});
+    y+=8;
+    doc.setDrawColor(...DARK); doc.setLineWidth(0.4); doc.line(ML+96,y-2,RX,y-2);
+    const tot=(label,val,bold,color)=>{ doc.setFont('helvetica',bold?'bold':'normal'); doc.setTextColor(...(color||MUTED)); doc.setFontSize(bold?11:9.5); doc.text(label,ML+96,y); doc.setTextColor(...(bold?INK:INK)); doc.text(val,RX,y,{align:'right'}); y+=bold?7:5.5; };
+    tot('Subtotal (ex GST)',m(calc.subtotal));
+    tot('Total GST 10%',m(calc.gst));
+    y+=2;
+    doc.setFillColor(...DARK); doc.roundedRect(ML,y,RX-ML,15,1.5,1.5,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('TOTAL OUT-OF-POCKET (AUD)',ML+5,y+9);
+    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.text(m(calc.totalAud),RX-5,y+10,{align:'right'});
+    y+=24;
+    doc.setTextColor(160,166,176); doc.setFont('helvetica','italic'); doc.setFontSize(7.5);
+    doc.splitTextToSize(`This document is a quotation only. The value of the Victorian Energy Upgrades (VEU) discount may vary at the time of installation or certificate processing. However, the final out-of-pocket price of ${m(calc.totalAud)} is fixed for the equipment and scope quoted, subject to site conditions remaining as assessed and no additional works being required.`,RX-ML).forEach(l=>{ doc.text(l,ML,y); y+=3.8; });
+
+    doc.setFillColor(...DARK); doc.rect(0,285,PW,12,'F');
+    doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.text('GOLDSURE PTY LTD',PW/2,290,{align:'center'});
+    doc.setTextColor(150,150,155); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text('ABN 66 683 305 106  ·  Suite 4, 293 High St, Preston VIC 3072  ·  info@goldsure.com.au',PW/2,294,{align:'center'});
+    doc.save(`Goldsure Aircon Quote - ${c.name}.pdf`);
+    showToast('PDF downloaded');
+  }
+  fetch('/assets/goldsure-inverted-logo.jpg').then(r=>r.blob()).then(bl=>{
+    const fr=new FileReader();
+    fr.onload=e=>{ try{ doc.addImage(e.target.result,'JPEG',ML,9,34,18); }catch(_){ } build(); };
+    fr.onerror=()=>{ doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('GOLDSURE',ML,22); build(); };
+    fr.readAsDataURL(bl);
+  }).catch(()=>{ doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('GOLDSURE',ML,22); build(); });
+}
+</script>
+</body>
+</html>
