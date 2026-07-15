@@ -51,9 +51,9 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0;}
 .col .card{margin-bottom:0;}
-.summary-card{flex:1;display:flex;flex-direction:column;}
-.summary-card .card-body{flex:1;display:flex;flex-direction:column;}
-.summary-card .brochure-note{margin-top:auto;}
+.summary-card{display:flex;flex-direction:column;}
+.summary-card .card-body{display:flex;flex-direction:column;}
+.summary-card .brochure-note{margin-top:13px;}
 @media(max-width:860px){.layout{grid-template-columns:1fr;}.summary-card{position:static;}}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;overflow:visible;}
 .card-head{padding:14px 20px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line-soft);}
@@ -100,11 +100,13 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .veec-field .mini-lbl{text-align:left;color:#4f7f68;}
 .veec-field .mini{width:112px;border-color:#8bc5aa;background:#fff;}
 .veec-field.qty-field .mini{width:92px;}
+.veec-field.rate-field .mini{width:136px;}
 .money-wrap{display:flex;align-items:center;gap:3px;background:#fff;border:1.5px solid var(--gold);border-radius:11px;padding:5px 13px;box-shadow:0 2px 8px rgba(176,141,46,.16);}
 .money-wrap.green{border-color:#39a97a;box-shadow:0 2px 8px rgba(47,158,107,.14);}
 .money-wrap span{font-size:17px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace;}
 .money-wrap.green span{color:#2f9e6b;}
 .money-wrap input{width:120px;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--text);text-align:right;background:transparent;}
+.money-wrap input::placeholder{color:#a9b2bf;font-size:18px;font-weight:600;}
 /* Summary */
 .sum-line{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line-soft);font-size:13px;}
 .sum-line .sl-name{font-weight:500;}
@@ -232,7 +234,10 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
         </div>
       </div>
     </div>
+  </div>
 
+  <!-- RIGHT: system and summary -->
+  <div class="col quote-column">
     <div class="card">
       <div class="card-head"><span class="step-badge">Step 2</span><h3>System &amp; Price</h3></div>
       <div class="card-body">
@@ -259,11 +264,11 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
         <div class="veec-driver">
           <div>
             <div class="pd-label">Victorian Energy Efficiency (VEEC) Discount</div>
-            <div class="pd-sub">Discount = VEEC quantity × price per VEEC.</div>
+            <div class="pd-sub">Discount = VEEC quantity × GST-inclusive VEEC rate.</div>
           </div>
           <div class="veec-inputs">
             <div class="veec-field qty-field"><span class="mini-lbl">VEEC quantity</span><input class="mini" type="number" id="veecQtyInput" min="0" step="1" value="108" oninput="onVeec()"></div>
-            <div class="veec-field"><span class="mini-lbl">Price per VEEC ($)</span><input class="mini" type="number" id="veecPriceInput" min="0" step="0.01" value="35.00" oninput="onVeec()"></div>
+            <div class="veec-field rate-field"><span class="mini-lbl">VEEC discount rate (inc GST)</span><input class="mini" type="number" id="veecPriceInput" min="0" step="0.01" value="35.00" oninput="onVeec()"></div>
           </div>
         </div>
 
@@ -272,14 +277,10 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
             <div class="pd-label">Total Out-of-Pocket (inc GST)</div>
             <div class="pd-sub">Enter the fixed customer price — the outdoor unit's ex-GST price adjusts to match.</div>
           </div>
-          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="" placeholder="Enter amount" oninput="onOop()"></div>
+          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="" placeholder="0.00" oninput="onOop()"></div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- RIGHT: summary -->
-  <div class="col">
     <div class="card summary-card">
       <div class="card-head"><h3>Quote Summary</h3></div>
       <div class="card-body">
