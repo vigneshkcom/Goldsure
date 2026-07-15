@@ -133,6 +133,13 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .modal-close:hover{color:#fff;}
 .modal-body{padding:22px;overflow-y:auto;}
 .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);background:#f8fafc;}
+.pv-options{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+.pv-options label.pv-label{display:block;font-size:11px;font-weight:700;color:var(--text);margin-bottom:7px;}
+.pv-email-body{width:100%;min-height:104px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:12px;line-height:1.55;color:var(--text);background:#fff;outline:none;}
+.pv-email-body:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(176,141,46,.12);}
+.pv-sms-toggle{display:flex;align-items:flex-start;gap:9px;margin-top:12px;font-size:12px;color:var(--text);line-height:1.45;cursor:pointer;}
+.pv-sms-toggle input{width:16px;height:16px;margin-top:1px;accent-color:var(--gold);flex:0 0 auto;}
+.pv-sms-toggle .pv-sms-sub{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;}
 .pv-parties{display:flex;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
 .pv-block .pv-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted2);margin-bottom:5px;}
 .pv-block .pv-name{font-size:14px;font-weight:700;}
@@ -256,7 +263,7 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
             <div class="pd-label">Total Out-of-Pocket (inc GST)</div>
             <div class="pd-sub">Enter the fixed customer price — the VEEC discount adjusts to match.</div>
           </div>
-          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="0" oninput="onOop()"></div>
+          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="2200" oninput="onOop()"></div>
         </div>
       </div>
     </div>
@@ -312,8 +319,9 @@ const HEADS = [
 const ACV9_NAME = 'ECONOVA-ECO-ACV9-S-Non_Ducted — Multiple split (VRF)';
 
 let agent = '';
-let anchor = 'veec';   // which of {oop, veec} the agent last drove
+let anchor = 'oop';   // start from the $2,200 customer-price preset; VEEC auto-balances
 let calc = {};
+const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to provide a quotation for your air conditioning upgrade. The price shown below includes the applicable Victorian Energy Upgrades (VEU) discount. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 const $ = id => document.getElementById(id);
 const setTxt = (id,v) => { const e=$(id); if(e) e.textContent=v; };
 const fmt = new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
@@ -451,7 +459,12 @@ function openPreview(){
       <tr class="grand"><td>Total GST 10%</td><td class="r">${fmt.format(calc.gst)}</td></tr>
     </table>
     <div class="pv-oop"><span class="l">Total Out-of-Pocket (AUD)</span><span class="v">${fmt.format(calc.totalAud)}</span></div>
-    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The brochure is attached automatically. A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
+    <div class="pv-options">
+      <label class="pv-label" for="emailBody">Email message</label>
+      <textarea class="pv-email-body" id="emailBody">${esc(DEFAULT_EMAIL_BODY)}</textarea>
+      <label class="pv-sms-toggle"><input type="checkbox" id="sendSms" checked><span>Send confirmation SMS${c.phone?` to ${esc(c.phone)}`:''}<span class="pv-sms-sub">Uncheck this if you only want to email the quote.</span></span></label>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The brochure is attached automatically, and a note is logged to the GHL contact.</p>`;
   $('previewModal').classList.add('open');
 }
 function closePreview(){ $('previewModal').classList.remove('open'); }
@@ -460,6 +473,9 @@ document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closePreview(); 
 async function doSend(){
   const c=currentCustomer();
   if(!c.name||!c.email){ showToast('Missing customer details.'); return; }
+  const emailBody=$('emailBody').value.trim();
+  const sendSms=$('sendSms').checked;
+  if(!emailBody){ showToast('Enter an email message.'); return; }
   recalc();
   if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
   const btn=$('confirmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
@@ -470,6 +486,7 @@ async function doSend(){
         action:'aircon-quote',
         quote_token:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),
         agent_name:agent, customer_name:c.name, customer_email:c.email, customer_phone:c.phone, customer_address:c.address,
+        email_body:emailBody, send_sms:sendSms,
         line_items:calc.lines, veec_discount:calc.veec,
         products_ex_gst:calc.productsEx, total_gst:calc.gst, products_inc_gst:calc.productsInc,
         subtotal:calc.subtotal, total_out_of_pocket:calc.totalAud,

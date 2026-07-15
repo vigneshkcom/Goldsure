@@ -807,6 +807,7 @@ export default async function handler(req, res) {
     const {
       quote_token, agent_name, customer_name, customer_email, customer_phone,
       customer_address, tank_model, line_items = [],
+      email_body = '', send_sms = true,
       subtotal_ex_gst = 0, gst = 0, total_inc_gst = 0,
       stc_qty = 0, stc_rate = 0, stc_total = 0,
       veec_qty = 0, veec_rate = 0, veec_total = 0,
@@ -823,6 +824,8 @@ export default async function handler(req, res) {
       .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const defaultEmailBody = 'Thank you for the opportunity to provide a quotation for your heat pump hot water system upgrade. The price shown below includes the applicable STC and Victorian Energy Upgrades discounts, with any Solar Victoria rebate shown separately. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
+    const emailBodyHtml = esc(String(email_body || '').trim() || defaultEmailBody).replace(/\r?\n/g, '<br>');
 
     // ── Per-model brochure map. Add entries as brochure PDFs are uploaded to
     //    /assets/hotwater/. Only mapped + reachable files are attached, so a
@@ -894,7 +897,7 @@ export default async function handler(req, res) {
     <!-- Intro -->
     <tr><td style="padding:14px 32px 4px;font-family:${FONT};">
       ${is_reminder ? `<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:14px;background:#fbf6e9;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;"><tr><td style="padding:11px 14px;font-size:13px;color:#5a4a1e;line-height:1.55;"><strong style="color:#141c2e;">Just following up</strong> on the quote below — we'd be glad to help you make the switch.</td></tr></table>` : ''}
-      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">Thank you for the opportunity to quote your heat pump hot water system upgrade. Your price below already includes every eligible rebate. Final eligibility and installation details are confirmed by our licensed installer.</p>
+      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">${emailBodyHtml}</p>
     </td></tr>
 
     <!-- Line items -->
@@ -1013,7 +1016,7 @@ export default async function handler(req, res) {
 
     // ── Confirmation SMS (best-effort, non-fatal) ──
     let smsSent = false;
-    if (emailSuccess && customer_phone) {
+    if (emailSuccess && send_sms !== false && customer_phone) {
       try {
         const smsPhone = normalizeAuPhone(customer_phone);
         const smsUser = process.env.SMSGATE_USERNAME, smsPass = process.env.SMSGATE_PASSWORD;
@@ -1217,6 +1220,7 @@ export default async function handler(req, res) {
     const {
       quote_token, agent_name, customer_name, customer_email, customer_phone, customer_address,
       line_items = [], veec_discount = 0,
+      email_body = '', send_sms = true,
       products_ex_gst = 0, total_gst = 0, products_inc_gst = 0,
       subtotal = 0, total_out_of_pocket = 0,
       is_reminder = false, reminder_count = 0,
@@ -1231,6 +1235,8 @@ export default async function handler(req, res) {
       .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const defaultEmailBody = 'Thank you for the opportunity to provide a quotation for your air conditioning upgrade. The price shown below includes the applicable Victorian Energy Upgrades (VEU) discount. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
+    const emailBodyHtml = esc(String(email_body || '').trim() || defaultEmailBody).replace(/\r?\n/g, '<br>');
 
     const SITE = 'https://portal.goldsure.com.au';
     const BROCHURES = {
@@ -1270,7 +1276,7 @@ export default async function handler(req, res) {
     </td></tr>
     <tr><td style="padding:14px 32px 4px;font-family:${FONT};">
       ${is_reminder ? `<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:14px;background:#fbf6e9;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;"><tr><td style="padding:11px 14px;font-size:13px;color:#5a4a1e;line-height:1.55;"><strong style="color:#141c2e;">Just following up</strong> on the quote below.</td></tr></table>` : ''}
-      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">Thank you for the opportunity to quote your air conditioning upgrade. Your price below already includes the Victorian Energy Upgrades discount. Final eligibility and installation details are confirmed on site by our licensed installer.</p>
+      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">${emailBodyHtml}</p>
     </td></tr>
     <tr><td style="padding:18px 32px 0;">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -1342,7 +1348,7 @@ export default async function handler(req, res) {
 
     // Confirmation SMS (best-effort)
     let smsSent = false;
-    if (emailSuccess && customer_phone) {
+    if (emailSuccess && send_sms !== false && customer_phone) {
       try {
         const smsPhone = normalizeAuPhone(customer_phone);
         const smsUser = process.env.SMSGATE_USERNAME, smsPass = process.env.SMSGATE_PASSWORD;

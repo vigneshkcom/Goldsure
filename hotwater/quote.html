@@ -172,6 +172,13 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
 .modal-close:hover{color:#fff;}
 .modal-body{padding:22px;overflow-y:auto;}
 .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);background:#f8fafc;}
+.pv-options{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+.pv-options label.pv-label{display:block;font-size:11px;font-weight:700;color:var(--text);margin-bottom:7px;}
+.pv-email-body{width:100%;min-height:104px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:12px;line-height:1.55;color:var(--text);background:#fff;outline:none;}
+.pv-email-body:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(176,141,46,.12);}
+.pv-sms-toggle{display:flex;align-items:flex-start;gap:9px;margin-top:12px;font-size:12px;color:var(--text);line-height:1.45;cursor:pointer;}
+.pv-sms-toggle input{width:16px;height:16px;margin-top:1px;accent-color:var(--gold);flex:0 0 auto;}
+.pv-sms-toggle .pv-sms-sub{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;}
 .pv-parties{display:flex;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
 .pv-block .pv-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted2);margin-bottom:5px;}
 .pv-block .pv-name{font-size:14px;font-weight:700;}
@@ -367,6 +374,7 @@ const MODEL_LABEL = {
 
 let agent = '';
 let calc = {};
+const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to provide a quotation for your heat pump hot water system upgrade. The price shown below includes the applicable STC and Victorian Energy Upgrades discounts, with any Solar Victoria rebate shown separately. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 
 // ── Auth ──
 function doLogin(){
@@ -523,7 +531,12 @@ function openPreview(){
       ${calc.svEligible?`<tr class="reb"><td>Less Solar Victoria rebate (delayed)</td><td class="r">− ${fmt.format(calc.sv)}</td></tr>`:'<tr class="sub"><td colspan="2" style="font-style:italic;">Non-SV customer — no Solar Victoria rebate applied</td></tr>'}
     </table>
     <div class="pv-oop"><span class="l">Customer Out-of-Pocket</span><span class="v">${fmt.format(calc.oop)}</span></div>
-    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The tank-model brochure is attached automatically. A confirmation SMS is sent if a mobile is provided, and a note is logged to the GHL contact.</p>`;
+    <div class="pv-options">
+      <label class="pv-label" for="emailBody">Email message</label>
+      <textarea class="pv-email-body" id="emailBody">${esc(DEFAULT_EMAIL_BODY)}</textarea>
+      <label class="pv-sms-toggle"><input type="checkbox" id="sendSms" checked><span>Send confirmation SMS${c.phone?` to ${esc(c.phone)}`:''}<span class="pv-sms-sub">Uncheck this if you only want to email the quote.</span></span></label>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">📎 The tank-model brochure is attached automatically, and a note is logged to the GHL contact.</p>`;
   document.getElementById('previewModal').classList.add('open');
 }
 function closePreview(){ document.getElementById('previewModal').classList.remove('open'); }
@@ -533,6 +546,9 @@ async function doSend(){
   const c=currentCustomer();
   const name=c.name, email=c.email, phone=c.phone, address=c.address, model=c.model;
   if(!name || !email || !model){ showToast('Missing customer details.'); return; }
+  const emailBody=document.getElementById('emailBody').value.trim();
+  const sendSms=document.getElementById('sendSms').checked;
+  if(!emailBody){ showToast('Enter an email message.'); return; }
   recalc();
 
   const btn=document.getElementById('confirmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
@@ -543,6 +559,7 @@ async function doSend(){
         action:'hws-quote',
         quote_token:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),
         agent_name:agent, customer_name:name, customer_email:email, customer_phone:phone, customer_address:address,
+        email_body:emailBody, send_sms:sendSms,
         tank_model:model,
         line_items:[{ name: MODEL_LABEL[model]||model, type:'Primary Product', qty:1, rate:calc.subtotalEx }],
         subtotal_ex_gst:calc.subtotalEx, gst:calc.gst, total_inc_gst:calc.totalInc,
