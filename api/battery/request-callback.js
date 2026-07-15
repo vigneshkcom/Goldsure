@@ -1240,7 +1240,7 @@ export default async function handler(req, res) {
 
     const SITE = 'https://portal.goldsure.com.au';
     const BROCHURES = {
-      // 'aux': `${SITE}/assets/aircons/AUX-brochure.pdf`,   // add per-brand brochures as uploaded
+      aux: `${SITE}/assets/aircons/brochure.pdf`,
     };
     const acceptUrl = `${SITE}/aircons/accept.html?token=${encodeURIComponent(token)}`;
     const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
