@@ -87,6 +87,8 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .mini:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,141,46,.13);}
 .qty{width:62px;}
 .price{width:104px;}
+.qty,#veecQtyInput{-moz-appearance:textfield;appearance:textfield;}
+.qty::-webkit-outer-spin-button,.qty::-webkit-inner-spin-button,#veecQtyInput::-webkit-outer-spin-button,#veecQtyInput::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .mini-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted2);display:block;text-align:center;margin-bottom:3px;}
 .veec-driver,.price-driver{display:flex;align-items:center;justify-content:space-between;gap:14px;border-radius:13px;padding:12px 15px;margin:12px 0 0;flex-wrap:wrap;}
 .veec-driver{background:#f2f8f5;border:1px solid #cfe9dc;}
@@ -236,15 +238,15 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
       <div class="card-body">
         <div class="prod-row">
           <div class="pr-name">ECONOVA 3.6 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
-          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q36" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q36" type="number" min="0" step="1" value="" oninput="onQuoteItems()"></div></div>
         </div>
         <div class="prod-row">
           <div class="pr-name">ECONOVA 5.6 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
-          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q56" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q56" type="number" min="0" step="1" value="" oninput="onQuoteItems()"></div></div>
         </div>
         <div class="prod-row">
           <div class="pr-name">ECONOVA 7.8 Head<span class="pr-sub">VRF · R Range · $909.09 ex GST</span></div>
-          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q78" type="number" min="0" step="1" value="0" oninput="recalc()"></div></div>
+          <div class="pr-inputs"><div><span class="mini-lbl">Qty</span><input class="mini qty" id="q78" type="number" min="0" step="1" value="" oninput="onQuoteItems()"></div></div>
         </div>
         <div class="prod-row">
           <div class="pr-name">ECONOVA ECO-ACV9-S Outdoor<span class="pr-sub">Multi-split · non-ducted VRF · ex-GST price auto-adjusts to the out-of-pocket target</span></div>
@@ -260,7 +262,7 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
             <div class="pd-sub">Discount = VEEC quantity × price per VEEC.</div>
           </div>
           <div class="veec-inputs">
-            <div class="veec-field qty-field"><span class="mini-lbl">VEEC quantity</span><input class="mini" type="number" id="veecQtyInput" min="0" step="1" value="0" oninput="onVeec()"></div>
+            <div class="veec-field qty-field"><span class="mini-lbl">VEEC quantity</span><input class="mini" type="number" id="veecQtyInput" min="0" step="1" value="108" oninput="onVeec()"></div>
             <div class="veec-field"><span class="mini-lbl">Price per VEEC ($)</span><input class="mini" type="number" id="veecPriceInput" min="0" step="0.01" value="35.00" oninput="onVeec()"></div>
           </div>
         </div>
@@ -270,7 +272,7 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
             <div class="pd-label">Total Out-of-Pocket (inc GST)</div>
             <div class="pd-sub">Enter the fixed customer price — the outdoor unit's ex-GST price adjusts to match.</div>
           </div>
-          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="2200" oninput="onOop()"></div>
+          <div class="money-wrap"><span>$</span><input type="number" id="oopInput" min="0" step="0.01" value="" placeholder="Enter amount" oninput="onOop()"></div>
         </div>
       </div>
     </div>
@@ -326,7 +328,7 @@ const HEADS = [
 const ACV9_NAME = 'ECONOVA-ECO-ACV9-S Non-Ducted Multiple Split (VRF)';
 
 let agent = '';
-let anchor = 'oop';   // out-of-pocket drives the outdoor unit price unless that price is edited directly
+let anchor = 'draft'; // build quantities first; OOP only becomes the price driver after it is entered
 let calc = {};
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to provide a quotation for your air conditioning upgrade. The price shown below includes the applicable Victorian Energy Upgrades (VEU) discount. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 const $ = id => document.getElementById(id);
@@ -364,10 +366,11 @@ function buildLines(includeOutdoor=true){
   if(includeOutdoor && acvQty>0 && acvPrice>0){ const amount=round2(acvQty*acvPrice); lines.push({ name:ACV9_NAME, qty:acvQty, unit:acvPrice, amount, gst:round2(amount*GST_RATE) }); }
   return lines;
 }
-function onOop(){ anchor='oop'; recalc(); }
-function onVeec(){ anchor='oop'; recalc(); }
-function onQuoteItems(){ anchor='oop'; recalc(); }
-function onAcvPrice(){ anchor='acv'; recalc(); }
+function hasOopTarget(){ return $('oopInput').value.trim()!==''; }
+function onOop(){ anchor=hasOopTarget()?'oop':'draft'; recalc(); }
+function onVeec(){ anchor=hasOopTarget()?'oop':'draft'; recalc(); }
+function onQuoteItems(){ anchor=hasOopTarget()?'oop':'draft'; recalc(); }
+function onAcvPrice(){ anchor=hasOopTarget()?'acv':'draft'; recalc(); }
 function grossForEx(ex){ return round2(ex+round2(ex*GST_RATE)); }
 function exForGross(targetGross){
   const target=round2(Math.max(0,targetGross));
@@ -384,10 +387,11 @@ function recalc(){
   const veecQty=Math.max(0,parseInt($('veecQtyInput').value,10)||0);
   const veecPrice=round2(Math.max(0,parseFloat($('veecPriceInput').value)||0));
   const veec=round2(veecQty*veecPrice);
-  const oopTarget=round2(Math.max(0,parseFloat($('oopInput').value)||0));
+  const hasTarget=hasOopTarget();
+  const oopTarget=hasTarget?round2(Math.max(0,parseFloat($('oopInput').value)||0)):null;
   const acvQty=Math.max(0,parseInt($('qACV').value,10)||0);
 
-  if(anchor==='oop' && acvQty>0){
+  if(anchor==='oop' && hasTarget && acvQty>0){
     const fixedLines=buildLines(false);
     const fixedGross=round2(fixedLines.reduce((s,l)=>s+l.amount+l.gst,0));
     const requiredOutdoorGross=round2(oopTarget+veec-fixedGross);
@@ -401,9 +405,10 @@ function recalc(){
   const gst=round2(lines.reduce((s,l)=>s+l.gst,0));          // per-line GST summed (matches Xero)
   const productsInc=round2(productsEx+gst);
   const oop=round2(productsInc-veec);
-  if(anchor==='acv' || acvQty===0 || Math.abs(oop-oopTarget)>0.011) $('oopInput').value=oop.toFixed(2);
+  if(anchor==='acv' && hasTarget) $('oopInput').value=oop.toFixed(2);
   const subtotal=round2(productsEx-veec);   // Xero subtotal: net of the GST-free discount
   const totalAud=round2(subtotal+gst);      // == oop
+  const isBalanced=!hasTarget||Math.abs(totalAud-oopTarget)<=0.011;
 
   // render line items
   const rows=lines.map(l=>`<div class="sum-line"><div><div class="sl-name">${esc(l.name)}</div><div class="sl-sub">${l.qty} × ${fmt.format(l.unit)}</div></div><div class="sl-amt">${fmt.format(l.amount)}</div></div>`);
@@ -412,9 +417,9 @@ function recalc(){
 
   setTxt('sumSubtotal', fmt.format(subtotal));
   setTxt('sumGst', fmt.format(gst));
-  setTxt('sumOop', fmt.format(totalAud));
+  setTxt('sumOop', hasTarget?fmt.format(totalAud):'—');
 
-  calc = { lines, productsEx, gst, productsInc, veec, subtotal, totalAud, oop:totalAud };
+  calc = { lines, productsEx, gst, productsInc, veec, subtotal, totalAud, oop:totalAud, hasOopTarget:hasTarget, isBalanced };
 }
 
 // ── GHL customer search ──
@@ -472,6 +477,8 @@ function openPreview(){
   if(!c.name){ showToast('Enter the customer name.'); return; }
   if(!c.email||!c.email.includes('@')){ showToast('Enter a valid customer email.'); return; }
   recalc();
+  if(!calc.hasOopTarget){ showToast('Enter the Total Out-of-Pocket amount.'); return; }
+  if(!calc.isBalanced){ showToast('This out-of-pocket amount cannot be matched with the selected quantities.'); return; }
   if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
   const lineRows=calc.lines.map(l=>`<tr><td>${esc(l.name)}<br><span style="font-size:11px;color:var(--muted);">${l.qty} × ${fmt.format(l.unit)}</span></td><td class="r">${fmt.format(l.amount)}</td></tr>`).join('');
   $('previewBody').innerHTML=`
@@ -504,6 +511,8 @@ async function doSend(){
   const sendSms=$('sendSms').checked;
   if(!emailBody){ showToast('Enter an email message.'); return; }
   recalc();
+  if(!calc.hasOopTarget){ showToast('Enter the Total Out-of-Pocket amount.'); return; }
+  if(!calc.isBalanced){ showToast('This out-of-pocket amount cannot be matched with the selected quantities.'); return; }
   if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
   const btn=$('confirmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
   try{
@@ -533,6 +542,8 @@ function downloadPDF(){
   const c=currentCustomer();
   if(!c.name){ showToast('Enter the customer name first.'); return; }
   recalc();
+  if(!calc.hasOopTarget){ showToast('Enter the Total Out-of-Pocket amount.'); return; }
+  if(!calc.isBalanced){ showToast('This out-of-pocket amount cannot be matched with the selected quantities.'); return; }
   if(!calc.lines.length){ showToast('Add at least one unit.'); return; }
   const { jsPDF }=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
