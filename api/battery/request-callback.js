@@ -1282,9 +1282,10 @@ export default async function handler(req, res) {
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
         <tr><td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-family:${FONT};font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;">Description</td><td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-family:${FONT};font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:right;">Amount</td></tr>
         ${itemRowsHtml}
-        <tr><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;border-bottom:1px solid #eef0f4;">Victorian Energy Efficiency Target Discount<br><span style="font-size:11px;color:#9aa2b1;">Victorian Energy Upgrades (VEU)</span></td><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">− ${money(veec_discount)}</td></tr>
-        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;">Subtotal (ex GST)</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(subtotal)}</td></tr>
-        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;border-bottom:2px solid #141c2e;">Total GST 10%</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:2px solid #141c2e;">${money(total_gst)}</td></tr>
+        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;">Subtotal before rebate (ex GST)</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(products_ex_gst)}</td></tr>
+        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#5b6577;text-align:right;">GST 10%</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(total_gst)}</td></tr>
+        <tr><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:700;border-top:1px solid #dfe3ea;">Total before rebate (inc GST)</td><td style="padding:9px 12px;font-family:${FONT};font-size:12px;color:#141c2e;text-align:right;font-weight:700;border-top:1px solid #dfe3ea;">${money(products_inc_gst)}</td></tr>
+        <tr><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;border-bottom:2px solid #141c2e;">Victorian Energy Efficiency Target Discount<br><span style="font-size:11px;color:#9aa2b1;">Victorian Energy Upgrades (VEU)</span></td><td style="padding:10px 12px;font-family:${FONT};font-size:13px;color:#2f9e6b;text-align:right;font-weight:600;border-bottom:2px solid #141c2e;">− ${money(veec_discount)}</td></tr>
       </table>
     </td></tr>
     <tr><td style="padding:16px 32px 0;">
@@ -1336,7 +1337,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
           to: [customer_email],
-          bcc: ['vignesh@goldsure.com.au'],
+          bcc: ['info@goldsure.com.au'],
           subject: is_reminder ? 'Reminder: Your Air Conditioning Quote – Goldsure' : 'Your Air Conditioning Quote – Goldsure',
           html,
           ...(attachments.length ? { attachments } : {}),
