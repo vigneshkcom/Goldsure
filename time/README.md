@@ -15,8 +15,16 @@ computed from the stored start time. **No tab needs to stay open.**
 
 On open, a **"Who's clocking in?"** picker asks the agent to select their name
 (**David** or **Shanira**); the choice is remembered per browser and the top-bar
-chip switches agents. Hours = `clock_out − clock_in`; an open shift counts up to
-"now". (To change the agent list, edit the `AGENTS` array in `time/index.html`.)
+chip switches agents. An open shift counts up to "now". Billable hours are calculated
+from `clock_out − clock_in − unpaid time`, then counted in 15-minute slots: a final
+remainder of 10 minutes or more counts as another 15 minutes, while 0–9 minutes does
+not. For example, 08:00–15:07 bills as 7h 0m and 08:00–15:10 bills as 7h 15m.
+(To change the agent list, edit the `AGENTS` array in `time/index.html`.)
+
+Managers can use **Edit** to enter "Unpaid / not worked" hours and minutes. The
+deduction is stored in the existing `note` column as an internal marker, so this
+feature does not require a Supabase schema migration. Agents can see the resulting
+billable hours and unpaid deduction, but only the manager can change unpaid time.
 
 ## Required Supabase table
 
@@ -67,14 +75,14 @@ Every request also carries a `pin` (the agent's or the manager's).
 | `{ action:'clock-out', agent }` | Close the agent's open shift |
 | `{ action:'list', agent }` | The agent's own shifts (page groups them into Mon–Sun weeks) |
 | `{ action:'list-all' }` | **Manager PIN only** — every agent's shifts, for the overview |
-| `{ action:'update', id, clock_in?, clock_out?, note? }` | Fix a wrong or forgotten time |
+| `{ action:'update', id, clock_in?, clock_out?, note?, unpaid_minutes? }` | Fix a wrong or forgotten time; manager can also set unpaid minutes |
 | `{ action:'delete', id }` | Remove a shift entry |
 
 ## Pay rates & manager emails
 
 Rates are **$13.54/hr** (David) and **$25/hr** (Shanira), baked into the handler;
 override with a `TIME_RATES` env var (JSON, e.g. `{"David":10.42,"Shanira":25}`).
-Earnings = hours × rate. **Pay is manager-only** — agents never see any dollar figures.
+Earnings = rounded billable hours × rate. **Pay is manager-only** — agents never see any dollar figures.
 Rates are sent from the server to the manager view only (never in the per-agent page or
 its CSV), so an agent can't read their rate/earnings even from the page source. Earnings
 appear only in the manager view, the manager CSV, and the clock-out email.

@@ -260,6 +260,7 @@ export default async function handler(req, res) {
     const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
     const pin = String(t.pin || '');
     const isManager = pinsOn && managerPin !== '' && pin === managerPin;
+    const canManage = !pinsOn || isManager;
     const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
 
     // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
@@ -283,6 +284,23 @@ export default async function handler(req, res) {
     const escH = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const mel = (iso, opts) => new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', ...opts });
     const durStrOf = (ms) => { const m = Math.floor(ms / 60000); return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
+    const roundedWorkedMinutes = (minutes) => {
+      const worked = Math.max(0, Math.floor(Number(minutes) || 0));
+      const fullSlots = Math.floor(worked / 15);
+      return (fullSlots + (worked % 15 >= 10 ? 1 : 0)) * 15;
+    };
+    const unpaidMinutesFromNote = (note) => {
+      const match = String(note || '').match(/\[time-unpaid-minutes:(\d+)\]/);
+      return match ? Math.max(0, Number(match[1]) || 0) : 0;
+    };
+    const noteWithUnpaidMinutes = (note, minutes) => {
+      const cleaned = String(note || '')
+        .replace(/\[time-unpaid-minutes:\d+\]/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      const unpaid = Math.max(0, Math.floor(Number(minutes) || 0));
+      return [cleaned, unpaid ? `[time-unpaid-minutes:${unpaid}]` : ''].filter(Boolean).join('\n') || null;
+    };
     const emailShell = (eyebrow, bodyRows) => `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#eceef3;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#eceef3" style="background:#eceef3;"><tr><td align="center" style="padding:32px 16px;">
@@ -425,10 +443,12 @@ export default async function handler(req, res) {
         }
         const outEntry = closed[0];
         const ms = Math.max(0, new Date(outEntry.clock_out).getTime() - new Date(outEntry.clock_in).getTime());
+        const netMinutes = Math.max(0, Math.floor(ms / 60000) - unpaidMinutesFromNote(outEntry.note));
+        const billedMs = roundedWorkedMinutes(netMinutes) * 60000;
         const dayStr = mel(outEntry.clock_in, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         const inStr = mel(outEntry.clock_in, { hour: 'numeric', minute: '2-digit', hour12: true });
         const outStr = mel(outEntry.clock_out, { hour: 'numeric', minute: '2-digit', hour12: true });
-        const dur = durStrOf(ms);
+        const dur = durStrOf(billedMs);
         // Time only — no pay in the email (earnings stay in the manager portal view).
         await sendManagerMail(
           `${agent} clocked OUT — ${dur}`,
@@ -458,15 +478,41 @@ export default async function handler(req, res) {
       if (t.action === 'update') {
         const id = String(t.id || '').trim();
         if (!id) return res.status(400).json({ error: 'Entry id is required.' });
-        if (pinsOn && !isManager) {
-          const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=agent&limit=1`, { headers: anonH });
-          const owner = cur.ok ? ((await cur.json())[0] || {}).agent : null;
-          if (!agentOk(owner)) return res.status(403).json({ error: 'Incorrect PIN.' });
-        }
+        const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=${COLS}&limit=1`, { headers: anonH });
+        if (!cur.ok) return res.status(500).json({ error: 'Failed to load the entry before updating it.' });
+        const current = ((await cur.json())[0] || null);
+        if (!current) return res.status(404).json({ error: 'Entry not found.' });
+        if (pinsOn && !isManager && !agentOk(current.agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const patch = {};
         if (t.clock_in !== undefined) patch.clock_in = t.clock_in || null;
         if (t.clock_out !== undefined) patch.clock_out = t.clock_out || null;
-        if (t.note !== undefined) patch.note = String(t.note || '').trim() || null;
+        if (t.note !== undefined) {
+          const requestedNote = String(t.note || '').trim() || null;
+          patch.note = canManage ? requestedNote : noteWithUnpaidMinutes(requestedNote, unpaidMinutesFromNote(current.note));
+        }
+        if (t.unpaid_minutes !== undefined) {
+          if (!canManage) return res.status(403).json({ error: 'Manager PIN required to change unpaid time.' });
+          const unpaidMinutes = Number(t.unpaid_minutes);
+          if (!Number.isInteger(unpaidMinutes) || unpaidMinutes < 0) return res.status(400).json({ error: 'Unpaid time must be a whole number of minutes.' });
+          const effectiveIn = patch.clock_in !== undefined ? patch.clock_in : current.clock_in;
+          const effectiveOut = patch.clock_out !== undefined ? patch.clock_out : current.clock_out;
+          const startMs = new Date(effectiveIn).getTime();
+          const endMs = effectiveOut ? new Date(effectiveOut).getTime() : Date.now();
+          if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return res.status(400).json({ error: 'Clock-in and clock-out must be valid times.' });
+          const shiftMinutes = Math.max(0, Math.floor((endMs - startMs) / 60000));
+          if (unpaidMinutes > shiftMinutes) return res.status(400).json({ error: 'Unpaid time cannot be longer than the shift.' });
+          patch.note = noteWithUnpaidMinutes(patch.note !== undefined ? patch.note : current.note, unpaidMinutes);
+        }
+        if (t.unpaid_minutes === undefined && (patch.clock_in !== undefined || patch.clock_out !== undefined)) {
+          const effectiveIn = patch.clock_in !== undefined ? patch.clock_in : current.clock_in;
+          const effectiveOut = patch.clock_out !== undefined ? patch.clock_out : current.clock_out;
+          const startMs = new Date(effectiveIn).getTime();
+          const endMs = effectiveOut ? new Date(effectiveOut).getTime() : Date.now();
+          if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return res.status(400).json({ error: 'Clock-in and clock-out must be valid times.' });
+          const shiftMinutes = Math.max(0, Math.floor((endMs - startMs) / 60000));
+          const unpaidMinutes = unpaidMinutesFromNote(patch.note !== undefined ? patch.note : current.note);
+          if (unpaidMinutes > shiftMinutes) return res.status(400).json({ error: 'Unpaid time cannot be longer than the shift.' });
+        }
         if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update.' });
         const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
           method: 'PATCH',
