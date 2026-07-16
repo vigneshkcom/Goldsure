@@ -8,6 +8,7 @@ export default async function handler(req, res) {
     customer_name,
     customer_phone,
     customer_type,
+    ghl_contact_id,
     to_email,
     customer_address,
     agent_name,
@@ -19,12 +20,27 @@ export default async function handler(req, res) {
     fee_label,
     fee_amount,
     grand_total,
+    pre_discount_total,
+    offer_code,
+    offer_applied,
+    send_sms = true,
     payment_note,
   } = req.body;
 
   if (!customer_name || !to_email || !to_email.includes('@')) {
     return res.status(400).json({ error: 'Missing or invalid required fields.' });
   }
+
+  const parseMoney = (value) => Number(String(value ?? '0').replace(/[^0-9.-]/g, '')) || 0;
+  const money = (value) => new Intl.NumberFormat('en-AU', {
+    style: 'currency', currency: 'AUD', minimumFractionDigits: 2,
+  }).format(Number(value) || 0);
+
+  // JULY 90 is valid only during July 2026 in Queensland (AEST). The server
+  // re-validates the offer so an old browser tab cannot apply it after expiry.
+  const july90IsLive = Date.now() >= Date.parse('2026-07-01T00:00:00+10:00') &&
+    Date.now() < Date.parse('2026-08-01T00:00:00+10:00');
+  const july90Applied = offer_applied === true && offer_code === 'JULY 90' && july90IsLive;
 
   // ── Controller state ──
   // The Smoke Alarm Controller is an optional add-on. It should only appear
@@ -33,6 +49,13 @@ export default async function handler(req, res) {
   // upsell it as a low-cost add-on the customer can request on the day.
   const hasController = (parseInt(ctrl_qty, 10) || 0) > 0;
   const isInstall     = service_type === 'Installation Quote';
+  const calculatedPreDiscount = isInstall
+    ? ((parseInt(alarm_qty, 10) || 0) * 98) + ((parseInt(ctrl_qty, 10) || 0) * 49) + 33
+    : (service_type === 'Inspection Quote' ? 131 : parseMoney(pre_discount_total || grand_total));
+  const preDiscountNumeric = calculatedPreDiscount;
+  const discountNumeric = july90Applied ? Math.min(90, preDiscountNumeric) : 0;
+  const finalTotalNumeric = Math.max(0, preDiscountNumeric - discountNumeric);
+  const quotedGrandTotal = money(finalTotalNumeric);
 
   // ── Build Accept Quote URL using token ──
   const baseUrl   = process.env.SITE_URL || 'https://www.goldsure.com.au';
@@ -91,9 +114,13 @@ export default async function handler(req, res) {
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
           </tr>
+          ${july90Applied ? `<tr bgcolor="#faf6ec">
+            <td colspan="3" style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#7a6020;border-top:1px solid #e8d28a;">JULY 90 Offer <span style="font-size:11px;font-weight:400;">(Incl. GST)</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#1f7d52;text-align:right;border-top:1px solid #e8d28a;">&minus;${money(discountNumeric)}</td>
+          </tr>` : ''}
           <tr bgcolor="#000000">
             <td colspan="3" style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Grand Total (Incl. GST)</td>
-            <td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${grand_total}</td>
+            <td style="padding:12px 12px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:#b08d2e;text-align:right;">${quotedGrandTotal}</td>
           </tr>
         </table>
         ${(isInstall && !hasController) ? `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border:1px dashed #b08d2e;">
@@ -234,7 +261,7 @@ export default async function handler(req, res) {
   // request — the email has already been sent successfully.
   // ════════════════════════════════════════════════════════════
   let smsSent = false;
-  if (emailSuccess && customer_phone) {
+  if (emailSuccess && send_sms !== false && customer_phone) {
     try {
       // Normalise AU mobile/landline formats to E.164 so any reply threads
       // with this send in the SMS portal (mirrors the SMS handler).
@@ -275,8 +302,8 @@ export default async function handler(req, res) {
         // has no alarm line items, so quoting a count there would mislead).
         const alarmCount = parseInt(alarm_qty, 10) || 0;
         const quoteSummary = (isInstall && alarmCount > 0)
-          ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${grand_total} total)`
-          : `Your smoke alarm quote (${grand_total} total)`;
+          ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${quotedGrandTotal} total)`
+          : `Your smoke alarm quote (${quotedGrandTotal} total)`;
         const smsText =
           `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
           `${quoteSummary} has just been emailed to ${to_email}. ` +
@@ -339,6 +366,8 @@ export default async function handler(req, res) {
   // on the contact and their opportunity timeline. Any failure here must
   // NOT fail the request — the email has already been sent.
   // ════════════════════════════════════════════════════════════
+  let ghlNoteAdded = false;
+  let ghlStageMoved = false;
   if (emailSuccess) {
     try {
       const ghlKey = process.env.GHL_API_KEY;
@@ -348,32 +377,100 @@ export default async function handler(req, res) {
       } else {
         const ghlHeaders = { Authorization: `Bearer ${ghlKey}`, Version: '2021-07-28', Accept: 'application/json' };
 
-        // Find the contact by email (same lookup pattern as ghl.js).
-        const cRes = await fetch(
-          `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(ghlLoc)}&query=${encodeURIComponent(to_email)}&limit=5`,
-          { headers: ghlHeaders }
-        );
-        const cData = await cRes.json().catch(() => ({}));
-        const contacts = cData.contacts || [];
-        const contact = contacts.find(c => (c.email || '').toLowerCase() === String(to_email).toLowerCase()) || contacts[0];
+        let contact = null;
+        if (ghl_contact_id) {
+          const directRes = await fetch(
+            `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(ghl_contact_id)}`,
+            { headers: ghlHeaders }
+          );
+          const directData = await directRes.json().catch(() => ({}));
+          contact = directData.contact || (directData.id ? directData : null);
+        }
+
+        // Manual entry fallback: find the contact by exact email, then phone.
+        if (!contact) {
+          for (const query of [to_email, customer_phone].filter(Boolean)) {
+            const cRes = await fetch(
+              `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(ghlLoc)}&query=${encodeURIComponent(query)}&limit=10`,
+              { headers: ghlHeaders }
+            );
+            const cData = await cRes.json().catch(() => ({}));
+            const contacts = cData.contacts || [];
+            contact = contacts.find(c =>
+              (c.email || '').toLowerCase() === String(to_email).toLowerCase() ||
+              String(c.phone || '').replace(/\D/g, '').slice(-9) === String(customer_phone || '').replace(/\D/g, '').slice(-9)
+            ) || null;
+            if (contact) break;
+          }
+        }
 
         if (!contact || !contact.id) {
-          console.log('[QuoteNote] no GHL contact found for', to_email);
+          console.log('[QuoteNote] no GHL contact found for', to_email, customer_phone);
         } else {
+          const noteBody = [
+            'Smoke alarm quote sent',
+            `Quote type: ${service_type || 'Smoke Alarm Quote'}`,
+            `Quote total (incl. GST): ${quotedGrandTotal}`,
+            `Sent by: ${agent_name || 'Goldsure'}`,
+            `JULY 90 offer: ${july90Applied ? `Applied (−${money(discountNumeric)} incl. GST)` : 'Not applied'}`,
+            `Confirmation SMS: ${send_sms === false ? 'Not requested' : (smsSent ? 'Sent' : 'Requested but not sent')}`,
+          ].join('\n');
+
           const nRes = await fetch(
             `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`,
             {
               method: 'POST',
               headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ body: 'Quote sent from Portal' }),
+              body: JSON.stringify({ body: noteBody }),
             }
           );
 
           if (nRes.ok) {
+            ghlNoteAdded = true;
             console.log('[QuoteNote] GHL note added for contact', contact.id);
           } else {
             const detail = await nRes.text().catch(() => '');
             console.error('[QuoteNote] GHL note failed:', nRes.status, detail.slice(0, 200));
+          }
+
+          // Move this contact's Smoke Alarms opportunity to Quote Sent.
+          const pipelineRes = await fetch(
+            `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(ghlLoc)}`,
+            { headers: ghlHeaders }
+          );
+          const pipelineData = await pipelineRes.json().catch(() => ({}));
+          const smokePipeline = (pipelineData.pipelines || []).find(p => /smoke/i.test(p.name || ''));
+          const quoteSentStage = (smokePipeline?.stages || []).find(s => /quote\s*sent/i.test(s.name || ''));
+
+          if (smokePipeline && quoteSentStage) {
+            const oppRes = await fetch(
+              `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(ghlLoc)}&contact_id=${encodeURIComponent(contact.id)}&limit=100`,
+              { headers: ghlHeaders }
+            );
+            const oppData = await oppRes.json().catch(() => ({}));
+            const smokeOpportunities = (oppData.opportunities || []).filter(o => o.pipelineId === smokePipeline.id);
+            const opportunity = smokeOpportunities.find(o => String(o.status || '').toLowerCase() === 'open') || smokeOpportunities[0];
+            if (opportunity?.id) {
+              const moveRes = await fetch(
+                `https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opportunity.id)}`,
+                {
+                  method: 'PUT',
+                  headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ pipelineStageId: quoteSentStage.id }),
+                }
+              );
+              if (moveRes.ok) {
+                ghlStageMoved = true;
+                console.log('[QuoteStage] opportunity moved to Quote Sent:', opportunity.id);
+              } else {
+                const detail = await moveRes.text().catch(() => '');
+                console.error('[QuoteStage] GHL stage move failed:', moveRes.status, detail.slice(0, 200));
+              }
+            } else {
+              console.log('[QuoteStage] no Smoke Alarms opportunity found for contact', contact.id);
+            }
+          } else {
+            console.log('[QuoteStage] Smoke Alarms pipeline or Quote Sent stage not found');
           }
         }
       }
@@ -397,15 +494,7 @@ export default async function handler(req, res) {
   // ════════════════════════════════════════════════════════════
   if (emailSuccess) {
     try {
-      // Parse "$1,254.00" → 1254.00
-      // Strip everything except digits and dots, then remove any
-      // extra leading dots to avoid parseFloat returning NaN.
-      const grandNumeric = parseFloat(
-        (grand_total || '0')
-          .replace(/[^0-9.]/g, '')          // keep only digits and dots
-          .replace(/^\.+/, '')              // remove any leading dots
-          .replace(/\.(?=.*\.)/g, '')       // keep only the last dot
-      ) || 0;
+      const grandNumeric = finalTotalNumeric;
 
       console.log('[Supabase] Attempting insert for quote_token:', token);
       console.log('[Supabase] Using URL:', process.env.SUPABASE_URL ? process.env.SUPABASE_URL.slice(0, 40) + '…' : 'MISSING');
@@ -439,7 +528,7 @@ export default async function handler(req, res) {
             ctrl_total:          parseFloat((ctrl_total  || '0').replace(/[^0-9.]/g, '')) || null,
             fee_label:           fee_label        || null,
             fee_amount:          parseFloat((fee_amount  || '0').replace(/[^0-9.]/g, '')) || null,
-            grand_total:         parseFloat((grand_total || '0').replace(/[^0-9.]/g, '')) || null,
+            grand_total:         finalTotalNumeric,
             grand_total_numeric: grandNumeric,
             status:              'sent',
             accepted:            false,
@@ -474,6 +563,13 @@ export default async function handler(req, res) {
       console.error('[Supabase] Network error during insert (non-fatal):', supaErr);
     }
 
-    return res.status(200).json({ success: true, sms_sent: smsSent });
+    return res.status(200).json({
+      success: true,
+      sms_sent: smsSent,
+      offer_applied: july90Applied,
+      grand_total: quotedGrandTotal,
+      ghl_note_added: ghlNoteAdded,
+      ghl_stage_moved: ghlStageMoved,
+    });
   }
 }

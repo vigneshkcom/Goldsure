@@ -320,6 +320,46 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-field input:focus, .modal-field textarea:focus { border-color: var(--gold); background: var(--surface); }
 .modal-field textarea { resize: vertical; min-height: 80px; }
 
+/* GHL customer picker */
+.ghl-search-wrap { position: relative; }
+.ghl-results {
+  display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+  z-index: 1200; max-height: 260px; overflow-y: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 30px rgba(16,24,40,0.18);
+}
+.ghl-results.open { display: block; }
+.ghl-item {
+  display: block; width: 100%; border: none; border-bottom: 1px solid var(--border);
+  background: var(--surface); padding: 10px 12px; text-align: left; cursor: pointer;
+  font-family: 'Sora', sans-serif; color: var(--text);
+}
+.ghl-item:last-child { border-bottom: none; }
+.ghl-item:hover { background: var(--gold-bg); }
+.ghl-item .n { display: block; font-size: 12px; font-weight: 700; }
+.ghl-item .s { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); line-height: 1.45; }
+.ghl-item.empty { color: var(--muted); cursor: default; font-size: 11px; font-style: italic; }
+
+.july-offer {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  border: 1.5px solid #e8d28a; border-radius: 10px; padding: 12px 14px; background: var(--gold-bg);
+}
+.july-offer-copy strong { display: block; font-size: 13px; color: var(--text); }
+.july-offer-copy span { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); }
+.july-offer-btn {
+  flex: 0 0 auto; border: 1.5px solid var(--gold); border-radius: 8px; padding: 8px 12px;
+  background: var(--surface); color: var(--gold); font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.july-offer-btn.applied { background: var(--gold); color: #000; }
+.send-sms-option {
+  display: flex !important; align-items: flex-start; gap: 10px; cursor: pointer;
+  border: 1.5px solid var(--border); border-radius: 9px; padding: 10px 12px;
+  background: var(--surface2); color: var(--text) !important; font-size: 12px !important;
+  font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important;
+}
+.send-sms-option input { width: auto !important; margin: 2px 0 0; accent-color: var(--gold); }
+.offer-row span:last-child { color: var(--green) !important; }
+
 /* ── ADDRESS FIELD STATES ── */
 .address-field-wrap { position: relative; }
 .address-field-wrap input { padding-right: 36px; }
@@ -734,6 +774,12 @@ function doLogout() {
     <h2>Email Quote to Customer</h2>
     <p>Confirm details and send a branded quote email directly to the customer.</p>
 
+    <div class="modal-field ghl-search-wrap">
+      <label>Find Customer in GHL</label>
+      <input type="text" id="emailGhlSearch" placeholder="Search by name, phone or email…" autocomplete="off" oninput="onEmailGhlSearch()">
+      <div class="ghl-results" id="emailGhlResults" onclick="pickEmailGhlResult(event)"></div>
+    </div>
+
     <div class="modal-field">
       <label>Customer Name</label>
       <input type="text" id="emailCustomerName" placeholder="Full name">
@@ -779,6 +825,24 @@ function doLogout() {
       <div class="email-preview-box" id="emailPreviewBox"></div>
     </div>
 
+    <div class="modal-field" id="july90Field">
+      <label>July Offer</label>
+      <div class="july-offer">
+        <div class="july-offer-copy">
+          <strong>JULY 90</strong>
+          <span>$90 incl. GST off the whole quote. Available until 31 July 2026.</span>
+        </div>
+        <button type="button" class="july-offer-btn" id="july90Btn" onclick="toggleJuly90Offer()">Apply $90 off</button>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label class="send-sms-option">
+        <input type="checkbox" id="sendQuoteSms" checked>
+        <span>Send a confirmation SMS after the quote email is sent</span>
+      </label>
+    </div>
+
     <div class="modal-actions">
       <button onclick="closeEmailModal()">Cancel</button>
       <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()" disabled>Send Email</button>
@@ -811,6 +875,10 @@ let serviceMode  = 'install';
 let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
 let mapsLoaded = false;
 let currentQuoteToken = null;     // ← unique token per quote send
+let selectedGhlContactId = '';
+let emailGhlTimer = null;
+let emailGhlResults = [];
+let july90Applied = false;
 const QUOTE_TRACKER_SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const QUOTE_TRACKER_SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
@@ -1151,6 +1219,124 @@ function validateEmailModal() {
   if (btn) btn.disabled = !(hasPhone && hasCustType);
 }
 
+function escHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[ch]);
+}
+
+function onEmailGhlSearch() {
+  const q = document.getElementById('emailGhlSearch').value.trim();
+  const box = document.getElementById('emailGhlResults');
+  selectedGhlContactId = '';
+  clearTimeout(emailGhlTimer);
+  if (q.length < 2) {
+    emailGhlResults = [];
+    box.innerHTML = '';
+    box.classList.remove('open');
+    return;
+  }
+  emailGhlTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
+      const list = res.ok ? await res.json() : [];
+      emailGhlResults = Array.isArray(list) ? list : [];
+      if (!emailGhlResults.length) {
+        box.innerHTML = '<div class="ghl-item empty">No matching GHL contacts</div>';
+      } else {
+        box.innerHTML = emailGhlResults.map((c, index) => `
+          <button type="button" class="ghl-item" data-ghl-index="${index}">
+            <span class="n">${escHtml(c.name || c.phone || '—')}</span>
+            <span class="s">${escHtml([c.phone, c.email, c.address].filter(Boolean).join(' · '))}</span>
+          </button>`).join('');
+      }
+      box.classList.add('open');
+    } catch (_) {
+      box.classList.remove('open');
+    }
+  }, 300);
+}
+
+function pickEmailGhlResult(event) {
+  const item = event.target.closest('[data-ghl-index]');
+  if (!item) return;
+  const contact = emailGhlResults[Number(item.dataset.ghlIndex)];
+  if (!contact) return;
+  selectedGhlContactId = contact.id || '';
+  document.getElementById('emailGhlSearch').value = contact.name || contact.phone || '';
+  document.getElementById('emailCustomerName').value = contact.name || '';
+  document.getElementById('emailCustomerPhone').value = contact.phone || '';
+  document.getElementById('emailCustomerEmail').value = contact.email || '';
+  if (contact.address) {
+    document.getElementById('emailCustomerAddress').value = contact.address;
+    if (/\bQLD\b|Queensland/i.test(contact.address)) {
+      selectedQLDAddress = true;
+      setAddressState('valid', '✓ From GHL — Queensland address');
+    } else {
+      selectedQLDAddress = false;
+      setAddressState('pending', 'Confirm this is a Queensland address');
+    }
+  }
+  document.getElementById('emailGhlResults').classList.remove('open');
+  validateEmailModal();
+}
+
+document.addEventListener('click', event => {
+  if (!event.target.closest('#emailGhlSearch') && !event.target.closest('#emailGhlResults')) {
+    const box = document.getElementById('emailGhlResults');
+    if (box) box.classList.remove('open');
+  }
+});
+
+function isJuly90Available() {
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit'
+  }).formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  return year === '2026' && month === '07';
+}
+
+function getEmailQuoteTotals() {
+  const base = parseFloat(document.getElementById('res-total').innerText.replace(/[^0-9.]/g, '')) || 0;
+  const discount = july90Applied && isJuly90Available() ? Math.min(90, base) : 0;
+  return { base, discount, final: Math.max(0, base - discount) };
+}
+
+function updateEmailQuotePreview() {
+  const alarmQty = document.getElementById('res_alarmQty').innerText;
+  const alarmT = document.getElementById('res_alarmTotal').innerText;
+  const ctrlQty = document.getElementById('res_ctrlQty').innerText;
+  const ctrlT = document.getElementById('res_ctrlTotal').innerText;
+  const hasCtrl = parseInt(ctrlQty) > 0;
+  const totals = getEmailQuoteTotals();
+  let previewHTML = '';
+  if (serviceMode === 'install') {
+    previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
+    if (hasCtrl) previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${ctrlT}</span></div>`;
+    previewHTML += '<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>';
+  } else {
+    previewHTML += '<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>';
+  }
+  if (totals.discount > 0) {
+    previewHTML += `<div class="email-preview-row offer-row"><span>JULY 90 Offer (Incl. GST)</span><span>−${fmt.format(totals.discount)}</span></div>`;
+  }
+  previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${fmt.format(totals.final)}</span></div>`;
+  document.getElementById('emailPreviewBox').innerHTML = previewHTML;
+}
+
+function toggleJuly90Offer() {
+  if (!isJuly90Available()) {
+    showToast('The JULY 90 offer has expired.');
+    return;
+  }
+  july90Applied = !july90Applied;
+  const btn = document.getElementById('july90Btn');
+  btn.classList.toggle('applied', july90Applied);
+  btn.innerText = july90Applied ? 'Applied ✓' : 'Apply $90 off';
+  updateEmailQuotePreview();
+}
+
 // ════════════════════════════════════════════════════════════
 // EMAIL MODAL
 // ════════════════════════════════════════════════════════════
@@ -1165,6 +1351,9 @@ function openEmailModal() {
       });
 
   document.getElementById('emailCustomerName').value  = customerName || '';
+  document.getElementById('emailGhlSearch').value = '';
+  document.getElementById('emailGhlResults').innerHTML = '';
+  document.getElementById('emailGhlResults').classList.remove('open');
   document.getElementById('emailCustomerPhone').value = '';
   document.getElementById('emailCustomerEmail').value = '';
   document.getElementById('emailCustomerAddress').value = '';
@@ -1172,25 +1361,16 @@ function openEmailModal() {
   document.getElementById('phoneHint').style.display = 'block';
   document.getElementById('custTypeHint').style.display = 'block';
   document.querySelectorAll('input[name="custType"]').forEach(radio => { radio.checked = false; });
+  document.getElementById('sendQuoteSms').checked = true;
+  selectedGhlContactId = '';
+  emailGhlResults = [];
+  july90Applied = false;
+  const offerAvailable = isJuly90Available();
+  document.getElementById('july90Field').style.display = offerAvailable ? '' : 'none';
+  document.getElementById('july90Btn').classList.remove('applied');
+  document.getElementById('july90Btn').innerText = 'Apply $90 off';
   setAddressState('pending', '');
-
-  const alarmQty   = document.getElementById('res_alarmQty').innerText;
-  const alarmT     = document.getElementById('res_alarmTotal').innerText;
-  const ctrlQty    = document.getElementById('res_ctrlQty').innerText;
-  const ctrlT      = document.getElementById('res_ctrlTotal').innerText;
-  const grandTotal = document.getElementById('res-total').innerText;
-  const hasCtrl    = parseInt(ctrlQty) > 0;
-
-  let previewHTML = '';
-  if (serviceMode === 'install') {
-    previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
-    if (hasCtrl) previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${ctrlT}</span></div>`;
-    previewHTML += `<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>`;
-  } else {
-    previewHTML += `<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>`;
-  }
-  previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${grandTotal}</span></div>`;
-  document.getElementById('emailPreviewBox').innerHTML = previewHTML;
+  updateEmailQuotePreview();
   validateEmailModal();
   document.getElementById('emailModal').classList.add('open');
 }
@@ -1205,6 +1385,7 @@ async function sendQuoteEmail() {
   const custEmail   = document.getElementById('emailCustomerEmail').value.trim();
   const custAddress = document.getElementById('emailCustomerAddress').value.trim();
   const custType    = document.querySelector('input[name="custType"]:checked')?.value || '';
+  const sendSms     = document.getElementById('sendQuoteSms').checked;
 
   if (!custName)  { showToast('Please enter the customer name.'); return; }
   if (!custPhone || custPhone.length < 8) { showToast('Please enter the customer phone number.'); return; }
@@ -1222,19 +1403,22 @@ async function sendQuoteEmail() {
   const alarmTotal = document.getElementById('res_alarmTotal').innerText;
   const ctrlQty    = parseInt(document.getElementById('res_ctrlQty').innerText) || 0;
   const ctrlTotal  = document.getElementById('res_ctrlTotal').innerText;
-  const grandTotal = document.getElementById('res-total').innerText;
+  const totals      = getEmailQuoteTotals();
+  const grandTotal  = fmt.format(totals.final);
+  const baseGrandTotal = fmt.format(totals.base);
+  const offerApplied = totals.discount > 0;
   const agent      = agentName || 'Goldsure';
 
   let feeLabel, feeAmount, paymentNote;
   if (serviceMode === 'install') {
     feeLabel    = 'Electrician Booking Fee';
     feeAmount   = '$33.00';
-    const balanceDue = fmt.format((parseInt(alarmQty) * 98) + (ctrlQty * 49));
+    const balanceDue = fmt.format(Math.max(0, totals.final - 33));
     paymentNote = `$33.00 booking fee is payable today to secure your electrician. The remaining balance of ${balanceDue} is payable on the day of installation.`;
   } else {
     feeLabel    = 'Smoke Alarm Inspection Service';
     feeAmount   = '$131.00';
-    paymentNote = 'The $131.00 inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the $131 fee is fully waived — you only pay the $33 booking fee plus required alarms.';
+    paymentNote = `The ${grandTotal} inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the inspection fee is fully waived — you only pay the $33 booking fee plus required alarms.`;
   }
 
   const btn = document.getElementById('sendEmailBtn');
@@ -1252,6 +1436,7 @@ async function sendQuoteEmail() {
         customer_type:    custType,
         to_email:         custEmail,
         customer_address: custAddress || null,
+        ghl_contact_id:   selectedGhlContactId || null,
         agent_name:       agent,
         service_type:     serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
         alarm_qty:        alarmQty,
@@ -1261,6 +1446,11 @@ async function sendQuoteEmail() {
         fee_label:        feeLabel,
         fee_amount:       feeAmount,
         grand_total:      grandTotal,
+        pre_discount_total: baseGrandTotal,
+        offer_code:       offerApplied ? 'JULY 90' : null,
+        offer_applied:    offerApplied,
+        offer_discount:   totals.discount,
+        send_sms:         sendSms,
         payment_note:     paymentNote,
       }),
     });
