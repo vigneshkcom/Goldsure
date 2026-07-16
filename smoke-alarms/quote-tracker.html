@@ -136,7 +136,7 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
 .dot-installed { background: #1a56a0; }
 .lead-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 8px; border-radius: 4px; }
 .lead-digital { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
-.lead-letterbox { background: var(--surface2); color: #141c2e; border: 1px solid var(--border2); }
+.lead-direct { background: var(--surface2); color: #141c2e; border: 1px solid var(--border2); }
 .svc-badge { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 8px; border-radius: 4px; }
 .svc-install { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
 .svc-inspection { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(45,107,228,0.25); }
@@ -197,7 +197,7 @@ td { padding: 12px 14px; font-size: 12px; color: var(--text); vertical-align: mi
     <input type="search" class="filter-input" id="searchInput" placeholder="Search name, email, phone, agent…" oninput="applyFilters()">
     <div class="filter-divider"></div>
     <select class="filter-select" id="filterService" onchange="applyFilters()"><option value="">All Services</option><option value="Installation">Installation Quote</option><option value="Inspection">Inspection Quote</option></select>
-    <select class="filter-select" id="filterLeadType" onchange="applyFilters()"><option value="">All Lead Types</option><option value="digital">Digital</option><option value="letterbox">Letterbox</option></select>
+    <select class="filter-select" id="filterLeadType" onchange="applyFilters()"><option value="">All Lead Types</option><option value="digital">Digital</option><option value="direct">Direct Call</option></select>
     <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
     <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="installed">Installed</option></select>
     <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
@@ -392,7 +392,9 @@ function applyFilters() {
     const sentAt = new Date(q.sent_at);
     if (search) { const hay = `${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); if (!hay.includes(search)) return false; }
     if (service && !(q.service_type||'').toLowerCase().includes(service)) return false;
-    if (lead   && (q.customer_type||'').toLowerCase() !== lead) return false;
+    const quoteLead = (q.customer_type||'digital').toLowerCase();
+    if (lead === 'direct' && !['direct', 'letterbox'].includes(quoteLead)) return false;
+    if (lead && lead !== 'direct' && quoteLead !== lead) return false;
     if (agent  && (q.agent_name||'').toLowerCase() !== agent) return false;
     if (status && (q.status||'').toLowerCase() !== status) return false;
     if (period === 'today') { const t = new Date(); t.setHours(0,0,0,0); if (sentAt < t) return false; }
@@ -464,8 +466,9 @@ function renderTable() {
     const st = (q.status || 'sent').toLowerCase();
     const statusClass = {sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st] || 'badge-sent';
     const leadType = (q.customer_type||'digital').toLowerCase();
-    const leadClass = leadType === 'letterbox' ? 'lead-letterbox' : 'lead-digital';
-    const leadLabel = leadType === 'letterbox' ? '📬 Letterbox' : '📱 Digital';
+    const isDirect = leadType === 'direct' || leadType === 'letterbox';
+    const leadClass = isDirect ? 'lead-direct' : 'lead-digital';
+    const leadLabel = isDirect ? '☎ Direct Call' : '📱 Digital';
     const reminderCount = getReminderCount(q);
     const quoteAgeDays = daysSince(q.sent_at);
     const reminderAgeDays = daysSince(q.last_reminder_sent_at);
@@ -510,10 +513,10 @@ function renderKPIs() {
   const revenueWon = allQuotes
     .filter(q => q.status === 'accepted' || q.status === 'installed' || q.accepted === true)
     .reduce((s,q) => s + (parseFloat(q.grand_total_numeric)||0), 0);
-  const digital    = allQuotes.filter(q => (q.customer_type||'digital').toLowerCase() !== 'letterbox').length;
-  const letterbox  = allQuotes.filter(q => (q.customer_type||'').toLowerCase() === 'letterbox').length;
-  const breakdown  = letterbox > 0
-    ? `${digital} Digital · ${letterbox} Letterbox`
+  const direct     = allQuotes.filter(q => ['direct', 'letterbox'].includes((q.customer_type||'').toLowerCase())).length;
+  const digital    = allQuotes.length - direct;
+  const breakdown  = direct > 0
+    ? `${digital} Digital · ${direct} Direct Call`
     : `${digital} Digital`;
   document.getElementById('kpi-revenue').innerText       = '$' + Math.round(revenue).toLocaleString('en-AU');
   document.getElementById('kpi-won').innerText           = '$' + Math.round(revenueWon).toLocaleString('en-AU');

@@ -177,8 +177,10 @@ main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; gri
   display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow);
 }
 .customer-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; }
-.customer-bar input { flex: 1; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
+.customer-search-wrap { position: relative; flex: 1; }
+.customer-bar input { width: 100%; font-family: 'Sora', sans-serif; font-size: 14px; border: none; outline: none; background: transparent; color: var(--text); }
 .customer-bar input::placeholder { color: var(--border); }
+.customer-bar .ghl-results { top: calc(100% + 13px); }
 
 /* ── STEP CARDS ── */
 .steps { display: flex; flex-direction: column; gap: 14px; }
@@ -578,7 +580,10 @@ function doLogout() {
 
   <div class="customer-bar">
     <label>Customer Name</label>
-    <input type="text" id="custName" oninput="updateName()" placeholder="Enter customer name…">
+    <div class="customer-search-wrap">
+      <input type="text" id="custName" oninput="onMainCustomerSearch()" placeholder="Search GHL by customer name, phone or email…" autocomplete="off">
+      <div class="ghl-results" id="mainGhlResults" onclick="pickMainGhlResult(event)"></div>
+    </div>
   </div>
 
   <!-- STEPS -->
@@ -795,7 +800,7 @@ function doLogout() {
       <label>Customer Type <span style="color:var(--red);font-weight:700;">*</span></label>
       <div class="ctype-row">
         <label class="ctype-label"><input type="radio" name="custType" value="digital" onchange="validateEmailModal()">  Digital Lead</label>
-        <label class="ctype-label"><input type="radio" name="custType" value="letterbox" onchange="validateEmailModal()">  Letterbox Lead</label>
+        <label class="ctype-label"><input type="radio" name="custType" value="direct" onchange="validateEmailModal()">  Direct Call</label>
       </div>
       <div class="phone-required-hint" id="custTypeHint">Customer type is required before sending.</div>
     </div>
@@ -876,6 +881,9 @@ let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picke
 let mapsLoaded = false;
 let currentQuoteToken = null;     // ← unique token per quote send
 let selectedGhlContactId = '';
+let selectedGhlContact = null;
+let mainGhlTimer = null;
+let mainGhlResults = [];
 let emailGhlTimer = null;
 let emailGhlResults = [];
 let july90Applied = false;
@@ -1083,6 +1091,57 @@ function updateName() {
   if (document.querySelector('header .nav-btn.active')?.id === 'btn-social') setMode('social');
 }
 
+function renderGhlResults(box, list, dataAttribute) {
+  if (!list.length) {
+    box.innerHTML = '<div class="ghl-item empty">No matching GHL contacts</div>';
+  } else {
+    box.innerHTML = list.map((c, index) => `
+      <button type="button" class="ghl-item" ${dataAttribute}="${index}">
+        <span class="n">${escHtml(c.name || c.phone || '—')}</span>
+        <span class="s">${escHtml([c.phone, c.email, c.address].filter(Boolean).join(' · '))}</span>
+      </button>`).join('');
+  }
+  box.classList.add('open');
+}
+
+function onMainCustomerSearch() {
+  updateName();
+  const q = document.getElementById('custName').value.trim();
+  const box = document.getElementById('mainGhlResults');
+  selectedGhlContact = null;
+  selectedGhlContactId = '';
+  clearTimeout(mainGhlTimer);
+  if (q.length < 2) {
+    mainGhlResults = [];
+    box.innerHTML = '';
+    box.classList.remove('open');
+    return;
+  }
+  mainGhlTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
+      const list = res.ok ? await res.json() : [];
+      mainGhlResults = Array.isArray(list) ? list : [];
+      renderGhlResults(box, mainGhlResults, 'data-main-ghl-index');
+    } catch (_) {
+      box.classList.remove('open');
+    }
+  }, 300);
+}
+
+function pickMainGhlResult(event) {
+  const item = event.target.closest('[data-main-ghl-index]');
+  if (!item) return;
+  const contact = mainGhlResults[Number(item.dataset.mainGhlIndex)];
+  if (!contact) return;
+  selectedGhlContact = contact;
+  selectedGhlContactId = contact.id || '';
+  customerName = contact.name || contact.phone || '';
+  document.getElementById('custName').value = customerName;
+  document.getElementById('mainGhlResults').classList.remove('open');
+  if (document.querySelector('header .nav-btn.active')?.id === 'btn-social') setMode('social');
+}
+
 // ════════════════════════════════════════════════════════════
 // SERVICE TOGGLE & CALCULATE
 // ════════════════════════════════════════════════════════════
@@ -1228,6 +1287,7 @@ function escHtml(value) {
 function onEmailGhlSearch() {
   const q = document.getElementById('emailGhlSearch').value.trim();
   const box = document.getElementById('emailGhlResults');
+  selectedGhlContact = null;
   selectedGhlContactId = '';
   clearTimeout(emailGhlTimer);
   if (q.length < 2) {
@@ -1241,16 +1301,7 @@ function onEmailGhlSearch() {
       const res = await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
       const list = res.ok ? await res.json() : [];
       emailGhlResults = Array.isArray(list) ? list : [];
-      if (!emailGhlResults.length) {
-        box.innerHTML = '<div class="ghl-item empty">No matching GHL contacts</div>';
-      } else {
-        box.innerHTML = emailGhlResults.map((c, index) => `
-          <button type="button" class="ghl-item" data-ghl-index="${index}">
-            <span class="n">${escHtml(c.name || c.phone || '—')}</span>
-            <span class="s">${escHtml([c.phone, c.email, c.address].filter(Boolean).join(' · '))}</span>
-          </button>`).join('');
-      }
-      box.classList.add('open');
+      renderGhlResults(box, emailGhlResults, 'data-ghl-index');
     } catch (_) {
       box.classList.remove('open');
     }
@@ -1262,7 +1313,10 @@ function pickEmailGhlResult(event) {
   if (!item) return;
   const contact = emailGhlResults[Number(item.dataset.ghlIndex)];
   if (!contact) return;
+  selectedGhlContact = contact;
   selectedGhlContactId = contact.id || '';
+  customerName = contact.name || contact.phone || '';
+  document.getElementById('custName').value = customerName;
   document.getElementById('emailGhlSearch').value = contact.name || contact.phone || '';
   document.getElementById('emailCustomerName').value = contact.name || '';
   document.getElementById('emailCustomerPhone').value = contact.phone || '';
@@ -1277,11 +1331,17 @@ function pickEmailGhlResult(event) {
       setAddressState('pending', 'Confirm this is a Queensland address');
     }
   }
+  const digitalLead = document.querySelector('input[name="custType"][value="digital"]');
+  if (digitalLead) digitalLead.checked = true;
   document.getElementById('emailGhlResults').classList.remove('open');
   validateEmailModal();
 }
 
 document.addEventListener('click', event => {
+  if (!event.target.closest('#custName') && !event.target.closest('#mainGhlResults')) {
+    const box = document.getElementById('mainGhlResults');
+    if (box) box.classList.remove('open');
+  }
   if (!event.target.closest('#emailGhlSearch') && !event.target.closest('#emailGhlResults')) {
     const box = document.getElementById('emailGhlResults');
     if (box) box.classList.remove('open');
@@ -1350,26 +1410,36 @@ function openEmailModal() {
         return (c==='x'?r:(r&0x3|0x8)).toString(16);
       });
 
-  document.getElementById('emailCustomerName').value  = customerName || '';
-  document.getElementById('emailGhlSearch').value = '';
+  const ghlContact = selectedGhlContact;
+  document.getElementById('emailCustomerName').value  = ghlContact?.name || customerName || '';
+  document.getElementById('emailGhlSearch').value = ghlContact?.name || '';
   document.getElementById('emailGhlResults').innerHTML = '';
   document.getElementById('emailGhlResults').classList.remove('open');
-  document.getElementById('emailCustomerPhone').value = '';
-  document.getElementById('emailCustomerEmail').value = '';
-  document.getElementById('emailCustomerAddress').value = '';
+  document.getElementById('emailCustomerPhone').value = ghlContact?.phone || '';
+  document.getElementById('emailCustomerEmail').value = ghlContact?.email || '';
+  document.getElementById('emailCustomerAddress').value = ghlContact?.address || '';
   document.getElementById('sendEmailBtn').disabled = true;
   document.getElementById('phoneHint').style.display = 'block';
   document.getElementById('custTypeHint').style.display = 'block';
   document.querySelectorAll('input[name="custType"]').forEach(radio => { radio.checked = false; });
+  if (ghlContact) {
+    const digitalLead = document.querySelector('input[name="custType"][value="digital"]');
+    if (digitalLead) digitalLead.checked = true;
+  }
   document.getElementById('sendQuoteSms').checked = true;
-  selectedGhlContactId = '';
+  selectedGhlContactId = ghlContact?.id || '';
   emailGhlResults = [];
   july90Applied = false;
   const offerAvailable = isJuly90Available();
   document.getElementById('july90Field').style.display = offerAvailable ? '' : 'none';
   document.getElementById('july90Btn').classList.remove('applied');
   document.getElementById('july90Btn').innerText = 'Apply $90 off';
-  setAddressState('pending', '');
+  if (ghlContact?.address && /\bQLD\b|Queensland/i.test(ghlContact.address)) {
+    selectedQLDAddress = true;
+    setAddressState('valid', '✓ From GHL — Queensland address');
+  } else {
+    setAddressState('pending', '');
+  }
   updateEmailQuotePreview();
   validateEmailModal();
   document.getElementById('emailModal').classList.add('open');
