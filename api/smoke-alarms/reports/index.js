@@ -255,7 +255,7 @@ export default async function handler(req, res) {
     // setup; set TIME_MANAGER_PIN / TIME_AGENT_PINS in Vercel to override or rotate
     // them without a code change. Validated server-side; never sent to the browser.
     const managerPin = String(process.env.TIME_MANAGER_PIN || '4895');
-    let agentPins = { David: '1018', Shanira: '5220', 'Alda Amonaki': '7303' };
+    let agentPins = { David: '1018', Shanira: '5220', 'Alda Amonaki': '7902' };
     try { if (process.env.TIME_AGENT_PINS) agentPins = JSON.parse(process.env.TIME_AGENT_PINS); } catch { /* keep the built-in defaults */ }
     const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
     const pin = String(t.pin || '');
