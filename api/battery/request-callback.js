@@ -84,6 +84,54 @@ export default async function handler(req, res) {
     return '';
   };
 
+  // Move a contact's opportunity into a "Quote Sent"-type stage (best-effort,
+  // non-fatal). Used after an aircon / HWS quote email goes out. No GHL id config
+  // is required: it reads the contact's existing opportunity and finds the stage
+  // in that opportunity's own pipeline whose name matches one of `stageNames`.
+  // Optional env overrides can force a specific pipeline id and/or stage id.
+  // Won-/lost- (closed) opportunities are left untouched so a finished deal is
+  // never dragged back to "Quote Sent". Returns { moved, reason } for logging.
+  const moveContactToStage = async ({ contactId, stageNames = [], pipelineIdEnv = '', stageIdEnv = '' }) => {
+    const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
+    if (!apiKey || !locationId || !contactId) return { moved: false, reason: 'not-configured' };
+    const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+    try {
+      const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contactId)}`, { headers: hdrs });
+      if (!oRes.ok) return { moved: false, reason: `opp-search ${oRes.status}` };
+      let opps = (await oRes.json()).opportunities || [];
+      // Never touch a closed deal.
+      opps = opps.filter(o => !['won', 'lost', 'abandoned'].includes(String(o.status || '').toLowerCase()));
+      if (!opps.length) return { moved: false, reason: 'no-open-opportunity' };
+      // Prefer an opp in the configured pipeline; else the most recently updated one.
+      if (pipelineIdEnv) {
+        const inPipe = opps.filter(o => o.pipelineId === pipelineIdEnv);
+        if (inPipe.length) opps = inPipe;
+      }
+      opps.sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0));
+      const opp = opps[0];
+      const pipelineId = opp.pipelineId;
+      let stageId = stageIdEnv || '';
+      if (!stageId) {
+        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers: hdrs });
+        const pipes = pRes.ok ? ((await pRes.json()).pipelines || []) : [];
+        const pipe = pipes.find(p => p.id === pipelineId);
+        const stages = pipe ? (pipe.stages || []) : [];
+        const wanted = stageNames.map(s => String(s || '').trim().toLowerCase()).filter(Boolean);
+        const match = stages.find(s => wanted.includes(String(s.name || '').trim().toLowerCase()))
+          || stages.find(s => wanted.some(w => String(s.name || '').toLowerCase().includes(w)));
+        stageId = match ? match.id : '';
+      }
+      if (!stageId) return { moved: false, reason: 'stage-not-found' };
+      if (opp.pipelineStageId === stageId) return { moved: false, reason: 'already-there' };
+      const uRes = await fetch(`https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opp.id)}`, {
+        method: 'PUT', headers: { ...hdrs, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineId, pipelineStageId: stageId }),
+      });
+      if (!uRes.ok) return { moved: false, reason: `update ${uRes.status}` };
+      return { moved: true };
+    } catch (e) { return { moved: false, reason: e.message }; }
+  };
+
   // ── GET: history or contacts ────────────────────────────────────────────────
   if (req.method === 'GET') {
     // Debug: last 25 rows as saved (newest receive-time first) — use to check
@@ -1054,10 +1102,19 @@ export default async function handler(req, res) {
           const contacts = cData.contacts || [];
           const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
           if (contact?.id) {
+            const modelLabel = (Array.isArray(line_items) && line_items[0] && line_items[0].name) ? String(line_items[0].name) : '';
             await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
               method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}` }),
+              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}` }),
             });
+            // Move their opportunity to the "Quote Sent" stage of the HWS pipeline.
+            const mv = await moveContactToStage({
+              contactId: contact.id,
+              stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+              pipelineIdEnv: process.env.HWS_PIPELINE_ID || '',
+              stageIdEnv: process.env.HWS_QUOTE_SENT_STAGE_ID || '',
+            });
+            if (!mv.moved) console.warn('[HWS] stage move skipped:', mv.reason);
           }
         }
       } catch (e) { console.warn('[HWS] GHL note failed (non-fatal):', e.message); }
@@ -1382,8 +1439,18 @@ export default async function handler(req, res) {
           const contacts = cData.contacts || [];
           const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
           if (contact?.id) {
-            const unitCount = (Array.isArray(line_items) ? line_items : []).reduce((s, l) => s + (Number(l.qty) || 0), 0);
-            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: `Aircon quote sent by ${agent_name || 'Goldsure'}\nUnits: ${unitCount}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}` }) });
+            const items = Array.isArray(line_items) ? line_items : [];
+            const unitCount = items.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+            const breakdown = items.map(l => `  • ${Number(l.qty) || 0} × ${l.name}`).join('\n') || '  • (no line items)';
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: `Aircon quote sent by ${agent_name || 'Goldsure'}\nSystem (${unitCount} unit${unitCount === 1 ? '' : 's'}):\n${breakdown}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}` }) });
+            // Move their opportunity to the "Quote Sent" stage of the aircon pipeline.
+            const mv = await moveContactToStage({
+              contactId: contact.id,
+              stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+              pipelineIdEnv: process.env.AIRCON_PIPELINE_ID || '',
+              stageIdEnv: process.env.AIRCON_QUOTE_SENT_STAGE_ID || '',
+            });
+            if (!mv.moved) console.warn('[Aircon] stage move skipped:', mv.reason);
           }
         }
       } catch (e) { console.warn('[Aircon] GHL note failed:', e.message); }
