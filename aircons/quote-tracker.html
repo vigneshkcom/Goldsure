@@ -32,7 +32,7 @@ header{background:#fff;border-bottom:3px solid var(--gold);padding:0 28px;displa
 .spin-icon{display:inline-block;margin-right:5px;}
 .spinning .spin-icon{animation:spin .7s linear infinite;}
 main{padding:24px 28px;max-width:1400px;margin:0 auto;}
-.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;}
 .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
 .kpi-card.gold::before{background:var(--gold);}
@@ -144,6 +144,9 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 @media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}header{padding:0 12px;min-height:52px;gap:6px}main{padding:16px}.filters-bar{flex-direction:column;align-items:flex-start}.filter-input{min-width:auto;width:100%}.meta-only{display:none!important}.header-logo img{height:26px}.nav-btn{padding:6px 10px;font-size:10.5px}}
 .scope-chip{display:inline-flex;align-items:center;gap:6px;background:var(--gold-bg);border:1px solid var(--gold-border);color:var(--gold);font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;}
 </style>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/assets/icon-192x192.png">
 </head>
 <body>
 <header>
@@ -167,7 +170,6 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
     <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
-    <div class="kpi-card dark"><div class="kpi-label">VEEC Discount Given</div><div class="kpi-val" id="kpi-rebates">—</div><div class="kpi-sub">Victorian Energy Upgrades</div></div>
   </div>
 
   <div class="charts-grid">
@@ -278,7 +280,6 @@ function renderKPIs(){
   const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
   const oop=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_out_of_pocket)||0),0);
   const cut=allQuotes.reduce((s,q)=>s+goldsureCut(q),0);
-  const rebates=allQuotes.reduce((s,q)=>s+(parseFloat(q.veec_discount)||0),0);
   const avgOop=total?oop/total:0;
   const rate=total?Math.round(accepted/total*100):0;
   document.getElementById('kpi-revenue').textContent='$'+Math.round(oop).toLocaleString('en-AU');
@@ -287,7 +288,6 @@ function renderKPIs(){
   document.getElementById('kpi-accepted').textContent=accepted;
   document.getElementById('kpi-rate').textContent=`${rate}% conversion rate`;
   document.getElementById('kpi-avg').textContent='$'+Math.round(avgOop).toLocaleString('en-AU');
-  document.getElementById('kpi-rebates').textContent='$'+Math.round(rebates).toLocaleString('en-AU');
 }
 
 function renderCharts(){
