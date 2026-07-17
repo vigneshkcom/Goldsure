@@ -255,7 +255,7 @@ export default async function handler(req, res) {
     // setup; set TIME_MANAGER_PIN / TIME_AGENT_PINS in Vercel to override or rotate
     // them without a code change. Validated server-side; never sent to the browser.
     const managerPin = String(process.env.TIME_MANAGER_PIN || '4895');
-    let agentPins = { David: '1018', Shanira: '5220' };
+    let agentPins = { David: '1018', Shanira: '5220', 'Alda Amonaki': '7303' };
     try { if (process.env.TIME_AGENT_PINS) agentPins = JSON.parse(process.env.TIME_AGENT_PINS); } catch { /* keep the built-in defaults */ }
     const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
     const pin = String(t.pin || '');
@@ -264,7 +264,7 @@ export default async function handler(req, res) {
     const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
 
     // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
-    let rates = { David: 13.54, Shanira: 25 };
+    let rates = { David: 13.54, Shanira: 25, 'Alda Amonaki': 0 };
     try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
     const rateFor = (a) => Number(rates[a]) || 0;
 
@@ -273,6 +273,7 @@ export default async function handler(req, res) {
     let agentDetails = {
       David:   { name: 'David', lines: ['2 Kaba Place, Field 40 New Subdivision', 'Lautoka, Fiji'], phone: '+679 507 5588', email: 'admin@optimumoutsourcing.org', abn: '', payName: 'Marijo Mcgoon', bsb: '736125', acct: '791581', payPhone: '' },
       Shanira: { name: 'Shanira Gonzalez', lines: ['1/149 Carlton Rd', 'Dandenong North VIC 3175'], phone: '+61 473 196 332', email: '', abn: '94 293 140 554', payName: 'Shanira Gonzalez', bsb: '733186', acct: '584056', payPhone: '+61 473 196 332' },
+      'Alda Amonaki': { name: 'Alda Amonaki', lines: ['Votualevu', 'Nadi, Fiji'], phone: '+679 730 3900', email: 'alda.omanaki7@gmail.com', abn: '', payName: 'Alda Amonaki', bsb: '', acct: '', payPhone: '+679 730 3900' },
     };
     try { if (process.env.TIME_AGENT_DETAILS) agentDetails = JSON.parse(process.env.TIME_AGENT_DETAILS); } catch { /* keep defaults */ }
 
