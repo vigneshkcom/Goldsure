@@ -1045,7 +1045,8 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
           to: [customer_email],
-          bcc: ['vignesh@goldsure.com.au'],
+          // Reminders go only to the customer — no internal BCC.
+          ...(is_reminder ? {} : { bcc: ['vignesh@goldsure.com.au'] }),
           subject: is_reminder ? 'Reminder: Your Hot Water System Quote – Goldsure' : 'Your Hot Water System Quote – Goldsure',
           html,
           ...(attachments.length ? { attachments } : {}),
@@ -1102,19 +1103,30 @@ export default async function handler(req, res) {
           const contacts = cData.contacts || [];
           const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
           if (contact?.id) {
-            const modelLabel = (Array.isArray(line_items) && line_items[0] && line_items[0].name) ? String(line_items[0].name) : '';
+            let noteBody;
+            if (is_reminder) {
+              const reminderNo = (Number(reminder_count) || 0) + 1;
+              const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', day: '2-digit', month: 'short', year: 'numeric' });
+              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}`;
+            } else {
+              const modelLabel = (Array.isArray(line_items) && line_items[0] && line_items[0].name) ? String(line_items[0].name) : '';
+              noteBody = `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}`;
+            }
             await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
               method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ body: `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}` }),
+              body: JSON.stringify({ body: noteBody }),
             });
-            // Move their opportunity to the "Quote Sent" stage of the HWS pipeline.
-            const mv = await moveContactToStage({
-              contactId: contact.id,
-              stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
-              pipelineIdEnv: process.env.HWS_PIPELINE_ID || '',
-              stageIdEnv: process.env.HWS_QUOTE_SENT_STAGE_ID || '',
-            });
-            if (!mv.moved) console.warn('[HWS] stage move skipped:', mv.reason);
+            // Move their opportunity to "Quote Sent" — first send only, never on a
+            // reminder (a reminder must not drag a progressed deal backwards).
+            if (!is_reminder) {
+              const mv = await moveContactToStage({
+                contactId: contact.id,
+                stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+                pipelineIdEnv: process.env.HWS_PIPELINE_ID || '',
+                stageIdEnv: process.env.HWS_QUOTE_SENT_STAGE_ID || '',
+              });
+              if (!mv.moved) console.warn('[HWS] stage move skipped:', mv.reason);
+            }
           }
         }
       } catch (e) { console.warn('[HWS] GHL note failed (non-fatal):', e.message); }
@@ -1394,7 +1406,8 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
           to: [customer_email],
-          bcc: ['info@goldsure.com.au'],
+          // Reminders go only to the customer — no internal BCC.
+          ...(is_reminder ? {} : { bcc: ['info@goldsure.com.au'] }),
           subject: is_reminder ? 'Reminder: Your Air Conditioning Quote – Goldsure' : 'Your Air Conditioning Quote – Goldsure',
           html,
           ...(attachments.length ? { attachments } : {}),
@@ -1439,18 +1452,29 @@ export default async function handler(req, res) {
           const contacts = cData.contacts || [];
           const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
           if (contact?.id) {
-            const items = Array.isArray(line_items) ? line_items : [];
-            const unitCount = items.reduce((s, l) => s + (Number(l.qty) || 0), 0);
-            const breakdown = items.map(l => `  • ${Number(l.qty) || 0} × ${l.name}`).join('\n') || '  • (no line items)';
-            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: `Aircon quote sent by ${agent_name || 'Goldsure'}\nSystem (${unitCount} unit${unitCount === 1 ? '' : 's'}):\n${breakdown}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}` }) });
-            // Move their opportunity to the "Quote Sent" stage of the aircon pipeline.
-            const mv = await moveContactToStage({
-              contactId: contact.id,
-              stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
-              pipelineIdEnv: process.env.AIRCON_PIPELINE_ID || '',
-              stageIdEnv: process.env.AIRCON_QUOTE_SENT_STAGE_ID || '',
-            });
-            if (!mv.moved) console.warn('[Aircon] stage move skipped:', mv.reason);
+            let noteBody;
+            if (is_reminder) {
+              const reminderNo = (Number(reminder_count) || 0) + 1;
+              const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', day: '2-digit', month: 'short', year: 'numeric' });
+              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}`;
+            } else {
+              const items = Array.isArray(line_items) ? line_items : [];
+              const unitCount = items.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+              const breakdown = items.map(l => `  • ${Number(l.qty) || 0} × ${l.name}`).join('\n') || '  • (no line items)';
+              noteBody = `Aircon quote sent by ${agent_name || 'Goldsure'}\nSystem (${unitCount} unit${unitCount === 1 ? '' : 's'}):\n${breakdown}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}`;
+            }
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: noteBody }) });
+            // Move their opportunity to "Quote Sent" — first send only, never on a
+            // reminder (a reminder must not drag a progressed deal backwards).
+            if (!is_reminder) {
+              const mv = await moveContactToStage({
+                contactId: contact.id,
+                stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+                pipelineIdEnv: process.env.AIRCON_PIPELINE_ID || '',
+                stageIdEnv: process.env.AIRCON_QUOTE_SENT_STAGE_ID || '',
+              });
+              if (!mv.moved) console.warn('[Aircon] stage move skipped:', mv.reason);
+            }
           }
         }
       } catch (e) { console.warn('[Aircon] GHL note failed:', e.message); }
@@ -1726,6 +1750,67 @@ export default async function handler(req, res) {
       body: JSON.stringify({ status: 'cancelled' }),
     });
     return res.status(200).json({ success: true });
+  }
+
+  // ── POST action=quote-ghl-stages: pipeline stages + email→stage map ─────────
+  // Powers the "GHL Stage" column on the Aircon / Hot Water quote trackers.
+  // Body: { pipeline:'aircon'|'hotwater', emails:[...] }. Picks the product's
+  // pipeline (env id override, else name match), returns its ordered stages plus,
+  // for each email, that contact's current opportunity stage. Best-effort: a GHL
+  // hiccup returns empty data rather than failing the tracker.
+  if (body.action === 'quote-ghl-stages') {
+    const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
+    if (!apiKey || !locationId) return res.status(200).json({ stages: [], pipelineId: '', map: {} });
+    const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+    const GHL = 'https://services.leadconnectorhq.com';
+    const product = String(body.pipeline || '').toLowerCase();
+    const emails = [...new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e || '').toLowerCase().trim()).filter(Boolean))].slice(0, 400);
+    const pipeIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '') : (process.env.HWS_PIPELINE_ID || '');
+    const nameHints = product === 'aircon'
+      ? ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac']
+      : ['hot water', 'hotwater', 'heat pump', 'hws', 'water'];
+
+    let stages = [], pipelineId = '';
+    try {
+      const pRes = await fetch(`${GHL}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers: hdrs });
+      const pipes = pRes.ok ? ((await pRes.json()).pipelines || []) : [];
+      let pipe = pipeIdEnv ? pipes.find(p => p.id === pipeIdEnv) : null;
+      if (!pipe) pipe = pipes.find(p => nameHints.some(h => String(p.name || '').toLowerCase().includes(h)));
+      if (!pipe) pipe = pipes[0];
+      if (pipe) {
+        pipelineId = pipe.id;
+        stages = (pipe.stages || []).map(s => ({ id: s.id, name: s.name, position: s.position ?? 0 })).sort((a, b) => a.position - b.position);
+      }
+    } catch (e) { console.warn('[quote-ghl-stages] pipelines failed:', e.message); }
+
+    const stageNameById = Object.fromEntries(stages.map(s => [s.id, s.name]));
+    const map = {};
+    const BATCH = 5;
+    for (let i = 0; i < emails.length; i += BATCH) {
+      const batch = emails.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (email) => {
+        try {
+          const cRes = await fetch(`${GHL}/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`, { headers: hdrs });
+          if (!cRes.ok) return;
+          const contacts = (await cRes.json()).contacts || [];
+          const contact = contacts.find(c => (c.email || '').toLowerCase() === email) || contacts[0];
+          if (!contact?.id) return;
+          const oRes = await fetch(`${GHL}/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=20`, { headers: hdrs });
+          if (!oRes.ok) return;
+          const opps = (await oRes.json()).opportunities || [];
+          if (!opps.length) return;
+          const inPipe = pipelineId ? opps.filter(o => o.pipelineId === pipelineId) : [];
+          const opp = (inPipe.length ? inPipe : opps).sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
+          map[email] = {
+            stage: opp.pipelineStageName || stageNameById[opp.pipelineStageId] || opp.pipelineStage?.name || null,
+            stageId: opp.pipelineStageId || null,
+            opportunityId: opp.id || null,
+            pipelineId: opp.pipelineId || null,
+          };
+        } catch { /* skip this email */ }
+      }));
+    }
+    return res.status(200).json({ stages, pipelineId, map });
   }
 
   // ── POST action=update-stage: move a GHL opportunity to another stage ───────
