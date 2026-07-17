@@ -91,6 +91,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 .td-mono{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px;white-space:nowrap;}
 .td-gold{color:var(--gold);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
 .td-oop{color:var(--amber);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
+.td-cut{color:var(--green);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
 .td-date{font-size:11px;color:var(--muted);white-space:nowrap;}
 .model-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--blue-bg);color:var(--blue);border:1px solid rgba(45,107,228,.25);white-space:nowrap;}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 9px;border-radius:20px;white-space:nowrap;}
@@ -161,8 +162,8 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 
 <main>
   <div class="kpi-grid">
-    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Total inc GST pipeline</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Out-of-Pocket Pipeline</div><div class="kpi-val" id="kpi-oop">—</div><div class="kpi-sub">After VEEC discount</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Total out-of-pocket quoted</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Goldsure Cut</div><div class="kpi-val" id="kpi-cut">—</div><div class="kpi-sub">After ECONOVA's $1,000/quote</div></div>
     <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
@@ -197,6 +198,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
             <th>Units</th>
             <th onclick="sortBy('total_inc_gst')" data-col="total_inc_gst">Total inc GST ↕</th>
             <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket ↕</th>
+            <th>Goldsure Cut</th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th>Status</th>
             <th>GHL Stage</th>
@@ -206,7 +208,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -217,6 +219,11 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 <script data-cfasync="false">
 const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+// ECONOVA keeps a flat amount per quote; Goldsure keeps the rest of the
+// out-of-pocket. Change this one number if the split ever changes.
+const ECO_CUT_PER_QUOTE = 1000;
+// Goldsure's cut for a single quote = out-of-pocket − Eco's flat cut (never below 0).
+function goldsureCut(q){ return Math.max(0, (parseFloat(q.total_out_of_pocket)||0) - ECO_CUT_PER_QUOTE); }
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
 let ghlStages  = [];   // [{ id, name, position }] for the Aircon pipeline
@@ -269,13 +276,13 @@ function unitCount(q){ try{ return (Array.isArray(q.line_items)?q.line_items:[])
 function renderKPIs(){
   const total=allQuotes.length;
   const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
-  const revenue=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_inc_gst)||0),0);
   const oop=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_out_of_pocket)||0),0);
+  const cut=allQuotes.reduce((s,q)=>s+goldsureCut(q),0);
   const rebates=allQuotes.reduce((s,q)=>s+(parseFloat(q.veec_discount)||0),0);
   const avgOop=total?oop/total:0;
   const rate=total?Math.round(accepted/total*100):0;
-  document.getElementById('kpi-revenue').textContent='$'+Math.round(revenue).toLocaleString('en-AU');
-  document.getElementById('kpi-oop').textContent='$'+Math.round(oop).toLocaleString('en-AU');
+  document.getElementById('kpi-revenue').textContent='$'+Math.round(oop).toLocaleString('en-AU');
+  document.getElementById('kpi-cut').textContent='$'+Math.round(cut).toLocaleString('en-AU');
   document.getElementById('kpi-total').textContent=total;
   document.getElementById('kpi-accepted').textContent=accepted;
   document.getElementById('kpi-rate').textContent=`${rate}% conversion rate`;
@@ -390,7 +397,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -408,6 +415,7 @@ function renderTable(){
       <td class="td-mono">${unitCount(q)}</td>
       <td class="td-gold">${money(q.total_inc_gst)}</td>
       <td class="td-oop">${money(q.total_out_of_pocket)}</td>
+      <td class="td-cut">${money(goldsureCut(q))}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
@@ -418,7 +426,7 @@ function renderTable(){
   }).join('');
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
 
 function toggleMenu(e,btn){ e.stopPropagation(); const menu=btn.querySelector('.status-menu'); const open=menu.classList.contains('open'); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')); if(!open)menu.classList.add('open'); }
 document.addEventListener('click',()=>document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')));
@@ -467,11 +475,11 @@ async function sendReminder(id){
 
 function exportCSV(){
   if(!filtered.length){ showToast('No quotes to export.'); return; }
-  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Total inc GST','Out-of-Pocket','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
+  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Out-of-Pocket','Goldsure Cut','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
   const rows=filtered.map(q=>[
     q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
     q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.agent_name||'',unitCount(q),
-    q.total_inc_gst||'',q.total_out_of_pocket||'',daysSince(q.sent_at)??'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
+    q.total_out_of_pocket||'',goldsureCut(q),daysSince(q.sent_at)??'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   const csv=[headers.join(','),...rows].join('\n');
   const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
