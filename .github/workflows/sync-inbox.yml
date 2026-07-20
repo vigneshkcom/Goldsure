@@ -8,15 +8,21 @@ name: Sync SMS inbox (safety net)
 # gateway phone), the message stays on the phone and never reaches the portal or
 # the notification email.
 #
-# This cron periodically asks SMS Gate to re-fire the last 30 minutes of received
+# This cron periodically asks SMS Gate to re-fire the last 12 HOURS of received
 # messages. Any that were missed get written to the database and emailed; any that
 # already arrived are de-duplicated by their SMS Gate message id in the webhook
 # handler, so no duplicate rows and no duplicate emails are produced.
 #
-# The 30-minute window with a 10-minute schedule gives ~3x overlap, so a dropped
-# message is recovered within ~10 minutes even if nobody has the portal open.
-# GitHub cron timing is best-effort; the primary fix remains disabling battery
-# optimisation for the SMS Gate app on the gateway phone.
+# Why 12 hours and not 30 minutes: GitHub throttles scheduled workflows hard —
+# measured runs of this "*/10" cron actually fire every 1–3 HOURS (20 Jul 2026:
+# 00:11, 04:09, 07:28, 10:26 UTC). With a 30-minute window, any message received
+# more than 30 min before a run fell through the net entirely and only surfaced
+# when the phone flushed its own webhook queue, hours later. A 12-hour window
+# costs nothing extra (everything re-fired is deduped) and guarantees every run
+# recovers the full gap since the previous one, whatever GitHub's real cadence.
+# The portal also self-syncs every 10 minutes while it's open (sms/index.html),
+# which is the fast path during business hours. The primary fix remains
+# disabling battery optimisation for the SMS Gate app on the gateway phone.
 
 on:
   schedule:
@@ -36,5 +42,5 @@ jobs:
           URL='https://portal.goldsure.com.au/api/battery/request-callback'
           resp=$(curl -sS --max-time 30 -X POST "$URL" \
             -H 'Content-Type: application/json' \
-            -d '{"action":"sync","minutes":30}') || { echo "curl failed"; exit 0; }
+            -d '{"action":"sync","minutes":720}') || { echo "curl failed"; exit 0; }
           echo "Sync response: $resp"

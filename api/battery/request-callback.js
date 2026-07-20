@@ -731,13 +731,15 @@ export default async function handler(req, res) {
     const { phone } = req.query;
 
     if (phone) {
-      // Conversation thread for one number
+      // Conversation thread for one number. Fetch newest-first then reverse, so
+      // a thread longer than 300 rows keeps its NEWEST messages — ascending with
+      // a limit would silently cut off the latest replies on busy threads.
       const supaRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&order=created_at.asc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&order=created_at.desc&limit=300`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await supaRes.json();
-      const messages = Array.isArray(rows) ? rows : [];
+      const messages = (Array.isArray(rows) ? rows : []).reverse();
 
       // Fire any past-due scheduled messages (best-effort, async)
       const pastDue = messages.filter(m =>

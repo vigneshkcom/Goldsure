@@ -36,3 +36,16 @@ jobs:
             sleep 20
           done
           echo "Still draining after 10 passes; the next scheduled run will continue."
+
+      # GitHub throttles both of this repo's crons to ~hourly in practice, and they
+      # fire at different times — so also syncing the inbox here roughly doubles how
+      # often delayed inbound SMS get pulled in. Re-fired messages are de-duplicated
+      # by sms_gate_id before insert/email, so overlap with sync-inbox.yml is free.
+      - name: Pull inbound SMS from the gateway (inbox sync)
+        if: always()   # replies matter even if the drain step errored
+        run: |
+          URL='https://portal.goldsure.com.au/api/battery/request-callback'
+          resp=$(curl -sS --max-time 30 -X POST "$URL" \
+            -H 'Content-Type: application/json' \
+            -d '{"action":"sync","minutes":720}') || { echo "sync failed — next run will retry"; exit 0; }
+          echo "Sync response: $resp"

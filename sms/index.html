@@ -1619,6 +1619,34 @@
     btn.style.color = '';
   }
 
+  // ── Automatic inbox sync ────────────────────────────────────────────────────
+  // The gateway phone can sit on inbound webhooks for hours when Android battery
+  // optimisation puts the SMS Gate app to sleep, and the GitHub recovery crons
+  // are throttled to ~hourly in practice. So while the portal is open, quietly
+  // ask SMS Gate to re-deliver recent messages every 10 minutes. Re-fired
+  // messages are de-duplicated by sms_gate_id server-side (no duplicate rows or
+  // duplicate emails), and the localStorage timestamp is shared across tabs so
+  // several open portals don't multiply the exports. The 5s contact poll then
+  // surfaces anything new — no extra reload needed here.
+  const AUTO_SYNC_MS = 10 * 60 * 1000;
+  function autoSyncInbox() {
+    if (document.visibilityState === 'hidden') return;   // background tabs stay quiet
+    const last = parseInt(localStorage.getItem('autoSyncAt') || '0', 10) || 0;
+    const gap = Date.now() - last;
+    if (gap < AUTO_SYNC_MS) return;                      // a tab synced recently
+    localStorage.setItem('autoSyncAt', String(Date.now()));
+    // First sync after a long gap (e.g. opening the portal in the morning)
+    // reaches back 12h to cover the night; steady-state syncs need only 2h.
+    const minutes = gap > 3 * 3600000 ? 720 : 120;
+    fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sync', minutes }),
+    }).catch(() => {}); // best-effort — the cron safety net still covers it
+  }
+  autoSyncInbox();                 // pull anything missed the moment the portal opens
+  setInterval(autoSyncInbox, 60000); // re-check each minute; syncs at most every 10 min
+
   // ── Messages ───────────────────────────────────────────────────────────────
   async function reloadMessages(skipDelivery) {
     if (!activePhone) return;
