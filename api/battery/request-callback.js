@@ -1078,7 +1078,10 @@ export default async function handler(req, res) {
         if (smsUser && smsPass && !(await isOptedOut(smsPhone))) {
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
-          const smsText = is_reminder
+          const customSms = (typeof body.sms_text === 'string' && body.sms_text.trim()) ? body.sms_text.trim() : null;
+          const smsText = customSms
+            ? customSms
+            : is_reminder
             ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure. We recently emailed your quote for the ${tank_model || 'heat pump hot water system'} to ${customer_email}. If you are happy to proceed, click Accept on your quote and we will give you a call to arrange the next steps. Otherwise, please reply YES or NO to let us know how you would like to proceed. Thank you.`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your quote for the ${tank_model || 'heat pump hot water system'} has been emailed to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Please check your inbox and spam/junk folder. Questions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
@@ -1504,7 +1507,10 @@ export default async function handler(req, res) {
         if (smsUser && smsPass && !(await isOptedOut(smsPhone))) {
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
-          const smsText = is_reminder
+          const customSms = (typeof body.sms_text === 'string' && body.sms_text.trim()) ? body.sms_text.trim() : null;
+          const smsText = customSms
+            ? customSms
+            : is_reminder
             ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure. We recently emailed your air conditioning quote to ${customer_email}. If you are happy to proceed, click Accept on your quote and we will give you a call to arrange the next steps. Otherwise, please reply YES or NO to let us know how you would like to proceed. Thank you.`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your air conditioning quote has been emailed to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Please check your inbox and spam/junk folder. Questions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');

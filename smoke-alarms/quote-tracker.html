@@ -655,7 +655,7 @@ async function updateStatus(e, id, newStatus) {
   }
 }
 
-async function sendReminder(id) {
+async function doSendReminder(id, sendSms, smsText) {
   const quote = allQuotes.find(x => String(x.id) === String(id));
   if (!quote) { showToast('Quote record not found.'); return; }
   if (!quote.customer_email) { showToast('This quote has no customer email.'); return; }
@@ -689,6 +689,8 @@ async function sendReminder(id) {
         reminder_count: getReminderCount(quote),
         sent_at: quote.sent_at,
         last_reminder_sent_at: quote.last_reminder_sent_at,
+        send_sms: sendSms,
+        sms_text: sendSms ? smsText : '',
       })
     });
 
@@ -712,6 +714,87 @@ async function sendReminder(id) {
     quote._reminderSending = false;
     applyFilters();
   }
+}
+</script>
+
+<style>
+.rm-overlay{display:none;position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:2000;align-items:center;justify-content:center;padding:20px;}
+.rm-overlay.open{display:flex;}
+.rm-card{background:#fff;border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;font-family:'Sora',sans-serif;}
+.rm-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.rm-head h3{font-size:16px;font-weight:700;margin:0;color:var(--text);}
+.rm-close{background:none;border:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;}
+.rm-body{padding:20px 22px;}
+.rm-line{font-size:13px;color:var(--text);margin:0 0 16px;line-height:1.5;}
+.rm-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer;font-weight:600;}
+.rm-check input{width:16px;height:16px;cursor:pointer;flex-shrink:0;}
+.rm-textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Sora',sans-serif;font-size:13px;line-height:1.5;color:var(--text);resize:vertical;box-sizing:border-box;}
+.rm-textarea:disabled{background:var(--surface2);color:var(--muted);}
+.rm-count{font-size:11px;color:var(--muted);margin-top:6px;text-align:right;}
+.rm-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border);}
+.rm-btn-cancel{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;cursor:pointer;font-family:'Sora',sans-serif;}
+.rm-btn-send{padding:9px 18px;border-radius:8px;border:none;background:var(--gold);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:'Sora',sans-serif;}
+.rm-btn-send:disabled{opacity:.5;cursor:not-allowed;}
+</style>
+<div id="reminderModal" class="rm-overlay" onclick="if(event.target===this)closeReminderModal()">
+  <div class="rm-card">
+    <div class="rm-head"><h3>Send Reminder</h3><button class="rm-close" onclick="closeReminderModal()">×</button></div>
+    <div class="rm-body">
+      <p class="rm-line">A reminder email will be sent to <strong id="rmEmail"></strong>.</p>
+      <label class="rm-check"><input type="checkbox" id="rmSmsToggle" onchange="toggleRmSms()"> <span id="rmSmsLabel">Also send an SMS</span></label>
+      <textarea id="rmSmsText" class="rm-textarea" rows="9" oninput="updateRmCount()"></textarea>
+      <div class="rm-count"><span id="rmCount"></span></div>
+    </div>
+    <div class="rm-foot"><button class="rm-btn-cancel" onclick="closeReminderModal()">Cancel</button><button class="rm-btn-send" id="rmSendBtn" onclick="confirmReminder()">Send Reminder</button></div>
+  </div>
+</div>
+<script>
+let _rmQuoteId=null;
+function buildReminderSms(q){
+  const first=(q.customer_name||'there').trim().split(/\s+/)[0]||'there';
+  const agent=(q.agent_name||'Goldsure').trim().split(/\s+/)[0]||'Goldsure';
+  const isInstall=q.service_type==='Installation Quote';
+  const alarmCount=parseInt(q.alarm_qty,10)||0;
+  const rawTotal=(q.grand_total_numeric!=null?q.grand_total_numeric:q.grand_total);
+  const num=parseFloat(rawTotal);
+  const total=isNaN(num)?(rawTotal||''):('$'+num.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const detail=(isInstall&&alarmCount>0)
+    ? ` for ${alarmCount} interconnected smoke alarm${alarmCount===1?'':'s'}, total ${total}`
+    : `, total ${total}`;
+  return `Hi ${first}, this is ${agent} from Goldsure Pty Ltd. Just following up on the quote we emailed to ${q.customer_email}${detail}.\n\nWhen you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\nIf you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\nThanks,\nGoldsure Pty Ltd`;
+}
+function sendReminder(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote record not found.'); return; }
+  if(!q.customer_email){ showToast('This quote has no customer email.'); return; }
+  if((q.status||'sent').toLowerCase()!=='sent'){ showToast('Only quotes still marked Sent can receive reminders.'); return; }
+  _rmQuoteId=id;
+  document.getElementById('rmEmail').textContent=q.customer_email;
+  const hasPhone=!!(q.customer_phone&&String(q.customer_phone).trim());
+  const toggle=document.getElementById('rmSmsToggle');
+  toggle.checked=hasPhone; toggle.disabled=!hasPhone;
+  document.getElementById('rmSmsLabel').textContent=hasPhone?`Also send an SMS to ${q.customer_phone}`:'No phone number on file — SMS unavailable';
+  document.getElementById('rmSmsText').value=buildReminderSms(q);
+  toggleRmSms(); updateRmCount();
+  document.getElementById('reminderModal').classList.add('open');
+}
+function toggleRmSms(){
+  const on=document.getElementById('rmSmsToggle').checked;
+  document.getElementById('rmSmsText').disabled=!on;
+  document.getElementById('rmCount').style.visibility=on?'visible':'hidden';
+}
+function updateRmCount(){
+  const len=document.getElementById('rmSmsText').value.length;
+  const seg=len<=160?1:Math.ceil(len/153);
+  document.getElementById('rmCount').textContent=`${len} chars · ${seg} SMS segment${seg===1?'':'s'}`;
+}
+function closeReminderModal(){ document.getElementById('reminderModal').classList.remove('open'); _rmQuoteId=null; }
+async function confirmReminder(){
+  const id=_rmQuoteId; if(id==null)return;
+  const sendSms=document.getElementById('rmSmsToggle').checked;
+  const smsText=document.getElementById('rmSmsText').value;
+  const btn=document.getElementById('rmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
+  try{ await doSendReminder(id, sendSms, smsText); }
+  finally{ btn.disabled=false; btn.textContent='Send Reminder'; closeReminderModal(); }
 }
 </script>
 </body>

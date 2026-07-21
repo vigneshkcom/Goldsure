@@ -110,12 +110,13 @@ async function sendReminderSms(data) {
       ? ` for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'}, total ${totalDisplay}`
       : `, total ${totalDisplay}`;
 
-    const smsText =
-      `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-      `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
-      `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\n` +
-      `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +
-      `Thanks,\nGoldsure Pty Ltd`;
+    const smsText = (typeof data.sms_text === 'string' && data.sms_text.trim())
+      ? data.sms_text.trim()
+      : `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
+        `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
+        `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\n` +
+        `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +
+        `Thanks,\nGoldsure Pty Ltd`;
 
     const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
     const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
@@ -313,6 +314,8 @@ export default async function handler(req, res) {
     grand_total_numeric,
     reminder_count,
     sent_at,
+    send_sms,
+    sms_text,
   } = req.body || {};
 
   if (!id) return res.status(400).json({ error: 'Missing quote id.' });
@@ -369,7 +372,7 @@ export default async function handler(req, res) {
 
     // Also text the customer a reminder (best-effort — never fails the request,
     // the email has already gone out).
-    const smsSent = await sendReminderSms({
+    const smsSent = (send_sms === false) ? false : await sendReminderSms({
       customer_name,
       customer_email,
       customer_phone,
@@ -378,6 +381,7 @@ export default async function handler(req, res) {
       alarm_qty,
       grand_total,
       grand_total_numeric,
+      sms_text,
     });
 
     const nowIso = new Date().toISOString();
