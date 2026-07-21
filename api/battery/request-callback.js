@@ -1075,7 +1075,7 @@ export default async function handler(req, res) {
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
           const smsText = is_reminder
-            ? `Hi ${custFirst}, ${agentFirst} from Goldsure here — just following up on the quote for the ${tank_model || 'heat pump hot water system'} we emailed to ${customer_email}. Did you get a chance to look it over? Reply YES if you're keen or have questions, or NO if you'd like us to close it off. Either way, let us know where you're at, or call 03 7050 2846. Thanks!`
+            ? `Hi ${custFirst}, ${agentFirst} from Goldsure here. Just checking in on the quote for the ${tank_model || 'heat pump hot water system'} we emailed to ${customer_email}. Were you able to take a look? Please reply YES or NO and let us know how you would like to proceed. Alternatively, you can call us on 03 7050 2846. Thank you.`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your quote for the ${tank_model || 'heat pump hot water system'} has been emailed to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Please check your inbox and spam/junk folder. Questions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
           const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
@@ -1431,7 +1431,7 @@ export default async function handler(req, res) {
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
           const smsText = is_reminder
-            ? `Hi ${custFirst}, ${agentFirst} from Goldsure here — just following up on the air conditioning quote we emailed to ${customer_email}. Did you get a chance to look it over? Reply YES if you're keen or have questions, or NO if you'd like us to close it off. Either way, let us know where you're at, or call 03 7050 2846. Thanks!`
+            ? `Hi ${custFirst}, ${agentFirst} from Goldsure here. Just checking in on the air conditioning quote we emailed to ${customer_email}. Were you able to take a look? Please reply YES or NO and let us know how you would like to proceed. Alternatively, you can call us on 03 7050 2846. Thank you.`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your air conditioning quote has been emailed to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Please check your inbox and spam/junk folder. Questions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
           const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
