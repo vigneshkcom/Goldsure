@@ -902,6 +902,7 @@ export default async function handler(req, res) {
     }).join('');
 
     const acceptUrl = `${SITE}/hotwater/accept.html?token=${encodeURIComponent(token)}`;
+    const rejectUrl = `${SITE}/hotwater/reject.html?token=${encodeURIComponent(token)}`;
     const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
     const quoteNo = 'HW-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -991,6 +992,7 @@ export default async function handler(req, res) {
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
       <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 30 days from ${quoteDate}.</div>
+      ${is_reminder ? `<div style="font-size:12px;color:#9aa2b1;margin-top:12px;">Not going ahead? <a href="${rejectUrl}" style="color:#8a92a1;text-decoration:underline;">Reject this quote</a></div>` : ''}
     </td></tr>
 
     <!-- Notes -->
@@ -1282,6 +1284,72 @@ export default async function handler(req, res) {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
+  // POST action=hws-reject: internal "quote declined" notification email
+  // Fired by /hotwater/reject.html when a customer declines their quote.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'hws-reject') {
+    const {
+      customer_name, customer_email, customer_phone, customer_address,
+      agent_name, tank_model, total_out_of_pocket = 0, rejected_at,
+    } = body;
+    if (!customer_name || !customer_email) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100)
+      .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+    const rejectedDisplay = new Date(rejected_at || Date.now())
+      .toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short' });
+
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Hot Water Quote Declined</title></head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:${FONT};color:#141c2e;">
+<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:36px 16px 48px;">
+  <table role="presentation" width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
+    <tr><td style="background:#000000;padding:20px 28px;border-radius:6px 6px 0 0;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td valign="middle"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="130" style="display:block;width:130px;height:auto;"></td><td align="right" valign="middle"><span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c9a13b;">Internal · Hot Water</span></td></tr></table></td></tr>
+    <tr><td style="height:3px;background:#e04f4f;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="background:#ffffff;padding:28px 28px 32px;border-radius:0 0 6px 6px;border:1px solid #e3e7ef;border-top:none;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;"><tr><td><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e04f4f;">Quote Declined</p><p style="margin:0;font-size:22px;font-weight:700;color:#141c2e;line-height:1.2;">${esc(customer_name)}</p></td><td align="right" valign="top"><p style="margin:0;font-size:11px;color:#6b7899;">${esc(rejectedDisplay)}</p><p style="margin:4px 0 0;font-size:11px;color:#6b7899;">Agent: <strong style="color:#141c2e;">${esc(agent_name || '—')}</strong></p></td></tr></table>
+      <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Customer Details</p>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;border:1px solid #e3e7ef;border-radius:4px;">
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;width:32%;background:#f7f8fa;font-size:11px;color:#6b7899;">Email</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;"><a href="mailto:${esc(customer_email)}" style="color:#b08d2e;text-decoration:none;font-weight:600;">${esc(customer_email)}</a></td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Phone</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${esc(customer_phone || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Address</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;">${esc(customer_address || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Tank Model</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${esc(tank_model || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;background:#f7f8fa;font-size:11px;color:#6b7899;">Out-of-Pocket</td><td style="padding:10px 14px;font-size:13px;font-weight:600;">${money(total_out_of_pocket)}</td></tr>
+      </table>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="padding:12px 16px;background:#fdecec;border-left:3px solid #e04f4f;border-radius:0 4px 4px 0;"><p style="margin:0;font-size:13px;color:#a03636;line-height:1.6;"><strong style="color:#141c2e;">Heads up:</strong> ${esc(String(customer_name).split(' ')[0])} declined this quote online. No further reminders will be sent.</p></td></tr></table>
+    </td></tr>
+    <tr><td align="center" style="padding:20px 0 0;"><p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#6b7899;">Goldsure Pty Ltd</p><p style="margin:0;font-size:11px;color:#9aa5b8;">ABN 66 683 305 106 &nbsp;·&nbsp; Preston VIC 3072</p></td></tr>
+  </table>
+</td></tr></table></body></html>`;
+
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Goldsure Quotes <info@goldsure.com.au>',
+          to: ['info@goldsure.com.au'],
+          subject: `Hot Water Quote Declined – ${customer_name}`,
+          html,
+        }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error('[HWS reject] Resend failed:', r.status, detail);
+        return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) });
+      }
+      return res.status(200).json({ success: true });
+    } catch (e) {
+      console.error('[HWS reject] error:', e.message);
+      return res.status(500).json({ error: 'Internal error.' });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
   // POST action=aircon-quote: Aircon (multi-split VRF) quote email + tracker row
   //
   // Same isolated, early-return pattern as the Hot Water branch. Builds a
@@ -1316,6 +1384,7 @@ export default async function handler(req, res) {
       aux: `${SITE}/assets/aircons/Brochure.pdf`,
     };
     const acceptUrl = `${SITE}/aircons/accept.html?token=${encodeURIComponent(token)}`;
+    const rejectUrl = `${SITE}/aircons/reject.html?token=${encodeURIComponent(token)}`;
     const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
     const quoteNo = 'AC-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -1372,6 +1441,7 @@ export default async function handler(req, res) {
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
       <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 7 days from ${quoteDate}.</div>
+      ${is_reminder ? `<div style="font-size:12px;color:#9aa2b1;margin-top:12px;">Not going ahead? <a href="${rejectUrl}" style="color:#8a92a1;text-decoration:underline;">Reject this quote</a></div>` : ''}
     </td></tr>
     <tr><td style="padding:22px 32px 0;font-family:${FONT};">
       <p style="margin:0;font-size:10px;color:#aeb4c0;line-height:1.6;">This document is a quotation only. The value of the Victorian Energy Upgrades (VEU) discount may vary at the time of installation or certificate processing. However, the final out-of-pocket price of ${money(total_out_of_pocket)} is fixed for the equipment and scope quoted, subject to site conditions remaining as assessed and no additional works being required. This is not a tax invoice; a tax invoice is issued once installed.</p>
@@ -1562,6 +1632,54 @@ export default async function handler(req, res) {
       if (!r.ok) { const detail = await r.text(); console.error('[Aircon accept] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
       return res.status(200).json({ success: true });
     } catch (e) { console.error('[Aircon accept] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST action=aircon-reject: internal "quote declined" notification email
+  // Fired by /aircons/reject.html when a customer declines their quote.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'aircon-reject') {
+    const {
+      customer_name, customer_email, customer_phone, customer_address, agent_name,
+      total_out_of_pocket = 0, rejected_at, line_items = [],
+    } = body;
+    if (!customer_name || !customer_email) return res.status(400).json({ error: 'Missing required fields.' });
+    const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+    const rejectedDisplay = new Date(rejected_at || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short' });
+    const unitList = (Array.isArray(line_items) ? line_items : []).map(l => `${Number(l.qty) || 0} × ${esc(l.name)}`).join('<br>') || '—';
+
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aircon Quote Declined</title></head>
+<body style="margin:0;padding:0;background-color:#eef0f4;font-family:${FONT};color:#141c2e;">
+<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:36px 16px 48px;">
+  <table role="presentation" width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
+    <tr><td style="background:#000000;padding:20px 28px;border-radius:6px 6px 0 0;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td valign="middle"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="130" style="display:block;width:130px;height:auto;"></td><td align="right" valign="middle"><span style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c9a13b;">Internal · Aircon</span></td></tr></table></td></tr>
+    <tr><td style="height:3px;background:#e04f4f;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="background:#ffffff;padding:28px 28px 32px;border-radius:0 0 6px 6px;border:1px solid #e3e7ef;border-top:none;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;"><tr><td><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e04f4f;">Quote Declined</p><p style="margin:0;font-size:22px;font-weight:700;color:#141c2e;line-height:1.2;">${esc(customer_name)}</p></td><td align="right" valign="top"><p style="margin:0;font-size:11px;color:#6b7899;">${esc(rejectedDisplay)}</p><p style="margin:4px 0 0;font-size:11px;color:#6b7899;">Agent: <strong style="color:#141c2e;">${esc(agent_name || '—')}</strong></p></td></tr></table>
+      <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Customer Details</p>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:22px;border:1px solid #e3e7ef;border-radius:4px;">
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;width:32%;background:#f7f8fa;font-size:11px;color:#6b7899;">Email</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;"><a href="mailto:${esc(customer_email)}" style="color:#b08d2e;text-decoration:none;font-weight:600;">${esc(customer_email)}</a></td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Phone</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;font-weight:600;">${esc(customer_phone || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;">Address</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;">${esc(customer_address || '—')}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f7f8fa;font-size:11px;color:#6b7899;vertical-align:top;">Units</td><td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;font-size:13px;">${unitList}</td></tr>
+        <tr><td style="padding:10px 14px;background:#f7f8fa;font-size:11px;color:#6b7899;">Out-of-Pocket</td><td style="padding:10px 14px;font-size:13px;font-weight:600;">${money(total_out_of_pocket)}</td></tr>
+      </table>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="padding:12px 16px;background:#fdecec;border-left:3px solid #e04f4f;border-radius:0 4px 4px 0;"><p style="margin:0;font-size:13px;color:#a03636;line-height:1.6;"><strong style="color:#141c2e;">Heads up:</strong> ${esc(String(customer_name).split(' ')[0])} declined this quote online. No further reminders will be sent.</p></td></tr></table>
+    </td></tr>
+    <tr><td align="center" style="padding:20px 0 0;"><p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#6b7899;">Goldsure Pty Ltd</p><p style="margin:0;font-size:11px;color:#9aa5b8;">ABN 66 683 305 106 &nbsp;·&nbsp; Preston VIC 3072</p></td></tr>
+  </table>
+</td></tr></table></body></html>`;
+
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Goldsure Quotes <info@goldsure.com.au>', to: ['info@goldsure.com.au'], subject: `Aircon Quote Declined – ${customer_name}`, html }),
+      });
+      if (!r.ok) { const detail = await r.text(); console.error('[Aircon reject] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
+      return res.status(200).json({ success: true });
+    } catch (e) { console.error('[Aircon reject] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
   }
 
   // ── POST action=sync: trigger SMS Gate inbox export ─────────────────────────
