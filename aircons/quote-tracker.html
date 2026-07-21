@@ -41,12 +41,14 @@ main{padding:24px 28px;max-width:1400px;margin:0 auto;}
 .kpi-card.blue::before{background:var(--blue);}
 .kpi-card.dark::before{background:#141c2e;}
 .kpi-card.teal::before{background:#0e9488;}
+.kpi-card.red::before{background:var(--red);}
 .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;}
 .kpi-val{font-size:24px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);line-height:1;}
 .kpi-card.gold .kpi-val{color:var(--gold);}
 .kpi-card.green .kpi-val{color:var(--green);}
 .kpi-card.amber .kpi-val{color:var(--amber);}
 .kpi-card.teal .kpi-val{color:#0e9488;}
+.kpi-card.red .kpi-val{color:var(--red);}
 .kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);}
@@ -167,6 +169,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
   <div class="kpi-grid">
     <div class="kpi-card gold"><div class="kpi-label">Goldsure Revenue</div><div class="kpi-val" id="kpi-cut">—</div><div class="kpi-sub">After ECONOVA's $1,000/quote</div></div>
     <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Rejected</div><div class="kpi-val" id="kpi-rejected">—</div><div class="kpi-sub">Declined by customer</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
   </div>
@@ -277,12 +280,14 @@ function unitCount(q){ try{ return (Array.isArray(q.line_items)?q.line_items:[])
 function renderKPIs(){
   const total=allQuotes.length;
   const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
+  const rejected=allQuotes.filter(q=>(q.status||'').toLowerCase()==='rejected').length;
   const oop=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_out_of_pocket)||0),0);
   const cut=allQuotes.reduce((s,q)=>s+goldsureCut(q),0);
   const avgOop=total?oop/total:0;
   const rate=total?Math.round(accepted/total*100):0;
   document.getElementById('kpi-cut').textContent='$'+Math.round(cut).toLocaleString('en-AU');
   document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-rejected').textContent=rejected;
   document.getElementById('kpi-accepted').textContent=accepted;
   document.getElementById('kpi-rate').textContent=`${rate}% conversion rate`;
   document.getElementById('kpi-avg').textContent='$'+Math.round(avgOop).toLocaleString('en-AU');
