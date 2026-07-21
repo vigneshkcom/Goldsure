@@ -173,6 +173,7 @@ function buildReminderEmail(data) {
     : '';
   const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
   const acceptUrl = `${baseUrl.replace(/\/$/, '')}/accept-quote.html?token=${encodeURIComponent(data.quote_token)}`;
+  const rejectUrl = `${baseUrl.replace(/\/$/, '')}/reject-quote.html?token=${encodeURIComponent(data.quote_token)}`;
   const alarmQty = qty(data.alarm_qty);
   const controllerQty = qty(data.ctrl_qty);
   const alarmAmount = money(data.alarm_total ?? alarmQty * 98);
@@ -252,6 +253,8 @@ function buildReminderEmail(data) {
                   <p style="margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Ready To Move Forward?</p>
                   <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#ffffff;">If you are ready, you can accept this quote now and our team will contact you to arrange the next step.</p>
                   <a href="${esc(acceptUrl)}" style="display:inline-block;padding:14px 24px;background:#b08d2e;color:#111111;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;">Accept This Quote</a>
+                  <p style="margin:20px 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#c9ccd3;">Not going ahead? Let us know so we can close it off.</p>
+                  <a href="${esc(rejectUrl)}" style="display:inline-block;padding:13px 24px;background:transparent;color:#ffffff;border:1px solid #5b6577;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;">Reject This Quote</a>
                 </td></tr>
               </table>
 
