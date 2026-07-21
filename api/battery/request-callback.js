@@ -991,8 +991,10 @@ export default async function handler(req, res) {
       <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:16px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
-      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 30 days from ${quoteDate}.</div>
-      ${is_reminder ? `<div style="font-size:12px;color:#9aa2b1;margin-top:12px;">Not going ahead? <a href="${rejectUrl}" style="color:#8a92a1;text-decoration:underline;">Reject this quote</a></div>` : ''}
+      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 21 days from ${quoteDate}.</div>
+      ${is_reminder ? `<div style="font-size:13px;color:#3d4658;line-height:1.6;margin:20px 0 12px;">Not going ahead? Let us know so we can close it off.</div>
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${rejectUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" strokecolor="#c9ccd3" fillcolor="#ffffff"><w:anchorlock/><center style="color:#5b6577;font-family:${FONT};font-size:15px;font-weight:700;">Reject This Quote</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${rejectUrl}" style="display:inline-block;background:#ffffff;color:#5b6577;border:1px solid #c9ccd3;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:8px;">Reject This Quote</a><!--<![endif]-->` : ''}
     </td></tr>
 
     <!-- Notes -->
@@ -1440,8 +1442,10 @@ export default async function handler(req, res) {
       <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:16px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
-      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 7 days from ${quoteDate}.</div>
-      ${is_reminder ? `<div style="font-size:12px;color:#9aa2b1;margin-top:12px;">Not going ahead? <a href="${rejectUrl}" style="color:#8a92a1;text-decoration:underline;">Reject this quote</a></div>` : ''}
+      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote is valid for 21 days from ${quoteDate}.</div>
+      ${is_reminder ? `<div style="font-size:13px;color:#3d4658;line-height:1.6;margin:20px 0 12px;">Not going ahead? Let us know so we can close it off.</div>
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${rejectUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" strokecolor="#c9ccd3" fillcolor="#ffffff"><w:anchorlock/><center style="color:#5b6577;font-family:${FONT};font-size:15px;font-weight:700;">Reject This Quote</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${rejectUrl}" style="display:inline-block;background:#ffffff;color:#5b6577;border:1px solid #c9ccd3;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:8px;">Reject This Quote</a><!--<![endif]-->` : ''}
     </td></tr>
     <tr><td style="padding:22px 32px 0;font-family:${FONT};">
       <p style="margin:0;font-size:10px;color:#aeb4c0;line-height:1.6;">This document is a quotation only. The value of the Victorian Energy Upgrades (VEU) discount may vary at the time of installation or certificate processing. However, the final out-of-pocket price of ${money(total_out_of_pocket)} is fixed for the equipment and scope quoted, subject to site conditions remaining as assessed and no additional works being required. This is not a tax invoice; a tax invoice is issued once installed.</p>

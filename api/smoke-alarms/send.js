@@ -137,7 +137,7 @@ export default async function handler(req, res) {
         </table>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#111111;border-radius:10px;">
           <tr><td style="padding:20px 22px;text-align:center;">
-            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 14 days</p>
+            <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">This quote is valid for 21 days</p>
             <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#ffffff;line-height:1.5;">Ready to proceed? Click below and we'll be in touch to confirm your booking.</p>
             <a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#111111;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;padding:14px 24px;border-radius:8px;">Accept This Quote</a>
           </td></tr>
