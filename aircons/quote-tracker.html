@@ -165,8 +165,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 
 <main>
   <div class="kpi-grid">
-    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Total out-of-pocket quoted</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Goldsure Cut</div><div class="kpi-val" id="kpi-cut">—</div><div class="kpi-sub">After ECONOVA's $1,000/quote</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Goldsure Revenue</div><div class="kpi-val" id="kpi-cut">—</div><div class="kpi-sub">After ECONOVA's $1,000/quote</div></div>
     <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
@@ -200,7 +199,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
             <th>Units</th>
             <th onclick="sortBy('total_inc_gst')" data-col="total_inc_gst">Total inc GST ↕</th>
             <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket ↕</th>
-            <th>Goldsure Cut</th>
+            <th>Goldsure Revenue</th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th>Status</th>
             <th>GHL Stage</th>
@@ -282,7 +281,6 @@ function renderKPIs(){
   const cut=allQuotes.reduce((s,q)=>s+goldsureCut(q),0);
   const avgOop=total?oop/total:0;
   const rate=total?Math.round(accepted/total*100):0;
-  document.getElementById('kpi-revenue').textContent='$'+Math.round(oop).toLocaleString('en-AU');
   document.getElementById('kpi-cut').textContent='$'+Math.round(cut).toLocaleString('en-AU');
   document.getElementById('kpi-total').textContent=total;
   document.getElementById('kpi-accepted').textContent=accepted;
@@ -475,7 +473,7 @@ async function sendReminder(id){
 
 function exportCSV(){
   if(!filtered.length){ showToast('No quotes to export.'); return; }
-  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Out-of-Pocket','Goldsure Cut','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
+  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Out-of-Pocket','Goldsure Revenue','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
   const rows=filtered.map(q=>[
     q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
     q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.agent_name||'',unitCount(q),
