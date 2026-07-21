@@ -164,8 +164,7 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
 
 <main>
   <div class="kpi-grid">
-    <div class="kpi-card gold"><div class="kpi-label">Revenue Quoted</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Total inc GST pipeline</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Out-of-Pocket Pipeline</div><div class="kpi-val" id="kpi-oop">—</div><div class="kpi-sub">After all rebates</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Revenue Pipeline</div><div class="kpi-val" id="kpi-oop">—</div><div class="kpi-sub">Out-of-pocket, after all rebates</div></div>
     <div class="kpi-card green"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
     <div class="kpi-card teal"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
     <div class="kpi-card blue"><div class="kpi-label">Avg Out-of-Pocket</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
@@ -199,7 +198,6 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
             <th onclick="sortBy('customer_name')" data-col="customer_name">Customer ↕</th>
             <th onclick="sortBy('agent_name')" data-col="agent_name">Agent ↕</th>
             <th>Tank Model</th>
-            <th onclick="sortBy('total_inc_gst')" data-col="total_inc_gst">Total inc GST ↕</th>
             <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket ↕</th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th>Status</th>
@@ -272,12 +270,10 @@ function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Numb
 function renderKPIs(){
   const total=allQuotes.length;
   const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
-  const revenue=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_inc_gst)||0),0);
   const oop=allQuotes.reduce((s,q)=>s+(parseFloat(q.total_out_of_pocket)||0),0);
   const rebates=allQuotes.reduce((s,q)=>s+(parseFloat(q.stc_total)||0)+(parseFloat(q.veec_total)||0)+(parseFloat(q.sv_delayed_rebate)||0),0);
   const avgOop=total?oop/total:0;
   const rate=total?Math.round(accepted/total*100):0;
-  document.getElementById('kpi-revenue').textContent='$'+Math.round(revenue).toLocaleString('en-AU');
   document.getElementById('kpi-oop').textContent='$'+Math.round(oop).toLocaleString('en-AU');
   document.getElementById('kpi-total').textContent=total;
   document.getElementById('kpi-accepted').textContent=accepted;
@@ -414,7 +410,6 @@ function renderTable(){
       <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub" style="color:#9ca3af;">${esc(q.customer_address)}</div>`:''}</td>
       <td style="font-size:11px;">${esc(q.agent_name||'—')}</td>
       <td>${q.tank_model?`<span class="model-badge">${esc(q.tank_model)}</span>`:'—'}</td>
-      <td class="td-gold">${money(q.total_inc_gst)}</td>
       <td class="td-oop">${money(q.total_out_of_pocket)}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
