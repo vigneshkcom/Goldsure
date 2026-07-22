@@ -14,8 +14,17 @@ const GHL_HEADERS = (extra = {}) => ({
   ...extra,
 });
 
-async function ghlGetRaw(path) {
+async function ghlGetRaw(path, attempt = 0) {
   const res = await fetch(`${GHL_BASE}${path}`, { headers: GHL_HEADERS() });
+  // GHL rate-limits bursts with HTTP 429 (and occasionally 5xx). Retry with a
+  // short backoff so leads further down the list don't get dropped as "no
+  // contact found" — that was making only the first rows resolve.
+  if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+    const retryAfter = parseInt(res.headers.get('retry-after') || '', 10);
+    const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 3000) : 300 * Math.pow(2, attempt);
+    await new Promise(r => setTimeout(r, waitMs));
+    return ghlGetRaw(path, attempt + 1);
+  }
   const text = await res.text();
   try { return { ok: res.ok, status: res.status, data: JSON.parse(text) }; }
   catch { return { ok: false, status: res.status, data: null, raw: text.slice(0, 200) }; }

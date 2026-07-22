@@ -275,27 +275,45 @@ async function loadQuotes() {
   }
 }
 
-async function loadGhlStages(quotes) {
-  const emails = [...new Set(quotes.map(q => q.customer_email).filter(Boolean))];
-  if (!emails.length) return;
-  let map = {};
-  try {
-    const res = await fetch('/api/smoke-alarms/ghl', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emails })
-    });
-    if (res.ok) map = await res.json();
-  } catch(e) { console.warn('GHL stage fetch failed', e); }
-  ghlOppData = map; // store globally (keys are already lowercased emails)
-  ghlStagesLoaded = true;
+function applyGhlCells(quotes, map) {
   quotes.forEach(q => {
     const el = document.getElementById(`ghl-${q.id}`);
     if (!el) return;
-    const data = map[(q.customer_email || '').toLowerCase().trim()];
+    const email = (q.customer_email || '').toLowerCase().trim();
+    if (!(email in map)) return; // not fetched yet — leave its current (loading) state
+    const data = map[email];
     el.textContent = data?.stage || '—';
     el.className = ghlBadgeClass(data?.stage);
   });
+}
+
+async function loadGhlStages(quotes) {
+  const emails = [...new Set(quotes.map(q => q.customer_email).filter(Boolean))];
+  if (!emails.length) return;
+  // Fetch in sequential chunks: sending every email at once bursts past GHL's
+  // rate limit (later lookups 429 and come back as "no contact") and can blow
+  // the serverless timeout. Smaller sequential requests stay under both and let
+  // the rows fill in progressively.
+  const CHUNK = 20;
+  const map = {};
+  for (let i = 0; i < emails.length; i += CHUNK) {
+    const chunk = emails.slice(i, i + CHUNK);
+    try {
+      const res = await fetch('/api/smoke-alarms/ghl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: chunk })
+      });
+      if (res.ok) {
+        Object.assign(map, await res.json());
+        ghlOppData = map;           // keep global in sync as we go
+        applyGhlCells(quotes, map); // progressive fill
+      }
+    } catch(e) { console.warn('GHL stage fetch failed', e); }
+  }
+  ghlOppData = map; // store globally (keys are already lowercased emails)
+  ghlStagesLoaded = true;
+  applyGhlCells(quotes, map);
 }
 
 async function loadGhlPipelineStages() {
