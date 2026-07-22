@@ -1820,7 +1820,10 @@
         // so anyone who calls back can honour the code. Best-effort: never block
         // or alert on the message itself if the note fails.
         if (pendingSendNote && (!pendingSendNote.requires || message.includes(pendingSendNote.requires))) {
-          const noteText = pendingSendNote.text;
+          // Append who sent it (the "Sending as" staff name) so the note records
+          // the sender, e.g. "… via SMS Portal. — Sent by Shanira".
+          const sender = (localStorage.getItem('staffFirstName') || '').trim();
+          const noteText = pendingSendNote.text + (sender ? ` — Sent by ${sender}` : '');
           pendingSendNote = null;
           try {
             await fetch(API, {
