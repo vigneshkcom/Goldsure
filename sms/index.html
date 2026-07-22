@@ -3133,6 +3133,19 @@
     ]},
   ];
 
+  // Auto-log a GHL note whenever a "Not Reachable" template is sent, so each
+  // customer/opportunity shows the follow-up history at a glance
+  // ("Tried calling — no answer. Sent <template> via SMS Portal."). Templates
+  // that already define their own note (the $30/$100-off finals) keep it.
+  // The note fires on a successful send via the pendingSendNote path.
+  for (const folder of TEMPLATES) {
+    for (const item of folder.items) {
+      if (!item.note && /not reachable/i.test(item.name)) {
+        item.note = { text: `Tried calling — no answer. Sent "${item.name}" via SMS Portal.` };
+      }
+    }
+  }
+
   // Track open/closed state per folder
   const tplFolderOpen = TEMPLATES.map(f => f.open);
 
