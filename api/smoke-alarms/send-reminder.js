@@ -114,7 +114,7 @@ async function sendReminderSms(data) {
       ? data.sms_text.trim()
       : `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
         `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
-        `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking.\n\n` +
+        `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking. If you are not interested, just reply NO or tap 'Reject this quote' in the email and we will close it off.\n\n` +
         `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +
         `Thanks,\nGoldsure Pty Ltd`;
 
