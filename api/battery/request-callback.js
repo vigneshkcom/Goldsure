@@ -345,7 +345,7 @@ export default async function handler(req, res) {
           states[id] = st;
           const newStatus = st === 'delivered' ? 'delivered' : st === 'failed' ? 'failed' : null;
           if (newStatus) {
-            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?sms_gate_id=eq.${encodeURIComponent(id)}&direction=eq.outbound&status=neq.${newStatus}`, {
+            await fetch(`${SUPABASE_URL}/rest/v1/sms_messages?sms_gate_id=eq.${encodeURIComponent(id)}&direction=eq.outbound&status=neq.deleted&status=neq.${newStatus}`, {
               method: 'PATCH',
               headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({ status: newStatus }),
@@ -395,7 +395,7 @@ export default async function handler(req, res) {
         const st = r.status;
         // Internal rows aren't traffic. optout/optin ARE inbound texts (STOP/START)
         // so they still count as received.
-        if (st === 'note' || st === 'cancelled' || st === 'scheduled' || st === 'sending') continue;
+        if (st === 'note' || st === 'cancelled' || st === 'scheduled' || st === 'sending' || st === 'deleted') continue;
         const isOut = r.direction === 'outbound';
         const isIn = r.direction === 'inbound';
         phonesSeen.add(r.phone_number);
@@ -575,7 +575,7 @@ export default async function handler(req, res) {
       const latestBulk = [];
       const seenBulk = new Set();
       for (const r of (Array.isArray(bulkRows) ? bulkRows : [])) {
-        if (r.status === 'cancelled') continue;
+        if (r.status === 'cancelled' || r.status === 'deleted') continue;
         if (seenBulk.has(r.phone_number)) continue;
         seenBulk.add(r.phone_number);
         latestBulk.push(r);
@@ -589,7 +589,7 @@ export default async function handler(req, res) {
       );
       const realRows = realRes.ok ? await realRes.json().catch(() => []) : [];
       const realPhones = new Set((Array.isArray(realRows) ? realRows : [])
-        .filter(r => r.status !== 'note' && r.status !== 'cancelled')
+        .filter(r => r.status !== 'note' && r.status !== 'cancelled' && r.status !== 'deleted')
         .map(r => r.phone_number));
       const contacts = latestBulk.filter(r => !realPhones.has(r.phone_number));
       if (!contacts.length) return res.status(200).json(empty);
@@ -735,7 +735,7 @@ export default async function handler(req, res) {
       // a thread longer than 300 rows keeps its NEWEST messages — ascending with
       // a limit would silently cut off the latest replies on busy threads.
       const supaRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&order=created_at.desc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=neq.deleted&order=created_at.desc&limit=300`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await supaRes.json();
@@ -818,6 +818,7 @@ export default async function handler(req, res) {
     // Falls back to the unfiltered query until the is_bulk column exists.
     const listUrl = (excludeBulk) =>
       `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status` +
+      `&status=neq.deleted` +
       (excludeBulk ? '&is_bulk=not.is.true' : '') +
       `&order=created_at.desc&limit=500`;
     const listHeaders = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
@@ -826,7 +827,7 @@ export default async function handler(req, res) {
     const rows = await supaRes.json();
     const seen = new Set();
     const contacts = (Array.isArray(rows) ? rows : []).filter(r => {
-      if (r.status === 'note' || r.status === 'cancelled') return false;
+      if (r.status === 'note' || r.status === 'cancelled' || r.status === 'deleted') return false;
       if (seen.has(r.phone_number)) return false;
       seen.add(r.phone_number);
       return true;
@@ -2025,41 +2026,35 @@ export default async function handler(req, res) {
     if (String(pin || '') !== String(expected)) {
       return res.status(403).json({ error: 'Incorrect PIN' });
     }
-    // Hard delete via the service-role key so it bypasses RLS, and ask Supabase to
-    // return the deleted rows (return=representation) so we can VERIFY something was
-    // actually removed. return=minimal gives 204 even when RLS silently deletes 0
-    // rows — which is why deletions could vanish from view yet stay in the database.
+    // SOFT delete: mark rows status='deleted' rather than removing them. A hard
+    // delete didn't stick — the gateway phone still holds the inbound SMS, so the
+    // next inbox Sync re-fired the webhook, the de-dup check found no existing row,
+    // and the message was re-inserted AND re-emailed. Keeping the row (hidden
+    // everywhere in the portal) lets the de-dup recognise it and skip the
+    // re-import/re-email. optout/optin markers are preserved so deleting a thread
+    // can never lose a customer's STOP.
     const adminHeaders = { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}` };
-    const delRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&select=id`,
-      { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=representation' } }
+    const patchRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=not.in.(optout,optin,deleted)&select=id`,
+      { method: 'PATCH', headers: { ...adminHeaders, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'deleted' }) }
     );
-    if (!delRes.ok) {
-      const detail = await delRes.text();
-      console.error('[Delete thread] failed', delRes.status, detail);
+    if (!patchRes.ok) {
+      const detail = await patchRes.text();
+      console.error('[Delete thread] soft-delete failed', patchRes.status, detail);
       return res.status(502).json({ error: 'Delete failed', detail });
     }
-    const deletedRows = await delRes.json().catch(() => []);
-    const deleted = Array.isArray(deletedRows) ? deletedRows.length : 0;
+    const rows = await patchRes.json().catch(() => []);
+    const deleted = Array.isArray(rows) ? rows.length : 0;
     // Tidy up the shared read-state row for this number too (best-effort).
     fetch(`${SUPABASE_URL}/rest/v1/sms_read_state?phone_number=eq.${encodeURIComponent(phone)}`,
       { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=minimal' } }).catch(() => {});
-    if (deleted === 0) {
-      // Nothing was removed — almost always RLS blocking the key. Tell the truth
-      // instead of the phantom success that return=minimal used to report.
-      console.error('[Delete thread] 0 rows deleted for', phone, '— likely RLS/permissions');
-      return res.status(200).json({
-        success: false,
-        error: 'Nothing was deleted — Supabase blocked it (Row Level Security). In Vercel set SUPABASE_SERVICE_ROLE_KEY, or in Supabase run: ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;',
-      });
-    }
     return res.status(200).json({ success: true, deleted });
   }
 
-  // ── POST action=delete-threads: PIN-gated hard delete of MANY conversations ──
-  // Same PIN + service-role approach as delete-thread, for the sidebar's bulk
-  // select. Deletes in chunks so a long phone list can't overflow the request
-  // URL, and reports how many distinct threads (phones) were actually removed.
+  // ── POST action=delete-threads: PIN-gated bulk (soft) delete of conversations ─
+  // Same soft-delete approach as delete-thread, for the sidebar's bulk select.
+  // Runs in chunks so a long phone list can't overflow the request URL.
   if (body.action === 'delete-threads') {
     const phones = [...new Set((Array.isArray(body.phones) ? body.phones : [])
       .map(p => String(p || '').trim()).filter(Boolean))].slice(0, 1000);
@@ -2075,26 +2070,21 @@ export default async function handler(req, res) {
     for (let i = 0; i < phones.length; i += 50) {
       const chunk = phones.slice(i, i + 50);
       const inList = chunk.map(p => `"${p.replace(/"/g, '')}"`).join(',');
-      const delRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=in.(${encodeURIComponent(inList)})&select=phone_number`,
-        { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=representation' } }
+      const patchRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=in.(${encodeURIComponent(inList)})&status=not.in.(optout,optin,deleted)&select=phone_number`,
+        { method: 'PATCH', headers: { ...adminHeaders, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify({ status: 'deleted' }) }
       );
-      if (!delRes.ok) {
-        const detail = await delRes.text();
-        console.error('[Delete threads] chunk failed', delRes.status, detail);
+      if (!patchRes.ok) {
+        const detail = await patchRes.text();
+        console.error('[Delete threads] chunk failed', patchRes.status, detail);
         return res.status(502).json({ error: 'Delete failed', detail, deletedSoFar: deleted });
       }
-      const rows = await delRes.json().catch(() => []);
+      const rows = await patchRes.json().catch(() => []);
       for (const r of (Array.isArray(rows) ? rows : [])) { deleted++; threadsDeleted.add(r.phone_number); }
       // Tidy shared read-state for this chunk (best-effort).
       fetch(`${SUPABASE_URL}/rest/v1/sms_read_state?phone_number=in.(${encodeURIComponent(inList)})`,
         { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=minimal' } }).catch(() => {});
-    }
-    if (deleted === 0) {
-      return res.status(200).json({
-        success: false,
-        error: 'Nothing was deleted — Supabase blocked it (Row Level Security). In Vercel set SUPABASE_SERVICE_ROLE_KEY, or in Supabase run: ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;',
-      });
     }
     return res.status(200).json({ success: true, deleted, threads: threadsDeleted.size });
   }
