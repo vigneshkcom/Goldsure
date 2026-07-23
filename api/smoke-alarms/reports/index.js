@@ -2,6 +2,8 @@
 // Combined handler for install-summary and installer-pay-summary emails.
 // Routes on body shape: { html } → install summary relay; { summary } → pay summary builder.
 
+import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
+
 function esc(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -333,17 +335,18 @@ export default async function handler(req, res) {
         <tr><td style="padding:14px 16px;background:#7367f0;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Hours worked</td><td style="padding:14px 16px;background:#7367f0;font-size:18px;font-weight:800;color:#ffffff;">${escH(dur)}</td></tr>
       </table></td></tr>`);
     const sendManagerMail = async (subject, html, text) => {
-      if (!process.env.RESEND_API_KEY) { console.warn('[Time] RESEND_API_KEY not set — email skipped'); return; }
+      if (!hasHostingerMailConfig()) { console.warn('[Time] Hostinger Mail API credentials not set — email skipped'); return; }
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 4000);
       try {
-        const r = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'Goldsure Time <vignesh@goldsure.com.au>', to: MANAGER_EMAILS, subject, html, text }),
+        await sendHostingerMail({
+          displayName: 'Goldsure Time',
+          to: MANAGER_EMAILS,
+          subject,
+          html,
+          text,
           signal: ctrl.signal,
         });
-        if (!r.ok) console.error('[Time] email failed', r.status, await r.text());
       } catch (e) { console.error('[Time] email error (continuing):', e.message); }
       finally { clearTimeout(timer); }
     };
@@ -620,32 +623,22 @@ export default async function handler(req, res) {
 
     const text = `${staffName} marked as unavailable.\nLeave type: ${leaveType || 'Leave'}\nDates: ${rangeStr} (${days} ${days === 1 ? 'day' : 'days'})${reason ? `\nReason: ${reason}` : ''}`;
 
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('[Leave] RESEND_API_KEY not set — email skipped');
+    if (!hasHostingerMailConfig()) {
+      console.warn('[Leave] Hostinger Mail API credentials not set — email skipped');
       return res.status(200).json({ success: false, skipped: true, warning: 'Email not configured on the server.' });
     }
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: 'Goldsure Leave Planner <vignesh@goldsure.com.au>',
-          to: NOTIFY_EMAILS,
-          subject: `${staffName} unavailable — ${rangeStr}${leaveType ? ` (${leaveType})` : ''}`,
-          html,
-          text,
-        }),
+      await sendHostingerMail({
+        displayName: 'Goldsure Leave Planner',
+        to: NOTIFY_EMAILS,
+        subject: `${staffName} unavailable — ${rangeStr}${leaveType ? ` (${leaveType})` : ''}`,
+        html,
+        text,
       });
-      if (!response.ok) {
-        const error = await response.json().catch(async () => ({ error: await response.text() }));
-        console.error('[Leave] notification send failed:', error);
-        return res.status(500).json({ error: 'Failed to send email.', detail: error });
-      }
-      const result = await response.json();
-      return res.status(200).json({ success: true, id: result.id });
+      return res.status(200).json({ success: true });
     } catch (err) {
       console.error('[Leave] notification server error:', err);
-      return res.status(500).json({ error: 'Internal server error.' });
+      return res.status(500).json({ error: 'Failed to send email.', detail: err.message });
     }
   }
 
@@ -696,26 +689,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing summary data.' });
     }
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-          to: toAddresses,
-          subject: subject || `${summary.worker} Installer Pay Summary`,
-          html: buildPaySummaryHtml(summary),
-        }),
+      await sendHostingerMail({
+        displayName: 'Goldsure Pty Ltd',
+        to: toAddresses,
+        subject: subject || `${summary.worker} Installer Pay Summary`,
+        html: buildPaySummaryHtml(summary),
       });
-      if (!response.ok) {
-        const error = await response.json().catch(async () => ({ error: await response.text() }));
-        console.error('[Resend] Pay summary send failed:', error);
-        return res.status(500).json({ error: 'Failed to send email.', detail: error });
-      }
-      const result = await response.json();
-      return res.status(200).json({ success: true, id: result.id });
+      return res.status(200).json({ success: true });
     } catch (err) {
-      console.error('[Resend] Pay summary server error:', err);
-      return res.status(500).json({ error: 'Internal server error.' });
+      console.error('[Hostinger] Pay summary server error:', err);
+      return res.status(500).json({ error: 'Failed to send email.', detail: err.message });
     }
   }
 

@@ -8,6 +8,8 @@
 //   POST { action:'webhook', ... }      → receive inbound SMS (webhook from SMS Gate)
 //   POST { fullName, phone, ... }       → legacy battery callback email (unchanged)
 
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
@@ -2520,24 +2522,16 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Goldsure Leads <vignesh@goldsure.com.au>',
+    try {
+      await sendHostingerMail({
+        displayName: 'Goldsure Leads',
         to: ['info@goldsure.com.au'],
         subject: `New Call Back Request - ${fullName}`,
         html: htmlMessage,
         text: `New Callback: ${fullName} | ${phone} | ${email || 'no email'} | ${address || 'no address'} | ${submittedAt}`,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Resend] callback email failed:', errorText);
+      });
+    } catch (error) {
+      console.error('[Hostinger] callback email failed:', error.message);
       return res.status(500).json({ error: 'Failed to send email' });
     }
 

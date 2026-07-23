@@ -4,7 +4,10 @@
 // Cron: "0 6 * * 1-5" -> 06:00 UTC = 5:00 PM AEDT (UTC+11)
 //
 // Required Vercel Environment Variables:
-//   RESEND_API_KEY, GHL_API_KEY, GHL_LOCATION_ID, META_TOKEN, REPORT_RECIPIENTS, CRON_SECRET
+//   HOSTINGER_MAILBOX_RESOURCE_ID, HOSTINGER_MAIL_API_TOKEN,
+//   GHL_API_KEY, GHL_LOCATION_ID, META_TOKEN, REPORT_RECIPIENTS, CRON_SECRET
+
+import { hasHostingerMailConfig, sendHostingerMail } from '../../lib/hostinger-mail.js';
 
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
 const SMOKE_ACCOUNT   = 'act_1420815159464502';
@@ -747,10 +750,9 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const resendKey  = process.env.RESEND_API_KEY || '';
   const recipients = ['vignesh@goldsure.com.au', 'accounts@goldsure.com.au'];
 
-  if (!resendKey)               return res.status(500).json({ error: 'RESEND_API_KEY not set' });
+  if (!hasHostingerMailConfig()) return res.status(500).json({ error: 'Hostinger Mail API credentials not set' });
   if (!process.env.GHL_API_KEY) return res.status(500).json({ error: 'GHL_API_KEY not set' });
 
   try {
@@ -782,19 +784,12 @@ export default async function handler(req, res) {
       hws:   { opps: hwsOpps,   googleToday: googleHwsToday, googleLast7: googleHwsLast7 },
     });
 
-    const emailResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from:    'Vignesh <vignesh@goldsure.com.au>',
-        to:      recipients,
-        subject: `Goldsure Daily Report — ${dateStr}`,
-        html,
-      }),
+    await sendHostingerMail({
+      displayName: 'Vignesh',
+      to: recipients,
+      subject: `Goldsure Daily Report — ${dateStr}`,
+      html,
     });
-
-    const emailData = await emailResp.json();
-    if (!emailResp.ok) return res.status(500).json({ error: 'Resend failed', detail: emailData });
 
     return res.status(200).json({
       ok:      true,

@@ -88,10 +88,11 @@ its CSV), so an agent can't read their rate/earnings even from the page source. 
 appear only in the manager view, the manager CSV, and the clock-out email.
 
 On every **clock-in** and **clock-out**, a note emails **vignesh@goldsure.com.au** and
-**amit@goldsure.com.au** via Resend — the clock-out one is a branded report with the
+**amit@goldsure.com.au** via the Hostinger Mail API — the clock-out one is a branded report with the
 shift times and hours only — **no pay figures** (earnings stay in the manager portal view).
 Best-effort and bounded, so an email hiccup never blocks a clock action. Change the recipients with
-`TIME_MANAGER_EMAIL` (comma-separated for several); requires `RESEND_API_KEY` (already set).
+`TIME_MANAGER_EMAIL` (comma-separated for several); requires
+`HOSTINGER_MAILBOX_RESOURCE_ID` and `HOSTINGER_MAIL_API_TOKEN`.
 
 ## Invoice PDF (manager)
 
