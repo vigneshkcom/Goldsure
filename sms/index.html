@@ -181,19 +181,25 @@
     .contact.active { background: var(--purple-soft); }
 
     /* ── Bulk select ─────────────────────────────────────────── */
-    .sel-bar { display: none; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 8px 10px;
-      background: var(--purple-soft); border: 1px solid var(--border); border-radius: 10px; }
+    .sel-bar { display: none; flex-direction: column; gap: 8px; margin-top: 10px; padding: 10px;
+      background: var(--purple-soft); border: 1px solid var(--border); border-radius: 12px; }
     .sel-bar.show { display: flex; }
-    .sel-count { font-size: 12.5px; font-weight: 700; color: var(--purple-dark); white-space: nowrap; }
-    .sel-stage { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--text);
-      background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+    .sel-row { display: flex; align-items: center; gap: 8px; }
+    .sel-row-top { justify-content: space-between; }
+    .sel-count { font-size: 12.5px; font-weight: 700; color: var(--purple-dark); }
+    .sel-x { font: inherit; font-size: 12px; font-weight: 600; background: transparent; border: 0;
+      color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+    .sel-x:hover { color: var(--text); background: rgba(47,43,61,0.05); }
+    .sel-stage { width: 100%; font: inherit; font-size: 12.5px; color: var(--text);
+      background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+    .sel-actions .sel-btn { flex: 1; }
     .sel-btn { font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--border);
-      background: #fff; color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; transition: background .15s, opacity .15s; }
+      background: #fff; color: var(--text); border-radius: 8px; padding: 8px 6px; cursor: pointer;
+      text-align: center; white-space: nowrap; transition: background .15s, opacity .15s; }
     .sel-btn:hover { background: var(--page); }
     .sel-btn.del { background: #ea5455; border-color: #ea5455; color: #fff; }
     .sel-btn.del:hover { background: #d94446; }
     .sel-btn.del:disabled { opacity: .45; cursor: not-allowed; }
-    .sel-btn.ghost { color: var(--muted); }
     .sel-btn.on { background: var(--purple); border-color: var(--purple); color: #fff; }
     .sel-btn.on:hover { background: var(--purple-dark); }
     /* Selectable rows: checkbox on the left, selected state */
@@ -780,14 +786,18 @@
 
       <!-- Bulk-select action bar (shown only in select mode) -->
       <div class="sel-bar" id="selBar">
-        <span class="sel-count" id="selCount">0 selected</span>
+        <div class="sel-row sel-row-top">
+          <span class="sel-count" id="selCount">0 selected</span>
+          <button class="sel-x" onclick="toggleSelectMode()" title="Exit select mode">Done</button>
+        </div>
         <select class="sel-stage" id="selStage" onchange="selectByStage(this.value); this.selectedIndex=0;">
           <option value="">Select by stage…</option>
         </select>
-        <button class="sel-btn" id="selOnlyBtn" onclick="toggleSelectedOnly()">Selected only</button>
-        <button class="sel-btn" onclick="clearSelection()">Clear</button>
-        <button class="sel-btn del" id="selDelBtn" onclick="deleteSelected()" disabled>Delete</button>
-        <button class="sel-btn ghost" onclick="toggleSelectMode()">Done</button>
+        <div class="sel-row sel-actions">
+          <button class="sel-btn" id="selOnlyBtn" onclick="toggleSelectedOnly()">Selected only</button>
+          <button class="sel-btn" onclick="clearSelection()">Clear</button>
+          <button class="sel-btn del" id="selDelBtn" onclick="deleteSelected()" disabled>Delete</button>
+        </div>
       </div>
 
       <div class="new-panel" id="newPanel">
