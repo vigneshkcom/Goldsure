@@ -728,18 +728,42 @@ export default async function handler(req, res) {
       }
     }
 
+    // Incremental contact list: rows newer than `since` only, so the sidebar's
+    // background poll fetches just what changed instead of re-downloading 500
+    // rows every few seconds. The client merges these into its cached list and
+    // does an occasional full reconcile to catch deletes/status changes.
+    if (req.query.action === 'contacts-since') {
+      const since = req.query.since;
+      if (!since) return res.status(200).json([]);
+      const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const base = `${SUPABASE_URL}/rest/v1/sms_messages?select=phone_number,message,direction,created_at,status` +
+        `&status=not.in.(note,cancelled,deleted)&created_at=gt.${encodeURIComponent(since)}&order=created_at.desc&limit=200`;
+      let r = await fetch(base + '&is_bulk=not.is.true', { headers });
+      if (!r.ok) r = await fetch(base, { headers });   // fall back until is_bulk column exists
+      const rows = r.ok ? await r.json().catch(() => []) : [];
+      return res.status(200).json(Array.isArray(rows) ? rows : []);
+    }
+
     const { phone } = req.query;
 
     if (phone) {
       // Conversation thread for one number. Fetch newest-first then reverse, so
       // a thread longer than 300 rows keeps its NEWEST messages — ascending with
       // a limit would silently cut off the latest replies on busy threads.
+      // `since` (ISO) makes this an incremental poll that returns only messages
+      // newer than what the client already has — so an idle open thread costs
+      // ~0 rows per poll instead of re-downloading all 300 every few seconds.
+      const sinceParam = req.query.since;
+      const sinceFilter = sinceParam ? `&created_at=gt.${encodeURIComponent(sinceParam)}` : '';
       const supaRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=neq.deleted&order=created_at.desc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=eq.${encodeURIComponent(phone)}&status=neq.deleted${sinceFilter}&order=created_at.desc&limit=300`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await supaRes.json();
       const messages = (Array.isArray(rows) ? rows : []).reverse();
+      // Only the full (non-incremental) load drives the scheduled-send fallback;
+      // the cron already fires due messages, so incremental polls stay light.
+      if (sinceParam) return res.status(200).json(messages);
 
       // Fire any past-due scheduled messages (best-effort, async)
       const pastDue = messages.filter(m =>
