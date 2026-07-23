@@ -2329,7 +2329,9 @@ export default async function handler(req, res) {
     // so it never re-emails. An email failure must NOT fail the webhook, or SMS
     // Gate would retry and we'd double-save, so it's fully wrapped in try/catch.
     try {
-      if (process.env.RESEND_API_KEY) {
+      const hostingerMailboxResourceId = process.env.HOSTINGER_MAILBOX_RESOURCE_ID;
+      const hostingerMailApiToken = process.env.HOSTINGER_MAIL_API_TOKEN;
+      if (hostingerMailboxResourceId && hostingerMailApiToken) {
         const htmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const receivedLocal = new Date(receivedAt).toLocaleString('en-AU', {
           timeZone: 'Australia/Melbourne', dateStyle: 'medium', timeStyle: 'short',
@@ -2417,22 +2419,27 @@ export default async function handler(req, res) {
         const timer = setTimeout(() => ctrl.abort(), 4000);
         let mailRes;
         try {
-          mailRes = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              from: 'Goldsure SMS <vignesh@goldsure.com.au>',
-              to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
-              subject, html, text,
-            }),
-            signal: ctrl.signal,
-          });
+          mailRes = await fetch(
+            `https://api.mail.hostinger.com/api/v1/mailboxes/${encodeURIComponent(hostingerMailboxResourceId)}/send`,
+            {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${hostingerMailApiToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+                displayName: 'Goldsure SMS',
+                subject,
+                html,
+                text,
+              }),
+              signal: ctrl.signal,
+            }
+          );
         } finally {
           clearTimeout(timer);
         }
         if (!mailRes.ok) console.error('[Webhook] notify email failed:', mailRes.status, await mailRes.text());
       } else {
-        console.warn('[Webhook] RESEND_API_KEY not set — inbound email notification skipped');
+        console.warn('[Webhook] Hostinger Mail API credentials not set — inbound email notification skipped');
       }
     } catch (e) {
       console.error('[Webhook] notify email error (continuing):', e.message);
