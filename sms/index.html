@@ -194,6 +194,8 @@
     .sel-btn.del:hover { background: #d94446; }
     .sel-btn.del:disabled { opacity: .45; cursor: not-allowed; }
     .sel-btn.ghost { color: var(--muted); }
+    .sel-btn.on { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .sel-btn.on:hover { background: var(--purple-dark); }
     /* Selectable rows: checkbox on the left, selected state */
     .contact.selectable { cursor: pointer; }
     .contact .sel-check { display: none; }
@@ -744,7 +746,7 @@
         <div class="brand-mark">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <div class="brand-text">Goldsure SMS<span>Customer Messaging</span></div>
+        <div class="brand-text">Goldsure SMS</div>
         <button class="dash-btn" onclick="openBulkSend()" title="Send SMS to multiple contacts" style="margin-left:0">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Bulk SMS
@@ -771,9 +773,6 @@
         <button class="icon-btn" id="syncBtn" onclick="syncInbox()" title="Sync inbox – pull recent replies">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
-        <button class="icon-btn" id="markReadBtn" onclick="markAllRead()" title="Mark all conversations as read (PIN)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>
         <button class="icon-btn" id="selectBtn" onclick="toggleSelectMode()" title="Select conversations to delete in bulk">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </button>
@@ -785,6 +784,7 @@
         <select class="sel-stage" id="selStage" onchange="selectByStage(this.value); this.selectedIndex=0;">
           <option value="">Select by stage…</option>
         </select>
+        <button class="sel-btn" id="selOnlyBtn" onclick="toggleSelectedOnly()">Selected only</button>
         <button class="sel-btn" onclick="clearSelection()">Clear</button>
         <button class="sel-btn del" id="selDelBtn" onclick="deleteSelected()" disabled>Delete</button>
         <button class="sel-btn ghost" onclick="toggleSelectMode()">Done</button>
@@ -983,6 +983,7 @@
   let pollTimer = null;
   let allContacts = [];
   let selectMode = false;          // bulk-select mode for the conversation list
+  let selectedOnly = false;        // when on, the list shows only ticked rows
   const selected = new Set();       // phone numbers currently ticked
   let bulkThreads = { campaigns: [], count: 0, latest: null }; // bulk-only conversations, grouped by campaign
   let bulkGroupsOpen = new Set(); // campaign names currently expanded in the sidebar
@@ -1280,10 +1281,15 @@
              (c.message || '').toLowerCase().includes(q) ||
              name.includes(q);
     };
-    const list = !q ? allContacts : allContacts.filter(match);
+    let list = !q ? allContacts : allContacts.filter(match);
     // While searching, matching bulk-only conversations appear inline as
     // normal results (the collapsed group rows only show when not searching)
-    const bulkMatches = q ? allBulkContacts().filter(match) : [];
+    let bulkMatches = q ? allBulkContacts().filter(match) : [];
+    // "Selected only" view: collapse the list to just the ticked conversations
+    if (selectMode && selectedOnly) {
+      list = list.filter(c => selected.has(c.phone_number));
+      bulkMatches = bulkMatches.filter(c => selected.has(c.phone_number));
+    }
     renderContacts(list, q, bulkMatches);
   }
 
@@ -1357,7 +1363,8 @@
 
   function renderContacts(contacts, q, bulkMatches) {
     const el = document.getElementById('contactsList');
-    const campaigns = (!q && bulkThreads.campaigns) ? bulkThreads.campaigns : [];
+    // Hide campaign group rows in the "selected only" view (they aren't tickable)
+    const campaigns = (!q && !(selectMode && selectedOnly) && bulkThreads.campaigns) ? bulkThreads.campaigns : [];
     if (!contacts.length && !campaigns.length && !(bulkMatches && bulkMatches.length)) {
       el.innerHTML = '<div class="empty-list">No conversations yet.<br>Tap <b>+ New Message</b> to start one.</div>';
       return;
@@ -1549,7 +1556,7 @@
   // to tick everyone in a GHL pipeline stage (e.g. Not Interested) at once.
   function toggleSelectMode() {
     selectMode = !selectMode;
-    if (!selectMode) selected.clear();
+    if (!selectMode) { selected.clear(); setSelectedOnly(false); }
     document.getElementById('selBar').classList.toggle('show', selectMode);
     document.getElementById('selectBtn').classList.toggle('active', selectMode);
     if (selectMode) closeChat();   // don't leave a thread open while picking
@@ -1557,12 +1564,30 @@
     updateSelBar();
   }
 
+  function setSelectedOnly(on) {
+    selectedOnly = on;
+    const b = document.getElementById('selOnlyBtn');
+    if (b) b.classList.toggle('on', on);
+  }
+
+  function toggleSelectedOnly() {
+    setSelectedOnly(!selectedOnly);
+    rerenderContacts();
+  }
+
   function toggleSelect(phone) {
     if (selected.has(phone)) selected.delete(phone);
     else selected.add(phone);
-    // Flip just this row's look without a full re-render (keeps scroll position)
-    const row = document.querySelector(`.contact[data-phone="${cssEsc(phone)}"]`);
-    if (row) row.classList.toggle('selected', selected.has(phone));
+    // In "selected only" view a deselected row must disappear, so re-render;
+    // if nothing's left selected, drop back to showing everything.
+    if (selectedOnly) {
+      if (selected.size === 0) setSelectedOnly(false);
+      rerenderContacts();
+    } else {
+      // Flip just this row's look without a full re-render (keeps scroll position)
+      const row = document.querySelector(`.contact[data-phone="${cssEsc(phone)}"]`);
+      if (row) row.classList.toggle('selected', selected.has(phone));
+    }
     updateSelBar();
   }
 
@@ -1573,17 +1598,20 @@
 
   function clearSelection() {
     selected.clear();
+    setSelectedOnly(false);
     rerenderContacts();
     updateSelBar();
   }
 
-  // Add every loaded conversation whose GHL pipeline · stage matches the choice
+  // Add every loaded conversation whose GHL pipeline · stage matches the choice,
+  // then collapse the list to show only what's selected for a quick review.
   function selectByStage(key) {
     if (!key) return;
     for (const c of allContacts) {
       const info = ghlInfo[c.phone_number];
       if (info && stageKey(info) === key) selected.add(c.phone_number);
     }
+    if (selected.size) setSelectedOnly(true);
     rerenderContacts();
     updateSelBar();
   }
@@ -1644,6 +1672,7 @@
         if (activePhone && selected.has(activePhone)) closeChat();
         selected.clear();
         selectMode = false;
+        setSelectedOnly(false);
         document.getElementById('selBar').classList.remove('show');
         document.getElementById('selectBtn').classList.remove('active');
         await loadContacts();
@@ -1656,44 +1685,6 @@
       alert('Network error while deleting.');
     } finally {
       if (delBtn) delBtn.disabled = selected.size === 0;
-    }
-  }
-
-  // ── Mark all read (PIN-gated, shared across all devices) ─────────────────────
-  // Uses the same PIN as delete (SMS_DELETE_PIN, default 4321), verified on the
-  // server so the code never ships in the page. Sets the global read marker, so
-  // the unread badge clears for everyone, everywhere.
-  async function markAllRead() {
-    const pin = prompt(
-      `Mark ALL conversations as read?\n\n` +
-      `This clears the unread badge for everyone, on every device.\n\n` +
-      `Enter your 4-digit PIN to confirm:`
-    );
-    if (pin === null) return;                       // cancelled
-    if (!/^\d{4}$/.test(pin.trim())) { alert('PIN must be 4 digits.'); return; }
-
-    const btn = document.getElementById('markReadBtn');
-    if (btn) btn.disabled = true;
-    try {
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mark-all-read', pin: pin.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        allReadAt = data.allReadAt ? new Date(data.allReadAt).getTime() : Date.now();
-        saveAllReadAt();
-        rerenderContacts();
-      } else if (res.status === 403) {
-        alert('Incorrect PIN. Nothing was changed.');
-      } else {
-        alert('Could not mark all as read: ' + (data.error || 'Unknown error'));
-      }
-    } catch {
-      alert('Network error while marking all as read.');
-    } finally {
-      if (btn) btn.disabled = false;
     }
   }
 
