@@ -1508,8 +1508,9 @@
 
     clearInterval(pollTimer);
     await reloadMessages();
-    // Poll the open thread every 5s so replies show up quickly (was 20s).
-    pollTimer = setInterval(() => reloadMessages(), 5000);
+    // Poll the open thread every 20s (was 5s) to cut database load; replies you
+    // send appear instantly, and switching back to the tab refreshes immediately.
+    pollTimer = setInterval(() => reloadMessages(), 20000);
     document.getElementById('msgInput').focus();
     updatePhonePreview();
   }
@@ -1735,9 +1736,10 @@
     localStorage.setItem('notifyEnabled', '0');
   }
   updateBellUI();
-  // Refresh the conversation list every 5s (was 25s) so new inbound replies —
-  // and their desktop notifications — surface quickly instead of up to ~25s late.
-  setInterval(refreshContacts, 5000);
+  // Refresh the conversation list every 20s (was 5s) to cut database load. New
+  // inbound replies and their notifications surface within ~20s; returning to the
+  // tab refreshes immediately, so the wait only applies while you're watching it.
+  setInterval(refreshContacts, 20000);
 
   // Background tabs have their timers heavily throttled by the browser, which can
   // stretch the polls above to a minute or more. So the moment the portal regains
