@@ -1001,8 +1001,13 @@
   // we remember the newest row we've seen and ask only for what's newer.
   const POLL_VISIBLE = 10000;      // active tab: poll every 10s (incremental, cheap)
   const POLL_HIDDEN  = 60000;      // background tab: 60s — still delivers notifications
-  const RECONCILE_MS = 180000;     // full contact reconcile every 3 min (catches deletes)
+  const RECONCILE_MS = 90000;      // full contact reconcile every 90s (catches deletes)
   const READSTATE_MS = 60000;      // pull shared read-state at most once a minute
+  // Inbound rows store created_at = the phone's RECEIVE time, which can be behind
+  // the cursor (outbound rows use the DB insert time). So the incremental polls
+  // look back this far each time and de-duplicate, so a reply whose receive-time
+  // is a little older than the newest row we have still surfaces within one poll.
+  const POLL_LOOKBACK_MS = 180000; // 3 min
   let lastContactsTs = null;       // newest created_at seen in the contact list
   let lastFullAt = 0;              // when we last did a full contact reconcile
   let lastReadStateAt = 0;         // when we last pulled sms_read_state
@@ -1283,7 +1288,8 @@
     const now = Date.now();
     if (!lastContactsTs || (now - lastFullAt) > RECONCILE_MS) return fullReconcile();
     try {
-      const res = await fetch(`${API}?action=contacts-since&since=${encodeURIComponent(lastContactsTs)}`);
+      const since = new Date(new Date(lastContactsTs).getTime() - POLL_LOOKBACK_MS).toISOString();
+      const res = await fetch(`${API}?action=contacts-since&since=${encodeURIComponent(since)}`);
       if (!res.ok) return;
       const rows = await res.json();
       mergeNewContactRows(Array.isArray(rows) ? rows : []);
@@ -1927,14 +1933,18 @@
     if (!threadNewestTs) return reloadMessages();   // no cursor yet → full load
     const phone = activePhone;
     try {
-      const res = await fetch(`${API}?phone=${encodeURIComponent(phone)}&since=${encodeURIComponent(threadNewestTs)}`);
+      const since = new Date(new Date(threadNewestTs).getTime() - POLL_LOOKBACK_MS).toISOString();
+      const res = await fetch(`${API}?phone=${encodeURIComponent(phone)}&since=${encodeURIComponent(since)}`);
       if (!res.ok || phone !== activePhone) return;  // ignore if user switched threads
       const rows = await res.json();
-      const newMsgs = Array.isArray(rows) ? rows : [];
-      if (!newMsgs.length) { checkDelivery(currentThreadMsgs); return; }
+      const fetched = Array.isArray(rows) ? rows : [];
       const seen = new Set(currentThreadMsgs.map(m => m.id));
-      for (const m of newMsgs) if (!seen.has(m.id)) currentThreadMsgs.push(m);
-      threadNewestTs = currentThreadMsgs[currentThreadMsgs.length - 1].created_at;
+      let added = 0;
+      for (const m of fetched) if (!seen.has(m.id)) { currentThreadMsgs.push(m); added++; }
+      if (!added) { checkDelivery(currentThreadMsgs); return; }   // nothing genuinely new
+      // Keep chronological order (a lagged reply can land between existing rows)
+      currentThreadMsgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      threadNewestTs = maxTs(currentThreadMsgs);
       renderMessages(currentThreadMsgs);
       updatePhonePreview();
       const flags = currentThreadMsgs.filter(m => m.status === 'optout' || m.status === 'optin');
