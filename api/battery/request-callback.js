@@ -2056,6 +2056,49 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, deleted });
   }
 
+  // ── POST action=delete-threads: PIN-gated hard delete of MANY conversations ──
+  // Same PIN + service-role approach as delete-thread, for the sidebar's bulk
+  // select. Deletes in chunks so a long phone list can't overflow the request
+  // URL, and reports how many distinct threads (phones) were actually removed.
+  if (body.action === 'delete-threads') {
+    const phones = [...new Set((Array.isArray(body.phones) ? body.phones : [])
+      .map(p => String(p || '').trim()).filter(Boolean))].slice(0, 1000);
+    const { pin } = body;
+    if (!phones.length) return res.status(400).json({ error: 'phones required' });
+    const expected = process.env.SMS_DELETE_PIN || '4321';
+    if (String(pin || '') !== String(expected)) {
+      return res.status(403).json({ error: 'Incorrect PIN' });
+    }
+    const adminHeaders = { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}` };
+    let deleted = 0;
+    const threadsDeleted = new Set();
+    for (let i = 0; i < phones.length; i += 50) {
+      const chunk = phones.slice(i, i + 50);
+      const inList = chunk.map(p => `"${p.replace(/"/g, '')}"`).join(',');
+      const delRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/sms_messages?phone_number=in.(${encodeURIComponent(inList)})&select=phone_number`,
+        { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=representation' } }
+      );
+      if (!delRes.ok) {
+        const detail = await delRes.text();
+        console.error('[Delete threads] chunk failed', delRes.status, detail);
+        return res.status(502).json({ error: 'Delete failed', detail, deletedSoFar: deleted });
+      }
+      const rows = await delRes.json().catch(() => []);
+      for (const r of (Array.isArray(rows) ? rows : [])) { deleted++; threadsDeleted.add(r.phone_number); }
+      // Tidy shared read-state for this chunk (best-effort).
+      fetch(`${SUPABASE_URL}/rest/v1/sms_read_state?phone_number=in.(${encodeURIComponent(inList)})`,
+        { method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=minimal' } }).catch(() => {});
+    }
+    if (deleted === 0) {
+      return res.status(200).json({
+        success: false,
+        error: 'Nothing was deleted — Supabase blocked it (Row Level Security). In Vercel set SUPABASE_SERVICE_ROLE_KEY, or in Supabase run: ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;',
+      });
+    }
+    return res.status(200).json({ success: true, deleted, threads: threadsDeleted.size });
+  }
+
   // ── POST action=mark-read: mark one thread read in the shared read-state ─────
   // Fire-and-forget from the UI when a conversation is opened, so reading it on
   // one browser clears its unread badge on every other browser/device too. Upsert

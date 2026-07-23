@@ -179,6 +179,30 @@
     }
     .contact:hover { background: var(--page); }
     .contact.active { background: var(--purple-soft); }
+
+    /* ── Bulk select ─────────────────────────────────────────── */
+    .sel-bar { display: none; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 8px 10px;
+      background: var(--purple-soft); border: 1px solid var(--border); border-radius: 10px; }
+    .sel-bar.show { display: flex; }
+    .sel-count { font-size: 12.5px; font-weight: 700; color: var(--purple-dark); white-space: nowrap; }
+    .sel-stage { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--text);
+      background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+    .sel-btn { font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+      background: #fff; color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; transition: background .15s, opacity .15s; }
+    .sel-btn:hover { background: var(--page); }
+    .sel-btn.del { background: #ea5455; border-color: #ea5455; color: #fff; }
+    .sel-btn.del:hover { background: #d94446; }
+    .sel-btn.del:disabled { opacity: .45; cursor: not-allowed; }
+    .sel-btn.ghost { color: var(--muted); }
+    /* Selectable rows: checkbox on the left, selected state */
+    .contact.selectable { cursor: pointer; }
+    .contact .sel-check { display: none; }
+    .contact.selectable .sel-check { display: grid; place-items: center; width: 20px; height: 20px; flex: none;
+      border: 2px solid var(--faint); border-radius: 6px; background: #fff; transition: background .12s, border-color .12s; }
+    .contact.selectable .sel-check svg { width: 12px; height: 12px; stroke: #fff; opacity: 0; }
+    .contact.selectable.selected { background: var(--purple-soft); }
+    .contact.selectable.selected .sel-check { background: var(--purple); border-color: var(--purple); }
+    .contact.selectable.selected .sel-check svg { opacity: 1; }
     .contact.active::before {
       content: '';
       position: absolute;
@@ -750,6 +774,20 @@
         <button class="icon-btn" id="markReadBtn" onclick="markAllRead()" title="Mark all conversations as read (PIN)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
+        <button class="icon-btn" id="selectBtn" onclick="toggleSelectMode()" title="Select conversations to delete in bulk">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </button>
+      </div>
+
+      <!-- Bulk-select action bar (shown only in select mode) -->
+      <div class="sel-bar" id="selBar">
+        <span class="sel-count" id="selCount">0 selected</span>
+        <select class="sel-stage" id="selStage" onchange="selectByStage(this.value); this.selectedIndex=0;">
+          <option value="">Select by stage…</option>
+        </select>
+        <button class="sel-btn" onclick="clearSelection()">Clear</button>
+        <button class="sel-btn del" id="selDelBtn" onclick="deleteSelected()" disabled>Delete</button>
+        <button class="sel-btn ghost" onclick="toggleSelectMode()">Done</button>
       </div>
 
       <div class="new-panel" id="newPanel">
@@ -944,6 +982,8 @@
   let activePhone = null;
   let pollTimer = null;
   let allContacts = [];
+  let selectMode = false;          // bulk-select mode for the conversation list
+  const selected = new Set();       // phone numbers currently ticked
   let bulkThreads = { campaigns: [], count: 0, latest: null }; // bulk-only conversations, grouped by campaign
   let bulkGroupsOpen = new Set(); // campaign names currently expanded in the sidebar
   // All bulk-only contacts across every campaign (flattened)
@@ -1263,8 +1303,14 @@
     const info = ghlInfo[c.phone_number];
     const pill = info && info.pipeline
       ? `<span class="stage-pill" title="${esc([info.pipeline, info.stage].filter(Boolean).join(' – '))}">${esc(info.pipeline)}</span>` : '';
+    const isSel = selected.has(c.phone_number);
+    const click = selectMode
+      ? `toggleSelect('${esc(c.phone_number)}')`
+      : `selectChat('${esc(c.phone_number)}')`;
+    const check = `<span class="sel-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>`;
     return `
-    <div class="contact ${extraCls || ''} ${c.phone_number === activePhone ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="selectChat('${esc(c.phone_number)}')">
+    <div class="contact ${extraCls || ''} ${selectMode ? 'selectable' : ''} ${isSel ? 'selected' : ''} ${c.phone_number === activePhone && !selectMode ? 'active' : ''} ${unread ? 'unread' : ''}" data-phone="${esc(c.phone_number)}" onclick="${click}">
+      ${check}
       <div class="avatar">${esc(nameInitials(name, c.phone_number))}</div>
       <div class="contact-body">
         <div class="contact-line1">
@@ -1328,6 +1374,7 @@
     if (bulkMatches && bulkMatches.length) parts.push(bulkMatches.map(c => contactRowHtml(c, '')).join(''));
     el.innerHTML = parts.join('');
     updateUnreadUI();
+    if (selectMode) updateSelBar();
   }
 
   // ── New conversation ───────────────────────────────────────────────────────
@@ -1494,6 +1541,121 @@
       }
     } catch {
       alert('Network error while deleting.');
+    }
+  }
+
+  // ── Bulk select + delete ───────────────────────────────────────────────────
+  // Two ways to pick conversations: click rows one by one, or "Select by stage"
+  // to tick everyone in a GHL pipeline stage (e.g. Not Interested) at once.
+  function toggleSelectMode() {
+    selectMode = !selectMode;
+    if (!selectMode) selected.clear();
+    document.getElementById('selBar').classList.toggle('show', selectMode);
+    document.getElementById('selectBtn').classList.toggle('active', selectMode);
+    if (selectMode) closeChat();   // don't leave a thread open while picking
+    rerenderContacts();
+    updateSelBar();
+  }
+
+  function toggleSelect(phone) {
+    if (selected.has(phone)) selected.delete(phone);
+    else selected.add(phone);
+    // Flip just this row's look without a full re-render (keeps scroll position)
+    const row = document.querySelector(`.contact[data-phone="${cssEsc(phone)}"]`);
+    if (row) row.classList.toggle('selected', selected.has(phone));
+    updateSelBar();
+  }
+
+  // Escape a phone number for use inside a CSS attribute selector
+  function cssEsc(s) {
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+  }
+
+  function clearSelection() {
+    selected.clear();
+    rerenderContacts();
+    updateSelBar();
+  }
+
+  // Add every loaded conversation whose GHL pipeline · stage matches the choice
+  function selectByStage(key) {
+    if (!key) return;
+    for (const c of allContacts) {
+      const info = ghlInfo[c.phone_number];
+      if (info && stageKey(info) === key) selected.add(c.phone_number);
+    }
+    rerenderContacts();
+    updateSelBar();
+  }
+
+  function stageKey(info) {
+    return (info.pipeline || '') + ' || ' + (info.stage || '');
+  }
+
+  // Refresh the count, the Delete button state, and the stage dropdown options
+  function updateSelBar() {
+    const n = selected.size;
+    const countEl = document.getElementById('selCount');
+    if (countEl) countEl.textContent = `${n} selected`;
+    const delBtn = document.getElementById('selDelBtn');
+    if (delBtn) delBtn.disabled = n === 0;
+
+    const sel = document.getElementById('selStage');
+    if (!sel) return;
+    // Build "Pipeline · Stage (count)" options from the loaded conversations
+    const groups = new Map();
+    for (const c of allContacts) {
+      const info = ghlInfo[c.phone_number];
+      if (!info || !info.stage) continue;
+      const key = stageKey(info);
+      if (!groups.has(key)) groups.set(key, { label: [info.pipeline, info.stage].filter(Boolean).join(' · '), n: 0 });
+      groups.get(key).n++;
+    }
+    const opts = ['<option value="">Select by stage…</option>']
+      .concat([...groups.entries()]
+        .sort((a, b) => a[1].label.localeCompare(b[1].label))
+        .map(([key, g]) => `<option value="${esc(key)}">${esc(g.label)} (${g.n})</option>`));
+    sel.innerHTML = opts.join('');
+  }
+
+  async function deleteSelected() {
+    const phones = [...selected];
+    if (!phones.length) return;
+    const pin = prompt(
+      `Delete ${phones.length} conversation${phones.length === 1 ? '' : 's'}?\n\n` +
+      `This permanently removes every message for the selected numbers and cannot be undone.\n\n` +
+      `Enter your 4-digit PIN to confirm:`
+    );
+    if (pin === null) return;
+    if (!/^\d{4}$/.test(pin.trim())) { alert('PIN must be 4 digits.'); return; }
+    const delBtn = document.getElementById('selDelBtn');
+    if (delBtn) delBtn.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-threads', phones, pin: pin.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        phones.forEach(p => { delete lastSeen[p]; delete prevLatest[p]; delete ghlNames[p]; });
+        saveLastSeen();
+        try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+        if (activePhone && selected.has(activePhone)) closeChat();
+        selected.clear();
+        selectMode = false;
+        document.getElementById('selBar').classList.remove('show');
+        document.getElementById('selectBtn').classList.remove('active');
+        await loadContacts();
+      } else if (res.status === 403) {
+        alert('Incorrect PIN. Nothing was deleted.');
+      } else {
+        alert('Could not delete: ' + (data.error || 'Unknown error'));
+      }
+    } catch {
+      alert('Network error while deleting.');
+    } finally {
+      if (delBtn) delBtn.disabled = selected.size === 0;
     }
   }
 
