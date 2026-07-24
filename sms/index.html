@@ -1149,7 +1149,9 @@
         saveGhlInfo();
         rerenderContacts();
       } else {
-        alert('Could not update stage: ' + (data.error || 'Unknown error'));
+        const detail = data.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : '';
+        alert('Could not update stage: ' + (data.error || 'Unknown error') + (data.ghlStatus ? ' (HTTP ' + data.ghlStatus + ')' : '') + (detail ? '\n\nGHL said: ' + detail : ''));
+        console.error('[update-stage] failed', data);
         sel.value = prev;
       }
     } catch {

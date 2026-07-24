@@ -2013,7 +2013,7 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const detail = await r.text();
       console.error('[GHL update-stage]', r.status, detail);
-      return res.status(502).json({ error: 'GHL rejected the stage update', detail });
+      return res.status(502).json({ error: 'GHL rejected the stage update', ghlStatus: r.status, detail: detail.slice(0, 400) });
     }
 
     // ── One-way sync: moving a contact to a "lost" stage marks their quote(s)
