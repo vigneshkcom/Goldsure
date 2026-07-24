@@ -2015,7 +2015,58 @@ export default async function handler(req, res) {
       console.error('[GHL update-stage]', r.status, detail);
       return res.status(502).json({ error: 'GHL rejected the stage update', detail });
     }
-    return res.status(200).json({ success: true });
+
+    // ── One-way sync: moving a contact to a "lost" stage marks their quote(s)
+    // Rejected in the tracker and notes it on the GHL contact. Matches on email
+    // (phone formats vary: +61 vs 0). Best-effort — never fails the stage update.
+    let rejected = 0;
+    try {
+      const stageLc = String(body.stageName || '').toLowerCase();
+      const isLost = ['quote not accepted', 'unserviceable', 'not interested', 'spam'].some(t => stageLc.includes(t));
+      if (isLost && body.contactId && SUPABASE_URL) {
+        // Resolve the customer email from the GHL contact (robust regardless of
+        // what the portal had cached).
+        let email = String(body.email || '').trim();
+        if (!email) {
+          try {
+            const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(body.contactId)}`, {
+              headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' },
+            });
+            if (cRes.ok) email = String((await cRes.json()).contact?.email || '').trim();
+          } catch (e) { console.error('[update-stage contact lookup]', e.message); }
+        }
+        if (email) {
+          const emailLc = email.toLowerCase();
+          const sbHdrs = { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`, 'Content-Type': 'application/json' };
+          for (const tbl of ['hotwater_quotes', 'aircon_quotes', 'quote_emails']) {
+            try {
+              // Coarse case-insensitive filter, then verify exact match in JS so a
+              // literal "_" in an email can't act as an ilike wildcard.
+              const gRes = await fetch(`${SUPABASE_URL}/rest/v1/${tbl}?status=eq.sent&customer_email=ilike.${encodeURIComponent(email)}&select=id,customer_email`, { headers: sbHdrs });
+              if (!gRes.ok) continue;
+              const ids = ((await gRes.json()) || []).filter(row => String(row.customer_email || '').toLowerCase() === emailLc).map(row => row.id);
+              if (!ids.length) continue;
+              const pRes = await fetch(`${SUPABASE_URL}/rest/v1/${tbl}?id=in.(${ids.map(encodeURIComponent).join(',')})`, {
+                method: 'PATCH', headers: { ...sbHdrs, Prefer: 'return=minimal' },
+                body: JSON.stringify({ status: 'rejected', accepted: false }),
+              });
+              if (pRes.ok) rejected += ids.length;
+            } catch (e) { console.error('[update-stage reject]', tbl, e.message); }
+          }
+          if (rejected > 0) {
+            try {
+              await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(body.contactId)}/notes`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ body: `[Quote Tracker] ${rejected} quote(s) marked Rejected — contact moved to "${body.stageName}".` }),
+              });
+            } catch (e) { console.error('[update-stage note]', e.message); }
+          }
+        }
+      }
+    } catch (e) { console.error('[update-stage auto-reject]', e.message); }
+
+    return res.status(200).json({ success: true, rejected });
   }
 
   // ── POST action=delete-thread: PIN-gated hard delete of a whole conversation ─

@@ -1133,12 +1133,13 @@
     if (!info || !info.opportunityId) return;
     const stageId = sel.value;
     const prev = info.stageId;
+    const stageName = (info.stages.find(s => s.id === stageId) || {}).name || '';
     sel.disabled = true;
     try {
       const res = await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update-stage', opportunityId: info.opportunityId, pipelineId: info.pipelineId, stageId }),
+        body: JSON.stringify({ action: 'update-stage', opportunityId: info.opportunityId, pipelineId: info.pipelineId, stageId, stageName, contactId: info.contactId }),
       });
       const data = await res.json();
       if (data.success) {
