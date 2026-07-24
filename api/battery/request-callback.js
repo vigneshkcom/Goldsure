@@ -2005,11 +2005,21 @@ export default async function handler(req, res) {
     if (!opportunityId || !stageId) return res.status(400).json({ error: 'opportunityId and stageId required' });
     const apiKey = process.env.GHL_API_KEY;
     if (!apiKey) return res.status(503).json({ error: 'GHL not configured' });
-    const r = await fetch(`https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opportunityId)}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pipelineId, pipelineStageId: stageId }),
-    });
+    // GHL throttles bursts with HTTP 429. Retry with backoff (honouring
+    // Retry-After) so a busy moment doesn't fail the stage change outright.
+    let r;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      r = await fetch(`https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opportunityId)}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineId, pipelineStageId: stageId }),
+      });
+      if (r.status !== 429 && r.status < 500) break;
+      if (attempt === 3) break;
+      const retryAfter = parseInt(r.headers.get('retry-after') || '', 10);
+      const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 5000) : 500 * Math.pow(2, attempt);
+      await new Promise(res2 => setTimeout(res2, waitMs));
+    }
     if (!r.ok) {
       const detail = await r.text();
       console.error('[GHL update-stage]', r.status, detail);
