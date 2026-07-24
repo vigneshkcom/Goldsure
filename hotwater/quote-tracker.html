@@ -79,8 +79,12 @@ main{padding:24px 28px;max-width:1400px;margin:0 auto;}
 .results-count{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;}
 .results-count strong{color:var(--text);font-family:'JetBrains Mono',monospace;}
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
-.table-header-bar{padding:12px 18px;border-bottom:1px solid var(--border);}
+.table-header-bar{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
 .table-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+.del-btn{font-family:'Sora',sans-serif;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:1px solid var(--red);background:#fff;color:var(--red);cursor:pointer;text-transform:uppercase;letter-spacing:.3px;transition:.15s;margin-left:auto;}
+.del-btn:hover:not(:disabled){background:var(--red);color:#fff;}
+.del-btn:disabled{opacity:.4;cursor:not-allowed;}
+.row-check,#selectAll{width:15px;height:15px;cursor:pointer;vertical-align:middle;}
 .table-scroll{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;min-width:1080px;}
 thead tr{background:var(--surface2);}
@@ -201,11 +205,12 @@ td{padding:12px 14px;font-size:12px;color:var(--text);vertical-align:middle;}
   </div>
 
   <div class="table-wrap">
-    <div class="table-header-bar"><span class="table-title">Hot Water Quotes</span></div>
+    <div class="table-header-bar"><span class="table-title">Hot Water Quotes</span><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
+            <th style="width:30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Date ↕</th>
             <th onclick="sortBy('customer_name')" data-col="customer_name">Customer ↕</th>
             <th onclick="sortBy('agent_name')" data-col="agent_name">Agent ↕</th>
@@ -408,7 +413,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first hot water quote from the Quote Builder.</p></div></td></tr>`; return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first hot water quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -420,6 +425,7 @@ function renderTable(){
     const ghlBadgeText=ghlStagesLoaded?(ghlD?.stage||'—'):'…';
     const ghlBadgeCls=ghlStagesLoaded?ghlBadgeClass(ghlD?.stage):'badge badge-ghl-loading';
     return `<tr>
+      <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
       <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub" style="color:#9ca3af;">${esc(q.customer_address)}</div>`:''}</td>
       <td style="font-size:11px;">${esc(q.agent_name||'—')}</td>
@@ -433,6 +439,38 @@ function renderTable(){
       <td><span class="count-badge">${getReminderCount(q)}</span></td>
     </tr>`;
   }).join('');
+  updateDeleteBtn();
+}
+
+// ── Select + delete quotes (password protected) ──
+function getSelectedIds(){ return [...document.querySelectorAll('.row-check:checked')].map(c=>c.value); }
+function updateDeleteBtn(){
+  const n=getSelectedIds().length;
+  const btn=document.getElementById('deleteBtn');
+  if(btn){ btn.disabled=n===0; btn.textContent=n?`Delete Selected (${n})`:'Delete Selected'; }
+  const sa=document.getElementById('selectAll');
+  if(sa){ const all=document.querySelectorAll('.row-check'); sa.checked=all.length>0&&n===all.length; sa.indeterminate=n>0&&n<all.length; }
+}
+function toggleSelectAll(cb){ document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked); updateDeleteBtn(); }
+async function deleteSelected(){
+  const ids=getSelectedIds(); if(!ids.length){ showToast('No quotes selected.'); return; }
+  const pw=prompt(`Enter the delete password to permanently remove ${ids.length} quote(s):`);
+  if(pw===null) return;
+  if(pw!=='4321'){ showToast('Incorrect password. Deletion cancelled.'); return; }
+  try{
+    const inList=ids.map(encodeURIComponent).join(',');
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?id=in.(${inList})`,{
+      method:'DELETE',
+      headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json',Prefer:'return=representation'}
+    });
+    const deleted=await res.json().catch(()=>[]);
+    if(!res.ok){ console.error('delete failed',res.status,deleted); showToast('Delete failed.'); return; }
+    if(!Array.isArray(deleted)||deleted.length===0){ showToast('Delete blocked by database policy. A Supabase DELETE policy is required.'); return; }
+    const delIds=deleted.map(r=>String(r.id));
+    allQuotes=allQuotes.filter(q=>!delIds.includes(String(q.id)));
+    applyFilters();
+    showToast(`Deleted ${delIds.length} quote(s).`);
+  }catch(err){ console.error(err); showToast('Network error deleting.'); }
 }
 
 function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
