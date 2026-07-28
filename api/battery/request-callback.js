@@ -1292,27 +1292,38 @@ export default async function handler(req, res) {
   </table>
 </td></tr></table></body></html>`;
 
+    const acceptSubject = `Hot Water Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`;
+    // Notify the team via Hostinger (from info@); fall back to Resend.
+    let acceptSent = false;
     try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: 'Goldsure Quotes <info@goldsure.com.au>',
-          to: ['info@goldsure.com.au'],
-          subject: `Hot Water Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`,
-          html,
-        }),
-      });
-      if (!r.ok) {
-        const detail = await r.text();
-        console.error('[HWS accept] Resend failed:', r.status, detail);
-        return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) });
-      }
-      return res.status(200).json({ success: true });
-    } catch (e) {
-      console.error('[HWS accept] error:', e.message);
-      return res.status(500).json({ error: 'Internal error.' });
+      await sendHostingerMail({ to: ['info@goldsure.com.au'], displayName: 'Goldsure Quotes', subject: acceptSubject, html });
+      acceptSent = true;
+    } catch (hostErr) {
+      console.error('[HWS accept] Hostinger failed, falling back to Resend:', hostErr.message);
     }
+    if (!acceptSent) {
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'Goldsure Quotes <info@goldsure.com.au>',
+            to: ['info@goldsure.com.au'],
+            subject: acceptSubject,
+            html,
+          }),
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[HWS accept] Resend failed:', r.status, detail);
+          return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) });
+        }
+      } catch (e) {
+        console.error('[HWS accept] error:', e.message);
+        return res.status(500).json({ error: 'Internal error.' });
+      }
+    }
+    return res.status(200).json({ success: true });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1661,14 +1672,25 @@ export default async function handler(req, res) {
   </table>
 </td></tr></table></body></html>`;
 
+    const acceptSubject = `Aircon Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`;
+    // Notify the team via Hostinger (from info@); fall back to Resend.
+    let acceptSent = false;
     try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Goldsure Quotes <info@goldsure.com.au>', to: ['info@goldsure.com.au'], subject: `Aircon Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`, html }),
-      });
-      if (!r.ok) { const detail = await r.text(); console.error('[Aircon accept] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
-      return res.status(200).json({ success: true });
-    } catch (e) { console.error('[Aircon accept] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
+      await sendHostingerMail({ to: ['info@goldsure.com.au'], displayName: 'Goldsure Quotes', subject: acceptSubject, html });
+      acceptSent = true;
+    } catch (hostErr) {
+      console.error('[Aircon accept] Hostinger failed, falling back to Resend:', hostErr.message);
+    }
+    if (!acceptSent) {
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'Goldsure Quotes <info@goldsure.com.au>', to: ['info@goldsure.com.au'], subject: acceptSubject, html }),
+        });
+        if (!r.ok) { const detail = await r.text(); console.error('[Aircon accept] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
+      } catch (e) { console.error('[Aircon accept] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
+    }
+    return res.status(200).json({ success: true });
   }
 
   // ════════════════════════════════════════════════════════════════════════════

@@ -1,3 +1,5 @@
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -216,31 +218,44 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
+  const subject = `Quote Accepted – ${customer_name} – ${grand_total}`;
+
+  // Notify the team via Hostinger (from info@goldsure.com.au); fall back to
+  // Resend so a provider hiccup never drops an accepted-quote notification.
+  let sent = false;
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Goldsure Quotes <info@goldsure.com.au>',
-        to: ['info@goldsure.com.au'],
-        subject: `Quote Accepted – ${customer_name} – ${grand_total}`,
-        html,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Resend error:', error);
-      return res.status(500).json({ error: 'Failed to send notification.', detail: error });
-    }
-
-    return res.status(200).json({ success: true });
-
-  } catch (err) {
-    console.error('Server error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    await sendHostingerMail({ to: ['info@goldsure.com.au'], displayName: 'Goldsure Quotes', subject, html });
+    sent = true;
+  } catch (hostErr) {
+    console.error('[Smoke accept] Hostinger failed, falling back to Resend:', hostErr.message);
   }
+
+  if (!sent) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Goldsure Quotes <info@goldsure.com.au>',
+          to: ['info@goldsure.com.au'],
+          subject,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error('Resend error:', error);
+        return res.status(500).json({ error: 'Failed to send notification.', detail: error });
+      }
+    } catch (err) {
+      console.error('Server error:', err);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
+  }
+
+  return res.status(200).json({ success: true });
 }
