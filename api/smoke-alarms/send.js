@@ -1,3 +1,5 @@
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -219,35 +221,80 @@ export default async function handler(req, res) {
 </html>`;
 
   // ════════════════════════════════════════════════════════════
-  // SEND EMAIL via Resend
+  // SEND EMAIL — Hostinger Mail API (from info@goldsure.com.au), with the
+  // Raptor datasheet attached. Falls back to Resend if Hostinger fails so a
+  // provider hiccup can never lose a customer's quote.
   // ════════════════════════════════════════════════════════════
-  let emailSuccess = false;
+  const emailSubject = 'Your Smoke Alarm Quote – Goldsure';
+  const bccList = ['vignesh@goldsure.com.au'];
+
+  // Fetch the datasheet and base64-encode it for attachment. Best-effort — a
+  // missing/slow datasheet must never block the customer's quote email.
+  let attachments;
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-        to: [to_email],
-        bcc: ['vignesh@goldsure.com.au'],
-        subject: `Your Smoke Alarm Quote – Goldsure`,
-        html,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('[Resend] Send failed:', error);
-      return res.status(500).json({ error: 'Failed to send email.', detail: error });
+    const dsUrl = 'https://portal.goldsure.com.au/assets/smoke-alarms/raptor-smoke-alarm-datasheet.pdf';
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    let dsRes;
+    try { dsRes = await fetch(dsUrl, { signal: ctrl.signal }); }
+    finally { clearTimeout(timer); }
+    if (dsRes && dsRes.ok) {
+      const b64 = Buffer.from(await dsRes.arrayBuffer()).toString('base64');
+      attachments = [{ filename: 'Raptor Smoke Alarm Data Sheet.pdf', content: b64, contentType: 'application/pdf' }];
+    } else {
+      console.warn('[SmokeQuote] datasheet fetch failed:', dsRes && dsRes.status);
     }
+  } catch (e) {
+    console.warn('[SmokeQuote] datasheet fetch error:', e.message);
+  }
 
+  let emailSuccess = false;
+
+  // 1) Primary: Hostinger Mail API
+  try {
+    await sendHostingerMail({
+      to: [to_email],
+      bcc: bccList,
+      displayName: 'Goldsure Pty Ltd',
+      subject: emailSubject,
+      html,
+      ...(attachments ? { attachments } : {}),
+    });
     emailSuccess = true;
-  } catch (err) {
-    console.error('[Resend] Server error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+  } catch (hostErr) {
+    console.error('[Hostinger] smoke quote send failed, falling back to Resend:', hostErr.message);
+  }
+
+  // 2) Fallback: Resend (base64 attachment content is the same shape it wants)
+  if (!emailSuccess) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [to_email],
+          bcc: bccList,
+          subject: emailSubject,
+          html,
+          ...(attachments ? { attachments: attachments.map(a => ({ filename: a.filename, content: a.content })) } : {}),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error('[Resend] Send failed:', error);
+        return res.status(500).json({ error: 'Failed to send email.', detail: error });
+      }
+
+      emailSuccess = true;
+    } catch (err) {
+      console.error('[Resend] Server error:', err);
+      return res.status(500).json({ error: 'Internal server error.' });
+    }
   }
 
   // ════════════════════════════════════════════════════════════
