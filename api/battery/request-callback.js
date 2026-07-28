@@ -1036,7 +1036,7 @@ export default async function handler(req, res) {
         clearTimeout(timer);
         if (bRes.ok) {
           const buf = Buffer.from(await bRes.arrayBuffer());
-          attachments.push({ filename: `${tank_model} Brochure.pdf`, content: buf.toString('base64') });
+          attachments.push({ filename: `${tank_model} Brochure.pdf`, content: buf.toString('base64'), contentType: 'application/pdf' });
         } else {
           console.warn('[HWS] brochure not reachable, sending without it:', brochureUrl, bRes.status);
         }
@@ -1045,31 +1045,55 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Send the quote email via Resend ──
+    // ── Recipients: reminders go only to the customer; new quotes BCC the
+    //    sending agent (firstname@goldsure.com.au) + vignesh@ (deduped). ──
+    const hwsAgentFirst = String(agent_name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    const hwsBcc = [...new Set([
+      ...(hwsAgentFirst ? [`${hwsAgentFirst}@goldsure.com.au`] : []),
+      'vignesh@goldsure.com.au',
+    ])];
+    const hwsSubject = is_reminder ? 'Reminder: Your Hot Water System Quote – Goldsure' : 'Your Hot Water System Quote – Goldsure';
+
+    // ── Send via Hostinger (from info@goldsure.com.au); fall back to Resend so a
+    //    provider hiccup never loses a quote. ──
     let emailSuccess = false;
     try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-          to: [customer_email],
-          // Reminders go only to the customer — no internal BCC.
-          ...(is_reminder ? {} : { bcc: ['vignesh@goldsure.com.au'] }),
-          subject: is_reminder ? 'Reminder: Your Hot Water System Quote – Goldsure' : 'Your Hot Water System Quote – Goldsure',
-          html,
-          ...(attachments.length ? { attachments } : {}),
-        }),
+      await sendHostingerMail({
+        to: [customer_email],
+        ...(is_reminder ? {} : { bcc: hwsBcc }),
+        displayName: 'Goldsure Pty Ltd',
+        subject: hwsSubject,
+        html,
+        ...(attachments.length ? { attachments } : {}),
       });
-      if (!r.ok) {
-        const detail = await r.text();
-        console.error('[HWS] Resend failed:', r.status, detail);
-        return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) });
-      }
       emailSuccess = true;
-    } catch (e) {
-      console.error('[HWS] Resend error:', e.message);
-      return res.status(500).json({ error: 'Internal error sending email.' });
+    } catch (hostErr) {
+      console.error('[HWS] Hostinger send failed, falling back to Resend:', hostErr.message);
+    }
+    if (!emailSuccess) {
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+            to: [customer_email],
+            ...(is_reminder ? {} : { bcc: hwsBcc }),
+            subject: hwsSubject,
+            html,
+            ...(attachments.length ? { attachments } : {}),
+          }),
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error('[HWS] Resend failed:', r.status, detail);
+          return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) });
+        }
+        emailSuccess = true;
+      } catch (e) {
+        console.error('[HWS] Resend error:', e.message);
+        return res.status(500).json({ error: 'Internal error sending email.' });
+      }
     }
 
     // ── Confirmation SMS (best-effort, non-fatal) ──
