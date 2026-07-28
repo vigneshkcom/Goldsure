@@ -2079,6 +2079,37 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, rejected });
   }
 
+  // ── POST action=delete-quotes: password-gated hard delete of quote rows ──────
+  // Used by the quote trackers' "Delete Selected". Runs server-side with the
+  // service-role key so it bypasses RLS (the anon key the browser holds cannot
+  // delete). Password matches SMS_DELETE_PIN (defaults to 4321).
+  if (body.action === 'delete-quotes') {
+    const { table, ids, pin } = body;
+    const ALLOWED = { hotwater_quotes: 1, aircon_quotes: 1, quote_emails: 1 };
+    if (!ALLOWED[table]) return res.status(400).json({ error: 'Invalid table.' });
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No quote ids provided.' });
+    const expected = process.env.SMS_DELETE_PIN || '4321';
+    if (String(pin || '') !== String(expected)) return res.status(403).json({ error: 'Incorrect password.' });
+    if (!SUPABASE_URL) return res.status(503).json({ error: 'Supabase not configured.' });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'Delete needs SUPABASE_SERVICE_ROLE_KEY set in the environment.' });
+    }
+    try {
+      const inList = ids.map(encodeURIComponent).join(',');
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=in.(${inList})`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_ADMIN_KEY, Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      });
+      const rows = await r.json().catch(() => []);
+      if (!r.ok) { console.error('[delete-quotes]', table, r.status, rows); return res.status(502).json({ error: 'Delete failed.', detail: rows }); }
+      const deletedIds = Array.isArray(rows) ? rows.map(x => x.id) : [];
+      return res.status(200).json({ success: true, deleted: deletedIds.length, ids: deletedIds });
+    } catch (e) {
+      console.error('[delete-quotes] error:', e.message);
+      return res.status(500).json({ error: 'Internal error.' });
+    }
+  }
+
   // ── POST action=delete-thread: PIN-gated hard delete of a whole conversation ─
   // Requires a 4-digit PIN that matches SMS_DELETE_PIN (defaults to 4321 if the
   // env var isn't set). Removes every row for that phone number from Supabase.

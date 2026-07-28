@@ -456,20 +456,19 @@ async function deleteSelected(){
   const ids=getSelectedIds(); if(!ids.length){ showToast('No quotes selected.'); return; }
   const pw=prompt(`Enter the delete password to permanently remove ${ids.length} quote(s):`);
   if(pw===null) return;
-  if(pw!=='4321'){ showToast('Incorrect password. Deletion cancelled.'); return; }
   try{
-    const inList=ids.map(encodeURIComponent).join(',');
-    const res=await fetch(`${SUPABASE_URL}/rest/v1/hotwater_quotes?id=in.(${inList})`,{
-      method:'DELETE',
-      headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json',Prefer:'return=representation'}
+    const res=await fetch('/api/battery/request-callback',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'delete-quotes',table:'hotwater_quotes',ids,pin:pw})
     });
-    const deleted=await res.json().catch(()=>[]);
-    if(!res.ok){ console.error('delete failed',res.status,deleted); showToast('Delete failed.'); return; }
-    if(!Array.isArray(deleted)||deleted.length===0){ showToast('Delete blocked by database policy. A Supabase DELETE policy is required.'); return; }
-    const delIds=deleted.map(r=>String(r.id));
+    const data=await res.json().catch(()=>({}));
+    if(res.status===403){ showToast('Incorrect password. Deletion cancelled.'); return; }
+    if(!res.ok){ showToast(data.error||'Delete failed.'); return; }
+    if(!data.deleted){ showToast('Nothing was deleted.'); return; }
+    const delIds=(data.ids||ids).map(String);
     allQuotes=allQuotes.filter(q=>!delIds.includes(String(q.id)));
     applyFilters();
-    showToast(`Deleted ${delIds.length} quote(s).`);
+    showToast(`Deleted ${data.deleted} quote(s).`);
   }catch(err){ console.error(err); showToast('Network error deleting.'); }
 }
 
