@@ -226,7 +226,13 @@ export default async function handler(req, res) {
   // provider hiccup can never lose a customer's quote.
   // ════════════════════════════════════════════════════════════
   const emailSubject = 'Your Smoke Alarm Quote – Goldsure';
-  const bccList = ['vignesh@goldsure.com.au'];
+  // BCC the sending agent (firstname@goldsure.com.au) and vignesh@. Deduped, and
+  // the agent is skipped if we can't derive a name.
+  const agentFirst = String(agent_name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  const bccList = [...new Set([
+    ...(agentFirst ? [`${agentFirst}@goldsure.com.au`] : []),
+    'vignesh@goldsure.com.au',
+  ])];
 
   // Fetch the datasheet and base64-encode it for attachment. Best-effort — a
   // missing/slow datasheet must never block the customer's quote email.
