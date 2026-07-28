@@ -652,6 +652,16 @@ export default async function handler(req, res) {
     if (!html) {
       return res.status(400).json({ error: 'No HTML body provided.' });
     }
+    const relaySubject = subject || 'Install Summary Report — Goldsure';
+    // Send via Hostinger (from info@); fall back to Resend.
+    let sent = false;
+    try {
+      await sendHostingerMail({ to: toAddresses, bcc: ['vignesh@goldsure.com.au'], displayName: 'Goldsure Pty Ltd', subject: relaySubject, html });
+      sent = true;
+    } catch (hostErr) {
+      console.error('[Install summary] Hostinger failed, falling back to Resend:', hostErr.message);
+    }
+    if (sent) return res.status(200).json({ success: true });
     try {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -660,7 +670,7 @@ export default async function handler(req, res) {
           from: from || 'Goldsure Pty Ltd <info@goldsure.com.au>',
           to: toAddresses,
           bcc: ['vignesh@goldsure.com.au'],
-          subject: subject || 'Install Summary Report — Goldsure',
+          subject: relaySubject,
           html,
         }),
       });

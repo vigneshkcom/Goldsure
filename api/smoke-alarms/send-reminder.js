@@ -1,3 +1,5 @@
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 function esc(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -346,24 +348,35 @@ export default async function handler(req, res) {
   });
 
   try {
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-        to: [customer_email],
-        reply_to: 'info@goldsure.com.au',
-        subject: `Reminder: Your Goldsure quote is ready`,
-        html,
-      }),
-    });
+    const reminderSubject = 'Reminder: Your Goldsure quote is ready';
+    // Send via Hostinger (from info@); fall back to Resend so a reminder is never lost.
+    let emailSent = false;
+    try {
+      await sendHostingerMail({ to: [customer_email], displayName: 'Goldsure Pty Ltd', subject: reminderSubject, html });
+      emailSent = true;
+    } catch (hostErr) {
+      console.error('[ReminderEmail] Hostinger failed, falling back to Resend:', hostErr.message);
+    }
+    if (!emailSent) {
+      const resendResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [customer_email],
+          reply_to: 'info@goldsure.com.au',
+          subject: reminderSubject,
+          html,
+        }),
+      });
 
-    if (!resendResponse.ok) {
-      const error = await resendResponse.json().catch(() => ({}));
-      return res.status(500).json({ error: 'Failed to send reminder email.', detail: error });
+      if (!resendResponse.ok) {
+        const error = await resendResponse.json().catch(() => ({}));
+        return res.status(500).json({ error: 'Failed to send reminder email.', detail: error });
+      }
     }
 
     // Log a note on the customer's GHL contact/opportunity (best-effort),
