@@ -992,6 +992,20 @@
   let activePhone = null;
   let pollTimer = null;
   let allContacts = [];
+
+  // ── Egress control ──────────────────────────────────────────────────────────
+  // Poll faster when the tab is being watched, slower when it's in the background.
+  // The bulk-campaign list and shared read-state barely change, so re-fetch those
+  // at most once a minute instead of on every poll. (These only change HOW OFTEN
+  // and WHICH extras we fetch — the main conversation + thread fetches are still
+  // the full reliable "grab everything", so no message can slip through.)
+  const POLL_VISIBLE = 20000;      // active tab: 20s
+  const POLL_HIDDEN  = 60000;      // background tab: 60s
+  const BULK_MS      = 60000;      // re-fetch bulk campaigns at most every 60s
+  const READSTATE_MS = 60000;      // re-fetch shared read-state at most every 60s
+  const pollRate = () => (document.visibilityState === 'hidden' ? POLL_HIDDEN : POLL_VISIBLE);
+  let lastBulkAt = 0;
+  let lastReadStateAt = 0;
   let selectMode = false;          // bulk-select mode for the conversation list
   let selectedOnly = false;        // when on, the list shows only ticked rows
   const selected = new Set();       // phone numbers currently ticked
@@ -1245,6 +1259,8 @@
       if (!res.ok) throw new Error(data.error || 'Failed');
       allContacts = Array.isArray(data) ? data : [];
       bulkThreads = bData;
+      lastBulkAt = Date.now();
+      lastReadStateAt = Date.now();
       // Seed notification baseline so we don't alert for the existing backlog
       allContacts.forEach(c => { prevLatest[c.phone_number] = c.created_at; });
       rerenderContacts();
@@ -1261,10 +1277,19 @@
     }
   }
 
-  // Background refresh: detect new inbound replies → notify, then re-render
+  // Background refresh: always re-fetch the conversation list (the reliable full
+  // grab), but only re-fetch the bulk-campaign list and shared read-state at most
+  // once a minute — they barely change, and they were a big slice of the egress.
   async function refreshContacts() {
+    const now = Date.now();
+    const doBulk = now - lastBulkAt > BULK_MS;
+    const doRead = now - lastReadStateAt > READSTATE_MS;
     try {
-      const [res, bData] = await Promise.all([fetch(API), fetchBulkThreads(), loadReadState()]);
+      const [res, bData] = await Promise.all([
+        fetch(API),
+        doBulk ? fetchBulkThreads() : Promise.resolve(bulkThreads),
+        doRead ? loadReadState() : Promise.resolve(),
+      ]);
       const data = await res.json();
       if (!res.ok) return;
       const list = Array.isArray(data) ? data : [];
@@ -1276,6 +1301,8 @@
       }
       allContacts = list;
       bulkThreads = bData;
+      if (doBulk) lastBulkAt = now;
+      if (doRead) lastReadStateAt = now;
       rerenderContacts();
       resolveGhl(allContacts.concat(allBulkContacts()));
     } catch {}
@@ -1511,9 +1538,9 @@
 
     clearInterval(pollTimer);
     await reloadMessages();
-    // Poll the open thread every 20s (was 5s) to cut database load; replies you
-    // send appear instantly, and switching back to the tab refreshes immediately.
-    pollTimer = setInterval(() => reloadMessages(), 20000);
+    // Poll the open thread on the visibility-aware rate (20s active / 60s hidden).
+    // Replies you send appear instantly; switching back to the tab refreshes now.
+    pollTimer = setInterval(() => reloadMessages(), pollRate());
     document.getElementById('msgInput').focus();
     updatePhonePreview();
   }
@@ -1739,25 +1766,38 @@
     localStorage.setItem('notifyEnabled', '0');
   }
   updateBellUI();
-  // Refresh the conversation list every 20s (was 5s) to cut database load. New
-  // inbound replies and their notifications surface within ~20s; returning to the
-  // tab refreshes immediately, so the wait only applies while you're watching it.
-  setInterval(refreshContacts, 20000);
 
-  // Background tabs have their timers heavily throttled by the browser, which can
-  // stretch the polls above to a minute or more. So the moment the portal regains
-  // focus/visibility, refresh immediately instead of waiting for the next tick.
-  let lastReturnRefresh = 0;
-  function refreshOnReturn() {
-    if (document.visibilityState === 'hidden') return;
-    const now = Date.now();
-    if (now - lastReturnRefresh < 1500) return; // collapse the focus+visibility burst
-    lastReturnRefresh = now;
-    refreshContacts();
-    if (activePhone) reloadMessages();
+  // Poll on a visibility-aware interval to cut Supabase egress: 20s while the tab
+  // is actually being looked at, 60s when it's in the background (usually 2 of the
+  // 3 open computers). Still a full "grab everything" fetch each time, so message
+  // delivery stays reliable — only the frequency changes.
+  let contactsTimer = null;
+  function startContactsPolling() {
+    clearInterval(contactsTimer);
+    contactsTimer = setInterval(refreshContacts, pollRate());
   }
-  document.addEventListener('visibilitychange', refreshOnReturn);
-  window.addEventListener('focus', refreshOnReturn);
+  function restartThreadPolling() {
+    clearInterval(pollTimer);
+    if (activePhone) pollTimer = setInterval(() => reloadMessages(), pollRate());
+  }
+  startContactsPolling();
+
+  // Re-time both polls when the tab goes background↔foreground, and on returning
+  // to the foreground refresh immediately (browsers throttle background timers).
+  let lastReturnRefresh = 0;
+  function onVisibilityChange() {
+    startContactsPolling();
+    restartThreadPolling();
+    if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      if (now - lastReturnRefresh < 1200) return; // collapse the focus+visibility burst
+      lastReturnRefresh = now;
+      refreshContacts();
+      if (activePhone) reloadMessages();
+    }
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('focus', onVisibilityChange);
 
   // ── Sync inbox (inbox/export → webhooks → Supabase) ────────────────────────
   async function syncInbox() {
