@@ -1045,13 +1045,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Recipients: reminders go only to the customer; new quotes BCC the
-    //    sending agent (firstname@goldsure.com.au) + vignesh@ (deduped). ──
-    const hwsAgentFirst = String(agent_name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-    const hwsBcc = [...new Set([
-      ...(hwsAgentFirst ? [`${hwsAgentFirst}@goldsure.com.au`] : []),
-      'vignesh@goldsure.com.au',
-    ])];
+    // Reminders go only to the customer; new quotes BCC info@ only.
+    const hwsBcc = ['info@goldsure.com.au'];
     const hwsSubject = is_reminder ? 'Reminder: Your Hot Water System Quote – Goldsure' : 'Your Hot Water System Quote – Goldsure';
 
     // ── Send via Hostinger (from info@goldsure.com.au); fall back to Resend so a
@@ -1527,13 +1522,8 @@ export default async function handler(req, res) {
       } catch (e) { console.warn('[Aircon] brochure fetch failed:', e.message); }
     }
 
-    // Reminders go only to the customer; new quotes BCC the sending agent
-    // (firstname@goldsure.com.au) + info@ (deduped).
-    const acAgentFirst = String(agent_name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-    const acBcc = [...new Set([
-      ...(acAgentFirst ? [`${acAgentFirst}@goldsure.com.au`] : []),
-      'info@goldsure.com.au',
-    ])];
+    // Reminders go only to the customer; new quotes BCC info@ only.
+    const acBcc = ['info@goldsure.com.au'];
     const acSubject = is_reminder ? 'Reminder: Your Air Conditioning Quote – Goldsure' : 'Your Air Conditioning Quote – Goldsure';
 
     // Send via Hostinger (from info@); fall back to Resend so a quote is never lost.
