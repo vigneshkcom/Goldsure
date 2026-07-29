@@ -284,6 +284,9 @@
     const INVOICE_THROUGH = { 'Alda Amonaki': 'David' };
     // Pay cycle per agent: Shanira is invoiced weekly; David + Alda fortnightly.
     const PAY_CYCLE = { David: 'fortnightly', 'Alda Amonaki': 'fortnightly', Shanira: 'weekly' };
+    // Fortnights are aligned to this Monday so they match real pay periods, e.g.
+    // 13–26 Jul, 27 Jul–9 Aug, … Change this date to shift the fortnight boundary.
+    const FORTNIGHT_ANCHOR = new Date(2026, 6, 13);   // Mon 13 Jul 2026
     const principalOf = a => INVOICE_THROUGH[a] || a;
     const subsOf = p => Object.keys(INVOICE_THROUGH).filter(a => INVOICE_THROUGH[a] === p);
     const cycleOf = a => PAY_CYCLE[a] || 'weekly';
@@ -491,8 +494,14 @@
     function periodBounds() {
       const a = periodAgent();
       const fortnightly = !!a && cycleOf(a) === 'fortnightly';
-      const startDate = fortnightly ? addDays(weekStart, -7) : weekStart;
-      return { startDate, endExcl: endOfWeek(weekStart), fortnightly };
+      if (!fortnightly) return { startDate: weekStart, endExcl: endOfWeek(weekStart), fortnightly: false };
+      // Snap the viewed week onto the anchored fortnight grid so periods always
+      // line up with real pay fortnights (e.g. 13–26 Jul) regardless of which
+      // week inside the fortnight is currently in view.
+      const dayMs = 86400000;
+      const daysFromAnchor = Math.round((weekStart.getTime() - FORTNIGHT_ANCHOR.getTime()) / dayMs);
+      const startDate = addDays(FORTNIGHT_ANCHOR, Math.floor(daysFromAnchor / 14) * 14);
+      return { startDate, endExcl: addDays(startDate, 14), fortnightly: true };
     }
     function entriesForWeek() {
       const { startDate, endExcl } = periodBounds();
@@ -658,11 +667,9 @@
       if (picked !== agent) toast(`${picked} is invoiced through ${agent} — generating ${agent}'s invoice.`);
       const workers = [agent, ...subsOf(agent)];   // David + any sub-contractors (Alda)
 
-      // Period: fortnightly agents (David/Alda) cover the viewed week + the previous
-      // week; weekly agents (Shanira) cover just the viewed week.
-      const fortnightly = cycleOf(agent) === 'fortnightly';
-      const periodStart = fortnightly ? addDays(weekStart, -7) : weekStart;
-      const periodEndExcl = endOfWeek(weekStart);            // exclusive
+      // Use exactly the period shown on screen (anchored fortnight for David/Alda,
+      // week for Shanira) so the invoice always matches the viewed totals.
+      const { startDate: periodStart, endExcl: periodEndExcl, fortnightly } = periodBounds();
       const periodEnd = addDays(periodEndExcl, -1);          // inclusive last day
       const s = periodStart.getTime(), e = periodEndExcl.getTime();
 
