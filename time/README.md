@@ -118,6 +118,29 @@ to the manager — never to an agent's page.
   plus the previous week** (navigate to the week that *ends* the pay fortnight, then hit
   Invoice PDF). The period range is printed on the invoice so it's easy to verify.
 
+## Send to Xero (manager) — draft bill
+
+In the manager view, pick an agent and hit **➜ Send to Xero** to create a
+**Draft** accounts-payable **Bill** (`ACCPAY`) in Xero *from that agent to
+Goldsure* for the viewed period — one line per worker (hours × rate), no GST.
+David's bill folds in Alda's hours just like the invoice PDF. It always lands as
+a **Draft** for you to review and approve in Xero before it's payable.
+
+Set up a **Xero Custom Connection** (Xero developer portal → *New app* → *Custom
+connection*, scopes `accounting.transactions` + `accounting.contacts`), then set
+in **Vercel → Environment Variables**:
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` | yes | Custom Connection credentials |
+| `XERO_BILL_ACCOUNT_CODE` | recommended | Expense account code for the bill lines (e.g. contractor/subcontractor wages) |
+| `XERO_TAX_TYPE` | optional | Line tax type; default `NONE` (GST-free) |
+| `XERO_CONTACTS` | optional | JSON map agent→exact Xero supplier name, e.g. `{"David":"David Contractor","Shanira":"Shanira Gonzalez"}`. Falls back to the agent's billing name; Xero creates the contact if it doesn't exist. |
+| `XERO_TENANT_ID` | optional | Pin the org; otherwise resolved automatically (a Custom Connection has one). |
+
+Only the manager PIN can trigger it (enforced server-side). It never posts an
+approved/authorised document — always a Draft.
+
 ## Forgotten clock-out
 
 If someone forgets to clock out, the shift shows **"In progress"** and, after 18h,

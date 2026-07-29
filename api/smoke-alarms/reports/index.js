@@ -560,6 +560,92 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, deleted: removed.length });
       }
 
+      // ── Push a DRAFT bill to Xero (manager only) ──────────────────────────────
+      // Creates an ACCPAY (accounts-payable) invoice in Xero as a DRAFT — from the
+      // agent (supplier) to Goldsure — via a Xero Custom Connection (machine-to-
+      // machine, client-credentials auth). Line items come from the manager view;
+      // the manager reviews/approves the draft in Xero before it becomes payable.
+      // Env: XERO_CLIENT_ID, XERO_CLIENT_SECRET (required); XERO_BILL_ACCOUNT_CODE,
+      // XERO_TAX_TYPE (default NONE), XERO_TENANT_ID, XERO_CONTACTS (JSON agent→name).
+      if (t.action === 'xero-bill') {
+        if (pinsOn && !isManager) return res.status(403).json({ error: 'Manager PIN required.' });
+        const clientId = process.env.XERO_CLIENT_ID, clientSecret = process.env.XERO_CLIENT_SECRET;
+        if (!clientId || !clientSecret) return res.status(503).json({ error: 'Xero is not configured — set XERO_CLIENT_ID and XERO_CLIENT_SECRET in Vercel.' });
+
+        let xeroContacts = {};
+        try { if (process.env.XERO_CONTACTS) xeroContacts = JSON.parse(process.env.XERO_CONTACTS); } catch { /* ignore */ }
+        const contactName = String(xeroContacts[agent] || t.contact_name || agent || '').trim();
+        const taxType = String(process.env.XERO_TAX_TYPE || 'NONE');
+        const acctCode = process.env.XERO_BILL_ACCOUNT_CODE ? String(process.env.XERO_BILL_ACCOUNT_CODE) : '';
+        const lineItems = (Array.isArray(t.line_items) ? t.line_items : []).map(li => ({
+          Description: String(li.description || 'Timesheet').slice(0, 3900),
+          Quantity: Number(li.quantity) || 0,
+          UnitAmount: Number(li.unit_amount) || 0,
+          ...(acctCode ? { AccountCode: acctCode } : {}),
+          TaxType: taxType,
+        })).filter(li => li.Quantity > 0);
+        if (!contactName) return res.status(400).json({ error: 'Missing supplier contact name.' });
+        if (!lineItems.length) return res.status(400).json({ error: 'No billable line items for this period.' });
+
+        try {
+          // 1) Client-credentials access token (Custom Connection)
+          const creds = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+          const tokRes = await fetch('https://identity.xero.com/connect/token', {
+            method: 'POST',
+            headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'grant_type=client_credentials&scope=' + encodeURIComponent('accounting.transactions accounting.contacts'),
+          });
+          const tok = await tokRes.json().catch(() => ({}));
+          if (!tokRes.ok || !tok.access_token) {
+            console.error('[Xero] token failed:', tokRes.status, tok);
+            return res.status(502).json({ error: 'Xero authentication failed — check the Custom Connection credentials/scopes.' });
+          }
+          const accessToken = tok.access_token;
+
+          // 2) Resolve the organisation (tenant). A Custom Connection has exactly one.
+          let tenantId = process.env.XERO_TENANT_ID || '';
+          if (!tenantId) {
+            const cRes = await fetch('https://api.xero.com/connections', { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } });
+            const conns = await cRes.json().catch(() => []);
+            tenantId = Array.isArray(conns) && conns[0] ? conns[0].tenantId : '';
+          }
+          if (!tenantId) return res.status(502).json({ error: 'Could not resolve the Xero organisation (tenant).' });
+
+          // 3) Create the DRAFT accounts-payable bill
+          const today = new Date().toISOString().slice(0, 10);
+          const invoice = {
+            Type: 'ACCPAY',
+            Contact: { Name: contactName },
+            Date: String(t.period_end || today).slice(0, 10),
+            Status: 'DRAFT',
+            LineAmountTypes: 'NoTax',
+            Reference: String(t.reference || 'Timesheet').slice(0, 255),
+            LineItems: lineItems,
+          };
+          const invRes = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Xero-tenant-id': tenantId, Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Invoices: [invoice] }),
+          });
+          const invData = await invRes.json().catch(() => ({}));
+          if (!invRes.ok) {
+            console.error('[Xero] bill create failed:', invRes.status, JSON.stringify(invData).slice(0, 600));
+            const ve = invData.Elements && invData.Elements[0] && invData.Elements[0].ValidationErrors && invData.Elements[0].ValidationErrors[0];
+            return res.status(502).json({ error: (ve && ve.Message) || invData.Message || 'Xero rejected the bill.' });
+          }
+          const created = (invData.Invoices && invData.Invoices[0]) || {};
+          return res.status(200).json({
+            success: true,
+            invoice_id: created.InvoiceID || '',
+            invoice_number: created.InvoiceNumber || '',
+            deep_link: created.InvoiceID ? `https://go.xero.com/AccountsPayable/Edit.aspx?InvoiceID=${created.InvoiceID}` : '',
+          });
+        } catch (e) {
+          console.error('[Xero] error:', e);
+          return res.status(502).json({ error: 'Could not reach Xero.', detail: e.message });
+        }
+      }
+
       return res.status(400).json({ error: `Unknown time action: ${t.action}` });
     } catch (err) {
       console.error('[Time] server error:', err);

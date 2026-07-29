@@ -206,6 +206,7 @@
       <div class="wk-stats" id="weekStats"></div>
       <div class="wk-actions">
         <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
+        <button class="btn-ghost mgr-only" id="xeroBtn" title="Create a draft bill in Xero for this period">➜ Send to Xero</button>
         <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
       </div>
     </div>
@@ -779,6 +780,56 @@
       toast('Opening invoice — choose “Save as PDF”.');
     }
 
+    // ── Send to Xero — creates a DRAFT accounts-payable bill for the viewed period,
+    // using the SAME period + grouping as the invoice (David's bill folds in Alda).
+    async function sendToXero() {
+      const picked = mgrFilter;
+      if (!picked) { toast('Pick an agent from the dropdown first.', true); return; }
+      const agent = principalOf(picked);
+      const workers = [agent, ...subsOf(agent)];
+      const { startDate, endExcl, fortnightly } = periodBounds();
+      const s = startDate.getTime(), e = endExcl.getTime();
+      const periodEnd = addDays(endExcl, -1);
+      const periodLabel = startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + periodEnd.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      const inWindow = x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; };
+      // One bill line per worker: hours × their rate.
+      const lineItems = workers.map(w => {
+        const wr = allEntries.filter(x => x.agent === w && x.clock_out && inWindow(x));
+        if (!wr.length) return null;
+        const ms = wr.reduce((sum, x) => sum + billableMs(x), 0);
+        const hours = Math.round((ms / 3600000) * 100) / 100;
+        const name = (agentDetails[w] && agentDetails[w].name) || w;
+        return { description: `${name} — timesheet ${periodLabel} (${fmtDur(ms)})`, quantity: hours, unit_amount: Math.round(rateFor(w) * 10000) / 10000, _amt: (ms / 3600000) * rateFor(w) };
+      }).filter(Boolean);
+      if (!lineItems.length) { toast(`No completed shifts in this ${fortnightly ? 'fortnight' : 'week'} for ${agent}.`, true); return; }
+
+      const contactName = (agentDetails[agent] && agentDetails[agent].name) || agent;
+      const total = lineItems.reduce((sum, l) => sum + l._amt, 0);
+      const summary = lineItems.map(l => `• ${l.description}\n   ${l.quantity}h × ${money(l.unit_amount)} = ${money(l.quantity * l.unit_amount)}`).join('\n');
+      if (!confirm(`Create a DRAFT bill in Xero?\n\nSupplier: ${contactName}\nPeriod: ${periodLabel}\n\n${summary}\n\nTotal: ${money(total)}\n\nIt lands as a Draft for you to review and approve in Xero.`)) return;
+
+      const btn = $('xeroBtn'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+      try {
+        const data = await call({
+          action: 'xero-bill', agent, contact_name: contactName,
+          reference: `Timesheet ${periodLabel}`,
+          period_end: periodEnd.toISOString().slice(0, 10),
+          line_items: lineItems.map(l => ({ description: l.description, quantity: l.quantity, unit_amount: l.unit_amount })),
+        });
+        if (data && data.success) {
+          toast(`Draft bill created in Xero${data.invoice_number ? ' (' + data.invoice_number + ')' : ''} ✓`);
+          if (data.deep_link) window.open(data.deep_link, '_blank');
+        } else {
+          toast((data && data.error) || 'Xero push failed.', true);
+        }
+      } catch (err) {
+        toast(err.message || 'Xero push failed.', true);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '➜ Send to Xero'; }
+      }
+    }
+
     // ── Session ──
     function forceRelogin() {
       authPin = ''; localStorage.removeItem('timePin');
@@ -796,6 +847,7 @@
     $('todayBtn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); render(); });
     $('csvBtn').addEventListener('click', downloadCsv);
     $('invoiceBtn').addEventListener('click', downloadInvoice);
+    $('xeroBtn').addEventListener('click', sendToXero);
     $('mgrFilter').addEventListener('change', e => { mgrFilter = e.target.value; render(); });
     $('editCancel').addEventListener('click', closeEdit);
     $('editSave').addEventListener('click', saveEdit);
