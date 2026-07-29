@@ -781,8 +781,11 @@
 
     // ── Wire up ──
     $('clockBtn').addEventListener('click', toggleClock);
-    $('prevWeek').addEventListener('click', () => { weekStart = addDays(weekStart, -7); render(); });
-    $('nextWeek').addEventListener('click', () => { weekStart = addDays(weekStart, 7); render(); });
+    // Step by a whole fortnight when a fortnightly agent (David/Alda) is selected,
+    // otherwise a week — so the window jumps between non-overlapping periods.
+    const periodStepDays = () => periodBounds().fortnightly ? 14 : 7;
+    $('prevWeek').addEventListener('click', () => { weekStart = addDays(weekStart, -periodStepDays()); render(); });
+    $('nextWeek').addEventListener('click', () => { weekStart = addDays(weekStart, periodStepDays()); render(); });
     $('todayBtn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); render(); });
     $('csvBtn').addEventListener('click', downloadCsv);
     $('invoiceBtn').addEventListener('click', downloadInvoice);
