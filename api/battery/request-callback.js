@@ -890,6 +890,9 @@ export default async function handler(req, res) {
       'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
       'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
       'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
+      // EG-300FRE-W reuses the EG-330FRE-WR datasheet; the attachment is named
+      // "EG-300FRE-W Brochure.pdf" automatically (filename uses tank_model).
+      'EG-300FRE-W':      `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
     };
 
     // Build product line-item rows
