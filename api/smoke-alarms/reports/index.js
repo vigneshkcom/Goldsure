@@ -593,7 +593,7 @@ export default async function handler(req, res) {
           const tokRes = await fetch('https://identity.xero.com/connect/token', {
             method: 'POST',
             headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'grant_type=client_credentials&scope=' + encodeURIComponent('accounting.transactions accounting.contacts'),
+            body: 'grant_type=client_credentials&scope=' + encodeURIComponent('accounting.invoices accounting.contacts'),
           });
           const tok = await tokRes.json().catch(() => ({}));
           if (!tokRes.ok || !tok.access_token) {

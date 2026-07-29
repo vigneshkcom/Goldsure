@@ -127,7 +127,7 @@ David's bill folds in Alda's hours just like the invoice PDF. It always lands as
 a **Draft** for you to review and approve in Xero before it's payable.
 
 Set up a **Xero Custom Connection** (Xero developer portal → *New app* → *Custom
-connection*, scopes `accounting.transactions` + `accounting.contacts`), then set
+connection*, scopes `accounting.invoices` + `accounting.contacts`), then set
 in **Vercel → Environment Variables**:
 
 | Variable | Required | Purpose |
