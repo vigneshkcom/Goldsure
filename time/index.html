@@ -53,11 +53,20 @@
     .clock-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
 
     /* Week bar */
-    .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-    .weekbar-left { display: flex; align-items: center; gap: 10px; }
-    .week-range { font-size: 15px; font-weight: 700; color: var(--ink); }
-    .week-total { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-    .week-total b { color: var(--purple); font-size: 13px; }
+    .weekbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .wk-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .week-range { font-size: 16px; font-weight: 700; color: var(--ink); min-width: 168px; text-align: center; }
+    /* Per-agent stat cards */
+    .wk-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .stat { background: #faf9ff; border: 1px solid var(--border); border-radius: 12px; padding: 11px 15px; min-width: 132px; }
+    .stat-label { font-size: 9.5px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .stat-hours { font-size: 19px; font-weight: 800; color: var(--ink); margin-top: 5px; font-variant-numeric: tabular-nums; line-height: 1; }
+    .stat-earn { font-size: 12.5px; font-weight: 700; color: var(--green); margin-top: 5px; font-variant-numeric: tabular-nums; }
+    .stat-total { background: var(--purple); border-color: var(--purple); }
+    .stat-total .stat-label { color: rgba(255,255,255,.72); }
+    .stat-total .stat-hours, .stat-total .stat-earn { color: #fff; }
+    .stat-empty { color: var(--muted); font-weight: 600; font-size: 13px; display: flex; align-items: center; }
+    .wk-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
     button.nav-btn, button.btn-ghost, button.btn-purple { font-family: inherit; cursor: pointer; border-radius: 9px; font-weight: 600; font-size: 13px; transition: filter .15s, border-color .15s, color .15s; }
     .nav-btn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--border); color: var(--text); }
     .nav-btn:hover { border-color: var(--purple); color: var(--purple); }
@@ -178,28 +187,26 @@
     <!-- Week bar -->
     <div class="card">
       <div class="weekbar">
-        <div class="weekbar-left">
+        <div class="wk-nav">
           <button class="nav-btn" id="prevWeek" title="Previous week" aria-label="Previous week">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <div>
-            <div class="week-range" id="weekRange">—</div>
-            <div class="week-total" id="weekTotal">This week: <b>0h 0m</b></div>
-          </div>
+          <div class="week-range" id="weekRange">—</div>
           <button class="nav-btn" id="nextWeek" title="Next week" aria-label="Next week">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <button class="btn-ghost today-btn" id="todayBtn">This week</button>
-          <select id="mgrFilter" class="mgr-filter mgr-only" title="Filter and invoice by agent">
-            <option value="">All agents</option>
-            <option value="David">David</option>
-            <option value="Shanira">Shanira</option>
-          </select>
         </div>
-        <div class="weekbar-actions">
-          <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
-          <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
-        </div>
+        <select id="mgrFilter" class="mgr-filter mgr-only" title="Filter and invoice by agent">
+          <option value="">All agents</option>
+          <option value="David">David</option>
+          <option value="Shanira">Shanira</option>
+        </select>
+      </div>
+      <div class="wk-stats" id="weekStats"></div>
+      <div class="wk-actions">
+        <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
+        <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
       </div>
     </div>
 
@@ -287,7 +294,7 @@
     const rateFor = a => Number(rates[a]) || 0;
     const { roundedWorkedMinutes, unpaidMinutesFromNote } = TimeCalculations;
     const earnOf = e => (billableMs(e) / 3600000) * rateFor(e.agent);
-    const money = n => '$' + (Number(n) || 0).toFixed(2);
+    const money = n => '$' + (Number(n) || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const LONG_SHIFT_MS = 18 * 3600 * 1000;    // flag an open shift running longer than this
 
     let mode = 'agent';        // 'agent' | 'manager'
@@ -476,8 +483,20 @@
         $('rows').innerHTML = '<tr><td colspan="7" class="empty">Could not load. ' + escapeHtml(e.message) + '</td></tr>';
       }
     }
+    // The agent whose pay cycle drives the on-screen period: the manager filter,
+    // or (in agent mode) the signed-in agent. '' (All agents) → weekly.
+    function periodAgent() { return mode === 'manager' ? mgrFilter : selectedAgent; }
+    // On-screen period. Fortnightly agents (David/Alda) show the viewed week PLUS
+    // the previous week, so the view matches their fortnightly invoice.
+    function periodBounds() {
+      const a = periodAgent();
+      const fortnightly = !!a && cycleOf(a) === 'fortnightly';
+      const startDate = fortnightly ? addDays(weekStart, -7) : weekStart;
+      return { startDate, endExcl: endOfWeek(weekStart), fortnightly };
+    }
     function entriesForWeek() {
-      const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
+      const { startDate, endExcl } = periodBounds();
+      const s = startDate.getTime(), e = endExcl.getTime();
       let list = allEntries.filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; });
       if (mode === 'manager' && mgrFilter) {
         // Selecting a principal (David) also shows their sub-contractors (Alda),
@@ -487,9 +506,19 @@
       }
       return list.sort((a, b) => mode === 'manager' ? ((a.agent || '').localeCompare(b.agent || '') || new Date(a.clock_in) - new Date(b.clock_in)) : (new Date(a.clock_in) - new Date(b.clock_in)));
     }
+    // One readable stat card: label, big hours, optional earnings (manager only).
+    function statCard(label, ms, earn, isTotal) {
+      return `<div class="stat${isTotal ? ' stat-total' : ''}">`
+        + `<div class="stat-label">${escapeHtml(label)}</div>`
+        + `<div class="stat-hours">${escapeHtml(fmtDur(ms))}</div>`
+        + (earn != null ? `<div class="stat-earn">${escapeHtml(money(earn))}</div>` : '')
+        + `</div>`;
+    }
     function render() {
-      const end = addDays(weekStart, 6);
-      $('weekRange').textContent = weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      const { startDate, endExcl, fortnightly } = periodBounds();
+      const end = addDays(endExcl, -1);
+      const periodWord = fortnightly ? 'fortnight' : 'week';
+      $('weekRange').textContent = startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
 
       const rows = entriesForWeek();
       const totalMs = rows.reduce((sum, e) => sum + billableMs(e), 0);
@@ -497,18 +526,20 @@
       if (mode === 'manager') {
         const byMs = {}, byEarn = {};
         rows.forEach(e => { byMs[e.agent] = (byMs[e.agent] || 0) + billableMs(e); byEarn[e.agent] = (byEarn[e.agent] || 0) + earnOf(e); });
-        const parts = Object.keys(byMs).sort().map(a => escapeHtml(a) + ': <b>' + fmtDur(byMs[a]) + '</b> (' + money(byEarn[a]) + ')');
-        // Only add a combined "Total" when more than one agent is in view (e.g.
-        // David + Alda) — otherwise the total just repeats the single agent's line.
-        $('weekTotal').innerHTML = parts.length <= 1
-          ? (parts[0] || 'No shifts')
-          : parts.join(' &nbsp;·&nbsp; ') + ' &nbsp;·&nbsp; Total: <b>' + fmtDur(totalMs) + '</b> (' + money(totalEarn) + ')';
+        const names = Object.keys(byMs).sort();
+        // One clean stat card per agent, plus a Total card when more than one
+        // agent is in view (e.g. David + Alda). No text soup.
+        let html = names.map(a => statCard(a, byMs[a], byEarn[a], false)).join('');
+        if (!names.length) html = `<div class="stat stat-empty">No shifts this ${periodWord}</div>`;
+        else if (names.length > 1) html += statCard('Total', totalMs, totalEarn, true);
+        $('weekStats').innerHTML = html;
       } else {
-        $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
+        // Agent view — hours only, never any dollar figure.
+        $('weekStats').innerHTML = statCard('This ' + periodWord, totalMs, null, true);
       }
 
       const body = $('rows');
-      if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="empty">No shifts recorded this week.</td></tr>'; return; }
+      if (!rows.length) { body.innerHTML = `<tr><td colspan="7" class="empty">No shifts recorded this ${periodWord}.</td></tr>`; return; }
       body.innerHTML = rows.map(e => {
         const running = !e.clock_out;
         const longRun = running && (Date.now() - new Date(e.clock_in).getTime() > LONG_SHIFT_MS);
