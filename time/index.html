@@ -399,8 +399,28 @@
       document.body.classList.toggle('manager-mode', mode === 'manager');
       $('sheetLabel').textContent = mode === 'manager' ? 'All agents' : 'Timesheet';
       if (mode !== 'manager') mgrFilter = '';
+      populateMgrFilter();
       const mf = $('mgrFilter'); if (mf) mf.value = mgrFilter;
       renderClock(); renderAgentChip();
+    }
+
+    // Build the manager agent picker from AGENTS so it never drifts. Principals
+    // (David) are labelled with the sub-contractors they invoice for (Alda);
+    // each sub is also listed on its own so their hours can be viewed separately.
+    function populateMgrFilter() {
+      const sel = $('mgrFilter'); if (!sel) return;
+      const first = n => String(n || '').trim().split(/\s+/)[0];
+      const principals = AGENTS.filter(a => !INVOICE_THROUGH[a]);
+      const subs = AGENTS.filter(a => INVOICE_THROUGH[a]);
+      const opts = ['<option value="">All agents</option>'];
+      principals.forEach(p => {
+        const mine = subsOf(p);
+        const label = mine.length ? `${p} (with ${mine.map(first).join(', ')})` : p;
+        opts.push(`<option value="${escapeHtml(p)}">${escapeHtml(label)}</option>`);
+      });
+      subs.forEach(s => opts.push(`<option value="${escapeHtml(s)}">${escapeHtml(s)} (via ${escapeHtml(INVOICE_THROUGH[s])} only)</option>`));
+      sel.innerHTML = opts.join('');
+      sel.value = mgrFilter;
     }
 
     // ── Clock (agent mode) ──
@@ -459,7 +479,12 @@
     function entriesForWeek() {
       const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
       let list = allEntries.filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; });
-      if (mode === 'manager' && mgrFilter) list = list.filter(x => x.agent === mgrFilter);
+      if (mode === 'manager' && mgrFilter) {
+        // Selecting a principal (David) also shows their sub-contractors (Alda),
+        // since they're invoiced together. Selecting a sub shows just that sub.
+        const show = new Set([mgrFilter, ...subsOf(mgrFilter)]);
+        list = list.filter(x => show.has(x.agent));
+      }
       return list.sort((a, b) => mode === 'manager' ? ((a.agent || '').localeCompare(b.agent || '') || new Date(a.clock_in) - new Date(b.clock_in)) : (new Date(a.clock_in) - new Date(b.clock_in)));
     }
     function render() {
@@ -473,7 +498,11 @@
         const byMs = {}, byEarn = {};
         rows.forEach(e => { byMs[e.agent] = (byMs[e.agent] || 0) + billableMs(e); byEarn[e.agent] = (byEarn[e.agent] || 0) + earnOf(e); });
         const parts = Object.keys(byMs).sort().map(a => escapeHtml(a) + ': <b>' + fmtDur(byMs[a]) + '</b> (' + money(byEarn[a]) + ')');
-        $('weekTotal').innerHTML = (parts.join(' &nbsp;·&nbsp; ') || 'No shifts') + ' &nbsp;·&nbsp; Total: <b>' + fmtDur(totalMs) + '</b> (' + money(totalEarn) + ')';
+        // Only add a combined "Total" when more than one agent is in view (e.g.
+        // David + Alda) — otherwise the total just repeats the single agent's line.
+        $('weekTotal').innerHTML = parts.length <= 1
+          ? (parts[0] || 'No shifts')
+          : parts.join(' &nbsp;·&nbsp; ') + ' &nbsp;·&nbsp; Total: <b>' + fmtDur(totalMs) + '</b> (' + money(totalEarn) + ')';
       } else {
         $('weekTotal').innerHTML = 'This week: <b>' + fmtDur(totalMs) + '</b>';
       }
