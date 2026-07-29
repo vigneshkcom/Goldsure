@@ -266,7 +266,7 @@ export default async function handler(req, res) {
     const agentOk = (a) => !pinsOn || isManager || (!!a && agentPins[a] != null && pin !== '' && String(agentPins[a]) === pin);
 
     // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
-    let rates = { David: 13.54, Shanira: 25, 'Alda Amonaki': 0 };
+    let rates = { David: 13.54, Shanira: 25, 'Alda Amonaki': 10.4175 };
     try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
     const rateFor = (a) => Number(rates[a]) || 0;
 

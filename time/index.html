@@ -272,6 +272,14 @@
     const API = '/api/smoke-alarms/reports';
     const LOGO_URL = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const AGENTS = ['David', 'Shanira', 'Alda Amonaki'];       // the people who clock in
+    // Alda works through David: her hours are billed on DAVID's invoice (Goldsure
+    // pays David for Alda too). Sub-contractor → the person who invoices for them.
+    const INVOICE_THROUGH = { 'Alda Amonaki': 'David' };
+    // Pay cycle per agent: Shanira is invoiced weekly; David + Alda fortnightly.
+    const PAY_CYCLE = { David: 'fortnightly', 'Alda Amonaki': 'fortnightly', Shanira: 'weekly' };
+    const principalOf = a => INVOICE_THROUGH[a] || a;
+    const subsOf = p => Object.keys(INVOICE_THROUGH).filter(a => INVOICE_THROUGH[a] === p);
+    const cycleOf = a => PAY_CYCLE[a] || 'weekly';
     // Pay rates come from the server (manager only) — never hardcoded here, so an
     // agent can't read their rate/earnings from the page. Empty in agent mode.
     let rates = {};
@@ -583,33 +591,63 @@
     // ── Invoice PDF (manager only) — a print-ready invoice FROM the selected agent
     // TO Goldsure for the viewed week: days, hours, amount, no GST. Save as PDF for Xero.
     function downloadInvoice() {
-      const agent = mgrFilter;
-      if (!agent) { toast('Pick an agent from the dropdown to make their invoice.', true); return; }
-      const s = weekStart.getTime(), e = endOfWeek(weekStart).getTime();
+      const picked = mgrFilter;
+      if (!picked) { toast('Pick an agent from the dropdown to make their invoice.', true); return; }
+      // Alda is billed through David — always produce the principal's invoice.
+      const agent = principalOf(picked);
+      if (picked !== agent) toast(`${picked} is invoiced through ${agent} — generating ${agent}'s invoice.`);
+      const workers = [agent, ...subsOf(agent)];   // David + any sub-contractors (Alda)
+
+      // Period: fortnightly agents (David/Alda) cover the viewed week + the previous
+      // week; weekly agents (Shanira) cover just the viewed week.
+      const fortnightly = cycleOf(agent) === 'fortnightly';
+      const periodStart = fortnightly ? addDays(weekStart, -7) : weekStart;
+      const periodEndExcl = endOfWeek(weekStart);            // exclusive
+      const periodEnd = addDays(periodEndExcl, -1);          // inclusive last day
+      const s = periodStart.getTime(), e = periodEndExcl.getTime();
+
       const rows = allEntries.filter(x => {
-        if (x.agent !== agent || !x.clock_out) return false;   // completed shifts only
+        if (!workers.includes(x.agent) || !x.clock_out) return false;   // completed shifts only
         const t = new Date(x.clock_in).getTime();
         return t >= s && t < e;
       }).sort((a, b) => new Date(a.clock_in) - new Date(b.clock_in));
-      if (!rows.length) { toast('No completed shifts this week for ' + agent + '.', true); return; }
+      if (!rows.length) { toast(`No completed shifts in this ${fortnightly ? 'fortnight' : 'week'} for ${agent}.`, true); return; }
 
-      const rate = rateFor(agent);
       const totalMs = rows.reduce((sum, x) => sum + billableMs(x), 0);
       const total = rows.reduce((sum, x) => sum + earnOf(x), 0);
-      const wkEnd = addDays(weekStart, 6);
       const issued = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
-      const period = weekStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + wkEnd.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-      const invNo = agent.slice(0, 3).toUpperCase() + '-WE ' + String(wkEnd.getDate()).padStart(2, '0') + ' ' + wkEnd.toLocaleDateString('en-AU', { month: 'long' }).toUpperCase() + ' ' + wkEnd.getFullYear();
+      const period = periodStart.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + periodEnd.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      const invNo = agent.slice(0, 3).toUpperCase() + '-PE ' + String(periodEnd.getDate()).padStart(2, '0') + ' ' + periodEnd.toLocaleDateString('en-AU', { month: 'long' }).toUpperCase() + ' ' + periodEnd.getFullYear();
       const cell = 'padding:11px 14px;border-bottom:1px solid #eceef3;font-size:13px;';
-      const rowsHtml = rows.map(x => `
+      const th = 'padding:11px 14px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;';
+
+      // Group line items by worker so David's own hours and Alda's hours are clearly
+      // separated on the one invoice, each at their own rate.
+      const workersWithRows = workers
+        .map(w => ({ w, wr: rows.filter(x => x.agent === w) }))
+        .filter(o => o.wr.length);
+      const multi = workersWithRows.length > 1;
+      const rowsHtml = workersWithRows.map(({ w, wr }) => {
+        const wName = (agentDetails[w] && agentDetails[w].name) || w;
+        const wRate = rateFor(w);
+        const wMs = wr.reduce((sum, x) => sum + billableMs(x), 0);
+        const wTot = wr.reduce((sum, x) => sum + earnOf(x), 0);
+        const header = multi
+          ? `<tr><td colspan="5" style="padding:13px 14px 6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b6b73;background:#fafbfc;border-bottom:1px solid #eceef3;">${escapeHtml(wName)}${INVOICE_THROUGH[w] ? ' · sub-contractor' : ''} — ${escapeHtml(money(wRate))}/hr</td></tr>`
+          : '';
+        const shifts = wr.map(x => `
         <tr>
           <td style="${cell}color:#1d1d1f;">${escapeHtml(fmtDay(x.clock_in))}</td>
           <td style="${cell}color:#6b6b73;">${escapeHtml(fmtTime(x.clock_in))} – ${escapeHtml(fmtTime(x.clock_out))}</td>
           <td style="${cell}color:#1d1d1f;text-align:right;">${escapeHtml(fmtDur(billableMs(x)))}${unpaidMinutesOf(x) ? `<div style="font-size:10px;color:#c33d3e;margin-top:3px;">${escapeHtml(fmtMinutes(unpaidMinutesOf(x)))} unpaid</div>` : ''}</td>
-          <td style="${cell}color:#6b6b73;text-align:right;">${escapeHtml(money(rate))}/hr</td>
+          <td style="${cell}color:#6b6b73;text-align:right;">${escapeHtml(money(rateFor(x.agent)))}/hr</td>
           <td style="${cell}color:#1d1d1f;text-align:right;font-weight:700;">${escapeHtml(money(earnOf(x)))}</td>
         </tr>`).join('');
-      const th = 'padding:11px 14px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8a8a93;';
+        const subtotal = multi
+          ? `<tr><td colspan="2" style="${cell}color:#6b6b73;font-weight:700;">${escapeHtml(wName)} subtotal</td><td style="${cell}text-align:right;font-weight:700;">${escapeHtml(fmtDur(wMs))}</td><td style="${cell}"></td><td style="${cell}text-align:right;font-weight:700;">${escapeHtml(money(wTot))}</td></tr>`
+          : '';
+        return header + shifts + subtotal;
+      }).join('');
       const d = agentDetails[agent] || { name: agent, lines: [], payName: '', bsb: '', acct: '' };
       const fromHtml = [
         `<div style="font-size:16px;font-weight:700;">${escapeHtml(d.name || agent)}</div>`,

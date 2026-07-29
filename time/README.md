@@ -80,8 +80,9 @@ Every request also carries a `pin` (the agent's or the manager's).
 
 ## Pay rates & manager emails
 
-Rates are **$13.54/hr** (David) and **$25/hr** (Shanira), baked into the handler;
-override with a `TIME_RATES` env var (JSON, e.g. `{"David":10.42,"Shanira":25}`).
+Rates are **$13.54/hr** (David), **$25/hr** (Shanira) and **$10.4175/hr** (Alda Amonaki),
+baked into the handler; override with a `TIME_RATES` env var
+(JSON, e.g. `{"David":13.54,"Shanira":25,"Alda Amonaki":10.4175}`).
 Earnings = rounded billable hours × rate. **Pay is manager-only** — agents never see any dollar figures.
 Rates are sent from the server to the manager view only (never in the per-agent page or
 its CSV), so an agent can't read their rate/earnings even from the page source. Earnings
@@ -98,12 +99,24 @@ Best-effort and bounded, so an email hiccup never blocks a clock action. Change 
 
 In the manager view, pick an agent from the **All agents** dropdown, choose the week,
 then hit **🧾 Invoice PDF** — it opens a print-ready invoice **from that agent to Goldsure
-Pty Ltd** for that week (day, shift times, hours, rate, amount; **no GST** — not a tax
+Pty Ltd** (day, shift times, hours, rate, amount; **no GST** — not a tax
 invoice). Use the browser print dialog's *Save as PDF* to file it as a bill in Xero.
 Completed shifts only; manager view only (agents can't generate it). There's **no
 Goldsure logo** (it's the agent billing Goldsure). Each agent's billing/payment details
 (address, ABN, bank account) live server-side in `TIME_AGENT_DETAILS` and are sent only
 to the manager — never to an agent's page.
+
+**Sub-contractors & pay cycles** (configured in `time/index.html`):
+
+- **Alda Amonaki works through David.** Her hours are billed on **David's** invoice as a
+  separate, clearly-labelled line-item section at her own rate, and the total is David's +
+  Alda's combined — Goldsure pays David for both. Picking Alda from the dropdown generates
+  David's invoice (there is no separate Alda invoice, so she can't be double-paid). This is
+  the `INVOICE_THROUGH` map.
+- **Pay cycle** is per `PAY_CYCLE`: **Shanira is weekly**; **David + Alda are fortnightly**.
+  A weekly invoice covers the viewed week; a fortnightly invoice covers the **viewed week
+  plus the previous week** (navigate to the week that *ends* the pay fortnight, then hit
+  Invoice PDF). The period range is printed on the invoice so it's easy to verify.
 
 ## Forgotten clock-out
 
