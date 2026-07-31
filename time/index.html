@@ -346,15 +346,6 @@
       </div>
     </div>
 
-    <!-- Recent Activity -->
-    <div class="card">
-      <div class="section-head">
-        <div class="section-title">Recent Activity</div>
-        <a class="btn-ghost" href="#detailCard">View all activity</a>
-      </div>
-      <div class="activity-list" id="recentActivity"></div>
-    </div>
-
     <!-- Detailed timesheet -->
     <div class="card" id="detailCard">
       <div class="card-label" id="sheetLabel">Detailed timesheet</div>
@@ -726,30 +717,6 @@
       $('dailyAvg').textContent = fmtDur(avgMs);
     }
 
-    function renderRecentActivity() {
-      const box = $('recentActivity'); if (!box) return;
-      const scoped = (mode === 'manager')
-        ? (mgrFilter ? allEntries.filter(x => new Set([mgrFilter, ...subsOf(mgrFilter)]).has(x.agent)) : allEntries)
-        : allEntries.filter(x => x.agent === selectedAgent);
-      const events = [];
-      scoped.forEach(e => {
-        events.push({ t: new Date(e.clock_in).getTime(), type: 'in', agent: e.agent, iso: e.clock_in });
-        if (e.clock_out) events.push({ t: new Date(e.clock_out).getTime(), type: 'out', agent: e.agent, iso: e.clock_out });
-      });
-      events.sort((a, b) => b.t - a.t);
-      const top = events.slice(0, 6);
-      if (!top.length) { box.innerHTML = '<div class="activity-empty">No recent activity yet.</div>'; return; }
-      box.innerHTML = top.map(ev => {
-        const d = new Date(ev.iso);
-        const date = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-        const time = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
-        const who = (mode === 'manager') ? `<span class="activity-sub"> · ${escapeHtml(ev.agent)}</span>` : '';
-        return `<div class="activity-row"><span class="activity-dot ${ev.type}"></span>`
-          + `<span class="activity-main">${ev.type === 'in' ? 'Clocked in' : 'Clocked out'}${who}</span>`
-          + `<span class="activity-time"><b>${escapeHtml(date)}</b>${escapeHtml(time)}</span></div>`;
-      }).join('');
-    }
-
     function render() {
       const { fortnightly } = periodBounds();
       const periodWord = fortnightly ? 'fortnight' : 'week';
@@ -757,7 +724,6 @@
 
       renderSummary();
       renderWeekOverview();
-      renderRecentActivity();
 
       // Detailed timesheet (period = fortnight for David/Alda, week for Shanira).
       const rows = entriesForWeek();
