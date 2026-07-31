@@ -468,7 +468,11 @@
       if (!selectedAgent) { openPicker(); return; }
       const btn = $('clockBtn'); btn.disabled = true;
       try {
-        if (openEntry) { await call({ action: 'clock-out' }); openEntry = null; stopTick(); toast('Clocked out.'); }
+        if (openEntry) {
+          const out = await call({ action: 'clock-out' });
+          if (out && out.success === false) { toast(out.warning || 'Could not clock out.', true); return; }
+          openEntry = null; stopTick(); toast('Clocked out.');
+        }
         else { const data = await call({ action: 'clock-in' }); openEntry = data.entry || null; toast(data.alreadyOpen ? 'You were already clocked in.' : 'Clocked in.'); startTick(); }
         renderClock(); await loadEntries();
       } catch (e) { toast(e.message || 'Something went wrong.', true); }

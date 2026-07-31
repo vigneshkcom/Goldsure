@@ -404,8 +404,10 @@ export default async function handler(req, res) {
           return res.status(200).json({ entry: openRows[0], alreadyOpen: true });
         }
         const r = await fetch(TABLE, {
+          // Service-role key so the insert can't be silently blocked by RLS,
+          // matching clock-out / update / delete.
           method: 'POST',
-          headers: { ...anonH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          headers: { ...adminH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
           body: JSON.stringify({ agent, clock_in: new Date().toISOString() }),
         });
         if (!r.ok) {
@@ -431,8 +433,10 @@ export default async function handler(req, res) {
         const r = await fetch(
           `${TABLE}?agent=eq.${encodeURIComponent(agent)}&clock_out=is.null`,
           {
+            // Service-role key: an anon PATCH is silently blocked by RLS (0 rows
+            // changed), which drops the clock-out AND the shift-complete email.
             method: 'PATCH',
-            headers: { ...anonH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+            headers: { ...adminH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
             body: JSON.stringify({ clock_out: new Date().toISOString() }),
           }
         );
