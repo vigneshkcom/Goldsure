@@ -317,12 +317,15 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .modal-close:hover { color: var(--text); }
 .modal-field { margin-bottom: 14px; }
 .modal-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
-.modal-field input, .modal-field textarea {
+.modal-field input, .modal-field textarea, .modal-field select {
   width: 100%; font-family: 'Sora', sans-serif; font-size: 13px;
   border: 1.5px solid var(--border); border-radius: 8px;
   padding: 9px 12px; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.15s;
 }
-.modal-field input:focus, .modal-field textarea:focus { border-color: var(--gold); background: var(--surface); }
+.modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color: var(--gold); background: var(--surface); }
+.modal-field select { appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7899' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
 .modal-field textarea { resize: vertical; min-height: 80px; }
 
 /* GHL customer picker */
@@ -345,30 +348,8 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .ghl-item.empty { color: var(--muted); cursor: default; font-size: 11px; font-style: italic; }
 
 /* ── DISCOUNT SELECTOR ── */
-.discount-options { display: flex; flex-direction: column; gap: 8px; }
-.discount-opt {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
-  border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px;
-  background: var(--surface); color: var(--text); font-family: 'Sora', sans-serif;
-  cursor: pointer; text-align: left; transition: border-color .12s, background .12s;
-}
-.discount-opt:hover { border-color: var(--gold); }
-.discount-opt.active { border-color: var(--gold); background: var(--gold-bg); }
-.discount-opt-title { font-size: 13px; font-weight: 700; }
-.discount-opt-title::before {
-  content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px;
-  border: 1.5px solid var(--muted); border-radius: 50%; vertical-align: -1px;
-}
-.discount-opt.active .discount-opt-title::before {
-  border-color: var(--gold); background: radial-gradient(var(--gold) 45%, transparent 50%);
-}
-.discount-opt-sub { font-size: 10px; color: var(--muted); padding-left: 20px; }
 .discount-custom { margin-top: 10px; }
 .discount-custom label { display: block; }
-.discount-clear {
-  margin-top: 10px; border: none; background: none; color: var(--red);
-  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; padding: 0;
-}
 .send-sms-option {
   display: flex !important; align-items: flex-start; gap: 10px; cursor: pointer;
   border: 1.5px solid var(--border); border-radius: 9px; padding: 10px 12px;
@@ -856,25 +837,16 @@ function doLogout() {
 
     <div class="modal-field" id="discountField">
       <label>Discount</label>
-      <div class="discount-options">
-        <button type="button" class="discount-opt" data-discount="booking" onclick="selectDiscount('booking')">
-          <span class="discount-opt-title">Booking Fees Discount</span>
-          <span class="discount-opt-sub">$30 ex GST / $33 inc GST off the quote</span>
-        </button>
-        <button type="button" class="discount-opt" data-discount="controller" onclick="selectDiscount('controller')">
-          <span class="discount-opt-title">Smoke Alarm Controller Discount</span>
-          <span class="discount-opt-sub">$49 inc GST off the quote</span>
-        </button>
-        <button type="button" class="discount-opt" data-discount="regular" onclick="selectDiscount('regular')">
-          <span class="discount-opt-title">Regular Discount</span>
-          <span class="discount-opt-sub">Enter any amount (inc GST)</span>
-        </button>
-      </div>
+      <select id="discountSelect" onchange="selectDiscount(this.value)">
+        <option value="">No discount</option>
+        <option value="booking">Booking Fees Discount — $30 ex GST / $33 inc GST</option>
+        <option value="controller">Smoke Alarm Controller Discount — $49 inc GST</option>
+        <option value="regular">Regular Discount — enter any amount</option>
+      </select>
       <div class="discount-custom" id="discountCustomWrap" style="display:none;">
         <label>Discount amount (inc GST)</label>
         <input type="number" id="discountCustomAmount" min="0" step="0.01" placeholder="e.g. 50.00" oninput="onRegularDiscountInput()">
       </div>
-      <button type="button" class="discount-clear" id="discountClearBtn" style="display:none;" onclick="clearDiscount()">Remove discount</button>
     </div>
 
     <div class="modal-field">
@@ -1415,18 +1387,18 @@ function updateEmailQuotePreview() {
 }
 
 function selectDiscount(type) {
-  activeDiscount = type;
-  document.querySelectorAll('#discountField .discount-opt').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.discount === type);
-  });
+  activeDiscount = type || null;
   const customWrap = document.getElementById('discountCustomWrap');
-  customWrap.style.display = type === 'regular' ? '' : 'none';
+  const input = document.getElementById('discountCustomAmount');
   if (type === 'regular') {
-    const input = document.getElementById('discountCustomAmount');
-    input.focus();
+    customWrap.style.display = '';
     regularDiscountAmount = parseFloat(input.value) || 0;
+    input.focus();
+  } else {
+    customWrap.style.display = 'none';
+    input.value = '';
+    regularDiscountAmount = 0;
   }
-  document.getElementById('discountClearBtn').style.display = '';
   updateEmailQuotePreview();
 }
 
@@ -1438,11 +1410,11 @@ function onRegularDiscountInput() {
 function clearDiscount() {
   activeDiscount = null;
   regularDiscountAmount = 0;
+  const select = document.getElementById('discountSelect');
+  if (select) select.value = '';
   const input = document.getElementById('discountCustomAmount');
   if (input) input.value = '';
-  document.querySelectorAll('#discountField .discount-opt').forEach(btn => btn.classList.remove('active'));
   document.getElementById('discountCustomWrap').style.display = 'none';
-  document.getElementById('discountClearBtn').style.display = 'none';
   updateEmailQuotePreview();
 }
 
