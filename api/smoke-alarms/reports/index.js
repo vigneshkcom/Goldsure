@@ -281,7 +281,7 @@ export default async function handler(req, res) {
 
     // Manager notification emails (best-effort, bounded so they never delay a clock
     // action; the message is already saved before we email). To vignesh@ by default.
-    const MANAGER_EMAILS = (process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au,amit@goldsure.com.au')
+    const MANAGER_EMAILS = (process.env.TIME_MANAGER_EMAIL || 'vignesh@goldsure.com.au')
       .split(',').map(s => s.trim()).filter(Boolean);
     const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const escH = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -581,7 +581,7 @@ export default async function handler(req, res) {
     }
 
     // Notify both the manager and Amit. Override with LEAVE_NOTIFY_EMAIL (comma-separated).
-    const NOTIFY_EMAILS = (process.env.LEAVE_NOTIFY_EMAIL || 'vignesh@goldsure.com.au,amit@goldsure.com.au')
+    const NOTIFY_EMAILS = (process.env.LEAVE_NOTIFY_EMAIL || 'vignesh@goldsure.com.au')
       .split(',').map(e => e.trim()).filter(Boolean);
     const LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
     const escL = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
