@@ -345,18 +345,31 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .ghl-item .s { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); line-height: 1.45; }
 .ghl-item.empty { color: var(--muted); cursor: default; font-size: 11px; font-style: italic; }
 
-.july-offer {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  border: 1.5px solid #e8d28a; border-radius: 10px; padding: 12px 14px; background: var(--gold-bg);
+/* ── DISCOUNT SELECTOR ── */
+.discount-options { display: flex; flex-direction: column; gap: 8px; }
+.discount-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px;
+  background: var(--surface); color: var(--text); font-family: 'Sora', sans-serif;
+  cursor: pointer; text-align: left; transition: border-color .12s, background .12s;
 }
-.july-offer-copy strong { display: block; font-size: 13px; color: var(--text); }
-.july-offer-copy span { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); }
-.july-offer-btn {
-  flex: 0 0 auto; border: 1.5px solid var(--gold); border-radius: 8px; padding: 8px 12px;
-  background: var(--surface); color: var(--gold); font-family: 'Sora', sans-serif;
-  font-size: 11px; font-weight: 700; cursor: pointer;
+.discount-opt:hover { border-color: var(--gold); }
+.discount-opt.active { border-color: var(--gold); background: var(--gold-bg); }
+.discount-opt-title { font-size: 13px; font-weight: 700; }
+.discount-opt-title::before {
+  content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px;
+  border: 1.5px solid var(--muted); border-radius: 50%; vertical-align: -1px;
 }
-.july-offer-btn.applied { background: var(--gold); color: #000; }
+.discount-opt.active .discount-opt-title::before {
+  border-color: var(--gold); background: radial-gradient(var(--gold) 45%, transparent 50%);
+}
+.discount-opt-sub { font-size: 10px; color: var(--muted); padding-left: 20px; }
+.discount-custom { margin-top: 10px; }
+.discount-custom label { display: block; }
+.discount-clear {
+  margin-top: 10px; border: none; background: none; color: var(--red);
+  font-family: 'Sora', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; padding: 0;
+}
 .send-sms-option {
   display: flex !important; align-items: flex-start; gap: 10px; cursor: pointer;
   border: 1.5px solid var(--border); border-radius: 9px; padding: 10px 12px;
@@ -843,15 +856,27 @@ function doLogout() {
       <div class="email-preview-box" id="emailPreviewBox"></div>
     </div>
 
-    <div class="modal-field" id="july90Field">
-      <label>July Offer</label>
-      <div class="july-offer">
-        <div class="july-offer-copy">
-          <strong>JULY 90</strong>
-          <span>$90 incl. GST off the whole quote. Available until 31 July 2026.</span>
-        </div>
-        <button type="button" class="july-offer-btn" id="july90Btn" onclick="toggleJuly90Offer()">Apply $90 off</button>
+    <div class="modal-field" id="discountField">
+      <label>Discount</label>
+      <div class="discount-options">
+        <button type="button" class="discount-opt" data-discount="booking" onclick="selectDiscount('booking')">
+          <span class="discount-opt-title">Booking Fees Discount</span>
+          <span class="discount-opt-sub">$30 ex GST / $33 inc GST off the quote</span>
+        </button>
+        <button type="button" class="discount-opt" data-discount="controller" onclick="selectDiscount('controller')">
+          <span class="discount-opt-title">Smoke Alarm Controller Discount</span>
+          <span class="discount-opt-sub">$49 inc GST off the quote</span>
+        </button>
+        <button type="button" class="discount-opt" data-discount="regular" onclick="selectDiscount('regular')">
+          <span class="discount-opt-title">Regular Discount</span>
+          <span class="discount-opt-sub">Enter any amount (inc GST)</span>
+        </button>
       </div>
+      <div class="discount-custom" id="discountCustomWrap" style="display:none;">
+        <label>Discount amount (inc GST)</label>
+        <input type="number" id="discountCustomAmount" min="0" step="0.01" placeholder="e.g. 50.00" oninput="onRegularDiscountInput()">
+      </div>
+      <button type="button" class="discount-clear" id="discountClearBtn" style="display:none;" onclick="clearDiscount()">Remove discount</button>
     </div>
 
     <div class="modal-field">
@@ -899,7 +924,12 @@ let mainGhlTimer = null;
 let mainGhlResults = [];
 let emailGhlTimer = null;
 let emailGhlResults = [];
-let july90Applied = false;
+let activeDiscount = null;        // 'booking' | 'controller' | 'regular' | null
+let regularDiscountAmount = 0;    // custom amount (inc GST) for the Regular discount
+const DISCOUNTS = {
+  booking:    { label: 'Booking Fees Discount', amount: 33 },
+  controller: { label: 'Smoke Alarm Controller Discount', amount: 49 },
+};
 const QUOTE_TRACKER_SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const QUOTE_TRACKER_SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const fmt = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
@@ -1361,18 +1391,21 @@ document.addEventListener('click', event => {
   }
 });
 
-function isJuly90Available() {
-  const parts = new Intl.DateTimeFormat('en-AU', {
-    timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit'
-  }).formatToParts(new Date());
-  const year = parts.find(p => p.type === 'year')?.value;
-  const month = parts.find(p => p.type === 'month')?.value;
-  return year === '2026' && month === '07';
+function getActiveDiscountAmount() {
+  if (activeDiscount === 'regular') return regularDiscountAmount > 0 ? regularDiscountAmount : 0;
+  if (activeDiscount && DISCOUNTS[activeDiscount]) return DISCOUNTS[activeDiscount].amount;
+  return 0;
+}
+
+function getActiveDiscountLabel() {
+  if (activeDiscount === 'regular') return 'Discount';
+  if (activeDiscount && DISCOUNTS[activeDiscount]) return DISCOUNTS[activeDiscount].label;
+  return null;
 }
 
 function getEmailQuoteTotals() {
   const base = parseFloat(document.getElementById('res-total').innerText.replace(/[^0-9.]/g, '')) || 0;
-  const discount = july90Applied && isJuly90Available() ? Math.min(90, base) : 0;
+  const discount = Math.min(getActiveDiscountAmount(), base);
   return { base, discount, final: Math.max(0, base - discount) };
 }
 
@@ -1392,21 +1425,41 @@ function updateEmailQuotePreview() {
     previewHTML += '<div class="email-preview-row"><span>Smoke Alarm Inspection</span><span>$131.00</span></div>';
   }
   if (totals.discount > 0) {
-    previewHTML += `<div class="email-preview-row offer-row"><span>JULY 90 Offer (Incl. GST)</span><span>−${fmt.format(totals.discount)}</span></div>`;
+    previewHTML += `<div class="email-preview-row offer-row"><span>${getActiveDiscountLabel()} (Incl. GST)</span><span>−${fmt.format(totals.discount)}</span></div>`;
   }
   previewHTML += `<div class="email-preview-row"><span>Grand Total (Incl. GST)</span><span>${fmt.format(totals.final)}</span></div>`;
   document.getElementById('emailPreviewBox').innerHTML = previewHTML;
 }
 
-function toggleJuly90Offer() {
-  if (!isJuly90Available()) {
-    showToast('The JULY 90 offer has expired.');
-    return;
+function selectDiscount(type) {
+  activeDiscount = type;
+  document.querySelectorAll('#discountField .discount-opt').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.discount === type);
+  });
+  const customWrap = document.getElementById('discountCustomWrap');
+  customWrap.style.display = type === 'regular' ? '' : 'none';
+  if (type === 'regular') {
+    const input = document.getElementById('discountCustomAmount');
+    input.focus();
+    regularDiscountAmount = parseFloat(input.value) || 0;
   }
-  july90Applied = !july90Applied;
-  const btn = document.getElementById('july90Btn');
-  btn.classList.toggle('applied', july90Applied);
-  btn.innerText = july90Applied ? 'Applied ✓' : 'Apply $90 off';
+  document.getElementById('discountClearBtn').style.display = '';
+  updateEmailQuotePreview();
+}
+
+function onRegularDiscountInput() {
+  regularDiscountAmount = parseFloat(document.getElementById('discountCustomAmount').value) || 0;
+  updateEmailQuotePreview();
+}
+
+function clearDiscount() {
+  activeDiscount = null;
+  regularDiscountAmount = 0;
+  const input = document.getElementById('discountCustomAmount');
+  if (input) input.value = '';
+  document.querySelectorAll('#discountField .discount-opt').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('discountCustomWrap').style.display = 'none';
+  document.getElementById('discountClearBtn').style.display = 'none';
   updateEmailQuotePreview();
 }
 
@@ -1442,11 +1495,7 @@ function openEmailModal() {
   document.getElementById('sendQuoteSms').checked = true;
   selectedGhlContactId = ghlContact?.id || '';
   emailGhlResults = [];
-  july90Applied = false;
-  const offerAvailable = isJuly90Available();
-  document.getElementById('july90Field').style.display = offerAvailable ? '' : 'none';
-  document.getElementById('july90Btn').classList.remove('applied');
-  document.getElementById('july90Btn').innerText = 'Apply $90 off';
+  clearDiscount();
   if (ghlContact?.address && /\bQLD\b|Queensland/i.test(ghlContact.address)) {
     selectedQLDAddress = true;
     setAddressState('valid', '✓ From GHL — Queensland address');
@@ -1530,7 +1579,7 @@ async function sendQuoteEmail() {
         fee_amount:       feeAmount,
         grand_total:      grandTotal,
         pre_discount_total: baseGrandTotal,
-        offer_code:       offerApplied ? 'JULY 90' : null,
+        offer_code:       offerApplied ? getActiveDiscountLabel() : null,
         offer_applied:    offerApplied,
         offer_discount:   totals.discount,
         send_sms:         sendSms,
