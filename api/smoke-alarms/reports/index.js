@@ -483,14 +483,15 @@ export default async function handler(req, res) {
       }
 
       // Update an entry by id (fix a forgotten clock-out or a wrong time).
+      // Manager only — agents clock in/out but cannot edit timesheet entries.
       if (t.action === 'update') {
         const id = String(t.id || '').trim();
         if (!id) return res.status(400).json({ error: 'Entry id is required.' });
+        if (pinsOn && !isManager) return res.status(403).json({ error: 'Manager PIN required to edit an entry.' });
         const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=${COLS}&limit=1`, { headers: anonH });
         if (!cur.ok) return res.status(500).json({ error: 'Failed to load the entry before updating it.' });
         const current = ((await cur.json())[0] || null);
         if (!current) return res.status(404).json({ error: 'Entry not found.' });
-        if (pinsOn && !isManager && !agentOk(current.agent)) return res.status(403).json({ error: 'Incorrect PIN.' });
         const patch = {};
         if (t.clock_in !== undefined) patch.clock_in = t.clock_in || null;
         if (t.clock_out !== undefined) patch.clock_out = t.clock_out || null;

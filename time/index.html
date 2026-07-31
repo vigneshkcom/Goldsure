@@ -567,7 +567,7 @@
           <td class="earn-cell earn-col">${escapeHtml(money(earnOf(e)))}</td>
           <td class="row-actions">
             ${running ? `<button class="icon-act stop" data-stop="${escapeHtml(e.id)}" title="Clock out now">Stop</button>` : ''}
-            <button class="icon-act" data-edit="${escapeHtml(e.id)}" title="Edit">Edit</button>
+            <button class="icon-act mgr-only" data-edit="${escapeHtml(e.id)}" title="Edit">Edit</button>
           </td>
         </tr>`;
       }).join('') +
@@ -579,7 +579,10 @@
 
     async function stopEntry(id) {
       try {
-        await call({ action: 'update', id, clock_out: new Date().toISOString() });
+        // Managers close any agent's shift by id (update); an agent closes their own
+        // open shift via clock-out (they no longer have edit/update permission).
+        if (mode === 'manager') await call({ action: 'update', id, clock_out: new Date().toISOString() });
+        else await call({ action: 'clock-out' });
         if (openEntry && String(openEntry.id) === String(id)) { openEntry = null; stopTick(); renderClock(); }
         toast('Clocked out.'); await refreshStatus(); await loadEntries();
       } catch (err) { toast(err.message || 'Could not clock out.', true); }
