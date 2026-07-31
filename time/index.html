@@ -109,10 +109,70 @@
     .mgr-filter { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--text); background: var(--card); outline: none; cursor: pointer; }
     .mgr-filter:focus { border-color: var(--accent); }
 
-    /* Week/summary card: date, metric tile and CSV in one compact left column */
-    .card:has(> .weekbar) > .weekbar { justify-content: flex-start; }
-    .card:has(> .weekbar) > .wk-stats { margin-top: 13px; align-items: flex-start; }
-    .card:has(> .weekbar) > .wk-actions { margin-top: 11px; justify-content: flex-start; }
+    /* ── Dashboard top: clock hero + summary side by side ── */
+    .dash-top { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; align-items: stretch; margin-bottom: 18px; }
+    .dash-top > .card { margin-bottom: 0; }
+    body.manager-mode .dash-top { grid-template-columns: 1fr; }
+    @media (max-width: 820px) { .dash-top { grid-template-columns: 1fr; } }
+
+    .clock-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .clock-ring { position: absolute; top: 50%; left: 50%; width: 296px; height: 296px; border-radius: 50%; border: 1px dashed rgba(255,255,255,.10); transform: translate(-50%,-56%); pointer-events: none; }
+    .clock-ring::after { content: ''; position: absolute; inset: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,.05); }
+    .clock-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+    .clock-btn-ic { flex: 0 0 auto; }
+
+    /* Summary card */
+    .summary-card { display: flex; flex-direction: column; }
+    .summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-heading { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -.3px; }
+    .summary-head svg { color: var(--faint); }
+    .summary-row { display: flex; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+    .summary-ic { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); }
+    .summary-ic.alt { background: #e6f0ff; color: #3b82f6; }
+    .summary-meta { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+    .summary-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .summary-hours { font-size: 22px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.5px; line-height: 1; }
+    .summary-range { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--accent-dark); background: var(--accent-soft); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+    .summary-link { margin-top: auto; display: inline-flex; align-items: center; gap: 7px; color: var(--accent); font-weight: 700; font-size: 13px; padding-top: 8px; }
+    .summary-link:hover { color: var(--accent-dark); }
+
+    /* Section header (week overview / recent activity) */
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .section-title { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -.3px; }
+
+    /* Day tiles */
+    .day-tiles { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+    .day-tile { border: 1px solid var(--border); border-radius: 13px; padding: 13px 12px; background: #fbfbfe; min-width: 0; }
+    .day-tile.today { border-color: #cdc7f7; background: var(--accent-soft); box-shadow: 0 0 0 1px #cdc7f7 inset; }
+    .day-name { font-size: 12.5px; font-weight: 800; color: var(--accent); }
+    .day-tile.empty .day-name { color: var(--muted); }
+    .day-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .day-hours { font-size: 16px; font-weight: 800; color: var(--ink); margin-top: 14px; font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+    .day-tile.empty .day-hours { color: var(--faint); }
+    @media (max-width: 720px) { .day-tiles { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 460px) { .day-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+    /* Week footer */
+    .week-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 16px; background: var(--accent-soft); border-radius: 13px; padding: 14px 18px; }
+    .week-foot-total { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: var(--text); }
+    .week-foot-total b { color: var(--accent-dark); font-size: 16px; font-weight: 800; margin-left: 2px; font-variant-numeric: tabular-nums; }
+    .wf-ic { color: var(--accent); display: inline-flex; }
+    .week-foot-actions { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .wf-avg { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .wf-avg b { color: var(--ink); font-size: 15px; font-weight: 800; margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+    /* Recent activity */
+    .activity-list { display: flex; flex-direction: column; }
+    .activity-row { display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--line); }
+    .activity-row:last-child { border-bottom: none; }
+    .activity-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+    .activity-dot.in { background: var(--green); }
+    .activity-dot.out { background: var(--muted); }
+    .activity-main { flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 700; color: var(--ink); }
+    .activity-sub { color: var(--muted); font-weight: 500; }
+    .activity-time { flex: 0 0 auto; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .activity-time b { display: block; color: var(--text); font-weight: 700; }
+    .activity-empty { color: var(--muted); font-size: 13px; padding: 22px 2px; text-align: center; }
 
     /* Table */
     .table-wrap { overflow-x: auto; margin: 0 -4px; }
@@ -215,17 +275,47 @@
       </a>
     </div>
 
-    <!-- Clock hero (agent mode) -->
-    <div class="card clock-card" id="clockCard">
-      <div class="clock-status"><span class="live-dot"></span><span id="clockStatus">Not clocked in</span></div>
-      <div class="clock-timer" id="clockTimer">00:00:00</div>
-      <div class="clock-sub" id="clockSub">Tap Clock In to start your shift.</div>
-      <button class="clock-btn" id="clockBtn" disabled>Clock In</button>
+    <!-- Top: clock hero + summary -->
+    <div class="dash-top">
+      <!-- Clock hero (agent mode) -->
+      <div class="card clock-card" id="clockCard">
+        <div class="clock-ring"></div>
+        <div class="clock-status"><span class="live-dot"></span><span id="clockStatus">Not clocked in</span></div>
+        <div class="clock-timer" id="clockTimer">00:00:00</div>
+        <div class="clock-sub" id="clockSub">Tap Clock In to start your shift.</div>
+        <button class="clock-btn" id="clockBtn" disabled>
+          <svg class="clock-btn-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+          <span id="clockBtnText">Clock In</span>
+        </button>
+      </div>
+
+      <!-- Summary -->
+      <div class="card summary-card">
+        <div class="summary-head">
+          <div class="card-heading">Summary</div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="summary-row">
+          <span class="summary-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <div class="summary-meta"><span class="summary-label">This Fortnight</span><span class="summary-hours" id="sumFortHours">—</span></div>
+          <span class="summary-range" id="sumFortRange">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-ic alt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <div class="summary-meta"><span class="summary-label">This Week</span><span class="summary-hours" id="sumWeekHours">—</span></div>
+          <span class="summary-range" id="sumWeekRange">—</span>
+        </div>
+        <a class="summary-link" href="#detailCard">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          View detailed timesheet <span aria-hidden="true">→</span>
+        </a>
+      </div>
     </div>
 
-    <!-- Week bar -->
+    <!-- Week Overview -->
     <div class="card">
-      <div class="weekbar">
+      <div class="section-head">
+        <div class="section-title">Week Overview</div>
         <div class="wk-nav">
           <button class="nav-btn" id="prevWeek" title="Previous week" aria-label="Previous week">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -235,23 +325,39 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
           <button class="btn-ghost today-btn" id="todayBtn">This week</button>
+          <select id="mgrFilter" class="mgr-filter mgr-only" title="Filter and invoice by agent">
+            <option value="">All agents</option>
+            <option value="David">David</option>
+            <option value="Shanira">Shanira</option>
+          </select>
         </div>
-        <select id="mgrFilter" class="mgr-filter mgr-only" title="Filter and invoice by agent">
-          <option value="">All agents</option>
-          <option value="David">David</option>
-          <option value="Shanira">Shanira</option>
-        </select>
       </div>
-      <div class="wk-stats" id="weekStats"></div>
-      <div class="wk-actions">
-        <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
-        <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
+      <div class="day-tiles" id="dayTiles"></div>
+      <div class="week-foot">
+        <div class="week-foot-total">
+          <span class="wf-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span>
+          Total this week <b id="weekTotalHours">—</b>
+        </div>
+        <div class="week-foot-actions">
+          <div class="wf-avg">Daily average <b id="dailyAvg">—</b></div>
+          <button class="btn-purple mgr-only" id="invoiceBtn">🧾 Invoice PDF</button>
+          <button class="btn-ghost" id="csvBtn">⬇ CSV</button>
+        </div>
       </div>
     </div>
 
-    <!-- Timesheet -->
+    <!-- Recent Activity -->
     <div class="card">
-      <div class="card-label" id="sheetLabel">Timesheet</div>
+      <div class="section-head">
+        <div class="section-title">Recent Activity</div>
+        <a class="btn-ghost" href="#detailCard">View all activity</a>
+      </div>
+      <div class="activity-list" id="recentActivity"></div>
+    </div>
+
+    <!-- Detailed timesheet -->
+    <div class="card" id="detailCard">
+      <div class="card-label" id="sheetLabel">Detailed timesheet</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -479,14 +585,14 @@
         card.classList.add('live');
         $('clockStatus').textContent = 'On the clock';
         $('clockSub').textContent = 'Started ' + fmtTime(openEntry.clock_in) + ' · ' + fmtDay(openEntry.clock_in);
-        btn.textContent = 'Clock Out'; btn.classList.add('out'); btn.disabled = false;
+        $('clockBtnText').textContent = 'Clock Out'; btn.classList.add('out'); btn.disabled = false;
         tickNow();
       } else {
         card.classList.remove('live');
         $('clockStatus').textContent = 'Not clocked in';
         $('clockTimer').textContent = '00:00:00';
         $('clockSub').textContent = selectedAgent ? 'Tap Clock In to start your shift.' : 'Select who you are to start.';
-        btn.textContent = 'Clock In'; btn.classList.remove('out'); btn.disabled = !selectedAgent;
+        $('clockBtnText').textContent = 'Clock In'; btn.classList.remove('out'); btn.disabled = !selectedAgent;
       }
     }
     function tickNow() { if (openEntry) $('clockTimer').textContent = fmtClock(rawEntryMs(openEntry)); }
@@ -566,29 +672,97 @@
         + (earn != null ? `<div class="stat-earn">${escapeHtml(money(earn))}</div>` : '')
         + `</div>`;
     }
-    function render() {
-      const { startDate, endExcl, fortnightly } = periodBounds();
-      const end = addDays(endExcl, -1);
-      const periodWord = fortnightly ? 'fortnight' : 'week';
-      $('weekRange').textContent = startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    // ── New dashboard helpers ──────────────────────────────────
+    // Entries within [start,endExcl) scoped to the current view (an agent sees
+    // only their own; a manager sees the filtered agent + subs, or everyone).
+    function entriesInRange(start, endExcl) {
+      const s = start.getTime(), e = endExcl.getTime();
+      let list = allEntries.filter(x => { const t = new Date(x.clock_in).getTime(); return t >= s && t < e; });
+      if (mode === 'manager') {
+        if (mgrFilter) { const show = new Set([mgrFilter, ...subsOf(mgrFilter)]); list = list.filter(x => show.has(x.agent)); }
+      } else {
+        list = list.filter(x => x.agent === selectedAgent);
+      }
+      return list;
+    }
+    // Anchored 14-day fortnight containing the given week start (same grid the
+    // fortnightly pay periods use).
+    function anchoredFortnight(ws) {
+      const dayMs = 86400000;
+      const daysFromAnchor = Math.round((ws.getTime() - FORTNIGHT_ANCHOR.getTime()) / dayMs);
+      const start = addDays(FORTNIGHT_ANCHOR, Math.floor(daysFromAnchor / 14) * 14);
+      return { start, endExcl: addDays(start, 14) };
+    }
+    const rangeShort = (a, b) => a.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + b.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+    const rangeFull = (a, b) => a.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ' – ' + b.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    const sumMs = list => list.reduce((s, e) => s + billableMs(e), 0);
 
+    function renderSummary() {
+      const wkEnd = addDays(weekStart, 7);
+      const fn = anchoredFortnight(weekStart);
+      $('sumWeekHours').textContent = fmtDur(sumMs(entriesInRange(weekStart, wkEnd)));
+      $('sumFortHours').textContent = fmtDur(sumMs(entriesInRange(fn.start, fn.endExcl)));
+      $('sumWeekRange').textContent = rangeShort(weekStart, addDays(wkEnd, -1));
+      $('sumFortRange').textContent = rangeShort(fn.start, addDays(fn.endExcl, -1));
+    }
+
+    function renderWeekOverview() {
+      const tiles = $('dayTiles'); if (!tiles) return;
+      const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const todayYmd = ymd(new Date());
+      let total = 0, daysWorked = 0, html = '';
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(weekStart, i);
+        const ms = sumMs(entriesInRange(d, addDays(d, 1)));
+        if (ms > 0) { total += ms; daysWorked++; }
+        const cls = (ms > 0 ? '' : ' empty') + (ymd(d) === todayYmd ? ' today' : '');
+        html += `<div class="day-tile${cls}"><div class="day-name">${names[i]}</div>`
+          + `<div class="day-date">${d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>`
+          + `<div class="day-hours">${ms > 0 ? escapeHtml(fmtDur(ms)) : '—'}</div></div>`;
+      }
+      tiles.innerHTML = html;
+      $('weekTotalHours').textContent = fmtDur(total);
+      const avgMs = daysWorked ? Math.round((total / daysWorked) / 60000) * 60000 : 0;
+      $('dailyAvg').textContent = fmtDur(avgMs);
+    }
+
+    function renderRecentActivity() {
+      const box = $('recentActivity'); if (!box) return;
+      const scoped = (mode === 'manager')
+        ? (mgrFilter ? allEntries.filter(x => new Set([mgrFilter, ...subsOf(mgrFilter)]).has(x.agent)) : allEntries)
+        : allEntries.filter(x => x.agent === selectedAgent);
+      const events = [];
+      scoped.forEach(e => {
+        events.push({ t: new Date(e.clock_in).getTime(), type: 'in', agent: e.agent, iso: e.clock_in });
+        if (e.clock_out) events.push({ t: new Date(e.clock_out).getTime(), type: 'out', agent: e.agent, iso: e.clock_out });
+      });
+      events.sort((a, b) => b.t - a.t);
+      const top = events.slice(0, 6);
+      if (!top.length) { box.innerHTML = '<div class="activity-empty">No recent activity yet.</div>'; return; }
+      box.innerHTML = top.map(ev => {
+        const d = new Date(ev.iso);
+        const date = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+        const time = d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
+        const who = (mode === 'manager') ? `<span class="activity-sub"> · ${escapeHtml(ev.agent)}</span>` : '';
+        return `<div class="activity-row"><span class="activity-dot ${ev.type}"></span>`
+          + `<span class="activity-main">${ev.type === 'in' ? 'Clocked in' : 'Clocked out'}${who}</span>`
+          + `<span class="activity-time"><b>${escapeHtml(date)}</b>${escapeHtml(time)}</span></div>`;
+      }).join('');
+    }
+
+    function render() {
+      const { fortnightly } = periodBounds();
+      const periodWord = fortnightly ? 'fortnight' : 'week';
+      $('weekRange').textContent = rangeFull(weekStart, addDays(weekStart, 6));
+
+      renderSummary();
+      renderWeekOverview();
+      renderRecentActivity();
+
+      // Detailed timesheet (period = fortnight for David/Alda, week for Shanira).
       const rows = entriesForWeek();
       const totalMs = rows.reduce((sum, e) => sum + billableMs(e), 0);
       const totalEarn = rows.reduce((sum, e) => sum + earnOf(e), 0);
-      if (mode === 'manager') {
-        const byMs = {}, byEarn = {};
-        rows.forEach(e => { byMs[e.agent] = (byMs[e.agent] || 0) + billableMs(e); byEarn[e.agent] = (byEarn[e.agent] || 0) + earnOf(e); });
-        const names = Object.keys(byMs).sort();
-        // One clean stat card per agent, plus a Total card when more than one
-        // agent is in view (e.g. David + Alda). No text soup.
-        let html = names.map(a => statCard(a, byMs[a], byEarn[a], false)).join('');
-        if (!names.length) html = `<div class="stat stat-empty">No shifts this ${periodWord}</div>`;
-        else if (names.length > 1) html += statCard('Total', totalMs, totalEarn, true);
-        $('weekStats').innerHTML = html;
-      } else {
-        // Agent view — hours only, never any dollar figure.
-        $('weekStats').innerHTML = statCard('This ' + periodWord, totalMs, null, true);
-      }
 
       const body = $('rows');
       if (!rows.length) { body.innerHTML = `<tr><td colspan="7" class="empty">No shifts recorded this ${periodWord}.</td></tr>`; return; }
