@@ -540,14 +540,11 @@ export default async function handler(req, res) {
       }
 
       // Delete an entry by id (service-role key so RLS can't silently no-op it).
+      // Manager only — agents can edit their own entries but not delete them.
       if (t.action === 'delete') {
         const id = String(t.id || '').trim();
         if (!id) return res.status(400).json({ error: 'Entry id is required.' });
-        if (pinsOn && !isManager) {
-          const cur = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}&select=agent&limit=1`, { headers: anonH });
-          const owner = cur.ok ? ((await cur.json())[0] || {}).agent : null;
-          if (!agentOk(owner)) return res.status(403).json({ error: 'Incorrect PIN.' });
-        }
+        if (pinsOn && !isManager) return res.status(403).json({ error: 'Manager PIN required to delete an entry.' });
         const r = await fetch(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: { ...adminH, Prefer: 'return=representation' },
