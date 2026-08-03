@@ -25,6 +25,7 @@ export default async function handler(req, res) {
     pre_discount_total,
     offer_code,
     offer_applied,
+    offer_discount,
     send_sms = true,
     payment_note,
   } = req.body;
@@ -38,11 +39,11 @@ export default async function handler(req, res) {
     style: 'currency', currency: 'AUD', minimumFractionDigits: 2,
   }).format(Number(value) || 0);
 
-  // JULY 90 is valid only during July 2026 in Queensland (AEST). The server
-  // re-validates the offer so an old browser tab cannot apply it after expiry.
-  const july90IsLive = Date.now() >= Date.parse('2026-07-01T00:00:00+10:00') &&
-    Date.now() < Date.parse('2026-08-01T00:00:00+10:00');
-  const july90Applied = offer_applied === true && offer_code === 'JULY 90' && july90IsLive;
+  // Discount applied by the agent in the quote tool (Booking Fees / Controller /
+  // Regular). Trust the amount the tool sends; it is capped below so it can never
+  // exceed the pre-discount total. offer_code carries the label to show.
+  const offerLabel = offer_code || 'Discount';
+  const offerDiscountNumeric = Math.max(0, parseMoney(offer_discount));
 
   // ── Controller state ──
   // The Smoke Alarm Controller is an optional add-on. It should only appear
@@ -55,7 +56,8 @@ export default async function handler(req, res) {
     ? ((parseInt(alarm_qty, 10) || 0) * 98) + ((parseInt(ctrl_qty, 10) || 0) * 49) + 33
     : (service_type === 'Inspection Quote' ? 131 : parseMoney(pre_discount_total || grand_total));
   const preDiscountNumeric = calculatedPreDiscount;
-  const discountNumeric = july90Applied ? Math.min(90, preDiscountNumeric) : 0;
+  const offerApplied = offer_applied === true && offerDiscountNumeric > 0;
+  const discountNumeric = offerApplied ? Math.min(offerDiscountNumeric, preDiscountNumeric) : 0;
   const finalTotalNumeric = Math.max(0, preDiscountNumeric - discountNumeric);
   const quotedGrandTotal = money(finalTotalNumeric);
 
@@ -116,8 +118,8 @@ export default async function handler(req, res) {
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${fee_amount}</td>
           </tr>
-          ${july90Applied ? `<tr bgcolor="#faf6ec">
-            <td colspan="3" style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#7a6020;border-top:1px solid #e8d28a;">JULY 90 Offer <span style="font-size:11px;font-weight:400;">(Incl. GST)</span></td>
+          ${offerApplied ? `<tr bgcolor="#faf6ec">
+            <td colspan="3" style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#7a6020;border-top:1px solid #e8d28a;">${offerLabel} <span style="font-size:11px;font-weight:400;">(Incl. GST)</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#1f7d52;text-align:right;border-top:1px solid #e8d28a;">&minus;${money(discountNumeric)}</td>
           </tr>` : ''}
           <tr bgcolor="#000000">
@@ -465,7 +467,7 @@ export default async function handler(req, res) {
             `Quote type: ${service_type || 'Smoke Alarm Quote'}`,
             `Quote total (incl. GST): ${quotedGrandTotal}`,
             `Sent by: ${agent_name || 'Goldsure'}`,
-            `JULY 90 offer: ${july90Applied ? `Applied (−${money(discountNumeric)} incl. GST)` : 'Not applied'}`,
+            `Discount: ${offerApplied ? `${offerLabel} (−${money(discountNumeric)} incl. GST)` : 'None'}`,
             `Confirmation SMS: ${send_sms === false ? 'Not requested' : (smsSent ? 'Sent' : 'Requested but not sent')}`,
           ].join('\n');
 
@@ -619,7 +621,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       sms_sent: smsSent,
-      offer_applied: july90Applied,
+      offer_applied: offerApplied,
       grand_total: quotedGrandTotal,
       ghl_note_added: ghlNoteAdded,
       ghl_stage_moved: ghlStageMoved,
