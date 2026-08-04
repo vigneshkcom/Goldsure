@@ -860,6 +860,7 @@ export default async function handler(req, res) {
     const {
       quote_token, agent_name, customer_name, customer_email, customer_phone,
       customer_address, tank_model, line_items = [],
+      notes = [],
       email_body = '', send_sms = true,
       subtotal_ex_gst = 0, gst = 0, total_inc_gst = 0,
       stc_qty = 0, stc_rate = 0, stc_total = 0,
@@ -913,6 +914,16 @@ export default async function handler(req, res) {
     const quoteNo = 'HW-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
     const preheader = `Your Goldsure hot water quote — ${money(total_out_of_pocket)} out of pocket after rebates.`;
+
+    // Agent notes shown to the customer (optional)
+    const notesList = (Array.isArray(notes) ? notes : [notes]).map(n => String(n == null ? '' : n).trim()).filter(Boolean);
+    const notesHtml = notesList.length ? `
+    <tr><td style="padding:18px 32px 0;font-family:${FONT};">
+      <div style="border:1px solid #e3e7ef;border-radius:6px;padding:13px 16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">Notes</div>
+        ${notesList.map(n => `<div style="font-size:13px;color:#3d4658;line-height:1.6;">• ${esc(n)}</div>`).join('')}
+      </div>
+    </td></tr>` : '';
 
     const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Goldsure Hot Water Quotation</title></head>
@@ -991,7 +1002,7 @@ export default async function handler(req, res) {
         <td style="padding:16px 20px;font-family:${FONT};font-size:24px;font-weight:700;color:#ffffff;text-align:right;">${money(total_out_of_pocket)}</td>
       </tr></table>
     </td></tr>
-
+${notesHtml}
     <!-- Accept CTA -->
     <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
       <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:16px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>

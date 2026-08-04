@@ -202,6 +202,27 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
 .toast.show{opacity:1;}
 
 @media(max-width:640px){main{padding:14px 14px 24px;}.card-body{padding:14px 15px;}.grid2{grid-template-columns:1fr;}header{padding:0 14px;}.price-driver{gap:10px;}.price-input-wrap input{width:104px;}}
+/* Additional lines + notes */
+.extra-section{margin-top:15px;}
+.extra-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.extra-head span{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+.mini-btn{font-family:inherit;font-size:11.5px;font-weight:700;color:var(--gold);background:#fff;border:1px solid var(--gold-line);border-radius:8px;padding:5px 11px;cursor:pointer;transition:.15s;}
+.mini-btn:hover{background:#fffdf5;}
+.extra-hint{font-size:10.5px;color:var(--muted);line-height:1.45;margin-bottom:9px;}
+.extra-row,.note-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.extra-row .ex-label,.note-row .note-input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;color:var(--text);outline:none;transition:.15s;}
+.extra-row .ex-label:focus,.note-row .note-input:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,141,46,.13);}
+.ex-amt{display:flex;align-items:center;gap:2px;flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:9px;padding:0 10px;}
+.ex-amt span{font-size:13px;font-weight:700;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.ex-amt input{width:80px;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--text);text-align:right;background:transparent;padding:9px 0;}
+.ex-rm{flex:0 0 auto;width:32px;height:32px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;cursor:pointer;font-size:13px;line-height:1;transition:.15s;}
+.ex-rm:hover{border-color:#e2626f;color:#e2626f;background:#fff5f5;}
+.extra-warn{font-size:11px;font-weight:600;color:#c0392b;background:#fdecec;border:1px solid #f5c6c6;border-radius:8px;padding:7px 10px;margin-top:2px;display:none;}
+.sum-product.extra{padding:9px 2px;}
+.sum-product.extra .sp-name{font-weight:600;}
+.sum-notes{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;}
+.sum-notes .snote{font-size:11.5px;color:var(--muted2);line-height:1.5;padding-left:14px;position:relative;margin-bottom:3px;}
+.sum-notes .snote:before{content:'•';position:absolute;left:2px;color:var(--gold);}
 </style>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon-hws.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -305,6 +326,19 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
           <div class="price-input-wrap"><span>$</span><input type="number" id="custPrice" min="0" step="0.01" placeholder="0.00" value="998" oninput="recalc()"></div>
         </div>
         <label class="sv-toggle"><input type="checkbox" id="svEligible" checked onchange="recalc()"><span><strong>Solar Victoria eligible customer</strong> — applies the delayed SV rebate (up to $1,000). Uncheck for non-SV customers.</span></label>
+
+        <div class="extra-section">
+          <div class="extra-head"><span>Additional lines</span><button type="button" class="mini-btn" onclick="addExtraLine()">＋ Add line</button></div>
+          <div class="extra-hint">Each line moves that amount (ex GST) out of the tank's rate into its own line. The customer's total stays the same.</div>
+          <div id="extraLinesList"></div>
+          <div class="extra-warn" id="extraWarn">Additional lines exceed the tank's ex-GST amount — reduce them so the tank isn't below $0.</div>
+        </div>
+
+        <div class="extra-section">
+          <div class="extra-head"><span>Notes</span><button type="button" class="mini-btn" onclick="addNote()">＋ Add note</button></div>
+          <div class="extra-hint">Free-text notes shown on the quote (email &amp; PDF). No effect on price.</div>
+          <div id="notesList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -318,6 +352,7 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
           <div><div class="sp-name" id="sumModel">Select a tank model</div><div class="sp-tag">Primary Product · Qty 1</div></div>
           <div class="sp-price" id="lineTotal">$0.00</div>
         </div>
+        <div id="sumExtraLines"></div>
 
         <div class="tot-row"><span class="lbl">Total (ex GST)</span><span class="val" id="totExGst">$0.00</span></div>
         <div class="tot-row"><span class="lbl">GST (10%)</span><span class="val" id="totGst">$0.00</span></div>
@@ -342,6 +377,7 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
           </div>
         </div>
         <div class="result-row oop"><span class="lbl">Total Out-of-Pocket</span><span class="val" id="totOop">$0.00</span></div>
+        <div class="sum-notes" id="sumNotes" style="display:none;"></div>
 
         <div class="actions">
           <button class="btn" onclick="downloadPDF()">⬇ PDF</button>
@@ -389,6 +425,38 @@ const MODEL_LABEL = {
 
 let agent = '';
 let calc = {};
+
+// ── Additional lines (re-slice the tank's ex-GST amount) + free-text notes ──
+let extraLines = [];   // { id, label, amount }  amount is ex GST
+let quoteNotes = [];   // { id, text }
+let _lineUid = 0;
+function addExtraLine(){
+  const id = ++_lineUid;
+  extraLines.push({ id, label: '', amount: 0 });
+  const row = document.createElement('div');
+  row.className = 'extra-row'; row.dataset.id = id;
+  row.innerHTML = '<input type="text" class="ex-label" placeholder="Description (e.g. Extra plumbing)">'
+    + '<div class="ex-amt"><span>$</span><input type="number" min="0" step="0.01" class="ex-amount" placeholder="0.00"></div>'
+    + '<button type="button" class="ex-rm" title="Remove line">✕</button>';
+  row.querySelector('.ex-label').addEventListener('input', e => { const l = extraLines.find(x => x.id === id); if (l) l.label = e.target.value; recalc(); });
+  row.querySelector('.ex-amount').addEventListener('input', e => { const l = extraLines.find(x => x.id === id); if (l) l.amount = Math.max(0, parseFloat(e.target.value) || 0); recalc(); });
+  row.querySelector('.ex-rm').addEventListener('click', () => { extraLines = extraLines.filter(x => x.id !== id); row.remove(); recalc(); });
+  document.getElementById('extraLinesList').appendChild(row);
+  row.querySelector('.ex-label').focus();
+  recalc();
+}
+function addNote(){
+  const id = ++_lineUid;
+  quoteNotes.push({ id, text: '' });
+  const row = document.createElement('div');
+  row.className = 'note-row'; row.dataset.id = id;
+  row.innerHTML = '<input type="text" class="note-input" placeholder="Note shown on the quote">'
+    + '<button type="button" class="ex-rm" title="Remove note">✕</button>';
+  row.querySelector('.note-input').addEventListener('input', e => { const n = quoteNotes.find(x => x.id === id); if (n) n.text = e.target.value; recalc(); });
+  row.querySelector('.ex-rm').addEventListener('click', () => { quoteNotes = quoteNotes.filter(x => x.id !== id); row.remove(); recalc(); });
+  document.getElementById('notesList').appendChild(row);
+  row.querySelector('.note-input').focus();
+}
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to provide a quotation for your heat pump hot water system upgrade. The price shown below includes the applicable STC and Victorian Energy Upgrades discounts, with any Solar Victoria rebate shown separately. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 
 // ── Auth ──
@@ -430,9 +498,20 @@ function recalc(){
   const gst = round2(totalInc - subtotalEx);
   const oop = price;                                  // out-of-pocket = the entered price
 
+  // ── Additional lines: move their (ex-GST) amount out of the tank's rate.
+  // The subtotal/GST/total/out-of-pocket never change — only the breakdown.
+  const extraList = extraLines
+    .filter(l => (parseFloat(l.amount) || 0) > 0)
+    .map(l => ({ label: (l.label || '').trim() || 'Additional charge', amount: round2(parseFloat(l.amount) || 0) }));
+  const extraTotal = round2(extraList.reduce((s, l) => s + l.amount, 0));
+  const over = extraTotal > subtotalEx;
+  const tankEx = round2(Math.max(0, subtotalEx - extraTotal));
+  const notes = quoteNotes.map(n => (n.text || '').trim()).filter(Boolean);
+  const ew = $('extraWarn'); if (ew) ew.style.display = over ? 'block' : 'none';
+
   const model = $('tankModel').value;
   setTxt('sumModel', model ? (MODEL_LABEL[model] || model) : 'Select a tank model');
-  setTxt('lineTotal', fmt.format(subtotalEx));
+  setTxt('lineTotal', fmt.format(tankEx));
   setTxt('totExGst', fmt.format(subtotalEx));
   setTxt('totGst', fmt.format(gst));
   setTxt('totIncGst', fmt.format(totalInc));
@@ -443,7 +522,14 @@ function recalc(){
   setTxt('totOop', fmt.format(oop));
   const ds = $('delayedSection'); if(ds) ds.style.display = svEligible ? '' : 'none';
 
-  calc = { subtotalEx, gst, totalInc, sv, afterPos, oop, svEligible };
+  const exEl = $('sumExtraLines');
+  if (exEl) exEl.innerHTML = extraList.map(l =>
+    `<div class="sum-product extra"><div><div class="sp-name">${esc(l.label)}</div><div class="sp-tag">Additional charge</div></div><div class="sp-price">${fmt.format(l.amount)}</div></div>`
+  ).join('');
+  const noteEl = $('sumNotes');
+  if (noteEl) { noteEl.style.display = notes.length ? 'block' : 'none'; noteEl.innerHTML = notes.map(n => `<div class="snote">${esc(n)}</div>`).join(''); }
+
+  calc = { subtotalEx, gst, totalInc, sv, afterPos, oop, svEligible, tankEx, extraList, extraTotal, notes };
 }
 
 // ── GHL customer search ──
@@ -536,7 +622,8 @@ function openPreview(){
       </div>
     </div>
     <table class="pv-table">
-      <tr><td>${esc(MODEL_LABEL[c.model]||c.model)}<br><span style="font-size:11px;color:var(--muted);">Primary Product · Qty 1</span></td><td class="r">${fmt.format(calc.subtotalEx)}</td></tr>
+      <tr><td>${esc(MODEL_LABEL[c.model]||c.model)}<br><span style="font-size:11px;color:var(--muted);">Primary Product · Qty 1</span></td><td class="r">${fmt.format(calc.tankEx)}</td></tr>
+      ${(calc.extraList||[]).map(l=>`<tr><td>${esc(l.label)}<br><span style="font-size:11px;color:var(--muted);">Additional charge</span></td><td class="r">${fmt.format(l.amount)}</td></tr>`).join('')}
       <tr class="sub"><td>Subtotal (ex GST)</td><td class="r">${fmt.format(calc.subtotalEx)}</td></tr>
       <tr class="sub"><td>GST (10%)</td><td class="r">${fmt.format(calc.gst)}</td></tr>
       <tr class="grand"><td>Total (inc GST)</td><td class="r">${fmt.format(calc.totalInc)}</td></tr>
@@ -546,6 +633,7 @@ function openPreview(){
       ${calc.svEligible?`<tr class="reb"><td>Less Solar Victoria rebate (delayed)</td><td class="r">− ${fmt.format(calc.sv)}</td></tr>`:'<tr class="sub"><td colspan="2" style="font-style:italic;">Non-SV customer — no Solar Victoria rebate applied</td></tr>'}
     </table>
     <div class="pv-oop"><span class="l">Customer Out-of-Pocket</span><span class="v">${fmt.format(calc.oop)}</span></div>
+    ${(calc.notes&&calc.notes.length)?`<div style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:11px 13px;"><div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Notes</div>${calc.notes.map(n=>`<div style="font-size:12.5px;color:#3d4658;line-height:1.5;">• ${esc(n)}</div>`).join('')}</div>`:''}
     <div class="pv-options">
       <label class="pv-label" for="emailBody">Email message</label>
       <textarea class="pv-email-body" id="emailBody">${esc(DEFAULT_EMAIL_BODY)}</textarea>
@@ -576,7 +664,11 @@ async function doSend(){
         agent_name:agent, customer_name:name, customer_email:email, customer_phone:phone, customer_address:address,
         email_body:emailBody, send_sms:sendSms,
         tank_model:model,
-        line_items:[{ name: MODEL_LABEL[model]||model, type:'Primary Product', qty:1, rate:calc.subtotalEx }],
+        line_items:[
+          { name: MODEL_LABEL[model]||model, type:'Primary Product', qty:1, rate:calc.tankEx },
+          ...(calc.extraList||[]).map(l=>({ name:l.label, type:'Additional charge', qty:1, rate:l.amount })),
+        ],
+        notes:(calc.notes||[]),
         subtotal_ex_gst:calc.subtotalEx, gst:calc.gst, total_inc_gst:calc.totalInc,
         stc_qty:STC.qty, stc_rate:STC.rate, stc_total:STC.total,
         veec_qty:VEEC.qty, veec_rate:VEEC.rate, veec_total:VEEC.total,
@@ -658,9 +750,22 @@ function downloadPDF(){
     doc.setTextColor(...MUTED); doc.setFontSize(8); doc.text('Primary Product', ML, y+4+((itemLines.length-1)*4.6));
     doc.setTextColor(...INK); doc.setFontSize(10);
     doc.text('1', ML+112, y, {align:'right'});
-    doc.text(m(calc.subtotalEx), ML+150, y, {align:'right'});
-    doc.text(m(calc.subtotalEx), RX, y, {align:'right'});
+    doc.text(m(calc.tankEx), ML+150, y, {align:'right'});
+    doc.text(m(calc.tankEx), RX, y, {align:'right'});
     y+=Math.max(10, itemLines.length*4.6+6);
+
+    // Additional lines (re-sliced from the tank's rate; subtotal/total unchanged)
+    (calc.extraList||[]).forEach(l=>{
+      const exLines=doc.splitTextToSize(l.label, 95);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...INK); doc.setFontSize(10);
+      doc.text(exLines, ML, y);
+      doc.setTextColor(...MUTED); doc.setFontSize(8); doc.text('Additional charge', ML, y+4+((exLines.length-1)*4.6));
+      doc.setTextColor(...INK); doc.setFontSize(10);
+      doc.text('1', ML+112, y, {align:'right'});
+      doc.text(m(l.amount), ML+150, y, {align:'right'});
+      doc.text(m(l.amount), RX, y, {align:'right'});
+      y+=Math.max(10, exLines.length*4.6+6);
+    });
 
     // Totals
     doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(ML,y,RX,y); y+=6;
@@ -687,6 +792,14 @@ function downloadPDF(){
     doc.setTextColor(...GOLD); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('YOUR TOTAL OUT-OF-POCKET', ML+5, y+9);
     doc.setTextColor(255,255,255); doc.setFontSize(16); doc.text(m(calc.oop), RX-5, y+10, {align:'right'});
     y+=26;
+
+    // Notes
+    if((calc.notes||[]).length){
+      doc.setTextColor(...MUTED); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('NOTES', ML, y); y+=5.5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(61,70,88);
+      calc.notes.forEach(n=>{ doc.splitTextToSize('•  '+n, RX-ML).forEach(l=>{ doc.text(l, ML, y); y+=4.6; }); });
+      y+=4;
+    }
 
     // Disclaimer
     doc.setTextColor(160,166,176); doc.setFont('helvetica','italic'); doc.setFontSize(7.5);
