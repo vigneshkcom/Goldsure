@@ -80,6 +80,16 @@
   .legend .sw{display:flex;gap:3px;}
   .legend .sw i{width:16px;height:12px;border-radius:3px;display:block;}
 
+  .heat-avg{width:66px;height:44px;border-radius:9px;background:#faf9ff;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .heat-avg b{font-size:14px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;}
+  .heat-avg small{font-size:8px;font-weight:700;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.3px;}
+
+  /* Hourly agent toggle chips */
+  .hours-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .hchip{font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;transition:.12s;}
+  .hchip:hover{border-color:var(--gold);color:var(--gold);}
+  .hchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+
   /* Two-col */
   .cols{display:grid;grid-template-columns:1.25fr .9fr;gap:18px;}
   @media(max-width:960px){.cols{grid-template-columns:1fr;}.kpis{grid-template-columns:repeat(2,1fr);}}
@@ -182,9 +192,9 @@
 
   <div class="cols">
     <div class="card" style="margin-bottom:0;">
-      <div class="card-head">
+      <div class="card-head" style="align-items:flex-start;">
         <div class="card-title" id="hoursTitle">Hourly breakdown</div>
-        <div class="card-hint" id="hoursScope">All agents</div>
+        <div class="hours-chips" id="hoursChips"></div>
       </div>
       <table class="hours">
         <thead><tr><th>Time period</th><th>Calls made</th><th>Connected</th><th>No answer</th><th>Total duration</th></tr></thead>
@@ -270,6 +280,10 @@ function agentTotals(a){ let made=0,conn=0,dur=0; HOURS.forEach(h=>{const c=cell
 // heat color (gold scale)
 function heatColor(v,max){ if(v===0) return {bg:'#f7f8fb',fg:'#c3c8d4'}; const t=Math.min(1,v/max); const bg=`rgba(176,141,46,${(0.12+t*0.78).toFixed(2)})`; const fg = t>0.5?'#fff':'#5a4a1e'; return {bg,fg}; }
 
+let hoursAgent='';                                  // Hourly-breakdown agent toggle ('' = all)
+const firstNm = n => String(n||'').split(/\s+/)[0];
+function setHoursAgent(name){ hoursAgent = name || ''; render(); }
+
 function render(){
   const agents=scopedAgents();
   const ds=dataset();
@@ -291,7 +305,7 @@ function render(){
   // Heatmap
   let head='<tr><th class="agent-h">Agent</th>';
   HOURS.forEach(h=>{ head += `<th class="${h===NOW_HOUR?'col-now':''}">${hourLabel(h)}${h===NOW_HOUR?'<br><span class="now-tag">● now</span>':''}</th>`; });
-  head+='<th>Total</th></tr>';
+  head+='<th>Total</th><th>Avg / call</th></tr>';
   let rows='';
   agents.forEach(a=>{
     rows+=`<tr><td><div class="agent-cell"><span class="avatar">${initials(a)}</span><span class="agent-name">${a}</span></div></td>`;
@@ -301,21 +315,27 @@ function render(){
       rows+=`<td><div class="heat-cell ${sel}" style="background:${col.bg};color:${col.fg};" title="${a} · ${hourRange(h)}\nMade ${c.made} · Connected ${c.conn} · No answer ${c.noans} · ${fmtDur(c.dur)}" onclick="pickHour(${h})"><span class="hc-n">${c.made||''}</span>${c.made?`<span class="hc-d">${fmtDur(c.dur)}</span>`:''}</div></td>`;
     });
     const at=agentTotals(a);
-    rows+=`<td><div class="heat-tot"><span class="hc-n">${at.made}</span><span class="hc-d">${fmtDur(at.dur)}</span></div></td></tr>`;
+    const avg = at.made ? fmtDur(Math.round(at.dur/at.made)) : '—';
+    rows+=`<td><div class="heat-tot"><span class="hc-n">${at.made}</span><span class="hc-d">${fmtDur(at.dur)}</span></div></td>`
+      + `<td><div class="heat-avg" title="Average call handling time"><b>${avg}</b><small>avg</small></div></td></tr>`;
   });
   document.getElementById('heat').innerHTML='<table class="heat"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>';
 
   // Legend swatches
   document.getElementById('legendSwatches').innerHTML=[0.15,0.4,0.65,0.9].map(t=>`<i style="background:rgba(176,141,46,${t})"></i>`).join('');
 
-  // Hourly breakdown (scoped)
-  document.getElementById('hoursScope').textContent = agents.length===1?agents[0]:'All agents';
+  // Hourly breakdown — toggle between the agents active that day
+  const hActive = allAgents();
+  const hAgents = (hoursAgent && hActive.includes(hoursAgent)) ? [hoursAgent] : hActive;
+  document.getElementById('hoursChips').innerHTML =
+    `<button class="hchip${hoursAgent===''?' on':''}" onclick="setHoursAgent('')">All</button>`
+    + hActive.map(a=>`<button class="hchip${hoursAgent===a?' on':''}" onclick="setHoursAgent('${a.replace(/'/g,"\\'")}')">${firstNm(a)}</button>`).join('');
   let hb='';
   HOURS.forEach(h=>{
-    const t=hourTotals(h,agents); if(t.made===0 && h>NOW_HOUR) return;
+    const t=hourTotals(h,hAgents); if(t.made===0 && h>NOW_HOUR) return;
     hb+=`<tr class="${selHour===h?'sel':''}" onclick="pickHour(${h})" style="cursor:pointer;"><td>${hourRange(h)}</td><td class="cval">${t.made}</td><td class="cconn">${t.conn}</td><td class="cnoans">${t.noans||'0'}</td><td class="mono cmuted">${fmtDur(t.dur)}</td></tr>`;
   });
-  let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,agents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
+  let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,hAgents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
   hb+=`<tr class="total"><td>Total</td><td class="cval">${tm}</td><td class="cconn">${tc}</td><td class="cnoans">${tn}</td><td class="mono">${fmtDur(td)}</td></tr>`;
   document.getElementById('hoursBody').innerHTML=hb;
 
