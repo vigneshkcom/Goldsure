@@ -972,6 +972,68 @@ function rcCallReportRow(name, lastHour, today) {
   </table>`;
 }
 
+function rcMissedClock(iso) {
+  try {
+    return new Intl.DateTimeFormat('en-AU', {
+      timeZone: rcTz(), hour: 'numeric', minute: '2-digit', hour12: true,
+    }).format(new Date(iso));
+  } catch {
+    return '';
+  }
+}
+
+function rcUnreturnedForHour(raw, todayUnreturned, targetHour) {
+  const outstanding = new Map(todayUnreturned.map(item => [rcDigits(item.number), item]));
+  const grouped = new Map();
+  const seen = new Set();
+  for (const record of raw?.records || []) {
+    if (record.sessionId && seen.has(record.sessionId)) continue;
+    if (record.sessionId) seen.add(record.sessionId);
+    if (record.direction !== 'Inbound' || !/miss|voicemail|no ?answer|abandon/i.test(String(record.result || ''))) continue;
+    if (rcHourFromIso(record.startTime, rcTz()) !== targetHour) continue;
+    const number = rcDigits(record.from?.phoneNumber);
+    const outstandingItem = outstanding.get(number);
+    if (!number || !outstandingItem) continue;
+    const timestamp = new Date(record.startTime).getTime();
+    if (!Number.isFinite(timestamp)) continue;
+    const item = grouped.get(number) || {
+      number: outstandingItem.number,
+      name: outstandingItem.name,
+      count: 0,
+      missedAt: record.startTime,
+    };
+    item.count += 1;
+    if (timestamp > new Date(item.missedAt).getTime()) item.missedAt = record.startTime;
+    grouped.set(number, item);
+  }
+  return [...grouped.values()].sort((a, b) => new Date(b.missedAt) - new Date(a.missedAt));
+}
+
+function rcMissedEmailSection(label, items) {
+  const callCount = items.reduce((sum, item) => sum + (Number(item.count) || 1), 0);
+  const rows = items.length ? items.map((item, index) => {
+    const detail = [item.name, `missed ${rcMissedClock(item.missedAt)}`, item.count > 1 ? `${item.count} calls` : '']
+      .filter(Boolean).map(value => esc(value)).join(' &middot; ');
+    return `<tr>
+      <td style="padding:10px 12px;${index ? 'border-top:1px solid #eee3df;' : ''}">
+        <div style="font-size:14px;line-height:20px;font-weight:800;color:#222222;">${esc(item.number)}</div>
+        <div style="font-size:11px;line-height:17px;color:#777777;">${detail}</div>
+      </td>
+      <td width="112" align="right" valign="middle" style="padding:10px 12px;${index ? 'border-top:1px solid #eee3df;' : ''}font-size:10px;line-height:15px;font-weight:800;color:#a63b28;">NOT CALLED BACK</td>
+    </tr>`;
+  }).join('') : `<tr><td style="padding:12px;font-size:12px;line-height:18px;color:#39704f;">No outstanding missed calls.</td></tr>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin:0 0 14px;border:1px solid #e5d5cf;border-collapse:separate;background-color:#ffffff;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+    <tr>
+      <td bgcolor="#fff3ef" style="padding:13px 14px;background-color:#fff3ef;">
+        <span style="font-size:11px;line-height:16px;font-weight:800;letter-spacing:1px;color:#7b3b2f;">${esc(label)}</span><br>
+        <span style="font-size:30px;line-height:38px;font-weight:900;color:${callCount ? '#b23b25' : '#167342'};">${callCount}</span>
+        <span style="font-size:12px;line-height:18px;font-weight:700;color:#555555;"> missed ${callCount === 1 ? 'call' : 'calls'} not called back</span>
+      </td>
+    </tr>
+    ${rows}
+  </table>`;
+}
+
 async function ringcentralHourlyEmail(req, res) {
   const expected = String(process.env.CALL_REPORT_CRON_SECRET || '');
   const supplied = String(req.headers?.authorization || '');
@@ -994,7 +1056,11 @@ async function ringcentralHourlyEmail(req, res) {
   try {
     const range = rcDayRange('today');
     const raw = await rcFetchTimeline(range);
+    const callLogRaw = await rcFetchCallLog(range);
     const agents = rcNormalize(raw);
+    const missedData = rcNormalizeMissed(callLogRaw);
+    const todayUnreturned = missedData.missed.filter(item => !item.returned);
+    const lastHourUnreturned = rcUnreturnedForHour(callLogRaw, todayUnreturned, hour - 1);
     const targets = [
       { label: 'Alda', match: 'alda' },
       { label: 'David', match: 'david' },
@@ -1048,6 +1114,9 @@ async function ringcentralHourlyEmail(req, res) {
           ${rows}
           <div style="margin:2px 0 16px;padding:12px 15px;border-radius:9px;background:#eeeeee;font-size:13px;line-height:1.5;color:#444444;"><strong>Combined today:</strong> ${todayTotal.made} made &middot; ${todayTotal.connected} connected &middot; ${todayTotal.noAnswer} no answer</div>
           <div style="margin:0 0 16px;font-size:11px;line-height:1.5;color:#777777;">No answer means the outbound call was not connected, including calls that reached voicemail.</div>
+          <div style="margin:4px 0 12px;padding-top:16px;border-top:2px solid #ded7c6;font-size:14px;line-height:20px;font-weight:800;letter-spacing:.5px;color:#333333;">MISSED CALLS STILL NOT CALLED BACK</div>
+          ${rcMissedEmailSection(`PREVIOUS HOUR — ${period}`, lastHourUnreturned)}
+          ${rcMissedEmailSection('WHOLE OF TODAY', todayUnreturned)}
           <div style="padding-top:4px;text-align:center;font-size:12px;color:#777777;">
             <a href="https://portal.goldsure.com.au/calls/" style="color:#9a7920;text-decoration:none;font-weight:700;">Open the live Call Analytics dashboard</a>
           </div>
@@ -1064,6 +1133,11 @@ async function ringcentralHourlyEmail(req, res) {
       '',
       `Combined last hour: ${lastHourTotal.made} made, ${lastHourTotal.connected} connected, ${lastHourTotal.noAnswer} no answer.`,
       `Combined today: ${todayTotal.made} made, ${todayTotal.connected} connected, ${todayTotal.noAnswer} no answer.`,
+      '',
+      `Missed calls not called back in the previous hour: ${lastHourUnreturned.reduce((sum, item) => sum + (Number(item.count) || 1), 0)}.`,
+      ...lastHourUnreturned.map(item => `${item.number} — missed ${rcMissedClock(item.missedAt)}${item.name ? ` — ${item.name}` : ''}.`),
+      `Missed calls not called back today: ${todayUnreturned.reduce((sum, item) => sum + (Number(item.count) || 1), 0)}.`,
+      ...todayUnreturned.map(item => `${item.number} — missed ${rcMissedClock(item.missedAt)}${item.name ? ` — ${item.name}` : ''}.`),
       'https://portal.goldsure.com.au/calls/',
     ].join('\n');
 
@@ -1074,7 +1148,20 @@ async function ringcentralHourlyEmail(req, res) {
       text,
       html,
     });
-    return res.status(200).json({ ok: true, sent: true, recipients, period, date: dateLabel, totals: lastHourTotal, todayTotals: todayTotal, agents: targets });
+    return res.status(200).json({
+      ok: true,
+      sent: true,
+      recipients,
+      period,
+      date: dateLabel,
+      totals: lastHourTotal,
+      todayTotals: todayTotal,
+      agents: targets,
+      missedNotCalledBack: {
+        lastHour: lastHourUnreturned.reduce((sum, item) => sum + (Number(item.count) || 1), 0),
+        today: todayUnreturned.reduce((sum, item) => sum + (Number(item.count) || 1), 0),
+      },
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: err.message });
   }
