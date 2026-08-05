@@ -765,10 +765,15 @@ function rcDayRange(which) {
 function rcHourFromIso(iso, zone) { try { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(new Date(iso))); } catch { return null; } }
 function rcNormalize(raw) {
   const zone = rcTz();
+  // Users to leave out of the call report (matched case-insensitively as a
+  // substring of the name). Override with RINGCENTRAL_EXCLUDE_USERS (comma-sep).
+  const exclude = (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   const records = raw?.data?.records || raw?.records || [];
   const agents = [];
   for (const rec of records) {
     const name = rec?.info?.name || rec?.key?.name || rec?.name || 'Unknown';
+    if (exclude.some(x => name.toLowerCase().includes(x))) continue;
     const series = rec?.points || rec?.dataItems || [];
     const hours = {};
     let active = false;
