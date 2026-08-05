@@ -996,9 +996,9 @@ async function ringcentralHourlyEmail(req, res) {
     const raw = await rcFetchTimeline(range);
     const agents = rcNormalize(raw);
     const targets = [
-      { label: 'Shanira', match: 'shanira' },
-      { label: 'David', match: 'david' },
       { label: 'Alda', match: 'alda' },
+      { label: 'David', match: 'david' },
+      { label: 'Shanira', match: 'shanira' },
     ].map(target => {
       const agent = agents.find(a => String(a.name || '').toLowerCase().includes(target.match));
       return {
@@ -1022,17 +1022,21 @@ async function ringcentralHourlyEmail(req, res) {
     const recipients = ['vignesh@goldsure.com.au', 'amit@goldsure.com.au'];
     const subject = `Last hour: ${lastHourTotal.made} calls made | Goldsure ${period}`;
     const rows = targets.map(item => rcCallReportRow(item.label, item.lastHour, item.today)).join('');
-    const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f5f3ed;">
-      <div style="max-width:660px;margin:0 auto;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-        <div style="padding:20px 22px;background:#111111;border-radius:12px 12px 0 0;">
-          <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#c7a84b;">Goldsure Call Analytics</div>
-          <div style="margin-top:7px;font-size:24px;font-weight:800;color:#ffffff;">Last-hour call report</div>
-          <div style="margin-top:5px;font-size:13px;color:#bdbdbd;">${esc(period)} &middot; ${esc(dateLabel)} &middot; ${esc(zone)}</div>
-        </div>
-        <div style="padding:18px;background:#faf9f5;border:1px solid #e8e3d5;border-top:0;border-radius:0 0 12px 12px;">
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+    <body style="margin:0;padding:0;background-color:#f5f3ed;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f3ed" style="width:100%;border-collapse:collapse;background-color:#f5f3ed;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+        <tr><td align="center" style="padding:24px 12px;">
+          <!--[if mso]><table role="presentation" width="660" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:660px;border-collapse:separate;font-family:Arial,Helvetica,sans-serif;color:#111111;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+            <tr><td bgcolor="#111111" style="padding:20px 22px;background-color:#111111;border-radius:12px 12px 0 0;">
+              <span style="font-size:11px;line-height:16px;letter-spacing:2px;text-transform:uppercase;color:#c7a84b;">Goldsure Call Analytics</span><br>
+              <span style="font-size:24px;line-height:34px;font-weight:800;color:#ffffff;">Last-hour call report</span><br>
+              <span style="font-size:13px;line-height:20px;color:#bdbdbd;">${esc(period)} &middot; ${esc(dateLabel)} &middot; ${esc(zone)}</span>
+            </td></tr>
+            <tr><td bgcolor="#faf9f5" style="padding:18px;background-color:#faf9f5;border:1px solid #e8e3d5;border-top:0;border-radius:0 0 12px 12px;">
           <div style="margin:0 0 18px;padding:18px 10px 16px;border-radius:12px;background:#efe7cd;text-align:center;">
             <div style="margin-bottom:14px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#66531d;">COMBINED &mdash; LAST HOUR</div>
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
               <tr>
                 <td width="33.33%" align="center" style="padding:2px 4px;"><div style="font-size:44px;line-height:1;font-weight:900;color:#111111;">${lastHourTotal.made}</div><div style="margin-top:7px;font-size:10px;font-weight:800;letter-spacing:1px;color:#66531d;">CALLS MADE</div></td>
                 <td width="33.33%" align="center" style="padding:2px 4px;border-left:1px solid #d5c79e;"><div style="font-size:44px;line-height:1;font-weight:900;color:#167342;">${lastHourTotal.connected}</div><div style="margin-top:7px;font-size:10px;font-weight:800;letter-spacing:1px;color:#167342;">CONNECTED</div></td>
@@ -1047,8 +1051,11 @@ async function ringcentralHourlyEmail(req, res) {
           <div style="padding-top:4px;text-align:center;font-size:12px;color:#777777;">
             <a href="https://portal.goldsure.com.au/calls/" style="color:#9a7920;text-decoration:none;font-weight:700;">Open the live Call Analytics dashboard</a>
           </div>
-        </div>
-      </div>
+            </td></tr>
+          </table>
+          <!--[if mso]></td></tr></table><![endif]-->
+        </td></tr>
+      </table>
     </body></html>`;
     const text = [
       `Goldsure hourly call report — ${period}, ${dateLabel}`,
