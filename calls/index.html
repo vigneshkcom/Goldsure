@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Analytics · Goldsure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#eef0f4; --card:#fff; --ink:#141824; --text:#3b3f4c; --muted:#8a8f9e; --faint:#aeb3c2;
+    --line:#e8eaf1; --hair:#eef0f6;
+    --gold:#b08d2e; --gold-soft:#faf4e4; --gold-line:#ecdcae;
+    --navy:#171a2b;
+    --green:#12b26a; --green-soft:#e7f7ee; --red:#f0454a; --red-soft:#fdecec; --blue:#3b82f6; --blue-soft:#e8f0ff;
+    --r:16px; --shadow:0 1px 2px rgba(17,24,39,.04), 0 12px 28px -14px rgba(17,24,39,.16);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
+    radial-gradient(900px 340px at 50% -140px, rgba(176,141,46,.10), transparent 70%), var(--page);
+    color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;}
+  .wrap{max-width:1300px;margin:0 auto;padding:24px 26px 70px;}
+  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
+
+  /* Top bar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand img{height:50px;width:auto;display:block;mix-blend-mode:multiply;}
+  .brand .title{font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--ink);}
+  .brand .sub{font-size:11.5px;color:var(--muted);font-weight:500;margin-top:1px;}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .live-pill{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);border:1px solid #bfe9d3;color:#0e8b53;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:7px 12px;border-radius:999px;}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(18,178,106,.5);animation:pulse 1.7s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(18,178,106,.5);}70%{box-shadow:0 0 0 7px rgba(18,178,106,0);}100%{box-shadow:0 0 0 0 rgba(18,178,106,0);}}
+  select,.btn{font-family:inherit;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;transition:.15s;}
+  select{padding:9px 12px;border:1px solid var(--line);background:var(--card);color:var(--text);outline:none;}
+  select:focus{border-color:var(--gold);}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border:1px solid var(--line);background:var(--card);color:var(--text);}
+  .btn:hover{border-color:var(--gold);color:var(--gold);}
+  .btn.gold{background:var(--navy);color:#fff;border:none;box-shadow:0 10px 20px -10px rgba(23,26,43,.6);}
+  .btn.gold:hover{filter:brightness(1.12);color:#fff;}
+  .demo-badge{display:inline-flex;align-items:center;gap:6px;background:var(--gold-soft);border:1px solid var(--gold-line);color:#8a6d1e;font-size:11px;font-weight:700;padding:6px 11px;border-radius:999px;}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;position:relative;overflow:hidden;}
+  .kpi .k-top{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+  .k-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .k-ic.made{background:var(--gold-soft);color:var(--gold);}
+  .k-ic.conn{background:var(--green-soft);color:var(--green);}
+  .k-ic.noans{background:var(--red-soft);color:var(--red);}
+  .k-ic.rate{background:var(--blue-soft);color:var(--blue);}
+  .k-ic.talk{background:#efeafe;color:#6d5cf0;}
+  .k-label{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);}
+  .k-val{font-size:28px;font-weight:800;color:var(--ink);letter-spacing:-1px;line-height:1;}
+  .k-sub{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:600;}
+  .k-sub b{color:var(--green);}
+
+  /* Cards */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .card-title{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.2px;}
+  .card-hint{font-size:11.5px;color:var(--muted);font-weight:500;}
+
+  /* Heatmap grid */
+  .grid-scroll{overflow-x:auto;}
+  table.heat{border-collapse:separate;border-spacing:5px;min-width:760px;}
+  table.heat th{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);padding:0 4px 6px;text-align:center;white-space:nowrap;}
+  table.heat th.agent-h{text-align:left;padding-left:2px;}
+  .agent-cell{display:flex;align-items:center;gap:9px;white-space:nowrap;padding-right:8px;}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .agent-name{font-size:13px;font-weight:700;color:var(--ink);}
+  .heat-cell{width:56px;height:44px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1px solid transparent;transition:transform .08s, box-shadow .12s;}
+  .heat-cell:hover{transform:translateY(-1px);box-shadow:0 6px 14px -6px rgba(176,141,46,.6);}
+  .heat-cell .hc-n{font-size:15px;font-weight:800;line-height:1;}
+  .heat-cell .hc-d{font-size:9px;font-weight:700;opacity:.7;margin-top:2px;}
+  .heat-cell.sel{outline:2px solid var(--navy);outline-offset:1px;}
+  .heat-tot{width:60px;height:44px;border-radius:9px;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .heat-tot .hc-n{font-size:15px;font-weight:800;line-height:1;color:#f4d98a;}
+  .heat-tot .hc-d{font-size:9px;font-weight:700;opacity:.7;margin-top:2px;}
+  .col-now{position:relative;}
+  .now-tag{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.5px;color:var(--green);}
+  .legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);font-weight:600;}
+  .legend .sw{display:flex;gap:3px;}
+  .legend .sw i{width:16px;height:12px;border-radius:3px;display:block;}
+
+  /* Two-col */
+  .cols{display:grid;grid-template-columns:1.25fr .9fr;gap:18px;}
+  @media(max-width:960px){.cols{grid-template-columns:1fr;}.kpis{grid-template-columns:repeat(2,1fr);}}
+
+  /* Hourly table */
+  table.hours{width:100%;border-collapse:collapse;}
+  table.hours th{text-align:right;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);padding:0 10px 11px;white-space:nowrap;}
+  table.hours th:first-child{text-align:left;}
+  table.hours td{padding:11px 10px;border-bottom:1px solid var(--hair);font-size:13.5px;text-align:right;}
+  table.hours td:first-child{text-align:left;font-weight:700;color:var(--ink);}
+  table.hours tr:last-child td{border-bottom:none;}
+  table.hours tr.sel td{background:var(--gold-soft);}
+  table.hours tr.total td{border-top:1.5px solid var(--line);border-bottom:none;font-weight:800;color:var(--ink);padding-top:13px;}
+  .cval{font-weight:700;color:var(--ink);}
+  .cconn{color:var(--green);font-weight:700;}
+  .cnoans{color:var(--red);font-weight:700;}
+  .cmuted{color:var(--muted);}
+
+  /* Leaderboard */
+  .lb-row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--hair);}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-main{flex:1 1 auto;min-width:0;}
+  .lb-name{font-size:13.5px;font-weight:700;color:var(--ink);}
+  .lb-bar{height:7px;border-radius:5px;background:var(--hair);margin-top:6px;overflow:hidden;}
+  .lb-bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#d9b850,var(--gold));}
+  .lb-stat{text-align:right;flex:0 0 auto;}
+  .lb-stat .n{font-size:17px;font-weight:800;color:var(--ink);line-height:1;}
+  .lb-stat .s{font-size:10.5px;color:var(--muted);font-weight:600;margin-top:3px;}
+
+  /* Selected hour strip */
+  .drill{background:linear-gradient(180deg,#fffdf7,#faf3e2);border:1px solid var(--gold-line);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:none;}
+  .drill.on{display:block;}
+  .drill-h{font-size:12px;font-weight:800;color:#8a6d1e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .drill-grid{display:flex;gap:10px;flex-wrap:wrap;}
+  .drill-chip{background:#fff;border:1px solid var(--gold-line);border-radius:10px;padding:9px 13px;min-width:120px;}
+  .drill-chip .dn{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .drill-chip .dv{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;}
+  .drill-chip .dv b{color:var(--gold);}
+  .foot{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;}
+</style>
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <div>
+        <div class="title">Call Analytics</div>
+        <div class="sub">Outbound calls by agent &amp; hour · RingCentral</div>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="demo-badge">● Demo data</span>
+      <span class="live-pill"><span class="live-dot"></span> Live · <span id="updated">just now</span></span>
+      <select id="agentFilter" onchange="render()">
+        <option value="">All agents</option>
+      </select>
+      <select id="dayFilter" onchange="render()">
+        <option value="today">Today · Tue 4 Aug</option>
+        <option value="yday">Yesterday · Mon 3 Aug</option>
+      </select>
+      <button class="btn gold" onclick="alert('In the live version this emails the end-of-day report to the manager.')">✉ End-of-Day Report</button>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Calls by agent &amp; hour</div>
+        <div class="card-hint">Click any cell or hour to drill in. Calls made shown; hover for connected / no-answer.</div>
+      </div>
+      <div class="legend">Fewer <span class="sw" id="legendSwatches"></span> More</div>
+    </div>
+    <div class="grid-scroll"><div id="heat"></div></div>
+  </div>
+
+  <div class="drill" id="drill">
+    <div class="drill-h" id="drillHead">Selected hour</div>
+    <div class="drill-grid" id="drillGrid"></div>
+  </div>
+
+  <div class="cols">
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-head">
+        <div class="card-title" id="hoursTitle">Hourly breakdown</div>
+        <div class="card-hint" id="hoursScope">All agents</div>
+      </div>
+      <table class="hours">
+        <thead><tr><th>Time period</th><th>Calls made</th><th>Connected</th><th>No answer</th><th>Total duration</th></tr></thead>
+        <tbody id="hoursBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-head"><div class="card-title">Agent leaderboard</div><div class="card-hint">Calls made today</div></div>
+      <div id="leaderboard"></div>
+    </div>
+  </div>
+
+  <div class="foot">Demo data shown. Once the RingCentral app (Analytics scope + JWT) is connected, this fills with live call data, auto-refreshing every few minutes.</div>
+</div>
+
+<script>
+// ── Data model (replace fetchData() with the RingCentral Analytics Timeline call) ──
+const HOURS = [8,9,10,11,12,13,14,15,16,17];  // 8am–5pm windows
+const hourLabel = h => { const ampm=h<12?'am':'pm'; const hh=((h+11)%12)+1; return hh+' '+ampm; };
+const hourRange = h => hourLabel(h)+'–'+hourLabel(h+1);
+const NOW_HOUR = 13;  // demo "current" hour = 1pm
+
+// Demo dataset: per agent, per hour -> {made, conn} ; noAnswer = made-conn ; duration derived
+function mk(made, conn){ return {made, conn}; }
+const RAW = {
+  today: {
+    'David':        {8:mk(4,3), 9:mk(8,8), 10:mk(6,5), 11:mk(1,1), 12:mk(4,4), 13:mk(3,3), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+    'Shanira':      {8:mk(2,2), 9:mk(5,4), 10:mk(9,8), 11:mk(7,6), 12:mk(2,2), 13:mk(4,4), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+    'Alda Amonaki': {8:mk(1,1), 9:mk(3,2), 10:mk(4,4), 11:mk(6,5), 12:mk(5,5), 13:mk(2,2), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+  },
+  yday: {
+    'David':        {8:mk(6,5), 9:mk(9,8),10:mk(7,7),11:mk(5,4),12:mk(3,3),13:mk(6,5),14:mk(8,7),15:mk(4,4),16:mk(2,2),17:mk(1,1)},
+    'Shanira':      {8:mk(3,3), 9:mk(6,5),10:mk(8,7),11:mk(9,9),12:mk(4,4),13:mk(5,4),14:mk(7,6),15:mk(6,6),16:mk(3,3),17:mk(0,0)},
+    'Alda Amonaki': {8:mk(2,2), 9:mk(4,3),10:mk(5,5),11:mk(7,6),12:mk(6,6),13:mk(3,3),14:mk(4,4),15:mk(5,5),16:mk(2,2),17:mk(1,1)},
+  }
+};
+const AGENTS = Object.keys(RAW.today);
+// Average talk time per connected call (seconds) so durations look realistic per agent.
+const AVG_SEC = {'David':78,'Shanira':64,'Alda Amonaki':92};
+
+let selHour = null;
+
+function fmtDur(sec){ const m=Math.floor(sec/60), s=Math.round(sec%60); return m+':'+String(s).padStart(2,'0'); }
+function fmtDurLong(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
+function initials(n){ return n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function dataset(){ return RAW[document.getElementById('dayFilter').value==='yday'?'yday':'today']; }
+function scopedAgents(){ const f=document.getElementById('agentFilter').value; return f?[f]:AGENTS; }
+
+// cell metrics
+function cell(agent,h){ const d=dataset()[agent][h]||{made:0,conn:0}; const noans=d.made-d.conn; const dur=d.conn*AVG_SEC[agent]; return {made:d.made,conn:d.conn,noans,dur}; }
+function hourTotals(h,agents){ let made=0,conn=0,noans=0,dur=0; agents.forEach(a=>{const c=cell(a,h);made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}); return {made,conn,noans,dur}; }
+function agentTotals(a){ let made=0,conn=0,dur=0; HOURS.forEach(h=>{const c=cell(a,h);made+=c.made;conn+=c.conn;dur+=c.dur;}); return {made,conn,dur}; }
+
+// heat color (gold scale)
+function heatColor(v,max){ if(v===0) return {bg:'#f7f8fb',fg:'#c3c8d4'}; const t=Math.min(1,v/max); const bg=`rgba(176,141,46,${(0.12+t*0.78).toFixed(2)})`; const fg = t>0.5?'#fff':'#5a4a1e'; return {bg,fg}; }
+
+function render(){
+  const agents=scopedAgents();
+  const ds=dataset();
+  // max cell for color scaling
+  let maxCell=1; AGENTS.forEach(a=>HOURS.forEach(h=>{maxCell=Math.max(maxCell,(ds[a][h]||{made:0}).made);}));
+
+  // KPIs (scoped)
+  let made=0,conn=0,noans=0,dur=0;
+  agents.forEach(a=>HOURS.forEach(h=>{const c=cell(a,h);made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}));
+  const rate = made? Math.round(conn/made*100):0;
+  document.getElementById('kpis').innerHTML = [
+    kpi('made','☎','Calls Made',made,'across '+agents.length+' agent'+(agents.length>1?'s':'')),
+    kpi('conn','✓','Connected',conn,'<b>'+rate+'%</b> connect rate'),
+    kpi('noans','✕','No Answer',noans,(made?Math.round(noans/made*100):0)+'% of calls'),
+    kpi('rate','％','Connect Rate',rate+'%',conn+' of '+made+' answered'),
+    kpi('talk','◷','Talk Time',fmtDurLong(dur),'avg '+(conn?fmtDur(dur/conn):'0:00')+' / call'),
+  ].join('');
+
+  // Heatmap
+  let head='<tr><th class="agent-h">Agent</th>';
+  HOURS.forEach(h=>{ head += `<th class="${h===NOW_HOUR?'col-now':''}">${hourLabel(h)}${h===NOW_HOUR?'<br><span class="now-tag">● now</span>':''}</th>`; });
+  head+='<th>Total</th></tr>';
+  let rows='';
+  agents.forEach(a=>{
+    rows+=`<tr><td><div class="agent-cell"><span class="avatar">${initials(a)}</span><span class="agent-name">${a}</span></div></td>`;
+    HOURS.forEach(h=>{
+      const c=cell(a,h); const col=heatColor(c.made,maxCell);
+      const sel = selHour===h?'sel':'';
+      rows+=`<td><div class="heat-cell ${sel}" style="background:${col.bg};color:${col.fg};" title="${a} · ${hourRange(h)}\nMade ${c.made} · Connected ${c.conn} · No answer ${c.noans} · ${fmtDur(c.dur)}" onclick="pickHour(${h})"><span class="hc-n">${c.made||''}</span>${c.made?`<span class="hc-d">${fmtDur(c.dur)}</span>`:''}</div></td>`;
+    });
+    const at=agentTotals(a);
+    rows+=`<td><div class="heat-tot"><span class="hc-n">${at.made}</span><span class="hc-d">${fmtDur(at.dur)}</span></div></td></tr>`;
+  });
+  document.getElementById('heat').innerHTML='<table class="heat"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>';
+
+  // Legend swatches
+  document.getElementById('legendSwatches').innerHTML=[0.15,0.4,0.65,0.9].map(t=>`<i style="background:rgba(176,141,46,${t})"></i>`).join('');
+
+  // Hourly breakdown (scoped)
+  document.getElementById('hoursScope').textContent = agents.length===1?agents[0]:'All agents';
+  let hb='';
+  HOURS.forEach(h=>{
+    const t=hourTotals(h,agents); if(t.made===0 && h>NOW_HOUR) return;
+    hb+=`<tr class="${selHour===h?'sel':''}" onclick="pickHour(${h})" style="cursor:pointer;"><td>${hourRange(h)}</td><td class="cval">${t.made}</td><td class="cconn">${t.conn}</td><td class="cnoans">${t.noans||'0'}</td><td class="mono cmuted">${fmtDur(t.dur)}</td></tr>`;
+  });
+  let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,agents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
+  hb+=`<tr class="total"><td>Total</td><td class="cval">${tm}</td><td class="cconn">${tc}</td><td class="cnoans">${tn}</td><td class="mono">${fmtDur(td)}</td></tr>`;
+  document.getElementById('hoursBody').innerHTML=hb;
+
+  // Leaderboard (always all agents, by calls made)
+  const board=AGENTS.map(a=>({a,...agentTotals(a)})).sort((x,y)=>y.made-x.made);
+  const maxMade=Math.max(1,...board.map(b=>b.made));
+  document.getElementById('leaderboard').innerHTML=board.map(b=>{
+    const rate=b.made?Math.round(b.conn/b.made*100):0;
+    return `<div class="lb-row"><span class="avatar">${initials(b.a)}</span><div class="lb-main"><div class="lb-name">${b.a}</div><div class="lb-bar"><i style="width:${Math.round(b.made/maxMade*100)}%"></i></div></div><div class="lb-stat"><div class="n">${b.made}</div><div class="s">${rate}% conn · ${fmtDurLong(b.dur)}</div></div></div>`;
+  }).join('');
+
+  renderDrill();
+}
+
+function kpi(cls,ic,label,val,sub){
+  return `<div class="kpi"><div class="k-top"><span class="k-ic ${cls}">${ic}</span><span class="k-label">${label}</span></div><div class="k-val">${val}</div><div class="k-sub">${sub}</div></div>`;
+}
+
+function pickHour(h){ selHour = (selHour===h?null:h); render(); }
+
+function renderDrill(){
+  const d=document.getElementById('drill');
+  if(selHour===null){ d.classList.remove('on'); return; }
+  d.classList.add('on');
+  document.getElementById('drillHead').textContent = hourRange(selHour)+' · by agent';
+  document.getElementById('drillGrid').innerHTML = AGENTS.map(a=>{
+    const c=cell(a,selHour);
+    return `<div class="drill-chip"><div class="dn">${a}</div><div class="dv"><b>${c.made}</b> made · ${c.conn} connected · ${c.noans} no answer · ${fmtDur(c.dur)}</div></div>`;
+  }).join('');
+}
+
+// Populate agent filter
+const af=document.getElementById('agentFilter');
+AGENTS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;af.appendChild(o);});
+
+// "Live" updated timestamp
+let secs=0;
+setInterval(()=>{ secs+=5; const el=document.getElementById('updated'); if(el) el.textContent = secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago'); },5000);
+
+render();
+</script>
+</body>
+</html>
