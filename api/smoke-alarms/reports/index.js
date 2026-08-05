@@ -785,12 +785,27 @@ function rcNormalize(raw) {
       if (h == null) continue;
       const dir = p?.counters?.callsByDirection?.values || {};
       const resu = p?.counters?.callsByResult?.values || {};
-      const dur = Number(p?.timers?.allCalls?.values) || 0;
+      const response = p?.counters?.callsByResponse?.values || {};
+      const segments = p?.counters?.callsSegments?.values || {};
+      const dur = Number(p?.timers?.callsSegments?.values?.livetalk)
+        || Number(p?.timers?.allCalls?.values)
+        || 0;
       const made = Number(dir.outbound) || 0;                              // calls made = outbound
-      // RingCentral doesn't split answered/no-answer for outbound (they come back
-      // as "unknown"), so no-answer is best-effort from the unanswered buckets.
-      const noans = Math.min(made, (Number(resu.missed) || 0) + (Number(resu.voicemail) || 0) + (Number(resu.abandoned) || 0));
-      const conn = Math.max(0, made - noans);
+      // callsByResult reports outbound PSTN calls as "unknown" and cannot tell us
+      // whether they connected. callsByResponse is the authoritative outbound
+      // connected/notConnected split. Treat a known voicemail phase as no-answer
+      // too, even when the destination technically answered the call.
+      const hasResponse = Object.prototype.hasOwnProperty.call(response, 'connected')
+        || Object.prototype.hasOwnProperty.call(response, 'notConnected');
+      const voicemail = Math.max(Number(segments.voicemail) || 0, Number(segments.vmGreeting) || 0);
+      let conn, noans;
+      if (hasResponse) {
+        conn = Math.min(made, Math.max(0, (Number(response.connected) || 0) - voicemail));
+        noans = Math.max(0, made - conn);
+      } else {
+        noans = Math.min(made, (Number(resu.missed) || 0) + (Number(resu.voicemail) || 0) + (Number(resu.abandoned) || 0));
+        conn = Math.max(0, made - noans);
+      }
       // aggregate into the hour bucket (multiple UTC points can share an hour)
       const prev = hours[h] || { made: 0, conn: 0, dur: 0 };
       hours[h] = { made: prev.made + made, conn: prev.conn + conn, dur: prev.dur + dur };
@@ -808,7 +823,10 @@ async function rcFetchTimeline(range) {
   const bodyObj = {
     grouping: { groupBy: 'Users' },
     timeSettings: { timeZone: rcTz(), timeRange: { timeFrom: range.timeFrom, timeTo: range.timeTo } },
-    responseOptions: { counters: { allCalls: true, callsByDirection: true, callsByResult: true }, timers: { allCallsDuration: true } },
+    responseOptions: {
+      counters: { allCalls: true, callsByDirection: true, callsByResponse: true, callsSegments: true, callsByResult: true },
+      timers: { allCallsDuration: true, callsSegmentsDuration: true },
+    },
   };
   const r = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(bodyObj) });
   const raw = await r.json().catch(() => ({}));
