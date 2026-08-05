@@ -1084,6 +1084,12 @@ async function ringcentralHourlyEmail(req, res) {
       noAnswer: sum.noAnswer + item.lastHour.noAnswer,
     }), { made: 0, connected: 0, noAnswer: 0 });
     const period = `${rcHourLabel(hour - 1)}–${rcHourLabel(hour)}`;
+    // Only send when calls were actually made in the reporting hour. With no calls
+    // the email is skipped, so the last email of the day is the last active hour
+    // (and 7pm is the hard cap via the reporting-hours gate above).
+    if (!force && lastHourTotal.made === 0) {
+      return res.status(200).json({ ok: true, sent: false, skipped: 'no-calls-in-hour', period, localHour: hour });
+    }
     const dateLabel = new Intl.DateTimeFormat('en-AU', { timeZone: zone, day: 'numeric', month: 'short', year: 'numeric' }).format(now);
     const recipients = ['vignesh@goldsure.com.au', 'amit@goldsure.com.au'];
     const subject = `Last hour: ${lastHourTotal.made} calls made | Goldsure ${period}`;

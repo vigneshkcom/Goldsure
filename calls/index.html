@@ -192,21 +192,16 @@
       </table>
     </div>
 
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-head"><div class="card-title">Agent leaderboard</div><div class="card-hint">Calls made today</div></div>
-      <div id="leaderboard"></div>
-    </div>
-  </div>
-
-  <div class="card" id="missedCard" style="margin-top:18px;">
-    <div class="card-head">
-      <div>
-        <div class="card-title">Missed calls</div>
-        <div class="card-hint">Inbound calls not answered, and whether they were called back.</div>
+    <div class="card" id="missedCard" style="margin-bottom:0;">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Missed calls</div>
+          <div class="card-hint">Inbound not answered · returned or not</div>
+        </div>
+        <span class="miss-head-count" id="missCount">—</span>
       </div>
-      <span class="miss-head-count" id="missCount">—</span>
+      <div id="missedList"><div class="miss-empty">Loading…</div></div>
     </div>
-    <div id="missedList"><div class="miss-empty">Loading…</div></div>
   </div>
 
   <div class="foot">Demo data shown. Once the RingCentral app (Analytics scope + JWT) is connected, this fills with live call data, auto-refreshing every few minutes.</div>
@@ -323,14 +318,6 @@ function render(){
   let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,agents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
   hb+=`<tr class="total"><td>Total</td><td class="cval">${tm}</td><td class="cconn">${tc}</td><td class="cnoans">${tn}</td><td class="mono">${fmtDur(td)}</td></tr>`;
   document.getElementById('hoursBody').innerHTML=hb;
-
-  // Leaderboard (always all agents, by calls made)
-  const board=allAgents().map(a=>({a,...agentTotals(a)})).sort((x,y)=>y.made-x.made);
-  const maxMade=Math.max(1,...board.map(b=>b.made));
-  document.getElementById('leaderboard').innerHTML=board.map(b=>{
-    const rate=b.made?Math.round(b.conn/b.made*100):0;
-    return `<div class="lb-row"><span class="avatar">${initials(b.a)}</span><div class="lb-main"><div class="lb-name">${b.a}</div><div class="lb-bar"><i style="width:${Math.round(b.made/maxMade*100)}%"></i></div></div><div class="lb-stat"><div class="n">${b.made}</div><div class="s">${rate}% conn · ${fmtDurLong(b.dur)}</div></div></div>`;
-  }).join('');
 
   renderDrill();
 }
