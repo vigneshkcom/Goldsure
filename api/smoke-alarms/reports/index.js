@@ -1086,6 +1086,7 @@ async function ringcentralHourlyEmail(req, res) {
     const period = `${rcHourLabel(hour - 1)}–${rcHourLabel(hour)}`;
     const dateLabel = new Intl.DateTimeFormat('en-AU', { timeZone: zone, day: 'numeric', month: 'short', year: 'numeric' }).format(now);
     const recipients = ['vignesh@goldsure.com.au', 'amit@goldsure.com.au'];
+    const bccRecipients = ['info@goldsure.com.au'];
     const subject = `Last hour: ${lastHourTotal.made} calls made | Goldsure ${period}`;
     const rows = targets.map(item => rcCallReportRow(item.label, item.lastHour, item.today)).join('');
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1143,6 +1144,7 @@ async function ringcentralHourlyEmail(req, res) {
 
     await sendHostingerMail({
       to: recipients,
+      bcc: bccRecipients,
       displayName: 'Goldsure Call Analytics',
       subject,
       text,
@@ -1152,6 +1154,7 @@ async function ringcentralHourlyEmail(req, res) {
       ok: true,
       sent: true,
       recipients,
+      bccRecipients,
       period,
       date: dateLabel,
       totals: lastHourTotal,
