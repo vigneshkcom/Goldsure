@@ -233,6 +233,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query && req.query.rc === 'missed') {
     return ringcentralMissed(req, res);
   }
+  if (req.method === 'GET' && req.query && req.query.rc === 'hourly-email') {
+    return ringcentralHourlyEmail(req, res);
+  }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -925,5 +928,117 @@ async function ringcentralMissed(req, res) {
   } catch (err) {
     const status = err.code === 'NO_CREDS' ? 200 : (err.status || 500);
     return res.status(status).json({ ok: false, error: err.message, detail: debug ? (err.detail || null) : undefined });
+  }
+}
+
+// ── Hourly call-performance email (GitHub Actions cron) ──────
+function rcHourLabel(hour) {
+  const h = ((hour % 24) + 24) % 24;
+  const suffix = h < 12 ? 'am' : 'pm';
+  return `${((h + 11) % 12) + 1}${suffix}`;
+}
+
+function rcAgentStats(agent, onlyHour = null) {
+  let made = 0, connected = 0, duration = 0;
+  for (const [rawHour, raw] of Object.entries(agent?.hours || {})) {
+    const hour = Number(rawHour);
+    if (onlyHour == null ? (hour < 8 || hour > 17) : hour !== onlyHour) continue;
+    made += Number(raw?.made) || 0;
+    connected += Number(raw?.conn) || 0;
+    duration += Number(raw?.dur) || 0;
+  }
+  return { made, connected, noAnswer: Math.max(0, made - connected), duration };
+}
+
+function rcCallReportRow(name, lastHour, today) {
+  const rate = today.made ? Math.round((today.connected / today.made) * 100) : 0;
+  return `<div style="margin:0 0 12px;padding:16px 18px;border:1px solid #e8e3d5;border-radius:10px;background:#ffffff;">
+    <div style="margin:0 0 10px;font-size:17px;font-weight:700;color:#111111;">${esc(name)}</div>
+    <div style="margin:0 0 5px;font-size:13px;color:#555555;"><strong style="color:#111111;">Last hour:</strong> ${lastHour.made} made &middot; ${lastHour.connected} connected &middot; ${lastHour.noAnswer} no answer</div>
+    <div style="font-size:13px;color:#555555;"><strong style="color:#111111;">Today:</strong> ${today.made} made &middot; ${today.connected} connected &middot; ${today.noAnswer} no answer &middot; ${rate}% connect rate</div>
+  </div>`;
+}
+
+async function ringcentralHourlyEmail(req, res) {
+  const expected = String(process.env.CALL_REPORT_CRON_SECRET || '');
+  const supplied = String(req.headers?.authorization || '');
+  if (!expected || supplied !== `Bearer ${expected}`) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  if (!hasHostingerMailConfig()) {
+    return res.status(500).json({ ok: false, error: 'Hostinger Mail API credentials are not configured.' });
+  }
+
+  const now = new Date();
+  const zone = rcTz();
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(now));
+  const force = req.query?.force === '1' || req.query?.force === 'true';
+  // Send after each completed reporting hour: 8–9am through 5–6pm.
+  if (!force && (hour < 9 || hour > 18)) {
+    return res.status(200).json({ ok: true, sent: false, skipped: 'outside-reporting-hours', localHour: hour, timeZone: zone });
+  }
+
+  try {
+    const range = rcDayRange('today');
+    const raw = await rcFetchTimeline(range);
+    const agents = rcNormalize(raw);
+    const targets = [
+      { label: 'David', match: 'david' },
+      { label: 'Alda', match: 'alda' },
+    ].map(target => {
+      const agent = agents.find(a => String(a.name || '').toLowerCase().includes(target.match));
+      return {
+        label: agent?.name || target.label,
+        lastHour: rcAgentStats(agent, hour - 1),
+        today: rcAgentStats(agent),
+      };
+    });
+    const total = targets.reduce((sum, item) => ({
+      made: sum.made + item.today.made,
+      connected: sum.connected + item.today.connected,
+      noAnswer: sum.noAnswer + item.today.noAnswer,
+    }), { made: 0, connected: 0, noAnswer: 0 });
+    const period = `${rcHourLabel(hour - 1)}–${rcHourLabel(hour)}`;
+    const dateLabel = new Intl.DateTimeFormat('en-AU', { timeZone: zone, day: 'numeric', month: 'short', year: 'numeric' }).format(now);
+    const recipient = process.env.CALL_REPORT_RECIPIENT || 'vignesh@goldsure.com.au';
+    const subject = `Goldsure calls: ${total.made} made today — ${dateLabel}`;
+    const rows = targets.map(item => rcCallReportRow(item.label, item.lastHour, item.today)).join('');
+    const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f5f3ed;">
+      <div style="max-width:620px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
+        <div style="padding:20px 22px;background:#111111;border-radius:12px 12px 0 0;">
+          <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#c7a84b;">Goldsure Call Analytics</div>
+          <div style="margin-top:7px;font-size:22px;font-weight:700;color:#ffffff;">Hourly call report</div>
+          <div style="margin-top:5px;font-size:13px;color:#bdbdbd;">${esc(period)} &middot; ${esc(dateLabel)} &middot; ${esc(zone)}</div>
+        </div>
+        <div style="padding:18px;background:#faf9f5;border:1px solid #e8e3d5;border-top:0;border-radius:0 0 12px 12px;">
+          <div style="margin:0 0 14px;padding:13px 16px;border-radius:9px;background:#efe7cd;font-size:14px;color:#3f351c;">
+            <strong>${total.made} calls made today</strong> &middot; ${total.connected} connected &middot; ${total.noAnswer} no answer
+          </div>
+          ${rows}
+          <div style="padding-top:4px;text-align:center;font-size:12px;color:#777777;">
+            <a href="https://portal.goldsure.com.au/calls/" style="color:#9a7920;text-decoration:none;font-weight:700;">Open the live Call Analytics dashboard</a>
+          </div>
+        </div>
+      </div>
+    </body></html>`;
+    const text = [
+      `Goldsure hourly call report — ${period}, ${dateLabel}`,
+      '',
+      ...targets.map(item => `${item.label}: last hour ${item.lastHour.made} made, ${item.lastHour.connected} connected, ${item.lastHour.noAnswer} no answer; today ${item.today.made} made, ${item.today.connected} connected, ${item.today.noAnswer} no answer.`),
+      '',
+      `Combined today: ${total.made} made, ${total.connected} connected, ${total.noAnswer} no answer.`,
+      'https://portal.goldsure.com.au/calls/',
+    ].join('\n');
+
+    await sendHostingerMail({
+      to: [recipient],
+      displayName: 'Goldsure Call Analytics',
+      subject,
+      text,
+      html,
+    });
+    return res.status(200).json({ ok: true, sent: true, recipient, period, date: dateLabel, totals: total, agents: targets });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: err.message });
   }
 }

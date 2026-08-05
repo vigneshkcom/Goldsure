@@ -1,0 +1,27 @@
+name: Hourly call report
+
+# GitHub Actions is the free external scheduler. It calls the secured portal
+# endpoint hourly; the endpoint itself sends only from 9am through 6pm in the
+# configured RingCentral timezone, covering each completed 8am–6pm call hour.
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: hourly-call-report
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send the hourly Hostinger call report
+        env:
+          REPORT_URL: https://portal.goldsure.com.au/api/ringcentral/hourly-email
+          CRON_TOKEN: ${{ secrets.CALL_REPORT_CRON_SECRET }}
+        run: |
+          response=$(curl --fail-with-body --silent --show-error --max-time 90 \
+            "$REPORT_URL" \
+            -H "Authorization: Bearer $CRON_TOKEN")
+          echo "$response" | jq -c '{ok, sent, skipped, period, totals}'
