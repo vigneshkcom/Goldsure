@@ -762,28 +762,33 @@ function rcDayRange(which) {
   return { timeFrom: zonedMidnight(todayYmd).toISOString(), timeTo: now.toISOString() };
 }
 
-function rcNum(v) { return typeof v === 'number' ? v : (v && typeof v === 'object' ? (v.value ?? v.count ?? 0) : (Number(v) || 0)); }
 function rcHourFromIso(iso, zone) { try { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(new Date(iso))); } catch { return null; } }
 function rcNormalize(raw) {
   const zone = rcTz();
   const records = raw?.data?.records || raw?.records || [];
   const agents = [];
   for (const rec of records) {
-    const name = rec?.key?.name || rec?.grouping?.name || rec?.name || rec?.key?.id || 'Unknown';
-    const series = rec?.dataItems || rec?.points || rec?.timeline || rec?.data || [];
+    const name = rec?.info?.name || rec?.key?.name || rec?.name || 'Unknown';
+    const series = rec?.points || rec?.dataItems || [];
     const hours = {};
+    let active = false;
     for (const p of (Array.isArray(series) ? series : [])) {
-      const iso = p?.timeFrom || p?.time || p?.date || p?.key;
-      const h = iso ? rcHourFromIso(iso, zone) : null;
+      const h = p?.time ? rcHourFromIso(p.time, zone) : null;
       if (h == null) continue;
-      const c = p?.counters || p?.counter || {};
-      const t = p?.timers || p?.timer || {};
-      const made = rcNum(c.allCalls) || rcNum(c.callsByDirection?.values?.Outbound) || rcNum(c.outbound);
-      const conn = rcNum(c.callsByResult?.values?.Connected) || rcNum(c.connected) || rcNum(c.callsByResult?.values?.Answered);
-      const dur = rcNum(t.allCallsDuration) || rcNum(t.callsDuration) || rcNum(t.duration);
-      hours[h] = { made, conn, dur };
+      const dir = p?.counters?.callsByDirection?.values || {};
+      const resu = p?.counters?.callsByResult?.values || {};
+      const dur = Number(p?.timers?.allCalls?.values) || 0;
+      const made = Number(dir.outbound) || 0;                              // calls made = outbound
+      // RingCentral doesn't split answered/no-answer for outbound (they come back
+      // as "unknown"), so no-answer is best-effort from the unanswered buckets.
+      const noans = Math.min(made, (Number(resu.missed) || 0) + (Number(resu.voicemail) || 0) + (Number(resu.abandoned) || 0));
+      const conn = Math.max(0, made - noans);
+      // aggregate into the hour bucket (multiple UTC points can share an hour)
+      const prev = hours[h] || { made: 0, conn: 0, dur: 0 };
+      hours[h] = { made: prev.made + made, conn: prev.conn + conn, dur: prev.dur + dur };
+      if (made || dur) active = true;
     }
-    if (Object.keys(hours).length) agents.push({ name, hours });
+    if (active) agents.push({ name, hours });
   }
   return agents;
 }
