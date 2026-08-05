@@ -791,7 +791,7 @@ function rcNormalize(raw) {
 async function rcFetchTimeline(range) {
   const token = await rcAccessToken();
   const path = process.env.RINGCENTRAL_TIMELINE_PATH || RC_DEFAULT_TIMELINE_PATH;
-  const url = `${rcServer()}${path}?perPage=1000&interval=Hour`;
+  const url = `${rcServer()}${path}?perPage=20&interval=Hour`;
   const bodyObj = {
     grouping: { groupBy: 'Users' },
     timeSettings: { timeZone: rcTz(), timeRange: { timeFrom: range.timeFrom, timeTo: range.timeTo } },
