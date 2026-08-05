@@ -60,7 +60,10 @@
   .card-hint{font-size:11.5px;color:var(--muted);font-weight:500;}
 
   /* Heatmap grid */
-  .grid-scroll{overflow-x:auto;}
+  .grid-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain;scrollbar-width:thin;scrollbar-color:var(--gold-line) transparent;}
+  .grid-scroll::-webkit-scrollbar{height:6px;}
+  .grid-scroll::-webkit-scrollbar-thumb{background:var(--gold-line);border-radius:999px;}
+  .scroll-cue{display:none;}
   table.heat{border-collapse:separate;border-spacing:5px;min-width:760px;}
   table.heat th{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);padding:0 4px 6px;text-align:center;white-space:nowrap;}
   table.heat th.hour-col{min-width:68px;line-height:1.05;}
@@ -96,7 +99,7 @@
 
   /* Two-col */
   .cols{display:grid;grid-template-columns:1.25fr .9fr;gap:18px;}
-  @media(max-width:960px){.cols{grid-template-columns:1fr;}.kpis{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:960px){.cols{grid-template-columns:1fr;}.kpis{grid-template-columns:repeat(2,1fr);}.kpi:last-child{grid-column:span 2;}}
 
   /* Hourly table */
   table.hours{width:100%;border-collapse:collapse;}
@@ -107,6 +110,7 @@
   table.hours tr:last-child td{border-bottom:none;}
   table.hours tr.sel td{background:var(--gold-soft);}
   table.hours tr.total td{border-top:1.5px solid var(--line);border-bottom:none;font-weight:800;color:var(--ink);padding-top:13px;}
+  .hours-scroll{min-width:0;}
   .cval{font-weight:700;color:var(--ink);}
   .cconn{color:var(--green);font-weight:700;}
   .cnoans{color:var(--red);font-weight:700;}
@@ -153,6 +157,98 @@
   .miss-empty.clear{display:flex;align-items:center;justify-content:center;gap:8px;color:#0e8b53;font-weight:700;}
   .miss-empty.clear svg{width:18px;height:18px;display:block;stroke-width:1.9;}
   .miss-badge{display:inline-block;font-size:10px;font-weight:800;color:var(--gold);background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:6px;padding:1px 6px;margin-left:6px;}
+
+  @media(max-width:700px){
+    body{font-size:13px;}
+    .wrap{width:100%;padding:14px 12px 44px;overflow:hidden;}
+    .topbar{align-items:flex-start;gap:12px;margin-bottom:14px;}
+    .brand{gap:10px;min-width:0;}
+    .brand img{height:38px;max-width:112px;object-fit:contain;}
+    .brand .title{font-size:17px;line-height:1.2;}
+    .brand .sub{font-size:10.5px;line-height:1.35;}
+    .controls{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;}
+    .controls .live-pill,.controls .demo-badge{grid-column:1/-1;justify-content:center;}
+    .controls select{width:100%;min-width:0;min-height:44px;padding:9px 10px;}
+
+    .kpis{gap:8px;margin-bottom:12px;}
+    .kpi{min-width:0;padding:13px 12px;border-radius:13px;}
+    .kpi .k-top{gap:7px;margin-bottom:9px;}
+    .k-ic{width:30px;height:30px;border-radius:9px;}
+    .k-ic svg{width:16px;height:16px;}
+    .k-label{font-size:9.5px;letter-spacing:.35px;}
+    .k-val{font-size:24px;letter-spacing:-.7px;}
+    .k-sub{font-size:10.5px;line-height:1.35;margin-top:5px;}
+
+    .card{padding:15px 12px;border-radius:14px;margin-bottom:12px;}
+    .card-head{align-items:flex-start;margin-bottom:12px;gap:8px;}
+    .card-title{font-size:15px;}
+    .card-hint{font-size:10.5px;line-height:1.4;}
+    .legend{font-size:9.5px;gap:5px;}
+    .legend .sw{gap:2px;}
+    .legend .sw i{width:12px;height:9px;}
+    .scroll-cue{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;padding:7px 9px;border-radius:9px;background:var(--gold-soft);color:#80651d;font-size:10.5px;font-weight:700;}
+    .scroll-cue span:last-child{font-size:16px;line-height:1;letter-spacing:-2px;}
+    .grid-scroll{margin:0 -12px;padding:0 12px 8px;}
+    table.heat{min-width:max-content;border-spacing:4px;}
+    table.heat th.hour-col{min-width:62px;}
+    table.heat th:first-child,table.heat td:first-child{position:sticky;left:0;}
+    table.heat th:first-child{z-index:4;background:var(--card);}
+    table.heat td:first-child{z-index:3;background:var(--card);box-shadow:8px 0 10px -12px rgba(17,24,39,.65);}
+    .agent-cell{width:126px;gap:7px;padding-right:6px;}
+    .avatar{width:28px;height:28px;font-size:10px;}
+    .agent-name{max-width:91px;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;}
+    .heat-cell{width:62px;height:46px;}
+    .heat-tot{height:46px;}
+    .heat-avg{height:46px;}
+
+    .drill{padding:12px;margin-bottom:12px;}
+    .drill-grid{display:grid;grid-template-columns:1fr;}
+    .drill-chip{width:100%;min-width:0;}
+    .cols{gap:12px;}
+    .hours-chips{width:100%;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;}
+    .hchip{min-height:36px;padding:7px 13px;flex:0 0 auto;}
+
+    table.hours,table.hours tbody{display:block;width:100%;}
+    table.hours thead{display:none;}
+    table.hours tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-bottom:8px;padding:11px 8px;border:1px solid var(--hair);border-radius:11px;background:#fbfbfd;}
+    table.hours tr:last-child{margin-bottom:0;}
+    table.hours td,table.hours td:first-child{display:flex;min-width:0;flex-direction:column;align-items:flex-start;text-align:left;padding:0 6px;border:0;font-size:13px;}
+    table.hours td:first-child{grid-column:1/-1;padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--hair);font-size:13.5px;}
+    table.hours td::before{content:attr(data-label);display:block;margin-bottom:2px;font-size:8px;font-weight:800;line-height:1.2;letter-spacing:.45px;text-transform:uppercase;color:var(--faint);}
+    table.hours td:first-child::before{display:none;}
+    table.hours tr.sel td{background:transparent;}
+    table.hours tr.sel{background:var(--gold-soft);border-color:var(--gold-line);}
+    table.hours tr.total{background:var(--navy);border-color:var(--navy);}
+    table.hours tr.total td,table.hours tr.total td:first-child{color:#fff;border-top:0;padding-top:0;}
+    table.hours tr.total td:first-child{border-bottom-color:rgba(255,255,255,.15);}
+    table.hours tr.total td::before{color:#aeb3c2;}
+
+    #missedCard .card-head{align-items:center;}
+    .miss-head-count{font-size:10.5px;padding:5px 9px;}
+    .miss-row{display:grid;grid-template-columns:34px minmax(0,1fr);gap:5px 10px;padding:11px 0;}
+    .miss-ic{grid-row:1 / span 2;align-self:start;}
+    .miss-main{grid-column:2;}
+    .miss-num{font-size:13.5px;overflow-wrap:anywhere;}
+    .miss-sub{font-size:10.5px;line-height:1.4;}
+    .miss-pill{grid-column:2;justify-self:start;font-size:10.5px;padding:5px 9px;}
+    .foot{font-size:9.5px;line-height:1.5;margin-top:12px;padding:0 8px;}
+  }
+
+  @media(max-width:360px){
+    .wrap{padding-left:9px;padding-right:9px;}
+    .controls{grid-template-columns:1fr;}
+    .controls .live-pill,.controls .demo-badge{grid-column:1;}
+    .kpi{padding:12px 10px;}
+    .k-label{font-size:9px;}
+    .card{padding-left:10px;padding-right:10px;}
+    .grid-scroll{margin-left:-10px;margin-right:-10px;padding-left:10px;padding-right:10px;}
+  }
+
+  @media(hover:none){
+    .heat-cell:hover{transform:none;box-shadow:none;}
+    .hchip:hover{border-color:var(--line);color:var(--muted);}
+    .hchip.on:hover{border-color:var(--navy);color:#fff;}
+  }
 </style>
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
 </head>
@@ -190,6 +286,7 @@
       </div>
       <div class="legend">Fewer <span class="sw" id="legendSwatches"></span> More</div>
     </div>
+    <div class="scroll-cue"><span>Swipe sideways to see every hour</span><span>→→</span></div>
     <div class="grid-scroll"><div id="heat"></div></div>
   </div>
 
@@ -204,10 +301,12 @@
         <div class="card-title" id="hoursTitle">Hourly breakdown</div>
         <div class="hours-chips" id="hoursChips"></div>
       </div>
-      <table class="hours">
-        <thead><tr><th>Time period</th><th>Calls made</th><th>Connected</th><th>No answer</th><th>Total duration</th></tr></thead>
-        <tbody id="hoursBody"></tbody>
-      </table>
+      <div class="hours-scroll">
+        <table class="hours">
+          <thead><tr><th>Time period</th><th>Calls made</th><th>Connected</th><th>No answer</th><th>Total duration</th></tr></thead>
+          <tbody id="hoursBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="card" id="missedCard" style="margin-bottom:0;">
@@ -369,10 +468,10 @@ function render(){
   let hb='';
   HOURS.forEach(h=>{
     const t=hourTotals(h,hAgents); if(t.made===0 && h>NOW_HOUR) return;
-    hb+=`<tr class="${selHour===h?'sel':''}" onclick="pickHour(${h})" style="cursor:pointer;"><td>${hourRange(h)}</td><td class="cval">${t.made}</td><td class="cconn">${t.conn}</td><td class="cnoans">${t.noans||'0'}</td><td class="mono cmuted">${fmtDur(t.dur)}</td></tr>`;
+    hb+=`<tr class="${selHour===h?'sel':''}" onclick="pickHour(${h})" style="cursor:pointer;"><td>${hourRange(h)}</td><td class="cval" data-label="Calls">${t.made}</td><td class="cconn" data-label="Connected">${t.conn}</td><td class="cnoans" data-label="No answer">${t.noans||'0'}</td><td class="mono cmuted" data-label="Duration">${fmtDur(t.dur)}</td></tr>`;
   });
   let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,hAgents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
-  hb+=`<tr class="total"><td>Total</td><td class="cval">${tm}</td><td class="cconn">${tc}</td><td class="cnoans">${tn}</td><td class="mono">${fmtDur(td)}</td></tr>`;
+  hb+=`<tr class="total"><td>Total</td><td class="cval" data-label="Calls">${tm}</td><td class="cconn" data-label="Connected">${tc}</td><td class="cnoans" data-label="No answer">${tn}</td><td class="mono" data-label="Duration">${fmtDur(td)}</td></tr>`;
   document.getElementById('hoursBody').innerHTML=hb;
 
   renderDrill();
