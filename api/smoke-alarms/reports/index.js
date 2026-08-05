@@ -787,9 +787,7 @@ function rcNormalize(raw) {
       const resu = p?.counters?.callsByResult?.values || {};
       const response = p?.counters?.callsByResponse?.values || {};
       const segments = p?.counters?.callsSegments?.values || {};
-      const dur = Number(p?.timers?.callsSegments?.values?.livetalk)
-        || Number(p?.timers?.allCalls?.values)
-        || 0;
+      const dur = Number(p?.timers?.allCalls?.values) || 0;
       const made = Number(dir.outbound) || 0;                              // calls made = outbound
       // callsByResult reports outbound PSTN calls as "unknown" and cannot tell us
       // whether they connected. callsByResponse is the authoritative outbound
@@ -825,7 +823,7 @@ async function rcFetchTimeline(range) {
     timeSettings: { timeZone: rcTz(), timeRange: { timeFrom: range.timeFrom, timeTo: range.timeTo } },
     responseOptions: {
       counters: { allCalls: true, callsByDirection: true, callsByResponse: true, callsSegments: true, callsByResult: true },
-      timers: { allCallsDuration: true, callsSegmentsDuration: true },
+      timers: { allCallsDuration: true },
     },
   };
   const r = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(bodyObj) });
