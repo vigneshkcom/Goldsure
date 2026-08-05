@@ -738,7 +738,7 @@ export default async function handler(req, res) {
 // ════════════════════════════════════════════════════════════
 const RC_TOKEN_PATH = '/restapi/oauth/token';
 const RC_DEFAULT_TIMELINE_PATH = '/analytics/calls/v1/accounts/~/timeline/fetch';
-const RC_HOURS = [8,9,10,11,12,13,14,15,16,17];
+const RC_HOURS = [8,9,10,11,12,13,14,15,16,17,18];
 let _rcToken = null;                 // { access_token, expires_at }
 const _rcCache = new Map();          // key -> { at, payload }
 const RC_CACHE_MS = 3 * 60 * 1000;
@@ -942,7 +942,7 @@ function rcAgentStats(agent, onlyHour = null) {
   let made = 0, connected = 0, duration = 0;
   for (const [rawHour, raw] of Object.entries(agent?.hours || {})) {
     const hour = Number(rawHour);
-    if (onlyHour == null ? (hour < 8 || hour > 17) : hour !== onlyHour) continue;
+    if (onlyHour == null ? (hour < 8 || hour > 18) : hour !== onlyHour) continue;
     made += Number(raw?.made) || 0;
     connected += Number(raw?.conn) || 0;
     duration += Number(raw?.dur) || 0;
@@ -1048,8 +1048,8 @@ async function ringcentralHourlyEmail(req, res) {
   const zone = rcTz();
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(now));
   const force = req.query?.force === '1' || req.query?.force === 'true';
-  // Send after each completed reporting hour: 8–9am through 5–6pm.
-  if (!force && (hour < 9 || hour > 18)) {
+  // Send after each completed reporting hour: 8–9am through 6–7pm.
+  if (!force && (hour < 9 || hour > 19)) {
     return res.status(200).json({ ok: true, sent: false, skipped: 'outside-reporting-hours', localHour: hour, timeZone: zone });
   }
 
