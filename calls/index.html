@@ -123,6 +123,22 @@
   .drill-chip .dv{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;}
   .drill-chip .dv b{color:var(--gold);}
   .foot{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;}
+
+  /* Missed calls */
+  .miss-head-count{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--red);background:var(--red-soft);border:1px solid #f5c6c6;border-radius:999px;padding:5px 11px;}
+  .miss-head-count.clear{color:var(--green);background:var(--green-soft);border-color:#bfe9d3;}
+  .miss-row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--hair);}
+  .miss-row:last-child{border-bottom:none;}
+  .miss-ic{width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--red-soft);color:var(--red);}
+  .miss-row.done .miss-ic{background:var(--green-soft);color:var(--green);}
+  .miss-main{flex:1 1 auto;min-width:0;}
+  .miss-num{font-size:14px;font-weight:700;color:var(--ink);}
+  .miss-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .miss-pill{flex:0 0 auto;font-size:11px;font-weight:700;padding:6px 11px;border-radius:999px;white-space:nowrap;}
+  .miss-pill.no{background:var(--red-soft);color:var(--red);}
+  .miss-pill.yes{background:var(--green-soft);color:#0e8b53;}
+  .miss-empty{color:var(--muted);font-size:13px;padding:22px 2px;text-align:center;}
+  .miss-badge{display:inline-block;font-size:10px;font-weight:800;color:var(--gold);background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:6px;padding:1px 6px;margin-left:6px;}
 </style>
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
 </head>
@@ -187,6 +203,17 @@
     </div>
   </div>
 
+  <div class="card" id="missedCard" style="margin-top:18px;">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Missed calls</div>
+        <div class="card-hint">Inbound calls not answered, and whether they were called back.</div>
+      </div>
+      <span class="miss-head-count" id="missCount">—</span>
+    </div>
+    <div id="missedList"><div class="miss-empty">Loading…</div></div>
+  </div>
+
   <div class="foot">Demo data shown. Once the RingCentral app (Analytics scope + JWT) is connected, this fills with live call data, auto-refreshing every few minutes.</div>
 </div>
 
@@ -235,7 +262,7 @@ async function loadLive(day){
   }catch(e){ setLiveBadge(false); }
   populateAgents(); render();
 }
-function onDay(){ const d=curDay(); if(LIVE[d]===null){ loadLive(d); } else { populateAgents(); render(); } }
+function onDay(){ const d=curDay(); if(LIVE[d]===null){ loadLive(d); } else { populateAgents(); render(); } loadMissed(d); }
 
 let selHour = null;
 
@@ -330,6 +357,30 @@ function renderDrill(){
   }).join('');
 }
 
+// ── Missed calls panel ──
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtClock12(iso){ try{ return new Date(iso).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Australia/Melbourne'}); }catch(e){ return ''; } }
+async function loadMissed(day){
+  const list=document.getElementById('missedList'), cnt=document.getElementById('missCount');
+  if(!list) return;
+  try{
+    const r=await fetch('/api/ringcentral/missed?date='+(day==='yday'?'yday':'today'),{cache:'no-store'});
+    const j=await r.json().catch(()=>({}));
+    if(!j||!j.ok){ list.innerHTML='<div class="miss-empty">Missed-call data isn’t available yet — the RingCentral app may still need the “Read Call Log” permission.</div>'; cnt.textContent='—'; cnt.className='miss-head-count'; return; }
+    const items=j.missed||[];
+    if(!items.length){ list.innerHTML='<div class="miss-empty">No missed calls for this day 🎉</div>'; cnt.textContent='0 missed'; cnt.className='miss-head-count clear'; return; }
+    cnt.textContent = j.unreturned>0 ? (j.unreturned+' not returned') : (j.total+' missed · all returned');
+    cnt.className = j.unreturned>0 ? 'miss-head-count' : 'miss-head-count clear';
+    list.innerHTML = items.map(m=>{
+      const done=m.returned;
+      const sub='Missed '+fmtClock12(m.missedAt)+(m.count>1?(' · '+m.count+'×'):'')+(m.name?(' · '+escHtml(m.name)):'');
+      const back=done?(m.returnedBy?(' · '+escHtml(m.returnedBy)):'')+(m.returnedAt?(' at '+fmtClock12(m.returnedAt)):''):'';
+      const pill=done?`<span class="miss-pill yes">✓ Returned</span>`:`<span class="miss-pill no">✗ Not returned</span>`;
+      return `<div class="miss-row ${done?'done':''}"><span class="miss-ic">${done?'✓':'☎'}</span><div class="miss-main"><div class="miss-num">${escHtml(m.number)}</div><div class="miss-sub">${sub}${back}</div></div>${pill}</div>`;
+    }).join('');
+  }catch(e){ list.innerHTML='<div class="miss-empty">Couldn’t load missed calls.</div>'; if(cnt){cnt.textContent='—';cnt.className='miss-head-count';} }
+}
+
 // "updated Xs ago" timestamp (resets whenever fresh data loads)
 let secs=0;
 setInterval(()=>{ secs+=5; const el=document.getElementById('updated'); if(el) el.textContent = secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago'); },5000);
@@ -338,8 +389,9 @@ setInterval(()=>{ secs+=5; const el=document.getElementById('updated'); if(el) e
 populateAgents();
 render();
 loadLive('today').then(()=>{ secs=0; });
+loadMissed('today');
 // Auto-refresh the current day's live data every 3 minutes
-setInterval(()=>{ loadLive(curDay()).then(()=>{ secs=0; }); }, 180000);
+setInterval(()=>{ loadLive(curDay()).then(()=>{ secs=0; }); loadMissed(curDay()); }, 180000);
 </script>
 </body>
 </html>

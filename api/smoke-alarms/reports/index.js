@@ -230,6 +230,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query && req.query.rc === 'timeline') {
     return ringcentralTimeline(req, res);
   }
+  if (req.method === 'GET' && req.query && req.query.rc === 'missed') {
+    return ringcentralMissed(req, res);
+  }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -829,5 +832,82 @@ async function ringcentralTimeline(req, res) {
   } catch (err) {
     const status = err.code === 'NO_CREDS' ? 200 : (err.status || 500);
     return res.status(status).json({ ok: false, error: err.message, detail: debug ? (err.detail || null) : undefined, sent: debug ? (err.sent || null) : undefined });
+  }
+}
+
+// ── Missed calls + return status (Call Log API) ──────────────
+const _rcMissedCache = new Map();
+async function rcFetchCallLog(range) {
+  const token = await rcAccessToken();
+  const url = `${rcServer()}/restapi/v1.0/account/~/call-log?view=Simple&type=Voice&perPage=1000`
+    + `&dateFrom=${encodeURIComponent(range.timeFrom)}&dateTo=${encodeURIComponent(range.timeTo)}`;
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+  const raw = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(`Call log request failed: ${r.status}`); e.status = r.status; e.detail = raw; throw e; }
+  return raw;
+}
+
+function rcDigits(s) { return String(s || '').replace(/\D/g, '').slice(-9); }
+function rcNormalizeMissed(raw) {
+  const zone = rcTz();
+  const recs = raw?.records || [];
+  const outbound = [], answeredIn = [], missedRecs = [];
+  const seen = new Set();
+  for (const r of recs) {
+    if (r.sessionId && seen.has(r.sessionId)) continue;
+    if (r.sessionId) seen.add(r.sessionId);
+    const dir = r.direction || '';
+    const result = String(r.result || '');
+    const from = r.from || {}, to = r.to || {};
+    const t = new Date(r.startTime).getTime();
+    if (!Number.isFinite(t)) continue;
+    if (dir === 'Outbound') {
+      outbound.push({ num: rcDigits(to.phoneNumber), t, by: from.name || from.extensionNumber || 'Agent' });
+    } else if (dir === 'Inbound') {
+      if (/miss|voicemail|no ?answer|abandon/i.test(result)) {
+        missedRecs.push({ num: rcDigits(from.phoneNumber), display: from.phoneNumber || from.name || 'Unknown', name: from.name || '', t, result });
+      } else {
+        answeredIn.push({ num: rcDigits(from.phoneNumber), t });
+      }
+    }
+  }
+  const byNum = new Map();
+  for (const m of missedRecs) {
+    if (!m.num) continue;
+    const e = byNum.get(m.num) || { num: m.num, display: m.display, name: m.name, count: 0, firstT: m.t, lastT: m.t };
+    e.count++; e.name = e.name || m.name; e.display = e.display || m.display;
+    e.firstT = Math.min(e.firstT, m.t); e.lastT = Math.max(e.lastT, m.t);
+    byNum.set(m.num, e);
+  }
+  const items = [];
+  for (const e of byNum.values()) {
+    const ob = outbound.filter(o => o.num === e.num && o.t > e.firstT).sort((a, b) => a.t - b.t)[0];
+    const ib = answeredIn.filter(a => a.num === e.num && a.t > e.firstT).sort((a, b) => a.t - b.t)[0];
+    let returned = false, returnedAt = null, returnedBy = null;
+    if (ob) { returned = true; returnedAt = ob.t; returnedBy = ob.by; }
+    else if (ib) { returned = true; returnedAt = ib.t; returnedBy = 'Customer called back (answered)'; }
+    items.push({ number: e.display, name: e.name, count: e.count, missedAt: new Date(e.lastT).toISOString(), returned, returnedAt: returnedAt ? new Date(returnedAt).toISOString() : null, returnedBy });
+  }
+  items.sort((a, b) => (Number(a.returned) - Number(b.returned)) || (new Date(b.missedAt) - new Date(a.missedAt)));
+  return { missed: items, total: items.length, unreturned: items.filter(i => !i.returned).length };
+}
+
+async function ringcentralMissed(req, res) {
+  const which = (req.query?.date === 'yday') ? 'yday' : 'today';
+  const debug = req.query?.debug === '1' || req.query?.debug === 'true';
+  try {
+    const key = 'missed:' + which;
+    const hit = _rcMissedCache.get(key);
+    if (hit && !debug && Date.now() - hit.at < RC_CACHE_MS) return res.status(200).json({ ok: true, cached: true, ...hit.payload });
+    const range = rcDayRange(which);
+    const raw = await rcFetchCallLog(range);
+    if (debug) return res.status(200).json({ ok: true, range, raw });
+    const data = rcNormalizeMissed(raw);
+    const payload = { date: which, range, ...data };
+    _rcMissedCache.set(key, { at: Date.now(), payload });
+    return res.status(200).json({ ok: true, ...payload });
+  } catch (err) {
+    const status = err.code === 'NO_CREDS' ? 200 : (err.status || 500);
+    return res.status(status).json({ ok: false, error: err.message, detail: debug ? (err.detail || null) : undefined });
   }
 }
