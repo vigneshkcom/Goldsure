@@ -1021,10 +1021,10 @@ function rcMissedEmailSection(label, items) {
       </td>
       <td width="112" align="right" valign="middle" style="padding:10px 12px;${index ? 'border-top:1px solid #eee3df;' : ''}font-size:10px;line-height:15px;font-weight:800;color:#a63b28;">NOT CALLED BACK</td>
     </tr>`;
-  }).join('') : `<tr><td style="padding:12px;font-size:12px;line-height:18px;color:#39704f;">No outstanding missed calls.</td></tr>`;
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin:0 0 14px;border:1px solid #e5d5cf;border-collapse:separate;background-color:#ffffff;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+  }).join('') : `<tr><td colspan="2" style="padding:12px;font-size:12px;line-height:18px;color:#39704f;">No outstanding missed calls.</td></tr>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin:0 0 14px;border:1px solid #e5d5cf;border-collapse:separate;table-layout:fixed;background-color:#ffffff;mso-table-lspace:0pt;mso-table-rspace:0pt;">
     <tr>
-      <td bgcolor="#fff3ef" style="padding:13px 14px;background-color:#fff3ef;">
+      <td colspan="2" width="100%" bgcolor="#fff3ef" style="width:100%;padding:13px 14px;background-color:#fff3ef;">
         <span style="font-size:11px;line-height:16px;font-weight:800;letter-spacing:1px;color:#7b3b2f;">${esc(label)}</span><br>
         <span style="font-size:30px;line-height:38px;font-weight:900;color:${callCount ? '#b23b25' : '#167342'};">${callCount}</span>
         <span style="font-size:12px;line-height:18px;font-weight:700;color:#555555;"> missed ${callCount === 1 ? 'call' : 'calls'} not called back</span>
