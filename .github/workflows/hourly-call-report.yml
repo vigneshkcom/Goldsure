@@ -6,7 +6,13 @@ name: Hourly call report
 on:
   schedule:
     - cron: '5 * * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Send a sample even outside reporting hours
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: hourly-call-report
@@ -20,7 +26,11 @@ jobs:
         env:
           REPORT_URL: https://portal.goldsure.com.au/api/ringcentral/hourly-email
           CRON_TOKEN: ${{ secrets.CALL_REPORT_CRON_SECRET }}
+          FORCE_SEND: ${{ inputs.force || 'false' }}
         run: |
+          if [ "$FORCE_SEND" = "true" ]; then
+            REPORT_URL="$REPORT_URL?force=1"
+          fi
           response=$(curl --fail-with-body --silent --show-error --max-time 90 \
             "$REPORT_URL" \
             -H "Authorization: Bearer $CRON_TOKEN")

@@ -952,11 +952,24 @@ function rcAgentStats(agent, onlyHour = null) {
 
 function rcCallReportRow(name, lastHour, today) {
   const rate = today.made ? Math.round((today.connected / today.made) * 100) : 0;
-  return `<div style="margin:0 0 12px;padding:16px 18px;border:1px solid #e8e3d5;border-radius:10px;background:#ffffff;">
-    <div style="margin:0 0 10px;font-size:17px;font-weight:700;color:#111111;">${esc(name)}</div>
-    <div style="margin:0 0 5px;font-size:13px;color:#555555;"><strong style="color:#111111;">Last hour:</strong> ${lastHour.made} made &middot; ${lastHour.connected} connected &middot; ${lastHour.noAnswer} no answer</div>
-    <div style="font-size:13px;color:#555555;"><strong style="color:#111111;">Today:</strong> ${today.made} made &middot; ${today.connected} connected &middot; ${today.noAnswer} no answer &middot; ${rate}% connect rate</div>
-  </div>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 16px;border:1px solid #ddd6c3;border-radius:12px;background:#ffffff;border-collapse:separate;overflow:hidden;">
+    <tr><td colspan="3" style="padding:16px 18px 12px;font-size:20px;font-weight:800;color:#111111;">${esc(name)}</td></tr>
+    <tr>
+      <td width="33.33%" align="center" style="padding:12px 6px 15px;border-top:1px solid #eee9dc;border-right:1px solid #eee9dc;background:#fffdf7;">
+        <div style="font-size:36px;line-height:1;font-weight:800;color:#111111;">${lastHour.made}</div>
+        <div style="margin-top:7px;font-size:10px;line-height:1.3;font-weight:800;letter-spacing:1px;color:#756227;">CALLS MADE</div>
+      </td>
+      <td width="33.33%" align="center" style="padding:12px 6px 15px;border-top:1px solid #eee9dc;border-right:1px solid #eee9dc;background:#f5fbf7;">
+        <div style="font-size:36px;line-height:1;font-weight:800;color:#167342;">${lastHour.connected}</div>
+        <div style="margin-top:7px;font-size:10px;line-height:1.3;font-weight:800;letter-spacing:1px;color:#167342;">CONNECTED</div>
+      </td>
+      <td width="33.33%" align="center" style="padding:12px 6px 15px;border-top:1px solid #eee9dc;background:#fff7f5;">
+        <div style="font-size:36px;line-height:1;font-weight:800;color:#b23b25;">${lastHour.noAnswer}</div>
+        <div style="margin-top:7px;font-size:10px;line-height:1.3;font-weight:800;letter-spacing:1px;color:#a63b28;">NO ANSWER</div>
+      </td>
+    </tr>
+    <tr><td colspan="3" style="padding:11px 18px;font-size:12px;line-height:1.5;color:#666666;background:#fafafa;border-top:1px solid #eee9dc;"><strong style="color:#333333;">Today:</strong> ${today.made} made &middot; ${today.connected} connected &middot; ${today.noAnswer} no answer &middot; ${rate}% connected</td></tr>
+  </table>`;
 }
 
 async function ringcentralHourlyEmail(req, res) {
@@ -983,6 +996,7 @@ async function ringcentralHourlyEmail(req, res) {
     const raw = await rcFetchTimeline(range);
     const agents = rcNormalize(raw);
     const targets = [
+      { label: 'Shanira', match: 'shanira' },
       { label: 'David', match: 'david' },
       { label: 'Alda', match: 'alda' },
     ].map(target => {
@@ -993,28 +1007,43 @@ async function ringcentralHourlyEmail(req, res) {
         today: rcAgentStats(agent),
       };
     });
-    const total = targets.reduce((sum, item) => ({
+    const todayTotal = targets.reduce((sum, item) => ({
       made: sum.made + item.today.made,
       connected: sum.connected + item.today.connected,
       noAnswer: sum.noAnswer + item.today.noAnswer,
     }), { made: 0, connected: 0, noAnswer: 0 });
+    const lastHourTotal = targets.reduce((sum, item) => ({
+      made: sum.made + item.lastHour.made,
+      connected: sum.connected + item.lastHour.connected,
+      noAnswer: sum.noAnswer + item.lastHour.noAnswer,
+    }), { made: 0, connected: 0, noAnswer: 0 });
     const period = `${rcHourLabel(hour - 1)}–${rcHourLabel(hour)}`;
     const dateLabel = new Intl.DateTimeFormat('en-AU', { timeZone: zone, day: 'numeric', month: 'short', year: 'numeric' }).format(now);
-    const recipient = process.env.CALL_REPORT_RECIPIENT || 'vignesh@goldsure.com.au';
-    const subject = `Goldsure calls: ${total.made} made today — ${dateLabel}`;
+    const recipients = ['vignesh@goldsure.com.au', 'amit@goldsure.com.au'];
+    const subject = `Last hour: ${lastHourTotal.made} calls made | Goldsure ${period}`;
     const rows = targets.map(item => rcCallReportRow(item.label, item.lastHour, item.today)).join('');
     const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f5f3ed;">
-      <div style="max-width:620px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
+      <div style="max-width:660px;margin:0 auto;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
         <div style="padding:20px 22px;background:#111111;border-radius:12px 12px 0 0;">
           <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#c7a84b;">Goldsure Call Analytics</div>
-          <div style="margin-top:7px;font-size:22px;font-weight:700;color:#ffffff;">Hourly call report</div>
+          <div style="margin-top:7px;font-size:24px;font-weight:800;color:#ffffff;">Last-hour call report</div>
           <div style="margin-top:5px;font-size:13px;color:#bdbdbd;">${esc(period)} &middot; ${esc(dateLabel)} &middot; ${esc(zone)}</div>
         </div>
         <div style="padding:18px;background:#faf9f5;border:1px solid #e8e3d5;border-top:0;border-radius:0 0 12px 12px;">
-          <div style="margin:0 0 14px;padding:13px 16px;border-radius:9px;background:#efe7cd;font-size:14px;color:#3f351c;">
-            <strong>${total.made} calls made today</strong> &middot; ${total.connected} connected &middot; ${total.noAnswer} no answer
+          <div style="margin:0 0 18px;padding:18px 10px 16px;border-radius:12px;background:#efe7cd;text-align:center;">
+            <div style="margin-bottom:14px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#66531d;">COMBINED &mdash; LAST HOUR</div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;">
+              <tr>
+                <td width="33.33%" align="center" style="padding:2px 4px;"><div style="font-size:44px;line-height:1;font-weight:900;color:#111111;">${lastHourTotal.made}</div><div style="margin-top:7px;font-size:10px;font-weight:800;letter-spacing:1px;color:#66531d;">CALLS MADE</div></td>
+                <td width="33.33%" align="center" style="padding:2px 4px;border-left:1px solid #d5c79e;"><div style="font-size:44px;line-height:1;font-weight:900;color:#167342;">${lastHourTotal.connected}</div><div style="margin-top:7px;font-size:10px;font-weight:800;letter-spacing:1px;color:#167342;">CONNECTED</div></td>
+                <td width="33.33%" align="center" style="padding:2px 4px;border-left:1px solid #d5c79e;"><div style="font-size:44px;line-height:1;font-weight:900;color:#b23b25;">${lastHourTotal.noAnswer}</div><div style="margin-top:7px;font-size:10px;font-weight:800;letter-spacing:1px;color:#a63b28;">NO ANSWER</div></td>
+              </tr>
+            </table>
           </div>
+          <div style="margin:0 0 12px;font-size:14px;font-weight:800;letter-spacing:.5px;color:#333333;">INDIVIDUAL RESULTS &mdash; LAST HOUR</div>
           ${rows}
+          <div style="margin:2px 0 16px;padding:12px 15px;border-radius:9px;background:#eeeeee;font-size:13px;line-height:1.5;color:#444444;"><strong>Combined today:</strong> ${todayTotal.made} made &middot; ${todayTotal.connected} connected &middot; ${todayTotal.noAnswer} no answer</div>
+          <div style="margin:0 0 16px;font-size:11px;line-height:1.5;color:#777777;">No answer means the outbound call was not connected, including calls that reached voicemail.</div>
           <div style="padding-top:4px;text-align:center;font-size:12px;color:#777777;">
             <a href="https://portal.goldsure.com.au/calls/" style="color:#9a7920;text-decoration:none;font-weight:700;">Open the live Call Analytics dashboard</a>
           </div>
@@ -1026,18 +1055,19 @@ async function ringcentralHourlyEmail(req, res) {
       '',
       ...targets.map(item => `${item.label}: last hour ${item.lastHour.made} made, ${item.lastHour.connected} connected, ${item.lastHour.noAnswer} no answer; today ${item.today.made} made, ${item.today.connected} connected, ${item.today.noAnswer} no answer.`),
       '',
-      `Combined today: ${total.made} made, ${total.connected} connected, ${total.noAnswer} no answer.`,
+      `Combined last hour: ${lastHourTotal.made} made, ${lastHourTotal.connected} connected, ${lastHourTotal.noAnswer} no answer.`,
+      `Combined today: ${todayTotal.made} made, ${todayTotal.connected} connected, ${todayTotal.noAnswer} no answer.`,
       'https://portal.goldsure.com.au/calls/',
     ].join('\n');
 
     await sendHostingerMail({
-      to: [recipient],
+      to: recipients,
       displayName: 'Goldsure Call Analytics',
       subject,
       text,
       html,
     });
-    return res.status(200).json({ ok: true, sent: true, recipient, period, date: dateLabel, totals: total, agents: targets });
+    return res.status(200).json({ ok: true, sent: true, recipients, period, date: dateLabel, totals: lastHourTotal, todayTotals: todayTotal, agents: targets });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: err.message });
   }
