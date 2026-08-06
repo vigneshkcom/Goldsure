@@ -772,7 +772,7 @@ function rcHourFromIso(iso, zone) { try { return Number(new Intl.DateTimeFormat(
 // Users to leave out of the call report (matched case-insensitively as a
 // substring of the name). Override with RINGCENTRAL_EXCLUDE_USERS (comma-sep).
 function rcExcludedUsers() {
-  return (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh')
+  return (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh,Amit')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 }
 function rcNormalize(raw) {
