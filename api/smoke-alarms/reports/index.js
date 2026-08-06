@@ -769,20 +769,21 @@ function rcDayRange(which) {
 }
 
 function rcHourFromIso(iso, zone) { try { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(new Date(iso))); } catch { return null; } }
-// Users to leave out of the call report (matched case-insensitively as a
-// substring of the name). Override with RINGCENTRAL_EXCLUDE_USERS (comma-sep).
-function rcExcludedUsers() {
-  return (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh,Amit')
+// Only these users appear on the call report (matched case-insensitively as
+// a substring of the name) — keeps out unattributed rows like "Unknown" or a
+// bare extension number. Override with RINGCENTRAL_INCLUDE_USERS (comma-sep).
+function rcAllowedUsers() {
+  return (process.env.RINGCENTRAL_INCLUDE_USERS || 'Alda,David,Shanira')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 }
 function rcNormalize(raw) {
   const zone = rcTz();
-  const exclude = rcExcludedUsers();
+  const allow = rcAllowedUsers();
   const records = raw?.data?.records || raw?.records || [];
   const agents = [];
   for (const rec of records) {
     const name = rec?.info?.name || rec?.key?.name || rec?.name || 'Unknown';
-    if (exclude.some(x => name.toLowerCase().includes(x))) continue;
+    if (!allow.some(x => name.toLowerCase().includes(x))) continue;
     const series = rec?.points || rec?.dataItems || [];
     const hours = {};
     let active = false;
@@ -844,7 +845,7 @@ async function rcFetchTimeline(range) {
 // missed-calls panel. Answered/no-answer is inferred from `result`.
 function rcNormalizeInboundHourly(raw) {
   const zone = rcTz();
-  const exclude = rcExcludedUsers();
+  const allow = rcAllowedUsers();
   const recs = raw?.records || [];
   const seen = new Set();
   const agents = new Map();
@@ -853,7 +854,7 @@ function rcNormalizeInboundHourly(raw) {
     if (r.sessionId) seen.add(r.sessionId);
     if (r.direction !== 'Inbound') continue;
     const name = r.to?.name || r.to?.extensionNumber || 'Unknown';
-    if (exclude.some(x => name.toLowerCase().includes(x))) continue;
+    if (!allow.some(x => name.toLowerCase().includes(x))) continue;
     const h = rcHourFromIso(r.startTime, zone);
     if (h == null) continue;
     const missed = /miss|voicemail|no ?answer|abandon/i.test(String(r.result || ''));
