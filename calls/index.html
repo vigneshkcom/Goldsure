@@ -281,7 +281,7 @@
   <div class="card">
     <div class="card-head">
       <div>
-        <div class="card-title">Calls by agent &amp; hour</div>
+        <div class="card-title">Outbound calls by agent &amp; hour</div>
         <div class="card-hint">Click any cell or hour to drill in. Calls made shown; hover for connected / no-answer.</div>
       </div>
       <div class="legend">Fewer <span class="sw" id="legendSwatches"></span> More</div>
@@ -293,6 +293,18 @@
   <div class="drill" id="drill">
     <div class="drill-h" id="drillHead">Selected hour</div>
     <div class="drill-grid" id="drillGrid"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Inbound calls by agent &amp; hour</div>
+        <div class="card-hint">Calls received shown; hover for connected / no-answer.</div>
+      </div>
+      <div class="legend">Fewer <span class="sw" id="legendSwatchesIn"></span> More</div>
+    </div>
+    <div class="scroll-cue"><span>Swipe sideways to see every hour</span><span>→→</span></div>
+    <div class="grid-scroll"><div id="heatIn"></div></div>
   </div>
 
   <div class="cols">
@@ -377,12 +389,30 @@ const AGENTS = Object.keys(RAW.today);
 // Average talk time per connected call (seconds) so durations look realistic per agent.
 const AVG_SEC = {'David':78,'Shanira':64,'Alda Amonaki':92};
 
+// Demo dataset for inbound (received) calls — same shape as RAW.
+const RAW_IN = {
+  today: {
+    'David':        {8:mk(1,1), 9:mk(3,3), 10:mk(2,2), 11:mk(2,1), 12:mk(1,1), 13:mk(2,2), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+    'Shanira':      {8:mk(2,2), 9:mk(2,1), 10:mk(4,3), 11:mk(3,3), 12:mk(1,1), 13:mk(1,1), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+    'Alda Amonaki': {8:mk(0,0), 9:mk(1,1), 10:mk(2,2), 11:mk(3,2), 12:mk(2,2), 13:mk(1,1), 14:mk(0,0),15:mk(0,0),16:mk(0,0),17:mk(0,0)},
+  },
+  yday: {
+    'David':        {8:mk(2,2), 9:mk(4,3),10:mk(3,3),11:mk(2,2),12:mk(1,1),13:mk(3,2),14:mk(2,2),15:mk(1,1),16:mk(1,1),17:mk(0,0)},
+    'Shanira':      {8:mk(1,1), 9:mk(3,2),10:mk(4,4),11:mk(3,3),12:mk(2,2),13:mk(2,1),14:mk(3,3),15:mk(2,2),16:mk(1,1),17:mk(0,0)},
+    'Alda Amonaki': {8:mk(1,1), 9:mk(2,2),10:mk(2,1),11:mk(3,3),12:mk(2,2),13:mk(1,1),14:mk(2,2),15:mk(2,1),16:mk(1,1),17:mk(0,0)},
+  }
+};
+
 // ── Data model: live (RingCentral) with demo fallback ──
-function buildDemo(day){ const o={}; Object.keys(RAW[day]).forEach(a=>{ o[a]={}; HOURS.forEach(h=>{ const d=RAW[day][a][h]||{made:0,conn:0}; o[a][h]={made:d.made,conn:d.conn,dur:d.conn*(AVG_SEC[a]||70)}; }); }); return o; }
-const DEMO = { today: buildDemo('today'), yday: buildDemo('yday') };
+function buildDemo(raw, day){ const o={}; Object.keys(raw[day]).forEach(a=>{ o[a]={}; HOURS.forEach(h=>{ const d=raw[day][a][h]||{made:0,conn:0}; o[a][h]={made:d.made,conn:d.conn,dur:d.conn*(AVG_SEC[a]||70)}; }); }); return o; }
+const DEMO = { today: buildDemo(RAW,'today'), yday: buildDemo(RAW,'yday') };
+const DEMO_IN = { today: buildDemo(RAW_IN,'today'), yday: buildDemo(RAW_IN,'yday') };
 const LIVE = { today:null, yday:null };
+const LIVE_IN = { today:null, yday:null };
 function curDay(){ return document.getElementById('dayFilter').value==='yday'?'yday':'today'; }
 function activeData(){ const d=curDay(); return (LIVE[d]&&Object.keys(LIVE[d]).length)?LIVE[d]:DEMO[d]; }
+function activeDataIn(){ const d=curDay(); return (LIVE_IN[d]&&Object.keys(LIVE_IN[d]).length)?LIVE_IN[d]:DEMO_IN[d]; }
+function activeDataFor(dir){ return dir==='in' ? activeDataIn() : activeData(); }
 function allAgents(){ return Object.keys(activeData()); }
 function setLiveBadge(live){ const b=document.getElementById('demoBadge'); if(b) b.style.display=live?'none':''; }
 function populateAgents(){ const sel=document.getElementById('agentFilter'); if(!sel) return; const cur=sel.value; const names=Object.keys(activeData()); sel.innerHTML='<option value="">All agents</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join(''); if(names.includes(cur)) sel.value=cur; }
@@ -391,8 +421,17 @@ async function loadLive(day){
     const r=await fetch('/api/ringcentral/timeline?date='+(day==='yday'?'yday':'today'),{cache:'no-store'});
     const j=await r.json().catch(()=>({}));
     if(j&&j.ok&&Array.isArray(j.agents)&&j.agents.length){
-      const m={}; j.agents.forEach(a=>{ m[a.name]={}; HOURS.forEach(h=>{ const c=(a.hours&&(a.hours[h]||a.hours[String(h)]))||{}; m[a.name][h]={made:+c.made||0,conn:+c.conn||0,dur:+c.dur||0}; }); });
-      LIVE[day]=m; setLiveBadge(true);
+      const m={}, mIn={};
+      j.agents.forEach(a=>{
+        m[a.name]={}; mIn[a.name]={};
+        HOURS.forEach(h=>{
+          const c=(a.hours&&(a.hours[h]||a.hours[String(h)]))||{};
+          m[a.name][h]={made:+c.made||0,conn:+c.conn||0,dur:+c.dur||0};
+          const ci=(a.hoursIn&&(a.hoursIn[h]||a.hoursIn[String(h)]))||{};
+          mIn[a.name][h]={made:+ci.made||0,conn:+ci.conn||0,dur:+ci.dur||0};
+        });
+      });
+      LIVE[day]=m; LIVE_IN[day]=mIn; setLiveBadge(true);
     } else { setLiveBadge(false); }
   }catch(e){ setLiveBadge(false); }
   populateAgents(); render();
@@ -407,10 +446,10 @@ function initials(n){ return n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toU
 function dataset(){ return activeData(); }
 function scopedAgents(){ const f=document.getElementById('agentFilter').value; return f?[f]:allAgents(); }
 
-// cell metrics
-function cell(agent,h){ const row=activeData()[agent]||{}; const d=row[h]||{made:0,conn:0,dur:0}; return {made:d.made||0,conn:d.conn||0,noans:(d.made||0)-(d.conn||0),dur:d.dur||0}; }
-function hourTotals(h,agents){ let made=0,conn=0,noans=0,dur=0; agents.forEach(a=>{const c=cell(a,h);made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}); return {made,conn,noans,dur}; }
-function agentTotals(a){ let made=0,conn=0,dur=0; HOURS.forEach(h=>{const c=cell(a,h);made+=c.made;conn+=c.conn;dur+=c.dur;}); return {made,conn,dur}; }
+// cell metrics — dir: 'out' (outbound, default) or 'in' (inbound)
+function cell(agent,h,dir){ const row=activeDataFor(dir)[agent]||{}; const d=row[h]||{made:0,conn:0,dur:0}; return {made:d.made||0,conn:d.conn||0,noans:(d.made||0)-(d.conn||0),dur:d.dur||0}; }
+function hourTotals(h,agents,dir){ let made=0,conn=0,noans=0,dur=0; agents.forEach(a=>{const c=cell(a,h,dir);made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}); return {made,conn,noans,dur}; }
+function agentTotals(a,dir){ let made=0,conn=0,dur=0; HOURS.forEach(h=>{const c=cell(a,h,dir);made+=c.made;conn+=c.conn;dur+=c.dur;}); return {made,conn,dur}; }
 
 // heat color (gold scale)
 function heatColor(v,max){ if(v===0) return {bg:'#f7f8fb',fg:'#c3c8d4'}; const t=Math.min(1,v/max); const bg=`rgba(176,141,46,${(0.12+t*0.78).toFixed(2)})`; const fg = t>0.5?'#fff':'#5a4a1e'; return {bg,fg}; }
@@ -419,15 +458,40 @@ let hoursAgent='';                                  // Hourly-breakdown agent to
 const firstNm = n => String(n||'').split(/\s+/)[0];
 function setHoursAgent(name){ hoursAgent = name || ''; render(); }
 
+// Builds one heatmap table (outbound is clickable/selectable; inbound is display-only)
+function renderHeat(containerId,legendId,agents,dir){
+  const ds=activeDataFor(dir);
+  let maxCell=1; allAgents().forEach(a=>HOURS.forEach(h=>{maxCell=Math.max(maxCell,((ds[a]||{})[h]||{made:0}).made);}));
+  const label = dir==='in' ? 'Received' : 'Made';
+  const clickable = dir!=='in';
+
+  let head='<tr><th class="agent-h">Agent</th>';
+  HOURS.forEach(h=>{ head += `<th class="hour-col ${h===NOW_HOUR?'col-now':''}">${heatHourWindow(h)}${h===NOW_HOUR?'<span class="now-tag">● now</span>':''}</th>`; });
+  head+='<th>Total</th><th>Avg / call</th></tr>';
+  let rows='';
+  agents.forEach(a=>{
+    rows+=`<tr><td><div class="agent-cell"><span class="avatar">${initials(a)}</span><span class="agent-name">${a}</span></div></td>`;
+    HOURS.forEach(h=>{
+      const c=cell(a,h,dir); const col=heatColor(c.made,maxCell);
+      const sel = (clickable && selHour===h)?'sel':'';
+      const click = clickable?` onclick="pickHour(${h})"`:'';
+      rows+=`<td><div class="heat-cell ${sel}" style="background:${col.bg};color:${col.fg};" title="${a} · ${hourRange(h)}\n${label} ${c.made} · Connected ${c.conn} · No answer ${c.noans} · ${fmtDur(c.dur)}"${click}><span class="hc-n">${c.made||''}</span>${c.made?`<span class="hc-d">${fmtDur(c.dur)}</span>`:''}</div></td>`;
+    });
+    const at=agentTotals(a,dir);
+    const avg = at.made ? fmtDur(Math.round(at.dur/at.made)) : '—';
+    rows+=`<td><div class="heat-tot"><span class="hc-n">${at.made}</span><span class="hc-d">${fmtDur(at.dur)}</span></div></td>`
+      + `<td><div class="heat-avg" title="Average call handling time"><b>${avg}</b><small>avg</small></div></td></tr>`;
+  });
+  document.getElementById(containerId).innerHTML='<table class="heat"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>';
+  document.getElementById(legendId).innerHTML=[0.15,0.4,0.65,0.9].map(t=>`<i style="background:rgba(176,141,46,${t})"></i>`).join('');
+}
+
 function render(){
   const agents=scopedAgents();
-  const ds=dataset();
-  // max cell for color scaling
-  let maxCell=1; allAgents().forEach(a=>HOURS.forEach(h=>{maxCell=Math.max(maxCell,((ds[a]||{})[h]||{made:0}).made);}));
 
-  // KPIs (scoped)
+  // KPIs (scoped, outbound)
   let made=0,conn=0,noans=0,dur=0;
-  agents.forEach(a=>HOURS.forEach(h=>{const c=cell(a,h);made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}));
+  agents.forEach(a=>HOURS.forEach(h=>{const c=cell(a,h,'out');made+=c.made;conn+=c.conn;noans+=c.noans;dur+=c.dur;}));
   const rate = made? Math.round(conn/made*100):0;
   document.getElementById('kpis').innerHTML = [
     kpi('made',iconSvg('phone'),'Calls Made',made,'across '+agents.length+' agent'+(agents.length>1?'s':'')),
@@ -437,27 +501,8 @@ function render(){
     kpi('talk',iconSvg('clock'),'Talk Time',fmtDurLong(dur),'avg '+(conn?fmtDur(dur/conn):'0:00')+' / call'),
   ].join('');
 
-  // Heatmap
-  let head='<tr><th class="agent-h">Agent</th>';
-  HOURS.forEach(h=>{ head += `<th class="hour-col ${h===NOW_HOUR?'col-now':''}">${heatHourWindow(h)}${h===NOW_HOUR?'<span class="now-tag">● now</span>':''}</th>`; });
-  head+='<th>Total</th><th>Avg / call</th></tr>';
-  let rows='';
-  agents.forEach(a=>{
-    rows+=`<tr><td><div class="agent-cell"><span class="avatar">${initials(a)}</span><span class="agent-name">${a}</span></div></td>`;
-    HOURS.forEach(h=>{
-      const c=cell(a,h); const col=heatColor(c.made,maxCell);
-      const sel = selHour===h?'sel':'';
-      rows+=`<td><div class="heat-cell ${sel}" style="background:${col.bg};color:${col.fg};" title="${a} · ${hourRange(h)}\nMade ${c.made} · Connected ${c.conn} · No answer ${c.noans} · ${fmtDur(c.dur)}" onclick="pickHour(${h})"><span class="hc-n">${c.made||''}</span>${c.made?`<span class="hc-d">${fmtDur(c.dur)}</span>`:''}</div></td>`;
-    });
-    const at=agentTotals(a);
-    const avg = at.made ? fmtDur(Math.round(at.dur/at.made)) : '—';
-    rows+=`<td><div class="heat-tot"><span class="hc-n">${at.made}</span><span class="hc-d">${fmtDur(at.dur)}</span></div></td>`
-      + `<td><div class="heat-avg" title="Average call handling time"><b>${avg}</b><small>avg</small></div></td></tr>`;
-  });
-  document.getElementById('heat').innerHTML='<table class="heat"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>';
-
-  // Legend swatches
-  document.getElementById('legendSwatches').innerHTML=[0.15,0.4,0.65,0.9].map(t=>`<i style="background:rgba(176,141,46,${t})"></i>`).join('');
+  renderHeat('heat','legendSwatches',agents,'out');
+  renderHeat('heatIn','legendSwatchesIn',agents,'in');
 
   // Hourly breakdown — toggle between the agents active that day
   const hActive = allAgents();
@@ -467,10 +512,10 @@ function render(){
     + hActive.map(a=>`<button class="hchip${hoursAgent===a?' on':''}" onclick="setHoursAgent('${a.replace(/'/g,"\\'")}')">${firstNm(a)}</button>`).join('');
   let hb='';
   HOURS.forEach(h=>{
-    const t=hourTotals(h,hAgents); if(t.made===0 && h>NOW_HOUR) return;
+    const t=hourTotals(h,hAgents,'out'); if(t.made===0 && h>NOW_HOUR) return;
     hb+=`<tr class="${selHour===h?'sel':''}" onclick="pickHour(${h})" style="cursor:pointer;"><td>${hourRange(h)}</td><td class="cval" data-label="Calls">${t.made}</td><td class="cconn" data-label="Connected">${t.conn}</td><td class="cnoans" data-label="No answer">${t.noans||'0'}</td><td class="mono cmuted" data-label="Duration">${fmtDur(t.dur)}</td></tr>`;
   });
-  let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,hAgents);tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
+  let tm=0,tc=0,tn=0,td=0; HOURS.forEach(h=>{const t=hourTotals(h,hAgents,'out');tm+=t.made;tc+=t.conn;tn+=t.noans;td+=t.dur;});
   hb+=`<tr class="total"><td>Total</td><td class="cval" data-label="Calls">${tm}</td><td class="cconn" data-label="Connected">${tc}</td><td class="cnoans" data-label="No answer">${tn}</td><td class="mono" data-label="Duration">${fmtDur(td)}</td></tr>`;
   document.getElementById('hoursBody').innerHTML=hb;
 

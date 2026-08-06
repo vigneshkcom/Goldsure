@@ -769,12 +769,15 @@ function rcDayRange(which) {
 }
 
 function rcHourFromIso(iso, zone) { try { return Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hour12: false }).format(new Date(iso))); } catch { return null; } }
+// Users to leave out of the call report (matched case-insensitively as a
+// substring of the name). Override with RINGCENTRAL_EXCLUDE_USERS (comma-sep).
+function rcExcludedUsers() {
+  return (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
 function rcNormalize(raw) {
   const zone = rcTz();
-  // Users to leave out of the call report (matched case-insensitively as a
-  // substring of the name). Override with RINGCENTRAL_EXCLUDE_USERS (comma-sep).
-  const exclude = (process.env.RINGCENTRAL_EXCLUDE_USERS || 'Vignesh')
-    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const exclude = rcExcludedUsers();
   const records = raw?.data?.records || raw?.records || [];
   const agents = [];
   for (const rec of records) {
@@ -835,6 +838,34 @@ async function rcFetchTimeline(range) {
   return raw;
 }
 
+// Inbound calls aren't broken out by hour in the Analytics Timeline response
+// (its counters aggregate both directions per user), so inbound hourly stats
+// are derived from the raw Call Log records instead — same source as the
+// missed-calls panel. Answered/no-answer is inferred from `result`.
+function rcNormalizeInboundHourly(raw) {
+  const zone = rcTz();
+  const exclude = rcExcludedUsers();
+  const recs = raw?.records || [];
+  const seen = new Set();
+  const agents = new Map();
+  for (const r of recs) {
+    if (r.sessionId && seen.has(r.sessionId)) continue;
+    if (r.sessionId) seen.add(r.sessionId);
+    if (r.direction !== 'Inbound') continue;
+    const name = r.to?.name || r.to?.extensionNumber || 'Unknown';
+    if (exclude.some(x => name.toLowerCase().includes(x))) continue;
+    const h = rcHourFromIso(r.startTime, zone);
+    if (h == null) continue;
+    const missed = /miss|voicemail|no ?answer|abandon/i.test(String(r.result || ''));
+    const dur = Number(r.duration) || 0;
+    const entry = agents.get(name) || {};
+    const prev = entry[h] || { made: 0, conn: 0, dur: 0 };
+    entry[h] = { made: prev.made + 1, conn: prev.conn + (missed ? 0 : 1), dur: prev.dur + dur };
+    agents.set(name, entry);
+  }
+  return agents; // Map<name, {hour: {made,conn,dur}}>
+}
+
 async function ringcentralTimeline(req, res) {
   const which = (req.query?.date === 'yday') ? 'yday' : 'today';
   const debug = req.query?.debug === '1' || req.query?.debug === 'true';
@@ -844,7 +875,23 @@ async function ringcentralTimeline(req, res) {
     const range = rcDayRange(which);
     const raw = await rcFetchTimeline(range);
     if (debug) return res.status(200).json({ ok: true, range, raw });
-    const agents = rcNormalize(raw);
+    const outAgents = rcNormalize(raw);
+
+    // Best-effort: merge in inbound hourly stats from the call log. Never let
+    // an inbound failure (e.g. missing Read Call Log scope) break outbound.
+    let inAgents = new Map();
+    try {
+      const clRaw = await rcFetchCallLogCached(which, range);
+      inAgents = rcNormalizeInboundHourly(clRaw);
+    } catch (e) { /* inbound stays empty; outbound view still works */ }
+
+    const names = new Set([...outAgents.map(a => a.name), ...inAgents.keys()]);
+    const agents = [...names].map(name => ({
+      name,
+      hours: (outAgents.find(a => a.name === name) || {}).hours || {},
+      hoursIn: inAgents.get(name) || {},
+    }));
+
     const payload = { date: which, range, agents, hours: RC_HOURS, source: 'ringcentral' };
     _rcCache.set(which, { at: Date.now(), payload });
     return res.status(200).json({ ok: true, ...payload });
@@ -856,6 +903,7 @@ async function ringcentralTimeline(req, res) {
 
 // ── Missed calls + return status (Call Log API) ──────────────
 const _rcMissedCache = new Map();
+const _rcCallLogCache = new Map();
 async function rcFetchCallLog(range) {
   const token = await rcAccessToken();
   const url = `${rcServer()}/restapi/v1.0/account/~/call-log?view=Simple&type=Voice&perPage=1000`
@@ -863,6 +911,15 @@ async function rcFetchCallLog(range) {
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
   const raw = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(`Call log request failed: ${r.status}`); e.status = r.status; e.detail = raw; throw e; }
+  return raw;
+}
+// Shared across the timeline (inbound) and missed-calls routes so a single
+// page load doesn't fetch the same day's call log twice.
+async function rcFetchCallLogCached(which, range) {
+  const hit = _rcCallLogCache.get(which);
+  if (hit && Date.now() - hit.at < RC_CACHE_MS) return hit.raw;
+  const raw = await rcFetchCallLog(range);
+  _rcCallLogCache.set(which, { at: Date.now(), raw });
   return raw;
 }
 
@@ -919,7 +976,7 @@ async function ringcentralMissed(req, res) {
     const hit = _rcMissedCache.get(key);
     if (hit && !debug && Date.now() - hit.at < RC_CACHE_MS) return res.status(200).json({ ok: true, cached: true, ...hit.payload });
     const range = rcDayRange(which);
-    const raw = await rcFetchCallLog(range);
+    const raw = await rcFetchCallLogCached(which, range);
     if (debug) return res.status(200).json({ ok: true, range, raw });
     const data = rcNormalizeMissed(raw);
     const payload = { date: which, range, ...data };
