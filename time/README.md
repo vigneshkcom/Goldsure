@@ -80,9 +80,9 @@ Every request also carries a `pin` (the agent's or the manager's).
 
 ## Pay rates & manager emails
 
-Rates are **$13.54/hr** (David), **$25/hr** (Shanira) and **$10.4175/hr** (Alda Amonaki),
+Rates are **$13.54/hr** (David), **$32/hr** (Shanira) and **$10.4175/hr** (Alda Amonaki),
 baked into the handler; override with a `TIME_RATES` env var
-(JSON, e.g. `{"David":13.54,"Shanira":25,"Alda Amonaki":10.4175}`).
+(JSON, e.g. `{"David":13.54,"Shanira":32,"Alda Amonaki":10.4175}`).
 Earnings = rounded billable hours × rate. **Pay is manager-only** — agents never see any dollar figures.
 Rates are sent from the server to the manager view only (never in the per-agent page or
 its CSV), so an agent can't read their rate/earnings even from the page source. Earnings
