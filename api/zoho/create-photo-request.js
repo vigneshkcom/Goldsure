@@ -12,6 +12,8 @@
 //    (dataBase64 is a data URL or raw base64 string of the photo, sent by
 //    hotwater/upload-photos.html after client-side compression)
 
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
 const API_BASE = `https://www.zohoapis.${REGION}/workdrive/api/v1`;
@@ -98,13 +100,31 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64 } = req.body || {};
+    const { folderId, filename, dataBase64, customerName } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
 
     try {
       const accessToken = await getAccessToken();
       const buffer = base64ToBuffer(dataBase64);
       await uploadFile(accessToken, folderId, filename || `photo-${Date.now()}.jpg`, buffer);
+
+      // Notify the team so uploads don't have to be checked for manually.
+      // Best-effort: a mail failure must never fail the customer's upload.
+      try {
+        const who = (customerName || '').trim() || 'A customer';
+        const folderUrl = `https://workdrive.zoho.${REGION}/folder/${folderId}`;
+        await sendHostingerMail({
+          to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+          displayName: 'Goldsure Portal',
+          subject: `New photo uploaded — ${who}`,
+          html: `<p><strong>${who}</strong> has uploaded a photo.</p>
+                 <p><a href="${folderUrl}">Open their folder in WorkDrive</a></p>
+                 <p style="color:#666;font-size:13px;">File: ${filename || 'photo.jpg'}</p>`,
+        });
+      } catch (mailErr) {
+        console.error('[Zoho upload] notification email failed:', mailErr.message);
+      }
+
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('Zoho photo upload failed:', err.message);
