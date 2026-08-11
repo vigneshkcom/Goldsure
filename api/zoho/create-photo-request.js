@@ -15,11 +15,11 @@
 const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
 const API_BASE = `https://www.zohoapis.${REGION}/workdrive/api/v1`;
-// Zoho routes file content (uploads/downloads) through a separate
-// "content" subdomain from the main metadata API — unverified against a
-// live account; if uploads fail with a 404/routing error, this is the
-// first thing to check against Zoho's current API docs.
-const UPLOAD_BASE = `https://content.zohoapis.${REGION}/workdrive/api/v1`;
+// File uploads go to the workdrive.zoho.<region> host directly (not the
+// www.zohoapis.<region>/workdrive prefix used for metadata calls above) —
+// confirmed against the same host the WorkDrive web client itself calls
+// for its own upload flow (workdrive.zoho.com.au/api/v1/checkfilename).
+const UPLOAD_BASE = `https://workdrive.zoho.${REGION}/api/v1`;
 
 async function getAccessToken() {
   const params = new URLSearchParams({
