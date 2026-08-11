@@ -36,6 +36,28 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// Look for an existing subfolder of the same name, so repeat requests for one
+// customer keep landing in that customer's single folder instead of spawning a
+// new one per click. Best-effort: if the lookup fails for any reason we fall
+// through to creating a folder rather than blocking the request.
+async function findFolderByName(accessToken, name, parentId) {
+  try {
+    const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}/files?page[limit]=100`, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const wanted = name.trim().toLowerCase();
+    const match = (data.data || []).find(f =>
+      f?.attributes?.is_folder !== false &&
+      String(f?.attributes?.name || '').trim().toLowerCase() === wanted
+    );
+    return match ? match.id : null;
+  } catch {
+    return null;
+  }
+}
+
 async function createFolder(accessToken, name, parentId) {
   const r = await fetch(`${API_BASE}/files`, {
     method: 'POST',
@@ -87,11 +109,14 @@ export default async function handler(req, res) {
 
     try {
       const accessToken = await getAccessToken();
-      const folderName = `${name.trim()} - ${new Date().toISOString().slice(0, 10)}`;
-      const folderId = await createFolder(accessToken, folderName, parentId);
+      // One folder per customer, reused across requests — no date suffix, so
+      // asking the same customer for photos twice doesn't split them up.
+      const folderName = name.trim();
+      const existingId = await findFolderByName(accessToken, folderName, parentId);
+      const folderId = existingId || await createFolder(accessToken, folderName, parentId);
       const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
-      const uploadPageUrl = `${baseUrl}/hotwater/upload-photos.html?folder=${encodeURIComponent(folderId)}&name=${encodeURIComponent(name.trim())}`;
-      return res.status(200).json({ folderId, folderName, uploadPageUrl });
+      const uploadPageUrl = `${baseUrl}/hotwater/upload-photos.html?folder=${encodeURIComponent(folderId)}&name=${encodeURIComponent(folderName)}`;
+      return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
       return res.status(502).json({ error: 'Zoho request failed', detail: err.message });
