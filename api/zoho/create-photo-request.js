@@ -58,6 +58,23 @@ async function findFolderByName(accessToken, name, parentId) {
   }
 }
 
+// Ask Zoho for the folder's own canonical link rather than constructing one —
+// a hand-built /folder/<id> URL lands in a login redirect loop. Falls back to
+// null so callers can degrade to whatever they can build themselves.
+async function getFolderLink(accessToken, folderId) {
+  try {
+    const r = await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const a = data?.data?.attributes || {};
+    return a.permalink || a.perma_link || a.resource_url || data?.data?.links?.self || null;
+  } catch {
+    return null;
+  }
+}
+
 async function createFolder(accessToken, name, parentId) {
   const r = await fetch(`${API_BASE}/files`, {
     method: 'POST',
@@ -102,6 +119,21 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Zoho credentials not configured' });
   }
 
+  // GET ?debug=<folderId> → raw Zoho metadata for that folder, so the correct
+  // link field can be identified without guessing. Diagnostic only.
+  if (req.method === 'GET' && req.query.debug) {
+    try {
+      const accessToken = await getAccessToken();
+      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(req.query.debug)}`, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+      });
+      const text = await r.text();
+      return res.status(200).json({ status: r.status, body: text.slice(0, 4000) });
+    } catch (err) {
+      return res.status(502).json({ error: 'lookup failed', detail: err.message });
+    }
+  }
+
   // POST → create a per-customer folder, return the upload page link
   if (req.method === 'POST') {
     const { name } = req.body || {};
@@ -137,13 +169,16 @@ export default async function handler(req, res) {
       // Best-effort: a mail failure must never fail the customer's upload.
       try {
         const who = (customerName || '').trim() || 'A customer';
-        const folderUrl = `https://workdrive.zoho.${REGION}/folder/${folderId}`;
+        const folderUrl = await getFolderLink(accessToken, folderId);
+        const linkHtml = folderUrl
+          ? `<p><a href="${folderUrl}">Open their folder in WorkDrive</a></p>`
+          : `<p style="color:#666;font-size:13px;">Folder ID: ${folderId} — open WorkDrive and search for “${who}”.</p>`;
         await sendHostingerMail({
           to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
           subject: `New photo uploaded — ${who}`,
           html: `<p><strong>${who}</strong> has uploaded a photo.</p>
-                 <p><a href="${folderUrl}">Open their folder in WorkDrive</a></p>
+                 ${linkHtml}
                  <p style="color:#666;font-size:13px;">File: ${filename || 'photo.jpg'}</p>`,
         });
       } catch (mailErr) {
