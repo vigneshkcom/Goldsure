@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Upload Your Photos — Goldsure</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    background: #fff; border-radius: 16px; padding: 28px 24px; max-width: 420px; width: 100%;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 20px; margin: 0 0 6px; color: #1a1a1a; }
+  p.sub { color: #666; font-size: 14px; margin: 0 0 20px; }
+  .upload-box {
+    border: 2px dashed #cbd5e0; border-radius: 12px; padding: 28px 16px; text-align: center;
+    margin-bottom: 16px; cursor: pointer; transition: border-color .15s;
+  }
+  .upload-box:active { border-color: #2b6cb0; }
+  .upload-box svg { width: 36px; height: 36px; color: #a0aec0; margin-bottom: 8px; }
+  .upload-box .label { font-size: 14px; color: #4a5568; font-weight: 600; }
+  input[type=file] { display: none; }
+  .preview { display: none; margin-bottom: 16px; }
+  .preview img { width: 100%; border-radius: 10px; display: block; }
+  button.submit {
+    width: 100%; padding: 14px; border: none; border-radius: 10px; background: #2b6cb0; color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button.submit:disabled { background: #a0c4e4; cursor: not-allowed; }
+  .status { margin-top: 14px; font-size: 14px; text-align: center; min-height: 18px; }
+  .status.err { color: #c53030; }
+  .status.ok { color: #2f855a; }
+  .done { display: none; text-align: center; }
+  .done .check { font-size: 44px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div id="formView">
+      <h1>Upload your photos</h1>
+      <p class="sub" id="subText">Take or select a clear photo of your switchboard, existing unit, or compliance plate.</p>
+
+      <label class="upload-box" id="uploadBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14"/></svg>
+        <div class="label" id="uploadLabel">Tap to take or choose a photo</div>
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+      </label>
+
+      <div class="preview" id="preview"><img id="previewImg" alt="Preview"></div>
+
+      <button class="submit" id="submitBtn" disabled>Upload Photo</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="done" id="doneView">
+      <div class="check">✅</div>
+      <h1>Thanks!</h1>
+      <p class="sub">Your photo has been received. You can close this page, or upload another one below.</p>
+      <button class="submit" id="uploadAnotherBtn">Upload Another Photo</button>
+    </div>
+  </div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const folderId = params.get('folder');
+const custName = params.get('name') || '';
+
+if (custName) {
+  document.getElementById('subText').textContent =
+    `Hi ${custName}, take or select a clear photo of your switchboard, existing unit, or compliance plate.`;
+}
+
+let compressedBlob = null;
+
+const fileInput = document.getElementById('fileInput');
+const previewBox = document.getElementById('preview');
+const previewImg = document.getElementById('previewImg');
+const submitBtn = document.getElementById('submitBtn');
+const statusEl = document.getElementById('status');
+const uploadLabel = document.getElementById('uploadLabel');
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg || '';
+  statusEl.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+if (!folderId) {
+  setStatus('This upload link is missing information. Please contact us for a new link.', 'err');
+  fileInput.disabled = true;
+}
+
+// Resize + compress in-browser so uploads stay well under the server's size limit.
+function compressImage(file, maxDim = 1600, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => { img.src = reader.result; };
+    reader.onerror = reject;
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+      else if (height > maxDim) { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not process image.')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  setStatus('Processing photo…');
+  submitBtn.disabled = true;
+  try {
+    compressedBlob = await compressImage(file);
+    previewImg.src = URL.createObjectURL(compressedBlob);
+    previewBox.style.display = 'block';
+    uploadLabel.textContent = 'Tap to choose a different photo';
+    submitBtn.disabled = false;
+    setStatus('');
+  } catch (e) {
+    setStatus('Could not process that photo — please try another.', 'err');
+  }
+});
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  if (!compressedBlob) return;
+  submitBtn.disabled = true;
+  setStatus('Uploading…');
+  try {
+    const dataBase64 = await blobToBase64(compressedBlob);
+    const filename = `photo-${Date.now()}.jpg`;
+    const res = await fetch('/api/zoho/create-photo-request', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderId, filename, dataBase64 }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('doneView').style.display = 'block';
+  } catch (e) {
+    setStatus('Upload failed — please try again.', 'err');
+    submitBtn.disabled = false;
+  }
+});
+
+document.getElementById('uploadAnotherBtn').addEventListener('click', () => {
+  compressedBlob = null;
+  fileInput.value = '';
+  previewBox.style.display = 'none';
+  uploadLabel.textContent = 'Tap to take or choose a photo';
+  submitBtn.disabled = true;
+  setStatus('');
+  document.getElementById('doneView').style.display = 'none';
+  document.getElementById('formView').style.display = 'block';
+});
+</script>
+</body>
+</html>
