@@ -57,8 +57,12 @@ async function uploadFile(accessToken, folderId, filename, buffer) {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     body: form,
   });
-  const data = await r.json();
-  if (!r.ok) throw new Error(`file upload failed: ${JSON.stringify(data)}`);
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = null; }
+  if (!r.ok || !data) {
+    throw new Error(`file upload failed: HTTP ${r.status} — ${text.slice(0, 300)}`);
+  }
   return data;
 }
 
