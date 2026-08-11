@@ -38,6 +38,12 @@ export default async function handler(req, res) {
   const money = (value) => new Intl.NumberFormat('en-AU', {
     style: 'currency', currency: 'AUD', minimumFractionDigits: 2,
   }).format(Number(value) || 0);
+  // The quote_emails table predates the "Direct Call" UI label and its
+  // customer_type constraint stores that lead type as "letterbox". Normalize
+  // both the current form value and older cached clients before inserting.
+  const normalizedCustomerType = ['direct', 'direct_call', 'letterbox'].includes(
+    String(customer_type || '').toLowerCase()
+  ) ? 'letterbox' : 'digital';
 
   // Discount applied by the agent in the quote tool (Booking Fees / Controller /
   // Regular). Trust the amount the tool sends; it is capped below so it can never
@@ -573,7 +579,7 @@ export default async function handler(req, res) {
             customer_email:      to_email         || null,
             customer_phone:      customer_phone   || null,
             customer_address:    customer_address || null,
-            customer_type:       customer_type    || 'digital',
+            customer_type:       normalizedCustomerType,
             agent_name:          agent_name       || null,
             service_type:        service_type     || null,
             alarm_qty:           parseInt(alarm_qty, 10) || 0,
