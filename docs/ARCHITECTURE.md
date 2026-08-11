@@ -210,7 +210,7 @@ These sections list the files that are most important when working in each folde
 
 #### `/api/MetaAdPerformace/`
 
-- [auth.js](/api/MetaAdPerformace/auth.js)
+- [meta.js](/api/MetaAdPerformace/meta.js)
   - Type: `API route`
   - Purpose: reporting auth helper endpoint
   - Live/active: yes
@@ -218,7 +218,7 @@ These sections list the files that are most important when working in each folde
   - Likely legacy: no, but path naming is legacy
   - Risky to change: very high
 
-- [config.js](/api/MetaAdPerformace/config.js)
+- [meta.js](/api/MetaAdPerformace/meta.js)
   - Type: `API route`
   - Purpose: secure config bootstrap for reporting UI
   - Live/active: yes
@@ -581,8 +581,8 @@ These sections list the files that are most important when working in each folde
 
 - Dashboard UI: [Ads reporting/Meta Ad Performance.html](/Ads reporting/Meta Ad Performance.html)
 - APIs:
-  - [api/MetaAdPerformace/auth.js](/api/MetaAdPerformace/auth.js)
-  - [api/MetaAdPerformace/config.js](/api/MetaAdPerformace/config.js)
+  - [api/MetaAdPerformace/meta.js](/api/MetaAdPerformace/meta.js)
+  - [api/MetaAdPerformace/meta.js](/api/MetaAdPerformace/meta.js)
   - [api/MetaAdPerformace/ghl.js](/api/MetaAdPerformace/ghl.js)
   - [api/MetaAdPerformace/google-spend.js](/api/MetaAdPerformace/google-spend.js)
   - [api/MetaAdPerformace/send-report.js](/api/MetaAdPerformace/send-report.js)
@@ -619,8 +619,8 @@ Documentation only. These are good candidates for future cleanup planning, not a
 
 - Anything under [api](/api)
 - Especially:
-  - [api/MetaAdPerformace/auth.js](/api/MetaAdPerformace/auth.js)
-  - [api/MetaAdPerformace/config.js](/api/MetaAdPerformace/config.js)
+  - [api/MetaAdPerformace/meta.js](/api/MetaAdPerformace/meta.js)
+  - [api/MetaAdPerformace/meta.js](/api/MetaAdPerformace/meta.js)
   - [api/MetaAdPerformace/ghl.js](/api/MetaAdPerformace/ghl.js)
   - [api/MetaAdPerformace/google-spend.js](/api/MetaAdPerformace/google-spend.js)
   - [api/smoke-alarms/send.js](/api/smoke-alarms/send.js)

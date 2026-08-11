@@ -21,8 +21,7 @@ This repo is live and has route-sensitive paths that should not be renamed casua
 
 - The `MetaAdPerformace` directory name contains a typo, but it is a live dependency.
 - Frontend code currently calls:
-  - `/api/MetaAdPerformace/auth`
-  - `/api/MetaAdPerformace/config`
+  - `/api/MetaAdPerformace/meta` (GET = config, POST = auth — merged from separate auth.js/config.js to stay within Vercel's function-count limit)
   - `/api/MetaAdPerformace/ghl`
   - `/api/MetaAdPerformace/google-spend`
 - Keep those route names working until aliases or wrappers are added.

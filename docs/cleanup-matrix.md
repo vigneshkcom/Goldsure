@@ -23,8 +23,8 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 - `/Air-Cons/`
 - `/api/`
 - `/api/battery/request-callback.js`
-- `/api/MetaAdPerformace/auth.js`
-- `/api/MetaAdPerformace/config.js`
+- `/api/MetaAdPerformace/meta.js`
+- `/api/MetaAdPerformace/meta.js`
 - `/api/MetaAdPerformace/ghl.js`
 - `/api/MetaAdPerformace/google-spend.js`
 - `/api/MetaAdPerformace/send-report.js`
@@ -119,8 +119,8 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 | `/api/` | folder | live serverless routes and template/report generation | clearly active / shared infrastructure | keep | very high |
 | `/api/battery/request-callback.js` | API route | battery callback submission and email HTML | clearly active / shared infrastructure | keep | very high |
 | `/api/MetaAdPerformace/` | folder | live reporting route namespace with typo in path | clearly active / confusing by name only | rename later | very high |
-| `/api/MetaAdPerformace/auth.js` | API route | reporting auth helper | clearly active / shared infrastructure | keep | very high |
-| `/api/MetaAdPerformace/config.js` | API route | reporting config bootstrap | clearly active / shared infrastructure | keep | very high |
+| `/api/MetaAdPerformace/meta.js` | API route | reporting auth helper | clearly active / shared infrastructure | keep | very high |
+| `/api/MetaAdPerformace/meta.js` | API route | reporting config bootstrap | clearly active / shared infrastructure | keep | very high |
 | `/api/MetaAdPerformace/ghl.js` | API route | GHL reporting proxy | clearly active / shared infrastructure | keep | very high |
 | `/api/MetaAdPerformace/google-spend.js` | API route | Google Ads spend endpoint | clearly active / shared infrastructure | keep | very high |
 | `/api/MetaAdPerformace/send-report.js` | API route + email/report template | cron-driven report sender | clearly active / shared infrastructure | keep | very high |

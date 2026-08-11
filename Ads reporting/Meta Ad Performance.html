@@ -1454,7 +1454,7 @@ async function checkPassword() {
   errEl.innerText = '';
 
   try {
-    const resp = await fetch('/api/MetaAdPerformace/auth', {
+    const resp = await fetch('/api/MetaAdPerformace/meta', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pw }),
@@ -1519,7 +1519,7 @@ async function autoLogin() {
   setStep('config', 'active', 'Fetching secure credentials from Vercel…');
   let metaToken = '';
   try {
-    const resp = await fetch('/api/MetaAdPerformace/config');
+    const resp = await fetch('/api/MetaAdPerformace/meta');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const cfg = await resp.json();
     if (cfg.error) throw new Error(cfg.error);
@@ -1529,7 +1529,7 @@ async function autoLogin() {
   } catch(e) {
     setStep('config', 'err', `Failed to load credentials: ${e.message}`);
     status.className = 'login-status err';
-    status.innerText = `Could not reach /api/MetaAdPerformace/config. Make sure GHL_API_KEY and META_TOKEN are set in Vercel Environment Variables.`;
+    status.innerText = `Could not reach /api/MetaAdPerformace/meta. Make sure GHL_API_KEY and META_TOKEN are set in Vercel Environment Variables.`;
     btn.disabled = false;
     spinner.classList.remove('active');
     btnText.innerText = 'Retry';

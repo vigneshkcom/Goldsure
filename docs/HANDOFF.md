@@ -67,8 +67,8 @@ This file is a single-page orientation for any new contributor or assistant. It 
 
 - Page: `/Ads reporting/Meta Ad Performance.html`
 - APIs:
-  - `/api/MetaAdPerformace/auth.js`
-  - `/api/MetaAdPerformace/config.js`
+  - `/api/MetaAdPerformace/meta.js`
+  - `/api/MetaAdPerformace/meta.js`
   - `/api/MetaAdPerformace/ghl.js`
   - `/api/MetaAdPerformace/google-spend.js`
   - `/api/MetaAdPerformace/send-report.js` (cron email)
@@ -85,8 +85,8 @@ This file is a single-page orientation for any new contributor or assistant. It 
 The repo is on the Hobby plan: **12 serverless functions maximum**. Currently at exactly 12. Before adding any new file under `/api/`, consolidate or remove an existing one first.
 
 Current 12 functions:
-1. `api/MetaAdPerformace/auth.js`
-2. `api/MetaAdPerformace/config.js`
+1. `api/MetaAdPerformace/meta.js`
+2. `api/MetaAdPerformace/meta.js`
 3. `api/MetaAdPerformace/ghl.js`
 4. `api/MetaAdPerformace/google-spend.js`
 5. `api/MetaAdPerformace/send-report.js`

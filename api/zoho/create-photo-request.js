@@ -7,7 +7,7 @@
 //  POST /api/zoho/create-photo-request  { name: "Customer Name" }
 //    → { folderId, folderName, uploadLink }
 
-const REGION = process.env.ZOHO_REGION || 'com.au';
+const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
 const API_BASE = `https://www.zohoapis.${REGION}/workdrive/api/v1`;
 

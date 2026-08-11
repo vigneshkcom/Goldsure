@@ -54,8 +54,8 @@ If you are looking for the ad reporting dashboard or daily email reporting logic
 Important files:
 
 - `/Ads reporting/Meta Ad Performance.html`
-- `/api/MetaAdPerformace/auth.js`
-- `/api/MetaAdPerformace/config.js`
+- `/api/MetaAdPerformace/meta.js`
+- `/api/MetaAdPerformace/meta.js`
 - `/api/MetaAdPerformace/ghl.js`
 - `/api/MetaAdPerformace/google-spend.js`
 - `/api/MetaAdPerformace/send-report.js`
