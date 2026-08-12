@@ -212,21 +212,23 @@ export default async function handler(req, res) {
 
     try {
       const accessToken = await getAccessToken();
-      // One folder per customer, reused across requests — no date suffix, so
-      // asking the same customer for photos twice doesn't split them up.
-      const folderName = name.trim();
+      // One folder per customer, reused across requests, so asking the same
+      // customer for photos twice doesn't split them up. The full name alone
+      // isn't unique — two different "John Smith" customers would otherwise
+      // share a folder and have their photos mixed together — so the last 4
+      // digits of the mobile are appended when we have one.
+      const last4 = String(phone || '').replace(/\D/g, '').slice(-4);
+      const folderName = last4 ? `${name.trim()} (${last4})` : name.trim();
       const existingId = await findFolderByName(accessToken, folderName, parentId);
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
       const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
-      // Kept deliberately short — this goes out by SMS, where every character
-      // counts toward the per-part billing. /u rewrites to the upload page, the
-      // name is looked up from the folder rather than carried here, and the
-      // phone (needed to match the upload back to a GHL contact) is shortened
-      // to `p`.
+      // Kept compact — this goes out by SMS. /u rewrites to the upload page,
+      // `p` carries the phone (needed to match the upload back to a GHL
+      // contact) and `n` the first name for the greeting.
       const phoneParam = phone ? `&p=${encodeURIComponent(phone)}` : '';
-      // First name rides in the link so the page can greet the customer
-      // immediately, without depending on a folder lookup that may fail.
-      const firstName = folderName.split(/\s+/)[0];
+      // From the customer's name, not the folder name, so the phone-number
+      // suffix never leaks into the greeting.
+      const firstName = name.trim().split(/\s+/)[0];
       const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
       const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
       return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
