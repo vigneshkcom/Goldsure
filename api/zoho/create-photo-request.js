@@ -37,19 +37,39 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// List a folder's children, paging through until exhausted. The JSON:API page
+// params must be percent-encoded — sending literal `page[limit]` brackets gets
+// a 400 back from Zoho — and the per-page maximum is 50.
+const PAGE_SIZE = 50;
+
+async function listChildren(accessToken, parentId, maxPages = 10) {
+  const out = [];
+  for (let page = 0; page < maxPages; page++) {
+    const qs = `page%5Blimit%5D=${PAGE_SIZE}&page%5Boffset%5D=${page * PAGE_SIZE}`;
+    const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}/files?${qs}`, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+    });
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`HTTP ${r.status} — ${text.slice(0, 200)}`);
+    }
+    const data = await r.json();
+    const batch = data.data || [];
+    out.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return out;
+}
+
 // Look for an existing subfolder of the same name, so repeat requests for one
 // customer keep landing in that customer's single folder instead of spawning a
 // new one per click. Best-effort: if the lookup fails for any reason we fall
 // through to creating a folder rather than blocking the request.
 async function findFolderByName(accessToken, name, parentId) {
   try {
-    const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}/files?page[limit]=100`, {
-      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
-    });
-    if (!r.ok) return null;
-    const data = await r.json();
+    const children = await listChildren(accessToken, parentId);
     const wanted = name.trim().toLowerCase();
-    const match = (data.data || []).find(f =>
+    const match = children.find(f =>
       f?.attributes?.is_folder !== false &&
       String(f?.attributes?.name || '').trim().toLowerCase() === wanted
     );
@@ -126,15 +146,8 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query.action === 'list') {
     try {
       const accessToken = await getAccessToken();
-      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}/files?page[limit]=200`, {
-        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
-      });
-      if (!r.ok) {
-        const text = await r.text();
-        return res.status(502).json({ error: 'Zoho list failed', status: r.status, detail: text.slice(0, 300) });
-      }
-      const data = await r.json();
-      const folders = (data.data || [])
+      const children = await listChildren(accessToken, parentId);
+      const folders = children
         .filter(f => f?.attributes?.is_folder !== false)
         .map(f => {
           const a = f.attributes || {};
