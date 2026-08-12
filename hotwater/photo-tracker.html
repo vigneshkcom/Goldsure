@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Photo Upload Tracker — Goldsure</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #fff; --border: #e2e8f0; --text: #1a202c;
+    --muted: #718096; --purple: #6b46c1; --green: #2f855a; --amber: #b7791f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); padding: 28px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 120px; }
+  .stat .n { font-size: 22px; font-weight: 700; }
+  .stat .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  input[type=search] {
+    flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; background: var(--card); color: var(--text);
+  }
+  button.refresh {
+    padding: 10px 16px; border: 1px solid var(--border); background: var(--card);
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text);
+  }
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.has { background: #f0fff4; color: var(--green); }
+  .pill.none { background: #fffaf0; color: var(--amber); }
+  a.folder { color: var(--purple); text-decoration: none; font-weight: 600; }
+  a.folder:hover { text-decoration: underline; }
+  .empty, .err { padding: 30px 16px; text-align: center; color: var(--muted); }
+  .err { color: #c53030; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1a202c; --card: #2d3748; --border: #4a5568; --text: #f7fafc; --muted: #a0aec0; }
+    .pill.has { background: #22543d; color: #9ae6b4; }
+    .pill.none { background: #5f370e; color: #fbd38d; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Photo Upload Tracker</h1>
+    <span class="sub" id="updated"></span>
+  </header>
+  <p class="sub">Every customer a photo link has been sent to, and whether they've uploaded yet. Reads live from WorkDrive.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search customer name…">
+    <button class="refresh" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Customer</th><th>Photos</th><th>Link sent</th><th>Last upload</th><th></th></tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="5" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let folders = [];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function fmtDate(ms) {
+  if (!ms) return '—';
+  const d = new Date(Number(ms));
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function relative(ms) {
+  if (!ms) return '';
+  const diff = Date.now() - Number(ms);
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return '';
+}
+
+function render() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
+  const tbody = document.getElementById('rows');
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${folders.length ? 'No customers match that search.' : 'No photo requests yet.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(f => {
+    const count = f.photoCount;
+    const has = count === null ? null : count > 0;
+    const pill = has === null
+      ? '<span class="pill none">unknown</span>'
+      : has ? `<span class="pill has">${count} uploaded</span>`
+            : '<span class="pill none">waiting</span>';
+    const rel = relative(f.modifiedAt);
+    return `<tr>
+      <td><strong>${esc(f.name)}</strong></td>
+      <td>${pill}</td>
+      <td>${fmtDate(f.createdAt)}</td>
+      <td>${has ? fmtDate(f.modifiedAt) + (rel ? ` <span style="color:var(--muted);font-size:12px;">(${rel})</span>` : '') : '—'}</td>
+      <td>${f.link ? `<a class="folder" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder →</a>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats() {
+  const total = folders.length;
+  const uploaded = folders.filter(f => (f.photoCount || 0) > 0).length;
+  const waiting = total - uploaded;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">Requests</div></div>
+    <div class="stat"><div class="n">${uploaded}</div><div class="l">Uploaded</div></div>
+    <div class="stat"><div class="n">${waiting}</div><div class="l">Waiting</div></div>`;
+}
+
+async function load() {
+  const tbody = document.getElementById('rows');
+  try {
+    const res = await fetch('/api/zoho/create-photo-request?action=list');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+    folders = data.folders || [];
+    renderStats();
+    render();
+    document.getElementById('updated').textContent = `Updated ${new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="err">Could not load: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('refreshBtn').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

@@ -120,6 +120,41 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Zoho credentials not configured' });
   }
 
+  // GET ?action=list → every customer folder with its photo count, for the
+  // tracker page. Read straight from WorkDrive so it can't drift out of sync
+  // with what's actually been uploaded (including photos added by hand).
+  if (req.method === 'GET' && req.query.action === 'list') {
+    try {
+      const accessToken = await getAccessToken();
+      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}/files?page[limit]=200`, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+      });
+      if (!r.ok) {
+        const text = await r.text();
+        return res.status(502).json({ error: 'Zoho list failed', status: r.status, detail: text.slice(0, 300) });
+      }
+      const data = await r.json();
+      const folders = (data.data || [])
+        .filter(f => f?.attributes?.is_folder !== false)
+        .map(f => {
+          const a = f.attributes || {};
+          return {
+            id: f.id,
+            name: a.name || '',
+            photoCount: a.storage_info?.files_count ?? null,
+            createdAt: a.created_time_in_millisecond || null,
+            modifiedAt: a.modified_time_in_millisecond || null,
+            link: a.permalink || null,
+          };
+        })
+        .sort((x, y) => (y.modifiedAt || 0) - (x.modifiedAt || 0));
+      return res.status(200).json({ folders });
+    } catch (err) {
+      console.error('Zoho list failed:', err.message);
+      return res.status(502).json({ error: 'Zoho list failed', detail: err.message });
+    }
+  }
+
   // GET ?debug=<folderId> → raw Zoho metadata for that folder, so the correct
   // link field can be identified without guessing. Diagnostic only.
   if (req.method === 'GET' && req.query.debug) {
