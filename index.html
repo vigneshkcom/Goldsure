@@ -536,6 +536,65 @@
     .card:nth-child(10) { animation-delay: 0.50s; }
     /* No-icon card variant */
     .card-no-icon .card-body { padding-left: 2px; }
+
+    /* ── MOBILE ──
+       The sidebar becomes an off-canvas drawer behind a hamburger button, and
+       the fixed multi-column grids collapse so cards stay tappable. */
+    .nav-toggle { display: none; }
+    .sidebar-scrim { display: none; }
+
+    @media (max-width: 860px) {
+      .app { height: auto; min-height: 100vh; overflow: visible; }
+
+      .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+        width: 264px; max-width: 84vw;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+        overflow-y: auto;
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      .sidebar-scrim {
+        display: block; position: fixed; inset: 0; z-index: 55;
+        background: rgba(17,24,39,.5);
+        opacity: 0; pointer-events: none; transition: opacity .25s ease;
+      }
+      .sidebar-scrim.show { opacity: 1; pointer-events: auto; }
+
+      .nav-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 38px; height: 38px; margin-right: 10px; flex-shrink: 0;
+        border: 1px solid var(--border); border-radius: 9px;
+        background: var(--surface); color: var(--text); cursor: pointer;
+      }
+
+      .main { overflow: visible; }
+      .topbar { padding: 0 14px; height: 54px; }
+      .topbar-title { font-size: 14px; white-space: nowrap; }
+      /* The address, ABN, phone and email all crowd the bar on a phone and are
+         repeated verbatim in the footer, so drop them here and keep the title. */
+      .topbar-sub, .topbar-right { display: none; }
+      .content { padding: 18px 14px 20px; gap: 22px; }
+
+      /* Fixed-column grids stack; the 4-up row set inline needs overriding too */
+      .grid-2, .grid-3,
+      .grid-3[style] { grid-template-columns: 1fr !important; }
+
+      .card { padding: 14px; }
+      .footer, .footer-right { flex-direction: column; gap: 6px; text-align: center; }
+    }
+
+    @media (max-width: 520px) {
+      .topbar-title { font-size: 13px; }
+      .content { padding: 14px 11px 18px; }
+    }
+
+    /* Someone arriving on a small screen shouldn't watch cards fade in one by
+       one, and reduced-motion users shouldn't see it at all. */
+    @media (max-width: 860px), (prefers-reduced-motion: reduce) {
+      .card { opacity: 1; animation: none; }
+    }
   </style>
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
@@ -543,8 +602,11 @@
 <body>
 <div class="app">
 
+  <!-- Dims the page behind the mobile nav drawer; tap to dismiss -->
+  <div class="sidebar-scrim" id="sidebarScrim" onclick="closeNav()"></div>
+
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="brand-logo">
         <img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure">
@@ -705,6 +767,9 @@
 
     <!-- TOPBAR -->
     <div class="topbar">
+      <button class="nav-toggle" id="navToggle" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="topbar-left">
         <div class="topbar-title">Operations Dashboard</div>
         <div class="topbar-sub">Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
@@ -959,6 +1024,29 @@
     children.classList.toggle('open', !isOpen);
     btn.classList.toggle('open', !isOpen);
   }
+
+  // ── Mobile nav drawer ──
+  function setNav(open) {
+    document.getElementById('sidebar').classList.toggle('open', open);
+    document.getElementById('sidebarScrim').classList.toggle('show', open);
+    document.getElementById('navToggle').setAttribute('aria-expanded', String(open));
+    // Stop the page behind the drawer from scrolling while it's open
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+  function toggleNav() { setNav(!document.getElementById('sidebar').classList.contains('open')); }
+  function closeNav() { setNav(false); }
+
+  // Tapping a link should navigate and leave the drawer closed behind it
+  document.querySelectorAll('.sidebar a').forEach(function (a) {
+    a.addEventListener('click', closeNav);
+  });
+
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNav(); });
+
+  // Reset state if the window grows back past the mobile breakpoint
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 860) closeNav();
+  });
 </script>
 </body>
 </html>
