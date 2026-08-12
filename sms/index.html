@@ -977,6 +977,25 @@
 </div>
 
 <!-- Staff picker — asked every time templates open so the right name is used -->
+<!-- Customer name prompt, shown when a photo link is requested for a contact
+     we don't have a name for yet (the upload folder is named after them). -->
+<div class="name-modal" id="photoNameModal" onclick="closePhotoNameModal()">
+  <div class="name-modal-box" onclick="event.stopPropagation()" style="width:320px;">
+    <div class="name-modal-title">What's the customer's name?</div>
+    <div style="font-size:12.5px;color:#6b6b7b;text-align:center;margin:-8px 0 14px;line-height:1.45;">
+      Their photo folder is named after them, and the message will greet them by name.
+    </div>
+    <input type="text" id="photoNameInput" placeholder="e.g. Jane Smith" autocomplete="off"
+           style="width:100%;padding:10px 12px;border:1px solid #e0e0e8;border-radius:8px;font-size:14px;margin-bottom:6px;"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();confirmPhotoName();}">
+    <div id="photoNameErr" style="color:#c53030;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="name-opt" style="flex:1;" onclick="closePhotoNameModal()">Cancel</button>
+      <button class="name-opt" style="flex:1;background:#6b46c1;color:#fff;border-color:#6b46c1;" onclick="confirmPhotoName()">Create link</button>
+    </div>
+  </div>
+</div>
+
 <div class="name-modal" id="nameModal" onclick="closeNameModal()">
   <div class="name-modal-box" onclick="event.stopPropagation()">
     <div class="name-modal-title">Who is sending this message?</div>
@@ -1070,8 +1089,6 @@
     if (!name || name === phone) return;
     ghlNames[phone] = name;
     try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
-    // A newly-named contact can now have a photo link generated.
-    if (typeof refreshPhotoLinkBtn === 'function') refreshPhotoLinkBtn();
   }
 
   // Auto-resolve names + pipeline info from GHL. Batched (15 per call), cached
@@ -1522,7 +1539,6 @@
     document.getElementById('page').classList.add('chat-open');
 
     setChatHeader(phone);
-    refreshPhotoLinkBtn();
 
     document.querySelectorAll('.contact').forEach(el =>
       el.classList.toggle('active', el.dataset.phone === phone));
@@ -2007,29 +2023,47 @@
   }
 
   // ── Photo upload link ───────────────────────────────────────────────────
-  // The folder is named after the customer, so the link can't be generated
-  // until this contact has a name. Reflect that in the button rather than
-  // letting it be clicked and then refused.
-  function refreshPhotoLinkBtn() {
-    const btn = document.getElementById('photoLinkBtn');
-    if (!btn) return;
-    const named = Boolean(activePhone && (ghlNames[activePhone] || '').trim());
-    btn.disabled = !named;
-    btn.style.opacity = named ? '' : '.45';
-    btn.style.cursor = named ? '' : 'not-allowed';
-    btn.title = named
-      ? 'Create a private upload folder for this customer and insert the link'
-      : 'Add this customer’s name first — the upload folder is named after them';
+  // The upload folder is named after the customer, so a name is required. When
+  // the contact doesn't have one yet, ask for it inline rather than refusing.
+  function insertPhotoUploadLink() {
+    if (!activePhone) return alert('Open a conversation first.');
+
+    const name = (ghlNames[activePhone] || '').trim();
+    if (!name) return openPhotoNameModal();
+    createPhotoLink(name);
+  }
+
+  function openPhotoNameModal() {
+    const modal = document.getElementById('photoNameModal');
+    const input = document.getElementById('photoNameInput');
+    input.value = '';
+    document.getElementById('photoNameErr').textContent = '';
+    modal.classList.add('show');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function closePhotoNameModal() {
+    document.getElementById('photoNameModal').classList.remove('show');
+  }
+
+  function confirmPhotoName() {
+    const name = document.getElementById('photoNameInput').value.trim();
+    if (!name) {
+      document.getElementById('photoNameErr').textContent = 'Please enter the customer’s name.';
+      return;
+    }
+    // Remember it against the contact so the rest of the portal (chat header,
+    // contact list, message templates) benefits from it too.
+    saveGhlName(activePhone, name);
+    rerenderContacts();
+    setChatHeader(activePhone);
+    closePhotoNameModal();
+    createPhotoLink(name);
   }
 
   // Creates a private WorkDrive folder for this customer and drops the link
   // to our upload page into the composer, ready to send.
-  async function insertPhotoUploadLink() {
-    if (!activePhone) return alert('Open a conversation first.');
-
-    const name = (ghlNames[activePhone] || '').trim();
-    if (!name) return alert('This contact has no name yet — set one first so the upload folder can be named after them.');
-
+  async function createPhotoLink(name) {
     const btn = document.getElementById('photoLinkBtn');
     const original = btn.innerHTML;
     btn.disabled = true;
