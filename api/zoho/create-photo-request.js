@@ -168,6 +168,25 @@ export default async function handler(req, res) {
     }
   }
 
+  // GET ?action=folder&id=<folderId> → that folder's name. Lets the upload
+  // page greet the customer by name without carrying it in the link, keeping
+  // the SMS short.
+  if (req.method === 'GET' && req.query.action === 'folder') {
+    const id = req.query.id;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    try {
+      const accessToken = await getAccessToken();
+      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+      });
+      if (!r.ok) return res.status(404).json({ error: 'not found' });
+      const data = await r.json();
+      return res.status(200).json({ name: data?.data?.attributes?.name || '' });
+    } catch (err) {
+      return res.status(502).json({ error: 'lookup failed', detail: err.message });
+    }
+  }
+
   // GET ?debug=<folderId> → raw Zoho metadata for that folder, so the correct
   // link field can be identified without guessing. Diagnostic only.
   if (req.method === 'GET' && req.query.debug) {
@@ -196,10 +215,13 @@ export default async function handler(req, res) {
       const existingId = await findFolderByName(accessToken, folderName, parentId);
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
       const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
-      // The phone rides along so the upload can be noted against the right GHL
-      // contact when it comes back in.
-      const phoneParam = phone ? `&phone=${encodeURIComponent(phone)}` : '';
-      const uploadPageUrl = `${baseUrl}/hotwater/upload-photos.html?folder=${encodeURIComponent(folderId)}&name=${encodeURIComponent(folderName)}${phoneParam}`;
+      // Kept deliberately short — this goes out by SMS, where every character
+      // counts toward the per-part billing. /u rewrites to the upload page, the
+      // name is looked up from the folder rather than carried here, and the
+      // phone (needed to match the upload back to a GHL contact) is shortened
+      // to `p`.
+      const phoneParam = phone ? `&p=${encodeURIComponent(phone)}` : '';
+      const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${phoneParam}`;
       return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);

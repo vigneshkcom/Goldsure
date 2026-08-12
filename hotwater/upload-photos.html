@@ -67,7 +67,7 @@
 
     <div id="formView">
       <h1>Upload your photos</h1>
-      <p class="sub" id="subText">Please take a clear photo for each item below so we can prepare for your installation.</p>
+      <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
       <div id="slots"></div>
 
@@ -78,21 +78,23 @@
     <div class="done" id="doneView">
       <div class="check">✅</div>
       <h1>Thanks!</h1>
-      <p class="sub">Your photos have been received. Our team will be in touch shortly — you can close this page now.</p>
+      <p class="sub">Your photos have been received. We’ll review them and get your quote to you shortly — you can close this page now.</p>
     </div>
   </div>
 
 <script>
 const params = new URLSearchParams(location.search);
-const folderId = params.get('folder');
-const custName = params.get('name') || '';
-const custPhone = params.get('phone') || '';
+// Short params (f/p) are what new SMS links use; the long ones are kept so
+// links already sent to customers keep working.
+const folderId = params.get('f') || params.get('folder');
+let custName = params.get('name') || '';
+const custPhone = params.get('p') || params.get('phone') || '';
 
 const SLOTS = [
-  { key: 'switchboard', label: 'Existing switchboard',        note: 'The electrical panel/fuse box, with the door open if you can.', required: true },
-  { key: 'hot-water',   label: 'Existing hot water system',   note: 'The whole unit, from a few steps back.',                        required: true },
-  { key: 'access',      label: 'Access to the property',      note: 'The path our installers would walk to reach the unit.',        required: true },
-  { key: 'compliance',  label: 'Hot water compliance plate',  note: 'The sticker/plate with the model details, if you can find it.', required: false },
+  { key: 'switchboard', label: 'Existing switchboard',       note: 'Your electrical panel / fuse box.',                                              required: true },
+  { key: 'hot-water',   label: 'Existing hot water system',  note: 'The whole unit, from a few steps back.',                                          required: true },
+  { key: 'access',      label: 'Access to the property',     note: 'The path to the unit, so we can check we can get the new one in.',                required: true },
+  { key: 'compliance',  label: 'Hot water compliance plate', note: 'The sticker on the unit showing its model details. Skip this if there isn’t one.', required: false },
 ];
 
 const picked = {};   // key → compressed Blob
@@ -103,9 +105,23 @@ const setStatus = (msg, cls) => {
   el.className = 'status' + (cls ? ' ' + cls : '');
 };
 
-if (custName) {
-  document.getElementById('subText').textContent =
-    `Hi ${custName.split(/\s+/)[0]}, please take a clear photo for each item below so we can prepare for your installation.`;
+const BLURB = 'please take a clear photo of each item below so we can prepare your quote.';
+
+function greet() {
+  document.getElementById('subText').textContent = custName
+    ? `Hi ${custName.split(/\s+/)[0]}, ${BLURB}`
+    : `Please take a clear photo of each item below so we can prepare your quote.`;
+}
+greet();
+
+// When the name isn't in the link (new short links), ask the server for it —
+// the folder is named after the customer. Purely cosmetic, so a failure just
+// leaves the generic greeting in place.
+if (!custName && folderId) {
+  fetch(`/api/zoho/create-photo-request?action=folder&id=${encodeURIComponent(folderId)}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && d.name) { custName = d.name; greet(); } })
+    .catch(() => {});
 }
 
 // Build the slots
