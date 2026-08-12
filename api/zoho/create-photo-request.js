@@ -209,7 +209,7 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64, customerName, phone } = req.body || {};
+    const { folderId, filename, dataBase64, customerName, phone, notify = true } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
 
     try {
@@ -218,7 +218,11 @@ export default async function handler(req, res) {
       await uploadFile(accessToken, folderId, filename || `photo-${Date.now()}.jpg`, buffer);
 
       // Notify the team so uploads don't have to be checked for manually.
+      // The upload page sends a set of photos one at a time and flags only the
+      // last one, so a four-photo submission produces one email, not four.
       // Best-effort: a mail failure must never fail the customer's upload.
+      if (!notify) return res.status(200).json({ success: true });
+
       try {
         const who = (customerName || '').trim() || 'A customer';
         const folderUrl = await getFolderLink(accessToken, folderId);
@@ -227,8 +231,8 @@ export default async function handler(req, res) {
         // the customer's history lives. Also best-effort.
         if (phone) {
           const noteBody = folderUrl
-            ? `[Photo Upload]\n${who} has uploaded a photo. View it here: ${folderUrl}`
-            : `[Photo Upload]\n${who} has uploaded a photo to their WorkDrive folder (${folderId}).`;
+            ? `[Photo Upload]\n${who} has uploaded their site photos. View them here: ${folderUrl}`
+            : `[Photo Upload]\n${who} has uploaded their site photos to their WorkDrive folder (${folderId}).`;
           await postGhlNoteByPhone(phone, noteBody);
         }
 
@@ -238,10 +242,9 @@ export default async function handler(req, res) {
         await sendHostingerMail({
           to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
-          subject: `New photo uploaded — ${who}`,
-          html: `<p><strong>${who}</strong> has uploaded a photo.</p>
-                 ${linkHtml}
-                 <p style="color:#666;font-size:13px;">File: ${filename || 'photo.jpg'}</p>`,
+          subject: `New photos uploaded — ${who}`,
+          html: `<p><strong>${who}</strong> has uploaded their site photos.</p>
+                 ${linkHtml}`,
         });
       } catch (mailErr) {
         console.error('[Zoho upload] notification email failed:', mailErr.message);

@@ -5,65 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Upload Your Photos — Goldsure</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    padding: 24px;
+    margin: 0; min-height: 100vh; background: #f4f6f8; padding: 22px 16px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a202c;
   }
   .card {
-    background: #fff; border-radius: 16px; padding: 28px 24px; max-width: 420px; width: 100%;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    background: #fff; border-radius: 16px; padding: 24px 20px 28px; max-width: 460px;
+    margin: 0 auto; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
   }
-  h1 { font-size: 20px; margin: 0 0 6px; color: #1a1a1a; }
-  p.sub { color: #666; font-size: 14px; margin: 0 0 20px; }
-  .upload-box {
-    border: 2px dashed #cbd5e0; border-radius: 12px; padding: 28px 16px; text-align: center;
-    margin-bottom: 16px; cursor: pointer; transition: border-color .15s;
+  .brand { text-align: center; margin-bottom: 18px; }
+  .brand img { height: 34px; width: auto; }
+  h1 { font-size: 20px; margin: 0 0 6px; text-align: center; }
+  p.sub { color: #666; font-size: 14px; margin: 0 0 22px; text-align: center; line-height: 1.5; }
+
+  .slot { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; transition: border-color .15s, background .15s; }
+  .slot.filled { border-color: #38a169; background: #f0fff4; }
+  .slot-head { display: flex; align-items: center; gap: 10px; }
+  .slot-num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; background: #edf2f7; color: #4a5568;
+    font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
   }
-  .upload-box:active { border-color: #2b6cb0; }
-  .upload-box svg { width: 36px; height: 36px; color: #a0aec0; margin-bottom: 8px; }
-  .upload-box .label { font-size: 14px; color: #4a5568; font-weight: 600; }
+  .slot.filled .slot-num { background: #38a169; color: #fff; }
+  .slot-text { flex: 1; min-width: 0; }
+  .slot-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+  .slot-note { font-size: 12px; color: #718096; margin-top: 2px; }
+  .req { color: #e53e3e; }
+  .optional { color: #718096; font-weight: 500; font-size: 12px; }
+
+  .slot-btn {
+    display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 9px;
+    border: 1px dashed #cbd5e0; background: #f7fafc; color: #2b6cb0; font-size: 14px;
+    font-weight: 600; cursor: pointer; text-align: center;
+  }
+  .slot.filled .slot-btn { border-style: solid; border-color: #9ae6b4; background: #fff; color: #2f855a; }
   input[type=file] { display: none; }
-  .preview { display: none; margin-bottom: 16px; }
-  .preview img { width: 100%; border-radius: 10px; display: block; }
+  .thumb { margin-top: 12px; position: relative; }
+  .thumb img { width: 100%; border-radius: 9px; display: block; }
+  .thumb button {
+    position: absolute; top: 8px; right: 8px; border: none; background: rgba(0,0,0,.6); color: #fff;
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+  }
+
   button.submit {
-    width: 100%; padding: 14px; border: none; border-radius: 10px; background: #2b6cb0; color: #fff;
-    font-size: 15px; font-weight: 600; cursor: pointer;
+    width: 100%; margin-top: 8px; padding: 15px; border: none; border-radius: 10px;
+    background: #2b6cb0; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
   }
   button.submit:disabled { background: #a0c4e4; cursor: not-allowed; }
   .status { margin-top: 14px; font-size: 14px; text-align: center; min-height: 18px; }
   .status.err { color: #c53030; }
-  .status.ok { color: #2f855a; }
   .done { display: none; text-align: center; }
-  .done .check { font-size: 44px; margin-bottom: 8px; }
+  .done .check { font-size: 46px; margin-bottom: 10px; }
 </style>
 </head>
 <body>
-  <div class="card" id="card">
+  <div class="card">
+    <div class="brand"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+
     <div id="formView">
       <h1>Upload your photos</h1>
-      <p class="sub" id="subText">Take or select a clear photo of your switchboard, existing unit, or compliance plate.</p>
+      <p class="sub" id="subText">Please take a clear photo for each item below so we can prepare for your installation.</p>
 
-      <label class="upload-box" id="uploadBox">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14"/></svg>
-        <div class="label" id="uploadLabel">Tap to take or choose a photo</div>
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
-      </label>
+      <div id="slots"></div>
 
-      <div class="preview" id="preview"><img id="previewImg" alt="Preview"></div>
-
-      <button class="submit" id="submitBtn" disabled>Upload Photo</button>
+      <button class="submit" id="submitBtn" disabled>Upload Photos</button>
       <div class="status" id="status"></div>
     </div>
 
     <div class="done" id="doneView">
       <div class="check">✅</div>
       <h1>Thanks!</h1>
-      <p class="sub">Your photo has been received. You can close this page, or upload another one below.</p>
-      <button class="submit" id="uploadAnotherBtn">Upload Another Photo</button>
+      <p class="sub">Your photos have been received. Our team will be in touch shortly — you can close this page now.</p>
     </div>
   </div>
 
@@ -73,28 +88,48 @@ const folderId = params.get('folder');
 const custName = params.get('name') || '';
 const custPhone = params.get('phone') || '';
 
+const SLOTS = [
+  { key: 'switchboard', label: 'Existing switchboard',        note: 'The electrical panel/fuse box, with the door open if you can.', required: true },
+  { key: 'hot-water',   label: 'Existing hot water system',   note: 'The whole unit, from a few steps back.',                        required: true },
+  { key: 'access',      label: 'Access to the property',      note: 'The path our installers would walk to reach the unit.',        required: true },
+  { key: 'compliance',  label: 'Hot water compliance plate',  note: 'The sticker/plate with the model details, if you can find it.', required: false },
+];
+
+const picked = {};   // key → compressed Blob
+
+const setStatus = (msg, cls) => {
+  const el = document.getElementById('status');
+  el.textContent = msg || '';
+  el.className = 'status' + (cls ? ' ' + cls : '');
+};
+
 if (custName) {
   document.getElementById('subText').textContent =
-    `Hi ${custName}, take or select a clear photo of your switchboard, existing unit, or compliance plate.`;
+    `Hi ${custName.split(/\s+/)[0]}, please take a clear photo for each item below so we can prepare for your installation.`;
 }
 
-let compressedBlob = null;
-
-const fileInput = document.getElementById('fileInput');
-const previewBox = document.getElementById('preview');
-const previewImg = document.getElementById('previewImg');
-const submitBtn = document.getElementById('submitBtn');
-const statusEl = document.getElementById('status');
-const uploadLabel = document.getElementById('uploadLabel');
-
-function setStatus(msg, cls) {
-  statusEl.textContent = msg || '';
-  statusEl.className = 'status' + (cls ? ' ' + cls : '');
-}
+// Build the slots
+document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
+  <div class="slot" id="slot-${s.key}">
+    <div class="slot-head">
+      <div class="slot-num" id="num-${s.key}">${i + 1}</div>
+      <div class="slot-text">
+        <div class="slot-title">${s.label} ${s.required ? '<span class="req">*</span>' : '<span class="optional">(optional)</span>'}</div>
+        <div class="slot-note">${s.note}</div>
+      </div>
+    </div>
+    <button type="button" class="slot-btn" id="btn-${s.key}" onclick="document.getElementById('file-${s.key}').click()">Take / choose photo</button>
+    <input type="file" id="file-${s.key}" accept="image/*" capture="environment" onchange="onPick('${s.key}', this)">
+    <div class="thumb" id="thumb-${s.key}" style="display:none;">
+      <img id="img-${s.key}" alt="">
+      <button type="button" onclick="clearPick('${s.key}')">Remove</button>
+    </div>
+  </div>
+`).join('');
 
 if (!folderId) {
   setStatus('This upload link is missing information. Please contact us for a new link.', 'err');
-  fileInput.disabled = true;
+  document.querySelectorAll('.slot-btn').forEach(b => b.disabled = true);
 }
 
 // Resize + compress in-browser so uploads stay well under the server's size limit.
@@ -111,70 +146,98 @@ function compressImage(file, maxDim = 1600, quality = 0.75) {
       const canvas = document.createElement('canvas');
       canvas.width = width; canvas.height = height;
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not process image.')), 'image/jpeg', quality);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Could not process image.')), 'image/jpeg', quality);
     };
     img.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-fileInput.addEventListener('change', async () => {
-  const file = fileInput.files[0];
+async function onPick(key, input) {
+  const file = input.files[0];
   if (!file) return;
   setStatus('Processing photo…');
-  submitBtn.disabled = true;
   try {
-    compressedBlob = await compressImage(file);
-    previewImg.src = URL.createObjectURL(compressedBlob);
-    previewBox.style.display = 'block';
-    uploadLabel.textContent = 'Tap to choose a different photo';
-    submitBtn.disabled = false;
+    const blob = await compressImage(file);
+    picked[key] = blob;
+    document.getElementById('img-' + key).src = URL.createObjectURL(blob);
+    document.getElementById('thumb-' + key).style.display = 'block';
+    document.getElementById('slot-' + key).classList.add('filled');
+    document.getElementById('num-' + key).textContent = '✓';
+    document.getElementById('btn-' + key).textContent = 'Retake / choose another';
     setStatus('');
-  } catch (e) {
+  } catch {
     setStatus('Could not process that photo — please try another.', 'err');
   }
-});
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  refreshSubmit();
 }
 
+function clearPick(key) {
+  delete picked[key];
+  const i = SLOTS.findIndex(s => s.key === key);
+  document.getElementById('file-' + key).value = '';
+  document.getElementById('thumb-' + key).style.display = 'none';
+  document.getElementById('slot-' + key).classList.remove('filled');
+  document.getElementById('num-' + key).textContent = String(i + 1);
+  document.getElementById('btn-' + key).textContent = 'Take / choose photo';
+  refreshSubmit();
+}
+
+function refreshSubmit() {
+  const missing = SLOTS.filter(s => s.required && !picked[s.key]);
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = missing.length > 0 || !folderId;
+  btn.textContent = missing.length
+    ? `Upload Photos (${SLOTS.filter(s => s.required).length - missing.length}/${SLOTS.filter(s => s.required).length} required)`
+    : 'Upload Photos';
+}
+refreshSubmit();
+
+const blobToBase64 = blob => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(blob);
+});
+
 document.getElementById('submitBtn').addEventListener('click', async () => {
-  if (!compressedBlob) return;
-  submitBtn.disabled = true;
-  setStatus('Uploading…');
+  const entries = SLOTS.filter(s => picked[s.key]);
+  if (!entries.length) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  const safeName = (custName || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  let done = 0;
+
   try {
-    const dataBase64 = await blobToBase64(compressedBlob);
-    const filename = `photo-${Date.now()}.jpg`;
-    const res = await fetch('/api/zoho/create-photo-request', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folderId, filename, dataBase64, customerName: custName, phone: custPhone }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+    for (const s of entries) {
+      setStatus(`Uploading ${done + 1} of ${entries.length}…`);
+      const dataBase64 = await blobToBase64(picked[s.key]);
+      const res = await fetch('/api/zoho/create-photo-request', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderId,
+          filename: `${safeName}-${s.key}.jpg`,
+          dataBase64,
+          customerName: custName,
+          phone: custPhone,
+          // Only the last upload should trigger the team email/GHL note, so a
+          // four-photo submission doesn't fire four notifications.
+          notify: done === entries.length - 1,
+          photoLabel: s.label,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+      done++;
+    }
     document.getElementById('formView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';
   } catch (e) {
-    setStatus('Upload failed — please try again.', 'err');
-    submitBtn.disabled = false;
+    setStatus(`Upload failed after ${done} photo(s) — please try again.`, 'err');
+    btn.disabled = false;
   }
-});
-
-document.getElementById('uploadAnotherBtn').addEventListener('click', () => {
-  compressedBlob = null;
-  fileInput.value = '';
-  previewBox.style.display = 'none';
-  uploadLabel.textContent = 'Tap to take or choose a photo';
-  submitBtn.disabled = true;
-  setStatus('');
-  document.getElementById('doneView').style.display = 'none';
-  document.getElementById('formView').style.display = 'block';
 });
 </script>
 </body>
