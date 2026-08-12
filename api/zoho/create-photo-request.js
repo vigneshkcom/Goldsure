@@ -179,7 +179,10 @@ export default async function handler(req, res) {
       const r = await fetch(`${API_BASE}/files/${encodeURIComponent(id)}`, {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
       });
-      if (!r.ok) return res.status(404).json({ error: 'not found' });
+      if (!r.ok) {
+        const text = await r.text();
+        return res.status(404).json({ error: 'not found', status: r.status, detail: text.slice(0, 300) });
+      }
       const data = await r.json();
       return res.status(200).json({ name: data?.data?.attributes?.name || '' });
     } catch (err) {
@@ -221,7 +224,11 @@ export default async function handler(req, res) {
       // phone (needed to match the upload back to a GHL contact) is shortened
       // to `p`.
       const phoneParam = phone ? `&p=${encodeURIComponent(phone)}` : '';
-      const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${phoneParam}`;
+      // First name rides in the link so the page can greet the customer
+      // immediately, without depending on a folder lookup that may fail.
+      const firstName = folderName.split(/\s+/)[0];
+      const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
+      const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
       return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
