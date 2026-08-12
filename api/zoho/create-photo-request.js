@@ -13,6 +13,7 @@
 //    hotwater/upload-photos.html after client-side compression)
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
 
 const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
@@ -136,7 +137,7 @@ export default async function handler(req, res) {
 
   // POST → create a per-customer folder, return the upload page link
   if (req.method === 'POST') {
-    const { name } = req.body || {};
+    const { name, phone } = req.body || {};
     if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
 
     try {
@@ -147,7 +148,10 @@ export default async function handler(req, res) {
       const existingId = await findFolderByName(accessToken, folderName, parentId);
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
       const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
-      const uploadPageUrl = `${baseUrl}/hotwater/upload-photos.html?folder=${encodeURIComponent(folderId)}&name=${encodeURIComponent(folderName)}`;
+      // The phone rides along so the upload can be noted against the right GHL
+      // contact when it comes back in.
+      const phoneParam = phone ? `&phone=${encodeURIComponent(phone)}` : '';
+      const uploadPageUrl = `${baseUrl}/hotwater/upload-photos.html?folder=${encodeURIComponent(folderId)}&name=${encodeURIComponent(folderName)}${phoneParam}`;
       return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
@@ -157,7 +161,7 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64, customerName } = req.body || {};
+    const { folderId, filename, dataBase64, customerName, phone } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
 
     try {
@@ -170,6 +174,16 @@ export default async function handler(req, res) {
       try {
         const who = (customerName || '').trim() || 'A customer';
         const folderUrl = await getFolderLink(accessToken, folderId);
+
+        // Log it against the GHL contact too, so it shows up where the rest of
+        // the customer's history lives. Also best-effort.
+        if (phone) {
+          const noteBody = folderUrl
+            ? `[Photo Upload]\n${who} has uploaded a photo. View it here: ${folderUrl}`
+            : `[Photo Upload]\n${who} has uploaded a photo to their WorkDrive folder (${folderId}).`;
+          await postGhlNoteByPhone(phone, noteBody);
+        }
+
         const linkHtml = folderUrl
           ? `<p><a href="${folderUrl}">Open their folder in WorkDrive</a></p>`
           : `<p style="color:#666;font-size:13px;">Folder ID: ${folderId} — open WorkDrive and search for “${who}”.</p>`;

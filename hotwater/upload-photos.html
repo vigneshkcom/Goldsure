@@ -71,6 +71,7 @@
 const params = new URLSearchParams(location.search);
 const folderId = params.get('folder');
 const custName = params.get('name') || '';
+const custPhone = params.get('phone') || '';
 
 if (custName) {
   document.getElementById('subText').textContent =
@@ -153,7 +154,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     const res = await fetch('/api/zoho/create-photo-request', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folderId, filename, dataBase64, customerName: custName }),
+      body: JSON.stringify({ folderId, filename, dataBase64, customerName: custName, phone: custPhone }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
