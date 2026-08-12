@@ -1070,6 +1070,8 @@
     if (!name || name === phone) return;
     ghlNames[phone] = name;
     try { localStorage.setItem('ghlNames', JSON.stringify(ghlNames)); } catch {}
+    // A newly-named contact can now have a photo link generated.
+    if (typeof refreshPhotoLinkBtn === 'function') refreshPhotoLinkBtn();
   }
 
   // Auto-resolve names + pipeline info from GHL. Batched (15 per call), cached
@@ -1520,6 +1522,7 @@
     document.getElementById('page').classList.add('chat-open');
 
     setChatHeader(phone);
+    refreshPhotoLinkBtn();
 
     document.querySelectorAll('.contact').forEach(el =>
       el.classList.toggle('active', el.dataset.phone === phone));
@@ -2004,6 +2007,21 @@
   }
 
   // ── Photo upload link ───────────────────────────────────────────────────
+  // The folder is named after the customer, so the link can't be generated
+  // until this contact has a name. Reflect that in the button rather than
+  // letting it be clicked and then refused.
+  function refreshPhotoLinkBtn() {
+    const btn = document.getElementById('photoLinkBtn');
+    if (!btn) return;
+    const named = Boolean(activePhone && (ghlNames[activePhone] || '').trim());
+    btn.disabled = !named;
+    btn.style.opacity = named ? '' : '.45';
+    btn.style.cursor = named ? '' : 'not-allowed';
+    btn.title = named
+      ? 'Create a private upload folder for this customer and insert the link'
+      : 'Add this customer’s name first — the upload folder is named after them';
+  }
+
   // Creates a private WorkDrive folder for this customer and drops the link
   // to our upload page into the composer, ready to send.
   async function insertPhotoUploadLink() {

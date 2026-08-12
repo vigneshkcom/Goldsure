@@ -45,6 +45,32 @@
   .pill.none { background: #fffaf0; color: var(--amber); }
   a.folder { color: var(--purple); text-decoration: none; font-weight: 600; }
   a.folder:hover { text-decoration: underline; }
+  .newreq { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; }
+  .newreq-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+  .newreq-sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+  .newreq-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .newreq-row input {
+    flex: 1; min-width: 150px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text);
+  }
+  .newreq-row button {
+    padding: 10px 18px; border: none; border-radius: 8px; background: var(--purple);
+    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .newreq-row button:disabled { opacity: .6; cursor: not-allowed; }
+  .newreq-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .result { display: none; gap: 8px; margin-top: 12px; }
+  .result input {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; background: var(--bg); color: var(--text);
+  }
+  .result button {
+    padding: 10px 16px; border: 1px solid var(--border); background: var(--card);
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text);
+  }
+  .reqmsg { font-size: 13px; margin-top: 8px; }
+  .reqmsg.err { color: #c53030; }
+  .reqmsg.ok { color: var(--green); }
   .empty, .err { padding: 30px 16px; text-align: center; color: var(--muted); }
   .err { color: #c53030; }
   @media (prefers-color-scheme: dark) {
@@ -62,6 +88,22 @@
     <span class="sub" id="updated"></span>
   </header>
   <p class="sub">Every customer a photo link has been sent to, and whether they've uploaded yet. Reads live from WorkDrive.</p>
+
+  <div class="newreq">
+    <div class="newreq-title">New photo request</div>
+    <div class="newreq-sub">For customers you're not texting from the SMS portal — creates their folder and gives you a link to send however you like.</div>
+    <div class="newreq-row">
+      <input type="text" id="reqName" placeholder="Customer name *">
+      <input type="tel" id="reqPhone" placeholder="Mobile (optional)">
+      <button id="reqBtn">Create link</button>
+    </div>
+    <div class="newreq-note">Adding a mobile lets the upload be logged automatically against their GHL contact.</div>
+    <div class="result" id="reqResult">
+      <input type="text" id="reqLink" readonly>
+      <button id="copyBtn">Copy</button>
+    </div>
+    <div class="reqmsg" id="reqMsg"></div>
+  </div>
 
   <div class="stats" id="stats"></div>
 
@@ -156,6 +198,65 @@ async function load() {
     tbody.innerHTML = `<tr><td colspan="5" class="err">Could not load: ${esc(e.message)}</td></tr>`;
   }
 }
+
+// ── New photo request ──────────────────────────────────────────────────────
+const reqMsg = (msg, cls) => {
+  const el = document.getElementById('reqMsg');
+  el.textContent = msg || '';
+  el.className = 'reqmsg' + (cls ? ' ' + cls : '');
+};
+
+document.getElementById('reqBtn').addEventListener('click', async () => {
+  const name = document.getElementById('reqName').value.trim();
+  const phone = document.getElementById('reqPhone').value.trim();
+  if (!name) { reqMsg('Enter the customer name first.', 'err'); return; }
+
+  const btn = document.getElementById('reqBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  reqMsg('');
+
+  try {
+    const res = await fetch('/api/zoho/create-photo-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ...(phone ? { phone } : {}) }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.uploadPageUrl) throw new Error(data.detail || data.error || 'Failed');
+
+    document.getElementById('reqLink').value = data.uploadPageUrl;
+    document.getElementById('reqResult').style.display = 'flex';
+    reqMsg(data.reused ? `Using ${name}'s existing folder.` : `Folder created for ${name}.`, 'ok');
+    document.getElementById('reqName').value = '';
+    document.getElementById('reqPhone').value = '';
+    load();
+  } catch (e) {
+    reqMsg(`Could not create the link: ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create link';
+  }
+});
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const input = document.getElementById('reqLink');
+  try {
+    await navigator.clipboard.writeText(input.value);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+  } catch {
+    // Clipboard API needs a secure context/permission; selecting the text lets
+    // the user copy it by hand instead of the button silently doing nothing.
+    input.select();
+    reqMsg('Press Ctrl/Cmd+C to copy the selected link.', 'ok');
+  }
+});
+
+document.getElementById('reqName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('reqBtn').click();
+});
 
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('refreshBtn').addEventListener('click', load);
