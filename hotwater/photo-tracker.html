@@ -4,280 +4,425 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Photo Upload Tracker — Goldsure</title>
+<title>Photo Uploads — Goldsure</title>
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* Built against DESIGN.md (PlayStation-derived system):
-     three-canvas bands, PS Blue pill CTAs, 8px cards, weight-300 display type,
-     flat surfaces with hairline dividers. Light canvas only — this is a
-     utility surface, and the rest of the portal is light. */
+  /* ─────────────────────────────────────────────────────────────
+     Warm editorial paper. Goldsure gold is the only accent, spent
+     sparingly; everything else is ink, rule and negative space.
+     Chrome stays compact so the table — the actual job — is the page.
+     ───────────────────────────────────────────────────────────── */
   :root {
     color-scheme: light;
 
-    --primary: #0070d1;
-    --primary-pressed: #0064b7;
-    --on-primary: #ffffff;
+    --paper:    #fbfaf7;
+    --paper-2:  #f5f2ea;
+    --paper-3:  #efebe0;
+    --ink:      #16130f;
+    --ink-2:    #56504a;
+    --ink-3:    #8a827a;
+    --rule:     #e5dfd2;
+    --rule-2:   #d6cebd;
 
-    --ink: #000000;
-    --body: rgba(0,0,0,0.6);
-    --mute: #6b6b6b;
-    --ash: #cccccc;
+    --gold:     #b08a22;
+    --gold-lit: #d9b455;
+    --gold-wash:#f6edd6;
+    --done:     #2f6b4f;
+    --alert:    #a3341f;
 
-    --canvas: #ffffff;
-    --surface-soft: #f3f3f3;
-    --surface-card: #f5f7fa;
-    --hairline: #f3f3f3;
-
-    --warning: #c81b3a;
-    --gold-start: #ffce21;
-    --gold-end: #ee8e00;
-
-    --r-sm: 4px;
-    --r-md: 8px;
-    --r-full: 9999px;
-
-    --s-xs: 8px;  --s-sm: 12px; --s-md: 16px;
-    --s-lg: 24px; --s-xl: 32px; --s-xxl: 48px;
+    --tap: 44px;
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+
   body {
-    background: var(--canvas);
+    background: var(--paper);
     color: var(--ink);
-    font-family: 'Roboto', Arial, Helvetica, sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
+    font-family: 'Public Sans', ui-sans-serif, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Faint paper grain — tactility without noise at a glance */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
   }
 
-  /* ── Dark band: the page's one editorial chapter ── */
-  .band-dark {
-    background: #000;
-    color: #fff;
-    padding: var(--s-xxl) var(--s-lg);
-  }
-  .band-inner { max-width: 1080px; margin: 0 auto; }
-  .brand img { height: 72px; width: auto; display: block; margin: -8px 0 var(--s-md) -6px; }
-  .band-dark h1 {
-    font-size: 44px; font-weight: 300; line-height: 1.25; letter-spacing: .1px;
-    margin: 0 0 var(--s-sm);
-  }
-  .band-dark p {
-    margin: 0; max-width: 560px;
-    color: rgba(255,255,255,0.7); font-size: 18px; line-height: 1.5; letter-spacing: .1px;
-  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
 
-  /* ── Light canvas: the working surface ── */
-  .band-light { background: var(--canvas); padding: var(--s-xl) var(--s-lg) var(--s-xxl); }
-
-  .section-title {
-    font-size: 22px; font-weight: 300; letter-spacing: .1px; line-height: 1.25;
-    margin: 0 0 var(--s-md);
+  /* ── Header: one compact instrument bar, not a band ── */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(251,250,247,.88);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--rule);
   }
-
-  /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-lg); margin-bottom: var(--s-xl); }
-  .stat { background: var(--surface-card); border-radius: var(--r-md); padding: var(--s-lg); }
-  .stat .n { font-size: 35px; font-weight: 300; line-height: 1.25; }
-  .stat .l { font-size: 12px; font-weight: 500; color: var(--mute); text-transform: uppercase; letter-spacing: .6px; }
-  .stat.is-waiting .n { color: var(--primary); }
-
-  /* New request card */
-  .panel { background: var(--surface-card); border-radius: var(--r-md); padding: var(--s-xl); margin-bottom: var(--s-xl); }
-  .panel-sub { color: var(--body); font-size: 16px; margin: 0 0 var(--s-lg); max-width: 620px; }
-  .field-row { display: flex; gap: var(--s-sm); flex-wrap: wrap; }
-  input[type=text], input[type=tel], input[type=search] {
-    flex: 1; min-width: 180px; height: 48px; padding: 12px 16px;
-    background: var(--canvas); color: var(--ink);
-    border: 1px solid var(--ash); border-radius: var(--r-sm);
-    font-family: inherit; font-size: 18px; line-height: 1.5;
+  .bar { display: flex; align-items: center; gap: 16px; height: 60px; }
+  .mark { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark img { height: 22px; width: auto; display: block; }
+  .mark .sep { width: 1px; height: 20px; background: var(--rule-2); }
+  .mark h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-optical-sizing: auto;
+    font-size: 19px; font-weight: 400; letter-spacing: -.01em;
+    margin: 0; white-space: nowrap;
   }
-  input:focus { outline: none; border: 2px solid var(--primary); padding: 11px 15px; }
+  .bar-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .stamp { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+  /* ── Buttons ── */
   .btn {
-    height: 48px; padding: 12px 28px; border: none; border-radius: var(--r-full);
-    background: var(--primary); color: var(--on-primary);
-    font-family: inherit; font-size: 18px; font-weight: 700; letter-spacing: .45px; line-height: 1.25;
-    cursor: pointer;
+    height: 36px; padding: 0 15px; border-radius: 7px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 500; letter-spacing: .005em;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    border: 1px solid var(--rule-2); background: transparent; color: var(--ink);
+    transition: background .16s ease, border-color .16s ease, transform .12s ease;
   }
-  .btn:active { background: var(--primary-pressed); box-shadow: 0 4px 12px rgba(0,0,0,0.16); }
-  .btn:disabled { background: var(--surface-soft); color: var(--ash); cursor: not-allowed; box-shadow: none; }
-  .btn-secondary {
-    background: transparent; color: var(--ink); border: 1px solid var(--ash);
+  .btn:hover { background: var(--paper-2); border-color: var(--ink-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: var(--ink); border-color: var(--ink); color: var(--paper);
   }
-  .btn-secondary:active { background: var(--surface-soft); }
-  .btn-sm { height: 40px; padding: 8px 20px; font-size: 14px; letter-spacing: .324px; }
+  .btn-primary:hover { background: #2b2620; border-color: #2b2620; }
+  .btn-primary:disabled { background: var(--rule-2); border-color: var(--rule-2); color: #fff; cursor: not-allowed; transform: none; }
+  .btn svg { flex: none; }
 
-  .hint { font-size: 14px; color: var(--mute); margin-top: var(--s-sm); }
-  .result { display: none; gap: var(--s-sm); margin-top: var(--s-md); }
-  .msg { font-size: 14px; margin-top: var(--s-sm); min-height: 18px; }
-  .msg.err { color: var(--warning); }
-  .msg.ok { color: var(--primary-pressed); }
-
-  /* Toolbar */
-  .toolbar { display: flex; gap: var(--s-sm); flex-wrap: wrap; margin-bottom: var(--s-md); align-items: center; }
-  .updated { font-size: 14px; color: var(--mute); margin-left: auto; }
-
-  /* Table */
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; min-width: 620px; }
-  th {
-    text-align: left; padding: 0 var(--s-md) var(--s-sm);
-    font-size: 12px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; color: var(--mute);
-    border-bottom: 1px solid var(--ash);
+  /* ── Meter: the page's one big gesture ── */
+  .meter-block { padding: 34px 0 26px; }
+  .meter-top { display: flex; align-items: flex-end; gap: 22px; flex-wrap: wrap; }
+  .big {
+    font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto;
+    font-size: 72px; font-weight: 300; line-height: .84; letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums; margin-bottom: -2px;
   }
-  td { padding: var(--s-md); border-bottom: 1px solid var(--hairline); font-size: 16px; }
-  tr:last-child td { border-bottom: none; }
-  .cust { font-weight: 500; }
-
-  .badge {
-    display: inline-block; padding: 4px 10px; border-radius: var(--r-full);
-    font-size: 12px; font-weight: 500; letter-spacing: 0;
+  .big em { font-style: normal; font-size: 26px; color: var(--ink-3); letter-spacing: 0; }
+  .legend { display: flex; gap: 26px; margin-left: auto; }
+  .leg .k {
+    font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+    display: flex; align-items: center; gap: 6px;
   }
-  .badge.has { background: var(--primary); color: var(--on-primary); }
-  .badge.none { background: var(--surface-soft); color: var(--mute); }
+  .leg .v { font-family: 'Fraunces', Georgia, serif; font-size: 25px; font-weight: 400; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.done { background: var(--done); }
+  .dot.wait { background: var(--gold); }
 
-  a.folder { color: var(--primary-pressed); text-decoration: none; font-weight: 500; white-space: nowrap; }
-  a.folder:hover { text-decoration: underline; }
-  .muted { color: var(--mute); font-size: 14px; }
-  .state { padding: var(--s-xxl) var(--s-md); text-align: center; color: var(--mute); font-size: 18px; }
-  .state.err { color: var(--warning); }
-
-  /* Gold accent bar — the one gradient the system allows, used here to mark
-     the page's single highlight moment rather than decorating chrome. */
-  .accent { height: 3px; background: linear-gradient(90deg, var(--gold-start), var(--gold-end)); border-radius: var(--r-full); margin-bottom: var(--s-lg); width: 64px; }
-
-  @media (max-width: 768px) {
-    .band-dark { padding: var(--s-xl) var(--s-md); }
-    .band-dark h1 { font-size: 32px; }
-    .band-dark p { font-size: 16px; }
-    .band-light { padding: var(--s-lg) var(--s-md) var(--s-xl); }
-    .stats { grid-template-columns: 1fr; gap: var(--s-sm); }
-    .panel { padding: var(--s-lg); }
-    .field-row { flex-direction: column; }
-    .field-row .btn { width: 100%; }
-    .updated { margin-left: 0; width: 100%; }
+  .track {
+    margin-top: 20px; height: 6px; border-radius: 99px; background: var(--paper-3);
+    overflow: hidden; display: flex;
   }
-  @media (max-width: 480px) {
-    .band-dark h1 { font-size: 28px; }
+  .track i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-lit));
+    width: 0; transition: width .9s cubic-bezier(.22,1,.36,1);
+  }
+  .track i.b { background: var(--done); opacity: .82; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding-bottom: 12px; border-bottom: 1px solid var(--rule);
+  }
+  .search { position: relative; flex: 1; min-width: 190px; }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  input[type=search], input[type=text], input[type=tel] {
+    width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--rule-2);
+    background: rgba(255,255,255,.6); color: var(--ink); border-radius: 7px;
+    font-family: inherit; font-size: 13.5px;
+  }
+  input[type=search] { padding-left: 34px; }
+  input::placeholder { color: var(--ink-3); }
+  input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-wash); background: #fff; }
+
+  .chips { display: flex; gap: 4px; padding: 3px; background: var(--paper-2); border-radius: 8px; }
+  .chip {
+    height: 30px; padding: 0 12px; border: none; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+    border-radius: 6px; transition: background .15s ease, color .15s ease;
+  }
+  .chip[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(22,19,15,.07); }
+
+  /* ── New request: collapsed by default, so it costs no height ── */
+  .drawer { display: none; padding: 16px 0 2px; }
+  .drawer.open { display: block; animation: drop .32s cubic-bezier(.22,1,.36,1); }
+  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .drawer-inner {
+    background: var(--paper-2); border: 1px solid var(--rule); border-radius: 11px; padding: 16px;
+  }
+  .drawer-row { display: flex; gap: 9px; flex-wrap: wrap; }
+  .drawer-row input { flex: 1; min-width: 165px; background: #fff; }
+  .note { font-size: 12px; color: var(--ink-3); margin-top: 9px; }
+  .msg { font-size: 12.5px; margin-top: 9px; min-height: 17px; }
+  .msg.err { color: var(--alert); }
+  .msg.ok { color: var(--done); }
+  .out { display: none; gap: 8px; margin-top: 10px; }
+  .out input { flex: 1; font-size: 12px; color: var(--ink-2); }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; padding: 13px 12px; font-size: 10.5px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  tbody td { padding: 14px 12px; border-top: 1px solid var(--rule); vertical-align: middle; }
+  tbody tr { position: relative; }
+  tbody tr td:first-child { padding-left: 14px; }
+  tbody tr:hover td { background: rgba(245,242,234,.7); }
+  /* Gold edge marks the rows still waiting */
+  tbody tr.waiting td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+
+  .who { font-size: 14.5px; font-weight: 500; letter-spacing: -.005em; }
+  .sub { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  /* Photo pips — 4 slots: switchboard, unit, access, compliance */
+  .pips { display: inline-flex; gap: 4px; align-items: center; }
+  .pip { width: 15px; height: 5px; border-radius: 99px; background: var(--paper-3); }
+  .pip.on { background: var(--gold); }
+  .pip.full { background: var(--done); }
+  .count { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-left: 8px; }
+  .count.zero { color: var(--gold); font-weight: 500; }
+
+  .when { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rel { font-size: 11.5px; color: var(--ink-3); }
+
+  a.open {
+    color: var(--ink-2); text-decoration: none; font-size: 12.5px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    opacity: .5; transition: opacity .16s ease, color .16s ease;
+  }
+  tbody tr:hover a.open { opacity: 1; color: var(--ink); }
+  a.open:hover { color: var(--gold) !important; }
+
+  .state { padding: 64px 12px; text-align: center; color: var(--ink-3); }
+  .state.err { color: var(--alert); }
+  .state .big-quiet { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 300; color: var(--ink-2); display: block; margin-bottom: 5px; }
+
+  /* Staggered arrival — one orchestrated moment, not scattered fidgets */
+  tbody tr { animation: rise .5s cubic-bezier(.22,1,.36,1) backwards; }
+  @keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+  footer { padding: 30px 0 44px; color: var(--ink-3); font-size: 11.5px; }
+
+  /* ── Mobile: rows become stacked records ── */
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .bar { height: 56px; gap: 10px; }
+    .mark h1 { font-size: 15px; }
+    .stamp { display: none; }
+    /* Buttons shed their labels so the title keeps its room */
+    .lbl { display: none; }
+    .btn { padding: 0 11px; }
+    .bar-end { gap: 7px; }
+    .meter-block { padding: 24px 0 18px; }
+    .big { font-size: 54px; }
+    .legend { margin-left: 0; gap: 20px; width: 100%; margin-top: 14px; }
+    .toolbar { gap: 8px; }
+    .search { min-width: 100%; order: -1; }
+
+    thead { display: none; }
+    tbody td { display: block; padding: 0; border: none; }
+    tbody tr {
+      display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
+      padding: 14px 12px; border-top: 1px solid var(--rule); align-items: center;
+    }
+    tbody tr:hover td { background: transparent; }
+    tbody tr.waiting { box-shadow: inset 2px 0 0 var(--gold); }
+    tbody tr.waiting td:first-child { box-shadow: none; }
+    .c-who   { grid-column: 1; grid-row: 1; }
+    .c-pips  { grid-column: 1; grid-row: 2; }
+    .c-sent  { grid-column: 2; grid-row: 1; text-align: right; }
+    .c-last  { grid-column: 2; grid-row: 2; text-align: right; }
+    .c-link  { grid-column: 1 / -1; grid-row: 3; }
+    a.open { opacity: 1; color: var(--ink); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
 <body>
 
-<div class="band-dark">
-  <div class="band-inner">
-    <!-- The dark-background lockup: the horizontal logo is a JPEG on white and
-         would sit in a white box on this band. -->
-    <div class="brand"><img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure"></div>
-    <h1>Photo Upload Tracker</h1>
-    <p>Every customer sent a photo link, and whether they've uploaded yet. Reads live from WorkDrive.</p>
+<header>
+  <div class="wrap bar">
+    <div class="mark">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <span class="sep"></span>
+      <h1>Photo Uploads</h1>
+    </div>
+    <div class="bar-end">
+      <span class="stamp" id="stamp"></span>
+      <button class="btn" id="refreshBtn" title="Refresh" aria-label="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        <span class="lbl">Refresh</span>
+      </button>
+      <button class="btn btn-primary" id="newBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New<span class="lbl">&nbsp;request</span>
+      </button>
+    </div>
   </div>
-</div>
+</header>
 
-<div class="band-light">
-  <div class="band-inner">
+<main class="wrap">
 
-    <div class="accent"></div>
+  <section class="meter-block">
+    <div class="meter-top">
+      <div class="big" id="pct">—<em>%</em></div>
+      <div class="legend">
+        <div class="leg">
+          <div class="k"><span class="dot done"></span> Uploaded</div>
+          <div class="v" id="nDone">—</div>
+        </div>
+        <div class="leg">
+          <div class="k"><span class="dot wait"></span> Waiting</div>
+          <div class="v" id="nWait">—</div>
+        </div>
+        <div class="leg">
+          <div class="k">Requests</div>
+          <div class="v" id="nAll">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="track"><i class="b" id="barDone"></i><i id="barWait"></i></div>
+  </section>
 
-    <div class="panel">
-      <div class="section-title">New photo request</div>
-      <p class="panel-sub">For customers you're not texting from the SMS portal — creates their folder and gives you a link to send however you like.</p>
-      <div class="field-row">
+  <div class="drawer" id="drawer">
+    <div class="drawer-inner">
+      <div class="drawer-row">
         <input type="text" id="reqName" placeholder="Customer name" autocomplete="off">
         <input type="tel" id="reqPhone" placeholder="Mobile (optional)" autocomplete="off">
-        <button class="btn" id="reqBtn">Create link</button>
+        <button class="btn btn-primary" id="reqBtn">Create link</button>
       </div>
-      <div class="hint">Adding a mobile lets the upload be logged automatically against their GHL contact.</div>
-      <div class="result" id="reqResult">
+      <div class="note">Adding a mobile logs the upload against their GHL contact automatically.</div>
+      <div class="out" id="out">
         <input type="text" id="reqLink" readonly>
-        <button class="btn btn-secondary" id="copyBtn">Copy</button>
+        <button class="btn" id="copyBtn">Copy</button>
       </div>
       <div class="msg" id="reqMsg"></div>
     </div>
-
-    <div class="stats" id="stats"></div>
-
-    <div class="toolbar">
-      <input type="search" id="search" placeholder="Search customer name">
-      <button class="btn btn-secondary btn-sm" id="refreshBtn">Refresh</button>
-      <span class="updated" id="updated"></span>
-    </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Customer</th><th>Photos</th><th>Link sent</th><th>Last upload</th><th></th></tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="5" class="state">Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
-
   </div>
-</div>
+
+  <section class="toolbar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input type="search" id="search" placeholder="Search customer">
+    </div>
+    <div class="chips" role="group" aria-label="Filter">
+      <button class="chip" id="fAll"  aria-pressed="true">All</button>
+      <button class="chip" id="fWait" aria-pressed="false">Waiting</button>
+      <button class="chip" id="fDone" aria-pressed="false">Uploaded</button>
+    </div>
+  </section>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34%">Customer</th>
+        <th style="width:24%">Photos</th>
+        <th style="width:16%">Link sent</th>
+        <th style="width:16%">Last upload</th>
+        <th style="width:10%"></th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+      <tr><td colspan="5" class="state">Loading…</td></tr>
+    </tbody>
+  </table>
+
+  <footer>Reads live from Zoho WorkDrive · Goldsure internal</footer>
+</main>
 
 <script>
-let folders = [];
+/* The upload page asks for 4 shots: switchboard, existing unit, access,
+   compliance plate (optional) — so a count reads naturally out of 4. */
+const SLOTS = 4;
 
+let folders = [];
+let filter = 'all';
+
+const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 
-function fmtDate(ms) {
+const fmtDate = ms => {
   if (!ms) return '—';
   const d = new Date(Number(ms));
-  if (isNaN(d)) return '—';
-  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+  return isNaN(d) ? '—' : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+};
 
 function relative(ms) {
   if (!ms) return '';
   const days = Math.floor((Date.now() - Number(ms)) / 86400000);
   if (days === 0) return 'today';
   if (days === 1) return 'yesterday';
-  if (days < 30) return days + ' days ago';
+  if (days < 30) return days + 'd ago';
   return '';
 }
 
+function pips(count) {
+  const n = Math.max(0, Math.min(SLOTS, Number(count) || 0));
+  const full = n >= 3; // the three required shots are in
+  let out = '<span class="pips">';
+  for (let i = 0; i < SLOTS; i++) {
+    out += `<span class="pip ${i < n ? (full ? 'full' : 'on') : ''}"></span>`;
+  }
+  out += '</span>';
+  const label = count === null ? '—' : (n === 0 ? 'none yet' : `${n}/${SLOTS}`);
+  return out + `<span class="count ${n === 0 ? 'zero' : ''}">${label}</span>`;
+}
+
+function visible() {
+  const q = $('search').value.trim().toLowerCase();
+  return folders.filter(f => {
+    const has = (f.photoCount || 0) > 0;
+    if (filter === 'wait' && has) return false;
+    if (filter === 'done' && !has) return false;
+    return !q || f.name.toLowerCase().includes(q);
+  });
+}
+
 function render() {
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
-  const tbody = document.getElementById('rows');
+  const list = visible();
+  const tbody = $('rows');
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="state">${folders.length ? 'No customers match that search.' : 'No photo requests yet.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="state">
+      <span class="big-quiet">${folders.length ? 'Nothing here' : 'No requests yet'}</span>
+      ${folders.length ? 'No customers match this view.' : 'Create one from the SMS portal, or with New request above.'}
+    </td></tr>`;
     return;
   }
 
-  tbody.innerHTML = list.map(f => {
-    const count = f.photoCount;
-    const has = count === null ? null : count > 0;
-    const badge = has === null
-      ? '<span class="badge none">unknown</span>'
-      : has ? `<span class="badge has">${count} uploaded</span>`
-            : '<span class="badge none">waiting</span>';
+  tbody.innerHTML = list.map((f, i) => {
+    const has = (f.photoCount || 0) > 0;
     const rel = relative(f.modifiedAt);
-    return `<tr>
-      <td class="cust">${esc(f.name)}</td>
-      <td>${badge}</td>
-      <td>${fmtDate(f.createdAt)}</td>
-      <td>${has ? fmtDate(f.modifiedAt) + (rel ? ` <span class="muted">(${rel})</span>` : '') : '—'}</td>
-      <td>${f.link ? `<a class="folder" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder →</a>` : ''}</td>
+    return `<tr class="${has ? '' : 'waiting'}" style="animation-delay:${Math.min(i * 26, 380)}ms">
+      <td class="c-who"><div class="who">${esc(f.name)}</div></td>
+      <td class="c-pips">${pips(f.photoCount)}</td>
+      <td class="c-sent"><div class="when">${fmtDate(f.createdAt)}</div></td>
+      <td class="c-last">${has ? `<div class="when">${fmtDate(f.modifiedAt)}</div>${rel ? `<div class="rel">${rel}</div>` : ''}` : '<div class="rel">—</div>'}</td>
+      <td class="c-link">${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}</td>
     </tr>`;
   }).join('');
 }
 
-function renderStats() {
+function renderMeter() {
   const total = folders.length;
-  const uploaded = folders.filter(f => (f.photoCount || 0) > 0).length;
-  document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="n">${total}</div><div class="l">Requests</div></div>
-    <div class="stat"><div class="n">${uploaded}</div><div class="l">Uploaded</div></div>
-    <div class="stat is-waiting"><div class="n">${total - uploaded}</div><div class="l">Waiting</div></div>`;
+  const done = folders.filter(f => (f.photoCount || 0) > 0).length;
+  const wait = total - done;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  $('pct').innerHTML = total ? `${pct}<em>%</em>` : `—<em>%</em>`;
+  $('nDone').textContent = done;
+  $('nWait').textContent = wait;
+  $('nAll').textContent = total;
+  requestAnimationFrame(() => {
+    $('barDone').style.width = total ? (done / total * 100) + '%' : '0%';
+    $('barWait').style.width = total ? (wait / total * 100) + '%' : '0%';
+  });
 }
 
 async function load() {
@@ -286,32 +431,49 @@ async function load() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
     folders = data.folders || [];
-    renderStats();
+    renderMeter();
     render();
-    document.getElementById('updated').textContent =
-      'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
-    document.getElementById('rows').innerHTML =
-      `<tr><td colspan="5" class="state err">Could not load: ${esc(e.message)}</td></tr>`;
+    $('rows').innerHTML = `<tr><td colspan="5" class="state err">
+      <span class="big-quiet">Couldn't load</span>${esc(e.message)}</td></tr>`;
   }
 }
 
-// ── New photo request ──
-const reqMsg = (msg, cls) => {
-  const el = document.getElementById('reqMsg');
-  el.textContent = msg || '';
+/* ── Filters ── */
+function setFilter(next) {
+  filter = next;
+  $('fAll').setAttribute('aria-pressed', String(next === 'all'));
+  $('fWait').setAttribute('aria-pressed', String(next === 'wait'));
+  $('fDone').setAttribute('aria-pressed', String(next === 'done'));
+  render();
+}
+$('fAll').onclick  = () => setFilter('all');
+$('fWait').onclick = () => setFilter('wait');
+$('fDone').onclick = () => setFilter('done');
+$('search').addEventListener('input', render);
+$('refreshBtn').onclick = load;
+
+/* ── New request drawer ── */
+$('newBtn').onclick = () => {
+  const d = $('drawer');
+  const open = d.classList.toggle('open');
+  if (open) $('reqName').focus();
+};
+
+const msg = (text, cls) => {
+  const el = $('reqMsg');
+  el.textContent = text || '';
   el.className = 'msg' + (cls ? ' ' + cls : '');
 };
 
-document.getElementById('reqBtn').addEventListener('click', async () => {
-  const name = document.getElementById('reqName').value.trim();
-  const phone = document.getElementById('reqPhone').value.trim();
-  if (!name) { reqMsg('Enter the customer name first.', 'err'); return; }
+$('reqBtn').onclick = async () => {
+  const name = $('reqName').value.trim();
+  const phone = $('reqPhone').value.trim();
+  if (!name) { msg('Enter the customer name first.', 'err'); return; }
 
-  const btn = document.getElementById('reqBtn');
-  btn.disabled = true;
-  btn.textContent = 'Creating…';
-  reqMsg('');
+  const btn = $('reqBtn');
+  btn.disabled = true; btn.textContent = 'Creating…'; msg('');
 
   try {
     const res = await fetch('/api/zoho/create-photo-request', {
@@ -322,40 +484,35 @@ document.getElementById('reqBtn').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok || !data.uploadPageUrl) throw new Error(data.detail || data.error || 'Failed');
 
-    document.getElementById('reqLink').value = data.uploadPageUrl;
-    document.getElementById('reqResult').style.display = 'flex';
-    reqMsg(data.reused ? `Using ${name}'s existing folder.` : `Folder created for ${name}.`, 'ok');
-    document.getElementById('reqName').value = '';
-    document.getElementById('reqPhone').value = '';
+    $('reqLink').value = data.uploadPageUrl;
+    $('out').style.display = 'flex';
+    msg(data.reused ? `Using ${name}'s existing folder.` : `Folder created for ${name}.`, 'ok');
+    $('reqName').value = ''; $('reqPhone').value = '';
     load();
   } catch (e) {
-    reqMsg('Could not create the link: ' + e.message, 'err');
+    msg('Could not create the link: ' + e.message, 'err');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Create link';
+    btn.disabled = false; btn.textContent = 'Create link';
   }
-});
+};
 
-document.getElementById('copyBtn').addEventListener('click', async () => {
-  const input = document.getElementById('reqLink');
+$('copyBtn').onclick = async () => {
+  const input = $('reqLink');
   try {
     await navigator.clipboard.writeText(input.value);
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+    $('copyBtn').textContent = 'Copied';
+    setTimeout(() => { $('copyBtn').textContent = 'Copy'; }, 1700);
   } catch {
-    // Clipboard API needs a secure context/permission; select the text so it
-    // can still be copied by hand rather than the button doing nothing.
+    // Clipboard needs a secure context/permission; select it so it can still
+    // be copied by hand rather than the button doing nothing.
     input.select();
-    reqMsg('Press Ctrl/Cmd+C to copy the selected link.', 'ok');
+    msg('Press Ctrl/Cmd+C to copy.', 'ok');
   }
-});
+};
 
-document.getElementById('reqName').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('reqBtn').click();
-});
-document.getElementById('search').addEventListener('input', render);
-document.getElementById('refreshBtn').addEventListener('click', load);
+$('reqName').addEventListener('keydown', e => { if (e.key === 'Enter') $('reqBtn').click(); });
+$('reqPhone').addEventListener('keydown', e => { if (e.key === 'Enter') $('reqBtn').click(); });
+
 load();
 </script>
 </body>
