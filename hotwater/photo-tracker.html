@@ -194,6 +194,55 @@
   .btn-mini:hover { border-color: var(--blue); color: var(--blue); }
   .btn-mini:disabled { opacity: .55; cursor: not-allowed; border-color: var(--line); color: var(--ink-3); }
   .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+  /* ── SMS modal ── */
+  .overlay {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+    background: rgba(41,47,76,.5);
+  }
+  .overlay.show { display: flex; animation: fade .16s ease; }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  .modal {
+    background: var(--surface); border-radius: 8px; width: 100%; max-width: 520px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.22); animation: lift .2s cubic-bezier(.22,1,.36,1);
+    max-height: 92vh; display: flex; flex-direction: column;
+  }
+  @keyframes lift { from { opacity: 0; transform: translateY(10px) scale(.99) } to { opacity: 1; transform: none } }
+  .modal-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px 12px; border-bottom: 1px solid var(--line-soft);
+  }
+  .modal-head h2 { font-family: 'Poppins', sans-serif; font-size: 17px; font-weight: 600; margin: 0; }
+  .modal-x {
+    margin-left: auto; background: none; border: none; cursor: pointer; color: var(--ink-2);
+    width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-x:hover { background: var(--hover); }
+  .modal-body { padding: 16px 20px; overflow-y: auto; }
+  .to-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .to-label { font-size: 13px; color: var(--ink-2); }
+  .to-chip {
+    display: inline-flex; align-items: center; gap: 7px; background: var(--hover);
+    border-radius: 99px; padding: 3px 12px 3px 3px; font-size: 13px;
+  }
+  .to-chip .avatar { width: 22px; height: 22px; font-size: 10px; }
+  .to-phone { color: var(--ink-2); font-size: 12.5px; }
+  .field-label { font-size: 13px; color: var(--ink-2); margin-bottom: 6px; display: block; }
+  textarea#smsText {
+    width: 100%; min-height: 150px; resize: vertical; padding: 12px;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--surface);
+    color: var(--ink); font-family: inherit; font-size: 14px; line-height: 1.55;
+  }
+  textarea#smsText:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+  .counter { font-size: 12px; color: var(--ink-3); margin-top: 6px; text-align: right; }
+  .modal-foot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 20px 18px; border-top: 1px solid var(--line-soft);
+  }
+  .modal-foot .grow { flex: 1; }
+  .modal-msg { font-size: 12.5px; }
+  .modal-msg.err { color: var(--red); }
   a.open {
     color: var(--blue); text-decoration: none; font-size: 13px;
     display: inline-flex; align-items: center; gap: 4px;
@@ -292,6 +341,33 @@
 
   <div class="board" id="board">
     <div class="state">Loading board…</div>
+  </div>
+</div>
+
+<!-- Reminder SMS: previewed and editable before anything is sent -->
+<div class="overlay" id="smsOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="smsTitle">
+    <div class="modal-head">
+      <h2 id="smsTitle">Send reminder</h2>
+      <button class="modal-x" id="smsClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="to-row">
+        <span class="to-label">To</span>
+        <span class="to-chip" id="smsTo"></span>
+      </div>
+      <label class="field-label" for="smsText">Message</label>
+      <textarea id="smsText" spellcheck="true"></textarea>
+      <div class="counter" id="smsCount"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="modal-msg" id="smsMsg"></span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" id="smsCancel">Cancel</button>
+      <button class="btn btn-primary" id="smsSend">Send SMS</button>
+    </div>
   </div>
 </div>
 
@@ -454,7 +530,7 @@ function render() {
   });
 
   board.querySelectorAll('[data-remind]').forEach(btn => {
-    btn.onclick = () => sendReminder(btn.dataset.remind, btn);
+    btn.onclick = () => openSmsModal(btn.dataset.remind);
   });
 }
 
@@ -488,45 +564,90 @@ function uploadLinkFor(f) {
 
 function reminderText(f) {
   const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || 'there';
-  const days = ageDays(f.createdAt);
-  const when = days === null || days <= 1 ? 'recently'
-             : days < 7 ? `${days} days ago`
-             : days < 14 ? 'last week'
-             : 'a couple of weeks ago';
-  const some = (f.photoCount || 0) > 0;
-  return some
-    ? `Hi ${first}, Goldsure here. Thanks for the photos you've sent so far — we're still missing a couple before we can finish your hot water quote. When you get a minute, could you add the rest here? ${uploadLinkFor(f)}`
-    : `Hi ${first}, Goldsure here. We sent you a link ${when} to upload photos of your existing hot water system, switchboard and access to the property. We need those before we can put your quote together — it only takes a minute: ${uploadLinkFor(f)}`;
+  // The actual date the link went out, so the customer can place it.
+  const sent = f.createdAt
+    ? new Date(Number(f.createdAt)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })
+    : '';
+  const on = sent ? ` on ${sent}` : '';
+  const link = uploadLinkFor(f);
+
+  return (f.photoCount || 0) > 0
+    ? `Hi ${first}, Goldsure here. Thanks for the photos you've sent through so far. We're still missing a couple before we can finish your hot water quote — could you add the rest when you get a minute? Here's the link again: ${link}`
+    : `Hi ${first}, Goldsure here. We sent you a link${on} to upload photos of your existing hot water system, switchboard and the access to your property. We need these before we can put your quote together. In case you missed it, here's the link again — it only takes a minute: ${link}`;
 }
 
-async function sendReminder(folderId, btn) {
+/* ── Reminder modal ── */
+let smsTarget = null;
+
+function openSmsModal(folderId) {
   const f = folders.find(x => x.id === folderId);
   if (!f || !f.phone) return;
+  smsTarget = f;
 
-  const message = reminderText(f);
-  if (!confirm(`Send this SMS to ${f.name}?\n\n${message}`)) return;
+  $('smsTo').innerHTML =
+    `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>` +
+    `${esc(f.name)} <span class="to-phone">${esc(f.phone)}</span>`;
+  $('smsText').value = reminderText(f);
+  $('smsMsg').textContent = '';
+  $('smsMsg').className = 'modal-msg';
+  $('smsSend').disabled = false;
+  $('smsSend').textContent = 'Send SMS';
+  updateSmsCount();
+  $('smsOverlay').classList.add('show');
+  setTimeout(() => $('smsText').focus(), 60);
+}
 
-  const original = btn.innerHTML;
+function closeSmsModal() {
+  $('smsOverlay').classList.remove('show');
+  smsTarget = null;
+}
+
+function updateSmsCount() {
+  const len = $('smsText').value.length;
+  // Multipart SMS are billed at 153 characters each once past the first 160.
+  const parts = len <= 160 ? 1 : Math.ceil(len / 153);
+  $('smsCount').textContent = `${len} characters · ${parts} SMS ${parts === 1 ? 'part' : 'parts'}`;
+}
+
+async function sendSms() {
+  if (!smsTarget) return;
+  const message = $('smsText').value.trim();
+  if (!message) {
+    $('smsMsg').textContent = 'The message is empty.';
+    $('smsMsg').className = 'modal-msg err';
+    return;
+  }
+
+  const btn = $('smsSend');
   btn.disabled = true;
   btn.textContent = 'Sending…';
+  $('smsMsg').textContent = '';
+
   try {
     const res = await fetch('/api/battery/request-callback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send', phone: f.phone, message }),
+      body: JSON.stringify({ action: 'send', phone: smsTarget.phone, message }),
     });
     const data = await res.json();
     // The gateway refuses numbers that replied STOP — surface that plainly
     // rather than reporting a send that never happened.
     if (!res.ok || !data.success) throw new Error(data.error || 'Send failed');
-    btn.textContent = 'Sent ✓';
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = original; }, 2600);
+    closeSmsModal();
   } catch (e) {
-    alert('Could not send the reminder: ' + e.message);
+    $('smsMsg').textContent = e.message;
+    $('smsMsg').className = 'modal-msg err';
     btn.disabled = false;
-    btn.innerHTML = original;
+    btn.textContent = 'Send SMS';
   }
 }
+
+$('smsText').addEventListener('input', updateSmsCount);
+$('smsSend').onclick = sendSms;
+$('smsCancel').onclick = closeSmsModal;
+$('smsClose').onclick = closeSmsModal;
+$('smsOverlay').addEventListener('click', e => { if (e.target === $('smsOverlay')) closeSmsModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSmsModal(); });
 
 async function load() {
   try {
