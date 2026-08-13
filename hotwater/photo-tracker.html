@@ -123,7 +123,7 @@
 
   .row {
     display: grid;
-    grid-template-columns: 1fr 150px 170px 120px 130px;
+    grid-template-columns: 1fr 150px 150px 108px 96px 168px;
     align-items: center;
     border-bottom: 1px solid var(--line-soft);
     position: relative;
@@ -173,6 +173,27 @@
 
   .date { font-size: 13px; color: var(--ink-2); }
   .date b { color: var(--ink); font-weight: 400; }
+
+  /* GHL pipeline, shown read-only beside the name */
+  .pipe { font-size: 11.5px; color: var(--ink-2); margin-top: 1px; display: flex; align-items: center; gap: 5px; }
+  .pipe .stage {
+    background: var(--line-soft); color: var(--ink-2); border-radius: 3px;
+    padding: 0 5px; font-size: 11px; white-space: nowrap;
+  }
+  .pipe.loading { color: var(--ink-3); font-style: italic; }
+
+  /* Age — how long a request has sat. Empty and old is the delete candidate. */
+  .age { font-size: 13px; color: var(--ink-2); }
+  .age.stale { color: var(--red); font-weight: 500; }
+
+  .btn-mini {
+    height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 4px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+    cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-mini:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-mini:disabled { opacity: .55; cursor: not-allowed; border-color: var(--line); color: var(--ink-3); }
+  .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   a.open {
     color: var(--blue); text-decoration: none; font-size: 13px;
     display: inline-flex; align-items: center; gap: 4px;
@@ -212,7 +233,9 @@
     .m-status { grid-column: 2; grid-row: 1; }
     .m-batt   { grid-column: 1 / -1; grid-row: 2; margin: 6px 0 2px; }
     .m-sent   { grid-column: 1; grid-row: 3; }
-    .m-link   { grid-column: 2; grid-row: 3; text-align: right; }
+    .m-age    { grid-column: 2; grid-row: 3; text-align: right; }
+    .m-link   { grid-column: 1 / -1; grid-row: 4; margin-top: 8px; }
+    .m-link .actions { justify-content: space-between; }
     .status { min-height: 24px; border-radius: 4px; padding: 0 12px; }
   }
 
@@ -279,6 +302,7 @@ const SLOTS = 4;
 const AVATAR_COLORS = ['#0073ea','#a25ddc','#00c875','#fdab3d','#e2445c','#009eb5','#ff642e'];
 
 let folders = [];
+let ghl = {};              // phone → { pipeline, stage, … } from GHL
 const collapsed = {};
 
 const $ = id => document.getElementById(id);
@@ -323,23 +347,55 @@ function battery(count) {
   return `<div class="battery">${bars}</div><div class="battery-label">${count === null ? '—' : n + '/' + SLOTS}</div>`;
 }
 
+function ageDays(ms) {
+  if (!ms) return null;
+  return Math.floor((Date.now() - Number(ms)) / 86400000);
+}
+
+function ageHtml(f) {
+  const d = ageDays(f.createdAt);
+  if (d === null) return '<span class="age">—</span>';
+  const empty = (f.photoCount || 0) === 0;
+  // An empty folder sitting for a week is the one worth chasing or deleting.
+  const stale = empty && d >= 7;
+  const text = d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+  return `<span class="age${stale ? ' stale' : ''}" title="Created ${fmtDate(f.createdAt)}">${text}</span>`;
+}
+
+function pipeHtml(f) {
+  if (!f.phone) return '';                       // no number stored — nothing to look up
+  const info = ghl[f.phone];
+  if (info === undefined) return '<div class="pipe loading">checking GHL…</div>';
+  if (!info || info.none || !info.pipeline) return '';
+  return `<div class="pipe">${esc(info.pipeline)}${info.stage ? `<span class="stage">${esc(info.stage)}</span>` : ''}</div>`;
+}
+
 function rowHtml(f, i, gcolor) {
   const st = statusOf(f);
-  const rel = relative(f.modifiedAt);
+  const canRemind = Boolean(f.phone) && (f.photoCount || 0) < 3;
   return `<div class="row item" style="--gcolor:${gcolor};animation-delay:${Math.min(i * 22, 300)}ms">
     <div class="cell m-name">
       <div class="with-avatar">
         <div class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</div>
-        <div class="item-name" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div style="min-width:0">
+          <div class="item-name" title="${esc(f.name)}">${esc(f.name)}</div>
+          ${pipeHtml(f)}
+        </div>
       </div>
     </div>
     <div class="cell status-cell m-status"><span class="status ${st.cls}">${st.text}</span></div>
     <div class="cell c m-batt">${battery(f.photoCount)}</div>
     <div class="cell c m-sent"><div class="date"><b>${fmtDate(f.createdAt)}</b></div></div>
-    <div class="cell c m-link">${f.link
-      ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder
-         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>`
-      : `<span class="date">${rel || ''}</span>`}</div>
+    <div class="cell c m-age">${ageHtml(f)}</div>
+    <div class="cell c m-link">
+      <div class="actions">
+        ${canRemind ? `<button class="btn-mini" data-remind="${esc(f.id)}" title="Text this customer a reminder">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Remind</button>` : ''}
+        ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
+         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -360,7 +416,8 @@ function groupHtml(key, name, color, items) {
         <div class="cell c">Status</div>
         <div class="cell c">Photos</div>
         <div class="cell c">Link sent</div>
-        <div class="cell c">Folder</div>
+        <div class="cell c">Waiting</div>
+        <div class="cell c">Actions</div>
       </div>
       ${items.map((f, i) => rowHtml(f, i, color)).join('')}
     </div>
@@ -395,6 +452,80 @@ function render() {
       board.querySelector(`[data-group="${key}"]`).classList.toggle('collapsed', collapsed[key]);
     };
   });
+
+  board.querySelectorAll('[data-remind]').forEach(btn => {
+    btn.onclick = () => sendReminder(btn.dataset.remind, btn);
+  });
+}
+
+/* ── GHL pipeline lookup ──
+   Batched, because the endpoint takes at most 15 numbers per call. Purely
+   decorative: any failure just leaves the pipeline line blank. */
+async function loadPipelines() {
+  const phones = [...new Set(folders.map(f => f.phone).filter(Boolean))];
+  if (!phones.length) return;
+
+  for (let i = 0; i < phones.length; i += 15) {
+    const batch = phones.slice(i, i + 15);
+    try {
+      const res = await fetch('/api/battery/request-callback?action=ghl-opps&phones=' + encodeURIComponent(batch.join(',')));
+      if (!res.ok) throw new Error('lookup failed');
+      Object.assign(ghl, await res.json());
+    } catch {
+      batch.forEach(p => { if (ghl[p] === undefined) ghl[p] = null; });
+    }
+    render();
+  }
+}
+
+/* ── SMS reminder ── */
+function uploadLinkFor(f) {
+  const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || '';
+  const n = first ? `&n=${encodeURIComponent(first)}` : '';
+  const p = f.phone ? `&p=${encodeURIComponent(f.phone)}` : '';
+  return `${location.origin}/u?f=${encodeURIComponent(f.id)}${n}${p}`;
+}
+
+function reminderText(f) {
+  const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || 'there';
+  const days = ageDays(f.createdAt);
+  const when = days === null || days <= 1 ? 'recently'
+             : days < 7 ? `${days} days ago`
+             : days < 14 ? 'last week'
+             : 'a couple of weeks ago';
+  const some = (f.photoCount || 0) > 0;
+  return some
+    ? `Hi ${first}, Goldsure here. Thanks for the photos you've sent so far — we're still missing a couple before we can finish your hot water quote. When you get a minute, could you add the rest here? ${uploadLinkFor(f)}`
+    : `Hi ${first}, Goldsure here. We sent you a link ${when} to upload photos of your existing hot water system, switchboard and access to the property. We need those before we can put your quote together — it only takes a minute: ${uploadLinkFor(f)}`;
+}
+
+async function sendReminder(folderId, btn) {
+  const f = folders.find(x => x.id === folderId);
+  if (!f || !f.phone) return;
+
+  const message = reminderText(f);
+  if (!confirm(`Send this SMS to ${f.name}?\n\n${message}`)) return;
+
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/battery/request-callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', phone: f.phone, message }),
+    });
+    const data = await res.json();
+    // The gateway refuses numbers that replied STOP — surface that plainly
+    // rather than reporting a send that never happened.
+    if (!res.ok || !data.success) throw new Error(data.error || 'Send failed');
+    btn.textContent = 'Sent ✓';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = original; }, 2600);
+  } catch (e) {
+    alert('Could not send the reminder: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
 }
 
 async function load() {
@@ -404,6 +535,7 @@ async function load() {
     if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
     folders = data.folders || [];
     render();
+    loadPipelines();
     $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
     $('board').innerHTML = `<div class="state err">Couldn't load the board: ${esc(e.message)}</div>`;

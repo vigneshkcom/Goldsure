@@ -79,6 +79,27 @@ async function findFolderByName(accessToken, name, parentId) {
   }
 }
 
+// The customer's phone is parked in the folder's own description field, which
+// saves keeping a separate table just to map folders back to people. The
+// tracker reads it to look the customer up in GHL and to text them a reminder.
+// Best-effort throughout: a folder without one simply shows no pipeline.
+async function setFolderPhone(accessToken, folderId, phone) {
+  try {
+    await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { attributes: { description: `phone:${phone}` }, type: 'files' } }),
+    });
+  } catch (e) {
+    console.error('[Zoho] could not store phone on folder:', e.message);
+  }
+}
+
+const phoneFromDescription = d => {
+  const m = /phone:(\+?[\d\s()-]{6,})/i.exec(String(d || ''));
+  return m ? m[1].trim() : '';
+};
+
 // Ask Zoho for the folder's own canonical link rather than constructing one —
 // a hand-built /folder/<id> URL lands in a login redirect loop. Falls back to
 // null so callers can degrade to whatever they can build themselves.
@@ -154,6 +175,7 @@ export default async function handler(req, res) {
           return {
             id: f.id,
             name: a.name || '',
+            phone: phoneFromDescription(a.description),
             photoCount: a.storage_info?.files_count ?? null,
             createdAt: a.created_time_in_millisecond || null,
             modifiedAt: a.modified_time_in_millisecond || null,
@@ -221,6 +243,9 @@ export default async function handler(req, res) {
       const folderName = last4 ? `${name.trim()} (${last4})` : name.trim();
       const existingId = await findFolderByName(accessToken, folderName, parentId);
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
+      // Written on reuse too, so folders made before this existed pick the
+      // number up the next time a link is generated for that customer.
+      if (phone) await setFolderPhone(accessToken, folderId, phone);
       const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
       // Kept compact — this goes out by SMS. /u rewrites to the upload page,
       // `p` carries the phone (needed to match the upload back to a GHL
