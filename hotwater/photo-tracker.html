@@ -439,16 +439,15 @@ function ageHtml(f) {
 }
 
 function pipeHtml(f) {
-  if (!f.phone) return '';                       // no number stored — nothing to look up
-  const info = ghl[f.phone];
+  const info = ghl[ghlKey(f)];
   if (info === undefined) return '<div class="pipe loading">checking GHL…</div>';
-  if (!info || info.none || !info.pipeline) return '';
+  if (!info || !info.pipeline) return '';
   return `<div class="pipe">${esc(info.pipeline)}${info.stage ? `<span class="stage">${esc(info.stage)}</span>` : ''}</div>`;
 }
 
 function rowHtml(f, i, gcolor) {
   const st = statusOf(f);
-  const canRemind = Boolean(f.phone) && (f.photoCount || 0) < 3;
+  const canRemind = Boolean(phoneFor(f)) && (f.photoCount || 0) < 3;
   return `<div class="row item" style="--gcolor:${gcolor};animation-delay:${Math.min(i * 22, 300)}ms">
     <div class="cell m-name">
       <div class="with-avatar">
@@ -534,31 +533,41 @@ function render() {
   });
 }
 
-/* ── GHL pipeline lookup ──
-   Batched, because the endpoint takes at most 15 numbers per call. Purely
-   decorative: any failure just leaves the pipeline line blank. */
-async function loadPipelines() {
-  const phones = [...new Set(folders.map(f => f.phone).filter(Boolean))];
-  if (!phones.length) return;
+/* ── GHL lookup ──
+   Folders are named "John Smith (8761)", so the name plus those last four
+   digits identify the contact — no phone number needs storing anywhere, and
+   folders created before any of this existed resolve too. GHL then supplies
+   the full number, which is what makes the reminder button possible.
+   Batched; any failure just leaves the row without a pipeline or reminder. */
+const ghlKey = f => `${String(f.name || '').replace(/\s*\(\d{3,4}\)\s*$/, '').trim()}~${(/\((\d{3,4})\)\s*$/.exec(f.name || '') || [])[1] || ''}`;
 
-  for (let i = 0; i < phones.length; i += 15) {
-    const batch = phones.slice(i, i + 15);
+async function loadPipelines() {
+  const keys = [...new Set(folders.map(ghlKey).filter(k => k && !k.startsWith('~')))];
+  if (!keys.length) return;
+
+  for (let i = 0; i < keys.length; i += 20) {
+    const batch = keys.slice(i, i + 20);
     try {
-      const res = await fetch('/api/battery/request-callback?action=ghl-opps&phones=' + encodeURIComponent(batch.join(',')));
+      const res = await fetch('/api/battery/request-callback?action=ghl-find&items=' + encodeURIComponent(batch.join(',')));
       if (!res.ok) throw new Error('lookup failed');
-      Object.assign(ghl, await res.json());
+      const found = await res.json();
+      batch.forEach(k => { ghl[k] = found[k] || null; });
     } catch {
-      batch.forEach(p => { if (ghl[p] === undefined) ghl[p] = null; });
+      batch.forEach(k => { if (ghl[k] === undefined) ghl[k] = null; });
     }
     render();
   }
 }
 
+// The number GHL holds, falling back to one stored on the folder itself.
+const phoneFor = f => (ghl[ghlKey(f)] || {}).phone || f.phone || '';
+
 /* ── SMS reminder ── */
 function uploadLinkFor(f) {
   const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || '';
   const n = first ? `&n=${encodeURIComponent(first)}` : '';
-  const p = f.phone ? `&p=${encodeURIComponent(f.phone)}` : '';
+  const ph = phoneFor(f);
+  const p = ph ? `&p=${encodeURIComponent(ph)}` : '';
   return `${location.origin}/u?f=${encodeURIComponent(f.id)}${n}${p}`;
 }
 
@@ -581,12 +590,13 @@ let smsTarget = null;
 
 function openSmsModal(folderId) {
   const f = folders.find(x => x.id === folderId);
-  if (!f || !f.phone) return;
-  smsTarget = f;
+  const phone = phoneFor(f || {});
+  if (!f || !phone) return;
+  smsTarget = { ...f, phone };
 
   $('smsTo').innerHTML =
     `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>` +
-    `${esc(f.name)} <span class="to-phone">${esc(f.phone)}</span>`;
+    `${esc(f.name)} <span class="to-phone">${esc(phone)}</span>`;
   $('smsText').value = reminderText(f);
   $('smsMsg').textContent = '';
   $('smsMsg').className = 'modal-msg';

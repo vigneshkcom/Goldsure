@@ -323,6 +323,79 @@ export default async function handler(req, res) {
       return res.status(200).json(out);
     }
 
+    // Find GHL contacts by name plus the last 4 digits of their mobile.
+    // The photo tracker only knows customers as "John Smith (8761)" — the two
+    // together pin down one contact without needing the full number stored
+    // anywhere, and it resolves folders created before any of this existed.
+    //   ?action=ghl-find&items=John%20Smith~8761,Karen%20Parsons~4821
+    // → { "John Smith~8761": { phone, pipeline, stage, contactId, link } }
+    if (req.query.action === 'ghl-find') {
+      const items = String(req.query.items || '')
+        .split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+      if (!items.length) return res.status(200).json({});
+
+      const apiKey     = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) return res.status(200).json({});
+      const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+
+      let pipes = [];
+      try {
+        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers });
+        if (pRes.ok) pipes = (await pRes.json()).pipelines || [];
+      } catch {}
+      const pipeName  = pid => (pipes.find(p => p.id === pid) || {}).name || '';
+      const stageName = (pid, sid) => {
+        const p = pipes.find(x => x.id === pid);
+        return p ? ((p.stages || []).find(s => s.id === sid) || {}).name || '' : '';
+      };
+
+      const out = {};
+      await Promise.all(items.map(async (item) => {
+        const [rawName, last4] = item.split('~');
+        const name = (rawName || '').trim();
+        if (!name) return;
+        try {
+          const r = await fetch(
+            `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(name)}&limit=20`,
+            { headers }
+          );
+          if (!r.ok) return;
+          const contacts = (await r.json()).contacts || [];
+          const digits = c => String(c.phone || '').replace(/\D/g, '');
+          // With last 4 digits, insist on that match so two customers sharing a
+          // name can't be confused. Without them, only accept an unambiguous
+          // single result rather than guessing.
+          const match = last4
+            ? contacts.find(c => digits(c).slice(-4) === last4)
+            : (contacts.length === 1 ? contacts[0] : null);
+          if (!match) return;
+
+          const info = {
+            contactId: match.id,
+            phone: match.phone || '',
+            link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${match.id}`,
+          };
+          try {
+            const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(match.id)}`, { headers });
+            if (oRes.ok) {
+              const opps = (await oRes.json()).opportunities || [];
+              const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+              const opp = opps.filter(o => o.status === 'open').sort(byUpdated)[0] || opps.sort(byUpdated)[0];
+              if (opp) {
+                info.pipeline = pipeName(opp.pipelineId);
+                info.stage    = stageName(opp.pipelineId, opp.pipelineStageId);
+                info.opportunityId = opp.id;
+              }
+            }
+          } catch {}
+          out[item] = info;
+        } catch {}
+      }));
+
+      return res.status(200).json(out);
+    }
+
     // Delivery status: poll SMS Gate for outbound message states and persist
     // delivered/failed back to Supabase so polling stops once final.
     if (req.query.action === 'delivery') {
