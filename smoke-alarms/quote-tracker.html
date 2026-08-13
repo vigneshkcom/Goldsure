@@ -78,23 +78,12 @@ main { padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
   padding: 14px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden;
 }
-.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; height: auto; }
-.kpi-card.gold::before   { background: var(--blue); }
-.kpi-card.green::before  { background: var(--green); }
-.kpi-card.amber::before  { background: var(--amber); }
-.kpi-card.blue::before   { background: var(--blue); }
-.kpi-card.dark::before   { background: var(--text); }
-.kpi-card.teal::before   { background: var(--teal); }
-.kpi-card.red::before    { background: var(--red); }
+.kpi-card::before { content: none; }   /* monday cards are plain — no colour rail */
 .kpi-label {
   font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0;
   color: var(--muted); margin-bottom: 6px;
 }
-.kpi-val { font-size: 26px; font-family: inherit; font-weight: 600; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.kpi-card.gold .kpi-val  { color: var(--blue); }
-.kpi-card.green .kpi-val { color: var(--green); }
-.kpi-card.teal .kpi-val  { color: var(--teal); }
-.kpi-card.red .kpi-val   { color: var(--red); }
+.kpi-val { font-size: 28px; font-family: inherit; font-weight: 600; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .kpi-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
 /* ── Charts ── */
@@ -103,7 +92,7 @@ main { padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
 .chart-title { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); margin-bottom: 14px; }
 .agent-bars { display: flex; flex-direction: column; gap: 10px; }
 .agent-bar-row { display: flex; align-items: center; gap: 12px; }
-.agent-bar-name { font-size: 13px; font-weight: 400; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-bar-name { font-size: 13px; font-weight: 400; width: 168px; flex-shrink: 0; overflow: hidden; white-space: nowrap; }
 .agent-bar-track { flex: 1; background: var(--surface3); border-radius: 99px; height: 8px; overflow: hidden; }
 .agent-bar-fill { height: 100%; background: var(--blue); border-radius: 99px; transition: width .6s ease; }
 .agent-bar-val { font-size: 12px; font-family: inherit; font-variant-numeric: tabular-nums; color: var(--muted); width: 28px; text-align: right; }
@@ -159,6 +148,21 @@ th {
 }
 th:hover { color: var(--blue); }
 th.sorted { color: var(--blue); font-weight: 500; }
+/* Sort direction as a small caret on the active column only — the old "arrows"
+   glyph sat on every header and read as clutter. */
+.sort-caret { display: inline-block; width: 0; height: 0; margin-left: 5px; vertical-align: middle; opacity: 0; }
+th:hover .sort-caret { opacity: .45; }
+th.sorted .sort-caret { opacity: 1; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+th.sorted.asc .sort-caret { border-top: none; border-bottom: 5px solid currentColor; }
+th:hover .sort-caret { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+
+/* People column */
+.person { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; white-space: nowrap; }
+.person-av {
+  width: 26px; height: 26px; border-radius: 50%; flex: none; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+}
 tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
 tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--surface2); }
@@ -244,7 +248,7 @@ td { padding: 10px 14px; font-size: 13.5px; color: var(--text); vertical-align: 
   text-transform: none; letter-spacing: 0; padding: 3px 9px; border-radius: 4px;
 }
 .lead-digital { background: var(--blue-bg); color: var(--blue); border: none; }
-.lead-direct { background: var(--surface3); color: var(--muted); border: none; }
+.lead-direct { background: var(--surface3); color: var(--text); border: none; }
 .svc-badge {
   display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
   text-transform: none; letter-spacing: 0; padding: 3px 9px; border-radius: 4px;
@@ -353,18 +357,18 @@ td { padding: 10px 14px; font-size: 13.5px; color: var(--text); vertical-align: 
         <thead>
           <tr>
             <th style="width:30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
-            <th onclick="sortBy('sent_at')" data-col="sent_at">Date ↕</th>
-            <th onclick="sortBy('customer_name')" data-col="customer_name">Customer ↕</th>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Date<i class="sort-caret"></i></th>
+            <th onclick="sortBy('customer_name')" data-col="customer_name">Customer<i class="sort-caret"></i></th>
             <th>Lead Type</th>
-            <th onclick="sortBy('agent_name')" data-col="agent_name">Agent ↕</th>
-            <th onclick="sortBy('alarm_qty')" data-col="alarm_qty">Alarms ↕</th>
-            <th onclick="sortBy('grand_total_numeric')" data-col="grand_total_numeric">Total ↕</th>
+            <th onclick="sortBy('agent_name')" data-col="agent_name">Agent<i class="sort-caret"></i></th>
+            <th onclick="sortBy('alarm_qty')" data-col="alarm_qty">Alarms<i class="sort-caret"></i></th>
+            <th onclick="sortBy('grand_total_numeric')" data-col="grand_total_numeric">Total<i class="sort-caret"></i></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th>Status</th>
             <th>GHL Stage</th>
             <th>Send Reminder</th>
             <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
-            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminder Count ↕</th>
+            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminder Count<i class="sort-caret"></i></th>
           </tr>
         </thead>
         <tbody id="table-body">
@@ -574,10 +578,30 @@ function applyFilters() {
   renderTable();
 }
 
+// Agent shown as a monday-style person chip: initials avatar in a colour
+// derived from the name, so each agent is consistently recognisable.
+const AGENT_COLORS = ['#0073ea','#00c875','#a25ddc','#fdab3d','#e2445c','#009eb5','#ff642e','#7e5aa8','#037f4c','#bb3354'];
+function agentColor(name) {
+  const s = String(name || '');
+  let h = 7;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return AGENT_COLORS[Math.abs(h) % AGENT_COLORS.length];
+}
+function agentChip(name) {
+  const n = String(name || '').trim();
+  if (!n) return '<span class="td-date">—</span>';
+  const init = n.split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+  return `<span class="person"><span class="person-av" style="background:${agentColor(n)}">${esc(init)}</span>${esc(n)}</span>`;
+}
+
 function sortBy(col) {
   sortDir = (sortCol === col && sortDir === 'desc') ? 'asc' : 'desc';
   sortCol = col;
-  document.querySelectorAll('th').forEach(th => th.classList.toggle('sorted', th.dataset.col === col));
+  document.querySelectorAll('th').forEach(th => {
+    const on = th.dataset.col === col;
+    th.classList.toggle('sorted', on);
+    th.classList.toggle('asc', on && sortDir === 'asc');
+  });
   applyFilters();
 }
 
@@ -629,7 +653,7 @@ function renderTable() {
     const leadType = (q.customer_type||'digital').toLowerCase();
     const isDirect = leadType === 'direct' || leadType === 'letterbox';
     const leadClass = isDirect ? 'lead-direct' : 'lead-digital';
-    const leadLabel = isDirect ? '☎ Direct Call' : '📱 Digital';
+    const leadLabel = isDirect ? 'Direct Call' : 'Digital';
     const reminderCount = getReminderCount(q);
     const quoteAgeDays = daysSince(q.sent_at);
     const reminderAgeDays = daysSince(q.last_reminder_sent_at);
@@ -647,7 +671,7 @@ function renderTable() {
       <td class="td-date">${date}</td>
       <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub" style="color:#9ca3af;">${esc(q.customer_address)}</div>`:''}</td>
       <td><span class="lead-badge ${leadClass}">${leadLabel}</span></td>
-      <td style="font-size:11px;">${esc(q.agent_name||'—')}</td>
+      <td>${agentChip(q.agent_name)}</td>
       <td class="td-mono">${q.alarm_qty||0}</td>
       <td class="td-gold">${q.grand_total_numeric ? '$' + parseFloat(q.grand_total_numeric).toLocaleString('en-AU', {minimumFractionDigits:0,maximumFractionDigits:0}) : (q.grand_total||'—')}</td>
       <td>${renderDaysPill(quoteAgeDays, 4)}</td>
@@ -729,7 +753,7 @@ function renderCharts() {
   const agents = Object.entries(agentMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxA   = agents.length ? agents[0][1] : 1;
   document.getElementById('agent-bars').innerHTML = agents.length
-    ? agents.map(([n,c]) => `<div class="agent-bar-row"><div class="agent-bar-name" title="${esc(n)}">${esc(n)}</div><div class="agent-bar-track"><div class="agent-bar-fill" style="width:${Math.round(c/maxA*100)}%"></div></div><div class="agent-bar-val">${c}</div></div>`).join('')
+    ? agents.map(([n,c]) => `<div class="agent-bar-row"><div class="agent-bar-name" title="${esc(n)}">${agentChip(n)}</div><div class="agent-bar-track"><div class="agent-bar-fill" style="width:${Math.round(c/maxA*100)}%;background:${agentColor(n)}"></div></div><div class="agent-bar-val">${c}</div></div>`).join('')
     : '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>No data yet</p></div>';
   const dayMap = {}, now = new Date();
   for (let i=13;i>=0;i--) { const d = new Date(now-i*864e5); dayMap[d.toISOString().slice(0,10)]=0; }
