@@ -289,7 +289,15 @@ function showToast(m){ const t=document.getElementById('toast'); t.textContent=m
 function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
 function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
 function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
-function unitCount(q){ try{ return (Array.isArray(q.line_items)?q.line_items:[]).reduce((s,l)=>s+(parseInt(l.qty,10)||0),0); }catch(e){ return 0; } }
+// The outdoor compressor is a line item like any other, but it isn't a head —
+// counting it made a 4-head quote read as 5 units. New quotes tag their lines
+// with `kind`; older ones are identified by the ACV9 model in the name.
+function isOutdoorUnit(l){
+  if(l && l.kind) return l.kind === 'outdoor';
+  const n = String(l && l.name || '');
+  return /ACV9/i.test(n) || /non-ducted multiple split/i.test(n);
+}
+function unitCount(q){ try{ return (Array.isArray(q.line_items)?q.line_items:[]).filter(l=>!isOutdoorUnit(l)).reduce((s,l)=>s+(parseInt(l.qty,10)||0),0); }catch(e){ return 0; } }
 
 function renderKPIs(){
   const total=allQuotes.length;
