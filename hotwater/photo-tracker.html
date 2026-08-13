@@ -5,122 +5,220 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Photo Upload Tracker — Goldsure</title>
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* Built against DESIGN.md (PlayStation-derived system):
+     three-canvas bands, PS Blue pill CTAs, 8px cards, weight-300 display type,
+     flat surfaces with hairline dividers. Light canvas only — this is a
+     utility surface, and the rest of the portal is light. */
   :root {
-    --bg: #f4f6f8; --card: #fff; --border: #e2e8f0; --text: #1a202c;
-    --muted: #718096; --purple: #6b46c1; --green: #2f855a; --amber: #b7791f;
+    color-scheme: light;
+
+    --primary: #0070d1;
+    --primary-pressed: #0064b7;
+    --on-primary: #ffffff;
+
+    --ink: #000000;
+    --body: rgba(0,0,0,0.6);
+    --mute: #6b6b6b;
+    --ash: #cccccc;
+
+    --canvas: #ffffff;
+    --surface-soft: #f3f3f3;
+    --surface-card: #f5f7fa;
+    --hairline: #f3f3f3;
+
+    --warning: #c81b3a;
+    --gold-start: #ffce21;
+    --gold-end: #ee8e00;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-full: 9999px;
+
+    --s-xs: 8px;  --s-sm: 12px; --s-md: 16px;
+    --s-lg: 24px; --s-xl: 32px; --s-xxl: 48px;
   }
+
   * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
   body {
-    margin: 0; background: var(--bg); color: var(--text); padding: 28px 20px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: 'Roboto', Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 980px; margin: 0 auto; }
-  .brand { margin-bottom: 18px; }
-  .brand img { height: 34px; width: auto; display: block; }
-  @media (prefers-color-scheme: dark) { .brand img { background: #fff; padding: 5px 8px; border-radius: 6px; } }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
-  h1 { font-size: 22px; margin: 0; }
-  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
-  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 120px; }
-  .stat .n { font-size: 22px; font-weight: 700; }
-  .stat .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  .toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-  input[type=search] {
-    flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 8px; font-size: 14px; background: var(--card); color: var(--text);
+
+  /* ── Dark band: the page's one editorial chapter ── */
+  .band-dark {
+    background: #000;
+    color: #fff;
+    padding: var(--s-xxl) var(--s-lg);
   }
-  button.refresh {
-    padding: 10px 16px; border: 1px solid var(--border); background: var(--card);
-    border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text);
+  .band-inner { max-width: 1080px; margin: 0 auto; }
+  .brand img { height: 72px; width: auto; display: block; margin: -8px 0 var(--s-md) -6px; }
+  .band-dark h1 {
+    font-size: 44px; font-weight: 300; line-height: 1.25; letter-spacing: .1px;
+    margin: 0 0 var(--s-sm);
   }
-  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .band-dark p {
+    margin: 0; max-width: 560px;
+    color: rgba(255,255,255,0.7); font-size: 18px; line-height: 1.5; letter-spacing: .1px;
+  }
+
+  /* ── Light canvas: the working surface ── */
+  .band-light { background: var(--canvas); padding: var(--s-xl) var(--s-lg) var(--s-xxl); }
+
+  .section-title {
+    font-size: 22px; font-weight: 300; letter-spacing: .1px; line-height: 1.25;
+    margin: 0 0 var(--s-md);
+  }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-lg); margin-bottom: var(--s-xl); }
+  .stat { background: var(--surface-card); border-radius: var(--r-md); padding: var(--s-lg); }
+  .stat .n { font-size: 35px; font-weight: 300; line-height: 1.25; }
+  .stat .l { font-size: 12px; font-weight: 500; color: var(--mute); text-transform: uppercase; letter-spacing: .6px; }
+  .stat.is-waiting .n { color: var(--primary); }
+
+  /* New request card */
+  .panel { background: var(--surface-card); border-radius: var(--r-md); padding: var(--s-xl); margin-bottom: var(--s-xl); }
+  .panel-sub { color: var(--body); font-size: 16px; margin: 0 0 var(--s-lg); max-width: 620px; }
+  .field-row { display: flex; gap: var(--s-sm); flex-wrap: wrap; }
+  input[type=text], input[type=tel], input[type=search] {
+    flex: 1; min-width: 180px; height: 48px; padding: 12px 16px;
+    background: var(--canvas); color: var(--ink);
+    border: 1px solid var(--ash); border-radius: var(--r-sm);
+    font-family: inherit; font-size: 18px; line-height: 1.5;
+  }
+  input:focus { outline: none; border: 2px solid var(--primary); padding: 11px 15px; }
+
+  .btn {
+    height: 48px; padding: 12px 28px; border: none; border-radius: var(--r-full);
+    background: var(--primary); color: var(--on-primary);
+    font-family: inherit; font-size: 18px; font-weight: 700; letter-spacing: .45px; line-height: 1.25;
+    cursor: pointer;
+  }
+  .btn:active { background: var(--primary-pressed); box-shadow: 0 4px 12px rgba(0,0,0,0.16); }
+  .btn:disabled { background: var(--surface-soft); color: var(--ash); cursor: not-allowed; box-shadow: none; }
+  .btn-secondary {
+    background: transparent; color: var(--ink); border: 1px solid var(--ash);
+  }
+  .btn-secondary:active { background: var(--surface-soft); }
+  .btn-sm { height: 40px; padding: 8px 20px; font-size: 14px; letter-spacing: .324px; }
+
+  .hint { font-size: 14px; color: var(--mute); margin-top: var(--s-sm); }
+  .result { display: none; gap: var(--s-sm); margin-top: var(--s-md); }
+  .msg { font-size: 14px; margin-top: var(--s-sm); min-height: 18px; }
+  .msg.err { color: var(--warning); }
+  .msg.ok { color: var(--primary-pressed); }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: var(--s-sm); flex-wrap: wrap; margin-bottom: var(--s-md); align-items: center; }
+  .updated { font-size: 14px; color: var(--mute); margin-left: auto; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 620px; }
+  th {
+    text-align: left; padding: 0 var(--s-md) var(--s-sm);
+    font-size: 12px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; color: var(--mute);
+    border-bottom: 1px solid var(--ash);
+  }
+  td { padding: var(--s-md); border-bottom: 1px solid var(--hairline); font-size: 16px; }
   tr:last-child td { border-bottom: none; }
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-  .pill.has { background: #f0fff4; color: var(--green); }
-  .pill.none { background: #fffaf0; color: var(--amber); }
-  a.folder { color: var(--purple); text-decoration: none; font-weight: 600; }
+  .cust { font-weight: 500; }
+
+  .badge {
+    display: inline-block; padding: 4px 10px; border-radius: var(--r-full);
+    font-size: 12px; font-weight: 500; letter-spacing: 0;
+  }
+  .badge.has { background: var(--primary); color: var(--on-primary); }
+  .badge.none { background: var(--surface-soft); color: var(--mute); }
+
+  a.folder { color: var(--primary-pressed); text-decoration: none; font-weight: 500; white-space: nowrap; }
   a.folder:hover { text-decoration: underline; }
-  .newreq { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; }
-  .newreq-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
-  .newreq-sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
-  .newreq-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .newreq-row input {
-    flex: 1; min-width: 150px; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text);
+  .muted { color: var(--mute); font-size: 14px; }
+  .state { padding: var(--s-xxl) var(--s-md); text-align: center; color: var(--mute); font-size: 18px; }
+  .state.err { color: var(--warning); }
+
+  /* Gold accent bar — the one gradient the system allows, used here to mark
+     the page's single highlight moment rather than decorating chrome. */
+  .accent { height: 3px; background: linear-gradient(90deg, var(--gold-start), var(--gold-end)); border-radius: var(--r-full); margin-bottom: var(--s-lg); width: 64px; }
+
+  @media (max-width: 768px) {
+    .band-dark { padding: var(--s-xl) var(--s-md); }
+    .band-dark h1 { font-size: 32px; }
+    .band-dark p { font-size: 16px; }
+    .band-light { padding: var(--s-lg) var(--s-md) var(--s-xl); }
+    .stats { grid-template-columns: 1fr; gap: var(--s-sm); }
+    .panel { padding: var(--s-lg); }
+    .field-row { flex-direction: column; }
+    .field-row .btn { width: 100%; }
+    .updated { margin-left: 0; width: 100%; }
   }
-  .newreq-row button {
-    padding: 10px 18px; border: none; border-radius: 8px; background: var(--purple);
-    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  .newreq-row button:disabled { opacity: .6; cursor: not-allowed; }
-  .newreq-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
-  .result { display: none; gap: 8px; margin-top: 12px; }
-  .result input {
-    flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 13px; background: var(--bg); color: var(--text);
-  }
-  .result button {
-    padding: 10px 16px; border: 1px solid var(--border); background: var(--card);
-    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text);
-  }
-  .reqmsg { font-size: 13px; margin-top: 8px; }
-  .reqmsg.err { color: #c53030; }
-  .reqmsg.ok { color: var(--green); }
-  .empty, .err { padding: 30px 16px; text-align: center; color: var(--muted); }
-  .err { color: #c53030; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #1a202c; --card: #2d3748; --border: #4a5568; --text: #f7fafc; --muted: #a0aec0; }
-    .pill.has { background: #22543d; color: #9ae6b4; }
-    .pill.none { background: #5f370e; color: #fbd38d; }
+  @media (max-width: 480px) {
+    .band-dark h1 { font-size: 28px; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
-  <header>
+
+<div class="band-dark">
+  <div class="band-inner">
+    <!-- The dark-background lockup: the horizontal logo is a JPEG on white and
+         would sit in a white box on this band. -->
+    <div class="brand"><img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure"></div>
     <h1>Photo Upload Tracker</h1>
-    <span class="sub" id="updated"></span>
-  </header>
-  <p class="sub">Every customer a photo link has been sent to, and whether they've uploaded yet. Reads live from WorkDrive.</p>
-
-  <div class="newreq">
-    <div class="newreq-title">New photo request</div>
-    <div class="newreq-sub">For customers you're not texting from the SMS portal — creates their folder and gives you a link to send however you like.</div>
-    <div class="newreq-row">
-      <input type="text" id="reqName" placeholder="Customer name *">
-      <input type="tel" id="reqPhone" placeholder="Mobile (optional)">
-      <button id="reqBtn">Create link</button>
-    </div>
-    <div class="newreq-note">Adding a mobile lets the upload be logged automatically against their GHL contact.</div>
-    <div class="result" id="reqResult">
-      <input type="text" id="reqLink" readonly>
-      <button id="copyBtn">Copy</button>
-    </div>
-    <div class="reqmsg" id="reqMsg"></div>
+    <p>Every customer sent a photo link, and whether they've uploaded yet. Reads live from WorkDrive.</p>
   </div>
+</div>
 
-  <div class="stats" id="stats"></div>
+<div class="band-light">
+  <div class="band-inner">
 
-  <div class="toolbar">
-    <input type="search" id="search" placeholder="Search customer name…">
-    <button class="refresh" id="refreshBtn">Refresh</button>
-  </div>
+    <div class="accent"></div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Customer</th><th>Photos</th><th>Link sent</th><th>Last upload</th><th></th></tr>
-      </thead>
-      <tbody id="rows">
-        <tr><td colspan="5" class="empty">Loading…</td></tr>
-      </tbody>
-    </table>
+    <div class="panel">
+      <div class="section-title">New photo request</div>
+      <p class="panel-sub">For customers you're not texting from the SMS portal — creates their folder and gives you a link to send however you like.</p>
+      <div class="field-row">
+        <input type="text" id="reqName" placeholder="Customer name" autocomplete="off">
+        <input type="tel" id="reqPhone" placeholder="Mobile (optional)" autocomplete="off">
+        <button class="btn" id="reqBtn">Create link</button>
+      </div>
+      <div class="hint">Adding a mobile lets the upload be logged automatically against their GHL contact.</div>
+      <div class="result" id="reqResult">
+        <input type="text" id="reqLink" readonly>
+        <button class="btn btn-secondary" id="copyBtn">Copy</button>
+      </div>
+      <div class="msg" id="reqMsg"></div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search customer name">
+      <button class="btn btn-secondary btn-sm" id="refreshBtn">Refresh</button>
+      <span class="updated" id="updated"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Photos</th><th>Link sent</th><th>Last upload</th><th></th></tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="5" class="state">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 </div>
 
@@ -138,11 +236,10 @@ function fmtDate(ms) {
 
 function relative(ms) {
   if (!ms) return '';
-  const diff = Date.now() - Number(ms);
-  const days = Math.floor(diff / 86400000);
+  const days = Math.floor((Date.now() - Number(ms)) / 86400000);
   if (days === 0) return 'today';
   if (days === 1) return 'yesterday';
-  if (days < 30) return `${days} days ago`;
+  if (days < 30) return days + ' days ago';
   return '';
 }
 
@@ -152,23 +249,23 @@ function render() {
   const tbody = document.getElementById('rows');
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">${folders.length ? 'No customers match that search.' : 'No photo requests yet.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="state">${folders.length ? 'No customers match that search.' : 'No photo requests yet.'}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = list.map(f => {
     const count = f.photoCount;
     const has = count === null ? null : count > 0;
-    const pill = has === null
-      ? '<span class="pill none">unknown</span>'
-      : has ? `<span class="pill has">${count} uploaded</span>`
-            : '<span class="pill none">waiting</span>';
+    const badge = has === null
+      ? '<span class="badge none">unknown</span>'
+      : has ? `<span class="badge has">${count} uploaded</span>`
+            : '<span class="badge none">waiting</span>';
     const rel = relative(f.modifiedAt);
     return `<tr>
-      <td><strong>${esc(f.name)}</strong></td>
-      <td>${pill}</td>
+      <td class="cust">${esc(f.name)}</td>
+      <td>${badge}</td>
       <td>${fmtDate(f.createdAt)}</td>
-      <td>${has ? fmtDate(f.modifiedAt) + (rel ? ` <span style="color:var(--muted);font-size:12px;">(${rel})</span>` : '') : '—'}</td>
+      <td>${has ? fmtDate(f.modifiedAt) + (rel ? ` <span class="muted">(${rel})</span>` : '') : '—'}</td>
       <td>${f.link ? `<a class="folder" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder →</a>` : ''}</td>
     </tr>`;
   }).join('');
@@ -177,15 +274,13 @@ function render() {
 function renderStats() {
   const total = folders.length;
   const uploaded = folders.filter(f => (f.photoCount || 0) > 0).length;
-  const waiting = total - uploaded;
   document.getElementById('stats').innerHTML = `
     <div class="stat"><div class="n">${total}</div><div class="l">Requests</div></div>
     <div class="stat"><div class="n">${uploaded}</div><div class="l">Uploaded</div></div>
-    <div class="stat"><div class="n">${waiting}</div><div class="l">Waiting</div></div>`;
+    <div class="stat is-waiting"><div class="n">${total - uploaded}</div><div class="l">Waiting</div></div>`;
 }
 
 async function load() {
-  const tbody = document.getElementById('rows');
   try {
     const res = await fetch('/api/zoho/create-photo-request?action=list');
     const data = await res.json();
@@ -193,17 +288,19 @@ async function load() {
     folders = data.folders || [];
     renderStats();
     render();
-    document.getElementById('updated').textContent = `Updated ${new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`;
+    document.getElementById('updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="err">Could not load: ${esc(e.message)}</td></tr>`;
+    document.getElementById('rows').innerHTML =
+      `<tr><td colspan="5" class="state err">Could not load: ${esc(e.message)}</td></tr>`;
   }
 }
 
-// ── New photo request ──────────────────────────────────────────────────────
+// ── New photo request ──
 const reqMsg = (msg, cls) => {
   const el = document.getElementById('reqMsg');
   el.textContent = msg || '';
-  el.className = 'reqmsg' + (cls ? ' ' + cls : '');
+  el.className = 'msg' + (cls ? ' ' + cls : '');
 };
 
 document.getElementById('reqBtn').addEventListener('click', async () => {
@@ -232,7 +329,7 @@ document.getElementById('reqBtn').addEventListener('click', async () => {
     document.getElementById('reqPhone').value = '';
     load();
   } catch (e) {
-    reqMsg(`Could not create the link: ${e.message}`, 'err');
+    reqMsg('Could not create the link: ' + e.message, 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Create link';
@@ -244,11 +341,11 @@ document.getElementById('copyBtn').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(input.value);
     const btn = document.getElementById('copyBtn');
-    btn.textContent = 'Copied ✓';
+    btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
   } catch {
-    // Clipboard API needs a secure context/permission; selecting the text lets
-    // the user copy it by hand instead of the button silently doing nothing.
+    // Clipboard API needs a secure context/permission; select the text so it
+    // can still be copied by hand rather than the button doing nothing.
     input.select();
     reqMsg('Press Ctrl/Cmd+C to copy the selected link.', 'ok');
   }
@@ -257,7 +354,6 @@ document.getElementById('copyBtn').addEventListener('click', async () => {
 document.getElementById('reqName').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('reqBtn').click();
 });
-
 document.getElementById('search').addEventListener('input', render);
 document.getElementById('refreshBtn').addEventListener('click', load);
 load();
