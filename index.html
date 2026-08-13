@@ -700,12 +700,13 @@
     }
 
     .nav-group-trigger.open {
-      background: rgba(0, 115, 234, 0.22);
-      color: #ffffff;
+      background: var(--gold-bg);
+      color: var(--monday-blue);
+      font-weight: 600;
     }
 
     .nav-group-trigger.open svg.icon,
-    .nav-item.active svg { stroke: #70b5ff; }
+    .nav-item.active svg { stroke: var(--monday-blue); }
 
     .nav-item {
       min-height: 33px;
@@ -922,6 +923,113 @@
       .card-title { white-space: normal; }
       .card-arrow { display: none; }
     }
+    /* ════════════════════════════════════════════════════════════
+       monday's app shell: a narrow dark icon rail pinned to the far
+       left, a white board nav beside it, and a white top bar with
+       search and an avatar cluster. Content layout is untouched.
+       ════════════════════════════════════════════════════════════ */
+    :root { --rail-w: 60px; }
+
+    .rail {
+      width: var(--rail-w); flex-shrink: 0; background: var(--monday-navy);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 0 14px; gap: 14px; z-index: 61;
+    }
+    .rail-logo { display: block; width: 32px; height: 32px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+    .rail-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rail-items { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px; }
+    .rail-btn {
+      width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; color: rgba(255,255,255,.72); text-decoration: none;
+      transition: background .14s ease, color .14s ease;
+    }
+    .rail-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .rail-btn.is-active { background: var(--monday-blue); color: #fff; }
+    .rail-me {
+      margin-top: auto; width: 32px; height: 32px; border-radius: 50%;
+      background: var(--monday-purple); color: #fff; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; letter-spacing: .02em;
+    }
+
+    /* Board nav goes white — monday's second tier is light, not dark */
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); box-shadow: none; }
+    .sidebar::after { display: none; }
+    .sidebar-brand { border-bottom: 1px solid var(--border); }
+    .brand-name { color: var(--text); }
+    .brand-tag { color: var(--faint); }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: #d9dce6; }
+
+    .nav-group-trigger { color: var(--text); }
+    .nav-group-trigger:hover { background: var(--bg); color: var(--text); }
+    .nav-group-trigger .icon { color: var(--muted); opacity: 1; }
+    .nav-chevron { color: var(--faint); }
+
+    .nav-item, .nav-standalone { color: var(--muted); }
+    .nav-item:hover, .nav-standalone:hover { background: var(--bg); color: var(--text); }
+    .nav-item svg, .nav-standalone svg { opacity: 1; color: var(--faint); }
+    .nav-item.active, .nav-standalone.active {
+      background: var(--gold-bg); color: var(--monday-blue); font-weight: 600;
+    }
+    .nav-item.active svg, .nav-standalone.active svg { stroke: var(--monday-blue); color: var(--monday-blue); }
+    .nav-section-label { color: var(--faint); }
+
+    /* Each nav entry gets its board dot, the way monday marks boards */
+    .nav-item::before, .nav-standalone::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--dot, #c3c6d4); margin-right: 2px;
+    }
+    .sidebar-nav .nav-group:nth-of-type(1) .nav-item { --dot: var(--monday-blue); }
+    .sidebar-nav .nav-group:nth-of-type(2) .nav-item { --dot: var(--monday-purple); }
+    .sidebar-nav .nav-group:nth-of-type(3) .nav-item { --dot: var(--monday-green); }
+    .sidebar-nav .nav-standalone:nth-of-type(3n + 1) { --dot: var(--monday-yellow); }
+    .sidebar-nav .nav-standalone:nth-of-type(3n + 2) { --dot: var(--monday-teal); }
+    .sidebar-nav .nav-standalone:nth-of-type(3n + 3) { --dot: var(--monday-red); }
+
+    .sidebar-footer { border-top: 1px solid var(--border); }
+    .sidebar-footer-badge { background: var(--teal-bg); }
+    .sidebar-footer-text { color: var(--muted); }
+    .internal-tag { color: var(--monday-blue); }
+
+    /* Top bar */
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .tb-search { position: relative; }
+    .tb-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .tb-search input {
+      width: 230px; height: 32px; padding: 0 12px 0 32px; font-family: inherit; font-size: 13.5px;
+      color: var(--text); background: var(--bg); border: 1px solid transparent; border-radius: 4px;
+    }
+    .tb-search input::placeholder { color: var(--faint); }
+    .tb-search input:focus { outline: none; background: var(--surface); border-color: var(--monday-blue); box-shadow: 0 0 0 1px var(--monday-blue); }
+    .tb-icon {
+      width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center;
+      justify-content: center; color: var(--muted); text-decoration: none; transition: background .14s ease;
+    }
+    .tb-icon:hover { background: var(--bg); color: var(--text); }
+    .tb-avatar {
+      width: 30px; height: 30px; border-radius: 50%; background: var(--monday-blue); color: #fff;
+      font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+
+    @media (max-width: 860px) {
+      /* The rail rides inside the drawer with the nav, so a phone keeps the
+         full width for content. */
+      .rail {
+        position: fixed; top: 0; bottom: 0; left: 0; z-index: 62;
+        transform: translateX(-100%); transition: transform .25s ease;
+      }
+      .rail.open { transform: translateX(0); }
+      .sidebar {
+        left: var(--rail-w); width: calc(264px - var(--rail-w));
+        /* Offset by the rail, so it must travel its own width plus the rail
+           to clear the screen — otherwise its edge covers the menu button. */
+        transform: translateX(calc(-100% - var(--rail-w)));
+      }
+      .sidebar.open { transform: translateX(0); }
+      .tb-search { display: none; }
+      .topbar-right { display: flex !important; gap: 4px; }
+      .topbar-meta, .topbar-sep, .topbar-contact { display: none; }
+    }
+
   </style>
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
@@ -931,6 +1039,31 @@
 
   <!-- Dims the page behind the mobile nav drawer; tap to dismiss -->
   <div class="sidebar-scrim" id="sidebarScrim" onclick="closeNav()"></div>
+
+  <!-- ICON RAIL — the narrow dark strip monday pins to the far left -->
+  <nav class="rail" id="rail" aria-label="Sections">
+    <a class="rail-logo" href="/" title="Goldsure home">
+      <img src="/assets/gs-favicon-96px.png" alt="Goldsure">
+    </a>
+    <div class="rail-items">
+      <a class="rail-btn is-active" href="/" title="Dashboard" aria-current="page">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </a>
+      <a class="rail-btn" href="/sms/" title="Inbox — SMS">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </a>
+      <a class="rail-btn" href="/calls/" title="Call analytics">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </a>
+      <a class="rail-btn" href="/calendar/staff-leave-planner.html" title="Calendars" target="_blank">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </a>
+      <a class="rail-btn" href="/time/" title="Time tracker">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+      </a>
+    </div>
+    <div class="rail-me" title="Goldsure internal">GS</div>
+  </nav>
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
@@ -1102,13 +1235,15 @@
         <div class="topbar-sub">Goldsure Pty Ltd · Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
       </div>
       <div class="topbar-right">
-        <div class="topbar-meta">ABN 66 683 305 106</div>
-        <div class="topbar-sep"></div>
-        <div class="topbar-contact">
-          <a href="tel:0721455155">(07) 2145 5155</a>
-          &nbsp;·&nbsp;
-          <a href="/cdn-cgi/l/email-protection#e881868e87a88f87848c9b9d9a8dc68b8785c6899d"><span class="__cf_email__" data-cfemail="3c55525a537c5b5350584f494e59125f5351125d49">[email&#160;protected]</span></a>
+        <!-- Search / bell / avatar — monday's top-right cluster -->
+        <div class="tb-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input type="search" id="navSearch" placeholder="Search tools" aria-label="Search tools">
         </div>
+        <a class="tb-icon" href="tel:0721455155" title="(07) 2145 5155">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12 19.79 19.79 0 0 1 1.08 3.39 2 2 0 0 1 3.08 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16.92z"/></svg>
+        </a>
+        <span class="tb-avatar" title="Goldsure Pty Ltd · ABN 66 683 305 106">GS</span>
       </div>
     </div>
 
@@ -1355,6 +1490,8 @@
   // ── Mobile nav drawer ──
   function setNav(open) {
     document.getElementById('sidebar').classList.toggle('open', open);
+    // The icon rail slides in with the nav panel on a phone
+    document.getElementById('rail').classList.toggle('open', open);
     document.getElementById('sidebarScrim').classList.toggle('show', open);
     document.getElementById('navToggle').setAttribute('aria-expanded', String(open));
     // Stop the page behind the drawer from scrolling while it's open
