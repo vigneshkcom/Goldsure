@@ -6,7 +6,7 @@
 <title>Goldsure · Quote Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ─────────────────────────────────────────────────────────────
    monday.com-style board UI. Class names are unchanged from the
@@ -47,7 +47,7 @@ header {
 .logo-text { display: none; }
 .hd { width: 1px; height: 26px; background: var(--border2); }
 .page-label {
-  font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 600;
+  font-family: inherit; font-size: 20px; font-weight: 700;
   letter-spacing: -.01em; text-transform: none; color: var(--text); white-space: nowrap;
 }
 .tracker-nav { display: inline-flex; gap: 3px; background: var(--surface2); border: none; border-radius: 8px; padding: 3px; }
@@ -99,7 +99,14 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 .day-grid { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
 .day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
 .day-bar-track { width: 100%; background: var(--surface3); border-radius: 4px; display: flex; flex-direction: column; justify-content: flex-end; height: 60px; overflow: hidden; border: none; }
-.day-bar-fill { background: var(--blue); width: 100%; border-radius: 3px; transition: height .5s ease; min-height: 2px; }
+.day-bar-fill { background: var(--blue); width: 100%; border-radius: 3px; transition: height .5s ease, background .3s ease; min-height: 2px; }
+/* Busier days sit darker on a blue heat scale — set inline from the count. */
+.day-heat-0 { background: #d7dbe8; }
+.day-heat-1 { background: #cce3fb; }
+.day-heat-2 { background: #8fc3f6; }
+.day-heat-3 { background: #3f9bf0; }
+.day-heat-4 { background: #0073ea; }
+.day-heat-5 { background: #0060b9; }
 .day-label { font-size: 9px; color: var(--muted); }
 
 /* ── Filters ── */
@@ -288,6 +295,21 @@ td { padding: 12px 16px; font-size: 13.5px; color: var(--text); vertical-align: 
   .filter-input{min-width:auto;width:100%}
   .results-count{margin-left:0}
 }
+
+/* HWS / Aircon-only columns */
+.model-badge {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
+  padding: 3px 9px; border-radius: 4px; background: var(--surface3); color: var(--text);
+  text-transform: none; letter-spacing: 0; white-space: nowrap;
+}
+.scope-chip {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
+  padding: 3px 9px; border-radius: 4px; background: var(--blue-bg); color: var(--blue);
+  text-transform: none; letter-spacing: 0;
+}
+.meta-only { color: var(--muted); font-size: 12px; }
+.td-oop { font-family: inherit; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+.td-cut { font-family: inherit; font-variant-numeric: tabular-nums; color: var(--muted); }
 </style>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon-smoke.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -594,6 +616,13 @@ function agentChip(name) {
   return `<span class="person"><span class="person-av" style="background:${agentColor(n)}">${esc(init)}</span>${esc(n)}</span>`;
 }
 
+// Busier days read darker: bucket each day's count against the busiest one.
+function dayHeat(cnt, max) {
+  if (!cnt) return 'day-heat-0';
+  const r = max ? cnt / max : 0;
+  return 'day-heat-' + (r > 0.85 ? 5 : r > 0.65 ? 4 : r > 0.45 ? 3 : r > 0.25 ? 2 : 1);
+}
+
 function sortBy(col) {
   sortDir = (sortCol === col && sortDir === 'desc') ? 'asc' : 'desc';
   sortCol = col;
@@ -761,7 +790,7 @@ function renderCharts() {
   const days = Object.entries(dayMap); const maxD = Math.max(...days.map(d=>d[1]),1);
   document.getElementById('day-grid').innerHTML = days.map(([date,cnt]) => {
     const label = new Date(date+'T12:00:00').toLocaleDateString('en-AU',{weekday:'narrow'});
-    return `<div class="day-col"><div class="day-bar-track"><div class="day-bar-fill" style="height:${Math.round(cnt/maxD*100)}%"></div></div><div class="day-label">${label}</div></div>`;
+    return `<div class="day-col"><div class="day-bar-track"><div class="day-bar-fill ${dayHeat(cnt, maxD)}" style="height:${Math.round(cnt/maxD*100)}%"></div></div><div class="day-label">${label}</div></div>`;
   }).join('');
 }
 
