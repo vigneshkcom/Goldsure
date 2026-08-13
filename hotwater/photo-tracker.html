@@ -8,340 +8,277 @@
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet">
 <style>
   /* ─────────────────────────────────────────────────────────────
-     Warm editorial paper. Goldsure gold is the only accent, spent
-     sparingly; everything else is ink, rule and negative space.
-     Chrome stays compact so the table — the actual job — is the page.
+     Board UI in the monday.com idiom: grouped rows under coloured
+     group headers, solid-fill status cells, battery progress, and
+     the blue primary action. Light canvas, 4px radii, hairline grid.
      ───────────────────────────────────────────────────────────── */
   :root {
     color-scheme: light;
 
-    --paper:    #fbfaf7;
-    --paper-2:  #f5f2ea;
-    --paper-3:  #efebe0;
-    --ink:      #16130f;
-    --ink-2:    #56504a;
-    --ink-3:    #8a827a;
-    --rule:     #e5dfd2;
-    --rule-2:   #d6cebd;
+    --blue:      #0073ea;
+    --blue-dark: #0060b9;
+    --green:     #00c875;
+    --orange:    #fdab3d;
+    --red:       #e2445c;
+    --purple:    #a25ddc;
 
-    --gold:     #b08a22;
-    --gold-lit: #d9b455;
-    --gold-wash:#f6edd6;
-    --done:     #2f6b4f;
-    --alert:    #a3341f;
-
-    --tap: 44px;
+    --ink:       #323338;
+    --ink-2:     #676879;
+    --ink-3:     #9699a6;
+    --line:      #d0d4e4;
+    --line-soft: #e6e9ef;
+    --canvas:    #f6f7fb;
+    --surface:   #ffffff;
+    --hover:     #f5f6f8;
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-
   body {
-    background: var(--paper);
+    background: var(--canvas);
     color: var(--ink);
-    font-family: 'Public Sans', ui-sans-serif, sans-serif;
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 14px;
-    line-height: 1.55;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    /* Faint paper grain — tactility without noise at a glance */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
   }
 
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
-
-  /* ── Header: one compact instrument bar, not a band ── */
-  header {
-    position: sticky; top: 0; z-index: 20;
-    background: rgba(251,250,247,.88);
-    backdrop-filter: saturate(180%) blur(12px);
-    border-bottom: 1px solid var(--rule);
+  /* ── Board header ── */
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--line-soft); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+  .top-row { display: flex; align-items: center; gap: 14px; padding: 16px 0 12px; }
+  .logo { height: 24px; width: auto; display: block; }
+  .divider { width: 1px; height: 22px; background: var(--line); }
+  .board-title {
+    font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 600;
+    letter-spacing: -.01em; margin: 0; white-space: nowrap;
   }
-  .bar { display: flex; align-items: center; gap: 16px; height: 60px; }
-  .mark { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .mark img { height: 22px; width: auto; display: block; }
-  .mark .sep { width: 1px; height: 20px; background: var(--rule-2); }
-  .mark h1 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-optical-sizing: auto;
-    font-size: 19px; font-weight: 400; letter-spacing: -.01em;
-    margin: 0; white-space: nowrap;
-  }
-  .bar-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-  .stamp { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .board-sub { color: var(--ink-2); font-size: 13px; margin: 0; }
+  .top-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .stamp { color: var(--ink-3); font-size: 12px; white-space: nowrap; }
 
-  /* ── Buttons ── */
+  /* ── Controls ── */
   .btn {
-    height: 36px; padding: 0 15px; border-radius: 7px; cursor: pointer;
-    font-family: inherit; font-size: 13px; font-weight: 500; letter-spacing: .005em;
-    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
-    border: 1px solid var(--rule-2); background: transparent; color: var(--ink);
-    transition: background .16s ease, border-color .16s ease, transform .12s ease;
+    height: 32px; padding: 0 14px; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 400;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    border: 1px solid transparent; background: transparent; color: var(--ink-2);
+    transition: background .12s ease, color .12s ease, box-shadow .12s ease;
   }
-  .btn:hover { background: var(--paper-2); border-color: var(--ink-3); }
-  .btn:active { transform: translateY(1px); }
+  .btn:hover { background: var(--hover); color: var(--ink); }
   .btn-primary {
-    background: var(--ink); border-color: var(--ink); color: var(--paper);
+    background: var(--blue); color: #fff; font-weight: 500; height: 32px; padding: 0 16px;
   }
-  .btn-primary:hover { background: #2b2620; border-color: #2b2620; }
-  .btn-primary:disabled { background: var(--rule-2); border-color: var(--rule-2); color: #fff; cursor: not-allowed; transform: none; }
-  .btn svg { flex: none; }
+  .btn-primary:hover { background: var(--blue-dark); color: #fff; }
+  .btn-primary:disabled { background: #c3c6d4; cursor: not-allowed; }
+  .btn-ghost { border-color: var(--line); background: var(--surface); }
+  .btn-ghost:hover { border-color: var(--ink-3); background: var(--surface); }
 
-  /* ── Meter: the page's one big gesture ── */
-  .meter-block { padding: 34px 0 26px; }
-  .meter-top { display: flex; align-items: flex-end; gap: 22px; flex-wrap: wrap; }
-  .big {
-    font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto;
-    font-size: 72px; font-weight: 300; line-height: .84; letter-spacing: -.03em;
-    font-variant-numeric: tabular-nums; margin-bottom: -2px;
-  }
-  .big em { font-style: normal; font-size: 26px; color: var(--ink-3); letter-spacing: 0; }
-  .legend { display: flex; gap: 26px; margin-left: auto; }
-  .leg .k {
-    font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .leg .v { font-family: 'Fraunces', Georgia, serif; font-size: 25px; font-weight: 400; font-variant-numeric: tabular-nums; line-height: 1.25; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; }
-  .dot.done { background: var(--done); }
-  .dot.wait { background: var(--gold); }
-
-  .track {
-    margin-top: 20px; height: 6px; border-radius: 99px; background: var(--paper-3);
-    overflow: hidden; display: flex;
-  }
-  .track i {
-    display: block; height: 100%;
-    background: linear-gradient(90deg, var(--gold), var(--gold-lit));
-    width: 0; transition: width .9s cubic-bezier(.22,1,.36,1);
-  }
-  .track i.b { background: var(--done); opacity: .82; }
-
-  /* ── Toolbar ── */
-  .toolbar {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding-bottom: 12px; border-bottom: 1px solid var(--rule);
-  }
-  .search { position: relative; flex: 1; min-width: 190px; }
-  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+  .controls { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; flex-wrap: wrap; }
+  .search { position: relative; width: 240px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-2); }
   input[type=search], input[type=text], input[type=tel] {
-    width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--rule-2);
-    background: rgba(255,255,255,.6); color: var(--ink); border-radius: 7px;
-    font-family: inherit; font-size: 13.5px;
+    width: 100%; height: 32px; padding: 0 12px; border: 1px solid transparent;
+    background: var(--surface); border-radius: 4px; color: var(--ink);
+    font-family: inherit; font-size: 14px;
   }
-  input[type=search] { padding-left: 34px; }
+  input[type=search] { padding-left: 32px; border-color: var(--line-soft); }
   input::placeholder { color: var(--ink-3); }
-  input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-wash); background: #fff; }
+  input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
 
-  .chips { display: flex; gap: 4px; padding: 3px; background: var(--paper-2); border-radius: 8px; }
-  .chip {
-    height: 30px; padding: 0 12px; border: none; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--ink-2);
-    border-radius: 6px; transition: background .15s ease, color .15s ease;
+  /* ── New item drawer ── */
+  .drawer { display: none; padding-bottom: 14px; }
+  .drawer.open { display: block; animation: pop .22s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+  .drawer-card {
+    background: var(--surface); border: 1px solid var(--line-soft); border-radius: 8px;
+    padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.05);
   }
-  .chip[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(22,19,15,.07); }
-
-  /* ── New request: collapsed by default, so it costs no height ── */
-  .drawer { display: none; padding: 16px 0 2px; }
-  .drawer.open { display: block; animation: drop .32s cubic-bezier(.22,1,.36,1); }
-  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-  .drawer-inner {
-    background: var(--paper-2); border: 1px solid var(--rule); border-radius: 11px; padding: 16px;
-  }
-  .drawer-row { display: flex; gap: 9px; flex-wrap: wrap; }
-  .drawer-row input { flex: 1; min-width: 165px; background: #fff; }
-  .note { font-size: 12px; color: var(--ink-3); margin-top: 9px; }
-  .msg { font-size: 12.5px; margin-top: 9px; min-height: 17px; }
-  .msg.err { color: var(--alert); }
-  .msg.ok { color: var(--done); }
+  .drawer-title { font-weight: 600; margin-bottom: 4px; }
+  .drawer-note { color: var(--ink-2); font-size: 13px; margin-bottom: 12px; }
+  .drawer-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .drawer-row input { flex: 1; min-width: 160px; border-color: var(--line); }
   .out { display: none; gap: 8px; margin-top: 10px; }
-  .out input { flex: 1; font-size: 12px; color: var(--ink-2); }
+  .out input { flex: 1; border-color: var(--line); font-size: 12.5px; color: var(--ink-2); }
+  .msg { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .msg.err { color: var(--red); }
+  .msg.ok { color: #0f8a56; }
 
-  /* ── Table ── */
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    text-align: left; padding: 13px 12px; font-size: 10.5px; font-weight: 600;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  /* ── Board ── */
+  .board { padding-bottom: 48px; }
+  .group { margin-bottom: 26px; }
+  .group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding-left: 4px; }
+  .caret {
+    background: none; border: none; cursor: pointer; padding: 2px; display: flex; color: inherit;
+    transition: transform .18s ease;
   }
-  tbody td { padding: 14px 12px; border-top: 1px solid var(--rule); vertical-align: middle; }
-  tbody tr { position: relative; }
-  tbody tr td:first-child { padding-left: 14px; }
-  tbody tr:hover td { background: rgba(245,242,234,.7); }
-  /* Gold edge marks the rows still waiting */
-  tbody tr.waiting td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+  .group.collapsed .caret { transform: rotate(-90deg); }
+  .group-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .group-count { color: var(--ink-2); font-size: 13px; font-weight: 400; }
 
-  .who { font-size: 14.5px; font-weight: 500; letter-spacing: -.005em; }
-  .sub { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .grid { background: var(--surface); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .group.collapsed .grid { display: none; }
 
-  /* Photo pips — 4 slots: switchboard, unit, access, compliance */
-  .pips { display: inline-flex; gap: 4px; align-items: center; }
-  .pip { width: 15px; height: 5px; border-radius: 99px; background: var(--paper-3); }
-  .pip.on { background: var(--gold); }
-  .pip.full { background: var(--done); }
-  .count { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-left: 8px; }
-  .count.zero { color: var(--gold); font-weight: 500; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 150px 170px 120px 130px;
+    align-items: center;
+    border-bottom: 1px solid var(--line-soft);
+    position: relative;
+    min-height: 40px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row.head {
+    font-size: 13px; color: var(--ink-2); font-weight: 400;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  .row.item:hover { background: var(--hover); }
+  /* Group colour strip down the left edge, monday's signature */
+  .row .cell:first-child { box-shadow: inset 6px 0 0 var(--gcolor, transparent); }
+  .cell { padding: 8px 12px 8px 16px; min-width: 0; }
+  .cell.c { text-align: center; padding-left: 12px; }
 
-  .when { font-size: 13px; font-variant-numeric: tabular-nums; }
-  .rel { font-size: 11.5px; color: var(--ink-3); }
+  .item-name {
+    font-size: 14px; font-weight: 400; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .with-avatar { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .avatar {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  }
 
+  /* Solid status cell — the monday board tell */
+  .status {
+    display: block; width: 100%; height: 100%; min-height: 36px;
+    color: #fff; font-size: 13px; font-weight: 400;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 0 8px;
+  }
+  .status.done   { background: var(--green); }
+  .status.part   { background: var(--orange); }
+  .status.none   { background: var(--red); }
+  .status.unknown{ background: #c4c4c4; }
+  .cell.status-cell { padding: 0; height: 100%; }
+
+  /* Battery progress, monday's segmented style */
+  .battery { display: flex; gap: 2px; height: 16px; border-radius: 3px; overflow: hidden; }
+  .battery span { flex: 1; background: var(--line-soft); }
+  .battery span.on { background: var(--green); }
+  .battery span.warn { background: var(--orange); }
+  .battery-label { font-size: 12px; color: var(--ink-2); text-align: center; margin-top: 3px; }
+
+  .date { font-size: 13px; color: var(--ink-2); }
+  .date b { color: var(--ink); font-weight: 400; }
   a.open {
-    color: var(--ink-2); text-decoration: none; font-size: 12.5px; font-weight: 500;
-    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-    opacity: .5; transition: opacity .16s ease, color .16s ease;
+    color: var(--blue); text-decoration: none; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 4px;
   }
-  tbody tr:hover a.open { opacity: 1; color: var(--ink); }
-  a.open:hover { color: var(--gold) !important; }
+  a.open:hover { text-decoration: underline; }
 
-  .state { padding: 64px 12px; text-align: center; color: var(--ink-3); }
-  .state.err { color: var(--alert); }
-  .state .big-quiet { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 300; color: var(--ink-2); display: block; margin-bottom: 5px; }
+  .state { padding: 40px 16px; text-align: center; color: var(--ink-2); background: var(--surface); border-radius: 6px; }
+  .state.err { color: var(--red); }
 
-  /* Staggered arrival — one orchestrated moment, not scattered fidgets */
-  tbody tr { animation: rise .5s cubic-bezier(.22,1,.36,1) backwards; }
-  @keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+  .row.item { animation: slide .34s ease backwards; }
+  @keyframes slide { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-  footer { padding: 30px 0 44px; color: var(--ink-3); font-size: 11.5px; }
-
-  /* ── Mobile: rows become stacked records ── */
-  @media (max-width: 720px) {
-    .wrap { padding: 0 16px; }
-    .bar { height: 56px; gap: 10px; }
-    .mark h1 { font-size: 15px; }
-    .stamp { display: none; }
-    /* Buttons shed their labels so the title keeps its room */
+  /* ── Mobile: rows become stacked cards ── */
+  @media (max-width: 800px) {
+    .wrap { padding: 0 12px; }
+    .board-title { font-size: 18px; }
+    .board-sub, .stamp { display: none; }
+    .search { width: 100%; }
     .lbl { display: none; }
-    .btn { padding: 0 11px; }
-    .bar-end { gap: 7px; }
-    .meter-block { padding: 24px 0 18px; }
-    .big { font-size: 54px; }
-    .legend { margin-left: 0; gap: 20px; width: 100%; margin-top: 14px; }
-    .toolbar { gap: 8px; }
-    .search { min-width: 100%; order: -1; }
 
-    thead { display: none; }
-    tbody td { display: block; padding: 0; border: none; }
-    tbody tr {
-      display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
-      padding: 14px 12px; border-top: 1px solid var(--rule); align-items: center;
+    .row.head { display: none; }
+    .row {
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      padding: 10px 12px 12px;
+      border-left: 6px solid var(--gcolor, transparent);
     }
-    tbody tr:hover td { background: transparent; }
-    tbody tr.waiting { box-shadow: inset 2px 0 0 var(--gold); }
-    tbody tr.waiting td:first-child { box-shadow: none; }
-    .c-who   { grid-column: 1; grid-row: 1; }
-    .c-pips  { grid-column: 1; grid-row: 2; }
-    .c-sent  { grid-column: 2; grid-row: 1; text-align: right; }
-    .c-last  { grid-column: 2; grid-row: 2; text-align: right; }
-    .c-link  { grid-column: 1 / -1; grid-row: 3; }
-    a.open { opacity: 1; color: var(--ink); }
+    .row .cell:first-child { box-shadow: none; }
+    .cell { padding: 0; }
+    .cell.c { text-align: left; }
+    .m-name   { grid-column: 1; grid-row: 1; }
+    .m-status { grid-column: 2; grid-row: 1; }
+    .m-batt   { grid-column: 1 / -1; grid-row: 2; margin: 6px 0 2px; }
+    .m-sent   { grid-column: 1; grid-row: 3; }
+    .m-link   { grid-column: 2; grid-row: 3; text-align: right; }
+    .status { min-height: 24px; border-radius: 4px; padding: 0 12px; }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap bar">
-    <div class="mark">
-      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
-      <span class="sep"></span>
-      <h1>Photo Uploads</h1>
-    </div>
-    <div class="bar-end">
-      <span class="stamp" id="stamp"></span>
-      <button class="btn" id="refreshBtn" title="Refresh" aria-label="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        <span class="lbl">Refresh</span>
-      </button>
-      <button class="btn btn-primary" id="newBtn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        New<span class="lbl">&nbsp;request</span>
-      </button>
-    </div>
-  </div>
-</header>
-
-<main class="wrap">
-
-  <section class="meter-block">
-    <div class="meter-top">
-      <div class="big" id="pct">—<em>%</em></div>
-      <div class="legend">
-        <div class="leg">
-          <div class="k"><span class="dot done"></span> Uploaded</div>
-          <div class="v" id="nDone">—</div>
-        </div>
-        <div class="leg">
-          <div class="k"><span class="dot wait"></span> Waiting</div>
-          <div class="v" id="nWait">—</div>
-        </div>
-        <div class="leg">
-          <div class="k">Requests</div>
-          <div class="v" id="nAll">—</div>
-        </div>
+<div class="topbar">
+  <div class="wrap">
+    <div class="top-row">
+      <img class="logo" src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <span class="divider"></span>
+      <div>
+        <h1 class="board-title">Photo Uploads</h1>
+        <p class="board-sub">Site photos requested from customers · live from WorkDrive</p>
+      </div>
+      <div class="top-end">
+        <span class="stamp" id="stamp"></span>
+        <button class="btn" id="refreshBtn" aria-label="Refresh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          <span class="lbl">Refresh</span>
+        </button>
+        <button class="btn btn-primary" id="newBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New<span class="lbl">item</span>
+        </button>
       </div>
     </div>
-    <div class="track"><i class="b" id="barDone"></i><i id="barWait"></i></div>
-  </section>
 
+    <div class="controls">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <input type="search" id="search" placeholder="Search this board">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
   <div class="drawer" id="drawer">
-    <div class="drawer-inner">
+    <div class="drawer-card">
+      <div class="drawer-title">New photo request</div>
+      <div class="drawer-note">Creates the customer's folder and gives you a link to send however you like.</div>
       <div class="drawer-row">
         <input type="text" id="reqName" placeholder="Customer name" autocomplete="off">
         <input type="tel" id="reqPhone" placeholder="Mobile (optional)" autocomplete="off">
         <button class="btn btn-primary" id="reqBtn">Create link</button>
       </div>
-      <div class="note">Adding a mobile logs the upload against their GHL contact automatically.</div>
       <div class="out" id="out">
         <input type="text" id="reqLink" readonly>
-        <button class="btn" id="copyBtn">Copy</button>
+        <button class="btn btn-ghost" id="copyBtn">Copy</button>
       </div>
       <div class="msg" id="reqMsg"></div>
     </div>
   </div>
 
-  <section class="toolbar">
-    <div class="search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
-      <input type="search" id="search" placeholder="Search customer">
-    </div>
-    <div class="chips" role="group" aria-label="Filter">
-      <button class="chip" id="fAll"  aria-pressed="true">All</button>
-      <button class="chip" id="fWait" aria-pressed="false">Waiting</button>
-      <button class="chip" id="fDone" aria-pressed="false">Uploaded</button>
-    </div>
-  </section>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:34%">Customer</th>
-        <th style="width:24%">Photos</th>
-        <th style="width:16%">Link sent</th>
-        <th style="width:16%">Last upload</th>
-        <th style="width:10%"></th>
-      </tr>
-    </thead>
-    <tbody id="rows">
-      <tr><td colspan="5" class="state">Loading…</td></tr>
-    </tbody>
-  </table>
-
-  <footer>Reads live from Zoho WorkDrive · Goldsure internal</footer>
-</main>
+  <div class="board" id="board">
+    <div class="state">Loading board…</div>
+  </div>
+</div>
 
 <script>
-/* The upload page asks for 4 shots: switchboard, existing unit, access,
-   compliance plate (optional) — so a count reads naturally out of 4. */
+/* The upload page asks for four shots — switchboard, existing unit, access,
+   and the optional compliance plate — so counts read against four. */
 const SLOTS = 4;
+const AVATAR_COLORS = ['#0073ea','#a25ddc','#00c875','#fdab3d','#e2445c','#009eb5','#ff642e'];
 
 let folders = [];
-let filter = 'all';
+const collapsed = {};
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -361,67 +298,101 @@ function relative(ms) {
   return '';
 }
 
-function pips(count) {
-  const n = Math.max(0, Math.min(SLOTS, Number(count) || 0));
-  const full = n >= 3; // the three required shots are in
-  let out = '<span class="pips">';
-  for (let i = 0; i < SLOTS; i++) {
-    out += `<span class="pip ${i < n ? (full ? 'full' : 'on') : ''}"></span>`;
-  }
-  out += '</span>';
-  const label = count === null ? '—' : (n === 0 ? 'none yet' : `${n}/${SLOTS}`);
-  return out + `<span class="count ${n === 0 ? 'zero' : ''}">${label}</span>`;
+const initials = name => String(name || '?')
+  .replace(/\(.*?\)/g, '').trim().split(/\s+/).slice(0, 2)
+  .map(w => w[0] || '').join('').toUpperCase() || '?';
+
+const avatarColor = name => AVATAR_COLORS[
+  Math.abs([...String(name)].reduce((h, c) => h * 31 + c.charCodeAt(0) | 0, 7)) % AVATAR_COLORS.length
+];
+
+function statusOf(f) {
+  const n = f.photoCount;
+  if (n === null || n === undefined) return { cls: 'unknown', text: 'Unknown' };
+  if (n === 0) return { cls: 'none', text: 'Waiting on photos' };
+  if (n < 3)   return { cls: 'part', text: 'Partly received' };
+  return { cls: 'done', text: 'Photos received' };
 }
 
-function visible() {
-  const q = $('search').value.trim().toLowerCase();
-  return folders.filter(f => {
-    const has = (f.photoCount || 0) > 0;
-    if (filter === 'wait' && has) return false;
-    if (filter === 'done' && !has) return false;
-    return !q || f.name.toLowerCase().includes(q);
-  });
+function battery(count) {
+  const n = Math.max(0, Math.min(SLOTS, Number(count) || 0));
+  const cls = n >= 3 ? 'on' : 'warn';
+  let bars = '';
+  for (let i = 0; i < SLOTS; i++) bars += `<span class="${i < n ? cls : ''}"></span>`;
+  return `<div class="battery">${bars}</div><div class="battery-label">${count === null ? '—' : n + '/' + SLOTS}</div>`;
+}
+
+function rowHtml(f, i, gcolor) {
+  const st = statusOf(f);
+  const rel = relative(f.modifiedAt);
+  return `<div class="row item" style="--gcolor:${gcolor};animation-delay:${Math.min(i * 22, 300)}ms">
+    <div class="cell m-name">
+      <div class="with-avatar">
+        <div class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</div>
+        <div class="item-name" title="${esc(f.name)}">${esc(f.name)}</div>
+      </div>
+    </div>
+    <div class="cell status-cell m-status"><span class="status ${st.cls}">${st.text}</span></div>
+    <div class="cell c m-batt">${battery(f.photoCount)}</div>
+    <div class="cell c m-sent"><div class="date"><b>${fmtDate(f.createdAt)}</b></div></div>
+    <div class="cell c m-link">${f.link
+      ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder
+         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>`
+      : `<span class="date">${rel || ''}</span>`}</div>
+  </div>`;
+}
+
+function groupHtml(key, name, color, items) {
+  if (!items.length) return '';
+  const isCollapsed = collapsed[key] ? ' collapsed' : '';
+  return `<section class="group${isCollapsed}" data-group="${key}">
+    <div class="group-head" style="color:${color}">
+      <button class="caret" data-toggle="${key}" aria-label="Collapse ${esc(name)}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <span class="group-name">${esc(name)}</span>
+      <span class="group-count">${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
+    </div>
+    <div class="grid">
+      <div class="row head">
+        <div class="cell">Customer</div>
+        <div class="cell c">Status</div>
+        <div class="cell c">Photos</div>
+        <div class="cell c">Link sent</div>
+        <div class="cell c">Folder</div>
+      </div>
+      ${items.map((f, i) => rowHtml(f, i, color)).join('')}
+    </div>
+  </section>`;
 }
 
 function render() {
-  const list = visible();
-  const tbody = $('rows');
+  const q = $('search').value.trim().toLowerCase();
+  const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
+  const board = $('board');
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="state">
-      <span class="big-quiet">${folders.length ? 'Nothing here' : 'No requests yet'}</span>
-      ${folders.length ? 'No customers match this view.' : 'Create one from the SMS portal, or with New request above.'}
-    </td></tr>`;
+    board.innerHTML = `<div class="state">${folders.length
+      ? 'No items match your search.'
+      : 'No photo requests yet — create one with <b>New item</b>, or from the SMS portal.'}</div>`;
     return;
   }
 
-  tbody.innerHTML = list.map((f, i) => {
-    const has = (f.photoCount || 0) > 0;
-    const rel = relative(f.modifiedAt);
-    return `<tr class="${has ? '' : 'waiting'}" style="animation-delay:${Math.min(i * 26, 380)}ms">
-      <td class="c-who"><div class="who">${esc(f.name)}</div></td>
-      <td class="c-pips">${pips(f.photoCount)}</td>
-      <td class="c-sent"><div class="when">${fmtDate(f.createdAt)}</div></td>
-      <td class="c-last">${has ? `<div class="when">${fmtDate(f.modifiedAt)}</div>${rel ? `<div class="rel">${rel}</div>` : ''}` : '<div class="rel">—</div>'}</td>
-      <td class="c-link">${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Open folder
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}</td>
-    </tr>`;
-  }).join('');
-}
+  const waiting = list.filter(f => (f.photoCount || 0) === 0);
+  const partial = list.filter(f => (f.photoCount || 0) > 0 && f.photoCount < 3);
+  const done    = list.filter(f => (f.photoCount || 0) >= 3);
 
-function renderMeter() {
-  const total = folders.length;
-  const done = folders.filter(f => (f.photoCount || 0) > 0).length;
-  const wait = total - done;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  board.innerHTML =
+      groupHtml('waiting', 'Waiting on photos', 'var(--red)', waiting)
+    + groupHtml('partial', 'Partly received',   'var(--orange)', partial)
+    + groupHtml('done',    'Photos received',   'var(--green)', done);
 
-  $('pct').innerHTML = total ? `${pct}<em>%</em>` : `—<em>%</em>`;
-  $('nDone').textContent = done;
-  $('nWait').textContent = wait;
-  $('nAll').textContent = total;
-  requestAnimationFrame(() => {
-    $('barDone').style.width = total ? (done / total * 100) + '%' : '0%';
-    $('barWait').style.width = total ? (wait / total * 100) + '%' : '0%';
+  board.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.onclick = () => {
+      const key = btn.dataset.toggle;
+      collapsed[key] = !collapsed[key];
+      board.querySelector(`[data-group="${key}"]`).classList.toggle('collapsed', collapsed[key]);
+    };
   });
 }
 
@@ -431,35 +402,16 @@ async function load() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
     folders = data.folders || [];
-    renderMeter();
     render();
     $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
-    $('rows').innerHTML = `<tr><td colspan="5" class="state err">
-      <span class="big-quiet">Couldn't load</span>${esc(e.message)}</td></tr>`;
+    $('board').innerHTML = `<div class="state err">Couldn't load the board: ${esc(e.message)}</div>`;
   }
 }
 
-/* ── Filters ── */
-function setFilter(next) {
-  filter = next;
-  $('fAll').setAttribute('aria-pressed', String(next === 'all'));
-  $('fWait').setAttribute('aria-pressed', String(next === 'wait'));
-  $('fDone').setAttribute('aria-pressed', String(next === 'done'));
-  render();
-}
-$('fAll').onclick  = () => setFilter('all');
-$('fWait').onclick = () => setFilter('wait');
-$('fDone').onclick = () => setFilter('done');
 $('search').addEventListener('input', render);
 $('refreshBtn').onclick = load;
-
-/* ── New request drawer ── */
-$('newBtn').onclick = () => {
-  const d = $('drawer');
-  const open = d.classList.toggle('open');
-  if (open) $('reqName').focus();
-};
+$('newBtn').onclick = () => { if ($('drawer').classList.toggle('open')) $('reqName').focus(); };
 
 const msg = (text, cls) => {
   const el = $('reqMsg');
