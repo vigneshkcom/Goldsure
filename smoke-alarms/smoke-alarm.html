@@ -546,15 +546,17 @@ body { padding-left: var(--rail-w); }
 .cal-day { border-top: 1px solid var(--border); padding-top: 9px; }
 .cal-day-title { font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 7px; }
 .cal-row {
-  display: flex; align-items: center; gap: 7px; font-size: 12px;
-  background: var(--surface2); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px;
+  width: 100%; display: flex; align-items: center; gap: 7px; font-size: 12.5px;
+  font-family: inherit; text-align: left; border: 1px solid transparent;
+  background: var(--surface2); border-radius: 4px; padding: 8px 10px; margin-bottom: 4px;
 }
-.cal-row.busy { background: var(--red-bg); }
+.cal-row.on { background: var(--green-bg); }
+.cal-row:disabled { cursor: default; }
+.avail-panel.admin .cal-row { cursor: pointer; }
+.avail-panel.admin .cal-row:hover { border-color: var(--blue); }
 .cal-row .who { font-weight: 500; color: var(--text); }
-.cal-row .what { color: var(--muted); margin-left: auto; text-align: right; }
-.cal-row .del { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 1px; display: none; }
-.avail-panel.admin .cal-row .del { display: block; }
-.cal-row .del:hover { color: var(--red); }
+.cal-row .state { color: var(--muted); margin-left: auto; }
+.cal-row.on .state { color: #0f8a56; font-weight: 500; }
 .cal-empty { font-size: 12px; color: var(--faint); }
 
 @media (max-width: 1280px) {
@@ -724,7 +726,7 @@ function doLogout() {
   <aside class="avail-panel" id="availPanel">
     <div class="avail-head">
       <h3>Electricians</h3>
-      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Add</button>
+      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Edit</button>
     </div>
 
     <div class="cal-nav">
@@ -1857,81 +1859,73 @@ function renderCalDay(rows) {
   const label = calSelected
     ? new Date(calSelected + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
     : '';
-  box.innerHTML = `<div class="cal-day-title">${escAvail(label)}</div>` + (rows.length
-    ? rows.map(r => `<div class="cal-row ${r.status === 'busy' ? 'busy' : ''}">
-        <span class="cal-key-dot" style="background:${availColor(r.electrician)}"></span>
-        <span class="who">${escAvail(r.electrician)}</span>
-        <span class="what">${escAvail(r.note || (r.status === 'busy' ? 'Unavailable' : 'Available'))}</span>
-        <button class="del" title="Remove" onclick="deleteAvailability('${r.id}')">×</button>
-      </div>`).join('')
-    : `<div class="cal-empty">No availability set for this day.</div>`);
+
+  const lines = ELECTRICIANS.map(el => {
+    const row = rows.find(r => (r.electrician || '').toLowerCase() === el.name.toLowerCase());
+    const on = Boolean(row);
+    return `<button type="button" class="cal-row ${on ? 'on' : 'off'}"
+      ${availAdmin ? `onclick="toggleAvailability('${escAvail(el.name)}', ${row ? `'${row.id}'` : 'null'})"` : 'disabled'}>
+      <span class="cal-key-dot" style="background:${on ? availColor(el.name) : 'var(--border2)'}"></span>
+      <span class="who">${escAvail(el.name)}</span>
+      <span class="state">${on ? 'Available' : 'Not available'}</span>
+    </button>`;
+  }).join('');
+
+  box.innerHTML = `<div class="cal-day-title">${escAvail(label)}</div>${lines}` +
+    (availAdmin ? '' : `<div class="cal-empty">Enter the admin PIN to change these.</div>`);
+}
+
+/* One click marks an electrician available for the selected day, or clears it. */
+async function toggleAvailability(name, id) {
+  if (!availAdmin || !calSelected) return;
+  try {
+    if (id) {
+      const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } else {
+      const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability`, {
+        method: 'POST',
+        headers: {
+          apikey: QUOTE_TRACKER_SUPABASE_KEY,
+          Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ electrician: name, slot_date: calSelected, status: 'free' }),
+      });
+      if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
+    }
+    loadAvailability();
+  } catch (e) {
+    alert('Could not update: ' + e.message);
+  }
 }
 
 const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function promptAvailAdmin() {
-  if (availAdmin) return openAvailForm();
+  const btn = document.getElementById('availAddBtn');
+  if (availAdmin) {                       // already unlocked — lock it again
+    availAdmin = false;
+    document.getElementById('availPanel').classList.remove('admin');
+    btn.textContent = 'Edit';
+    renderAvailability();
+    return;
+  }
   const pin = prompt('Admin PIN to edit availability:');
   if (pin === null) return;
   if (pin !== AVAIL_PIN) { alert('Incorrect PIN.'); return; }
   availAdmin = true;
   document.getElementById('availPanel').classList.add('admin');
-  openAvailForm();
+  btn.textContent = 'Done';
+  renderAvailability();
 }
 
-function openAvailForm() {
-  const who = prompt(`Which electrician?\n\n${ELECTRICIANS.map((e,i)=>`${i+1}. ${e.name}`).join('\n')}\n\nEnter 1 or 2:`);
-  if (who === null) return;
-  const el = ELECTRICIANS[parseInt(who, 10) - 1];
-  if (!el) { alert('Pick 1 or 2.'); return; }
 
-  const date = prompt('Date (YYYY-MM-DD):', calSelected || ymd(new Date()));
-  if (!date) return;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('Use the format YYYY-MM-DD.'); return; }
 
-  const note = prompt('Availability note (e.g. "8am – 12pm", or "On leave"):', '8am – 4pm');
-  if (note === null) return;
-  const busy = /leave|unavailable|booked|off/i.test(note);
-
-  saveAvailability({ electrician: el.name, slot_date: date, note: note.trim(), status: busy ? 'busy' : 'free' });
-}
-
-async function saveAvailability(row) {
-  try {
-    const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability`, {
-      method: 'POST',
-      headers: {
-        apikey: QUOTE_TRACKER_SUPABASE_KEY,
-        Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify(row),
-    });
-    if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
-    if (typeof showToast === 'function') showToast('Availability added');
-    calSelected = row.slot_date;
-    calCursor = new Date(row.slot_date + 'T00:00:00');
-    loadAvailability();
-  } catch (e) {
-    alert('Could not save: ' + e.message);
-  }
-}
-
-async function deleteAvailability(id) {
-  if (!availAdmin) return;
-  if (!confirm('Remove this availability?')) return;
-  try {
-    const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?id=eq.${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    loadAvailability();
-  } catch (e) {
-    alert('Could not remove: ' + e.message);
-  }
-}
 
 document.addEventListener('DOMContentLoaded', loadAvailability);
 
