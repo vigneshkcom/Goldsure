@@ -527,6 +527,10 @@ body { padding-left: var(--rail-w); }
 }
 .cal-cell:hover { background: var(--surface2); }
 .cal-cell.muted { color: var(--faint); }
+.cal-cell.past { color: var(--faint); }
+/* Nobody available — struck through so unbookable days stand out */
+.cal-cell.none .n { text-decoration: line-through; text-decoration-color: var(--border2); color: var(--faint); }
+.cal-cell.sel.none .n { text-decoration-color: rgba(255,255,255,.6); color: #fff; }
 .cal-cell.today { font-weight: 700; color: var(--blue); }
 .cal-cell.today::after {
   content: ''; position: absolute; inset: 0; border: 1px solid var(--blue);
@@ -1840,9 +1844,11 @@ function renderAvailability() {
     const outside = d.getMonth() !== month;
     const names = [...new Set((byDate[key] || []).map(r => r.electrician))];
     const dots = names.map(n => `<span class="cal-dot" style="background:${availColor(n)}"></span>`).join('');
-    cells += `<button type="button" class="cal-cell${outside ? ' muted' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
-      onclick="calSelect('${key}')" title="${escAvail(names.join(', '))}">
-      <span>${d.getDate()}</span><span class="cal-dots">${dots}</span></button>`;
+    const past = key < todayStr;
+    const none = !names.length && !past;
+    cells += `<button type="button" class="cal-cell${outside ? ' muted' : ''}${past ? ' past' : ''}${none ? ' none' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
+      onclick="calSelect('${key}')" title="${names.length ? escAvail(names.join(', ')) : (past ? '' : 'No one available')}">
+      <span class="n">${d.getDate()}</span><span class="cal-dots">${dots}</span></button>`;
   }
   grid.innerHTML = cells;
 
