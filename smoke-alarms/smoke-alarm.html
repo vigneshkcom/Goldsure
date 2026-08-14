@@ -161,7 +161,7 @@ header {
 .sub-link:hover { background: var(--blue-bg); color: var(--blue); }
 
 /* ── MAIN ── */
-main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+main { padding: 22px 28px; max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; }
 
 .quote-summary-bar {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
@@ -199,7 +199,7 @@ main { padding: 22px 28px; max-width: 1280px; margin: 0 auto; display: grid; gri
 .customer-bar .ghl-results { top: calc(100% + 13px); }
 
 /* ── STEP CARDS ── */
-.steps { display: flex; flex-direction: column; gap: 14px; }
+.steps { grid-column: 2; display: flex; flex-direction: column; gap: 14px; }
 .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
 .step-card:hover { box-shadow: var(--shadow-lg); border-color: var(--border2); }
 .step-header { padding: 14px 18px 0; display: flex; align-items: center; gap: 10px; }
@@ -253,7 +253,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .service-block.active { display: block; }
 
 /* ── SIDEBAR ── */
-.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.sidebar { grid-column: 3; display: flex; flex-direction: column; gap: 14px; }
 .price-card {
   background: var(--navy); border-radius: var(--r); padding: 22px 20px;
   border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg);
@@ -492,6 +492,58 @@ body { padding-left: var(--rail-w); }
   #login-screen { margin-left: 0; }
   .rail { display: none; }
 }
+
+/* ── Electrician availability (left column) ── */
+.avail-panel {
+  grid-column: 1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); align-self: start;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.avail-head { display: flex; align-items: center; gap: 8px; }
+.avail-head h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+.avail-add {
+  margin-left: auto; font-family: inherit; font-size: 12.5px; font-weight: 500;
+  height: 28px; padding: 0 10px; border-radius: 4px; border: 1px solid var(--border2);
+  background: var(--surface); color: var(--muted); cursor: pointer; transition: all .12s;
+}
+.avail-add:hover { border-color: var(--blue); color: var(--blue); }
+.elec { border-top: 1px solid var(--border); padding-top: 12px; }
+.elec:first-of-type { border-top: none; padding-top: 0; }
+.elec-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
+.elec-av { width: 26px; height: 26px; border-radius: 50%; color: #fff; font-size: 10.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.elec-org { font-size: 12px; color: var(--muted); margin: 2px 0 0 34px; }
+.slots { display: flex; flex-direction: column; gap: 5px; margin: 9px 0 0 34px; }
+.slot {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+  background: var(--surface2); border-radius: 4px; padding: 6px 9px; color: var(--text);
+}
+.slot .day { font-weight: 500; }
+.slot .time { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.slot .del { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; display: none; }
+.avail-panel.admin .slot .del { display: block; }
+.slot .del:hover { color: var(--red); }
+.slot.free { background: var(--green-bg); }
+.slot.busy { background: var(--red-bg); }
+.no-slots { font-size: 12.5px; color: var(--faint); margin: 8px 0 0 34px; }
+.avail-note { font-size: 11.5px; color: var(--faint); border-top: 1px solid var(--border); padding-top: 10px; }
+
+@media (max-width: 1280px) {
+  /* The call-source buttons are wider than the window below this, and were
+     pushing the whole page sideways. Let the header wrap instead. */
+  header { flex-wrap: wrap; padding: 10px 20px; min-height: auto; gap: 10px; }
+  .header-left, .header-right { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+}
+@media (max-width: 1200px) {
+  main { grid-template-columns: 1fr 340px; }
+  .avail-panel { grid-column: 1 / -1; }
+  .steps { grid-column: 1; }
+  .sidebar { grid-column: 2; }
+}
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .avail-panel, .steps, .sidebar { grid-column: 1; }
+}
 </style>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon-smoke.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -628,6 +680,8 @@ function doLogout() {
 <main>
 
 
+
+
   <div class="customer-bar">
     <label>Customer Name</label>
     <div class="customer-search-wrap">
@@ -635,6 +689,17 @@ function doLogout() {
       <div class="ghl-results" id="mainGhlResults" onclick="pickMainGhlResult(event)"></div>
     </div>
   </div>
+
+
+  <!-- ELECTRICIAN AVAILABILITY -->
+  <aside class="avail-panel" id="availPanel">
+    <div class="avail-head">
+      <h3>Electricians</h3>
+      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Add availability</button>
+    </div>
+    <div id="availList"><div class="no-slots">Loading…</div></div>
+    <div class="avail-note">Availability is shared across the team. Ask an admin to update it.</div>
+  </aside>
 
   <!-- STEPS -->
   <div class="steps">
@@ -720,24 +785,6 @@ function doLogout() {
 
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="quote-summary-bar" id="quoteSummaryBar">
-      <div class="quote-summary-copy">
-        <span class="quote-summary-label">Quote Follow Up</span>
-        <span class="quote-summary-title" id="quoteSummaryTitle">Quote tracker snapshot</span>
-        <span class="quote-summary-sub" id="quoteSummarySub">Sign in to load your quote activity.</span>
-      </div>
-      <div class="quote-summary-stats">
-        <div class="quote-summary-stat">
-          <div class="quote-summary-stat-label">Quotes Sent</div>
-          <div class="quote-summary-stat-value" id="quoteSummarySent">—</div>
-        </div>
-        <div class="quote-summary-stat">
-          <div class="quote-summary-stat-label">Need Chasing</div>
-          <div class="quote-summary-stat-value gold" id="quoteSummaryChasing">—</div>
-        </div>
-      </div>
-      <a href="/smoke-alarms/quote-tracker.html" target="_blank" class="quote-summary-action">Open Quote Tracker</a>
-    </div>
 
     <div class="price-card">
       <div class="price-card-title">Pricing Summary</div>
@@ -787,6 +834,25 @@ function doLogout() {
           </a>
         </div>
       </div>
+    </div>
+
+    <div class="quote-summary-bar" id="quoteSummaryBar">
+      <div class="quote-summary-copy">
+        <span class="quote-summary-label">Quote Follow Up</span>
+        <span class="quote-summary-title" id="quoteSummaryTitle">Quote tracker snapshot</span>
+        <span class="quote-summary-sub" id="quoteSummarySub">Sign in to load your quote activity.</span>
+      </div>
+      <div class="quote-summary-stats">
+        <div class="quote-summary-stat">
+          <div class="quote-summary-stat-label">Quotes Sent</div>
+          <div class="quote-summary-stat-value" id="quoteSummarySent">—</div>
+        </div>
+        <div class="quote-summary-stat">
+          <div class="quote-summary-stat-label">Need Chasing</div>
+          <div class="quote-summary-stat-value gold" id="quoteSummaryChasing">—</div>
+        </div>
+      </div>
+      <a href="/smoke-alarms/quote-tracker.html" target="_blank" class="quote-summary-action">Open Quote Tracker</a>
     </div>
   </div>
 
@@ -1640,9 +1706,146 @@ function showToast(m) {
 // ════════════════════════════════════════════════════════════
 // DOCS ACCORDION
 // ════════════════════════════════════════════════════════════
-function toggleDocs() {
-  const list = document.getElementById('docsList');
-  const arrow = document.querySelector('.docs-toggle .arrow');
+/* ════════════════════════════════════════════════════════════════
+   ELECTRICIAN AVAILABILITY
+   Reads and writes the `electrician_availability` table in Supabase
+   directly, the same way the quote trackers read `quote_emails`, so
+   this needs no new serverless function (the project is at Vercel's
+   12-function limit).
+
+   The admin PIN is checked in the browser. That keeps a casual user
+   from editing the roster, but anyone who reads the page source can
+   find it — it is a speed bump, not a security control. Move the
+   write behind a server endpoint if that ever matters.
+   ════════════════════════════════════════════════════════════════ */
+const AVAIL_PIN = '4321';
+const ELECTRICIANS = [
+  { name: 'Surya',        org: 'Core Energy Group' },
+  { name: 'Munesh Chand', org: '' },
+];
+const AVAIL_COLORS = ['#0073ea', '#00c875', '#a25ddc', '#fdab3d', '#009eb5'];
+let availAdmin = false;
+let availRows = [];
+
+const availInitials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+function availColor(n){ let h=7; for(const c of String(n)) h=(h*31+c.charCodeAt(0))|0; return AVAIL_COLORS[Math.abs(h)%AVAIL_COLORS.length]; }
+
+function availDateLabel(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+async function loadAvailability() {
+  const list = document.getElementById('availList');
+  if (!list) return;
+  try {
+    // Today onwards only — past slots are noise on a live call
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await fetch(
+      `${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?select=*&slot_date=gte.${today}&order=slot_date.asc&limit=200`,
+      { headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    availRows = await res.json();
+    renderAvailability();
+  } catch (e) {
+    list.innerHTML = `<div class="no-slots">Couldn't load availability${/404|PGRST/i.test(e.message) ? ' — the electrician_availability table may not exist yet.' : ''}</div>`;
+  }
+}
+
+function renderAvailability() {
+  const list = document.getElementById('availList');
+  if (!list) return;
+  list.innerHTML = ELECTRICIANS.map(el => {
+    const mine = availRows.filter(r => (r.electrician || '').toLowerCase() === el.name.toLowerCase());
+    const slots = mine.length
+      ? `<div class="slots">${mine.map(r => `
+          <div class="slot ${r.status === 'busy' ? 'busy' : 'free'}">
+            <span class="day">${escAvail(availDateLabel(r.slot_date))}</span>
+            <span class="time">${escAvail(r.note || (r.status === 'busy' ? 'Unavailable' : 'Available'))}</span>
+            <button class="del" title="Remove" onclick="deleteAvailability('${r.id}')">×</button>
+          </div>`).join('')}</div>`
+      : `<div class="no-slots">Nothing booked in</div>`;
+    return `<div class="elec">
+      <div class="elec-name"><span class="elec-av" style="background:${availColor(el.name)}">${availInitials(el.name)}</span>${escAvail(el.name)}</div>
+      ${el.org ? `<div class="elec-org">${escAvail(el.org)}</div>` : ''}
+      ${slots}
+    </div>`;
+  }).join('');
+}
+
+const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function promptAvailAdmin() {
+  if (availAdmin) return openAvailForm();
+  const pin = prompt('Admin PIN to edit availability:');
+  if (pin === null) return;
+  if (pin !== AVAIL_PIN) { alert('Incorrect PIN.'); return; }
+  availAdmin = true;
+  document.getElementById('availPanel').classList.add('admin');
+  openAvailForm();
+}
+
+function openAvailForm() {
+  const who = prompt(`Which electrician?\n\n${ELECTRICIANS.map((e,i)=>`${i+1}. ${e.name}`).join('\n')}\n\nEnter 1 or 2:`);
+  if (who === null) return;
+  const el = ELECTRICIANS[parseInt(who, 10) - 1];
+  if (!el) { alert('Pick 1 or 2.'); return; }
+
+  const date = prompt('Date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  if (!date) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('Use the format YYYY-MM-DD.'); return; }
+
+  const note = prompt('Availability note (e.g. "8am – 12pm", or "On leave"):', '8am – 4pm');
+  if (note === null) return;
+  const busy = /leave|unavailable|booked|off/i.test(note);
+
+  saveAvailability({ electrician: el.name, slot_date: date, note: note.trim(), status: busy ? 'busy' : 'free' });
+}
+
+async function saveAvailability(row) {
+  try {
+    const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability`, {
+      method: 'POST',
+      headers: {
+        apikey: QUOTE_TRACKER_SUPABASE_KEY,
+        Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+    if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
+    if (typeof showToast === 'function') showToast('Availability added');
+    loadAvailability();
+  } catch (e) {
+    alert('Could not save: ' + e.message);
+  }
+}
+
+async function deleteAvailability(id) {
+  if (!availAdmin) return;
+  if (!confirm('Remove this availability?')) return;
+  try {
+    const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    loadAvailability();
+  } catch (e) {
+    alert('Could not remove: ' + e.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadAvailability);
+
+function toggleDocs(btn) {
+  const list = document.getElementById('docs-list');
+  if (!list) return;
+  const arrow = (btn && btn.querySelector('.arrow')) || document.querySelector('.docs-toggle .arrow');
   const isOpen = list.classList.toggle('open');
   if (arrow) arrow.style.transform = isOpen ? 'rotate(180deg)' : '';
 }
