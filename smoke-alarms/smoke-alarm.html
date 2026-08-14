@@ -493,40 +493,69 @@ body { padding-left: var(--rail-w); }
   .rail { display: none; }
 }
 
-/* ── Electrician availability (left column) ── */
+/* ── Electrician availability calendar (left column) ── */
 .avail-panel {
   grid-column: 1; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); align-self: start;
-  display: flex; flex-direction: column; gap: 12px;
+  border-radius: var(--r); padding: 14px; box-shadow: var(--shadow); align-self: start;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .avail-head { display: flex; align-items: center; gap: 8px; }
 .avail-head h3 { font-size: 15px; font-weight: 600; color: var(--text); }
 .avail-add {
   margin-left: auto; font-family: inherit; font-size: 12.5px; font-weight: 500;
-  height: 28px; padding: 0 10px; border-radius: 4px; border: 1px solid var(--border2);
-  background: var(--surface); color: var(--muted); cursor: pointer; transition: all .12s;
+  height: 28px; padding: 0 12px; border-radius: 4px; border: none;
+  background: var(--blue); color: #fff; cursor: pointer; transition: background .12s;
 }
-.avail-add:hover { border-color: var(--blue); color: var(--blue); }
-.elec { border-top: 1px solid var(--border); padding-top: 12px; }
-.elec:first-of-type { border-top: none; padding-top: 0; }
-.elec-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
-.elec-av { width: 26px; height: 26px; border-radius: 50%; color: #fff; font-size: 10.5px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.elec-org { font-size: 12px; color: var(--muted); margin: 2px 0 0 34px; }
-.slots { display: flex; flex-direction: column; gap: 5px; margin: 9px 0 0 34px; }
-.slot {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px;
-  background: var(--surface2); border-radius: 4px; padding: 6px 9px; color: var(--text);
+.avail-add:hover { background: var(--blue-dark); }
+
+.cal-nav { display: flex; align-items: center; gap: 6px; }
+.cal-month { flex: 1; text-align: center; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.cal-arrow {
+  width: 26px; height: 26px; border: none; border-radius: 4px; background: none;
+  color: var(--muted); cursor: pointer; font-size: 17px; line-height: 1;
 }
-.slot .day { font-weight: 500; }
-.slot .time { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-.slot .del { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; display: none; }
-.avail-panel.admin .slot .del { display: block; }
-.slot .del:hover { color: var(--red); }
-.slot.free { background: var(--green-bg); }
-.slot.busy { background: var(--red-bg); }
-.no-slots { font-size: 12.5px; color: var(--faint); margin: 8px 0 0 34px; }
-.avail-note { font-size: 11.5px; color: var(--faint); border-top: 1px solid var(--border); padding-top: 10px; }
+.cal-arrow:hover { background: var(--surface2); color: var(--text); }
+
+.cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow span { text-align: center; font-size: 10.5px; font-weight: 500; color: var(--faint); padding-bottom: 2px; }
+
+.cal-cell {
+  position: relative; aspect-ratio: 1; border: none; background: none; cursor: pointer;
+  border-radius: 5px; font-family: inherit; font-size: 12px; color: var(--text);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 0; transition: background .12s;
+}
+.cal-cell:hover { background: var(--surface2); }
+.cal-cell.muted { color: var(--faint); }
+.cal-cell.today { font-weight: 700; color: var(--blue); }
+.cal-cell.today::after {
+  content: ''; position: absolute; inset: 0; border: 1px solid var(--blue);
+  border-radius: 5px; pointer-events: none;
+}
+.cal-cell.sel { background: var(--blue); color: #fff; }
+.cal-cell.sel.today { color: #fff; }
+.cal-cell.sel.today::after { border-color: transparent; }
+.cal-dots { display: flex; gap: 2px; height: 4px; }
+.cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+.cal-cell.sel .cal-dot { box-shadow: 0 0 0 1px rgba(255,255,255,.75); }
+
+.cal-key { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 9px; }
+.cal-key-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
+.cal-key-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.cal-day { border-top: 1px solid var(--border); padding-top: 9px; }
+.cal-day-title { font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+.cal-row {
+  display: flex; align-items: center; gap: 7px; font-size: 12px;
+  background: var(--surface2); border-radius: 4px; padding: 6px 8px; margin-bottom: 4px;
+}
+.cal-row.busy { background: var(--red-bg); }
+.cal-row .who { font-weight: 500; color: var(--text); }
+.cal-row .what { color: var(--muted); margin-left: auto; text-align: right; }
+.cal-row .del { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 1px; display: none; }
+.avail-panel.admin .cal-row .del { display: block; }
+.cal-row .del:hover { color: var(--red); }
+.cal-empty { font-size: 12px; color: var(--faint); }
 
 @media (max-width: 1280px) {
   /* The call-source buttons are wider than the window below this, and were
@@ -695,10 +724,20 @@ function doLogout() {
   <aside class="avail-panel" id="availPanel">
     <div class="avail-head">
       <h3>Electricians</h3>
-      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Add availability</button>
+      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Add</button>
     </div>
-    <div id="availList"><div class="no-slots">Loading…</div></div>
-    <div class="avail-note">Availability is shared across the team. Ask an admin to update it.</div>
+
+    <div class="cal-nav">
+      <button class="cal-arrow" onclick="calShift(-1)" aria-label="Previous month">‹</button>
+      <span class="cal-month" id="calMonth"></span>
+      <button class="cal-arrow" onclick="calShift(1)" aria-label="Next month">›</button>
+    </div>
+
+    <div class="cal-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="cal-key" id="calKey"></div>
+    <div class="cal-day" id="calDay"></div>
   </aside>
 
   <!-- STEPS -->
@@ -1726,6 +1765,8 @@ const ELECTRICIANS = [
 const AVAIL_COLORS = ['#0073ea', '#00c875', '#a25ddc', '#fdab3d', '#009eb5'];
 let availAdmin = false;
 let availRows = [];
+let calCursor = new Date();
+let calSelected = null;
 
 const availInitials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
 function availColor(n){ let h=7; for(const c of String(n)) h=(h*31+c.charCodeAt(0))|0; return AVAIL_COLORS[Math.abs(h)%AVAIL_COLORS.length]; }
@@ -1738,42 +1779,92 @@ function availDateLabel(d) {
 }
 
 async function loadAvailability() {
-  const list = document.getElementById('availList');
-  if (!list) return;
+  if (!document.getElementById('calGrid')) return;
+  if (!calSelected) calSelected = ymd(new Date());
   try {
-    // Today onwards only — past slots are noise on a live call
-    const today = new Date().toISOString().slice(0, 10);
+    // A window either side of the month in view, so paging back a month
+    // doesn't come up empty
+    const from = ymd(new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1));
+    const to   = ymd(new Date(calCursor.getFullYear(), calCursor.getMonth() + 2, 0));
     const res = await fetch(
-      `${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?select=*&slot_date=gte.${today}&order=slot_date.asc&limit=200`,
+      `${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?select=*&slot_date=gte.${from}&slot_date=lte.${to}&order=slot_date.asc&limit=500`,
       { headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` } }
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     availRows = await res.json();
     renderAvailability();
   } catch (e) {
-    list.innerHTML = `<div class="no-slots">Couldn't load availability${/404|PGRST/i.test(e.message) ? ' — the electrician_availability table may not exist yet.' : ''}</div>`;
+    document.getElementById('calDay').innerHTML =
+      `<div class="cal-empty">Couldn't load availability${/404|PGRST/i.test(e.message) ? ' — the electrician_availability table may not exist yet.' : ''}</div>`;
   }
 }
 
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function calShift(n) {
+  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + n, 1);
+  renderAvailability();
+}
+
+function calSelect(date) {
+  calSelected = date;
+  renderAvailability();
+}
+
 function renderAvailability() {
-  const list = document.getElementById('availList');
-  if (!list) return;
-  list.innerHTML = ELECTRICIANS.map(el => {
-    const mine = availRows.filter(r => (r.electrician || '').toLowerCase() === el.name.toLowerCase());
-    const slots = mine.length
-      ? `<div class="slots">${mine.map(r => `
-          <div class="slot ${r.status === 'busy' ? 'busy' : 'free'}">
-            <span class="day">${escAvail(availDateLabel(r.slot_date))}</span>
-            <span class="time">${escAvail(r.note || (r.status === 'busy' ? 'Unavailable' : 'Available'))}</span>
-            <button class="del" title="Remove" onclick="deleteAvailability('${r.id}')">×</button>
-          </div>`).join('')}</div>`
-      : `<div class="no-slots">Nothing booked in</div>`;
-    return `<div class="elec">
-      <div class="elec-name"><span class="elec-av" style="background:${availColor(el.name)}">${availInitials(el.name)}</span>${escAvail(el.name)}</div>
-      ${el.org ? `<div class="elec-org">${escAvail(el.org)}</div>` : ''}
-      ${slots}
-    </div>`;
-  }).join('');
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
+
+  const year = calCursor.getFullYear(), month = calCursor.getMonth();
+  document.getElementById('calMonth').textContent =
+    calCursor.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+
+  // Monday-first grid
+  const first = new Date(year, month, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const start = new Date(year, month, 1 - lead);
+  const todayStr = ymd(new Date());
+
+  // date → the electricians with something on that day
+  const byDate = {};
+  availRows.forEach(r => { (byDate[r.slot_date] = byDate[r.slot_date] || []).push(r); });
+
+  let cells = '';
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = ymd(d);
+    const outside = d.getMonth() !== month;
+    const names = [...new Set((byDate[key] || []).map(r => r.electrician))];
+    const dots = names.map(n => `<span class="cal-dot" style="background:${availColor(n)}"></span>`).join('');
+    cells += `<button type="button" class="cal-cell${outside ? ' muted' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
+      onclick="calSelect('${key}')" title="${escAvail(names.join(', '))}">
+      <span>${d.getDate()}</span><span class="cal-dots">${dots}</span></button>`;
+  }
+  grid.innerHTML = cells;
+
+  document.getElementById('calKey').innerHTML = ELECTRICIANS.map(e =>
+    `<span class="cal-key-item"><span class="cal-key-dot" style="background:${availColor(e.name)}"></span>${escAvail(e.name)}</span>`
+  ).join('');
+
+  renderCalDay(byDate[calSelected] || []);
+}
+
+function renderCalDay(rows) {
+  const box = document.getElementById('calDay');
+  if (!box) return;
+  const label = calSelected
+    ? new Date(calSelected + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+    : '';
+  box.innerHTML = `<div class="cal-day-title">${escAvail(label)}</div>` + (rows.length
+    ? rows.map(r => `<div class="cal-row ${r.status === 'busy' ? 'busy' : ''}">
+        <span class="cal-key-dot" style="background:${availColor(r.electrician)}"></span>
+        <span class="who">${escAvail(r.electrician)}</span>
+        <span class="what">${escAvail(r.note || (r.status === 'busy' ? 'Unavailable' : 'Available'))}</span>
+        <button class="del" title="Remove" onclick="deleteAvailability('${r.id}')">×</button>
+      </div>`).join('')
+    : `<div class="cal-empty">No availability set for this day.</div>`);
 }
 
 const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1794,7 +1885,7 @@ function openAvailForm() {
   const el = ELECTRICIANS[parseInt(who, 10) - 1];
   if (!el) { alert('Pick 1 or 2.'); return; }
 
-  const date = prompt('Date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  const date = prompt('Date (YYYY-MM-DD):', calSelected || ymd(new Date()));
   if (!date) return;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('Use the format YYYY-MM-DD.'); return; }
 
@@ -1819,6 +1910,8 @@ async function saveAvailability(row) {
     });
     if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
     if (typeof showToast === 'function') showToast('Availability added');
+    calSelected = row.slot_date;
+    calCursor = new Date(row.slot_date + 'T00:00:00');
     loadAvailability();
   } catch (e) {
     alert('Could not save: ' + e.message);
