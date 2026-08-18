@@ -174,7 +174,14 @@ tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
 tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--surface2); }
 td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: middle; }
-.td-name { font-weight: 500; font-size: 13.5px; }
+.td-name { font-weight: 500; font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+.view-quote-btn {
+  font-size: 10.5px; font-weight: 600; color: var(--gold); background: var(--gold-bg, rgba(197,158,74,.12));
+  border: none; border-radius: 5px; padding: 2px 7px; cursor: pointer; font-family: inherit;
+  white-space: nowrap; opacity: 0; transition: opacity .12s;
+}
+tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
+.view-quote-btn:hover { text-decoration: underline; }
 .td-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
 /* Long site addresses wrap onto a second line and stop there, rather than
    stretching the Customer column across the board. */
@@ -670,7 +677,7 @@ function renderTable(){
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
-      <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td><div class="td-name">${esc(q.customer_name||'—')}<button class="view-quote-btn" onclick="openQuoteView('${q.id}')" title="View what was sent">View quote</button></div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
       <td>${agentChip(q.agent_name)}</td>
       <td class="td-mono">${unitCount(q)}</td>
       <td class="td-gold">${money(q.total_inc_gst)}</td>
@@ -798,6 +805,24 @@ function exportCSV(){
 .rm-btn-cancel{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;}
 .rm-btn-send{padding:9px 18px;border-radius:8px;border:none;background:var(--gold);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}
 .rm-btn-send:disabled{opacity:.5;cursor:not-allowed;}
+.qv-card{max-width:600px;max-height:85vh;display:flex;flex-direction:column;}
+.qv-body{padding:20px 22px;overflow-y:auto;}
+.qv-meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.qv-meta strong{color:var(--text);font-weight:600;}
+.qv-section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px;}
+.qv-lines{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.qv-line{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border);}
+.qv-line:last-child{border-bottom:none;}
+.qv-line-name{font-weight:500;color:var(--text);}
+.qv-line-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.qv-line-amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+.qv-totals{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;}
+.qv-total-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--text);}
+.qv-total-row.muted{color:var(--muted);font-size:12px;}
+.qv-total-row.discount{color:#00854d;}
+.qv-total-row.grand{border-top:1px solid var(--border);margin-top:6px;padding-top:9px;font-weight:700;font-size:15px;}
+.qv-total-row .v{font-variant-numeric:tabular-nums;}
+.qv-email{white-space:pre-wrap;font-size:12.5px;line-height:1.5;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;}
 </style>
 <div id="reminderModal" class="rm-overlay" onclick="if(event.target===this)closeReminderModal()">
   <div class="rm-card">
@@ -851,6 +876,51 @@ async function confirmReminder(){
   try{ await doSendReminder(id, sendSms, smsText); }
   finally{ btn.disabled=false; btn.textContent='Send Reminder'; closeReminderModal(); }
 }
+</script>
+
+<div id="quoteViewModal" class="rm-overlay" onclick="if(event.target===this)closeQuoteView()">
+  <div class="rm-card qv-card">
+    <div class="rm-head"><h3>Quote Sent</h3><button class="rm-close" onclick="closeQuoteView()">×</button></div>
+    <div class="qv-body" id="qvBody"></div>
+  </div>
+</div>
+<script>
+function openQuoteView(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
+  const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+  const lines=Array.isArray(q.line_items)?q.line_items:[];
+  const lineRows=lines.length?lines.map(l=>`
+    <div class="qv-line">
+      <div><div class="qv-line-name">${esc(l.name||'—')}</div><div class="qv-line-sub">${parseInt(l.qty,10)||0} × ${money(l.unit)}</div></div>
+      <div class="qv-line-amt">${money(l.amount)}</div>
+    </div>`).join(''):'<div class="qv-line"><div class="qv-line-sub">No line items recorded.</div></div>';
+  const subtotal=q.products_ex_gst??q.subtotal;
+  const gst=q.total_gst;
+  const incGst=q.products_inc_gst??q.total_inc_gst;
+  const veec=q.veec_discount;
+  const oop=q.total_out_of_pocket;
+  const emailBody=(q.email_body||'').trim();
+  document.getElementById('qvBody').innerHTML=`
+    <div class="qv-meta">
+      <span>Sent <strong>${esc(date)}</strong></span>
+      <span>Agent <strong>${esc(q.agent_name||'—')}</strong></span>
+      <span>To <strong>${esc(q.customer_email||'—')}</strong></span>
+      ${q.customer_phone?`<span>Phone <strong>${esc(q.customer_phone)}</strong></span>`:''}
+    </div>
+    <div class="qv-section-title">Line Items</div>
+    <div class="qv-lines">${lineRows}</div>
+    <div class="qv-totals">
+      ${subtotal!=null?`<div class="qv-total-row muted"><span>Subtotal (ex GST)</span><span class="v">${money(subtotal)}</span></div>`:''}
+      ${gst!=null?`<div class="qv-total-row muted"><span>GST 10%</span><span class="v">${money(gst)}</span></div>`:''}
+      ${incGst!=null?`<div class="qv-total-row"><span>Total before rebate (inc GST)</span><span class="v">${money(incGst)}</span></div>`:''}
+      ${veec!=null?`<div class="qv-total-row discount"><span>VEEC Discount</span><span class="v">− ${money(veec)}</span></div>`:''}
+      <div class="qv-total-row grand"><span>Total Out-of-Pocket</span><span class="v">${money(oop)}</span></div>
+    </div>
+    ${emailBody?`<div class="qv-section-title">Email Message Sent</div><div class="qv-email">${esc(emailBody)}</div>`:''}
+  `;
+  document.getElementById('quoteViewModal').classList.add('open');
+}
+function closeQuoteView(){ document.getElementById('quoteViewModal').classList.remove('open'); }
 </script>
 </body>
 </html>
