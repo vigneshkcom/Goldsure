@@ -97,7 +97,6 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   font-size:12px;font-weight:600;color:var(--muted);
   background:var(--surface3);border-radius:99px;padding:2px 9px;
 }
-.group-sum{font-size:12.5px;font-weight:600;color:var(--muted);margin-left:auto}
 
 .table{
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -269,7 +268,6 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   main{padding:14px 12px 50px}
   .group{margin-bottom:22px}
   .group-head{padding:0 2px}
-  .group-sum{font-size:12px}
 
   /* Rows become compact cards — still the same grouped list as desktop (To
      Book / Scheduled / Installed stacked vertically), just each row is a
@@ -285,7 +283,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
     grid-template-areas:
       "grip job   .     date"
       "grip cust  cust  cust"
-      "grip addr  addr  map"
+      "grip addr  addr  addr"
       "grip oop   dep   pend"
       "grip comm  comm  comm";
     padding:9px 10px 9px 7px;row-gap:2px;column-gap:6px;
@@ -303,14 +301,15 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .c-grip{grid-area:grip;align-self:start;padding-top:2px!important;font-size:15px;color:var(--border2)}
   .c-job{grid-area:job;font-size:11.5px;color:var(--muted);letter-spacing:.2px}
   .c-cust{grid-area:cust;font-size:14.5px;font-weight:700;padding-top:1px!important}
+  /* Map is desktop-only — on a phone the address gets the full row instead,
+     wrapping rather than truncating, so the whole thing is readable without
+     needing the button that used to share this line. */
   .c-addr{
-    grid-area:addr;font-size:12.5px;line-height:1.3;color:var(--muted);
-    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+    grid-area:addr;font-size:12.5px;line-height:1.35;color:var(--muted);
+    white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
   }
-  .c-map{grid-area:map;justify-content:flex-end;padding:0 2px!important}
-  .c-map:empty{display:none}
+  .c-map{display:none}
   .c-date{grid-area:date;text-align:right;font-size:12px;font-weight:600}
-  .map-btn{padding:2px 8px;font-size:11px}
 
   /* Money cells sit three-up on one line — a short label above a bold
      figure, generated with a pseudo-element from data-label rather than the
@@ -361,8 +360,8 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   </div>
   <div class="header-right">
     <button class="nav-btn desktop-only" onclick="exportCSV()">⬇ CSV</button>
-    <button class="nav-btn" id="refreshBtn" onclick="loadJobs()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
-    <button class="nav-btn primary" onclick="openJobModal(null)">+ New Job</button>
+    <button class="nav-btn desktop-only" id="refreshBtn" onclick="loadJobs()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
+    <button class="nav-btn primary desktop-only" onclick="openJobModal(null)">+ New Job</button>
   </div>
 </header>
 
@@ -587,12 +586,6 @@ function render(){
   const list = visibleJobs();
   document.getElementById('groups').innerHTML = GROUPS.map(g => {
     const items = list.filter(j => j.status === g.key).sort(byBookedDate);
-    const live = items.filter(j => !j.cancelled);
-    const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
-    const pendSum = live.reduce((t,j) => t + Math.max(0, pendingOf(j)), 0);
-    const sumTxt = oopSum
-      ? esc(money(oopSum)) + (pendSum ? ` &middot; <span style="color:var(--red)">${esc(money(pendSum))} pending</span>` : ' &middot; paid')
-      : '';
     const isCollapsed = collapsed.has(g.key);
     return `<section class="group${isCollapsed ? ' collapsed' : ''}" data-group="${g.key}" style="--g:${g.color}">
       <div class="group-head">
@@ -602,7 +595,6 @@ function render(){
         </button>
         <span class="group-name">${esc(g.label)}</span>
         <span class="group-count">${items.length}</span>
-        ${sumTxt ? `<span class="group-sum">${sumTxt}</span>` : ''}
       </div>
       <div class="table">
         <div class="thead">
