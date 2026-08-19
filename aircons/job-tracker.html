@@ -171,9 +171,8 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
 
 /* Click-to-edit comment cells, like typing into a spreadsheet cell. Wrap
    rather than truncate — a cut-off comment defeats the point of one.
-   Eco Comments is open to anyone with the link; Goldsure Comments needs a
-   password, flagged with a small lock mark so it reads as gated even
-   before someone tries to click into it. */
+   Goldsure Comments needs a password to edit; Eco Comments is open to
+   anyone with the link. */
 .c-comment,.c-eco-comment{cursor:text;color:var(--text);white-space:normal!important;overflow:visible!important}
 .c-comment .comment-text,.c-eco-comment .comment-text{
   display:block;overflow-wrap:anywhere;white-space:normal;
@@ -181,7 +180,6 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
 }
 .c-comment .comment-text.empty,.c-eco-comment .comment-text.empty{color:#b6bbc8}
 .c-comment:hover .comment-text.empty,.c-eco-comment:hover .comment-text.empty{color:var(--muted)}
-.c-comment .lock-mark{font-size:10.5px;margin-right:3px;opacity:.55;vertical-align:1px}
 .comment-input{
   font-family:inherit;font-size:13px;width:100%;border:1px solid var(--blue);
   border-radius:5px;padding:5px 7px;outline:none;resize:none;overflow:hidden;
@@ -294,8 +292,8 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
       "grip cust  cust  cust"
       "grip addr  addr  addr"
       "grip oop   dep   pend"
-      "grip ecom  ecom  ecom"
-      "grip comm  comm  comm";
+      "grip comm  comm  comm"
+      "grip ecom  ecom  ecom";
     padding:9px 10px 9px 7px;row-gap:2px;column-gap:6px;
     background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--g);
     border-radius:8px;box-shadow:var(--shadow);
@@ -434,16 +432,16 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
                  style="background:var(--surface2);font-weight:700;cursor:default">
         </div>
         <div class="field full">
-          <label for="f-eco-notes">Eco Comments</label>
-          <textarea id="f-eco-notes" rows="2" placeholder="Visible and editable by anyone with this link"></textarea>
-        </div>
-        <div class="field full">
           <label for="f-notes" style="display:flex;align-items:center;gap:6px;justify-content:space-between">
-            <span>🔒 Goldsure Comments</span>
+            <span>Goldsure Comments</span>
             <button type="button" class="btn" id="unlockGoldsureBtn" onclick="unlockGoldsureField()"
                     style="padding:3px 9px;font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:600">Unlock</button>
           </label>
           <textarea id="f-notes" rows="2" readonly placeholder="Password-protected — click Unlock to edit"></textarea>
+        </div>
+        <div class="field full">
+          <label for="f-eco-notes">Eco Comments</label>
+          <textarea id="f-eco-notes" rows="2" placeholder="Visible and editable by anyone with this link"></textarea>
         </div>
         <div class="check-row">
           <input type="checkbox" id="f-cancelled">
@@ -595,8 +593,8 @@ function rowHTML(j){
     <div class="c-oop" data-label="Total">${oop ? esc(oop) : ''}</div>
     <div class="c-dep" data-label="Paid">${dep ? esc(dep) : ''}</div>
     <div class="c-pend ${pendCls}" data-label="ECO">${pendTxt ? esc(pendTxt) : ''}</div>
+    <div class="c-comment" title="Password-protected — click to unlock and edit"><span class="lock-label">Goldsure Comments</span><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
     <div class="c-eco-comment" title="Click to add an Eco Comment — anyone with this link can edit"><span class="comment-text${ecoComment ? '' : ' empty'}">${ecoComment ? esc(ecoComment) : 'Add comment…'}</span></div>
-    <div class="c-comment" title="Password-protected — click to unlock and edit"><span class="lock-label">🔒 Goldsure Comments</span><span class="comment-text${comment ? '' : ' empty'}"><span class="lock-mark">🔒</span>${comment ? esc(comment) : 'Add comment…'}</span></div>
   </div>`;
 }
 
@@ -631,7 +629,7 @@ function render(){
       <div class="table">
         <div class="thead">
           <div></div><div>Job No.</div><div>Customer</div><div>Address</div><div></div>
-          <div>${esc(g.dateLabel)}</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Eco Comments</div><div>🔒 Goldsure Comments</div>
+          <div>${esc(g.dateLabel)}</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Goldsure Comments</div><div>Eco Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
           ${items.length ? items.map(rowHTML).join('') : '<div class="group-empty">No jobs in this group yet.</div>'}
@@ -715,9 +713,8 @@ function startCommentEdit(id, cell, field){
 }
 
 function paintComment(cell, text, field){
-  const lock = field === 'comments' ? '<span class="lock-label">🔒 Goldsure Comments</span>' : '';
-  const mark = field === 'comments' ? '<span class="lock-mark">🔒</span>' : '';
-  cell.innerHTML = `${lock}<span class="comment-text${text ? '' : ' empty'}">${mark}${text ? esc(text) : 'Add comment…'}</span>`;
+  const lock = field === 'comments' ? '<span class="lock-label">Goldsure Comments</span>' : '';
+  cell.innerHTML = `${lock}<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
 }
 
 // Best-effort: the comment is already saved to Supabase by the time this
