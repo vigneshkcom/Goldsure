@@ -139,7 +139,7 @@ header{
   box-shadow:var(--shadow-lg);transform:rotate(2deg) scale(1.02);opacity:.96;
   border-radius:8px;left:0;top:0;
 }
-.card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px}
+.card-top{display:flex;align-items:center;gap:8px;margin-bottom:3px}
 .card-grip{
   flex:none;width:24px;height:24px;margin:-3px -3px 0 -4px;border-radius:5px;
   display:flex;align-items:center;justify-content:center;color:var(--border2);
@@ -156,7 +156,7 @@ header{
   background:var(--surface2);color:var(--muted);white-space:nowrap;
 }
 .chip.money{background:var(--green-bg);color:#0b8b55}
-.chip.days{background:var(--blue-bg);color:var(--blue-dark)}
+.chip.ref{background:var(--surface2);color:var(--muted);font-variant-numeric:tabular-nums}
 .chip.overdue{background:var(--red-bg);color:var(--red)}
 .chip.date{background:var(--surface2);color:var(--muted)}
 .chip.refund{background:var(--red-bg);color:var(--red)}
@@ -329,22 +329,17 @@ header{
           <input type="text" id="f-address" autocomplete="off">
         </div>
         <div class="field">
-          <label for="f-assessment">AC Assessment</label>
-          <input type="date" id="f-assessment">
-        </div>
-        <div class="field">
-          <label for="f-install">Installation Date</label>
-          <input type="date" id="f-install">
+          <label for="f-booked">Booked Date</label>
+          <input type="date" id="f-booked">
         </div>
         <div class="field">
           <label for="f-amount">Amount Received</label>
           <input type="number" id="f-amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
         </div>
-        <div class="field">
+        <div class="field full">
           <label for="f-bpoint">BPOINT Ref</label>
           <input type="text" id="f-bpoint" autocomplete="off">
         </div>
-        <div class="hint" id="daysHint"></div>
         <div class="field full">
           <label for="f-notes">Notes</label>
           <textarea id="f-notes" rows="2"></textarea>
@@ -378,25 +373,22 @@ const SB_HEADERS = {
 
 // Board columns. `key` is what lives in the status column in Supabase.
 const COLUMNS = [
-  { key:'date_pending',     label:'Date Pending',     color:'var(--red)'    },
-  { key:'assigned',         label:'Assigned',         color:'var(--blue)'   },
-  { key:'overdue_assigned', label:'Overdue Assigned', color:'var(--amber)'  },
-  { key:'scheduled',        label:'Scheduled',        color:'var(--purple)' },
-  { key:'completed',        label:'Completed',        color:'var(--green)'  },
+  { key:'to_book',   label:'To Book',   color:'var(--blue)'  },
+  { key:'scheduled', label:'Scheduled', color:'var(--amber)' },
+  { key:'installed', label:'Installed', color:'var(--green)' },
 ];
 const COL_KEYS = COLUMNS.map(c => c.key);
-// Free-text statuses carried over from the spreadsheet land in the right column.
+// Free-text stages from the old spreadsheet land in the right column.
 const STATUS_ALIASES = {
-  'date pending':'date_pending', 'datepending':'date_pending', 'pending':'date_pending',
-  'assigned':'assigned',
-  'overdue assigned':'overdue_assigned', 'overdue':'overdue_assigned',
-  'scheduled':'scheduled', 'booked':'scheduled',
-  'completed':'completed', 'complete':'completed', 'done':'completed',
+  'to book':'to_book', 'tobook':'to_book', 'date pending':'to_book', 'pending':'to_book',
+  'scheduled':'scheduled', 'booked':'scheduled', 'assigned':'scheduled',
+  'overdue assigned':'scheduled', 'overdue':'scheduled',
+  'installed':'installed', 'completed':'installed', 'complete':'installed', 'done':'installed',
 };
 function normStatus(s){
   const raw = String(s || '').trim();
   if (COL_KEYS.includes(raw)) return raw;
-  return STATUS_ALIASES[raw.toLowerCase().replace(/[_-]+/g,' ')] || 'date_pending';
+  return STATUS_ALIASES[raw.toLowerCase().replace(/[_-]+/g,' ')] || 'to_book';
 }
 
 let jobs = [];
@@ -418,13 +410,6 @@ function fmtDate(iso){
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d)) return '';
   return d.toLocaleDateString('en-AU', { day:'2-digit', month:'short' });
-}
-// Whole days between assessment and install — the sheet's "Days to Install".
-function daysBetween(a, b){
-  if (!a || !b) return null;
-  const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
-  if (isNaN(d1) || isNaN(d2)) return null;
-  return Math.round((d2 - d1) / 86400000);
 }
 function todayISO(){
   const d = new Date();
@@ -475,25 +460,22 @@ function visibleJobs(){
 
 function cardHTML(j){
   const col = COLUMNS.find(c => c.key === j.status) || COLUMNS[0];
-  const days = daysBetween(j.ac_assessment_date, j.installation_date);
-  // Only an unfinished job with a past install date is genuinely overdue.
-  const overdue = j.installation_date && !j.cancelled &&
-                  j.status !== 'completed' && j.installation_date < todayISO();
+  // A job still waiting to go in, with its booked date already past.
+  const overdue = j.booked_date && !j.cancelled &&
+                  j.status !== 'installed' && j.booked_date < todayISO();
   const chips = [];
+  if (j.booked_date)
+    chips.push(`<span class="chip ${overdue ? 'overdue' : 'date'}">${overdue ? '⚠ ' : '📅 '}${esc(fmtDate(j.booked_date))}</span>`);
   if (j.amount_received) chips.push(`<span class="chip money">${esc(money(j.amount_received))}</span>`);
-  if (days !== null)     chips.push(`<span class="chip days">${days}d to install</span>`);
-  if (j.installation_date)
-    chips.push(`<span class="chip ${overdue ? 'overdue' : 'date'}">${overdue ? '⚠ ' : '🔧 '}${esc(fmtDate(j.installation_date))}</span>`);
-  else if (j.ac_assessment_date)
-    chips.push(`<span class="chip date">📋 ${esc(fmtDate(j.ac_assessment_date))}</span>`);
-  if (j.cancelled) chips.push('<span class="chip refund">Refund</span>');
+  if (j.bpoint_ref)      chips.push(`<span class="chip ref">${esc(j.bpoint_ref)}</span>`);
+  if (j.cancelled)       chips.push('<span class="chip refund">Cancelled</span>');
 
   return `<div class="job-card${j.cancelled ? ' cancelled' : ''}" data-id="${esc(j.id)}" style="--c:${col.color}">
     <div class="card-top">
       <div class="card-grip" title="Drag to move">⠿</div>
-      <div class="card-customer">${esc(j.customer || 'Untitled job')}</div>
-      ${j.job_no ? `<div class="card-job-no">#${esc(j.job_no)}</div>` : ''}
+      <div class="card-job-no">${j.job_no ? '#' + esc(j.job_no) : 'No job no.'}</div>
     </div>
+    <div class="card-customer">${esc(j.customer || 'Untitled job')}</div>
     ${j.address ? `<div class="card-address">${esc(j.address)}</div>` : ''}
     ${chips.length ? `<div class="card-chips">${chips.join('')}</div>` : ''}
   </div>`;
@@ -525,14 +507,14 @@ function render(){
 function renderStats(list){
   const total = list.length;
   const revenue = list.reduce((t,j) => t + (j.cancelled ? 0 : (parseFloat(j.amount_received) || 0)), 0);
-  const done = list.filter(j => j.status === 'completed').length;
+  const done = list.filter(j => j.status === 'installed').length;
   const overdue = list.filter(j =>
-    j.installation_date && !j.cancelled && j.status !== 'completed' && j.installation_date < todayISO()
+    j.booked_date && !j.cancelled && j.status !== 'installed' && j.booked_date < todayISO()
   ).length;
   document.getElementById('statPills').innerHTML =
     `<div class="stat-pill"><b>${total}</b><span>jobs</span></div>` +
     `<div class="stat-pill"><b>${esc(money(revenue) || '$0.00')}</b><span>received</span></div>` +
-    `<div class="stat-pill"><b>${done}</b><span>completed</span></div>` +
+    `<div class="stat-pill"><b>${done}</b><span>installed</span></div>` +
     (overdue ? `<div class="stat-pill" style="background:var(--red-bg);border-color:#f5c2cb"><b style="color:var(--red)">${overdue}</b><span style="color:var(--red)">overdue</span></div>` : '');
 }
 
@@ -727,8 +709,7 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-job-no').value      = j?.job_no ?? '';
   document.getElementById('f-customer').value    = j?.customer ?? '';
   document.getElementById('f-address').value     = j?.address ?? '';
-  document.getElementById('f-assessment').value  = j?.ac_assessment_date ?? '';
-  document.getElementById('f-install').value     = j?.installation_date ?? '';
+  document.getElementById('f-booked').value      = j?.booked_date ?? '';
   document.getElementById('f-amount').value      = j?.amount_received ?? '';
   document.getElementById('f-bpoint').value      = j?.bpoint_ref ?? '';
   document.getElementById('f-notes').value       = j?.notes ?? '';
@@ -736,7 +717,6 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-status').value      = j?.status || presetStatus || 'date_pending';
   document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
 
-  updateDaysHint();
   document.getElementById('jobScrim').classList.add('show');
   if (!j) setTimeout(() => document.getElementById('f-customer').focus(), 60);
 }
@@ -744,18 +724,6 @@ function closeJobModal(){
   document.getElementById('jobScrim').classList.remove('show');
   editingId = null;
 }
-function updateDaysHint(){
-  const d = daysBetween(
-    document.getElementById('f-assessment').value,
-    document.getElementById('f-install').value
-  );
-  document.getElementById('daysHint').textContent =
-    d === null ? 'Days to install is worked out from these two dates.'
-               : `Days to install: ${d}`;
-}
-document.getElementById('f-assessment').addEventListener('change', updateDaysHint);
-document.getElementById('f-install').addEventListener('change', updateDaysHint);
-
 document.getElementById('jobScrim').addEventListener('click', e => {
   if (e.target.id === 'jobScrim') closeJobModal();
 });
@@ -770,17 +738,16 @@ async function saveJob(){
   const amountRaw = document.getElementById('f-amount').value;
   const status = document.getElementById('f-status').value;
   const payload = {
-    job_no:             document.getElementById('f-job-no').value.trim() || null,
+    job_no:          document.getElementById('f-job-no').value.trim() || null,
     customer,
-    address:            document.getElementById('f-address').value.trim() || null,
-    ac_assessment_date: document.getElementById('f-assessment').value || null,
-    installation_date:  document.getElementById('f-install').value || null,
-    amount_received:    amountRaw === '' ? null : parseFloat(amountRaw),
-    bpoint_ref:         document.getElementById('f-bpoint').value.trim() || null,
-    notes:              document.getElementById('f-notes').value.trim() || null,
-    cancelled:          document.getElementById('f-cancelled').checked,
+    address:         document.getElementById('f-address').value.trim() || null,
+    booked_date:     document.getElementById('f-booked').value || null,
+    amount_received: amountRaw === '' ? null : parseFloat(amountRaw),
+    bpoint_ref:      document.getElementById('f-bpoint').value.trim() || null,
+    notes:           document.getElementById('f-notes').value.trim() || null,
+    cancelled:       document.getElementById('f-cancelled').checked,
     status,
-    updated_at:         new Date().toISOString(),
+    updated_at:      new Date().toISOString(),
   };
 
   const btn = document.getElementById('saveJobBtn');
@@ -841,17 +808,15 @@ async function deleteJob(){
 
 // ── CSV export (matches the original spreadsheet's columns) ──
 function exportCSV(){
-  const head = ['Job No.','Customer','Address','AC Assessment','Days to Install',
-                'Installation Date','Amount Received','BPOINT Ref','Job Status','Cancelled','Notes'];
+  const head = ['Job No.','Customer','Address','Booked Date','Amount Received',
+                'BPOINT Ref','Job Status','Cancelled','Notes'];
   const labelOf = k => (COLUMNS.find(c => c.key === k) || {}).label || k;
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs()
     .slice()
     .sort((a,b) => COL_KEYS.indexOf(a.status) - COL_KEYS.indexOf(b.status) || (a.position ?? 0) - (b.position ?? 0))
     .map(j => [
-      j.job_no, j.customer, j.address, j.ac_assessment_date,
-      daysBetween(j.ac_assessment_date, j.installation_date) ?? '',
-      j.installation_date, j.amount_received, j.bpoint_ref,
+      j.job_no, j.customer, j.address, j.booked_date, j.amount_received, j.bpoint_ref,
       labelOf(j.status), j.cancelled ? 'Yes' : '', j.notes
     ].map(q).join(','));
 
