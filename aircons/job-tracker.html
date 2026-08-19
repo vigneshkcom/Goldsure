@@ -480,6 +480,7 @@ const GROUPS = [
   { key:'installed', label:'Installed', color:'var(--green)', dateLabel:'Booked' },
 ];
 const GROUP_KEYS = GROUPS.map(g => g.key);
+function groupLabel(key){ return (GROUPS.find(g => g.key === key) || {}).label || key; }
 // Free-text stages from the old spreadsheet land in the right group.
 const STATUS_ALIASES = {
   'to book':'to_book', 'tobook':'to_book', 'date pending':'to_book', 'pending':'to_book',
@@ -730,6 +731,21 @@ function notifyEcoComment(j, comment){
   }).catch(() => {});
 }
 
+// Fires whenever a job's status actually changes (dragged to another group,
+// or its status dropdown changed in the modal) — not on a plain reorder
+// within the same group.
+function notifyStatusChange(j, fromStatus, toStatus){
+  fetch('/api/battery/request-callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'job-status-notify',
+      job_no: j.job_no || '', customer: j.customer || '', address: j.address || '',
+      from_label: groupLabel(fromStatus), to_label: groupLabel(toStatus),
+    }),
+  }).catch(() => {});
+}
+
 // ── Job No.: click to copy, never to open the editor (it gets pasted a lot) ──
 document.getElementById('groups').addEventListener('click', e => {
   const cell = e.target.closest('.c-job');
@@ -932,6 +948,7 @@ function endDrag(e){
   if (job.status === newStatus && job.position === newPos){ render(); return; }
 
   const prev = { status: job.status, position: job.position };
+  const statusChanged = job.status !== newStatus;
   job.status = newStatus;
   job.position = newPos;
   render();
@@ -939,6 +956,7 @@ function endDrag(e){
     Object.assign(job, prev);           // put it back if the write failed
     render();
   });
+  if (statusChanged) notifyStatusChange(job, prev.status, newStatus);
 }
 
 // Fractional midpoint between neighbours — reordering never rewrites a group.
@@ -1044,6 +1062,7 @@ async function saveJob(){
   const depRaw = document.getElementById('f-deposit').value;
   const status = document.getElementById('f-status').value;
   const prevEcoComment = editingId ? (jobById(editingId)?.eco_comments || '') : '';
+  const prevStatus = editingId ? jobById(editingId)?.status : null;
   const payload = {
     job_no:        document.getElementById('f-job-no').value.trim() || null,
     customer,
@@ -1085,7 +1104,10 @@ async function saveJob(){
       if (i >= 0) jobs[i] = saved; else jobs.push(saved);
     }
     if (saved && payload.eco_comments && payload.eco_comments !== prevEcoComment){
-      notifyEcoComment(saved, payload.eco_comments);
+      notifyEcoComment(payload, payload.eco_comments);
+    }
+    if (saved && editingId && prevStatus && status !== prevStatus){
+      notifyStatusChange(payload, prevStatus, status);
     }
     closeJobModal();
     render();

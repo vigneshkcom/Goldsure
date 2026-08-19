@@ -968,6 +968,70 @@ export default async function handler(req, res) {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
+  // POST action=job-status-notify: email alert when a job is dragged (or edited)
+  // into a different group on the VIC Aircon Job Tracker (job-tracker.html) —
+  // e.g. "To Book" → "Scheduled". Same shape as eco-comment-notify: the move is
+  // already saved to Supabase by the browser before this call, so this only
+  // sends the email and never touches the row.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'job-status-notify') {
+    const jobNo = String(body.job_no || '').slice(0, 40);
+    const customer = String(body.customer || '').slice(0, 200);
+    const address = String(body.address || '').slice(0, 300);
+    const fromLabel = String(body.from_label || '').slice(0, 60);
+    const toLabel = String(body.to_label || '').slice(0, 60);
+    if (!customer.trim() || !toLabel.trim()) return res.status(400).json({ error: 'customer and to_label required' });
+
+    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
+    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+    // A small colour per stage so the badge reads at a glance, matching the
+    // board's own group colours (blue/amber/green) rather than a plain grey pill.
+    const stageColor = (label) => {
+      const l = label.toLowerCase();
+      if (l.includes('book')) return { bg: '#e8f1ff', fg: '#1d5fd6' };
+      if (l.includes('schedul')) return { bg: '#fef3e2', fg: '#b76e00' };
+      if (l.includes('install')) return { bg: '#e6f7ee', fg: '#0b8b55' };
+      return { bg: '#f5f6f8', fg: '#676879' };
+    };
+    const fromC = stageColor(fromLabel || 'to book');
+    const toC = stageColor(toLabel);
+    const badge = (label, c) =>
+      `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${c.bg};color:${c.fg};font-weight:700;font-size:13px;white-space:nowrap">${esc(label)}</span>`;
+
+    try {
+      await sendHostingerMail({
+        to: ['vignesh@goldsure.com.au'],
+        displayName: 'Goldsure VIC Aircon Tracker',
+        subject: `Job moved to ${toLabel}${subjectBits ? ' — ' + subjectBits : ''}`,
+        html: `
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#323338;max-width:560px">
+            <p style="margin:0 0 16px">
+              <strong>${esc(customer)}</strong>${jobNo ? ` (#${esc(jobNo)})` : ''} was moved
+              ${fromLabel ? `from ${badge(fromLabel, fromC)} ` : ''}to ${badge(toLabel, toC)}
+              on the VIC Aircon Job Tracker.
+            </p>
+            <table style="border-collapse:collapse;width:100%">
+              ${jobNo ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Job No.</td><td style="padding:4px 0;font-weight:600">${esc(jobNo)}</td></tr>` : ''}
+              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Customer</td><td style="padding:4px 0">${esc(customer)}</td></tr>
+              ${address ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Address</td><td style="padding:4px 0">${esc(address)}</td></tr>` : ''}
+              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">When</td><td style="padding:4px 0">${esc(when)}</td></tr>
+            </table>
+          </div>`,
+        text: `${customer}${jobNo ? ` (#${jobNo})` : ''} was moved${fromLabel ? ` from ${fromLabel}` : ''} to ${toLabel} on the VIC Aircon Job Tracker.\n\n` +
+          (jobNo ? `Job No.: ${jobNo}\n` : '') + `Customer: ${customer}\n` +
+          (address ? `Address: ${address}\n` : '') + `When: ${when}`,
+      });
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[job-status-notify] send failed:', err.message);
+      // Still 200: the move already saved fine, and the caller doesn't retry
+      // or show an error for a notification email that didn't go out.
+      return res.status(200).json({ success: false, error: err.message });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
   // POST action=hws-quote: Hot Water System quote email + tracker row
   //
   // Fully self-contained and isolated. Returns early so it never touches the SMS
