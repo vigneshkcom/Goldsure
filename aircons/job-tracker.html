@@ -24,7 +24,7 @@
   --shadow-md:0 4px 14px rgba(0,0,0,.10);
   --shadow-lg:0 12px 32px rgba(0,0,0,.18);
   /* Desktop row template — the heading row reuses it so columns line up. */
-  --cols:30px 82px minmax(115px,1fr) minmax(180px,1.9fr) 86px 112px 96px 100px minmax(140px,1.3fr);
+  --cols:30px 80px minmax(125px,1.15fr) minmax(160px,1.7fr) 60px 98px 110px 94px 98px minmax(130px,1.2fr);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -139,12 +139,15 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .c-grip:active{cursor:grabbing}
 .c-job{font-weight:700;font-variant-numeric:tabular-nums}
 .c-cust{font-weight:600}
-.c-addr{color:var(--muted);display:flex;align-items:center;gap:7px}
-.addr-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.c-addr{color:var(--muted)}
+/* Map gets its own column so every button sits on the same vertical line,
+   regardless of how long the address beside it runs. */
+.c-map{display:flex;align-items:center;justify-content:center;padding:6px 8px!important}
 .map-btn{
-  flex:none;display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+  display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
   font-size:11.5px;font-weight:600;color:var(--blue);background:var(--blue-bg);
-  border:1px solid #bcdcfb;border-radius:6px;padding:2px 7px;white-space:nowrap;
+  border:1px solid #bcdcfb;border-radius:6px;padding:3px 10px;white-space:nowrap;
+  transition:background .12s,border-color .12s,color .12s;
 }
 .map-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
 .c-date{font-variant-numeric:tabular-nums}
@@ -265,6 +268,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
       "grip job   date"
       "grip cust  cust"
       "grip addr  addr"
+      "grip map   map"
       "grip oop   dep"
       "grip pend  pend"
       "grip comm  comm";
@@ -277,7 +281,9 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .c-grip{grid-area:grip;align-items:flex-start;padding-top:4px!important;font-size:16px;color:var(--muted)}
   .c-job{grid-area:job;font-size:13px;color:var(--muted)}
   .c-cust{grid-area:cust;font-size:15.5px;font-weight:700}
-  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.35;flex-wrap:wrap;align-items:flex-start}
+  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.35}
+  .c-map{grid-area:map;justify-content:flex-start;padding:4px 10px 2px!important}
+  .c-map:empty{display:none}
   .c-date{grid-area:date;text-align:right;font-size:13px;font-weight:600}
   /* Each money cell carries its own label on a phone, where the column
      headings are hidden. */
@@ -508,10 +514,8 @@ function rowHTML(j){
     <div class="c-grip" title="Drag to another group">⠿</div>
     <div class="c-job">${j.job_no ? esc(j.job_no) : '—'}</div>
     <div class="c-cust">${esc(j.customer || 'Untitled')}${j.cancelled ? ' <span class="mob-label">· cancelled</span>' : ''}</div>
-    <div class="c-addr">
-      <span class="addr-text">${esc(addr)}</span>
-      ${addr ? `<a class="map-btn" href="${esc(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">📍 Map</a>` : ''}
-    </div>
+    <div class="c-addr">${esc(addr)}</div>
+    <div class="c-map">${addr ? `<a class="map-btn" href="${esc(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">Map</a>` : ''}</div>
     <div class="c-date${overdue ? ' overdue' : ''}">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
     <div class="c-oop">${oop ? `<span class="mob-label">Out of pocket </span>${esc(oop)}` : ''}</div>
     <div class="c-dep">${dep ? `<span class="mob-label">Deposit </span>${esc(dep)}` : ''}</div>
@@ -544,7 +548,7 @@ function render(){
       </div>
       <div class="table">
         <div class="thead">
-          <div></div><div>Job No.</div><div>Customer</div><div>Address</div>
+          <div></div><div>Job No.</div><div>Customer</div><div>Address</div><div></div>
           <div>Booked</div><div>Out of Pocket</div><div>Deposit</div><div>Pending</div><div>Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
