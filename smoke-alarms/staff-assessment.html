@@ -1272,12 +1272,18 @@ function renderAdminData(attempts, violations) {
           '<div class="admin-row-meta">' + esc(result) + ' &middot; ' + (a.score_pct != null ? a.score_pct + '%' : '—') +
             ' &middot; ' + vCount + ' violation(s) &middot; ' + new Date(a.started_at).toLocaleString('en-AU') + '</div>' +
         '</div>' +
-        '<button class="admin-row-delete" onclick="deleteAttempt(\'' + a.id + '\', ' + JSON.stringify(a.agent_name || '') + ')">Delete</button>' +
+        '<button class="admin-row-delete" data-delete-id="' + esc(a.id) + '" data-delete-name="' + esc(a.agent_name || '') + '">Delete</button>' +
       '</div>' +
       (vRows ? '<div class="admin-v-list">' + vRows + '</div>' : '') +
     '</div>';
   }).join('');
 }
+
+document.getElementById('admin-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('.admin-row-delete');
+  if (!btn) return;
+  deleteAttempt(btn.dataset.deleteId, btn.dataset.deleteName);
+});
 
 async function deleteAttempt(id, name) {
   if (!confirm('Delete this attempt' + (name ? ' for ' + name : '') + ' and all its violation logs? This cannot be undone.')) return;
