@@ -524,11 +524,24 @@ function rowHTML(j){
   </div>`;
 }
 
+// Earliest booked date first. Jobs with no date yet sort to the end of their
+// group rather than to the top, since an empty date isn't "the soonest job" —
+// it's the opposite, an unscheduled one. Position (drag order) only breaks
+// ties, e.g. several jobs on the same day, or several with no date at all.
+function byBookedDate(a, b){
+  if (a.booked_date && b.booked_date){
+    if (a.booked_date !== b.booked_date) return a.booked_date < b.booked_date ? -1 : 1;
+    return (a.position ?? 0) - (b.position ?? 0);
+  }
+  if (a.booked_date) return -1;
+  if (b.booked_date) return 1;
+  return (a.position ?? 0) - (b.position ?? 0);
+}
+
 function render(){
   const list = visibleJobs();
   document.getElementById('groups').innerHTML = GROUPS.map(g => {
-    const items = list.filter(j => j.status === g.key)
-                      .sort((a,b) => (a.position ?? 0) - (b.position ?? 0));
+    const items = list.filter(j => j.status === g.key).sort(byBookedDate);
     const live = items.filter(j => !j.cancelled);
     const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
     const pendSum = live.reduce((t,j) => t + Math.max(0, pendingOf(j)), 0);
@@ -919,7 +932,7 @@ function exportCSV(){
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs().slice()
     .sort((a,b) => GROUP_KEYS.indexOf(a.status) - GROUP_KEYS.indexOf(b.status)
-                || (a.position ?? 0) - (b.position ?? 0))
+                || byBookedDate(a,b))
     .map(j => [
       j.job_no, j.customer, j.address, j.booked_date, j.out_of_pocket, j.deposit,
       j.out_of_pocket ? pendingOf(j).toFixed(2) : '',
