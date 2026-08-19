@@ -53,3 +53,12 @@ create policy "anon can update aircon jobs" on aircon_jobs
 
 create policy "anon can delete aircon jobs" on aircon_jobs
   for delete to anon using (true);
+
+-- ── Eco Comments ─────────────────────────────────────────────────────────
+-- A second, unlocked comment column alongside `comments` (now labelled
+-- "Goldsure Comments" in the UI and gated behind a password there — the gate
+-- is UI-only, since the anon key above can already write either column
+-- directly). Anyone with the tracker link can add an Eco Comment; doing so
+-- also emails vignesh@goldsure.com.au via the existing Hostinger integration.
+-- Run this once against an existing database — it's a no-op if already applied.
+alter table aircon_jobs add column if not exists eco_comments text;

@@ -24,7 +24,11 @@
   --shadow-md:0 4px 14px rgba(0,0,0,.10);
   --shadow-lg:0 12px 32px rgba(0,0,0,.18);
   /* Desktop row template — the heading row reuses it so columns line up. */
-  --cols:30px 80px minmax(125px,1.15fr) minmax(190px,1.95fr) 60px 98px 110px 94px 98px minmax(130px,1.3fr);
+  /* Customer is a capped range, not a flexible fr track, so it doesn't keep
+     growing on a wide monitor when the names inside it never need that
+     much room — the space that used to waste there goes to Address and
+     the two comment columns instead. */
+  --cols:30px 80px minmax(120px,190px) minmax(190px,2.1fr) 60px 98px 110px 94px 98px minmax(140px,1fr) minmax(150px,1.1fr);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -165,21 +169,26 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
 .c-pend.owing{color:var(--blue-dark)}
 .c-pend.settled{color:var(--muted);font-weight:500}
 
-/* Click-to-edit comment cell, like typing into a spreadsheet cell. Wraps
-   rather than truncating — a cut-off comment defeats the point of one. */
-.c-comment{cursor:text;color:var(--text);white-space:normal!important;overflow:visible!important}
-.c-comment .comment-text{
+/* Click-to-edit comment cells, like typing into a spreadsheet cell. Wrap
+   rather than truncate — a cut-off comment defeats the point of one.
+   Eco Comments is open to anyone with the link; Goldsure Comments needs a
+   password, flagged with a small lock mark so it reads as gated even
+   before someone tries to click into it. */
+.c-comment,.c-eco-comment{cursor:text;color:var(--text);white-space:normal!important;overflow:visible!important}
+.c-comment .comment-text,.c-eco-comment .comment-text{
   display:block;overflow-wrap:anywhere;white-space:normal;
   min-height:19px;font-size:13px;line-height:1.4;
 }
-.c-comment .comment-text.empty{color:#b6bbc8}
-.c-comment:hover .comment-text.empty{color:var(--muted)}
+.c-comment .comment-text.empty,.c-eco-comment .comment-text.empty{color:#b6bbc8}
+.c-comment:hover .comment-text.empty,.c-eco-comment:hover .comment-text.empty{color:var(--muted)}
+.c-comment .lock-mark{font-size:10.5px;margin-right:3px;opacity:.55;vertical-align:1px}
 .comment-input{
   font-family:inherit;font-size:13px;width:100%;border:1px solid var(--blue);
   border-radius:5px;padding:5px 7px;outline:none;resize:none;overflow:hidden;
   background:#fff;color:var(--text);box-shadow:0 0 0 3px var(--blue-bg);line-height:1.4;
 }
 .mob-label{display:none}
+.lock-label{display:none}
 
 .row-ghost{
   position:fixed;z-index:999;pointer-events:none;width:var(--gw);
@@ -285,6 +294,7 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
       "grip cust  cust  cust"
       "grip addr  addr  addr"
       "grip oop   dep   pend"
+      "grip ecom  ecom  ecom"
       "grip comm  comm  comm";
     padding:9px 10px 9px 7px;row-gap:2px;column-gap:6px;
     background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--g);
@@ -327,12 +337,21 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
      cell and the divider disappears with them — no separate rule needed. */
   .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none}
 
+  .c-eco-comment{grid-area:ecom;padding-top:6px!important;font-size:12.5px;border-top:1px solid var(--surface3);margin-top:2px}
   .c-comment{grid-area:comm;padding-top:4px!important;font-size:12.5px}
-  .c-comment .comment-text{white-space:normal}
+  .c-comment .comment-text,.c-eco-comment .comment-text{white-space:normal}
   /* An unedited "Add comment…" placeholder is an invitation, not information
      — collapse it to a slim single line rather than a full-height row, and
      drop it out entirely once a real comment is there to show instead. */
-  .c-comment .comment-text.empty{font-size:11.5px}
+  .c-comment .comment-text.empty,.c-eco-comment .comment-text.empty{font-size:11.5px}
+  .c-eco-comment::before{
+    content:"Eco Comments";display:block;font-size:9.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-bottom:2px;
+  }
+  .c-comment .lock-label{
+    display:block;font-size:9.5px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.3px;color:var(--muted);margin-bottom:2px;
+  }
   /* Still used for the "· cancelled" tag next to the customer name — the
      three money labels above generate their own via ::before now. */
   .mob-label{display:inline;color:var(--muted);font-weight:500;font-size:11px}
@@ -415,8 +434,16 @@ main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
                  style="background:var(--surface2);font-weight:700;cursor:default">
         </div>
         <div class="field full">
-          <label for="f-notes">Comments</label>
-          <textarea id="f-notes" rows="2"></textarea>
+          <label for="f-eco-notes">Eco Comments</label>
+          <textarea id="f-eco-notes" rows="2" placeholder="Visible and editable by anyone with this link"></textarea>
+        </div>
+        <div class="field full">
+          <label for="f-notes" style="display:flex;align-items:center;gap:6px;justify-content:space-between">
+            <span>🔒 Goldsure Comments</span>
+            <button type="button" class="btn" id="unlockGoldsureBtn" onclick="unlockGoldsureField()"
+                    style="padding:3px 9px;font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:600">Unlock</button>
+          </label>
+          <textarea id="f-notes" rows="2" readonly placeholder="Password-protected — click Unlock to edit"></textarea>
         </div>
         <div class="check-row">
           <input type="checkbox" id="f-cancelled">
@@ -534,7 +561,7 @@ function visibleJobs(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if (!q) return jobs;
   return jobs.filter(j =>
-    [j.job_no, j.customer, j.address, j.comments]
+    [j.job_no, j.customer, j.address, j.comments, j.eco_comments]
       .filter(Boolean).join(' ').toLowerCase().includes(q)
   );
 }
@@ -556,6 +583,7 @@ function rowHTML(j){
   const addr = j.address || '';
   const mapHref = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
   const comment = j.comments || '';
+  const ecoComment = j.eco_comments || '';
 
   return `<div class="row${j.cancelled ? ' cancelled' : ''}" data-id="${esc(j.id)}">
     <div class="c-grip" title="Drag to another group">⠿</div>
@@ -567,7 +595,8 @@ function rowHTML(j){
     <div class="c-oop" data-label="Total">${oop ? esc(oop) : ''}</div>
     <div class="c-dep" data-label="Paid">${dep ? esc(dep) : ''}</div>
     <div class="c-pend ${pendCls}" data-label="ECO">${pendTxt ? esc(pendTxt) : ''}</div>
-    <div class="c-comment" title="Click to add a comment"><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
+    <div class="c-eco-comment" title="Click to add an Eco Comment — anyone with this link can edit"><span class="comment-text${ecoComment ? '' : ' empty'}">${ecoComment ? esc(ecoComment) : 'Add comment…'}</span></div>
+    <div class="c-comment" title="Password-protected — click to unlock and edit"><span class="lock-label">🔒 Goldsure Comments</span><span class="comment-text${comment ? '' : ' empty'}"><span class="lock-mark">🔒</span>${comment ? esc(comment) : 'Add comment…'}</span></div>
   </div>`;
 }
 
@@ -602,7 +631,7 @@ function render(){
       <div class="table">
         <div class="thead">
           <div></div><div>Job No.</div><div>Customer</div><div>Address</div><div></div>
-          <div>${esc(g.dateLabel)}</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Comments</div>
+          <div>${esc(g.dateLabel)}</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Eco Comments</div><div>🔒 Goldsure Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
           ${items.length ? items.map(rowHTML).join('') : '<div class="group-empty">No jobs in this group yet.</div>'}
@@ -620,17 +649,38 @@ function toggleGroup(key){
 }
 
 // ── Click-to-edit comments, spreadsheet style ──
+// Goldsure Comments are gated by a password (the same PIN used for the Admin
+// Log elsewhere) — it unlocks for the rest of this page session, not just one
+// edit, so a staff member isn't re-prompted for every row. Eco Comments have
+// no gate: anyone with the link can add one, which is why a save there also
+// fires an email so Goldsure isn't relying on someone noticing it on the page.
+const GOLDSURE_PIN = '4321';
+let goldsureUnlocked = false;
+
 document.getElementById('groups').addEventListener('click', e => {
+  const ecoCell = e.target.closest('.c-eco-comment');
+  if (ecoCell && !ecoCell.querySelector('textarea')){
+    const id = ecoCell.closest('.row')?.dataset.id;
+    if (id) startCommentEdit(id, ecoCell, 'eco_comments');
+    return;
+  }
   const cell = e.target.closest('.c-comment');
   if (!cell || cell.querySelector('textarea')) return;
   const id = cell.closest('.row')?.dataset.id;
-  if (id) startCommentEdit(id, cell);
+  if (!id) return;
+  if (!goldsureUnlocked){
+    const pin = prompt('Enter the password to edit Goldsure Comments:');
+    if (pin === null) return;
+    if (pin !== GOLDSURE_PIN){ showToast('Incorrect password.', true); return; }
+    goldsureUnlocked = true;
+  }
+  startCommentEdit(id, cell, 'comments');
 });
 
-function startCommentEdit(id, cell){
+function startCommentEdit(id, cell, field){
   const j = jobById(id);
   if (!j) return;
-  const original = j.comments || '';
+  const original = j[field] || '';
   const ta = document.createElement('textarea');
   ta.className = 'comment-input';
   ta.rows = 1;
@@ -652,19 +702,35 @@ function startCommentEdit(id, cell){
   });
   ta.addEventListener('blur', () => {
     const val = cancelled ? original : ta.value.trim();
-    paintComment(cell, val);
+    paintComment(cell, val, field);
     if (!cancelled && val !== original){
-      j.comments = val || null;
-      persist(id, { comments: j.comments }, () => {
-        j.comments = original || null;
-        paintComment(cell, original);
+      j[field] = val || null;
+      persist(id, { [field]: j[field] }, () => {
+        j[field] = original || null;
+        paintComment(cell, original, field);
       });
+      if (field === 'eco_comments' && val) notifyEcoComment(j, val);
     }
   });
 }
 
-function paintComment(cell, text){
-  cell.innerHTML = `<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
+function paintComment(cell, text, field){
+  const lock = field === 'comments' ? '<span class="lock-label">🔒 Goldsure Comments</span>' : '';
+  const mark = field === 'comments' ? '<span class="lock-mark">🔒</span>' : '';
+  cell.innerHTML = `${lock}<span class="comment-text${text ? '' : ' empty'}">${mark}${text ? esc(text) : 'Add comment…'}</span>`;
+}
+
+// Best-effort: the comment is already saved to Supabase by the time this
+// fires, so a failed notification never loses or blocks it.
+function notifyEcoComment(j, comment){
+  fetch('/api/battery/request-callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'eco-comment-notify',
+      job_no: j.job_no || '', customer: j.customer || '', address: j.address || '', comment,
+    }),
+  }).catch(() => {});
 }
 
 // ── Job No.: click to copy, never to open the editor (it gets pasted a lot) ──
@@ -755,7 +821,7 @@ document.getElementById('groups').addEventListener('pointerdown', e => {
   // These cells handle their own clicks (map link, comment editor, copy job
   // no., date picker) — starting a drag here would swallow that click, and
   // for job no./date it would also wrongly fall through to "open the editor".
-  if (e.target.closest('.map-btn, .c-comment, .c-job, .c-date')) return;
+  if (e.target.closest('.map-btn, .c-comment, .c-eco-comment, .c-job, .c-date')) return;
   const onGrip = !!e.target.closest('.c-grip');
   // Touch drags only from the grip, so the page still scrolls under a finger.
   if (e.pointerType !== 'mouse' && !onGrip) return;
@@ -922,10 +988,17 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-booked').value      = j?.booked_date ?? '';
   document.getElementById('f-oop').value         = j?.out_of_pocket ?? '';
   document.getElementById('f-deposit').value     = j?.deposit ?? '';
+  document.getElementById('f-eco-notes').value   = j?.eco_comments ?? '';
   document.getElementById('f-notes').value       = j?.comments ?? '';
   document.getElementById('f-cancelled').checked = !!j?.cancelled;
   document.getElementById('f-status').value      = j?.status || presetStatus || 'to_book';
   document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
+
+  const notesEl = document.getElementById('f-notes');
+  notesEl.readOnly = !goldsureUnlocked;
+  const unlockBtn = document.getElementById('unlockGoldsureBtn');
+  unlockBtn.textContent = goldsureUnlocked ? 'Unlocked' : 'Unlock';
+  unlockBtn.disabled = goldsureUnlocked;
 
   updatePending();
   document.getElementById('jobScrim').classList.add('show');
@@ -934,6 +1007,18 @@ function openJobModal(id, presetStatus){
 function closeJobModal(){
   document.getElementById('jobScrim').classList.remove('show');
   editingId = null;
+}
+function unlockGoldsureField(){
+  if (goldsureUnlocked) return;
+  const pin = prompt('Enter the password to edit Goldsure Comments:');
+  if (pin === null) return;
+  if (pin !== GOLDSURE_PIN){ showToast('Incorrect password.', true); return; }
+  goldsureUnlocked = true;
+  document.getElementById('f-notes').readOnly = false;
+  const btn = document.getElementById('unlockGoldsureBtn');
+  btn.textContent = 'Unlocked';
+  btn.disabled = true;
+  document.getElementById('f-notes').focus();
 }
 // Pending updates as you type, so the sum is visible before saving.
 function updatePending(){
@@ -961,6 +1046,7 @@ async function saveJob(){
   const oopRaw = document.getElementById('f-oop').value;
   const depRaw = document.getElementById('f-deposit').value;
   const status = document.getElementById('f-status').value;
+  const prevEcoComment = editingId ? (jobById(editingId)?.eco_comments || '') : '';
   const payload = {
     job_no:        document.getElementById('f-job-no').value.trim() || null,
     customer,
@@ -968,6 +1054,7 @@ async function saveJob(){
     booked_date:   document.getElementById('f-booked').value || null,
     out_of_pocket: oopRaw === '' ? null : parseFloat(oopRaw),
     deposit:       depRaw === '' ? null : parseFloat(depRaw),
+    eco_comments:  document.getElementById('f-eco-notes').value.trim() || null,
     comments:      document.getElementById('f-notes').value.trim() || null,
     cancelled:     document.getElementById('f-cancelled').checked,
     status,
@@ -1000,6 +1087,9 @@ async function saveJob(){
       const i = jobs.findIndex(j => String(j.id) === String(saved.id));
       if (i >= 0) jobs[i] = saved; else jobs.push(saved);
     }
+    if (saved && payload.eco_comments && payload.eco_comments !== prevEcoComment){
+      notifyEcoComment(saved, payload.eco_comments);
+    }
     closeJobModal();
     render();
     showToast(editingId ? 'Job updated.' : 'Job added.');
@@ -1031,7 +1121,7 @@ async function deleteJob(){
 // ── CSV export ──
 function exportCSV(){
   const head = ['Job No.','Customer','Address','Booked Date','Out of Pocket',
-                'Deposit','ECO','Group','Cancelled','Comments'];
+                'Deposit','ECO','Group','Cancelled','Eco Comments','Goldsure Comments'];
   const labelOf = k => (GROUPS.find(g => g.key === k) || {}).label || k;
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs().slice()
@@ -1040,7 +1130,7 @@ function exportCSV(){
     .map(j => [
       j.job_no, j.customer, j.address, j.booked_date, j.out_of_pocket, j.deposit,
       j.out_of_pocket ? pendingOf(j).toFixed(2) : '',
-      labelOf(j.status), j.cancelled ? 'Yes' : '', j.comments
+      labelOf(j.status), j.cancelled ? 'Yes' : '', j.eco_comments, j.comments
     ].map(q).join(','));
 
   const blob = new Blob([[head.map(q).join(','), ...rows].join('\r\n')], { type:'text/csv;charset=utf-8;' });

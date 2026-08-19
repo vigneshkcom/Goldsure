@@ -917,6 +917,57 @@ export default async function handler(req, res) {
   const body = req.body || {};
 
   // ════════════════════════════════════════════════════════════════════════════
+  // POST action=eco-comment-notify: email alert when someone leaves an "Eco
+  // Comment" on a VIC Aircon job (job-tracker.html). Eco Comments have no
+  // password — anyone with the tracker link can add one — so Goldsure gets an
+  // email the moment it happens rather than having to keep the page open to
+  // notice. The comment itself is already saved straight to Supabase by the
+  // browser before this call; this endpoint only sends the notification and
+  // never touches the row, so a failed/slow email can never lose or block a
+  // comment. Best-effort: any failure here is caught and logged, not surfaced
+  // to the person who left the comment.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'eco-comment-notify') {
+    const jobNo = String(body.job_no || '').slice(0, 40);
+    const customer = String(body.customer || '').slice(0, 200);
+    const address = String(body.address || '').slice(0, 300);
+    const comment = String(body.comment || '').slice(0, 4000);
+    if (!comment.trim()) return res.status(400).json({ error: 'comment required' });
+
+    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
+    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+
+    try {
+      await sendHostingerMail({
+        to: ['vignesh@goldsure.com.au'],
+        displayName: 'Goldsure VIC Aircon Tracker',
+        subject: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}`,
+        html: `
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#323338;max-width:560px">
+            <p style="margin:0 0 14px">A new <strong>Eco Comment</strong> was left on the VIC Aircon Job Tracker.</p>
+            <table style="border-collapse:collapse;width:100%;margin-bottom:14px">
+              ${jobNo ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Job No.</td><td style="padding:4px 0;font-weight:600">${esc(jobNo)}</td></tr>` : ''}
+              ${customer ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Customer</td><td style="padding:4px 0">${esc(customer)}</td></tr>` : ''}
+              ${address ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Address</td><td style="padding:4px 0">${esc(address)}</td></tr>` : ''}
+              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">When</td><td style="padding:4px 0">${esc(when)}</td></tr>
+            </table>
+            <div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:8px;padding:14px;white-space:pre-wrap">${esc(comment)}</div>
+          </div>`,
+        text: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}\n\n` +
+          (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
+          (address ? `Address: ${address}\n` : '') + `When: ${when}\n\n${comment}`,
+      });
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[eco-comment-notify] send failed:', err.message);
+      // Still 200: the comment already saved fine, and the caller doesn't
+      // retry or show an error for a notification email that didn't go out.
+      return res.status(200).json({ success: false, error: err.message });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
   // POST action=hws-quote: Hot Water System quote email + tracker row
   //
   // Fully self-contained and isolated. Returns early so it never touches the SMS
