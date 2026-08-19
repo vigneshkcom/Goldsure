@@ -12,10 +12,12 @@ create table if not exists aircon_jobs (
   customer text not null,
   address text,
   booked_date date,
-  amount_received numeric(12,2),
-  bpoint_ref text,
+  out_of_pocket numeric(12,2),              -- total the customer owes
+  deposit numeric(12,2),                    -- what they have paid so far
+  -- The pending balance is deliberately NOT stored. The board always shows
+  -- out_of_pocket − deposit, so the three figures can never disagree.
+  comments text,
   status text not null default 'to_book',   -- to_book | scheduled | installed
-  notes text,
   cancelled boolean not null default false,
   -- Sort order inside a column. Doubles (not ints) so dropping a card between
   -- two others is a single UPDATE to the midpoint instead of renumbering the
@@ -41,6 +43,56 @@ end $$;
 
 alter table aircon_jobs drop column if exists installation_date;
 alter table aircon_jobs drop column if exists ac_assessment_date;
+
+-- ── Money split into Out of Pocket + Deposit ───────────────────────────────
+alter table aircon_jobs add column if not exists out_of_pocket numeric(12,2);
+alter table aircon_jobs add column if not exists deposit numeric(12,2);
+alter table aircon_jobs add column if not exists comments text;
+
+-- The old single "Amount Received" becomes Out of Pocket, and Deposit is left
+-- empty — so every migrated job reads as fully pending until you enter what
+-- has actually been paid.
+--
+-- If Amount Received was in fact money already collected, run this afterwards
+-- to mark those jobs paid in full:
+--     update aircon_jobs set deposit = out_of_pocket;
+-- or, to do it only for jobs already installed:
+--     update aircon_jobs set deposit = out_of_pocket where status = 'installed';
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'aircon_jobs' and column_name = 'amount_received') then
+    update aircon_jobs set out_of_pocket = amount_received where out_of_pocket is null;
+  end if;
+end $$;
+
+-- BPOINT refs are payment records, so they move into Comments rather than
+-- being dropped. To start with empty comments instead, run afterwards:
+--     update aircon_jobs set comments = null;
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'aircon_jobs' and column_name = 'bpoint_ref') then
+    update aircon_jobs
+       set comments = concat_ws(' · ', nullif(comments,''), nullif(bpoint_ref,''))
+     where nullif(bpoint_ref,'') is not null;
+  end if;
+end $$;
+
+-- The old free-text notes field folds into comments too.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'aircon_jobs' and column_name = 'notes') then
+    update aircon_jobs
+       set comments = concat_ws(' · ', nullif(comments,''), nullif(notes,''))
+     where nullif(notes,'') is not null;
+  end if;
+end $$;
+
+alter table aircon_jobs drop column if exists amount_received;
+alter table aircon_jobs drop column if exists bpoint_ref;
+alter table aircon_jobs drop column if exists notes;
 
 -- Old five-stage statuses collapse onto the three board groups.
 update aircon_jobs set status = 'installed' where status in ('completed','complete','done');

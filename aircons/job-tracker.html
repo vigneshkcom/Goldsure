@@ -23,8 +23,8 @@
   --shadow:0 1px 3px rgba(0,0,0,.04);
   --shadow-md:0 4px 14px rgba(0,0,0,.10);
   --shadow-lg:0 12px 32px rgba(0,0,0,.18);
-  /* Desktop row template — the group header reuses it so headings line up. */
-  --cols:30px 96px minmax(130px,1fr) minmax(180px,2fr) 104px 104px minmax(110px,1fr);
+  /* Desktop row template — the heading row reuses it so columns line up. */
+  --cols:30px 82px minmax(115px,1fr) minmax(180px,1.9fr) 86px 112px 96px 100px minmax(140px,1.3fr);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -139,11 +139,36 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .c-grip:active{cursor:grabbing}
 .c-job{font-weight:700;font-variant-numeric:tabular-nums}
 .c-cust{font-weight:600}
-.c-addr{color:var(--muted)}
-.c-amt{font-variant-numeric:tabular-nums;font-weight:600;color:#0b8b55}
+.c-addr{color:var(--muted);display:flex;align-items:center;gap:7px}
+.addr-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.map-btn{
+  flex:none;display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+  font-size:11.5px;font-weight:600;color:var(--blue);background:var(--blue-bg);
+  border:1px solid #bcdcfb;border-radius:6px;padding:2px 7px;white-space:nowrap;
+}
+.map-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
 .c-date{font-variant-numeric:tabular-nums}
 .c-date.overdue{color:var(--red);font-weight:600}
-.c-ref{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.c-oop,.c-dep,.c-pend{font-variant-numeric:tabular-nums;text-align:right}
+.c-oop{font-weight:600}
+.c-dep{color:#0b8b55;font-weight:600}
+.c-pend{font-weight:700}
+.c-pend.owing{color:var(--red)}
+.c-pend.settled{color:var(--muted);font-weight:500}
+
+/* Click-to-edit comment cell, like typing into a spreadsheet cell. */
+.c-comment{cursor:text;color:var(--text)}
+.c-comment .comment-text{
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  min-height:19px;font-size:13px;
+}
+.c-comment .comment-text.empty{color:#b6bbc8}
+.c-comment:hover .comment-text.empty{color:var(--muted)}
+.comment-input{
+  font-family:inherit;font-size:13px;width:100%;border:1px solid var(--blue);
+  border-radius:5px;padding:5px 7px;outline:none;resize:none;overflow:hidden;
+  background:#fff;color:var(--text);box-shadow:0 0 0 3px var(--blue-bg);line-height:1.4;
+}
 .mob-label{display:none}
 
 .row-ghost{
@@ -237,10 +262,12 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .row{
     grid-template-columns:38px 1fr auto;
     grid-template-areas:
-      "grip job  date"
-      "grip cust cust"
-      "grip addr addr"
-      "grip meta meta";
+      "grip job   date"
+      "grip cust  cust"
+      "grip addr  addr"
+      "grip oop   dep"
+      "grip pend  pend"
+      "grip comm  comm";
     padding:10px 4px;row-gap:1px;
   }
   .row>div{
@@ -250,12 +277,17 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .c-grip{grid-area:grip;align-items:flex-start;padding-top:4px!important;font-size:16px;color:var(--muted)}
   .c-job{grid-area:job;font-size:13px;color:var(--muted)}
   .c-cust{grid-area:cust;font-size:15.5px;font-weight:700}
-  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.35}
+  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.35;flex-wrap:wrap;align-items:flex-start}
   .c-date{grid-area:date;text-align:right;font-size:13px;font-weight:600}
-  /* Amount and ref share the last line, each labelled so they read alone. */
-  .c-amt{grid-area:meta;font-size:13.5px;padding-top:5px!important}
-  .c-ref{display:none}
-  .c-amt:empty{display:none}
+  /* Each money cell carries its own label on a phone, where the column
+     headings are hidden. */
+  .c-oop{grid-area:oop;text-align:left;font-size:13px;padding-top:5px!important}
+  .c-dep{grid-area:dep;text-align:right;font-size:13px;padding-top:5px!important}
+  .c-pend{grid-area:pend;text-align:left;font-size:13px}
+  .c-comment{grid-area:comm;padding-top:4px!important}
+  .c-comment .comment-text{white-space:normal}
+  .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none}
+  .map-btn{padding:3px 9px;font-size:12px}
   .mob-label{display:inline;color:var(--muted);font-weight:500}
 
   .modal-scrim{padding:0;align-items:flex-end}
@@ -289,7 +321,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 </header>
 
 <div class="toolbar">
-  <input type="search" class="search-input" id="searchInput" placeholder="Search job no, customer, address, BPOINT ref…" oninput="render()">
+  <input type="search" class="search-input" id="searchInput" placeholder="Search job no, customer, address, comments…" oninput="render()">
   <div class="stat-pills" id="statPills"></div>
 </div>
 
@@ -325,15 +357,20 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
           <input type="date" id="f-booked">
         </div>
         <div class="field">
-          <label for="f-amount">Amount Received</label>
-          <input type="number" id="f-amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+          <label for="f-oop">Out of Pocket</label>
+          <input type="number" id="f-oop" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="f-deposit">Deposit</label>
+          <input type="number" id="f-deposit" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="f-pending">Pending Balance</label>
+          <input type="text" id="f-pending" readonly tabindex="-1"
+                 style="background:var(--surface2);font-weight:700;cursor:default">
         </div>
         <div class="field full">
-          <label for="f-bpoint">BPOINT Ref</label>
-          <input type="text" id="f-bpoint" autocomplete="off">
-        </div>
-        <div class="field full">
-          <label for="f-notes">Notes</label>
+          <label for="f-notes">Comments</label>
           <textarea id="f-notes" rows="2"></textarea>
         </div>
         <div class="check-row">
@@ -449,22 +486,42 @@ function visibleJobs(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if (!q) return jobs;
   return jobs.filter(j =>
-    [j.job_no, j.customer, j.address, j.bpoint_ref, j.notes]
+    [j.job_no, j.customer, j.address, j.comments]
       .filter(Boolean).join(' ').toLowerCase().includes(q)
   );
 }
 
+// Pending is never stored — it is always out of pocket minus deposit, so the
+// two can't drift apart.
+function pendingOf(j){
+  const oop = parseFloat(j.out_of_pocket) || 0;
+  const dep = parseFloat(j.deposit) || 0;
+  return oop - dep;
+}
+
 function rowHTML(j){
   const overdue = isOverdue(j);
-  const amt = money(j.amount_received);
+  const oop = money(j.out_of_pocket), dep = money(j.deposit);
+  const pend = pendingOf(j);
+  const pendCls = !j.out_of_pocket ? 'settled' : (pend > 0 ? 'owing' : 'settled');
+  const pendTxt = !j.out_of_pocket ? '' : (pend > 0 ? money(pend) : 'Paid');
+  const addr = j.address || '';
+  const mapHref = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+  const comment = j.comments || '';
+
   return `<div class="row${j.cancelled ? ' cancelled' : ''}" data-id="${esc(j.id)}">
     <div class="c-grip" title="Drag to another group">⠿</div>
     <div class="c-job">${j.job_no ? esc(j.job_no) : '—'}</div>
     <div class="c-cust">${esc(j.customer || 'Untitled')}${j.cancelled ? ' <span class="mob-label">· cancelled</span>' : ''}</div>
-    <div class="c-addr">${esc(j.address || '')}</div>
+    <div class="c-addr">
+      <span class="addr-text">${esc(addr)}</span>
+      ${addr ? `<a class="map-btn" href="${esc(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">📍 Map</a>` : ''}
+    </div>
     <div class="c-date${overdue ? ' overdue' : ''}">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
-    <div class="c-amt">${amt ? `<span class="mob-label">Paid </span>${esc(amt)}` : ''}</div>
-    <div class="c-ref">${esc(j.bpoint_ref || '')}</div>
+    <div class="c-oop">${oop ? `<span class="mob-label">Out of pocket </span>${esc(oop)}` : ''}</div>
+    <div class="c-dep">${dep ? `<span class="mob-label">Deposit </span>${esc(dep)}` : ''}</div>
+    <div class="c-pend ${pendCls}">${pendTxt ? `<span class="mob-label">Pending </span>${esc(pendTxt)}` : ''}</div>
+    <div class="c-comment" title="Click to add a comment"><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
   </div>`;
 }
 
@@ -473,7 +530,12 @@ function render(){
   document.getElementById('groups').innerHTML = GROUPS.map(g => {
     const items = list.filter(j => j.status === g.key)
                       .sort((a,b) => (a.position ?? 0) - (b.position ?? 0));
-    const sum = items.reduce((t,j) => t + (j.cancelled ? 0 : (parseFloat(j.amount_received) || 0)), 0);
+    const live = items.filter(j => !j.cancelled);
+    const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
+    const pendSum = live.reduce((t,j) => t + Math.max(0, pendingOf(j)), 0);
+    const sumTxt = oopSum
+      ? esc(money(oopSum)) + (pendSum ? ` &middot; <span style="color:var(--red)">${esc(money(pendSum))} pending</span>` : ' &middot; paid')
+      : '';
     const isCollapsed = collapsed.has(g.key);
     return `<section class="group${isCollapsed ? ' collapsed' : ''}" data-group="${g.key}" style="--g:${g.color}">
       <div class="group-head">
@@ -483,12 +545,12 @@ function render(){
         </button>
         <span class="group-name">${esc(g.label)}</span>
         <span class="group-count">${items.length}</span>
-        ${sum ? `<span class="group-sum">${esc(money(sum))}</span>` : ''}
+        ${sumTxt ? `<span class="group-sum">${sumTxt}</span>` : ''}
       </div>
       <div class="table">
         <div class="thead">
           <div></div><div>Job No.</div><div>Customer</div><div>Address</div>
-          <div>Booked</div><div>Amount</div><div>BPOINT Ref</div>
+          <div>Booked</div><div>Out of Pocket</div><div>Deposit</div><div>Pending</div><div>Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
           ${items.length ? items.map(rowHTML).join('') : '<div class="group-empty">No jobs in this group yet.</div>'}
@@ -505,14 +567,65 @@ function toggleGroup(key){
   render();
 }
 
+// ── Click-to-edit comments, spreadsheet style ──
+document.getElementById('groups').addEventListener('click', e => {
+  const cell = e.target.closest('.c-comment');
+  if (!cell || cell.querySelector('textarea')) return;
+  const id = cell.closest('.row')?.dataset.id;
+  if (id) startCommentEdit(id, cell);
+});
+
+function startCommentEdit(id, cell){
+  const j = jobById(id);
+  if (!j) return;
+  const original = j.comments || '';
+  const ta = document.createElement('textarea');
+  ta.className = 'comment-input';
+  ta.rows = 1;
+  ta.value = original;
+  cell.innerHTML = '';
+  cell.appendChild(ta);
+
+  const grow = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  grow();
+  ta.focus();
+  ta.setSelectionRange(original.length, original.length);
+
+  let cancelled = false;
+  ta.addEventListener('input', grow);
+  ta.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape'){ cancelled = true; ta.blur(); }
+    // Enter saves, Shift+Enter puts in a line break.
+    else if (ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); ta.blur(); }
+  });
+  ta.addEventListener('blur', () => {
+    const val = cancelled ? original : ta.value.trim();
+    paintComment(cell, val);
+    if (!cancelled && val !== original){
+      j.comments = val || null;
+      persist(id, { comments: j.comments }, () => {
+        j.comments = original || null;
+        paintComment(cell, original);
+      });
+    }
+  });
+}
+
+function paintComment(cell, text){
+  cell.innerHTML = `<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
+}
+
 function renderStats(list){
-  const revenue = list.reduce((t,j) => t + (j.cancelled ? 0 : (parseFloat(j.amount_received) || 0)), 0);
-  const done = list.filter(j => j.status === 'installed').length;
+  const live = list.filter(j => !j.cancelled);
+  const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
+  const depSum  = live.reduce((t,j) => t + (parseFloat(j.deposit) || 0), 0);
+  const pendSum = live.reduce((t,j) => t + Math.max(0, pendingOf(j)), 0);
   const overdue = list.filter(isOverdue).length;
   document.getElementById('statPills').innerHTML =
     `<div class="stat-pill"><b>${list.length}</b><span>jobs</span></div>` +
-    `<div class="stat-pill"><b>${esc(money(revenue) || '$0.00')}</b><span>received</span></div>` +
-    `<div class="stat-pill"><b>${done}</b><span>installed</span></div>` +
+    `<div class="stat-pill"><b>${esc(money(oopSum) || '$0.00')}</b><span>out of pocket</span></div>` +
+    `<div class="stat-pill"><b>${esc(money(depSum) || '$0.00')}</b><span>deposits</span></div>` +
+    `<div class="stat-pill"><b>${esc(money(pendSum) || '$0.00')}</b><span>pending</span></div>` +
     (overdue ? `<div class="stat-pill" style="background:var(--red-bg);border-color:#f5c2cb"><b style="color:var(--red)">${overdue}</b><span style="color:var(--red)">overdue</span></div>` : '');
 }
 
@@ -524,6 +637,9 @@ function jobById(id){ return jobs.find(j => String(j.id) === String(id)); }
 document.getElementById('groups').addEventListener('pointerdown', e => {
   const row = e.target.closest('.row');
   if (!row || drag) return;
+  // The map link and the comment cell handle their own clicks — starting a
+  // drag here would also swallow the click that opens them.
+  if (e.target.closest('.map-btn, .c-comment')) return;
   const onGrip = !!e.target.closest('.c-grip');
   // Touch drags only from the grip, so the page still scrolls under a finger.
   if (e.pointerType !== 'mouse' && !onGrip) return;
@@ -688,13 +804,14 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-customer').value    = j?.customer ?? '';
   document.getElementById('f-address').value     = j?.address ?? '';
   document.getElementById('f-booked').value      = j?.booked_date ?? '';
-  document.getElementById('f-amount').value      = j?.amount_received ?? '';
-  document.getElementById('f-bpoint').value      = j?.bpoint_ref ?? '';
-  document.getElementById('f-notes').value       = j?.notes ?? '';
+  document.getElementById('f-oop').value         = j?.out_of_pocket ?? '';
+  document.getElementById('f-deposit').value     = j?.deposit ?? '';
+  document.getElementById('f-notes').value       = j?.comments ?? '';
   document.getElementById('f-cancelled').checked = !!j?.cancelled;
   document.getElementById('f-status').value      = j?.status || presetStatus || 'to_book';
   document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
 
+  updatePending();
   document.getElementById('jobScrim').classList.add('show');
   if (!j) setTimeout(() => document.getElementById('f-job-no').focus(), 60);
 }
@@ -702,6 +819,18 @@ function closeJobModal(){
   document.getElementById('jobScrim').classList.remove('show');
   editingId = null;
 }
+// Pending updates as you type, so the sum is visible before saving.
+function updatePending(){
+  const oop = parseFloat(document.getElementById('f-oop').value) || 0;
+  const dep = parseFloat(document.getElementById('f-deposit').value) || 0;
+  const el = document.getElementById('f-pending');
+  const bal = oop - dep;
+  el.value = oop ? (bal > 0 ? money(bal) : (bal < 0 ? money(bal) + ' (overpaid)' : 'Paid in full')) : '—';
+  el.style.color = bal > 0 && oop ? 'var(--red)' : (oop ? '#0b8b55' : 'var(--muted)');
+}
+document.getElementById('f-oop').addEventListener('input', updatePending);
+document.getElementById('f-deposit').addEventListener('input', updatePending);
+
 document.getElementById('jobScrim').addEventListener('click', e => {
   if (e.target.id === 'jobScrim') closeJobModal();
 });
@@ -713,19 +842,20 @@ async function saveJob(){
   const customer = document.getElementById('f-customer').value.trim();
   if (!customer){ showToast('Customer name is required.', true); return; }
 
-  const amountRaw = document.getElementById('f-amount').value;
+  const oopRaw = document.getElementById('f-oop').value;
+  const depRaw = document.getElementById('f-deposit').value;
   const status = document.getElementById('f-status').value;
   const payload = {
-    job_no:          document.getElementById('f-job-no').value.trim() || null,
+    job_no:        document.getElementById('f-job-no').value.trim() || null,
     customer,
-    address:         document.getElementById('f-address').value.trim() || null,
-    booked_date:     document.getElementById('f-booked').value || null,
-    amount_received: amountRaw === '' ? null : parseFloat(amountRaw),
-    bpoint_ref:      document.getElementById('f-bpoint').value.trim() || null,
-    notes:           document.getElementById('f-notes').value.trim() || null,
-    cancelled:       document.getElementById('f-cancelled').checked,
+    address:       document.getElementById('f-address').value.trim() || null,
+    booked_date:   document.getElementById('f-booked').value || null,
+    out_of_pocket: oopRaw === '' ? null : parseFloat(oopRaw),
+    deposit:       depRaw === '' ? null : parseFloat(depRaw),
+    comments:      document.getElementById('f-notes').value.trim() || null,
+    cancelled:     document.getElementById('f-cancelled').checked,
     status,
-    updated_at:      new Date().toISOString(),
+    updated_at:    new Date().toISOString(),
   };
 
   const btn = document.getElementById('saveJobBtn');
@@ -784,16 +914,17 @@ async function deleteJob(){
 
 // ── CSV export ──
 function exportCSV(){
-  const head = ['Job No.','Customer','Address','Booked Date','Amount Received',
-                'BPOINT Ref','Group','Cancelled','Notes'];
+  const head = ['Job No.','Customer','Address','Booked Date','Out of Pocket',
+                'Deposit','Pending','Group','Cancelled','Comments'];
   const labelOf = k => (GROUPS.find(g => g.key === k) || {}).label || k;
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs().slice()
     .sort((a,b) => GROUP_KEYS.indexOf(a.status) - GROUP_KEYS.indexOf(b.status)
                 || (a.position ?? 0) - (b.position ?? 0))
     .map(j => [
-      j.job_no, j.customer, j.address, j.booked_date, j.amount_received, j.bpoint_ref,
-      labelOf(j.status), j.cancelled ? 'Yes' : '', j.notes
+      j.job_no, j.customer, j.address, j.booked_date, j.out_of_pocket, j.deposit,
+      j.out_of_pocket ? pendingOf(j).toFixed(2) : '',
+      labelOf(j.status), j.cancelled ? 'Yes' : '', j.comments
     ].map(q).join(','));
 
   const blob = new Blob([[head.map(q).join(','), ...rows].join('\r\n')], { type:'text/csv;charset=utf-8;' });
