@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Goldsure · Call Centre Pressure Test</title>
+<title>Goldsure · Staff Assessment</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -72,6 +72,22 @@ header { background: #fff; border-bottom: 3px solid var(--gold); padding: 0 28px
 .locked-log-row { font-size: 11px; color: rgba(255,255,255,0.5); padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'JetBrains Mono', monospace; }
 .locked-log-row:last-child { border-bottom: none; }
 .locked-note { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 18px; }
+
+/* ADMIN SCREEN */
+#admin-screen { display: none; min-height: 100vh; background: var(--bg); padding: 28px; }
+.admin-wrap { max-width: 900px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 28px 30px; }
+.admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.admin-title { font-size: 19px; font-weight: 700; color: var(--text); }
+.admin-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.admin-list { display: flex; flex-direction: column; gap: 10px; max-height: 70vh; overflow-y: auto; }
+.admin-loading { font-size: 13px; color: var(--muted); text-align: center; padding: 30px 0; }
+.admin-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+.admin-row.flagged { border-color: rgba(224,79,79,0.4); background: var(--red-bg); }
+.admin-row-main { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.admin-row-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.admin-row-meta { font-size: 11.5px; color: var(--muted); }
+.admin-v-list { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(224,79,79,0.3); }
+.admin-v-row { font-size: 11px; color: #a33; font-family: 'JetBrains Mono', monospace; padding: 2px 0; }
 
 /* PROGRESS */
 .progress-bar-wrap { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 28px; display: flex; align-items: center; gap: 14px; }
@@ -226,27 +242,23 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
   <div class="login-card">
     <div class="login-logo">
       <img id="login-logo-img" src="" alt="Goldsure">
-      <h2>Call Centre Pressure Test</h2>
+      <h2>Staff Assessment</h2>
       <div class="login-divider"></div>
-      <div class="login-subtitle">QLD Call Centre Agent Assessment</div>
+      <div class="login-subtitle">Smoke Alarm &amp; Customer Guidance Assessment</div>
     </div>
     <div id="login-error" class="login-error"></div>
     <div class="login-field">
       <label>Your Full Name</label>
       <input type="text" id="staff-name" placeholder="e.g. David" autocomplete="off"/>
     </div>
-    <div class="login-field">
-      <label>Your Role</label>
-      <select id="staff-role">
-        <option value="">Select your role</option>
-        <option>Call Centre Agent</option>
-      </select>
-    </div>
-    <button class="login-btn" onclick="startQuiz()">Begin Pressure Test</button>
+    <button class="login-btn" onclick="startQuiz()">Begin Assessment</button>
     <div class="login-meta">
-      <span>10 questions</span> &nbsp;&middot;&nbsp; <span>Multiple choice</span> &nbsp;&middot;&nbsp; <span>12 minutes</span><br>
+      <span>30 questions</span> &nbsp;&middot;&nbsp; <span>Multiple choice</span> &nbsp;&middot;&nbsp; <span>20 minutes</span><br>
       <span id="pass-mark-copy"></span><br>
-      <span style="color:rgba(224,79,79,0.75)">This assessment runs in fullscreen and is monitored. Tab switches, window blur, and copy/print attempts are logged.</span>
+      <span style="color:rgba(224,79,79,0.75)">This assessment runs in fullscreen and is monitored. Tab switches, window blur, and copy/print attempts are logged. More than 3 violations fails the attempt.</span>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="#" onclick="openAdminPanel();return false;" style="font-size:10px;color:rgba(255,255,255,0.25);text-decoration:underline;">Admin: View Assessment Log</a>
     </div>
   </div>
 </div>
@@ -257,7 +269,7 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
     <div class="header-left">
       <div class="header-logo"><img id="header-logo-img" src="" alt="Goldsure"></div>
       <div class="hd"></div>
-      <div class="header-title">Call Centre Pressure Test</div>
+      <div class="header-title">Staff Assessment</div>
     </div>
     <div class="header-right">
       <div class="integrity-chip" id="integrity-chip">Integrity: 0/3</div>
@@ -269,8 +281,8 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
   </header>
   <div class="progress-bar-wrap">
     <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-    <div class="progress-label" id="progress-label">Q 1 of 10</div>
-    <div class="timer-chip" id="timer-chip">12:00</div>
+    <div class="progress-label" id="progress-label">Q 1 of 30</div>
+    <div class="timer-chip" id="timer-chip">20:00</div>
   </div>
   <main id="quiz-main"></main>
 </div>
@@ -285,10 +297,11 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
 <div id="locked-screen">
   <div class="locked-card">
     <div class="locked-icon">🔒</div>
-    <div class="locked-title">Assessment Locked</div>
-    <div class="locked-sub">This attempt was locked after repeated integrity violations (leaving the tab, exiting fullscreen, or attempting to copy/print content). All activity has been logged and reported.</div>
+    <div class="locked-title">Assessment Failed — Integrity Violation</div>
+    <div class="locked-sub">This attempt failed after more than 3 integrity violations (leaving the tab, exiting fullscreen, or attempting to copy/print content). Every violation below has been logged for admin review.</div>
     <div class="locked-log" id="locked-log"></div>
-    <div class="locked-note">Contact your team lead or manager to have this attempt reset.</div>
+    <button class="fail-btn" onclick="location.reload()" style="margin-top:10px;">Redo Assessment</button>
+    <div class="locked-note">Stay on this tab and in fullscreen for the full 20 minutes on your next attempt.</div>
   </div>
 </div>
 
@@ -297,7 +310,7 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
   <div class="fail-card">
     <div class="fail-score" id="fail-score-num">0%</div>
     <div class="fail-label">Assessment Result</div>
-    <div class="fail-title">Not Yet Competent</div>
+    <div class="fail-title" id="fail-title-text">Not Yet Competent</div>
     <div class="fail-sub" id="fail-sub-copy"></div>
     <div class="fail-breakdown" id="fail-breakdown"></div>
     <button class="fail-btn" onclick="location.reload()">Retake Assessment</button>
@@ -342,6 +355,23 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
       <button class="btn btn-primary" onclick="window.print()">Print Certificate</button>
       <button class="btn btn-ghost" onclick="document.getElementById('cert-screen').style.display='none';document.getElementById('results-screen').style.display='block'">Back to Results</button>
     </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="admin-screen">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">Assessment Log</div>
+        <div class="admin-subtitle">All attempts, scores, and integrity violations — admin only</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="loadAdminData()">Refresh</button>
+        <button class="btn btn-primary" onclick="closeAdminPanel()">Close</button>
+      </div>
+    </div>
+    <div id="admin-list" class="admin-list"></div>
   </div>
 </div>
 
@@ -416,13 +446,13 @@ function handleViolation(type, detail, message) {
   violationCount++;
   violationLog.push({ type, detail: detail || '', at: new Date() });
   updateIntegrityChip();
-  sbInsert('call_centre_quiz_violations', {
+  sbInsert('staff_assessment_violations', {
     attempt_id: attemptId,
     agent_name: staffName,
     violation_type: type,
     detail: detail || null
   });
-  if (violationCount >= MAX_VIOLATIONS) { forceLockout(); return; }
+  if (violationCount > MAX_VIOLATIONS) { forceLockout(); return; }
   showViolationToast(
     'Integrity warning ' + violationCount + '/' + MAX_VIOLATIONS,
     message + ' This has been logged. Reaching ' + MAX_VIOLATIONS + ' violations will lock this attempt.'
@@ -510,7 +540,7 @@ function forceLockout() {
   ).join('');
   document.getElementById('locked-screen').style.display = 'flex';
   if (attemptId) {
-    sbUpdate('call_centre_quiz_attempts', attemptId, {
+    sbUpdate('staff_assessment_attempts', attemptId, {
       status: 'locked_out',
       violation_count: violationCount,
       finished_at: new Date().toISOString()
@@ -518,17 +548,11 @@ function forceLockout() {
   }
 }
 
-const QUIZ_LENGTH = 10;
-const TIMER_SECONDS = 12 * 60;
+const QUIZ_LENGTH = 30;
+const TIMER_SECONDS = 20 * 60;
 const PASS_MARK = 90; // percent
 const PASS_MARK_TEXT = PASS_MARK + '%';
 const PASS_REQUIREMENT_TEXT = 'A score of ' + PASS_MARK_TEXT + ' or higher is required to pass';
-const ROLE = {
-  AGENT: 'Call Centre Agent',
-};
-const QUESTION_BANKS = {
-  [ROLE.AGENT]: () => QUESTIONS_PRESSURE,
-};
 const CATEGORY_CLASS_BY_KEY = {
   product: 'cat-product',
   legislation: 'cat-legislation',
@@ -537,11 +561,11 @@ const CATEGORY_CLASS_BY_KEY = {
 };
 
 document.getElementById('pass-mark-copy').innerHTML =
-  'Pass mark: ' + PASS_MARK_TEXT + ' &nbsp;&middot;&nbsp; ' + PASS_REQUIREMENT_TEXT;
+  'Pass mark: ' + PASS_MARK_TEXT + ' &nbsp;&middot;&nbsp; ' + PASS_REQUIREMENT_TEXT + ' &nbsp;&middot;&nbsp; 20 minute time limit';
 document.getElementById('fail-sub-copy').textContent =
-  PASS_REQUIREMENT_TEXT + ' Please review the areas below and retake the full pressure test from the beginning.';
+  PASS_REQUIREMENT_TEXT + ', within the 20 minute time limit. Please review the areas below and retake the full assessment from the beginning.';
 
-const QUESTIONS_PRESSURE = [
+const QUESTIONS_BANK = [
   {
     cat:'product', catLabel:'Product & Brand',
     text:'Customer: “What brand of smoke alarms are you actually installing at my house?”',
@@ -661,12 +685,312 @@ const QUESTIONS_PRESSURE = [
     ],
     answer:0,
     explanation:'The certificate is only generated once all three conditions are met: the job is marked complete, the required installation photos are uploaded, and payment is confirmed in full — it is then emailed automatically. Physical installation, an electrician sign-off, or photos alone are not enough on their own, and payment is never left outstanding after issue.'
+  },
+
+  // ── PRODUCT KNOWLEDGE (10) ──────────────────────────────────
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What is the product code for the hardwired Raptor smoke alarm with wireless RF interconnection?',
+    options:['RH638-B-RF','RH638-AC-RF','RHRC2','RH400-HW'],
+    answer:1,
+    explanation:'RH638-AC-RF is the mains-powered (230V AC) model with a 10-year sealed battery backup and RF wireless interconnection. The "AC" in the code identifies it as the hardwired version.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What is the product code for the battery-only Raptor smoke alarm?',
+    options:['RHRC2','RH638-AC-RF','RH638-B-RF','RH400-B'],
+    answer:2,
+    explanation:'RH638-B-RF is powered entirely by its built-in 10-year sealed lithium battery. The "B" in the code identifies it as the battery-only version.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What is the RHRC2 and what does it do?',
+    options:['A wireless relay that extends the RF range between alarms','The Raptor Remote Control — used for remote testing and silencing of the alarm network','A replacement sensor module for end-of-life alarms','A hardwired interconnect hub for large installations'],
+    answer:1,
+    explanation:'RHRC2 is the Raptor Remote Control. It allows remote testing and silencing of interconnected alarms without pressing the button on each individual unit.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What type of sensing technology do Raptor alarms use, and why is this the required type in Queensland?',
+    options:['Ionisation — faster response to fast-flaming fires and lower cost','Dual sensor — detects both smoke particles and heat simultaneously','Photoelectric — more effective at detecting slow smouldering fires and mandated under Queensland legislation','Thermal — immune to steam and dust, best for all locations'],
+    answer:2,
+    explanation:'Raptor alarms use photoelectric sensing, which is superior at detecting slow smouldering fires (the most common type in homes). It also produces fewer nuisance alarms from cooking. Queensland legislation specifically mandates photoelectric alarms.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'A customer reports: one short beep, with the yellow LED flashing once every 54 seconds. What does this indicate?',
+    options:[
+      'Low battery warning — the alarm should be replaced immediately',
+      'Sensor malfunction — clean the alarm and replace if the fault continues',
+      'End-of-life warning — the alarm has reached 10 years and must be replaced',
+      'Alarm Memory indicator — a previous alarm event occurred and is being shown'
+    ],
+    answer:0,
+    explanation:'One beep with one yellow flash every 54 seconds indicates a low battery warning. Two beeps with two yellow flashes every 54 seconds indicates sensor malfunction. Three yellow flashes every 54 seconds indicates end of life. Alarm Memory is shown by the red LED flashing once every 20 seconds after an activation.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What is the maximum number of alarms that can be wirelessly interconnected on a single Raptor RF network?',
+    options:['10','20','30','40'],
+    answer:3,
+    explanation:'RF433 wireless interconnection supports a maximum of 40 alarms on one network. The wired (hardwired interlink) maximum is 20 alarms. Exceeding either limit may cause permanent damage.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'A customer calls to say their smoke alarm went off earlier but has stopped, and they cannot figure out why it triggered. What feature would show this?',
+    options:[
+      'The red LED flashes once every 20 seconds after an activation — this is the Alarm Memory feature',
+      'The yellow LED flashes once every 54 seconds to indicate the last activation is stored',
+      'The green LED stays solid for 10 minutes after an activation to show which alarm triggered',
+      'The alarm displays the last activation time on an LCD indicator'
+    ],
+    answer:0,
+    explanation:'Alarm Memory causes the red LED to flash once every 20 seconds after a previous alarm activation, indicating an event occurred. It can be cleared by pressing the Test/Hush button and is retained for 12 hours.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'When an interconnected alarm triggers and all alarms are sounding, what happens when you press the Test/Hush button?',
+    options:['It silences only the alarm you pressed the button on','It silences all interconnected alarms for up to 10 minutes — but if smoke levels remain high, the alarms will resound','It permanently disables the alarm until manually reset','It calls the monitoring centre automatically'],
+    answer:1,
+    explanation:'Pressing Test/Hush during an interconnected alarm event silences all alarms for up to 10 minutes. If the smoke concentration is still above threshold after 10 minutes, the alarms will resound — indicating a real emergency that has not cleared.'
+  },
+  {
+    cat:'product', catLabel:'Product Knowledge',
+    text:'What does the yellow LED flashing THREE times every 54 seconds indicate?',
+    options:['Low battery — replace batteries immediately','Sensor malfunction — the alarm needs cleaning or replacement','End of life — the alarm has reached 10 years and must be replaced','The alarm is in Hush mode'],
+    answer:2,
+    explanation:'Three yellow LED flashes every 54 seconds = End of Life warning. The alarm has reached its 10-year lifespan and must be replaced. One flash = low battery. Two flashes = sensor malfunction.'
+  },
+
+  // ── QLD LEGISLATION (8) ────────────────────────────────────
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'When does full Queensland smoke alarm compliance come into effect for all remaining owner-occupied dwellings?',
+    options:['1 January 2024','1 January 2025','1 July 2026','1 January 2027'],
+    answer:3,
+    explanation:'All Queensland dwellings must be fully compliant by 1 January 2027. Sale and rental compliance deadlines have already passed — those must be compliant now.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'A Queensland property is being sold. When must smoke alarm compliance be achieved?',
+    options:['Within 6 months of settlement','Within 30 days of settlement','Before settlement — prior to transfer of the property','By 1 January 2027'],
+    answer:2,
+    explanation:'Properties being sold must be compliant BEFORE settlement. This requirement is already in effect — there is no grace period after sale.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'In Queensland, for a new tenancy agreement (including a lease renewal), when must the rental property be smoke alarm compliant?',
+    options:[
+      'Before the new tenancy begins (including renewals)',
+      'Within 30 days before the tenancy starts',
+      'By 1 January 2027 regardless of tenancy start date',
+      'Only required when the property is sold, not rented'
+    ],
+    answer:0,
+    explanation:'For any new tenancy agreement in Queensland, including a lease renewal, the property must already be smoke alarm compliant before the tenancy begins. The 30-day rule relates to testing and cleaning within 30 days before the tenancy starts — it does not allow compliance to occur after the tenancy has begun.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'Under Queensland legislation, where exactly must smoke alarms be installed in a dwelling?',
+    options:['Only in the main hallway of each level','In each bedroom only — sleeping areas are the priority','In each bedroom, in every hallway that connects bedrooms, and on every storey of the dwelling','In kitchens, living rooms, and one bedroom per level'],
+    answer:2,
+    explanation:'QLD requires alarms in: every bedroom, every hallway connecting bedrooms (or between bedrooms and the rest of the dwelling), and on every level — even levels with no bedrooms.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'A customer asks how they can tell if their existing smoke alarms are hardwired. What is the correct answer?',
+    options:['Hardwired alarms are always larger than battery-only alarms','A hardwired alarm will have a constant solid green LED always on when powered from mains — a battery-only alarm does not','Hardwired alarms beep once every 30 seconds in standby mode','You cannot tell without removing the alarm from the ceiling bracket'],
+    answer:1,
+    explanation:'The RH638-AC-RF (hardwired model) shows a constant solid green LED when operating on mains power. The RH638-B-RF (battery model) flashes the green LED once every 54 seconds. This is the fastest way for a customer to identify which type they have.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'A home has hardwired smoke alarms that are 8 years old. What must happen under Queensland legislation?',
+    options:['They can remain in service until they reach end of life (10 years)','They must be replaced with hardwired photoelectric interconnected alarms — you cannot downgrade to battery-only','They can be replaced with battery-only alarms to save on installation cost','They only need replacement if the property is being sold or rented'],
+    answer:1,
+    explanation:'Where hardwired alarms exist, QLD legislation requires like-for-like replacement with hardwired compliant alarms. Downgrading to battery-only is not permitted. The RH638-AC-RF is the correct replacement.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'Which Australian Standard must Queensland smoke alarms comply with?',
+    options:['AS 1670-2018 only','AS 3786-2014 only','AS 3786-2014 or AS 3786-2023','Any standard issued prior to 2025'],
+    answer:2,
+    explanation:'Queensland accepts AS 3786-2014 or the updated AS 3786-2023. Raptor alarms are certified to AS 3786-2023, the current standard.'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'Under Queensland legislation, what type of smoke alarms are mandated?',
+    options:['Ionisation only — faster response to flaming fires','Photoelectric AND interconnected — all alarms must trigger together','Dual-sensor (ionisation + photoelectric) for maximum coverage','Any type, as long as it carries an AS certification'],
+    answer:1,
+    explanation:'QLD mandates photoelectric AND interconnected alarms. Ionisation alarms are not permitted. All alarms in a dwelling must be interconnected so that when one triggers, all sound.'
+  },
+
+  // ── INSTALLATION & PAIRING (7) ─────────────────────────────
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'To enter CODE RECEIVING mode on the host alarm, what is the correct button sequence?',
+    options:['Press networking button once and hold for 5 seconds','Press networking button 3 times quickly within 2 seconds, then long press for 1 second','Press networking button 2 times within 1 second, then long press for 1 second','Hold networking button for 10 seconds until the LED turns red'],
+    answer:1,
+    explanation:'HOST (code receiving): 3 quick presses within 2 seconds + 1 second long press. The green LED then flashes for 1 minute, indicating the host is ready to receive sub-devices. Each time a sub-device successfully pairs, the host gives one short beep.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'To enter CODE SENDING mode on a sub-device alarm, what is the correct button sequence?',
+    options:['Press networking button 3 times quickly within 2 seconds, then long press for 1 second','Press networking button 4 times quickly within 2 seconds, then long press for 1 second','Press networking button 2 times quickly within 1 second, then long press for 1 second','Press and hold networking button continuously for 8 seconds'],
+    answer:2,
+    explanation:'SUB-DEVICE (code sending): 2 quick presses within 1 second + 1 second long press. The green LED flashes for 8 seconds while it attempts to pair. If pairing does not complete within 8 seconds, it exits code sending mode automatically.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'How do you confirm a sub-device alarm has successfully paired with the host?',
+    options:['The red LED on the sub-device flashes rapidly 3 times','The green LED on the sub-device turns on for 3 seconds then goes off, accompanied by one short beep','All alarms in the network sound together for 6 beeps','The host alarm\'s green LED stays permanently on'],
+    answer:1,
+    explanation:'Successful pairing on the sub-device: green LED on for 3 seconds then goes off, plus one short beep. The host alarm also gives one short beep each time a sub-device is successfully added to its network.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'How do you remove an alarm from a wireless group (network exclusion)?',
+    options:['Press networking button once and hold for 10 seconds until LED flashes red','Press networking button 2 times quickly within 1 second, then long press for 1 second','Press networking button 4 times quickly within 2 seconds, then long press for 1 second','Power cycle the alarm using the rear power switch'],
+    answer:2,
+    explanation:'Network exclusion: 4 quick presses within 2 seconds + 1 second long press. The green LED flashes 3 seconds at twice per second then goes off — confirming the alarm has exited the wireless group.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'Where should the HOST alarm be positioned in a multi-storey installation to maximise wireless range?',
+    options:['Always at the highest point of the building — top floor','In a central location — e.g. middle floor of a 3-storey home or centre of the main floor of a 2-storey home','Nearest to the main switchboard','In the primary bedroom of the occupant'],
+    answer:1,
+    explanation:'The host also acts as a repeater for the wireless network. Positioning it centrally maximises range to all sub-devices. For a 3-storey home, place it on the middle floor. For a 2-storey home, near the centre of the main floor.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'Before permanently mounting alarms, what must be done to confirm all alarms are correctly interconnected?',
+    options:['Visually check that the green standby LED is on for each alarm','Conduct a radio link test — press and hold the networking/test button for 1 second on one alarm, then confirm all other paired alarms flash green and beep','Mount all alarms first then test — repositioning after mounting is straightforward','Test each alarm individually in isolation before mounting'],
+    answer:1,
+    explanation:'Before mounting, always perform a radio link test. Press and hold the networking/test button for 1 second on one alarm. All paired alarms should flash green and beep. Any alarm that does not respond must be repositioned or re-paired before mounting proceeds.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'A customer has a single-storey home with 3 bedrooms and one hallway connecting them. How many alarms are required under QLD legislation?',
+    options:['3 alarms — one per bedroom only','4 alarms — 3 bedrooms + 1 hallway','5 alarms — 3 bedrooms + 2 hallways','2 alarms — one per sleeping zone'],
+    answer:1,
+    explanation:'3 bedroom alarms + 1 hallway alarm (the hallway connecting the bedrooms) = 4 alarms minimum. No additional level alarm is needed as this is a single-storey home.'
+  },
+
+  // ── TROUBLESHOOTING (3) ────────────────────────────────────
+  {
+    cat:'troubleshoot', catLabel:'Troubleshooting',
+    text:'A customer calls and says their interconnected alarms are all sounding but there is no visible smoke or fire. What is the most likely cause and what should you advise?',
+    options:['Tell them to remove the batteries to silence the alarms','Advise them to press the Test/Hush button on any alarm to silence them for 10 minutes, then identify which alarm triggered first using the Alarm Memory indicator (red LED flashing every 20 seconds) and check for any source of smoke or combustion particles near that alarm','Tell them the alarms are faulty and book a replacement','Advise them the system is malfunctioning and to ignore it'],
+    answer:1,
+    explanation:'Never advise removing batteries. Pressing Test/Hush on any alarm silences all interconnected alarms for 10 minutes. The original triggering alarm can be identified by its Alarm Memory indicator — its red LED will flash once every 20 seconds. The area around that alarm should be checked for any source of combustion particles.'
+  },
+  {
+    cat:'troubleshoot', catLabel:'Troubleshooting',
+    text:'One interconnected alarm triggered but the other alarms in the network did NOT all sound. What is the most likely cause?',
+    options:['The triggering alarm is faulty and needs replacement','The alarms are not correctly paired on the same RF network — the pairing process needs to be redone and a radio link test conducted','All alarms are working correctly — this is how individual detection works','The wireless signal was blocked by a wall — the alarms need to be moved'],
+    answer:1,
+    explanation:'If interconnected alarms do not all trigger together, the alarms are not correctly paired. The code receiving / code sending pairing process must be repeated and a radio link test conducted to confirm all alarms are communicating correctly before the job is complete.'
+  },
+  {
+    cat:'troubleshoot', catLabel:'Troubleshooting',
+    text:'A customer calls and says their smoke alarm is beeping twice every 54 seconds and has a yellow light flashing twice. What should you advise?',
+    options:['It is a low battery warning — the alarm needs new batteries','It is the end of life warning — the alarm is 10 years old and must be replaced','The sensor is malfunctioning — the alarm needs to be cleaned or replaced immediately','The alarm is in Hush mode — it will resume normal operation after 10 minutes'],
+    answer:2,
+    explanation:'Two beeps + yellow LED flashing twice every 54 seconds = sensor malfunction. The alarm should be cleaned as a first step. If the malfunction warning continues after cleaning, the alarm must be replaced immediately.'
+  },
+
+  // ── COMPLIANT INSTALLATION LOCATIONS (2) ──────────────────
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'When installing a smoke alarm on a flat ceiling, which of the following placements is correct under Queensland legislation?',
+    options:[
+      'Within 300mm of a wall corner for maximum room coverage',
+      'On the ceiling, keeping at least 300mm from any wall corner or light fitting, and at least 400mm from any AC vent or ceiling fan blades',
+      'On the wall, positioned at least 100mm below the ceiling line',
+      'Anywhere on the ceiling as long as it is not directly above a bed'
+    ],
+    answer:1,
+    explanation:'Smoke alarms must be ceiling-mounted and kept clear of dead air zones: at least 300mm from any wall corner, 300mm from any light fitting, 400mm from AC vents, and 400mm from ceiling fan blades. Dead air in corners prevents smoke from reaching the sensor in time.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'An electrician is installing a smoke alarm in a room with a peaked (A-frame) ceiling. Where must the alarm be positioned?',
+    options:[
+      'At the very peak of the ceiling — highest point for best smoke detection',
+      'On a flat wall section, at least 300mm below the ceiling line',
+      'Between 500mm and 1000mm down from the peak, avoiding the dead air zone at the top',
+      'Anywhere on the sloped surface as long as it is not within 300mm of a wall'
+    ],
+    answer:2,
+    explanation:'The peak of an A-frame or sloped ceiling creates a dead air zone where smoke cannot reach. Alarms must be installed between 500mm and 1000mm down from the peak — not at the very top. The same rule applies to sloped ceilings: install between 500mm and 1000mm from the highest point.'
+  },
+
+  // ── DO NOT INSTALL LOCATIONS (1) ──────────────────────────
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'Under Queensland legislation, which of the following correctly describes where smoke alarms must NOT be installed?',
+    options:[
+      'Avoid dead air zones and nuisance sources: do not install in corners; keep clear of cooking and combustion sources; and avoid locations where fumes/steam are common',
+      'Do not install near kitchens, open fireplaces, or hot water heaters; keep at least 3 metres from bathrooms, dishwashers, and washing machines; avoid rooms below 5°C or above 45°C or humidity above 85%; and do not downgrade existing hardwired alarms to battery-only',
+      'Do not install where airflow prevents smoke reaching the sensor, such as directly near supply vents, ceiling fans, or strong drafts, and avoid dusty or insect‑infested areas',
+      'Do not install in locations that will be regularly obstructed or accessed unsafely, such as behind doors, inside cupboards, or where routine testing cannot be performed'
+    ],
+    answer:1,
+    explanation:'Queensland legislation and installation guidelines prohibit alarms near combustion sources (kitchens, fireplaces, hot water heaters), high humidity areas (at least 3 metres from bathrooms, dishwashers, washing machines), extreme temperature or humidity environments, dusty or insect-infested areas, and hardwired alarms must never be replaced with wireless-only battery alarms.'
+  },
+  {
+    cat:'troubleshoot', catLabel:'Troubleshooting',
+    text:'Customer Service call: a tenant reports repeated nuisance alarms from cooking. What is the best guidance that stays compliant and safe?',
+    options:[
+      'Advise them to remove the alarm or cover it temporarily while cooking',
+      'Advise them to use the Test/Hush function to silence for up to 10 minutes, improve ventilation, and if alarms persist, identify the triggering unit and escalate for inspection/repositioning',
+      'Advise them to disable interconnection so only one alarm sounds',
+      'Advise them to spray deodoriser at the alarm to reduce sensitivity'
+    ],
+    answer:1,
+    explanation:'Never advise removal, covering, or disabling. Use Test/Hush for up to 10 minutes while ventilation clears nuisance smoke/steam, then escalate if nuisance alarms persist (location/ventilation/contamination may require inspection and potential repositioning).'
+  },
+  {
+    cat:'legislation', catLabel:'QLD Legislation',
+    text:'Customer Service triage: a caller says their property has hardwired alarms. They want to replace them with battery-only alarms “to make it easier”. What is the correct advice?',
+    options:[
+      'Battery-only is allowed if the alarms are photoelectric and interconnected',
+      'Battery-only is allowed if the existing hardwired alarms are over 5 years old',
+      'Hardwired alarms must be replaced like-for-like with hardwired compliant alarms — do not downgrade to battery-only',
+      'Battery-only is allowed if the property is owner‑occupied'
+    ],
+    answer:2,
+    explanation:'Where hardwired alarms exist, Queensland requires like-for-like replacement with hardwired compliant alarms. Downgrading to battery-only is not permitted.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'On site: you suspect an RF alarm is paired to the wrong group and needs to be removed before re-pairing. Which sequence performs network exclusion?',
+    options:[
+      '2 quick presses within 1 second, then a 1 second long press',
+      '3 quick presses within 2 seconds, then a 1 second long press',
+      '4 quick presses within 2 seconds, then a 1 second long press',
+      'Hold the networking button for 10 seconds until a continuous tone sounds'
+    ],
+    answer:2,
+    explanation:'Network exclusion uses 4 quick presses within 2 seconds followed by a 1 second long press. The green LED flashes rapidly, then goes off to confirm it has exited the wireless group.'
+  },
+  {
+    cat:'installation', catLabel:'Installation & Pairing',
+    text:'Installer decision: after pairing, one sub-device intermittently fails the radio link test. What is the best next step before mounting?',
+    options:[
+      'Mount it anyway — RF stabilises after 24 hours',
+      'Increase hush duration and re-test later',
+      'Reposition the alarm (or host), then re-run the radio link test; if still failing, exclude and re-pair the device',
+      'Reduce the number of alarms on the network to under 10'
+    ],
+    answer:2,
+    explanation:'Before permanent mounting, RF reliability must be confirmed. Reposition and re-test first; if still failing, exclude and re‑pair to ensure the device is on the correct group and has stable communication.'
   }
 ];
 
 // ── STATE ──
-let staffName = '', staffRole = '', questions = [], currentQ = 0;
-let selected = [], timerInterval = null, secondsLeft = TIMER_SECONDS;
+let staffName = '', questions = [], currentQ = 0;
+let selected = [], timerInterval = null, secondsLeft = TIMER_SECONDS, timedOut = false;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -687,24 +1011,21 @@ function toPercentage(correct, total) {
 
 function startQuiz() {
   const name = document.getElementById('staff-name').value.trim();
-  const role = document.getElementById('staff-role').value;
   const err = document.getElementById('login-error');
   if (!name) { err.style.display = 'block'; err.textContent = 'Please enter your full name.'; return; }
-  if (!role) { err.style.display = 'block'; err.textContent = 'Please select your role.'; return; }
   err.style.display = 'none';
-  staffName = name; staffRole = role;
-  const getBank = QUESTION_BANKS[role];
-  if (!getBank) { err.style.display = 'block'; err.textContent = 'Please select a valid role.'; return; }
-  const bank = getBank();
-  questions = shuffle(bank).slice(0, QUIZ_LENGTH).map(shuffleOptions);
+  staffName = name;
+  timedOut = false;
+  secondsLeft = TIMER_SECONDS;
+  questions = shuffle(QUESTIONS_BANK).slice(0, QUIZ_LENGTH).map(shuffleOptions);
   selected = new Array(questions.length).fill(-1);
   currentQ = 0;
   document.getElementById('header-name').textContent = name;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  sbInsert('call_centre_quiz_attempts', {
+  sbInsert('staff_assessment_attempts', {
     agent_name: name,
-    role: role,
+    role: 'Staff',
     status: 'in_progress',
     user_agent: navigator.userAgent
   }).then(row => { if (row && row.id) attemptId = row.id; });
@@ -721,7 +1042,7 @@ function startTimer() {
     const chip = document.getElementById('timer-chip');
     chip.textContent = m + ':' + s;
     if (secondsLeft <= 60) chip.classList.add('urgent');
-    if (secondsLeft <= 0) { clearInterval(timerInterval); submitQuiz(); }
+    if (secondsLeft <= 0) { clearInterval(timerInterval); timedOut = true; submitQuiz(); }
   }, 1000);
 }
 
@@ -787,13 +1108,13 @@ function submitQuiz() {
   const total = questions.length;
   const correct = questions.filter((q, i) => selected[i] === q.answer).length;
   const pct = toPercentage(correct, total);
-  const passed = pct >= PASS_MARK;
-  const timeTaken = TIMER_SECONDS - secondsLeft;
+  const passed = !timedOut && pct >= PASS_MARK;
+  const timeTaken = TIMER_SECONDS - Math.max(secondsLeft, 0);
   const mins = Math.floor(timeTaken / 60), secs = timeTaken % 60;
 
   if (attemptId) {
-    sbUpdate('call_centre_quiz_attempts', attemptId, {
-      status: 'completed',
+    sbUpdate('staff_assessment_attempts', attemptId, {
+      status: timedOut ? 'timed_out' : 'completed',
       correct, total,
       score_pct: pct,
       passed,
@@ -812,6 +1133,10 @@ function submitQuiz() {
   document.getElementById('app').style.display = 'none';
 
   if (!passed) {
+    document.getElementById('fail-title-text').textContent = timedOut ? 'Time Limit Exceeded' : 'Not Yet Competent';
+    document.getElementById('fail-sub-copy').textContent = timedOut
+      ? 'This attempt ran past the 20 minute time limit before every question was answered, so it automatically fails. Please retake the full assessment from the beginning.'
+      : PASS_REQUIREMENT_TEXT + ', within the 20 minute time limit. Please review the areas below and retake the full assessment from the beginning.';
     let bd = '<div class="fail-breakdown-title">Questions Incorrect by Category</div>';
     Object.values(cats).forEach(c => {
       if (!c.t) return;
@@ -829,7 +1154,7 @@ function submitQuiz() {
   document.getElementById('score-num').textContent = pct + '%';
   document.getElementById('results-name').textContent = staffName;
   document.getElementById('results-meta').textContent =
-    staffRole + '  ·  ' + new Date().toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'});
+    'Staff Assessment  ·  ' + new Date().toLocaleDateString('en-AU', {day:'numeric', month:'long', year:'numeric'});
   document.getElementById('pass-banner-title').textContent = 'Competency Achieved';
   document.getElementById('pass-banner-sub').textContent =
     'Passing score: ' + PASS_MARK_TEXT + '. Your result: ' + pct + '%. Download your certificate below.';
@@ -850,7 +1175,7 @@ function submitQuiz() {
   }).join('');
 
   document.getElementById('results-screen').style.display = 'block';
-  window._quizResult = { name: staffName, role: staffRole, correct, total, mins, secs, cats, date: new Date() };
+  window._quizResult = { name: staffName, correct, total, mins, secs, cats, date: new Date() };
 }
 
 function showCertificate() {
@@ -862,7 +1187,7 @@ function showCertificate() {
   const expStr = exp.toLocaleDateString('en-AU', { day:'numeric', month:'long', year:'numeric' });
   const pct = toPercentage(r.correct, r.total);
 
-  const certBody = 'This certifies that <strong>' + r.name + '</strong> (' + r.role + ') has successfully completed the Goldsure QLD Call Centre Pressure Test, demonstrating competency in Raptor product and brand knowledge, Queensland smoke alarm compliance rules, interconnection and testing concepts, accurate quoting, and compliant customer guidance under pressure.';
+  const certBody = 'This certifies that <strong>' + r.name + '</strong> has successfully completed the Goldsure Staff Assessment, demonstrating competency in Raptor product and brand knowledge, Queensland smoke alarm compliance rules, compliant installation and placement, pairing and radio-link testing, accurate quoting, and compliant customer guidance.';
 
   document.getElementById('cert-inner').innerHTML =
     '<div class="cert-logo-row">' +
@@ -870,7 +1195,7 @@ function showCertificate() {
     '<div class="cert-date-block">Issued: ' + dateStr + '<br>Valid until: ' + expStr + '</div>' +
     '</div>' +
     '<div class="cert-heading">Certificate of Competency</div>' +
-    '<div class="cert-title">Call Centre Pressure Test<br>&amp; Competency</div>' +
+    '<div class="cert-title">Staff Assessment<br>&amp; Competency</div>' +
     '<div class="cert-awarded">This certificate is awarded to</div>' +
     '<div class="cert-name">' + r.name + '</div>' +
     '<div class="cert-body">' + certBody + '</div>' +
@@ -885,6 +1210,66 @@ function showCertificate() {
     '</div>';
 
   document.getElementById('cert-screen').style.display = 'block';
+}
+
+// ── ADMIN LOG ──
+const ADMIN_PIN = '4321';
+function esc(s) {
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function openAdminPanel() {
+  const pin = prompt('Enter admin PIN:');
+  if (pin === null) return;
+  if (pin !== ADMIN_PIN) { alert('Incorrect PIN.'); return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'block';
+  loadAdminData();
+}
+function closeAdminPanel() {
+  document.getElementById('admin-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+async function loadAdminData() {
+  const list = document.getElementById('admin-list');
+  list.innerHTML = '<div class="admin-loading">Loading…</div>';
+  try {
+    const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    const [attemptsRes, violationsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_attempts?select=*&order=started_at.desc&limit=200`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_violations?select=*&order=occurred_at.desc&limit=1000`, { headers })
+    ]);
+    const attempts = attemptsRes.ok ? await attemptsRes.json() : [];
+    const violations = violationsRes.ok ? await violationsRes.json() : [];
+    renderAdminData(Array.isArray(attempts) ? attempts : [], Array.isArray(violations) ? violations : []);
+  } catch (e) {
+    list.innerHTML = '<div class="admin-loading">Failed to load logs. Check the schema is set up in Supabase.</div>';
+  }
+}
+function renderAdminData(attempts, violations) {
+  const byAttempt = {};
+  violations.forEach(v => { (byAttempt[v.attempt_id] = byAttempt[v.attempt_id] || []).push(v); });
+  const statusLabel = { in_progress: 'In progress', completed: 'Completed', locked_out: 'Failed — cheating', timed_out: 'Failed — time out' };
+  if (!attempts.length) {
+    document.getElementById('admin-list').innerHTML = '<div class="admin-loading">No attempts logged yet.</div>';
+    return;
+  }
+  document.getElementById('admin-list').innerHTML = attempts.map(a => {
+    const vCount = a.violation_count || 0;
+    const flagged = vCount > 0;
+    const label = statusLabel[a.status] || a.status || '—';
+    const result = a.status === 'completed' ? (a.passed ? 'Passed' : 'Failed') : label;
+    const vRows = (byAttempt[a.id] || []).map(v =>
+      '<div class="admin-v-row">' + new Date(v.occurred_at).toLocaleString('en-AU') + ' — ' + esc(String(v.violation_type || '').replace(/_/g, ' ')) + (v.detail ? ' (' + esc(v.detail) + ')' : '') + '</div>'
+    ).join('');
+    return '<div class="admin-row' + (flagged ? ' flagged' : '') + '">' +
+      '<div class="admin-row-main">' +
+        '<div class="admin-row-name">' + esc(a.agent_name) + '</div>' +
+        '<div class="admin-row-meta">' + esc(result) + ' &middot; ' + (a.score_pct != null ? a.score_pct + '%' : '—') +
+          ' &middot; ' + vCount + ' violation(s) &middot; ' + new Date(a.started_at).toLocaleString('en-AU') + '</div>' +
+      '</div>' +
+      (vRows ? '<div class="admin-v-list">' + vRows + '</div>' : '') +
+    '</div>';
+  }).join('');
 }
 </script>
 </body>
