@@ -209,6 +209,35 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
   display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;
 }
 .modal-scrim.show{display:flex}
+
+/* Whole-page password gate. This page is shared with an external company,
+   so it sits behind a plain solid-background overlay (not the translucent
+   modal scrim) — nothing behind it is visible until the password is right.
+   Worth being upfront: this is a UI gate, not real security — the page
+   still ships with a Supabase key that can read/write this data directly to
+   anyone who reads the page's JavaScript. It stops a casual open of the
+   link, not a determined one. */
+.auth-scrim{
+  position:fixed;inset:0;background:var(--bg);z-index:500;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.auth-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  box-shadow:var(--shadow-lg);width:100%;max-width:340px;padding:32px 28px;
+  text-align:center;animation:pop .16s ease;
+}
+.auth-card img{height:30px;width:auto;margin-bottom:20px}
+.auth-card h1{font-size:16px;font-weight:700;margin-bottom:6px}
+.auth-card p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.auth-card input{
+  font-family:inherit;font-size:15px;padding:10px 12px;border-radius:8px;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);
+  outline:none;width:100%;text-align:center;letter-spacing:2px;margin-bottom:12px;
+}
+.auth-card input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+.auth-card .btn{width:100%;padding:10px}
+.auth-error{color:var(--red);font-size:12.5px;font-weight:600;margin-top:12px;display:none}
+.auth-error.show{display:block}
 .modal{
   background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);
   width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;
@@ -369,6 +398,17 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
 </head>
 <body>
 
+<div class="auth-scrim" id="authScrim">
+  <div class="auth-card">
+    <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+    <h1>VIC Aircon Job Tracker</h1>
+    <p>Enter the password to view this board.</p>
+    <input type="password" id="authPin" inputmode="numeric" autocomplete="off" placeholder="Password" autofocus>
+    <button type="button" class="btn primary" onclick="tryAuth()">Enter</button>
+    <div class="auth-error" id="authError">Incorrect password.</div>
+  </div>
+</div>
+
 <header>
   <div class="header-left">
     <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
@@ -432,12 +472,8 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
                  style="background:var(--surface2);font-weight:700;cursor:default">
         </div>
         <div class="field full">
-          <label for="f-notes" style="display:flex;align-items:center;gap:6px;justify-content:space-between">
-            <span>Goldsure Comments</span>
-            <button type="button" class="btn" id="unlockGoldsureBtn" onclick="unlockGoldsureField()"
-                    style="padding:3px 9px;font-size:10.5px;text-transform:none;letter-spacing:0;font-weight:600">Unlock</button>
-          </label>
-          <textarea id="f-notes" rows="2" readonly placeholder="Password-protected — click Unlock to edit"></textarea>
+          <label for="f-notes">Goldsure Comments</label>
+          <textarea id="f-notes" rows="2"></textarea>
         </div>
         <div class="field full">
           <label for="f-eco-notes">Eco Comments</label>
@@ -469,6 +505,34 @@ const SB_HEADERS = {
   Authorization: `Bearer ${SUPABASE_KEY}`,
   'Content-Type': 'application/json'
 };
+
+// ── Whole-page password gate ──
+// This page is now shared with an external company, so it opens straight to
+// a password prompt instead of the board. sessionStorage means each new tab
+// asks again — once per visit, not once ever. See the CSS comment on
+// .auth-scrim for the (deliberate) limits of what this actually protects.
+const AUTH_PIN = '2026';
+const AUTH_KEY = 'vic-aircon-authed';
+function tryAuth(){
+  const input = document.getElementById('authPin');
+  if (input.value !== AUTH_PIN){
+    document.getElementById('authError').classList.add('show');
+    input.value = '';
+    input.focus();
+    return;
+  }
+  sessionStorage.setItem(AUTH_KEY, '1');
+  document.getElementById('authScrim').style.display = 'none';
+  loadJobs();
+}
+document.getElementById('authPin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryAuth();
+});
+if (sessionStorage.getItem(AUTH_KEY) === '1'){
+  document.getElementById('authScrim').style.display = 'none';
+} else {
+  document.getElementById('authPin').focus();
+}
 
 // Row groups. `key` is what lives in the status column in Supabase.
 // dateLabel is the Booked-column heading — worded per group since a date on
@@ -594,7 +658,7 @@ function rowHTML(j){
     <div class="c-oop" data-label="Total">${oop ? esc(oop) : ''}</div>
     <div class="c-dep" data-label="Paid">${dep ? esc(dep) : ''}</div>
     <div class="c-pend ${pendCls}" data-label="ECO">${pendTxt ? esc(pendTxt) : ''}</div>
-    <div class="c-comment" title="Password-protected — click to unlock and edit"><span class="lock-label">Goldsure Comments</span><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
+    <div class="c-comment" title="Click to add a comment"><span class="lock-label">Goldsure Comments</span><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
     <div class="c-eco-comment" title="Click to add an Eco Comment — anyone with this link can edit"><span class="comment-text${ecoComment ? '' : ' empty'}">${ecoComment ? esc(ecoComment) : 'Add comment…'}</span></div>
   </div>`;
 }
@@ -648,14 +712,9 @@ function toggleGroup(key){
 }
 
 // ── Click-to-edit comments, spreadsheet style ──
-// Goldsure Comments are gated by a password (the same PIN used for the Admin
-// Log elsewhere) — it unlocks for the rest of this page session, not just one
-// edit, so a staff member isn't re-prompted for every row. Eco Comments have
-// no gate: anyone with the link can add one, which is why a save there also
-// fires an email so Goldsure isn't relying on someone noticing it on the page.
-const GOLDSURE_PIN = '4321';
-let goldsureUnlocked = false;
-
+// Both comment fields are open to anyone with the link — the whole page now
+// sits behind its own password gate (see the auth check near the bottom of
+// this script), so a per-field gate on top of that is no longer needed.
 document.getElementById('groups').addEventListener('click', e => {
   const ecoCell = e.target.closest('.c-eco-comment');
   if (ecoCell && !ecoCell.querySelector('textarea')){
@@ -666,14 +725,7 @@ document.getElementById('groups').addEventListener('click', e => {
   const cell = e.target.closest('.c-comment');
   if (!cell || cell.querySelector('textarea')) return;
   const id = cell.closest('.row')?.dataset.id;
-  if (!id) return;
-  if (!goldsureUnlocked){
-    const pin = prompt('Enter the password to edit Goldsure Comments:');
-    if (pin === null) return;
-    if (pin !== GOLDSURE_PIN){ showToast('Incorrect password.', true); return; }
-    goldsureUnlocked = true;
-  }
-  startCommentEdit(id, cell, 'comments');
+  if (id) startCommentEdit(id, cell, 'comments');
 });
 
 function startCommentEdit(id, cell, field){
@@ -714,8 +766,8 @@ function startCommentEdit(id, cell, field){
 }
 
 function paintComment(cell, text, field){
-  const lock = field === 'comments' ? '<span class="lock-label">Goldsure Comments</span>' : '';
-  cell.innerHTML = `${lock}<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
+  const label = field === 'comments' ? '<span class="lock-label">Goldsure Comments</span>' : '';
+  cell.innerHTML = `${label}<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
 }
 
 // Best-effort: the comment is already saved to Supabase by the time this
@@ -1009,12 +1061,6 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-status').value      = j?.status || presetStatus || 'to_book';
   document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
 
-  const notesEl = document.getElementById('f-notes');
-  notesEl.readOnly = !goldsureUnlocked;
-  const unlockBtn = document.getElementById('unlockGoldsureBtn');
-  unlockBtn.textContent = goldsureUnlocked ? 'Unlocked' : 'Unlock';
-  unlockBtn.disabled = goldsureUnlocked;
-
   updatePending();
   document.getElementById('jobScrim').classList.add('show');
   if (!j) setTimeout(() => document.getElementById('f-job-no').focus(), 60);
@@ -1022,18 +1068,6 @@ function openJobModal(id, presetStatus){
 function closeJobModal(){
   document.getElementById('jobScrim').classList.remove('show');
   editingId = null;
-}
-function unlockGoldsureField(){
-  if (goldsureUnlocked) return;
-  const pin = prompt('Enter the password to edit Goldsure Comments:');
-  if (pin === null) return;
-  if (pin !== GOLDSURE_PIN){ showToast('Incorrect password.', true); return; }
-  goldsureUnlocked = true;
-  document.getElementById('f-notes').readOnly = false;
-  const btn = document.getElementById('unlockGoldsureBtn');
-  btn.textContent = 'Unlocked';
-  btn.disabled = true;
-  document.getElementById('f-notes').focus();
 }
 // Pending updates as you type, so the sum is visible before saving.
 function updatePending(){
@@ -1160,7 +1194,7 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
-loadJobs();
+if (sessionStorage.getItem(AUTH_KEY) === '1') loadJobs();
 </script>
 </body>
 </html>
