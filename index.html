@@ -1032,11 +1032,58 @@
       .topbar-meta, .topbar-sep, .topbar-contact { display: none; }
     }
 
+    /* ── Portal-wide password gate ──
+       The portal (and everything under it) is shared with an external
+       company, so it opens to a password prompt before showing anything.
+       Worth being upfront: this is a UI gate, not real security — pages
+       under /aircons etc. still talk to Supabase with a key embedded in
+       their own JavaScript, so a direct link to one of those pages, or the
+       page source itself, isn't covered by this. It stops a casual open of
+       the portal, not a determined one. */
+    .auth-scrim {
+      position: fixed; inset: 0; background: var(--bg); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .auth-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      box-shadow: var(--shadow-lg); width: 100%; max-width: 340px; padding: 32px 28px;
+      text-align: center;
+    }
+    .auth-card img { height: 30px; width: auto; margin-bottom: 20px; }
+    .auth-card h1 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .auth-card p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .auth-card input {
+      font-family: inherit; font-size: 15px; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      outline: none; width: 100%; text-align: center; letter-spacing: 2px; margin-bottom: 12px;
+    }
+    .auth-card input:focus { border-color: var(--monday-blue); box-shadow: 0 0 0 3px var(--gold-bg); }
+    .auth-card button {
+      font-family: inherit; font-size: 13.5px; font-weight: 600; width: 100%; padding: 10px;
+      border-radius: 7px; border: 1px solid var(--monday-blue); background: var(--monday-blue);
+      color: #fff; cursor: pointer; transition: background .12s;
+    }
+    .auth-card button:hover { background: var(--monday-blue-hover); }
+    .auth-error { color: var(--monday-red); font-size: 12.5px; font-weight: 600; margin-top: 12px; display: none; }
+    .auth-error.show { display: block; }
+
   </style>
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
 </head>
 <body>
+
+<div class="auth-scrim" id="authScrim">
+  <div class="auth-card">
+    <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+    <h1>Goldsure Portal</h1>
+    <p>Enter the password to continue.</p>
+    <input type="password" id="authPin" inputmode="numeric" autocomplete="off" placeholder="Password" autofocus>
+    <button type="button" onclick="tryAuth()">Enter</button>
+    <div class="auth-error" id="authError">Incorrect password.</div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- Dims the page behind the mobile nav drawer; tap to dismiss -->
@@ -1484,6 +1531,32 @@
 </div>
 
 <script>
+  // ── Portal-wide password gate ──
+  // sessionStorage means each new tab/browser session asks again — once per
+  // visit, not once ever. See the CSS comment on .auth-scrim for what this
+  // does and doesn't protect.
+  var AUTH_PIN = '2026';
+  var AUTH_KEY = 'goldsure-portal-authed';
+  function tryAuth() {
+    var input = document.getElementById('authPin');
+    if (input.value !== AUTH_PIN) {
+      document.getElementById('authError').classList.add('show');
+      input.value = '';
+      input.focus();
+      return;
+    }
+    sessionStorage.setItem(AUTH_KEY, '1');
+    document.getElementById('authScrim').style.display = 'none';
+  }
+  document.getElementById('authPin').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') tryAuth();
+  });
+  if (sessionStorage.getItem(AUTH_KEY) === '1') {
+    document.getElementById('authScrim').style.display = 'none';
+  } else {
+    document.getElementById('authPin').focus();
+  }
+
   function toggleGroup(btn) {
     var group = btn.closest('.nav-group');
     if (!group) return;

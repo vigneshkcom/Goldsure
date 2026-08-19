@@ -209,35 +209,6 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
   display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto;
 }
 .modal-scrim.show{display:flex}
-
-/* Whole-page password gate. This page is shared with an external company,
-   so it sits behind a plain solid-background overlay (not the translucent
-   modal scrim) — nothing behind it is visible until the password is right.
-   Worth being upfront: this is a UI gate, not real security — the page
-   still ships with a Supabase key that can read/write this data directly to
-   anyone who reads the page's JavaScript. It stops a casual open of the
-   link, not a determined one. */
-.auth-scrim{
-  position:fixed;inset:0;background:var(--bg);z-index:500;
-  display:flex;align-items:center;justify-content:center;padding:20px;
-}
-.auth-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:14px;
-  box-shadow:var(--shadow-lg);width:100%;max-width:340px;padding:32px 28px;
-  text-align:center;animation:pop .16s ease;
-}
-.auth-card img{height:30px;width:auto;margin-bottom:20px}
-.auth-card h1{font-size:16px;font-weight:700;margin-bottom:6px}
-.auth-card p{font-size:13px;color:var(--muted);margin-bottom:20px}
-.auth-card input{
-  font-family:inherit;font-size:15px;padding:10px 12px;border-radius:8px;
-  border:1px solid var(--border2);background:var(--surface);color:var(--text);
-  outline:none;width:100%;text-align:center;letter-spacing:2px;margin-bottom:12px;
-}
-.auth-card input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
-.auth-card .btn{width:100%;padding:10px}
-.auth-error{color:var(--red);font-size:12.5px;font-weight:600;margin-top:12px;display:none}
-.auth-error.show{display:block}
 .modal{
   background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);
   width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;
@@ -398,17 +369,6 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
 </head>
 <body>
 
-<div class="auth-scrim" id="authScrim">
-  <div class="auth-card">
-    <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
-    <h1>VIC Aircon Job Tracker</h1>
-    <p>Enter the password to view this board.</p>
-    <input type="password" id="authPin" inputmode="numeric" autocomplete="off" placeholder="Password" autofocus>
-    <button type="button" class="btn primary" onclick="tryAuth()">Enter</button>
-    <div class="auth-error" id="authError">Incorrect password.</div>
-  </div>
-</div>
-
 <header>
   <div class="header-left">
     <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
@@ -505,34 +465,6 @@ const SB_HEADERS = {
   Authorization: `Bearer ${SUPABASE_KEY}`,
   'Content-Type': 'application/json'
 };
-
-// ── Whole-page password gate ──
-// This page is now shared with an external company, so it opens straight to
-// a password prompt instead of the board. sessionStorage means each new tab
-// asks again — once per visit, not once ever. See the CSS comment on
-// .auth-scrim for the (deliberate) limits of what this actually protects.
-const AUTH_PIN = '2026';
-const AUTH_KEY = 'vic-aircon-authed';
-function tryAuth(){
-  const input = document.getElementById('authPin');
-  if (input.value !== AUTH_PIN){
-    document.getElementById('authError').classList.add('show');
-    input.value = '';
-    input.focus();
-    return;
-  }
-  sessionStorage.setItem(AUTH_KEY, '1');
-  document.getElementById('authScrim').style.display = 'none';
-  loadJobs();
-}
-document.getElementById('authPin').addEventListener('keydown', e => {
-  if (e.key === 'Enter') tryAuth();
-});
-if (sessionStorage.getItem(AUTH_KEY) === '1'){
-  document.getElementById('authScrim').style.display = 'none';
-} else {
-  document.getElementById('authPin').focus();
-}
 
 // Row groups. `key` is what lives in the status column in Supabase.
 // dateLabel is the Booked-column heading — worded per group since a date on
@@ -1194,7 +1126,7 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
-if (sessionStorage.getItem(AUTH_KEY) === '1') loadJobs();
+loadJobs();
 </script>
 </body>
 </html>
