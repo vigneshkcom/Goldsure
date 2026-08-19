@@ -265,13 +265,22 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .header-right{flex:1;justify-content:flex-end}
   .toolbar{padding:11px 14px;gap:8px}
   .search-input{min-width:0;max-width:none;flex:1 1 100%}
-  .stat-pills{margin-left:0;width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
-  .stat-pill{flex:none}
+  .stat-pills{margin-left:0}
   main{padding:14px 12px 50px}
+  .group{margin-bottom:22px}
+  .group-head{padding:0 2px}
+  .group-sum{font-size:12px}
 
+  /* Rows become standalone cards instead of a continuous ruled list — each
+     one is a distinct touch target with its own edges, not a cramped strip
+     inside a shared box. The group's colour moves from the table's left
+     edge onto each card, so it's still legible which group you're in while
+     scrolling through one. */
+  .table{background:none;border:none;box-shadow:none;border-left:none;border-radius:0}
   .thead{display:none}
+  .rows{display:flex;flex-direction:column;gap:10px}
   .row{
-    grid-template-columns:38px 1fr auto;
+    grid-template-columns:34px 1fr auto;
     grid-template-areas:
       "grip job   date"
       "grip cust  cust"
@@ -280,29 +289,39 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
       "grip oop   dep"
       "grip pend  pend"
       "grip comm  comm";
-    padding:10px 4px;row-gap:1px;
+    padding:13px 12px 13px 8px;row-gap:3px;
+    background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--g);
+    border-radius:10px;box-shadow:var(--shadow);
   }
   .row>div{
-    border-right:none;padding:1px 10px;white-space:normal;
+    border-right:none;padding:2px 8px;white-space:normal;
     overflow-wrap:anywhere;text-overflow:clip;
   }
-  .c-grip{grid-area:grip;align-items:flex-start;padding-top:4px!important;font-size:16px;color:var(--muted)}
-  .c-job{grid-area:job;font-size:13px;color:var(--muted)}
-  .c-cust{grid-area:cust;font-size:15.5px;font-weight:700}
-  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.35}
-  .c-map{grid-area:map;justify-content:flex-start;padding:4px 10px 2px!important}
+  /* align-self (not align-items) pins the grip itself to the top of its
+     grid area — align-items only affects a flex box's own children, and
+     with a container default of stretch, the grip's "⠿" was landing dead
+     centre of the whole multi-row card instead of level with the job no. */
+  .c-grip{grid-area:grip;align-self:start;padding-top:3px!important;font-size:17px;color:var(--border2)}
+  .c-job{grid-area:job;font-size:12.5px;color:var(--muted);letter-spacing:.2px}
+  .c-cust{grid-area:cust;font-size:16px;font-weight:700;padding-top:0!important}
+  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.4}
+  .c-map{grid-area:map;justify-content:flex-start;padding:5px 8px 3px!important}
   .c-map:empty{display:none}
   .c-date{grid-area:date;text-align:right;font-size:13px;font-weight:600}
   /* Each money cell carries its own label on a phone, where the column
      headings are hidden. */
-  .c-oop{grid-area:oop;text-align:left;font-size:13px;padding-top:5px!important}
-  .c-dep{grid-area:dep;text-align:right;font-size:13px;padding-top:5px!important}
-  .c-pend{grid-area:pend;text-align:left;font-size:13px}
-  .c-comment{grid-area:comm;padding-top:4px!important}
+  .c-oop{grid-area:oop;text-align:left;font-size:13.5px;padding-top:8px!important;border-top:1px solid var(--surface3);margin-top:2px}
+  .c-dep{grid-area:dep;text-align:right;font-size:13.5px;padding-top:8px!important;border-top:1px solid var(--surface3);margin-top:2px}
+  .c-pend{grid-area:pend;text-align:left;font-size:13.5px}
+  .c-comment{grid-area:comm;padding-top:5px!important}
   .c-comment .comment-text{white-space:normal}
-  .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none}
-  .map-btn{padding:3px 9px;font-size:12px}
+  .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none;border-top:none;margin-top:0}
+  .map-btn{padding:4px 10px;font-size:12.5px}
   .mob-label{display:inline;color:var(--muted);font-weight:500}
+  .group-add{
+    padding-left:14px;border:1px dashed var(--border2);border-radius:10px;margin-top:2px;
+  }
+  .group-empty{padding:14px;border:1px dashed var(--border2);border-radius:10px}
 
   .modal-scrim{padding:0;align-items:flex-end}
   .modal{max-width:none;border-radius:14px 14px 0 0;max-height:94vh}
@@ -310,7 +329,6 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .modal-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
   .btn{padding:11px 16px;flex:1}
   .toast{bottom:calc(20px + env(safe-area-inset-bottom))}
-  .group-add,.group-empty{padding-left:14px}
 }
 </style>
 </head>
@@ -702,17 +720,13 @@ function startDateEdit(id, cell){
   inp.addEventListener('blur', () => commit(false));
 }
 
+// The money totals (out of pocket / deposits / pending) live per-group in
+// the group header instead — the top bar just says how many jobs there are
+// and flags anything overdue, which is what needs to be visible at a glance.
 function renderStats(list){
-  const live = list.filter(j => !j.cancelled);
-  const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
-  const depSum  = live.reduce((t,j) => t + (parseFloat(j.deposit) || 0), 0);
-  const pendSum = live.reduce((t,j) => t + Math.max(0, pendingOf(j)), 0);
   const overdue = list.filter(isOverdue).length;
   document.getElementById('statPills').innerHTML =
     `<div class="stat-pill"><b>${list.length}</b><span>jobs</span></div>` +
-    `<div class="stat-pill"><b>${esc(money(oopSum) || '$0.00')}</b><span>out of pocket</span></div>` +
-    `<div class="stat-pill"><b>${esc(money(depSum) || '$0.00')}</b><span>deposits</span></div>` +
-    `<div class="stat-pill"><b>${esc(money(pendSum) || '$0.00')}</b><span>pending</span></div>` +
     (overdue ? `<div class="stat-pill" style="background:var(--red-bg);border-color:#f5c2cb"><b style="color:var(--red)">${overdue}</b><span style="color:var(--red)">overdue</span></div>` : '');
 }
 
