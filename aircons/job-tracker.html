@@ -137,7 +137,8 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 }
 .c-grip:hover{color:var(--muted)}
 .c-grip:active{cursor:grabbing}
-.c-job{font-weight:700;font-variant-numeric:tabular-nums}
+.c-job{font-weight:700;font-variant-numeric:tabular-nums;cursor:copy}
+.c-job:hover{color:var(--blue)}
 .c-cust{font-weight:600}
 .c-addr{color:var(--muted)}
 /* Map gets its own column so every button sits on the same vertical line,
@@ -150,8 +151,14 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   transition:background .12s,border-color .12s,color .12s;
 }
 .map-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
-.c-date{font-variant-numeric:tabular-nums}
+.c-date{font-variant-numeric:tabular-nums;cursor:pointer}
+.c-date:hover{color:var(--blue)}
 .c-date.overdue{color:var(--red);font-weight:600}
+.date-input{
+  font-family:inherit;font-size:13px;width:100%;border:1px solid var(--blue);
+  border-radius:5px;padding:4px 6px;outline:none;background:#fff;color:var(--text);
+  box-shadow:0 0 0 3px var(--blue-bg);
+}
 .c-oop,.c-dep,.c-pend{font-variant-numeric:tabular-nums;text-align:right}
 .c-oop{font-weight:600}
 .c-dep{color:#0b8b55;font-weight:600}
@@ -159,11 +166,12 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .c-pend.owing{color:var(--red)}
 .c-pend.settled{color:var(--muted);font-weight:500}
 
-/* Click-to-edit comment cell, like typing into a spreadsheet cell. */
-.c-comment{cursor:text;color:var(--text)}
+/* Click-to-edit comment cell, like typing into a spreadsheet cell. Wraps
+   rather than truncating — a cut-off comment defeats the point of one. */
+.c-comment{cursor:text;color:var(--text);white-space:normal!important;overflow:visible!important}
 .c-comment .comment-text{
-  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  min-height:19px;font-size:13px;
+  display:block;overflow-wrap:anywhere;white-space:normal;
+  min-height:19px;font-size:13px;line-height:1.4;
 }
 .c-comment .comment-text.empty{color:#b6bbc8}
 .c-comment:hover .comment-text.empty{color:var(--muted)}
@@ -512,11 +520,11 @@ function rowHTML(j){
 
   return `<div class="row${j.cancelled ? ' cancelled' : ''}" data-id="${esc(j.id)}">
     <div class="c-grip" title="Drag to another group">⠿</div>
-    <div class="c-job">${j.job_no ? esc(j.job_no) : '—'}</div>
+    <div class="c-job"${j.job_no ? ' title="Click to copy"' : ''}>${j.job_no ? esc(j.job_no) : '—'}</div>
     <div class="c-cust">${esc(j.customer || 'Untitled')}${j.cancelled ? ' <span class="mob-label">· cancelled</span>' : ''}</div>
     <div class="c-addr">${esc(addr)}</div>
     <div class="c-map">${addr ? `<a class="map-btn" href="${esc(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">Map</a>` : ''}</div>
-    <div class="c-date${overdue ? ' overdue' : ''}">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
+    <div class="c-date${overdue ? ' overdue' : ''}" title="Click to set the booked date">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
     <div class="c-oop">${oop ? `<span class="mob-label">Out of pocket </span>${esc(oop)}` : ''}</div>
     <div class="c-dep">${dep ? `<span class="mob-label">Deposit </span>${esc(dep)}` : ''}</div>
     <div class="c-pend ${pendCls}">${pendTxt ? `<span class="mob-label">Pending </span>${esc(pendTxt)}` : ''}</div>
@@ -627,6 +635,73 @@ function paintComment(cell, text){
   cell.innerHTML = `<span class="comment-text${text ? '' : ' empty'}">${text ? esc(text) : 'Add comment…'}</span>`;
 }
 
+// ── Job No.: click to copy, never to open the editor (it gets pasted a lot) ──
+document.getElementById('groups').addEventListener('click', e => {
+  const cell = e.target.closest('.c-job');
+  if (!cell) return;
+  const jobNo = cell.textContent.trim();
+  if (!jobNo || jobNo === '—') return;
+  copyToClipboard(jobNo);
+});
+
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    // Fallback for browsers/contexts without the async Clipboard API.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e2) { showToast('Could not copy.', true); ta.remove(); return; }
+    ta.remove();
+  }
+  showToast('Copied ' + text);
+}
+
+// ── Booked Date: click to edit inline with a native date picker ──
+document.getElementById('groups').addEventListener('click', e => {
+  const cell = e.target.closest('.c-date');
+  if (!cell || cell.querySelector('input')) return;
+  const id = cell.closest('.row')?.dataset.id;
+  if (id) startDateEdit(id, cell);
+});
+
+function startDateEdit(id, cell){
+  const j = jobById(id);
+  if (!j) return;
+  const original = j.booked_date || '';
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.className = 'date-input';
+  inp.value = original;
+  cell.innerHTML = '';
+  cell.appendChild(inp);
+  inp.focus();
+  if (inp.showPicker) { try { inp.showPicker(); } catch(e){} }
+
+  let done = false;
+  const commit = (cancelled) => {
+    if (done) return;
+    done = true;
+    const val = cancelled ? original : inp.value;
+    if (val === original){ render(); return; }
+    // Booked date drives sort order and the overdue flag, so — unlike a
+    // comment — this needs a re-render, not just a repaint of one cell.
+    j.booked_date = val || null;
+    render();
+    persist(id, { booked_date: j.booked_date }, () => {
+      j.booked_date = original || null;
+      render();
+    });
+  };
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Escape') commit(true); });
+  inp.addEventListener('change', () => inp.blur());
+  inp.addEventListener('blur', () => commit(false));
+}
+
 function renderStats(list){
   const live = list.filter(j => !j.cancelled);
   const oopSum  = live.reduce((t,j) => t + (parseFloat(j.out_of_pocket) || 0), 0);
@@ -649,9 +724,10 @@ function jobById(id){ return jobs.find(j => String(j.id) === String(id)); }
 document.getElementById('groups').addEventListener('pointerdown', e => {
   const row = e.target.closest('.row');
   if (!row || drag) return;
-  // The map link and the comment cell handle their own clicks — starting a
-  // drag here would also swallow the click that opens them.
-  if (e.target.closest('.map-btn, .c-comment')) return;
+  // These cells handle their own clicks (map link, comment editor, copy job
+  // no., date picker) — starting a drag here would swallow that click, and
+  // for job no./date it would also wrongly fall through to "open the editor".
+  if (e.target.closest('.map-btn, .c-comment, .c-job, .c-date')) return;
   const onGrip = !!e.target.closest('.c-grip');
   // Touch drags only from the grip, so the page still scrolls under a finger.
   if (e.pointerType !== 'mouse' && !onGrip) return;
