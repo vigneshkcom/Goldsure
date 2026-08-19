@@ -446,10 +446,13 @@ const SB_HEADERS = {
 };
 
 // Row groups. `key` is what lives in the status column in Supabase.
+// dateLabel is the Booked-column heading — worded per group since a date on
+// a To Book job hasn't happened yet (it's a target), where the same column
+// on a Scheduled/Installed job is the date that's actually locked in.
 const GROUPS = [
-  { key:'to_book',   label:'To Book',   color:'var(--blue)'  },
-  { key:'scheduled', label:'Scheduled', color:'var(--amber)' },
-  { key:'installed', label:'Installed', color:'var(--green)' },
+  { key:'to_book',   label:'To Book',   color:'var(--blue)',  dateLabel:'To Book' },
+  { key:'scheduled', label:'Scheduled', color:'var(--amber)', dateLabel:'Booked' },
+  { key:'installed', label:'Installed', color:'var(--green)', dateLabel:'Booked' },
 ];
 const GROUP_KEYS = GROUPS.map(g => g.key);
 // Free-text stages from the old spreadsheet land in the right group.
@@ -599,7 +602,7 @@ function render(){
       <div class="table">
         <div class="thead">
           <div></div><div>Job No.</div><div>Customer</div><div>Address</div><div></div>
-          <div>Booked</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Comments</div>
+          <div>${esc(g.dateLabel)}</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
           ${items.length ? items.map(rowHTML).join('') : '<div class="group-empty">No jobs in this group yet.</div>'}
