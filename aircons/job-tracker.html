@@ -271,57 +271,76 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
   .group-head{padding:0 2px}
   .group-sum{font-size:12px}
 
-  /* Rows become standalone cards instead of a continuous ruled list — each
-     one is a distinct touch target with its own edges, not a cramped strip
-     inside a shared box. The group's colour moves from the table's left
-     edge onto each card, so it's still legible which group you're in while
-     scrolling through one. */
+  /* Rows become compact cards — still the same grouped list as desktop (To
+     Book / Scheduled / Installed stacked vertically), just each row is a
+     handful of dense lines instead of a tall strip. Every field that's
+     click-to-edit on desktop (job no. copies, date opens a picker, comment
+     opens a text box) works exactly the same way here — this only changes
+     how much space the closed, unedited row takes up. */
   .table{background:none;border:none;box-shadow:none;border-left:none;border-radius:0}
   .thead{display:none}
-  .rows{display:flex;flex-direction:column;gap:10px}
+  .rows{display:flex;flex-direction:column;gap:7px}
   .row{
-    grid-template-columns:34px 1fr auto;
+    grid-template-columns:26px 1fr 1fr 1fr;
     grid-template-areas:
-      "grip job   date"
-      "grip cust  cust"
-      "grip addr  addr"
-      "grip map   map"
-      "grip oop   dep"
-      "grip pend  pend"
-      "grip comm  comm";
-    padding:13px 12px 13px 8px;row-gap:3px;
+      "grip job   .     date"
+      "grip cust  cust  cust"
+      "grip addr  addr  map"
+      "grip oop   dep   pend"
+      "grip comm  comm  comm";
+    padding:9px 10px 9px 7px;row-gap:2px;column-gap:6px;
     background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--g);
-    border-radius:10px;box-shadow:var(--shadow);
+    border-radius:8px;box-shadow:var(--shadow);
   }
   .row>div{
-    border-right:none;padding:2px 8px;white-space:normal;
+    border-right:none;padding:1px 2px;white-space:normal;
     overflow-wrap:anywhere;text-overflow:clip;
   }
   /* align-self (not align-items) pins the grip itself to the top of its
      grid area — align-items only affects a flex box's own children, and
      with a container default of stretch, the grip's "⠿" was landing dead
      centre of the whole multi-row card instead of level with the job no. */
-  .c-grip{grid-area:grip;align-self:start;padding-top:3px!important;font-size:17px;color:var(--border2)}
-  .c-job{grid-area:job;font-size:12.5px;color:var(--muted);letter-spacing:.2px}
-  .c-cust{grid-area:cust;font-size:16px;font-weight:700;padding-top:0!important}
-  .c-addr{grid-area:addr;font-size:13.5px;line-height:1.4}
-  .c-map{grid-area:map;justify-content:flex-start;padding:5px 8px 3px!important}
-  .c-map:empty{display:none}
-  .c-date{grid-area:date;text-align:right;font-size:13px;font-weight:600}
-  /* Each money cell carries its own label on a phone, where the column
-     headings are hidden. */
-  .c-oop{grid-area:oop;text-align:left;font-size:13.5px;padding-top:8px!important;border-top:1px solid var(--surface3);margin-top:2px}
-  .c-dep{grid-area:dep;text-align:right;font-size:13.5px;padding-top:8px!important;border-top:1px solid var(--surface3);margin-top:2px}
-  .c-pend{grid-area:pend;text-align:left;font-size:13.5px}
-  .c-comment{grid-area:comm;padding-top:5px!important}
-  .c-comment .comment-text{white-space:normal}
-  .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none;border-top:none;margin-top:0}
-  .map-btn{padding:4px 10px;font-size:12.5px}
-  .mob-label{display:inline;color:var(--muted);font-weight:500}
-  .group-add{
-    padding-left:14px;border:1px dashed var(--border2);border-radius:10px;margin-top:2px;
+  .c-grip{grid-area:grip;align-self:start;padding-top:2px!important;font-size:15px;color:var(--border2)}
+  .c-job{grid-area:job;font-size:11.5px;color:var(--muted);letter-spacing:.2px}
+  .c-cust{grid-area:cust;font-size:14.5px;font-weight:700;padding-top:1px!important}
+  .c-addr{
+    grid-area:addr;font-size:12.5px;line-height:1.3;color:var(--muted);
+    white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
   }
-  .group-empty{padding:14px;border:1px dashed var(--border2);border-radius:10px}
+  .c-map{grid-area:map;justify-content:flex-end;padding:0 2px!important}
+  .c-map:empty{display:none}
+  .c-date{grid-area:date;text-align:right;font-size:12px;font-weight:600}
+  .map-btn{padding:2px 8px;font-size:11px}
+
+  /* Money cells sit three-up on one line — a short label above a bold
+     figure, generated with a pseudo-element from data-label rather than the
+     long desktop-style text used to bloat this into three separate lines. */
+  .c-oop,.c-dep,.c-pend{font-size:12.5px;padding-top:6px!important;border-top:1px solid var(--surface3);margin-top:3px}
+  .c-oop{grid-area:oop;text-align:left}
+  .c-dep{grid-area:dep;text-align:center}
+  .c-pend{grid-area:pend;text-align:right}
+  .c-oop::before,.c-dep::before,.c-pend::before{
+    content:attr(data-label);display:block;font-size:9.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-bottom:1px;
+  }
+  /* Each cell's own border-top/margin double as the row's divider line, so
+     when out_of_pocket/deposit/pending are all empty, :empty hides every
+     cell and the divider disappears with them — no separate rule needed. */
+  .c-oop:empty,.c-dep:empty,.c-pend:empty{display:none}
+
+  .c-comment{grid-area:comm;padding-top:4px!important;font-size:12.5px}
+  .c-comment .comment-text{white-space:normal}
+  /* An unedited "Add comment…" placeholder is an invitation, not information
+     — collapse it to a slim single line rather than a full-height row, and
+     drop it out entirely once a real comment is there to show instead. */
+  .c-comment .comment-text.empty{font-size:11.5px}
+  /* Still used for the "· cancelled" tag next to the customer name — the
+     three money labels above generate their own via ::before now. */
+  .mob-label{display:inline;color:var(--muted);font-weight:500;font-size:11px}
+  .group-add{
+    padding-left:14px;border:1px dashed var(--border2);border-radius:8px;margin-top:2px;
+  }
+  .group-empty{padding:14px;border:1px dashed var(--border2);border-radius:8px}
 
   .modal-scrim{padding:0;align-items:flex-end}
   .modal{max-width:none;border-radius:14px 14px 0 0;max-height:94vh}
@@ -543,9 +562,9 @@ function rowHTML(j){
     <div class="c-addr">${esc(addr)}</div>
     <div class="c-map">${addr ? `<a class="map-btn" href="${esc(mapHref)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">Map</a>` : ''}</div>
     <div class="c-date${overdue ? ' overdue' : ''}" title="Click to set the booked date">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
-    <div class="c-oop">${oop ? `<span class="mob-label">Out of pocket </span>${esc(oop)}` : ''}</div>
-    <div class="c-dep">${dep ? `<span class="mob-label">Deposit </span>${esc(dep)}` : ''}</div>
-    <div class="c-pend ${pendCls}">${pendTxt ? `<span class="mob-label">Pending </span>${esc(pendTxt)}` : ''}</div>
+    <div class="c-oop" data-label="Total">${oop ? esc(oop) : ''}</div>
+    <div class="c-dep" data-label="Paid">${dep ? esc(dep) : ''}</div>
+    <div class="c-pend ${pendCls}" data-label="Owing">${pendTxt ? esc(pendTxt) : ''}</div>
     <div class="c-comment" title="Click to add a comment"><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
   </div>`;
 }
