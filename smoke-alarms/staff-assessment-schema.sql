@@ -32,13 +32,14 @@ alter table staff_assessment_violations enable row level security;
 
 -- The quiz page talks to Supabase directly from the browser with the public
 -- "publishable" key (same pattern as quote_emails elsewhere in this repo).
--- INSERT/UPDATE let it log attempts and violations as they happen. SELECT is
--- also granted here because the built-in Admin Log view (PIN-gated in the
--- page itself) reads straight from the browser too — there is no backend
--- for it. That PIN is a UI gate only, not real security: anyone who reads
--- the page's JS can call this endpoint directly with the same key. Treat
--- this table as no more protected than the PIN itself; it holds staff names,
--- scores, and violation timestamps — nothing more sensitive than that.
+-- INSERT/UPDATE let it log attempts and violations as they happen. SELECT
+-- and DELETE are also granted here because the built-in Admin Log view
+-- (PIN-gated in the page itself) both reads and deletes straight from the
+-- browser — there is no backend for it. That PIN is a UI gate only, not
+-- real security: anyone who reads the page's JS can call this endpoint
+-- directly with the same key, including the delete calls. Treat this table
+-- as no more protected than the PIN itself; it holds staff names, scores,
+-- and violation timestamps — nothing more sensitive than that.
 
 create policy "anon can insert attempts" on staff_assessment_attempts
   for insert to anon with check (true);
@@ -49,11 +50,17 @@ create policy "anon can update own attempts" on staff_assessment_attempts
 create policy "anon can read attempts" on staff_assessment_attempts
   for select to anon using (true);
 
+create policy "anon can delete attempts" on staff_assessment_attempts
+  for delete to anon using (true);
+
 create policy "anon can insert violations" on staff_assessment_violations
   for insert to anon with check (true);
 
 create policy "anon can read violations" on staff_assessment_violations
   for select to anon using (true);
+
+create policy "anon can delete violations" on staff_assessment_violations
+  for delete to anon using (true);
 
 -- Superseded tables from the earlier "Call Centre Pressure Test" page (now
 -- merged into this one). Drop them only if you're sure nothing else needs

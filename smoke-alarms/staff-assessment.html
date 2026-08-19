@@ -84,8 +84,11 @@ header { background: #fff; border-bottom: 3px solid var(--gold); padding: 0 28px
 .admin-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 16px; }
 .admin-row.flagged { border-color: rgba(224,79,79,0.4); background: var(--red-bg); }
 .admin-row-main { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.admin-row-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-row-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
 .admin-row-meta { font-size: 11.5px; color: var(--muted); }
+.admin-row-delete { font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--red); background: transparent; border: 1.5px solid rgba(224,79,79,0.35); border-radius: 7px; padding: 5px 10px; cursor: pointer; transition: all 0.15s; }
+.admin-row-delete:hover { background: var(--red); border-color: var(--red); color: #fff; }
 .admin-v-list { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(224,79,79,0.3); }
 .admin-v-row { font-size: 11px; color: #a33; font-family: 'JetBrains Mono', monospace; padding: 2px 0; }
 
@@ -368,6 +371,7 @@ main { padding: 28px; max-width: 820px; margin: 0 auto; }
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-ghost" onclick="loadAdminData()">Refresh</button>
+        <button class="btn btn-ghost" style="color:var(--red);border-color:rgba(224,79,79,0.4)" onclick="clearAllAdminData()">Clear All</button>
         <button class="btn btn-primary" onclick="closeAdminPanel()">Close</button>
       </div>
     </div>
@@ -1263,13 +1267,41 @@ function renderAdminData(attempts, violations) {
     ).join('');
     return '<div class="admin-row' + (flagged ? ' flagged' : '') + '">' +
       '<div class="admin-row-main">' +
-        '<div class="admin-row-name">' + esc(a.agent_name) + '</div>' +
-        '<div class="admin-row-meta">' + esc(result) + ' &middot; ' + (a.score_pct != null ? a.score_pct + '%' : '—') +
-          ' &middot; ' + vCount + ' violation(s) &middot; ' + new Date(a.started_at).toLocaleString('en-AU') + '</div>' +
+        '<div class="admin-row-left">' +
+          '<div class="admin-row-name">' + esc(a.agent_name) + '</div>' +
+          '<div class="admin-row-meta">' + esc(result) + ' &middot; ' + (a.score_pct != null ? a.score_pct + '%' : '—') +
+            ' &middot; ' + vCount + ' violation(s) &middot; ' + new Date(a.started_at).toLocaleString('en-AU') + '</div>' +
+        '</div>' +
+        '<button class="admin-row-delete" onclick="deleteAttempt(\'' + a.id + '\', ' + JSON.stringify(a.agent_name || '') + ')">Delete</button>' +
       '</div>' +
       (vRows ? '<div class="admin-v-list">' + vRows + '</div>' : '') +
     '</div>';
   }).join('');
+}
+
+async function deleteAttempt(id, name) {
+  if (!confirm('Delete this attempt' + (name ? ' for ' + name : '') + ' and all its violation logs? This cannot be undone.')) return;
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_violations?attempt_id=eq.${id}`, { method: 'DELETE', headers });
+    await fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_attempts?id=eq.${id}`, { method: 'DELETE', headers });
+    loadAdminData();
+  } catch (e) {
+    alert('Delete failed. Check your connection and try again.');
+  }
+}
+
+async function clearAllAdminData() {
+  if (!confirm('Delete the ENTIRE assessment log — every attempt and every violation? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure? This wipes all history permanently.')) return;
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_violations?id=not.is.null`, { method: 'DELETE', headers });
+    await fetch(`${SUPABASE_URL}/rest/v1/staff_assessment_attempts?id=not.is.null`, { method: 'DELETE', headers });
+    loadAdminData();
+  } catch (e) {
+    alert('Delete failed. Check your connection and try again.');
+  }
 }
 </script>
 </body>
