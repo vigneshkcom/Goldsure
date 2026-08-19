@@ -162,7 +162,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
 .c-oop{font-weight:600}
 .c-dep{color:#0b8b55;font-weight:600}
 .c-pend{font-weight:700}
-.c-pend.owing{color:var(--red)}
+.c-pend.owing{color:var(--blue-dark)}
 .c-pend.settled{color:var(--muted);font-weight:500}
 
 /* Click-to-edit comment cell, like typing into a spreadsheet cell. Wraps
@@ -410,7 +410,7 @@ main{padding:18px 20px 60px;max-width:1500px;margin:0 auto}
           <input type="number" id="f-deposit" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
         </div>
         <div class="field">
-          <label for="f-pending">Pending Balance</label>
+          <label for="f-pending">ECO</label>
           <input type="text" id="f-pending" readonly tabindex="-1"
                  style="background:var(--surface2);font-weight:700;cursor:default">
         </div>
@@ -563,7 +563,7 @@ function rowHTML(j){
     <div class="c-date${overdue ? ' overdue' : ''}" title="Click to set the booked date">${j.booked_date ? (overdue ? '⚠ ' : '') + esc(fmtDate(j.booked_date)) : '—'}</div>
     <div class="c-oop" data-label="Total">${oop ? esc(oop) : ''}</div>
     <div class="c-dep" data-label="Paid">${dep ? esc(dep) : ''}</div>
-    <div class="c-pend ${pendCls}" data-label="Owing">${pendTxt ? esc(pendTxt) : ''}</div>
+    <div class="c-pend ${pendCls}" data-label="ECO">${pendTxt ? esc(pendTxt) : ''}</div>
     <div class="c-comment" title="Click to add a comment"><span class="comment-text${comment ? '' : ' empty'}">${comment ? esc(comment) : 'Add comment…'}</span></div>
   </div>`;
 }
@@ -599,7 +599,7 @@ function render(){
       <div class="table">
         <div class="thead">
           <div></div><div>Job No.</div><div>Customer</div><div>Address</div><div></div>
-          <div>Booked</div><div>Out of Pocket</div><div>Deposit</div><div>Pending</div><div>Comments</div>
+          <div>Booked</div><div>Out of Pocket</div><div>Deposit</div><div>ECO</div><div>Comments</div>
         </div>
         <div class="rows" data-status="${g.key}">
           ${items.length ? items.map(rowHTML).join('') : '<div class="group-empty">No jobs in this group yet.</div>'}
@@ -939,7 +939,7 @@ function updatePending(){
   const el = document.getElementById('f-pending');
   const bal = oop - dep;
   el.value = oop ? (bal > 0 ? money(bal) : (bal < 0 ? money(bal) + ' (overpaid)' : 'Paid in full')) : '—';
-  el.style.color = bal > 0 && oop ? 'var(--red)' : (oop ? '#0b8b55' : 'var(--muted)');
+  el.style.color = bal > 0 && oop ? 'var(--blue-dark)' : (oop ? '#0b8b55' : 'var(--muted)');
 }
 document.getElementById('f-oop').addEventListener('input', updatePending);
 document.getElementById('f-deposit').addEventListener('input', updatePending);
@@ -1028,7 +1028,7 @@ async function deleteJob(){
 // ── CSV export ──
 function exportCSV(){
   const head = ['Job No.','Customer','Address','Booked Date','Out of Pocket',
-                'Deposit','Pending','Group','Cancelled','Comments'];
+                'Deposit','ECO','Group','Cancelled','Comments'];
   const labelOf = k => (GROUPS.find(g => g.key === k) || {}).label || k;
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs().slice()
