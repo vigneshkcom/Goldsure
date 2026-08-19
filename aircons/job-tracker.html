@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Goldsure · Aircon Job Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
+<style>
+/* monday.com-style kanban board. Palette matches /aircons/quote-tracker.html */
+:root{
+  --blue:#0073ea; --blue-dark:#0060b9; --blue-bg:#e6f1fd;
+  --green:#00c875; --green-bg:#e7f9f1;
+  --amber:#fdab3d; --amber-bg:#fff4e5;
+  --red:#e2445c; --red-bg:#fdecef;
+  --purple:#a25ddc; --purple-bg:#f4ecfb;
+  --bg:#f6f7fb; --surface:#fff; --surface2:#f5f6f8; --surface3:#eceef4;
+  --border:#e6e9ef; --border2:#d0d4e4;
+  --text:#323338; --muted:#676879;
+  --shadow:0 1px 3px rgba(0,0,0,.04);
+  --shadow-md:0 4px 14px rgba(0,0,0,.10);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.18);
+  --r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overscroll-behavior-x:none}
+body{
+  font-family:'Figtree',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
+
+/* ── Header ── */
+header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 20px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:60;min-height:60px;gap:14px;
+}
+.header-left{display:flex;align-items:center;gap:14px;min-width:0}
+.header-logo img{height:36px;width:auto;object-fit:contain;display:block}
+.hd{width:1px;height:26px;background:var(--border2);flex:none}
+.page-label{font-size:19px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.tracker-nav{display:inline-flex;gap:3px;background:var(--surface2);border-radius:8px;padding:3px}
+.trk-link{
+  font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:6px;
+  color:var(--muted);text-decoration:none;transition:background .12s,color .12s;white-space:nowrap;
+}
+.trk-link:hover{background:#fff;color:var(--text)}
+.trk-link.is-active{background:var(--blue);color:#fff}
+.header-right{display:flex;align-items:center;gap:8px;flex:none}
+.nav-btn{
+  font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:7px;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);
+  cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,border-color .12s;
+}
+.nav-btn:hover{background:var(--surface2)}
+.nav-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.nav-btn.primary:hover{background:var(--blue-dark)}
+.spin-icon{display:inline-block}
+.spinning .spin-icon{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toolbar ── */
+.toolbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--border);
+  position:sticky;top:60px;z-index:55;
+}
+.search-input{
+  font-family:inherit;font-size:13.5px;padding:8px 12px;border-radius:7px;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);
+  min-width:260px;flex:1;max-width:420px;outline:none;
+}
+.search-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+.stat-pills{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.stat-pill{
+  display:flex;align-items:baseline;gap:6px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:99px;padding:5px 13px;font-size:12.5px;
+}
+.stat-pill b{font-size:14px;font-weight:700}
+.stat-pill span{color:var(--muted)}
+
+/* ── Board ── */
+.board{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:18px 20px 40px;overflow-x:auto;overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+}
+.board-col{
+  flex:0 0 296px;background:var(--surface3);border-radius:10px;
+  display:flex;flex-direction:column;max-height:calc(100vh - 190px);
+}
+.col-head{
+  display:flex;align-items:center;gap:8px;padding:12px 13px 10px;
+  border-top:3px solid var(--c);border-radius:10px 10px 0 0;flex:none;
+}
+.col-dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.col-name{font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+.col-count{
+  font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface);
+  border-radius:99px;padding:2px 8px;
+}
+.col-sum{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.col-list{
+  display:flex;flex-direction:column;gap:8px;padding:2px 8px 8px;
+  overflow-y:auto;flex:1;min-height:60px;
+}
+.col-list.is-over{background:rgba(0,115,234,.06);border-radius:0 0 10px 10px}
+.col-add{
+  margin:0 8px 10px;padding:9px;border-radius:7px;border:1px dashed var(--border2);
+  background:transparent;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:background .12s,color .12s,border-color .12s;flex:none;
+}
+.col-add:hover{background:var(--surface);color:var(--blue);border-color:var(--blue)}
+.col-empty{
+  padding:22px 10px;text-align:center;color:var(--muted);font-size:12.5px;
+  border:1px dashed var(--border2);border-radius:8px;margin:2px 0;
+}
+
+/* ── Card ── */
+.job-card{
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--c);
+  border-radius:8px;padding:10px 11px 11px;box-shadow:var(--shadow);
+  cursor:pointer;position:relative;transition:box-shadow .12s,transform .12s;
+}
+.job-card:hover{box-shadow:var(--shadow-md)}
+.job-card.cancelled{opacity:.62;background:repeating-linear-gradient(45deg,#fff,#fff 8px,#fafafa 8px,#fafafa 16px)}
+.job-card.cancelled .card-customer{text-decoration:line-through}
+.drag-placeholder{
+  background:var(--blue-bg);border:1.5px dashed var(--blue);border-radius:8px;
+  box-shadow:none;flex:none;
+}
+.card-ghost{
+  position:fixed;z-index:999;pointer-events:none;width:var(--gw);
+  box-shadow:var(--shadow-lg);transform:rotate(2deg) scale(1.02);opacity:.96;
+  border-radius:8px;left:0;top:0;
+}
+.card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px}
+.card-grip{
+  flex:none;width:24px;height:24px;margin:-3px -3px 0 -4px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;color:var(--border2);
+  cursor:grab;touch-action:none;font-size:13px;line-height:1;
+}
+.card-grip:hover{background:var(--surface2);color:var(--muted)}
+.card-grip:active{cursor:grabbing}
+.card-customer{font-size:13.5px;font-weight:700;line-height:1.3;flex:1;min-width:0;word-break:break-word}
+.card-job-no{font-size:11px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.card-address{font-size:12px;color:var(--muted);line-height:1.4;margin-bottom:8px;word-break:break-word}
+.card-chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+  font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;
+  background:var(--surface2);color:var(--muted);white-space:nowrap;
+}
+.chip.money{background:var(--green-bg);color:#0b8b55}
+.chip.days{background:var(--blue-bg);color:var(--blue-dark)}
+.chip.overdue{background:var(--red-bg);color:var(--red)}
+.chip.date{background:var(--surface2);color:var(--muted)}
+.chip.refund{background:var(--red-bg);color:var(--red)}
+
+/* ── Modal ── */
+.modal-scrim{
+  position:fixed;inset:0;background:rgba(32,37,61,.5);z-index:200;
+  display:none;align-items:center;justify-content:center;padding:20px;
+  overflow-y:auto;
+}
+.modal-scrim.show{display:flex}
+.modal{
+  background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);
+  width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;
+  animation:pop .16s ease;
+}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:16px 20px;border-bottom:1px solid var(--border);flex:none;
+}
+.modal-title{font-size:16.5px;font-weight:700}
+.modal-x{
+  background:none;border:none;font-size:22px;line-height:1;color:var(--muted);
+  cursor:pointer;padding:2px 6px;border-radius:6px;font-family:inherit;
+}
+.modal-x:hover{background:var(--surface2);color:var(--text)}
+.modal-body{padding:18px 20px;overflow-y:auto;flex:1}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+.field label{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.field input,.field select,.field textarea{
+  font-family:inherit;font-size:13.5px;padding:9px 11px;border-radius:7px;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);
+  outline:none;width:100%;
+}
+.field textarea{resize:vertical;min-height:64px}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)
+}
+.check-row{display:flex;align-items:center;gap:9px;grid-column:1/-1}
+.check-row input{width:16px;height:16px;accent-color:var(--red);flex:none}
+.check-row label{text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);font-weight:600}
+.hint{font-size:11.5px;color:var(--muted);grid-column:1/-1;margin-top:-4px}
+.modal-foot{
+  display:flex;align-items:center;gap:9px;padding:14px 20px;
+  border-top:1px solid var(--border);flex:none;
+}
+.btn{
+  font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:7px;
+  border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;
+  transition:background .12s;
+}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary:hover{background:var(--blue-dark)}
+.btn.danger{color:var(--red);border-color:rgba(226,68,92,.4)}
+.btn.danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.foot-spacer{margin-left:auto}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,150%);
+  background:#323338;color:#fff;font-size:13.5px;font-weight:600;
+  padding:11px 20px;border-radius:8px;box-shadow:var(--shadow-lg);
+  z-index:300;transition:transform .22s ease;max-width:90vw;text-align:center;
+}
+.toast.show{transform:translate(-50%,0)}
+.toast.err{background:var(--red)}
+
+.loading-state{padding:60px 20px;text-align:center;color:var(--muted);width:100%}
+
+/* ── Mobile ── */
+@media (max-width:860px){
+  /* The header wraps to two rows on a phone, so nothing here is sticky —
+     a fixed offset would sit on top of it as soon as the page scrolled. */
+  header{position:static;padding:10px 14px;min-height:0;gap:10px;flex-wrap:wrap}
+  .toolbar{position:static}
+  .page-label{font-size:16px}
+  .hd,.tracker-nav,.desktop-only{display:none}
+  .header-logo img{height:30px}
+  .header-right{flex:1;justify-content:flex-end}
+  .toolbar{padding:11px 14px;gap:8px}
+  .search-input{min-width:0;max-width:none;flex:1 1 100%}
+  .stat-pills{margin-left:0;width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
+  .stat-pill{flex:none}
+  .board{
+    padding:14px 14px 60px;gap:12px;
+    scroll-snap-type:x mandatory;
+  }
+  .board-col{
+    flex:0 0 86vw;scroll-snap-align:start;
+    max-height:none;
+  }
+  .col-list{max-height:none;overflow-y:visible}
+  .job-card{padding:12px 13px 13px}
+  .card-customer{font-size:14.5px}
+  /* On touch the grip is the only way to pick a card up, so make it read as a
+     control rather than decoration. */
+  .card-grip{
+    width:32px;height:32px;font-size:15px;margin:-4px -2px 0 -5px;
+    color:var(--muted);background:var(--surface2);
+  }
+  .modal-scrim{padding:0;align-items:flex-end}
+  .modal{max-width:none;border-radius:14px 14px 0 0;max-height:94vh}
+  .form-grid{grid-template-columns:1fr}
+  .modal-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .btn{padding:11px 16px;flex:1}
+  .toast{bottom:calc(20px + env(safe-area-inset-bottom))}
+}
+@media (max-width:420px){
+  .board-col{flex:0 0 90vw}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+    <div class="hd"></div>
+    <span class="page-label">Aircon · Job Tracker</span>
+    <nav class="tracker-nav">
+      <a href="/aircons/job-tracker.html" class="trk-link is-active">Jobs</a>
+      <a href="/aircons/quote-tracker.html" class="trk-link">Quotes</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <a href="/" class="nav-btn desktop-only">← Portal</a>
+    <button class="nav-btn desktop-only" onclick="exportCSV()">⬇ CSV</button>
+    <button class="nav-btn" id="refreshBtn" onclick="loadJobs()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
+    <button class="nav-btn primary" onclick="openJobModal(null)">+ Add Job</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="search" class="search-input" id="searchInput" placeholder="Search customer, address, job no, BPOINT ref…" oninput="render()">
+  <div class="stat-pills" id="statPills"></div>
+</div>
+
+<div class="board" id="board">
+  <div class="loading-state">Loading jobs…</div>
+</div>
+
+<!-- Add / Edit job -->
+<div class="modal-scrim" id="jobScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="jobModalTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="jobModalTitle">Add Job</div>
+      <button class="modal-x" onclick="closeJobModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-job-no">Job No.</label>
+          <input type="text" id="f-job-no" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="f-status">Status</label>
+          <select id="f-status"></select>
+        </div>
+        <div class="field full">
+          <label for="f-customer">Customer *</label>
+          <input type="text" id="f-customer" autocomplete="off">
+        </div>
+        <div class="field full">
+          <label for="f-address">Address</label>
+          <input type="text" id="f-address" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-assessment">AC Assessment</label>
+          <input type="date" id="f-assessment">
+        </div>
+        <div class="field">
+          <label for="f-install">Installation Date</label>
+          <input type="date" id="f-install">
+        </div>
+        <div class="field">
+          <label for="f-amount">Amount Received</label>
+          <input type="number" id="f-amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="f-bpoint">BPOINT Ref</label>
+          <input type="text" id="f-bpoint" autocomplete="off">
+        </div>
+        <div class="hint" id="daysHint"></div>
+        <div class="field full">
+          <label for="f-notes">Notes</label>
+          <textarea id="f-notes" rows="2"></textarea>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="f-cancelled">
+          <label for="f-cancelled">Cancelled / refunded</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="deleteJobBtn" onclick="deleteJob()">Delete</button>
+      <div class="foot-spacer"></div>
+      <button class="btn" onclick="closeJobModal()">Cancel</button>
+      <button class="btn primary" id="saveJobBtn" onclick="saveJob()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script data-cfasync="false">
+const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+const TABLE = 'aircon_jobs';
+const SB_HEADERS = {
+  apikey: SUPABASE_KEY,
+  Authorization: `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json'
+};
+
+// Board columns. `key` is what lives in the status column in Supabase.
+const COLUMNS = [
+  { key:'date_pending',     label:'Date Pending',     color:'var(--red)'    },
+  { key:'assigned',         label:'Assigned',         color:'var(--blue)'   },
+  { key:'overdue_assigned', label:'Overdue Assigned', color:'var(--amber)'  },
+  { key:'scheduled',        label:'Scheduled',        color:'var(--purple)' },
+  { key:'completed',        label:'Completed',        color:'var(--green)'  },
+];
+const COL_KEYS = COLUMNS.map(c => c.key);
+// Free-text statuses carried over from the spreadsheet land in the right column.
+const STATUS_ALIASES = {
+  'date pending':'date_pending', 'datepending':'date_pending', 'pending':'date_pending',
+  'assigned':'assigned',
+  'overdue assigned':'overdue_assigned', 'overdue':'overdue_assigned',
+  'scheduled':'scheduled', 'booked':'scheduled',
+  'completed':'completed', 'complete':'completed', 'done':'completed',
+};
+function normStatus(s){
+  const raw = String(s || '').trim();
+  if (COL_KEYS.includes(raw)) return raw;
+  return STATUS_ALIASES[raw.toLowerCase().replace(/[_-]+/g,' ')] || 'date_pending';
+}
+
+let jobs = [];
+let editingId = null;
+
+// ── Helpers ──
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+function money(n){
+  const v = parseFloat(n);
+  if (!isFinite(v) || v === 0) return '';
+  return '$' + v.toLocaleString('en-AU', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function fmtDate(iso){
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('en-AU', { day:'2-digit', month:'short' });
+}
+// Whole days between assessment and install — the sheet's "Days to Install".
+function daysBetween(a, b){
+  if (!a || !b) return null;
+  const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
+  if (isNaN(d1) || isNaN(d2)) return null;
+  return Math.round((d2 - d1) / 86400000);
+}
+function todayISO(){
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+let toastTimer = null;
+function showToast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Load ──
+async function loadJobs(){
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  try{
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=position.asc&limit=2000`,
+      { headers: SB_HEADERS }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    jobs = (Array.isArray(rows) ? rows : []).map(j => ({ ...j, status: normStatus(j.status) }));
+    render();
+  }catch(e){
+    document.getElementById('board').innerHTML =
+      '<div class="loading-state">Could not load jobs. Check the <code>' + TABLE +
+      '</code> table exists in Supabase, then hit Refresh.</div>';
+    showToast('Could not load jobs.', true);
+  }finally{
+    btn.classList.remove('spinning');
+  }
+}
+
+// ── Render ──
+function visibleJobs(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) return jobs;
+  return jobs.filter(j =>
+    [j.customer, j.address, j.job_no, j.bpoint_ref, j.notes]
+      .filter(Boolean).join(' ').toLowerCase().includes(q)
+  );
+}
+
+function cardHTML(j){
+  const col = COLUMNS.find(c => c.key === j.status) || COLUMNS[0];
+  const days = daysBetween(j.ac_assessment_date, j.installation_date);
+  // Only an unfinished job with a past install date is genuinely overdue.
+  const overdue = j.installation_date && !j.cancelled &&
+                  j.status !== 'completed' && j.installation_date < todayISO();
+  const chips = [];
+  if (j.amount_received) chips.push(`<span class="chip money">${esc(money(j.amount_received))}</span>`);
+  if (days !== null)     chips.push(`<span class="chip days">${days}d to install</span>`);
+  if (j.installation_date)
+    chips.push(`<span class="chip ${overdue ? 'overdue' : 'date'}">${overdue ? '⚠ ' : '🔧 '}${esc(fmtDate(j.installation_date))}</span>`);
+  else if (j.ac_assessment_date)
+    chips.push(`<span class="chip date">📋 ${esc(fmtDate(j.ac_assessment_date))}</span>`);
+  if (j.cancelled) chips.push('<span class="chip refund">Refund</span>');
+
+  return `<div class="job-card${j.cancelled ? ' cancelled' : ''}" data-id="${esc(j.id)}" style="--c:${col.color}">
+    <div class="card-top">
+      <div class="card-grip" title="Drag to move">⠿</div>
+      <div class="card-customer">${esc(j.customer || 'Untitled job')}</div>
+      ${j.job_no ? `<div class="card-job-no">#${esc(j.job_no)}</div>` : ''}
+    </div>
+    ${j.address ? `<div class="card-address">${esc(j.address)}</div>` : ''}
+    ${chips.length ? `<div class="card-chips">${chips.join('')}</div>` : ''}
+  </div>`;
+}
+
+function render(){
+  const list = visibleJobs();
+  const board = document.getElementById('board');
+  board.innerHTML = COLUMNS.map(col => {
+    const items = list.filter(j => j.status === col.key)
+                      .sort((a,b) => (a.position ?? 0) - (b.position ?? 0));
+    const sum = items.reduce((t,j) => t + (parseFloat(j.amount_received) || 0), 0);
+    return `<section class="board-col" data-status="${col.key}" style="--c:${col.color}">
+      <div class="col-head">
+        <span class="col-dot"></span>
+        <span class="col-name">${esc(col.label)}</span>
+        <span class="col-count">${items.length}</span>
+        ${sum ? `<span class="col-sum">${esc(money(sum))}</span>` : ''}
+      </div>
+      <div class="col-list" data-status="${col.key}">
+        ${items.length ? items.map(cardHTML).join('') : '<div class="col-empty">Drop jobs here</div>'}
+      </div>
+      <button class="col-add" onclick="openJobModal(null,'${col.key}')">+ Add job</button>
+    </section>`;
+  }).join('');
+  renderStats(list);
+}
+
+function renderStats(list){
+  const total = list.length;
+  const revenue = list.reduce((t,j) => t + (j.cancelled ? 0 : (parseFloat(j.amount_received) || 0)), 0);
+  const done = list.filter(j => j.status === 'completed').length;
+  const overdue = list.filter(j =>
+    j.installation_date && !j.cancelled && j.status !== 'completed' && j.installation_date < todayISO()
+  ).length;
+  document.getElementById('statPills').innerHTML =
+    `<div class="stat-pill"><b>${total}</b><span>jobs</span></div>` +
+    `<div class="stat-pill"><b>${esc(money(revenue) || '$0.00')}</b><span>received</span></div>` +
+    `<div class="stat-pill"><b>${done}</b><span>completed</span></div>` +
+    (overdue ? `<div class="stat-pill" style="background:var(--red-bg);border-color:#f5c2cb"><b style="color:var(--red)">${overdue}</b><span style="color:var(--red)">overdue</span></div>` : '');
+}
+
+// ── Drag and drop (pointer events → one code path for mouse and touch) ──
+let drag = null;
+let rafId = null;
+
+function jobById(id){ return jobs.find(j => String(j.id) === String(id)); }
+
+document.getElementById('board').addEventListener('pointerdown', e => {
+  const card = e.target.closest('.job-card');
+  if (!card || drag) return;
+  const onGrip = !!e.target.closest('.card-grip');
+  // Touch drags only from the grip, so the board still scrolls under a finger.
+  if (e.pointerType !== 'mouse' && !onGrip) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+  const rect = card.getBoundingClientRect();
+  drag = {
+    pointerId: e.pointerId, card, id: card.dataset.id,
+    startX: e.clientX, startY: e.clientY,
+    offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top,
+    width: rect.width, height: rect.height, started: false,
+    lastX: e.clientX, lastY: e.clientY,
+  };
+});
+
+// Bound to the window, not the board: once a drag is under way the pointer is
+// regularly outside the card it started on, and relying on pointer capture
+// breaks the moment the DOM under it changes.
+window.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  drag.lastX = e.clientX; drag.lastY = e.clientY;
+
+  if (!drag.started){
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 6) return;
+    beginDrag();
+  }
+  e.preventDefault();
+  positionGhost();
+  updateDropTarget();
+}, { passive: false });
+
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+
+function beginDrag(){
+  drag.started = true;
+  document.body.classList.add('is-dragging');
+
+  const ghost = drag.card.cloneNode(true);
+  ghost.classList.add('card-ghost');
+  ghost.style.setProperty('--gw', drag.width + 'px');
+  document.body.appendChild(ghost);
+  drag.ghost = ghost;
+
+  // A standalone node does the moving around the board. The real card only
+  // gets hidden — never relocated — so nothing disturbs the live pointer.
+  const ph = document.createElement('div');
+  ph.className = 'drag-placeholder';
+  ph.style.height = drag.height + 'px';
+  drag.card.after(ph);
+  drag.placeholder = ph;
+  drag.card.style.display = 'none';
+
+  positionGhost();
+
+  // Continuous edge-scrolling while a card is held near a board edge.
+  const step = () => {
+    if (!drag || !drag.started) return;
+    autoScroll();
+    rafId = requestAnimationFrame(step);
+  };
+  rafId = requestAnimationFrame(step);
+}
+
+function positionGhost(){
+  if (!drag?.ghost) return;
+  drag.ghost.style.transform =
+    `translate(${drag.lastX - drag.offsetX}px, ${drag.lastY - drag.offsetY}px) rotate(2deg) scale(1.02)`;
+}
+
+function updateDropTarget(){
+  const el = document.elementFromPoint(drag.lastX, drag.lastY);
+  const list = el?.closest('.col-list');
+  document.querySelectorAll('.col-list.is-over').forEach(n => n.classList.remove('is-over'));
+  if (!list) return;
+  list.classList.add('is-over');
+  list.querySelector('.col-empty')?.remove();
+
+  const siblings = [...list.querySelectorAll('.job-card')].filter(c => c !== drag.card);
+  let before = null;
+  for (const c of siblings){
+    const r = c.getBoundingClientRect();
+    if (drag.lastY < r.top + r.height / 2){ before = c; break; }
+  }
+  list.insertBefore(drag.placeholder, before);
+}
+
+function autoScroll(){
+  const board = document.getElementById('board');
+  const r = board.getBoundingClientRect();
+  const EDGE = 70, SPEED = 14;
+  if (drag.lastX < r.left + EDGE)       board.scrollLeft -= SPEED;
+  else if (drag.lastX > r.right - EDGE) board.scrollLeft += SPEED;
+
+  const list = drag.placeholder.closest('.col-list');
+  if (list && list.scrollHeight > list.clientHeight){
+    const lr = list.getBoundingClientRect();
+    if (drag.lastY < lr.top + EDGE)       list.scrollTop -= SPEED;
+    else if (drag.lastY > lr.bottom - EDGE) list.scrollTop += SPEED;
+  } else {
+    if (drag.lastY < 90) window.scrollBy(0, -SPEED);
+    else if (drag.lastY > window.innerHeight - 90) window.scrollBy(0, SPEED);
+  }
+}
+
+function endDrag(e){
+  if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+  const d = drag;
+  cancelAnimationFrame(rafId);
+
+  if (!d.started){
+    drag = null;
+    openJobModal(d.id);                       // a tap/click, not a drag
+    return;
+  }
+
+  d.ghost?.remove();
+  d.card.style.display = '';
+  document.body.classList.remove('is-dragging');
+  document.querySelectorAll('.col-list.is-over').forEach(n => n.classList.remove('is-over'));
+  drag = null;
+
+  const list = d.placeholder.closest('.col-list');
+  const job = jobById(d.id);
+  const newPos = list ? positionFor(list, d.placeholder) : null;
+  d.placeholder.remove();
+  if (!list || !job) { render(); return; }
+
+  const newStatus = list.dataset.status;
+  if (job.status === newStatus && job.position === newPos){ render(); return; }
+
+  const prev = { status: job.status, position: job.position };
+  job.status = newStatus;
+  job.position = newPos;
+  render();
+  persist(job.id, { status:newStatus, position:newPos }, () => {
+    Object.assign(job, prev);               // put it back if the write failed
+    render();
+  });
+}
+
+// Fractional midpoint between neighbours — reordering never rewrites the whole column.
+function positionFor(list, placeholder){
+  const sibs = [...list.querySelectorAll('.job-card, .drag-placeholder')]
+    .filter(el => el === placeholder || (el.dataset.id && el.style.display !== 'none'));
+  const i = sibs.indexOf(placeholder);
+  const prevJob = i > 0 ? jobById(sibs[i-1].dataset.id) : null;
+  const nextJob = i < sibs.length - 1 ? jobById(sibs[i+1].dataset.id) : null;
+  const p = prevJob ? (prevJob.position ?? 0) : null;
+  const n = nextJob ? (nextJob.position ?? 0) : null;
+  if (p === null && n === null) return 1000;
+  if (p === null) return n - 1000;
+  if (n === null) return p + 1000;
+  return (p + n) / 2;
+}
+
+async function persist(id, patch, onFail){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+      method:'PATCH',
+      headers:{ ...SB_HEADERS, Prefer:'return=minimal' },
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  }catch(err){
+    showToast('Could not save — change reverted.', true);
+    onFail?.();
+  }
+}
+
+// ── Add / edit modal ──
+function openJobModal(id, presetStatus){
+  editingId = id || null;
+  const j = id ? jobById(id) : null;
+
+  document.getElementById('f-status').innerHTML =
+    COLUMNS.map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('');
+
+  document.getElementById('jobModalTitle').textContent = j ? 'Edit Job' : 'Add Job';
+  document.getElementById('f-job-no').value      = j?.job_no ?? '';
+  document.getElementById('f-customer').value    = j?.customer ?? '';
+  document.getElementById('f-address').value     = j?.address ?? '';
+  document.getElementById('f-assessment').value  = j?.ac_assessment_date ?? '';
+  document.getElementById('f-install').value     = j?.installation_date ?? '';
+  document.getElementById('f-amount').value      = j?.amount_received ?? '';
+  document.getElementById('f-bpoint').value      = j?.bpoint_ref ?? '';
+  document.getElementById('f-notes').value       = j?.notes ?? '';
+  document.getElementById('f-cancelled').checked = !!j?.cancelled;
+  document.getElementById('f-status').value      = j?.status || presetStatus || 'date_pending';
+  document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
+
+  updateDaysHint();
+  document.getElementById('jobScrim').classList.add('show');
+  if (!j) setTimeout(() => document.getElementById('f-customer').focus(), 60);
+}
+function closeJobModal(){
+  document.getElementById('jobScrim').classList.remove('show');
+  editingId = null;
+}
+function updateDaysHint(){
+  const d = daysBetween(
+    document.getElementById('f-assessment').value,
+    document.getElementById('f-install').value
+  );
+  document.getElementById('daysHint').textContent =
+    d === null ? 'Days to install is worked out from these two dates.'
+               : `Days to install: ${d}`;
+}
+document.getElementById('f-assessment').addEventListener('change', updateDaysHint);
+document.getElementById('f-install').addEventListener('change', updateDaysHint);
+
+document.getElementById('jobScrim').addEventListener('click', e => {
+  if (e.target.id === 'jobScrim') closeJobModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('jobScrim').classList.contains('show')) closeJobModal();
+});
+
+async function saveJob(){
+  const customer = document.getElementById('f-customer').value.trim();
+  if (!customer){ showToast('Customer name is required.', true); return; }
+
+  const amountRaw = document.getElementById('f-amount').value;
+  const status = document.getElementById('f-status').value;
+  const payload = {
+    job_no:             document.getElementById('f-job-no').value.trim() || null,
+    customer,
+    address:            document.getElementById('f-address').value.trim() || null,
+    ac_assessment_date: document.getElementById('f-assessment').value || null,
+    installation_date:  document.getElementById('f-install').value || null,
+    amount_received:    amountRaw === '' ? null : parseFloat(amountRaw),
+    bpoint_ref:         document.getElementById('f-bpoint').value.trim() || null,
+    notes:              document.getElementById('f-notes').value.trim() || null,
+    cancelled:          document.getElementById('f-cancelled').checked,
+    status,
+    updated_at:         new Date().toISOString(),
+  };
+
+  const btn = document.getElementById('saveJobBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try{
+    let res;
+    if (editingId){
+      res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(editingId)}`, {
+        method:'PATCH',
+        headers:{ ...SB_HEADERS, Prefer:'return=representation' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      // New cards land at the top of their column.
+      const top = jobs.filter(j => j.status === status)
+                      .reduce((m,j) => Math.min(m, j.position ?? 0), 0);
+      res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+        method:'POST',
+        headers:{ ...SB_HEADERS, Prefer:'return=representation' },
+        body: JSON.stringify({ ...payload, position: top - 1000 })
+      });
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    const saved = Array.isArray(rows) ? rows[0] : rows;
+    if (saved){
+      saved.status = normStatus(saved.status);
+      const i = jobs.findIndex(j => String(j.id) === String(saved.id));
+      if (i >= 0) jobs[i] = saved; else jobs.push(saved);
+    }
+    closeJobModal();
+    render();
+    showToast(editingId ? 'Job updated.' : 'Job added.');
+  }catch(err){
+    showToast('Save failed. Check your connection and try again.', true);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteJob(){
+  if (!editingId) return;
+  const j = jobById(editingId);
+  if (!confirm(`Delete the job for ${j?.customer || 'this customer'}? This cannot be undone.`)) return;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${encodeURIComponent(editingId)}`, {
+      method:'DELETE', headers: SB_HEADERS
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    jobs = jobs.filter(x => String(x.id) !== String(editingId));
+    closeJobModal();
+    render();
+    showToast('Job deleted.');
+  }catch(err){
+    showToast('Delete failed.', true);
+  }
+}
+
+// ── CSV export (matches the original spreadsheet's columns) ──
+function exportCSV(){
+  const head = ['Job No.','Customer','Address','AC Assessment','Days to Install',
+                'Installation Date','Amount Received','BPOINT Ref','Job Status','Cancelled','Notes'];
+  const labelOf = k => (COLUMNS.find(c => c.key === k) || {}).label || k;
+  const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const rows = visibleJobs()
+    .slice()
+    .sort((a,b) => COL_KEYS.indexOf(a.status) - COL_KEYS.indexOf(b.status) || (a.position ?? 0) - (b.position ?? 0))
+    .map(j => [
+      j.job_no, j.customer, j.address, j.ac_assessment_date,
+      daysBetween(j.ac_assessment_date, j.installation_date) ?? '',
+      j.installation_date, j.amount_received, j.bpoint_ref,
+      labelOf(j.status), j.cancelled ? 'Yes' : '', j.notes
+    ].map(q).join(','));
+
+  const blob = new Blob([[head.map(q).join(','), ...rows].join('\r\n')], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `aircon-jobs-${todayISO()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+loadJobs();
+</script>
+</body>
+</html>
