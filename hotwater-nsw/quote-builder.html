@@ -119,7 +119,7 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
     </div>
   </div>
   <div class="subline">
-    <span id="tokenLine">New quote — not yet saved</span>
+    <span id="tokenLine">New quote — autosaves as you type</span>
     <span id="savedLine"></span>
   </div>
 </div>
@@ -189,11 +189,11 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
               <button type="button" class="pill-opt" data-val="back_to_back" onclick="setRelocationType('back_to_back')">Back-to-back</button>
             </div>
           </div>
-          <div class="field-row"><span class="field-label">Relocation metres</span><input type="number" id="relocationMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
+          <div class="field-row"><span class="field-label">Relocation metres</span><input type="number" id="relocationMetres" min="0" step="0.5" value="0" oninput="markDirty();recalc()"></div>
           <div class="hint" id="relocationHint"></div>
         </div>
         <div id="cableFields" style="display:none;">
-          <div class="field-row"><span class="field-label">Switchboard cable run (m)</span><input type="number" id="cableMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
+          <div class="field-row"><span class="field-label">Switchboard cable run (m)</span><input type="number" id="cableMetres" min="0" step="0.5" value="0" oninput="markDirty();recalc()"></div>
           <div class="hint">First 15m included in the gas base price. Additional metres charged at $20/m.</div>
         </div>
       </div>
@@ -234,7 +234,7 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
         </div>
         <div id="financeFields" style="display:none;">
           <div class="field-row"><span class="field-label">Income ≤ $210k/yr?</span>
-            <select id="incomeEligible" onchange="recalc()">
+            <select id="incomeEligible" onchange="markDirty();recalc()">
               <option value="needs_confirmation">Needs confirmation</option>
               <option value="yes">Yes</option>
               <option value="no">No</option>
@@ -242,7 +242,7 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
           </div>
           <div class="field-row"><span class="field-label">Eligibility</span><span id="eligibilityOut" class="v">—</span></div>
           <div class="field-row"><span class="field-label">Term</span>
-            <select id="financeTerm" onchange="recalc()">
+            <select id="financeTerm" onchange="markDirty();recalc()">
               <option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option>
               <option value="5">5 years</option><option value="7">7 years</option><option value="10" selected>10 years</option>
             </select>
@@ -259,10 +259,9 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
     <div class="card">
       <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Quote Actions</span></div>
       <div class="action-bar" style="flex-direction:column;">
-        <button class="btn btn-primary" onclick="saveQuote()">💾 Save Quote</button>
-        <button class="btn btn-outline" onclick="window.open(viewUrl(), '_blank')" id="viewBtn" disabled>👁 View Customer Quote</button>
-        <button class="btn btn-outline" onclick="emailQuote()" id="emailBtn" disabled>✉ Email Quote</button>
-        <button class="btn btn-outline" onclick="smsQuote()" id="smsBtn" disabled>💬 SMS Quote</button>
+        <button class="btn btn-outline" onclick="viewQuote()" id="viewBtn">👁 View Customer Quote</button>
+        <button class="btn btn-outline" onclick="emailQuote()" id="emailBtn">✉ Email Quote</button>
+        <button class="btn btn-outline" onclick="smsQuote()" id="smsBtn">💬 SMS Quote</button>
       </div>
     </div>
 
@@ -291,8 +290,15 @@ const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES
 let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:false, other_extras:[] };
 let currentToken = new URLSearchParams(location.search).get('token') || null;
 let dirty = false;
+let autosaveTimer = null;
 
-function markDirty(){ dirty = true; }
+// Autosave, debounced — no manual "Save" step needed. Any field change
+// schedules a silent save a second after the user stops typing/clicking.
+function markDirty(){
+  dirty = true;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(()=>{ if(document.getElementById('customerNameInput').value.trim()) saveQuote(true); }, 1000);
+}
 function money(n){ return '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
 
@@ -355,7 +361,7 @@ function addExtraRow(label, amount){
   const row = document.createElement('div'); row.className='extra-row';
   row.innerHTML = `<input type="text" placeholder="Description" value="${label?String(label).replace(/"/g,'&quot;'):''}" oninput="markDirty();recalc()">
     <input type="number" placeholder="0.00" min="0" step="0.01" value="${amount!=null?amount:''}" oninput="markDirty();recalc()">
-    <button type="button" class="extra-remove" onclick="this.parentElement.remove();recalc()">✕</button>`;
+    <button type="button" class="extra-remove" onclick="this.parentElement.remove();markDirty();recalc()">✕</button>`;
   document.getElementById('extrasList').appendChild(row);
 }
 
@@ -435,25 +441,30 @@ function buildPayload(){
   };
 }
 
-async function saveQuote(){
-  if(!document.getElementById('customerNameInput').value.trim()){ showToast('Enter the customer name first.'); return; }
+async function saveQuote(silent){
+  if(!document.getElementById('customerNameInput').value.trim()){ if(!silent) showToast('Enter the customer name first.'); return false; }
+  clearTimeout(autosaveTimer);
   try{
     const res = await fetch('/api/hotwater-nsw/quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
     const data = await res.json();
-    if(!res.ok){ showToast(data.error || 'Save failed.'); return; }
+    if(!res.ok){ showToast(data.error || 'Save failed.'); return false; }
     currentToken = data.quote_token;
     history.replaceState(null, '', `/hotwater-nsw/quote-builder.html?token=${encodeURIComponent(currentToken)}`);
     document.getElementById('tokenLine').textContent = `Quote ${currentToken.slice(0,8)}…`;
     document.getElementById('savedLine').textContent = `Saved ${new Date().toLocaleTimeString('en-AU')}`;
-    ['viewBtn','emailBtn','smsBtn'].forEach(id=>document.getElementById(id).disabled=false);
     dirty = false;
-    showToast('Quote saved.');
-  }catch(e){ console.error(e); showToast('Network error saving quote.'); }
+    if(!silent) showToast('Quote saved.');
+    return true;
+  }catch(e){ console.error(e); showToast('Network error saving quote.'); return false; }
+}
+
+async function viewQuote(){
+  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
+  window.open(viewUrl(), '_blank');
 }
 
 async function emailQuote(){
-  if(dirty){ await saveQuote(); }
-  if(!currentToken) return;
+  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
   if(!document.getElementById('customerEmail').value.includes('@')){ showToast('Enter a valid customer email first.'); return; }
   const btn = document.getElementById('emailBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
   try{
@@ -466,8 +477,7 @@ async function emailQuote(){
 }
 
 async function smsQuote(){
-  if(dirty){ await saveQuote(); }
-  if(!currentToken) return;
+  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
   if(!document.getElementById('customerPhone').value.trim()){ showToast('Enter a customer mobile number first.'); return; }
   const btn = document.getElementById('smsBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
   try{
