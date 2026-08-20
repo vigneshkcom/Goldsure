@@ -968,6 +968,8 @@ export default async function handler(req, res) {
   // with the job pre-filled into the search box (?q=<job no or customer>).
   // The row is already saved to Supabase by the browser before this call, so
   // this only sends the email and never touches the row.
+  // Goes to Ecogenica/Eco Alliance (same as goldsure-comment-notify below),
+  // cc'd to Goldsure's Amit and David — NOT to vignesh@goldsure.com.au.
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'new-job-notify') {
     const jobNo = String(body.job_no || '').slice(0, 40);
@@ -1014,7 +1016,8 @@ export default async function handler(req, res) {
 
     try {
       await sendHostingerMail({
-        to: ['vignesh@goldsure.com.au'],
+        to: ['troy@ecogenica.com.au'],
+        cc: ['joan@ecoalliance.com.au', 'leoann@ecoalliance.com.au', 'ashleigh.kendell@ecolightup.com.au', 'amit@goldsure.com.au', 'david@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
         subject: `New job added${jobNo ? ' - ' + jobNo : ''} - ${customer}`,
         html,
