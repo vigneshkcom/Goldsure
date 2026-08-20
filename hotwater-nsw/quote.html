@@ -61,6 +61,11 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 .installer .txt{font-size:12.5px;color:#3d4658;line-height:1.6;}
 .installer .txt strong{color:var(--text);}
 
+.accept-cta{padding:24px 30px 0;text-align:center;}
+.accept-cta .msg{font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;}
+.accept-btn{display:inline-block;background:var(--gold);color:#1b1405;font-family:inherit;font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:11px;box-shadow:0 5px 16px rgba(176,141,46,.32);transition:.15s;}
+.accept-btn:hover{background:var(--gold-2);}
+.accepted-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf6f0;color:#1f7d52;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;}
 .fineprint{padding:20px 30px 0;font-size:10px;color:#aeb4c0;line-height:1.65;}
 .sig{margin:18px 30px 0;padding-top:16px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .sig img{height:34px;width:auto;}
@@ -164,6 +169,11 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
     </div>
   </div>
 
+  <div class="accept-cta" id="acceptCta">
+    <div class="msg">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
+    <a class="accept-btn" id="acceptBtn" href="#">Accept This Quote</a>
+  </div>
+
   <div class="fineprint">
     This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Scheme eligibility is subject to approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty. This quote remains valid for 21 days from the date shown above.
   </div>
@@ -249,6 +259,14 @@ const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('
     document.getElementById('tGst').textContent   = money(total - exGst(total));
     document.getElementById('tTotal').textContent = money(total);
     document.getElementById('bandTotal').textContent = money(total);
+
+    // Accept CTA — swapped for a confirmation once the quote has been accepted.
+    const cta = document.getElementById('acceptCta');
+    if(q.accepted === true || q.status === 'accepted'){
+      cta.innerHTML = '<div class="accepted-chip">✓ You accepted this quote — our team will be in touch</div>';
+    }else{
+      document.getElementById('acceptBtn').href = '/hotwater-nsw/accept.html?token=' + encodeURIComponent(q.quote_token);
+    }
 
     if(q.finance_requested){
       document.getElementById('finBox').classList.remove('hidden');

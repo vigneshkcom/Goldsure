@@ -54,7 +54,7 @@ async function isOptedOut(phone, SUPABASE_URL, SUPABASE_KEY) {
 // they need is in front of them without opening anything. Follows the VIC hot
 // water quote layout and Goldsure's black/gold branding, with Ecogenica named
 // as the accredited provider and installer.
-function buildEmailHtml(q, calc, quoteUrl, emailBody) {
+function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   const modelLabel = HEAT_PUMP_LABEL[q.heat_pump_model] || q.heat_pump_model || '';
   const systemLabel = (EXISTING_SYSTEM_LABEL[q.existing_system] || '').toLowerCase();
   const bodyHtml = esc(String(emailBody || '').trim() || DEFAULT_EMAIL_BODY).replace(/\r?\n/g, '<br>');
@@ -82,14 +82,23 @@ function buildEmailHtml(q, calc, quoteUrl, emailBody) {
 
   const financeBlock = calc.finance_requested ? `
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
-      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:6px;"><tr><td style="padding:14px 16px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:9px;">NSW Home Energy Saver Loan by Brighte — 0% Interest</div>
-        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated fortnightly repayment</td><td style="padding:4px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(calc.fortnightly_repayment)}</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated monthly repayment</td><td style="padding:4px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(calc.monthly_repayment)}</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Finance term</td><td style="padding:4px 0;font-size:13px;color:#141c2e;text-align:right;">${calc.finance_term_years} years</td></tr>
-        </table>
-        <div style="font-size:11px;color:#8b93a3;margin-top:9px;line-height:1.55;">0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:12px;"><tr><td style="padding:16px 18px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:13px;">NSW Home Energy Saver Loan by Brighte — 0% Interest</div>
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+          <td width="33%" align="center" style="padding:0 4px;">
+            <div style="font-size:20px;font-weight:700;color:#b08d2e;line-height:1.2;">${money(calc.fortnightly_repayment)}</div>
+            <div style="font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#9c8a5e;padding-top:3px;">per fortnight</div>
+          </td>
+          <td width="33%" align="center" style="padding:0 4px;">
+            <div style="font-size:20px;font-weight:700;color:#b08d2e;line-height:1.2;">${money(calc.monthly_repayment)}</div>
+            <div style="font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#9c8a5e;padding-top:3px;">per month</div>
+          </td>
+          <td width="33%" align="center" style="padding:0 4px;">
+            <div style="font-size:20px;font-weight:700;color:#b08d2e;line-height:1.2;">${calc.finance_term_years} yrs</div>
+            <div style="font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#9c8a5e;padding-top:3px;">term</div>
+          </td>
+        </tr></table>
+        <div style="font-size:11px;color:#8b7c56;margin-top:13px;line-height:1.6;">0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -177,11 +186,13 @@ ${financeBlock}
       </tr></table>
     </td></tr>
 
-    <!-- View quote -->
-    <tr><td align="center" style="padding:24px 32px 6px;font-family:${FONT};">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${quoteUrl}" style="height:48px;v-text-anchor:middle;width:200px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">View Quote</center></v:roundrect><![endif]-->
-      <!--[if !mso]><!--><a href="${quoteUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">View Quote</a><!--<![endif]-->
-      <div style="font-size:11px;color:#9aa2b1;margin-top:13px;">This quote remains valid for 21 days from ${quoteDate}.</div>
+    <!-- Accept / view -->
+    <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
+      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
+      <div style="font-size:12px;margin-top:14px;"><a href="${quoteUrl}" style="color:#8b93a3;text-decoration:underline;">or view your quote online</a></div>
+      <div style="font-size:11px;color:#9aa2b1;margin-top:11px;">This quote remains valid for 21 days from ${quoteDate}.</div>
     </td></tr>
 
     <!-- Fine print -->
@@ -231,6 +242,7 @@ export default async function handler(req, res) {
   const calc = calculateQuote(body);
   const token = globalThis.crypto?.randomUUID?.() || String(Date.now());
   const quoteUrl = `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(token)}`;
+  const acceptUrl = `${SITE}/hotwater-nsw/accept.html?token=${encodeURIComponent(token)}`;
   const sentAt = new Date().toISOString();
 
   // Insert first so the link in the email/SMS resolves the moment it lands.
@@ -310,7 +322,7 @@ export default async function handler(req, res) {
       bcc: ['info@goldsure.com.au'],
       displayName: 'Goldsure Pty Ltd',
       subject: 'Your Heat Pump Hot Water Quotation – Goldsure',
-      html: buildEmailHtml(body, calc, quoteUrl, email_body),
+      html: buildEmailHtml(body, calc, quoteUrl, acceptUrl, email_body),
       ...(attachments.length ? { attachments } : {}),
     });
   } catch (e) {
