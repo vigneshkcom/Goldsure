@@ -367,6 +367,7 @@ function markDirty(){
   autosaveTimer = setTimeout(()=>{ if(document.getElementById('customerNameInput').value.trim()) saveQuote(true); }, 1000);
 }
 function money(n){ return '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
 
 function setExisting(v){ state.existing_system=v; document.querySelectorAll('#existingSystemGroup .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); markDirty(); recalc(); }
@@ -397,7 +398,14 @@ function onGhlSearch(){
         <div class="n">${esc(c.name||'—')}</div>
         <div class="s">${esc(c.phone||'')}${c.email?' · '+esc(c.email):''}${c.address?' · '+esc(c.address):''}</div>
       </div>`).join('');
-    }catch(e){ box.innerHTML = '<div class="ghl-item empty">Could not reach GHL.</div>'; }
+    }catch(e){
+      // Don't assert a cause here — this catch also fires on a bug in the
+      // rendering code above, and blaming the network for that sends you
+      // hunting the wrong problem. Report it as a lookup failure and put the
+      // real error in the console.
+      console.error('[NSW HWS] contact lookup failed:', e);
+      box.innerHTML = '<div class="ghl-item empty">Contact lookup failed — see browser console.</div>';
+    }
   }, 300);
 }
 function pickGhl(c){
