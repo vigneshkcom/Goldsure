@@ -23,8 +23,9 @@ const money = (n) => {
 };
 
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. '
-  + 'The price shown below already includes the applicable NSW scheme discounts. Eligibility, final '
-  + 'system requirements and installation scope will be confirmed on site by a licensed installer.';
+  + 'The price below includes the applicable NSW scheme discounts and covers the installation as '
+  + 'quoted, based on the information provided. If anything unforeseen is identified on site that '
+  + 'requires additional work, we\u2019ll explain it clearly and confirm any cost with you before proceeding.';
 
 // Normalise AU mobile formats to E.164 (same rule as api/battery/request-callback.js
 // so a reply lands in the same SMS thread regardless of which flow sent first).
