@@ -271,7 +271,13 @@ export default async function handler(req, res) {
   if (!insRes.ok) {
     const detail = await insRes.text().catch(() => '');
     console.error('[NSW HWS] insert failed', insRes.status, detail.slice(0, 300));
-    return res.status(502).json({ error: 'Could not save the quote.' });
+    // Surface the real Postgres/PostgREST reason (e.g. a missing column after a
+    // schema change) rather than a generic message — this is the only place an
+    // agent sees the failure, and "Could not save the quote" alone sent people
+    // hunting blind for something that a one-line error would have named.
+    let hint = '';
+    try { hint = JSON.parse(detail)?.message || ''; } catch { /* not JSON */ }
+    return res.status(502).json({ error: hint ? `Could not save the quote: ${hint}` : 'Could not save the quote.' });
   }
   const inserted = (await insRes.json().catch(() => []))[0] || {};
 
