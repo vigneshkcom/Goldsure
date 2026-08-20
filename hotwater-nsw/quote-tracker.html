@@ -3,164 +3,407 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NSW Hot Water Quote Tracker · Goldsure</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<title>Goldsure · NSW Hot Water Quote Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --navy:#292f4c; --blue:#0073ea; --blue-hover:#0060b9; --green:#00c875; --green-dark:#037f4c;
-  --purple:#a25ddc; --yellow:#fdab3d; --red:#e2445c;
-  --bg:#f6f7fb; --surface:#fff; --surface2:#fafbfc; --border:#e6e9ef;
-  --text:#323338; --muted:#676879; --faint:#9699a6;
+/* ─────────────────────────────────────────────────────────────
+   monday.com-style board UI — the same stylesheet the VIC hot
+   water tracker uses, so the two boards read as one product.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* monday palette */
+  --blue: #0073ea; --blue-dark: #0060b9; --blue-bg: #e6f1fd;
+  --green: #00c875; --green-bg: #e7f9f1; --green-border: #9ce6c6;
+  --amber: #fdab3d; --red: #e2445c; --red-bg: #fdecef;
+  --purple: #a25ddc; --teal: #009eb5;
+  --gold: #0073ea; --gold-light: #4a9bf0;
+  --gold-bg: #e6f1fd; --gold-border: #a8cff7;
+
+  --bg: #f6f7fb; --surface: #ffffff; --surface2: #f5f6f8; --surface3: #eceef4;
+  --border: #e6e9ef; --border2: #d0d4e4;
+  --text: #323338; --muted: #676879;
+  --shadow: 0 1px 3px rgba(0,0,0,0.04);
+  --r: 8px;
 }
-*{box-sizing:border-box;}
-body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:var(--text);}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  font-size: 14px; -webkit-font-smoothing: antialiased;
+}
 
-.topbar{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
-.topbar-left{display:flex;align-items:center;gap:13px;}
-.topbar img{height:24px;}
-.topbar h1{font-size:16px;margin:0;font-weight:700;}
-.topbar .sub{font-size:11.5px;color:rgba(255,255,255,.55);margin-top:2px;}
-.topbar-actions{display:flex;gap:8px;align-items:center;}
-.btn{border:none;border-radius:6px;padding:8px 15px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-.btn-primary{background:var(--blue);color:#fff;} .btn-primary:hover{background:var(--blue-hover);}
-.btn-ghost{background:rgba(255,255,255,.1);color:#fff;} .btn-ghost:hover{background:rgba(255,255,255,.18);}
-.btn:disabled{opacity:.45;cursor:not-allowed;}
-.agent-chip{font-size:11.5px;color:rgba(255,255,255,.75);font-weight:600;}
-.tracker-nav{display:inline-flex;gap:3px;background:rgba(255,255,255,.08);border-radius:8px;padding:3px;}
-.trk-link{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:5px 10px;border-radius:6px;color:rgba(255,255,255,.6);text-decoration:none;white-space:nowrap;}
-.trk-link:hover{background:rgba(255,255,255,.12);color:#fff;}
-.trk-link.is-active{background:var(--blue);color:#fff;}
+/* ── Header ── */
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100; min-height: 60px; gap: 14px;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo img { height: 38px; width: auto; object-fit: contain; }
+.hd { width: 1px; height: 26px; background: var(--border2); }
+.page-label {
+  font-family: inherit; font-size: 20px; font-weight: 700;
+  letter-spacing: -.01em; text-transform: none; color: var(--text); white-space: nowrap;
+}
+.tracker-nav { display: inline-flex; gap: 3px; background: var(--surface2); border: none; border-radius: 8px; padding: 3px; }
+.trk-link {
+  font-family: inherit; font-size: 12.5px; font-weight: 500; text-transform: none; letter-spacing: 0;
+  padding: 5px 12px; border-radius: 6px; color: var(--muted); text-decoration: none;
+  transition: background .12s, color .12s; white-space: nowrap;
+}
+.trk-link:hover { background: #fff; color: var(--text); }
+.trk-link.is-active { background: var(--blue); color: #fff; }
+.header-right { display: flex; align-items: center; gap: 6px; }
+.nav-btn {
+  font-family: inherit; font-size: 13px; font-weight: 400; padding: 0 12px; height: 32px;
+  border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--muted);
+  cursor: pointer; text-decoration: none; transition: background .12s, color .12s;
+  display: inline-flex; align-items: center; white-space: nowrap; text-transform: none; letter-spacing: 0;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); border-color: transparent; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-icon { display: inline-block; margin-right: 5px; }
+.spinning .spin-icon { animation: spin .7s linear infinite; }
 
-.wrap{max-width:1400px;margin:0 auto;padding:18px 20px 60px;}
+main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
-.kpi{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:13px 16px;}
-.kpi .v{font-size:22px;font-weight:700;}
-.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-.kpi .v.blue{color:var(--blue);} .kpi .v.green{color:var(--green-dark);} .kpi .v.red{color:var(--red);}
+/* ── KPI cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 14px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.kpi-label {
+  font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0;
+  color: var(--muted); margin-bottom: 6px;
+}
+.kpi-val { font-size: 28px; font-family: inherit; font-weight: 600; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
-.filters{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
-.filters .lbl{font-size:12px;color:var(--muted);font-weight:600;}
-.filters input,.filters select{border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12.5px;font-family:inherit;color:var(--text);background:#fff;}
-.filters input{min-width:230px;flex:1;}
-.filters input:focus,.filters select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12);}
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); }
+.chart-title { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); margin-bottom: 14px; }
+.agent-bars { display: flex; flex-direction: column; gap: 10px; }
+.agent-bar-row { display: flex; align-items: center; gap: 12px; }
+.agent-bar-name { font-size: 13px; font-weight: 400; width: 168px; flex-shrink: 0; overflow: hidden; white-space: nowrap; }
+.agent-bar-track { flex: 1; background: var(--surface3); border-radius: 99px; height: 8px; overflow: hidden; }
+.agent-bar-fill { height: 100%; background: var(--blue); border-radius: 99px; transition: width .6s ease; }
+.agent-bar-val { font-size: 12px; font-family: inherit; font-variant-numeric: tabular-nums; color: var(--muted); width: 28px; text-align: right; }
+.day-grid { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+.day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.day-bar-track { width: 100%; background: var(--surface3); border-radius: 4px; display: flex; flex-direction: column; justify-content: flex-end; height: 60px; overflow: hidden; border: none; }
+.day-bar-fill { background: var(--blue); width: 100%; border-radius: 3px; transition: height .5s ease, background .3s ease; min-height: 2px; }
+/* Busier days sit darker on a blue heat scale — set inline from the count. */
+.day-heat-0 { background: #d7dbe8; }
+.day-heat-1 { background: #cce3fb; }
+.day-heat-2 { background: #8fc3f6; }
+.day-heat-3 { background: #3f9bf0; }
+.day-heat-4 { background: #0073ea; }
+.day-heat-5 { background: #0060b9; }
+.day-label { font-size: 9px; color: var(--muted); }
 
-.table-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
-.table-bar{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-.table-title{font-size:13px;font-weight:700;}
-.del-btn{background:var(--red);color:#fff;border:none;border-radius:6px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
-.del-btn:disabled{opacity:.4;cursor:not-allowed;}
-.table-scroll{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;min-width:900px;}
-thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap;}
-tbody td{padding:11px 12px;font-size:12.5px;border-bottom:1px solid #f1f2f6;vertical-align:top;}
-tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover{background:#fafbff;}
-.td-name{font-weight:600;}
-.td-sub{font-size:11px;color:var(--faint);margin-top:1px;}
-.td-total{font-weight:700;white-space:nowrap;}
-.model-badge{display:inline-block;background:#eef0f4;color:var(--navy);border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;white-space:nowrap;}
-.agent-badge{display:inline-block;background:#f2f8ff;color:var(--blue);border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;}
+/* ── Filters ── */
+.filters-bar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 10px 14px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  flex-wrap: wrap; box-shadow: var(--shadow);
+}
+.filter-label { font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); white-space: nowrap; }
+.filter-input, .filter-select {
+  font-family: inherit; font-size: 13.5px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 0 12px; height: 32px; color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s;
+}
+.filter-input { min-width: 240px; }
+.filter-input::placeholder { color: #9699a6; }
+.filter-input:focus, .filter-select:focus { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); background: var(--surface); }
+.filter-divider { width: 1px; height: 22px; background: var(--border); }
+.clear-btn {
+  font-family: inherit; font-size: 13px; font-weight: 400; padding: 0 12px; height: 32px; border-radius: 4px;
+  cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--muted);
+  text-transform: none; letter-spacing: 0; transition: all .12s;
+}
+.clear-btn:hover { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+.results-count { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.results-count strong { color: var(--text); font-family: inherit; font-variant-numeric: tabular-nums; }
 
-.badge{display:inline-block;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;text-transform:capitalize;}
-.badge-sent{background:var(--yellow);} .badge-accepted{background:var(--green);}
-.badge-rejected{background:var(--red);} .badge-installed{background:var(--green-dark);}
-.status-btn{cursor:pointer;border:none;background:none;padding:0;font:inherit;position:relative;}
-.status-menu{display:none;position:absolute;top:100%;left:0;margin-top:5px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 12px 30px rgba(16,24,40,.18);z-index:60;min-width:150px;overflow:hidden;}
-.status-menu.open{display:block;}
-.status-menu-item{padding:8px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;text-align:left;}
-.status-menu-item:hover{background:var(--surface2);}
-.status-menu-item.active{color:var(--blue);font-weight:600;}
-.dot{width:9px;height:9px;border-radius:50%;flex:none;}
-.dot-sent{background:var(--yellow);} .dot-accepted{background:var(--green);}
-.dot-rejected{background:var(--red);} .dot-installed{background:var(--green-dark);}
+/* ── Board table ── */
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
+.table-header-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.table-title { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); }
+.del-btn {
+  font-family: inherit; font-size: 13px; font-weight: 400; padding: 0 12px; height: 32px;
+  border-radius: 4px; border: 1px solid var(--red); background: #fff; color: var(--red);
+  cursor: pointer; text-transform: none; letter-spacing: 0; transition: all .12s; margin-left: auto;
+}
+.del-btn:hover:not(:disabled) { background: var(--red); color: #fff; }
+.del-btn:disabled { opacity: .4; cursor: not-allowed; }
+.row-check, #selectAll { width: 16px; height: 16px; cursor: pointer; vertical-align: middle; accent-color: var(--blue); }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 1180px; }
+thead tr { background: var(--surface); }
+th {
+  padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 400; text-transform: none;
+  letter-spacing: 0; color: var(--muted); white-space: normal; line-height: 1.3;
+  border-bottom: 1px solid var(--border2); cursor: pointer; user-select: none; transition: color .12s;
+}
+th:hover { color: var(--blue); }
+th.sorted { color: var(--blue); font-weight: 500; }
+/* Sort direction as a small caret on the active column only. */
+.sort-caret { display: inline-block; width: 0; height: 0; margin-left: 5px; vertical-align: middle; opacity: 0; }
+th:hover .sort-caret { opacity: .45; }
+th.sorted .sort-caret { opacity: 1; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+th.sorted.asc .sort-caret { border-top: none; border-bottom: 5px solid currentColor; }
+th:hover .sort-caret { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
 
-.link-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;}
-.link-btn:hover{border-color:var(--blue);color:var(--blue);}
+/* People column */
+.person { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+.person-av {
+  width: 24px; height: 24px; border-radius: 50%; flex: none; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: middle; }
+.td-name { font-weight: 500; font-size: 13.5px; }
+.td-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+/* Long site addresses wrap onto a second line and stop there. */
+.td-addr {
+  color: #9699a6; max-width: 300px; white-space: normal; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.td-mono-sub { font-family: inherit; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.td-date { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.td-oop { font-family: inherit; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
 
-.empty{padding:44px 20px;text-align:center;color:var(--faint);}
-.empty .ic{font-size:30px;margin-bottom:8px;}
-.empty h3{font-size:15px;color:var(--text);margin:0 0 5px;}
-.empty p{font-size:12.5px;margin:0;}
+/* ── Status chips: solid fills, the monday board signature ── */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0;
+  font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0;
+  padding: 4px 11px; border-radius: 4px; white-space: nowrap; color: #fff; border: none;
+  min-width: 90px;
+}
+.badge-sent      { background: var(--blue); }
+.badge-accepted  { background: var(--green); }
+.badge-rejected  { background: var(--red); }
+.badge-installed { background: var(--purple); }
 
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 22px;border-radius:8px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:200;}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
+.status-btn:hover .badge { opacity: .86; }
 
-@media (max-width:700px){ .filters input{min-width:auto;width:100%;} }
+.days-pill {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 40px;
+  padding: 3px 9px; border-radius: 4px; background: var(--surface3); border: none;
+  color: var(--muted); font-size: 12px; font-weight: 400; font-family: inherit; font-variant-numeric: tabular-nums;
+}
+.days-pill.is-stale { background: var(--amber); border: none; color: #fff; }
+
+/* ── Dropdown menus ── */
+.status-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); background: #fff; border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 500; min-width: 150px;
+  overflow: hidden; display: none; padding: 4px;
+}
+.status-menu.open { display: block; }
+.status-menu-item {
+  display: flex; align-items: center; gap: 9px; padding: 8px 12px; font-size: 13.5px; font-weight: 400;
+  cursor: pointer; color: var(--text); transition: background .1s; white-space: nowrap; border-radius: 4px;
+}
+.status-menu-item:hover { background: var(--surface2); }
+.status-menu-item.active { color: var(--blue); font-weight: 500; }
+.status-menu-item .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dot-sent { background: var(--blue); }
+.dot-accepted { background: var(--green); }
+.dot-rejected { background: var(--red); }
+.dot-installed { background: var(--purple); }
+
+/* ── Small labels ── */
+.model-badge {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
+  padding: 3px 9px; border-radius: 4px; background: var(--surface3); color: var(--text);
+  text-transform: none; letter-spacing: 0; white-space: nowrap;
+}
+.fin-badge {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
+  padding: 3px 9px; border-radius: 4px; text-transform: none; letter-spacing: 0; white-space: nowrap;
+}
+.fin-yes { background: var(--blue-bg); color: var(--blue); }
+.fin-no  { background: var(--surface3); color: var(--muted); }
+.view-btn {
+  font-family: inherit; font-size: 12.5px; font-weight: 400; padding: 0 10px; height: 28px;
+  border-radius: 4px; border: 1px solid var(--border2); background: var(--surface); color: var(--muted);
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; transition: all .12s;
+}
+.view-btn:hover { border-color: var(--blue); color: var(--blue); }
+.scope-chip {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 400;
+  padding: 3px 9px; border-radius: 4px; background: var(--blue-bg); color: var(--blue);
+  text-transform: none; letter-spacing: 0;
+}
+.meta-only { color: var(--muted); font-size: 12px; }
+
+/* ── States ── */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 36px; margin-bottom: 14px; opacity: .3; }
+.empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.empty-state p { font-size: 13.5px; color: var(--muted); }
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; height: 12px; display: block; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton.w-20{width:20%}.skeleton.w-30{width:30%}.skeleton.w-40{width:40%}.skeleton.w-60{width:60%}.skeleton.w-80{width:80%}
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text);
+  color: #fff; font-size: 13.5px; font-weight: 400; padding: 11px 22px; border-radius: 6px;
+  border-left: none; box-shadow: 0 6px 24px rgba(0,0,0,.2); opacity: 0; transition: opacity .25s;
+  pointer-events: none; z-index: 9999; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+@media(max-width:1300px){ .kpi-grid{grid-template-columns:repeat(3,1fr)} .charts-grid{grid-template-columns:1fr} }
+@media(max-width:700px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  header{padding:10px 14px;flex-wrap:wrap;gap:8px;min-height:auto}
+  .page-label{font-size:17px}
+  .header-logo img{height:32px}
+  .header-left,.header-right{flex-wrap:wrap;min-width:0;max-width:100%}
+  .tracker-nav{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .hd{display:none}
+  main{padding:14px}
+  .filters-bar{flex-direction:column;align-items:stretch}
+  .filter-input{min-width:auto;width:100%}
+  .results-count{margin-left:0}
+}
+
+/* ── monday app rail ──
+   The same dark icon strip the portal carries, so the trackers read as
+   pages of one workspace rather than standalone tools. */
+:root { --rail-w: 60px; }
+body { padding-left: var(--rail-w); }
+.rail {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--rail-w); z-index: 200;
+  background: #292f4c; display: flex; flex-direction: column; align-items: center;
+  padding: 12px 0 14px; gap: 14px;
+}
+.rail-logo { display: block; width: 32px; height: 32px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+.rail-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rail-items { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px; }
+.rail-btn {
+  width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; color: rgba(255,255,255,.72); text-decoration: none;
+  transition: background .14s ease, color .14s ease;
+}
+.rail-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+.rail-btn.is-active { background: #0073ea; color: #fff; }
+.rail-me {
+  margin-top: auto; width: 32px; height: 32px; border-radius: 50%;
+  background: #a25ddc; color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+@media (max-width: 700px) {
+  body { padding-left: 0; }
+  .rail { display: none; }
+}
 </style>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon-hws.svg">
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+  <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
 </head>
 <body>
+<nav class="rail" aria-label="Sections">
+  <a class="rail-logo" href="/" title="Goldsure home"><img src="/assets/gs-favicon-96px.png" alt="Goldsure"></a>
+  <div class="rail-items">
+    <a class="rail-btn" href="/" title="Dashboard">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    </a>
+    <a class="rail-btn is-active" href="#" title="Quote trackers" aria-current="page">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    </a>
+    <a class="rail-btn" href="/sms/" title="Inbox — SMS">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </a>
+  </div>
+  <div class="rail-me" title="Goldsure internal">GS</div>
+</nav>
 
-<div class="topbar">
-  <div class="topbar-left">
-    <img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure">
-    <div>
-      <h1>NSW Hot Water Quote Tracker</h1>
-      <div class="sub">Every quote sent from the NSW builder</div>
-    </div>
-    <nav class="tracker-nav">
+<header>
+  <div class="header-left">
+    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
+    <div class="hd meta-only"></div>
+    <span class="page-label" id="pageLabel">NSW Hot Water · Quote Tracker</span>
+    <nav class="tracker-nav meta-only">
       <a href="/hotwater/quote-tracker.html" class="trk-link">HWS</a>
       <a href="/hotwater-nsw/quote-tracker.html" class="trk-link is-active">NSW HWS</a>
       <a href="/aircons/quote-tracker.html" class="trk-link">Aircon</a>
       <a href="/smoke-alarms/quote-tracker.html" class="trk-link">Smoke Alarm</a>
     </nav>
   </div>
-  <div class="topbar-actions">
-    <span class="agent-chip" id="agentChip"></span>
-    <button class="btn btn-ghost" onclick="loadQuotes()">↻ Refresh</button>
-    <a class="btn btn-primary" href="/hotwater-nsw/quote-builder.html">+ New Quote</a>
+  <div class="header-right">
+    <a href="/" class="nav-btn meta-only">← Portal</a>
+    <a href="/hotwater-nsw/quote-builder.html" class="nav-btn meta-only">← Quote Builder</a>
+    <button class="nav-btn meta-only" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="nav-btn" id="refreshBtn" onclick="loadQuotes()"><span class="spin-icon" id="spinIcon">↻</span> Refresh</button>
   </div>
-</div>
+</header>
 
-<div class="wrap">
-
-  <div class="kpis">
-    <div class="kpi"><div class="v" id="kTotal">—</div><div class="l">Quotes Sent</div></div>
-    <div class="kpi"><div class="v green" id="kAccepted">—</div><div class="l">Accepted</div></div>
-    <div class="kpi"><div class="v red" id="kRejected">—</div><div class="l">Rejected</div></div>
-    <div class="kpi"><div class="v blue" id="kValue">—</div><div class="l">Total Value Sent</div></div>
-  </div>
-
-  <div class="filters">
-    <span class="lbl">Filter</span>
-    <input type="search" id="fSearch" placeholder="Search name, email, phone, address…" oninput="applyFilters()">
-    <select id="fModel" onchange="applyFilters()"><option value="">All Models</option></select>
-    <select id="fAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
-    <select id="fStatus" onchange="applyFilters()">
-      <option value="">All Statuses</option><option value="sent">Sent</option>
-      <option value="accepted">Accepted</option><option value="rejected">Rejected</option>
-      <option value="installed">Installed</option>
-    </select>
-    <select id="fPeriod" onchange="applyFilters()">
-      <option value="">All Time</option><option value="today">Today</option>
-      <option value="week">Last 7 Days</option><option value="month">Last 30 Days</option>
-    </select>
+<main>
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Revenue Pipeline</div><div class="kpi-val" id="kpi-value">—</div><div class="kpi-sub">Total installed price, all quotes</div></div>
+    <div class="kpi-card"><div class="kpi-label">Quotes Sent</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">All time</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rejected</div><div class="kpi-val" id="kpi-rejected">—</div><div class="kpi-sub">Declined by customer</div></div>
+    <div class="kpi-card"><div class="kpi-label">Accepted</div><div class="kpi-val" id="kpi-accepted">—</div><div class="kpi-sub" id="kpi-rate">Conversion rate</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Quote Value</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Per quote</div></div>
+    <div class="kpi-card"><div class="kpi-label">On Finance</div><div class="kpi-val" id="kpi-finance">—</div><div class="kpi-sub" id="kpi-finance-sub">NSW Home Energy Saver</div></div>
   </div>
 
-  <div class="table-card">
-    <div class="table-bar">
-      <span class="table-title">NSW Hot Water Quotes (<span id="count">0</span>)</span>
-      <button class="del-btn" id="deleteBtn" onclick="deleteSelected()" disabled>Delete Selected</button>
-    </div>
+  <div class="charts-grid">
+    <div class="chart-card"><div class="chart-title">Quotes by Agent</div><div class="agent-bars" id="agent-bars"><div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>Loading…</p></div></div></div>
+    <div class="chart-card"><div class="chart-title">Last 14 Days Activity</div><div class="day-grid" id="day-grid"></div></div>
+  </div>
+
+  <div class="filters-bar">
+    <span class="filter-label">Filter</span>
+    <input type="search" class="filter-input" id="searchInput" placeholder="Search name, email, phone, agent…" oninput="applyFilters()">
+    <div class="filter-divider"></div>
+    <select class="filter-select" id="filterModel" onchange="applyFilters()"><option value="">All Models</option></select>
+    <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
+    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="installed">Installed</option></select>
+    <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
+    <button class="clear-btn" onclick="clearFilters()">Clear</button>
+    <span class="results-count"><strong id="results-count">0</strong> quotes shown</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header-bar"><span class="table-title">NSW Hot Water Quotes</span><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th style="width:34px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
-            <th>Sent</th><th>Customer</th><th>Agent</th><th>Model</th>
-            <th>Grand Total</th><th>Finance</th><th>Status</th><th>Quote</th>
+            <th style="width:30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Date<i class="sort-caret"></i></th>
+            <th onclick="sortBy('customer_name')" data-col="customer_name">Customer<i class="sort-caret"></i></th>
+            <th onclick="sortBy('agent_name')" data-col="agent_name">Agent<i class="sort-caret"></i></th>
+            <th>Heat Pump</th>
+            <th onclick="sortBy('final_price')" data-col="final_price">Total Installed<i class="sort-caret"></i></th>
+            <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
+            <th>Status</th>
+            <th>Finance</th>
+            <th>Quote</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="9"><div class="empty">Loading…</div></td></tr></tbody>
+        <tbody id="table-body">
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+        </tbody>
       </table>
     </div>
   </div>
-</div>
-
+</main>
 <div class="toast" id="toast"></div>
 
-<script>
+<script data-cfasync="false">
 const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
@@ -172,101 +415,150 @@ const MODEL_LABEL = {
 };
 const STATUSES = ['sent','accepted','rejected','installed'];
 
-let allQuotes = [], filtered = [];
+let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 
-// On a phone, a tracker opened from the builder (which passes ?agent=) shows only
-// that agent's quotes. Desktop always shows everyone. Same rule as the VIC tracker.
+// ── Mobile scoping: on a phone, a tracker opened from the builder (which passes
+//    ?agent=) shows ONLY that agent's quotes. Desktop always shows everyone. ──
 const IS_MOBILE = window.matchMedia('(max-width: 760px)').matches;
 const SCOPE_AGENT = (new URLSearchParams(location.search).get('agent') || localStorage.getItem('nswhw_agent') || '').trim();
 const MOBILE_SCOPED = IS_MOBILE && !!SCOPE_AGENT;
 
-const money = n => '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:0,maximumFractionDigits:0});
-const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+window.addEventListener('DOMContentLoaded', loadQuotes);
 
 async function loadQuotes(){
+  const btn=document.getElementById('refreshBtn'); btn.classList.add('spinning');
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?select=*&order=sent_at.desc&limit=1000`, { headers: HEADERS });
-    if(!res.ok){ showEmpty('Could not load quotes.'); return; }
-    allQuotes = await res.json();
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?select=*&order=sent_at.desc&limit=1000`,{headers:HEADERS});
+    if(!res.ok){ showEmptyTable('Could not load quotes.'); return; }
+    allQuotes=await res.json();
     if(MOBILE_SCOPED){
-      allQuotes = allQuotes.filter(q => (q.agent_name||'').toLowerCase() === SCOPE_AGENT.toLowerCase());
-      document.getElementById('fAgent').style.display = 'none';
-      document.getElementById('agentChip').textContent = SCOPE_AGENT;
+      allQuotes=allQuotes.filter(q=>(q.agent_name||'').toLowerCase()===SCOPE_AGENT.toLowerCase());
+      const af=document.getElementById('filterAgent'); if(af) af.style.display='none';
+      const lbl=document.getElementById('pageLabel');
+      if(lbl) lbl.innerHTML=`NSW Hot Water · <span class="scope-chip">${esc(SCOPE_AGENT)}</span>`;
     }
-    populateFilters();
-    renderKPIs();
-    applyFilters();
-  }catch(e){ console.error(e); showEmpty('Network error loading quotes.'); }
+    populateFilters(); renderKPIs(); renderCharts(); applyFilters();
+  }catch(e){ console.error(e); showEmptyTable('Network error loading quotes.'); }
+  finally{ btn.classList.remove('spinning'); }
+}
+
+function money(n){ return '$'+(parseFloat(n)||0).toLocaleString('en-AU',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
+function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
+
+const AGENT_COLORS = ['#0073ea','#00c875','#a25ddc','#fdab3d','#e2445c','#009eb5','#ff642e','#7e5aa8','#037f4c','#bb3354'];
+function agentColor(name){
+  const s=String(name||''); let h=7;
+  for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
+  return AGENT_COLORS[Math.abs(h)%AGENT_COLORS.length];
+}
+function agentChip(name){
+  const n=String(name||'').trim();
+  if(!n) return '<span class="td-date">—</span>';
+  const init=n.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+  return `<span class="person"><span class="person-av" style="background:${agentColor(n)}">${esc(init)}</span>${esc(n)}</span>`;
+}
+// Busier days read darker: bucket each day's count against the busiest one.
+function dayHeat(cnt,max){
+  if(!cnt) return 'day-heat-0';
+  const r=max?cnt/max:0;
+  return 'day-heat-'+(r>0.85?5:r>0.65?4:r>0.45?3:r>0.25?2:1);
+}
+
+function renderKPIs(){
+  const total=allQuotes.length;
+  const accepted=allQuotes.filter(q=>q.status==='accepted'||q.status==='installed'||q.accepted===true).length;
+  const rejected=allQuotes.filter(q=>(q.status||'').toLowerCase()==='rejected').length;
+  const value=allQuotes.reduce((s,q)=>s+(parseFloat(q.final_price)||0),0);
+  const financed=allQuotes.filter(q=>q.finance_requested===true).length;
+  const avg=total?value/total:0;
+  const rate=total?Math.round(accepted/total*100):0;
+  document.getElementById('kpi-value').textContent='$'+Math.round(value).toLocaleString('en-AU');
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-rejected').textContent=rejected;
+  document.getElementById('kpi-accepted').textContent=accepted;
+  document.getElementById('kpi-rate').textContent=`${rate}% conversion rate`;
+  document.getElementById('kpi-avg').textContent='$'+Math.round(avg).toLocaleString('en-AU');
+  document.getElementById('kpi-finance').textContent=financed;
+  document.getElementById('kpi-finance-sub').textContent=total?`${Math.round(financed/total*100)}% of quotes`:'NSW Home Energy Saver';
+}
+
+function renderCharts(){
+  const agentMap={}; allQuotes.forEach(q=>{const a=q.agent_name||'Unknown';agentMap[a]=(agentMap[a]||0)+1;});
+  const agents=Object.entries(agentMap).sort((a,b)=>b[1]-a[1]).slice(0,8); const maxA=agents.length?agents[0][1]:1;
+  document.getElementById('agent-bars').innerHTML=agents.length
+    ? agents.map(([n,c])=>`<div class="agent-bar-row"><div class="agent-bar-name" title="${esc(n)}">${agentChip(n)}</div><div class="agent-bar-track"><div class="agent-bar-fill" style="width:${Math.round(c/maxA*100)}%;background:${agentColor(n)}"></div></div><div class="agent-bar-val">${c}</div></div>`).join('')
+    : '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon">👤</div><p>No data yet</p></div>';
+  const dayMap={},now=new Date();
+  for(let i=13;i>=0;i--){const d=new Date(now-i*864e5);dayMap[d.toISOString().slice(0,10)]=0;}
+  allQuotes.forEach(q=>{const k=q.sent_at?.slice(0,10); if(k&&k in dayMap)dayMap[k]++;});
+  const days=Object.entries(dayMap); const maxD=Math.max(...days.map(d=>d[1]),1);
+  document.getElementById('day-grid').innerHTML=days.map(([date,cnt])=>{
+    const label=new Date(date+'T12:00:00').toLocaleDateString('en-AU',{weekday:'narrow'});
+    return `<div class="day-col"><div class="day-bar-track"><div class="day-bar-fill ${dayHeat(cnt,maxD)}" style="height:${Math.round(cnt/maxD*100)}%"></div></div><div class="day-label">${label}</div></div>`;
+  }).join('');
 }
 
 function populateFilters(){
   const agents=[...new Set(allQuotes.map(q=>q.agent_name).filter(Boolean))].sort();
   const models=[...new Set(allQuotes.map(q=>q.heat_pump_model).filter(Boolean))].sort();
-  const a=document.getElementById('fAgent'), ac=a.value;
-  a.innerHTML='<option value="">All Agents</option>'+agents.map(x=>`<option>${esc(x)}</option>`).join(''); a.value=ac;
-  const m=document.getElementById('fModel'), mc=m.value;
-  m.innerHTML='<option value="">All Models</option>'+models.map(x=>`<option value="${esc(x)}">${esc(MODEL_LABEL[x]||x)}</option>`).join(''); m.value=mc;
-}
-
-function renderKPIs(){
-  const acc = allQuotes.filter(q=>['accepted','installed'].includes((q.status||'').toLowerCase())).length;
-  const rej = allQuotes.filter(q=>(q.status||'').toLowerCase()==='rejected').length;
-  const val = allQuotes.reduce((s,q)=>s+(Number(q.final_price)||0),0);
-  document.getElementById('kTotal').textContent = allQuotes.length;
-  document.getElementById('kAccepted').textContent = acc;
-  document.getElementById('kRejected').textContent = rej;
-  document.getElementById('kValue').textContent = money(val);
+  const aSel=document.getElementById('filterAgent'),aCur=aSel.value;
+  aSel.innerHTML='<option value="">All Agents</option>'+agents.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join(''); aSel.value=aCur;
+  const mSel=document.getElementById('filterModel'),mCur=mSel.value;
+  mSel.innerHTML='<option value="">All Models</option>'+models.map(m=>`<option value="${esc(m)}">${esc(MODEL_LABEL[m]||m)}</option>`).join(''); mSel.value=mCur;
 }
 
 function applyFilters(){
-  const s=document.getElementById('fSearch').value.trim().toLowerCase();
-  const model=document.getElementById('fModel').value;
-  const agent=document.getElementById('fAgent').value.toLowerCase();
-  const status=document.getElementById('fStatus').value.toLowerCase();
-  const period=document.getElementById('fPeriod').value;
-  const now=new Date();
-  filtered = allQuotes.filter(q=>{
-    if(s && ![q.customer_name,q.customer_email,q.customer_phone,q.property_address]
-      .some(v=>String(v||'').toLowerCase().includes(s))) return false;
-    if(model && q.heat_pump_model!==model) return false;
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  const model=document.getElementById('filterModel').value.toLowerCase();
+  const agent=document.getElementById('filterAgent').value.toLowerCase();
+  const status=document.getElementById('filterStatus').value.toLowerCase();
+  const period=document.getElementById('filterPeriod').value; const now=new Date();
+  filtered=allQuotes.filter(q=>{
+    const sentAt=new Date(q.sent_at);
+    if(search){const hay=`${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''} ${q.heat_pump_model||''} ${q.property_address||''}`.toLowerCase(); if(!hay.includes(search))return false;}
+    if(model && (q.heat_pump_model||'').toLowerCase()!==model) return false;
     if(agent && (q.agent_name||'').toLowerCase()!==agent) return false;
-    if(status && (q.status||'sent').toLowerCase()!==status) return false;
-    if(period && q.sent_at){
-      const d=new Date(q.sent_at), days=(now-d)/86400000;
-      if(period==='today' && d.toDateString()!==now.toDateString()) return false;
-      if(period==='week' && days>7) return false;
-      if(period==='month' && days>30) return false;
-    }
+    if(status && (q.status||'').toLowerCase()!==status) return false;
+    if(period==='today'){const t=new Date();t.setHours(0,0,0,0); if(sentAt<t)return false;}
+    else if(period==='week'){ if(sentAt<new Date(now-7*864e5))return false; }
+    else if(period==='month'){ if(sentAt<new Date(now-30*864e5))return false; }
     return true;
   });
+  filtered.sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(sortCol==='sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
+    if(sortCol==='final_price'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(av<bv)return sortDir==='asc'?-1:1; if(av>bv)return sortDir==='asc'?1:-1; return 0;
+  });
+  document.getElementById('results-count').textContent=filtered.length;
   renderTable();
 }
 
+function sortBy(col){ sortDir=(sortCol===col&&sortDir==='desc')?'asc':'desc'; sortCol=col; document.querySelectorAll('th').forEach(th=>{const on=th.dataset.col===col;th.classList.toggle('sorted',on);th.classList.toggle('asc',on&&sortDir==='asc');}); applyFilters(); }
+function clearFilters(){ ['searchInput','filterModel','filterAgent','filterStatus','filterPeriod'].forEach(id=>document.getElementById(id).value=''); applyFilters(); }
+
 function renderTable(){
-  const tbody=document.getElementById('tbody');
-  document.getElementById('count').textContent = filtered.length;
-  if(!filtered.length){
-    tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ic">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`;
-    updateDeleteBtn(); return;
-  }
-  tbody.innerHTML = filtered.map(q=>{
-    const st=(q.status||'sent').toLowerCase();
+  const tbody=document.getElementById('table-body');
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-    const menu=STATUSES.map(x=>`<div class="status-menu-item${x===st?' active':''}" onclick="updateStatus(event,'${q.id}','${x}')"><span class="dot dot-${x}"></span>${x.charAt(0).toUpperCase()+x.slice(1)}</div>`).join('');
+    const st=(q.status||'sent').toLowerCase();
+    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st]||'badge-sent';
+    const menuItems=STATUSES.map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
-      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
-      <td><div class="td-name">${esc(q.customer_name)||'—'}</div>
-          ${q.customer_phone?`<div class="td-sub">${esc(q.customer_phone)}</div>`:''}
-          ${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}
-          ${q.property_address?`<div class="td-sub">${esc(q.property_address)}</div>`:''}</td>
-      <td>${q.agent_name?`<span class="agent-badge">${esc(q.agent_name)}</span>`:'—'}</td>
+      <td class="td-date">${date}</td>
+      <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.property_address?`<div class="td-sub td-addr">${esc(q.property_address)}</div>`:''}</td>
+      <td>${agentChip(q.agent_name)}</td>
       <td>${q.heat_pump_model?`<span class="model-badge">${esc(MODEL_LABEL[q.heat_pump_model]||q.heat_pump_model)}</span>`:'—'}</td>
-      <td class="td-total">${money(q.final_price)}</td>
-      <td style="color:var(--muted);white-space:nowrap;">${q.finance_requested?`${money(q.fortnightly_repayment)}/ftn · ${q.finance_term_years}yr`:'—'}</td>
-      <td><button class="status-btn" onclick="toggleMenu(event,this)"><span class="badge badge-${st}">${st}</span><div class="status-menu">${menu}</div></button></td>
-      <td><a class="link-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}" target="_blank">View</a></td>
+      <td class="td-oop">${money(q.final_price)}</td>
+      <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
+      <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
+      <td>${q.finance_requested?`<span class="fin-badge fin-yes">${money(q.fortnightly_repayment)}/ftn · ${esc(String(q.finance_term_years||10))}yr</span>`:'<span class="fin-badge fin-no">Upfront</span>'}</td>
+      <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}" target="_blank">View</a></td>
     </tr>`;
   }).join('');
   updateDeleteBtn();
@@ -283,53 +575,65 @@ document.addEventListener('click',()=>document.querySelectorAll('.status-menu.op
 async function updateStatus(e,id,newStatus){
   e.stopPropagation();
   document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open'));
+  if(!id){ showToast('No record ID.'); return; }
   try{
     const res=await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?id=eq.${id}`,{
       method:'PATCH',
       headers:{...HEADERS,'Content-Type':'application/json',Prefer:'return=minimal'},
-      body:JSON.stringify({status:newStatus,accepted:['accepted','installed'].includes(newStatus),updated_at:new Date().toISOString()}),
+      body:JSON.stringify({status:newStatus,accepted:(newStatus==='accepted'||newStatus==='installed'),updated_at:new Date().toISOString()})
     });
     if(!res.ok){ showToast('Update failed: '+(await res.text()).slice(0,80)); return; }
     const q=allQuotes.find(x=>String(x.id)===String(id));
-    if(q){ q.status=newStatus; q.accepted=['accepted','installed'].includes(newStatus); }
-    renderKPIs(); applyFilters();
-    showToast(`Status → ${newStatus.charAt(0).toUpperCase()+newStatus.slice(1)}`);
+    if(q){ q.status=newStatus; q.accepted=(newStatus==='accepted'||newStatus==='installed'); }
+    renderKPIs(); applyFilters(); showToast(`Status → ${newStatus.charAt(0).toUpperCase()+newStatus.slice(1)}`);
   }catch(err){ console.error(err); showToast('Network error updating status.'); }
 }
 
-// ── Select + delete (password protected, same action the VIC tracker uses) ──
-const selectedIds = () => [...document.querySelectorAll('.row-check:checked')].map(c=>c.value);
+// ── Select + delete quotes (password protected) ──
+function getSelectedIds(){ return [...document.querySelectorAll('.row-check:checked')].map(c=>c.value); }
 function updateDeleteBtn(){
-  const n=selectedIds().length, btn=document.getElementById('deleteBtn');
-  btn.disabled=n===0; btn.textContent=n?`Delete Selected (${n})`:'Delete Selected';
-  const sa=document.getElementById('selectAll'), all=document.querySelectorAll('.row-check');
-  if(sa){ sa.checked=all.length>0&&n===all.length; sa.indeterminate=n>0&&n<all.length; }
+  const n=getSelectedIds().length;
+  const btn=document.getElementById('deleteBtn');
+  if(btn){ btn.disabled=n===0; btn.textContent=n?`Delete Selected (${n})`:'Delete Selected'; }
+  const sa=document.getElementById('selectAll');
+  if(sa){ const all=document.querySelectorAll('.row-check'); sa.checked=all.length>0&&n===all.length; sa.indeterminate=n>0&&n<all.length; }
 }
 function toggleSelectAll(cb){ document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked); updateDeleteBtn(); }
 async function deleteSelected(){
-  const ids=selectedIds();
-  if(!ids.length){ showToast('No quotes selected.'); return; }
+  const ids=getSelectedIds(); if(!ids.length){ showToast('No quotes selected.'); return; }
   const pw=prompt(`Enter the delete password to permanently remove ${ids.length} quote(s):`);
   if(pw===null) return;
   try{
     const res=await fetch('/api/battery/request-callback',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'delete-quotes',table:'nsw_hws_quotes',ids,pin:pw}),
+      body:JSON.stringify({action:'delete-quotes',table:'nsw_hws_quotes',ids,pin:pw})
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok){ showToast(data.error||'Delete failed.'); return; }
     if(!data.deleted){ showToast('Nothing was deleted.'); return; }
     allQuotes=allQuotes.filter(q=>!ids.includes(String(q.id)));
-    renderKPIs(); applyFilters();
+    renderKPIs(); renderCharts(); applyFilters();
     showToast(`Deleted ${data.deleted} quote(s).`);
   }catch(e){ console.error(e); showToast('Network error deleting quotes.'); }
 }
 
-function showEmpty(msg){
-  document.getElementById('tbody').innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ic">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`;
+function exportCSV(){
+  if(!filtered.length){ showToast('No quotes to export.'); return; }
+  const headers=['Date Sent','Customer','Email','Phone','Address','Agent','Heat Pump','Existing System','Total Installed','Finance','Fortnightly','Term (yrs)','Days Since Quote','Status'];
+  const rows=filtered.map(q=>[
+    q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
+    q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.property_address||'',q.agent_name||'',
+    q.heat_pump_model||'',q.existing_system||'',q.final_price||'',
+    q.finance_requested?'Yes':'No',q.fortnightly_repayment||'',q.finance_term_years||'',
+    daysSince(q.sent_at)??'',q.status||'sent'
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`goldsure-nsw-hotwater-quotes-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  showToast(`Exported ${filtered.length} quotes`);
 }
 
-window.addEventListener('DOMContentLoaded', loadQuotes);
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
 </script>
 </body>
 </html>
