@@ -22,6 +22,45 @@ export default async function handler(req, res) {
   const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
 
   if (req.method === 'GET') {
+    // Contact search for the builder's customer-name field. Deliberately its own
+    // endpoint rather than reusing the SMS handler's ghl-contacts action: that one
+    // drops contacts with no phone number and swallows every failure as an empty
+    // list, which makes a misconfigured key look identical to "no matches".
+    if (req.query.action === 'search-contacts') {
+      const q = String(req.query.q || '').trim();
+      if (!q) return res.status(200).json({ contacts: [] });
+      const apiKey = process.env.GHL_API_KEY;
+      const locationId = process.env.GHL_LOCATION_ID;
+      if (!apiKey || !locationId) {
+        return res.status(200).json({ contacts: [], error: 'GHL is not configured (GHL_API_KEY / GHL_LOCATION_ID missing).' });
+      }
+      try {
+        const r = await fetch(
+          `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`,
+          { headers: { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' } }
+        );
+        if (!r.ok) {
+          const detail = await r.text().catch(() => '');
+          console.error('[NSW HWS] GHL search failed', r.status, detail.slice(0, 300));
+          return res.status(200).json({ contacts: [], error: `GHL search failed (${r.status}).` });
+        }
+        const data = await r.json();
+        const tidy = (n) => (!n || (n !== n.toLowerCase() && n !== n.toUpperCase())) ? n
+          : n.toLowerCase().replace(/(^|[\s'’\-])([a-z])/g, (_, s, c) => s + c.toUpperCase());
+        const contacts = (data.contacts || []).map(c => ({
+          id: c.id,
+          name: tidy([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '') || c.email || c.phone || '(no name)',
+          phone: c.phone || '',
+          email: c.email || '',
+          address: [c.address1, c.city, c.state, c.postalCode].filter(Boolean).join(', '),
+        }));
+        return res.status(200).json({ contacts });
+      } catch (e) {
+        console.error('[NSW HWS] GHL search error', e.message);
+        return res.status(200).json({ contacts: [], error: 'Could not reach GHL.' });
+      }
+    }
+
     const { token } = req.query;
     if (token) {
       const r = await fetch(

@@ -79,8 +79,8 @@ function buildQuoteEmailHtml(q, quoteUrl) {
     <tr><td style="height:3px;background:#0073ea;font-size:0;line-height:0;">&nbsp;</td></tr>
 
     <tr><td style="padding:11px 32px;background:#fafbfc;border-bottom:1px solid #e3e6ea;font-family:${FONT};">
-      <img src="${SITE}/assets/hotwater/ecogenica-logo.svg" alt="Ecogenica" height="18" style="vertical-align:middle;height:18px;width:auto;">
-      <span style="font-size:11px;color:#676879;font-weight:600;margin-left:8px;vertical-align:middle;">Authorised Ecogenica Heat Pump Dealer</span>
+      <img src="${SITE}/assets/hotwater/ecogenica-logo.png" alt="Ecogenica" height="36" style="vertical-align:middle;height:36px;width:auto;">
+      <span style="font-size:11px;color:#676879;font-weight:600;margin-left:10px;vertical-align:middle;">Authorised Dealer</span>
     </td></tr>
 
     <tr><td style="padding:26px 32px 4px;font-family:${FONT};">
