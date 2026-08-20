@@ -541,6 +541,7 @@ async function loadJobs(){
     const rows = await res.json();
     jobs = (Array.isArray(rows) ? rows : []).map(j => ({ ...j, status: normStatus(j.status) }));
     render();
+    applyDeepLinkSearch();
   }catch(e){
     document.getElementById('groups').innerHTML =
       '<div class="loading-state">Could not load jobs. Check the <code>' + TABLE +
@@ -549,6 +550,15 @@ async function loadJobs(){
   }finally{
     btn.classList.remove('spinning');
   }
+}
+
+// Notification emails link back here with ?q=<job no> so opening the link
+// drops straight onto the matching job instead of the whole board.
+function applyDeepLinkSearch(){
+  const q = new URLSearchParams(location.search).get('q');
+  if (!q) return;
+  document.getElementById('searchInput').value = q;
+  render();
 }
 
 // ── Render ──
@@ -693,6 +703,7 @@ function startCommentEdit(id, cell, field){
         paintComment(cell, original, field);
       });
       if (field === 'eco_comments' && val) notifyEcoComment(j, val);
+      if (field === 'comments' && val) notifyGoldsureComment(j, val);
     }
   });
 }
@@ -711,6 +722,37 @@ function notifyEcoComment(j, comment){
     body: JSON.stringify({
       action: 'eco-comment-notify',
       job_no: j.job_no || '', customer: j.customer || '', address: j.address || '', comment,
+    }),
+  }).catch(() => {});
+}
+
+// Only fires for an edit to an EXISTING job's Goldsure Comments — never when
+// a new job is created with the field already filled in, since notifyNewJob
+// below already covers that and this would just double up the email.
+function notifyGoldsureComment(j, comment){
+  fetch('/api/battery/request-callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'goldsure-comment-notify',
+      job_no: j.job_no || '', customer: j.customer || '', address: j.address || '', comment,
+    }),
+  }).catch(() => {});
+}
+
+function notifyNewJob(j){
+  fetch('/api/battery/request-callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'new-job-notify',
+      job_no: j.job_no || '', customer: j.customer || '', address: j.address || '',
+      group_label: groupLabel(j.status), date_label: (GROUPS.find(g => g.key === j.status) || {}).dateLabel || 'Booked',
+      booked_date: j.booked_date ? fmtDate(j.booked_date) : '',
+      out_of_pocket: j.out_of_pocket ? money(j.out_of_pocket) : '',
+      deposit: j.deposit ? money(j.deposit) : '',
+      eco: (j.out_of_pocket || j.deposit) ? money(pendingOf(j)) : '',
+      comments: j.comments || '',
     }),
   }).catch(() => {});
 }
@@ -1028,6 +1070,7 @@ async function saveJob(){
   const depRaw = document.getElementById('f-deposit').value;
   const status = document.getElementById('f-status').value;
   const prevEcoComment = editingId ? (jobById(editingId)?.eco_comments || '') : '';
+  const prevComment = editingId ? (jobById(editingId)?.comments || '') : '';
   const prevStatus = editingId ? jobById(editingId)?.status : null;
   const payload = {
     job_no:        document.getElementById('f-job-no').value.trim() || null,
@@ -1072,8 +1115,14 @@ async function saveJob(){
     if (saved && payload.eco_comments && payload.eco_comments !== prevEcoComment){
       notifyEcoComment(payload, payload.eco_comments);
     }
+    if (saved && editingId && payload.comments && payload.comments !== prevComment){
+      notifyGoldsureComment(payload, payload.comments);
+    }
     if (saved && editingId && prevStatus && status !== prevStatus){
       notifyStatusChange(payload, prevStatus, status);
+    }
+    if (saved && !editingId){
+      notifyNewJob(payload);
     }
     closeJobModal();
     render();

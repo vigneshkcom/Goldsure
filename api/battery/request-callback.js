@@ -957,6 +957,128 @@ export default async function handler(req, res) {
   const body = req.body || {};
 
   // ════════════════════════════════════════════════════════════════════════════
+  // POST action=new-job-notify: heads-up email when a job is added to the VIC
+  // Aircon Job Tracker (job-tracker.html). Links straight back to the board
+  // with the job pre-filled into the search box (?q=<job no or customer>).
+  // The row is already saved to Supabase by the browser before this call, so
+  // this only sends the email and never touches the row.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'new-job-notify') {
+    const jobNo = String(body.job_no || '').slice(0, 40);
+    const customer = String(body.customer || '').slice(0, 200);
+    const address = String(body.address || '').slice(0, 300);
+    const groupLabel = String(body.group_label || '').slice(0, 60);
+    const dateLabel = String(body.date_label || 'Booked').slice(0, 40);
+    const bookedDate = String(body.booked_date || '').slice(0, 40);
+    const outOfPocket = String(body.out_of_pocket || '').slice(0, 40);
+    const deposit = String(body.deposit || '').slice(0, 40);
+    const eco = String(body.eco || '').slice(0, 40);
+    const comments = String(body.comments || '').slice(0, 2000);
+    if (!customer.trim()) return res.status(400).json({ error: 'customer required' });
+
+    const esc = trackerEmailEsc;
+    const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
+    const SITE = 'https://portal.goldsure.com.au';
+    const link = `${SITE}/aircons/job-tracker.html?q=${encodeURIComponent(jobNo || customer)}`;
+
+    const row = (label, value) => value
+      ? `<tr><td style="padding:3px 0;color:#9699a6;width:100px;vertical-align:top">${esc(label)}</td><td style="padding:3px 0;color:#323338;font-weight:600">${esc(value)}</td></tr>`
+      : '';
+    const bodyHtml = `
+      <div style="font-size:13.5px">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">
+          ${row('Group', groupLabel)}
+          ${row(dateLabel, bookedDate)}
+          ${row('Out of Pocket', outOfPocket)}
+          ${row('Deposit', deposit)}
+          ${row('ECO', eco)}
+          ${row('Comments', comments)}
+        </table>
+        <a href="${link}" style="display:inline-block;margin-top:14px;padding:9px 18px;background:#0073ea;color:#ffffff;text-decoration:none;border-radius:7px;font-size:13px;font-weight:700">Open in Job Tracker &rarr;</a>
+      </div>`;
+
+    const html = trackerEmailShell({
+      accent: '#0073ea',
+      kickerLabel: 'New Job',
+      kickerBg: '#e6f1fd',
+      kickerFg: '#0073ea',
+      avatarBg: '#0073ea',
+      initials: trackerEmailInitials(customer),
+      title: jobNo ? `New job — #${esc(jobNo)}` : `New job — ${esc(customer)}`,
+      subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
+      bodyHtml,
+      metaRows: [['When', when]],
+    });
+
+    try {
+      await sendHostingerMail({
+        to: ['vignesh@goldsure.com.au'],
+        displayName: 'Goldsure VIC Aircon Tracker',
+        subject: `New job added${jobNo ? ' — #' + jobNo : ''} — ${customer}`,
+        html,
+        text: `A new job was added to the VIC Aircon Job Tracker.\n\n` +
+          (jobNo ? `Job No.: ${jobNo}\n` : '') + `Customer: ${customer}\n` +
+          (address ? `Address: ${address}\n` : '') + (groupLabel ? `Group: ${groupLabel}\n` : '') +
+          (bookedDate ? `${dateLabel}: ${bookedDate}\n` : '') +
+          (outOfPocket ? `Out of Pocket: ${outOfPocket}\n` : '') + (deposit ? `Deposit: ${deposit}\n` : '') +
+          (eco ? `ECO: ${eco}\n` : '') + (comments ? `Comments: ${comments}\n` : '') +
+          `When: ${when}\n\nOpen in Job Tracker: ${link}`,
+      });
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[new-job-notify] send failed:', err.message);
+      return res.status(200).json({ success: false, error: err.message });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST action=goldsure-comment-notify: email alert when Goldsure Comments is
+  // updated on an EXISTING job. Deliberately does NOT fire when a new job is
+  // created with a Goldsure Comment already filled in — new-job-notify above
+  // already covers that, so this would just be a duplicate email.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (body.action === 'goldsure-comment-notify') {
+    const jobNo = String(body.job_no || '').slice(0, 40);
+    const customer = String(body.customer || '').slice(0, 200);
+    const address = String(body.address || '').slice(0, 300);
+    const comment = String(body.comment || '').slice(0, 4000);
+    if (!comment.trim()) return res.status(400).json({ error: 'comment required' });
+
+    const esc = trackerEmailEsc;
+    const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
+    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+
+    const html = trackerEmailShell({
+      accent: '#a25ddc',
+      kickerLabel: 'Goldsure Comment',
+      kickerBg: '#f6ecfb',
+      kickerFg: '#7e5aa8',
+      avatarBg: '#a25ddc',
+      initials: trackerEmailInitials(customer),
+      title: jobNo ? `Note updated on #${esc(jobNo)}` : 'Note updated',
+      subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
+      bodyHtml: `<div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:10px;padding:13px 15px;font-size:14px;color:#323338;line-height:1.55;white-space:pre-wrap">${esc(comment)}</div>`,
+      metaRows: [['When', when]],
+    });
+
+    try {
+      await sendHostingerMail({
+        to: ['vignesh@goldsure.com.au'],
+        displayName: 'Goldsure VIC Aircon Tracker',
+        subject: `Goldsure Comment updated${subjectBits ? ' — ' + subjectBits : ''}`,
+        html,
+        text: `Goldsure Comments was updated on the VIC Aircon Job Tracker.\n\n` +
+          (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
+          (address ? `Address: ${address}\n` : '') + `When: ${when}\n\n${comment}`,
+      });
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[goldsure-comment-notify] send failed:', err.message);
+      return res.status(200).json({ success: false, error: err.message });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
   // POST action=eco-comment-notify: email alert when someone leaves an "Eco
   // Comment" on a VIC Aircon job (job-tracker.html). Eco Comments have no
   // password — anyone with the tracker link can add one — so Goldsure gets an
