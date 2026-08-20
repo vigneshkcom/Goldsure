@@ -135,7 +135,12 @@ document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
       </div>
     </div>
     <button type="button" class="slot-btn" id="btn-${s.key}" onclick="document.getElementById('file-${s.key}').click()">Take / choose photo</button>
-    <input type="file" id="file-${s.key}" accept="image/*" capture="environment" onchange="onPick('${s.key}', this)">
+    <!-- No capture attribute. capture="environment" sends phones straight into
+         the camera and hides the photo library, so customers who had already
+         taken the photos could not attach them. Plain accept="image/*" makes
+         iOS and Android show their normal chooser — Photo Library, Take Photo
+         and Browse — which is what the button promises. -->
+    <input type="file" id="file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
     <div class="thumb" id="thumb-${s.key}" style="display:none;">
       <img id="img-${s.key}" alt="">
       <button type="button" onclick="clearPick('${s.key}')">Remove</button>
