@@ -1124,7 +1124,12 @@ async function saveJob(){
         body: JSON.stringify({ ...payload, position: bottom + 1000 })
       });
     }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok){
+      const detail = await res.text().catch(() => '');
+      let msg = '';
+      try{ msg = JSON.parse(detail)?.message || ''; }catch(e){}
+      throw new Error(`HTTP ${res.status}${msg ? ' — ' + msg : ''}`);
+    }
     const rows = await res.json();
     const saved = Array.isArray(rows) ? rows[0] : rows;
     if (saved){
@@ -1148,7 +1153,7 @@ async function saveJob(){
     render();
     showToast(editingId ? 'Job updated.' : 'Job added.');
   }catch(err){
-    showToast('Save failed. Check your connection and try again.', true);
+    showToast(`Save failed — ${err.message}`, true);
   }finally{
     btn.disabled = false; btn.textContent = 'Save';
   }
