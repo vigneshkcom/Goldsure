@@ -15,39 +15,41 @@ import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 // notification card: coloured top accent, an uppercase kicker pill, a bold
 // title/subtitle, whatever body content the caller supplies, then a quiet
 // meta list and a plain-text footer line. No logo — just typography.
+//
+// Table-based, with an explicit bgcolor attribute on every coloured cell
+// alongside the matching CSS — Gmail's web/app clients are inconsistent
+// about honouring a plain `background` style on a <td>, especially inside
+// a wrapping <div>, which is what made the first version render as a
+// full-bleed accent bar with no visible card underneath it.
 const trackerEmailEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-function trackerEmailInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+function trackerEmailQuote(accent, html) {
+  // A comment "quote" block — a coloured left rule beside a light grey
+  // panel — reused by both comment-notify actions below.
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+    <td width="3" bgcolor="${accent}" style="background:${accent};font-size:0;line-height:0">&nbsp;</td>
+    <td bgcolor="#f5f6f8" style="background:#f5f6f8;padding:14px 16px;font-size:14.5px;color:#323338;line-height:1.6;white-space:pre-wrap">${html}</td>
+  </tr></table>`;
 }
-function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, avatarBg, initials, title, subtitle, bodyHtml, metaRows }) {
-  const meta = metaRows.filter(Boolean).map(([label, value]) =>
-    `<div style="margin-bottom:5px"><span style="color:#9699a6">${trackerEmailEsc(label)}</span>&nbsp;&nbsp;<span style="color:#323338;font-weight:600">${trackerEmailEsc(value)}</span></div>`
+function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, subtitle, bodyHtml, metaRows }) {
+  const meta = (metaRows || []).filter(Boolean).map(([label, value]) =>
+    `<tr><td style="padding:2px 0;font-size:12.5px;color:#9699a6">${trackerEmailEsc(label)}</td><td style="padding:2px 0 2px 10px;font-size:12.5px;color:#323338;font-weight:600">${trackerEmailEsc(value)}</td></tr>`
   ).join('');
   return `
-<div style="background:#f6f7fb;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #e6e9ef;box-shadow:0 1px 4px rgba(32,37,61,.08)">
-    <tr><td style="height:4px;line-height:4px;font-size:0;background:${accent};border-radius:12px 12px 0 0">&nbsp;</td></tr>
-    <tr><td style="padding:26px 30px 22px">
-      <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${kickerBg};color:${kickerFg};font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">${trackerEmailEsc(kickerLabel)}</span>
-      <div style="margin-top:13px;font-size:18px;font-weight:700;color:#323338;line-height:1.35">${title}</div>
-      ${subtitle ? `<div style="margin-top:3px;font-size:13px;color:#676879">${subtitle}</div>` : ''}
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px">
-        <tr>
-          <td width="38" valign="top" style="padding-right:12px">
-            <div style="width:36px;height:36px;border-radius:50%;background:${avatarBg};color:#ffffff;font-size:13.5px;font-weight:700;text-align:center;line-height:36px;font-family:Arial,Helvetica,sans-serif">${trackerEmailEsc(initials)}</div>
-          </td>
-          <td valign="top">${bodyHtml}</td>
-        </tr>
-      </table>
-      ${meta ? `<div style="margin-top:18px;padding-top:16px;border-top:1px solid #eceef4;font-size:12.5px;line-height:1.6">${meta}</div>` : ''}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" bgcolor="#f6f7fb" style="background:#f6f7fb;font-family:Arial,Helvetica,sans-serif"><tr><td style="padding:32px 16px">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" align="center" bgcolor="#ffffff" style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e6e9ef;border-radius:10px">
+    <tr><td bgcolor="${accent}" style="background:${accent};font-size:0;line-height:0;padding:0;border-radius:10px 10px 0 0">&nbsp;<div style="height:4px;line-height:4px;font-size:0">&nbsp;</div></td></tr>
+    <tr><td style="padding:26px 32px 6px">
+      <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${kickerBg};color:${kickerFg};font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif">${trackerEmailEsc(kickerLabel)}</span>
+      <div style="margin-top:14px;font-size:19px;font-weight:700;color:#323338;line-height:1.3;font-family:Arial,Helvetica,sans-serif">${title}</div>
+      ${subtitle ? `<div style="margin-top:4px;font-size:13px;color:#676879;font-family:Arial,Helvetica,sans-serif">${subtitle}</div>` : ''}
     </td></tr>
-    <tr><td style="padding:13px 30px;border-top:1px solid #e6e9ef;background:#fafbfc;border-radius:0 0 12px 12px">
-      <span style="font-size:11px;color:#9699a6">VIC Aircon Job Tracker</span>
+    <tr><td style="padding:16px 32px 4px">${bodyHtml}</td></tr>
+    ${meta ? `<tr><td style="padding:18px 32px 26px"><table role="presentation" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceef4;padding-top:14px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${meta}</table></td></tr>` : `<tr><td style="padding-bottom:22px"></td></tr>`}
+    <tr><td bgcolor="#fafbfc" style="background:#fafbfc;border-top:1px solid #e6e9ef;padding:13px 32px;border-radius:0 0 10px 10px">
+      <span style="font-size:11px;color:#9699a6;font-family:Arial,Helvetica,sans-serif">VIC Aircon Job Tracker</span>
     </td></tr>
   </table>
-</div>`;
+</td></tr></table>`;
 }
 
 export default async function handler(req, res) {
@@ -1002,8 +1004,6 @@ export default async function handler(req, res) {
       kickerLabel: 'New Job',
       kickerBg: '#e6f1fd',
       kickerFg: '#0073ea',
-      avatarBg: '#0073ea',
-      initials: trackerEmailInitials(customer),
       title: jobNo ? `New job — #${esc(jobNo)}` : `New job — ${esc(customer)}`,
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml,
@@ -1053,11 +1053,9 @@ export default async function handler(req, res) {
       kickerLabel: 'Goldsure Comment',
       kickerBg: '#f6ecfb',
       kickerFg: '#7e5aa8',
-      avatarBg: '#a25ddc',
-      initials: trackerEmailInitials(customer),
       title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
-      bodyHtml: `<div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:10px;padding:13px 15px;font-size:14px;color:#323338;line-height:1.55;white-space:pre-wrap">${esc(comment)}</div>`,
+      bodyHtml: trackerEmailQuote('#a25ddc', esc(comment)),
       metaRows: [['When', when]],
     });
 
@@ -1105,11 +1103,9 @@ export default async function handler(req, res) {
       kickerLabel: 'Eco Comment',
       kickerBg: '#e7f9f1',
       kickerFg: '#037f4c',
-      avatarBg: '#00c875',
-      initials: trackerEmailInitials(customer),
       title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
-      bodyHtml: `<div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:10px;padding:13px 15px;font-size:14px;color:#323338;line-height:1.55;white-space:pre-wrap">${esc(comment)}</div>`,
+      bodyHtml: trackerEmailQuote('#00c875', esc(comment)),
       metaRows: [['When', when]],
     });
 
@@ -1175,8 +1171,6 @@ export default async function handler(req, res) {
       kickerLabel: 'Status Change',
       kickerBg: toC.bg,
       kickerFg: toC.fg,
-      avatarBg: toC.fg,
-      initials: trackerEmailInitials(customer),
       title: `${esc(customer)} moved to ${esc(toLabel)}`,
       subtitle: [jobNo ? `#${jobNo}` : null, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml: badgeRow,
