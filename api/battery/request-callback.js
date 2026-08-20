@@ -30,10 +30,13 @@ function trackerEmailQuote(accent, html) {
     <td bgcolor="#f5f6f8" style="background:#f5f6f8;padding:14px 16px;font-size:14.5px;color:#323338;line-height:1.6;white-space:pre-wrap">${html}</td>
   </tr></table>`;
 }
-function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, subtitle, bodyHtml, metaRows }) {
+function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, subtitle, bodyHtml, metaRows, ctaHref, ctaLabel }) {
   const meta = (metaRows || []).filter(Boolean).map(([label, value]) =>
     `<tr><td style="padding:2px 0;font-size:12.5px;color:#9699a6">${trackerEmailEsc(label)}</td><td style="padding:2px 0 2px 10px;font-size:12.5px;color:#323338;font-weight:600">${trackerEmailEsc(value)}</td></tr>`
   ).join('');
+  const cta = ctaHref
+    ? `<tr><td style="padding:6px 32px 4px"><a href="${ctaHref}" style="display:inline-block;padding:9px 18px;background:#0073ea;color:#ffffff;text-decoration:none;border-radius:7px;font-size:13px;font-weight:700;font-family:Arial,Helvetica,sans-serif">${trackerEmailEsc(ctaLabel || 'Open in Job Tracker')}</a></td></tr>`
+    : '';
   return `
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" bgcolor="#f6f7fb" style="background:#f6f7fb;font-family:Arial,Helvetica,sans-serif"><tr><td style="padding:32px 16px">
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" align="center" bgcolor="#ffffff" style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e6e9ef;border-radius:10px">
@@ -44,6 +47,7 @@ function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, sub
       ${subtitle ? `<div style="margin-top:4px;font-size:13px;color:#676879;font-family:Arial,Helvetica,sans-serif">${subtitle}</div>` : ''}
     </td></tr>
     <tr><td style="padding:16px 32px 4px">${bodyHtml}</td></tr>
+    ${cta}
     ${meta ? `<tr><td style="padding:18px 32px 26px"><table role="presentation" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceef4;padding-top:14px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${meta}</table></td></tr>` : `<tr><td style="padding-bottom:22px"></td></tr>`}
     <tr><td bgcolor="#fafbfc" style="background:#fafbfc;border-top:1px solid #e6e9ef;padding:13px 32px;border-radius:0 0 10px 10px">
       <span style="font-size:11px;color:#9699a6;font-family:Arial,Helvetica,sans-serif">VIC Aircon Job Tracker</span>
@@ -987,34 +991,32 @@ export default async function handler(req, res) {
       ? `<tr><td style="padding:3px 0;color:#9699a6;width:100px;vertical-align:top">${esc(label)}</td><td style="padding:3px 0;color:#323338;font-weight:600">${esc(value)}</td></tr>`
       : '';
     const bodyHtml = `
-      <div style="font-size:13.5px">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%">
-          ${row('Group', groupLabel)}
-          ${row(dateLabel, bookedDate)}
-          ${row('Out of Pocket', outOfPocket)}
-          ${row('Deposit', deposit)}
-          ${row('ECO', eco)}
-          ${row('Comments', comments)}
-        </table>
-        <a href="${link}" style="display:inline-block;margin-top:14px;padding:9px 18px;background:#0073ea;color:#ffffff;text-decoration:none;border-radius:7px;font-size:13px;font-weight:700">Open in Job Tracker &rarr;</a>
-      </div>`;
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:13.5px">
+        ${row('Group', groupLabel)}
+        ${row(dateLabel, bookedDate)}
+        ${row('Out of Pocket', outOfPocket)}
+        ${row('Deposit', deposit)}
+        ${row('ECO', eco)}
+        ${row('Comments', comments)}
+      </table>`;
 
     const html = trackerEmailShell({
       accent: '#0073ea',
       kickerLabel: 'New Job',
       kickerBg: '#e6f1fd',
       kickerFg: '#0073ea',
-      title: jobNo ? `New job — #${esc(jobNo)}` : `New job — ${esc(customer)}`,
+      title: jobNo ? `New job - ${esc(jobNo)}` : `New job - ${esc(customer)}`,
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml,
       metaRows: [['When', when]],
+      ctaHref: link,
     });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
-        subject: `New job added${jobNo ? ' — #' + jobNo : ''} — ${customer}`,
+        subject: `New job added${jobNo ? ' - ' + jobNo : ''} - ${customer}`,
         html,
         text: `A new job was added to the VIC Aircon Job Tracker.\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + `Customer: ${customer}\n` +
@@ -1046,24 +1048,27 @@ export default async function handler(req, res) {
 
     const esc = trackerEmailEsc;
     const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
-    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+    const subjectBits = [jobNo || null, customer || null].filter(Boolean).join(' - ');
+    const SITE = 'https://portal.goldsure.com.au';
+    const link = `${SITE}/aircons/job-tracker.html?q=${encodeURIComponent(jobNo || customer)}`;
 
     const html = trackerEmailShell({
       accent: '#a25ddc',
       kickerLabel: 'Goldsure Comment',
       kickerBg: '#f6ecfb',
       kickerFg: '#7e5aa8',
-      title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
+      title: jobNo ? `New comment on ${esc(jobNo)}` : 'New comment',
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml: trackerEmailQuote('#a25ddc', esc(comment)),
       metaRows: [['When', when]],
+      ctaHref: link,
     });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
-        subject: `New Goldsure Comment${subjectBits ? ' — ' + subjectBits : ''}`,
+        subject: `New Goldsure Comment${subjectBits ? ' - ' + subjectBits : ''}`,
         html,
         text: `A new Goldsure Comment was left on the VIC Aircon Job Tracker.\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
@@ -1096,26 +1101,29 @@ export default async function handler(req, res) {
 
     const esc = trackerEmailEsc;
     const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
-    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+    const subjectBits = [jobNo || null, customer || null].filter(Boolean).join(' - ');
+    const SITE = 'https://portal.goldsure.com.au';
+    const link = `${SITE}/aircons/job-tracker.html?q=${encodeURIComponent(jobNo || customer)}`;
 
     const html = trackerEmailShell({
       accent: '#00c875',
       kickerLabel: 'Eco Comment',
       kickerBg: '#e7f9f1',
       kickerFg: '#037f4c',
-      title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
+      title: jobNo ? `New comment on ${esc(jobNo)}` : 'New comment',
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml: trackerEmailQuote('#00c875', esc(comment)),
       metaRows: [['When', when]],
+      ctaHref: link,
     });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
-        subject: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}`,
+        subject: `New Eco Comment${subjectBits ? ' - ' + subjectBits : ''}`,
         html,
-        text: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}\n\n` +
+        text: `New Eco Comment${subjectBits ? ' - ' + subjectBits : ''}\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
           (address ? `Address: ${address}\n` : '') + `When: ${when}\n\n${comment}`,
       });
@@ -1145,7 +1153,9 @@ export default async function handler(req, res) {
 
     const esc = trackerEmailEsc;
     const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
-    const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+    const subjectBits = [jobNo || null, customer || null].filter(Boolean).join(' - ');
+    const SITE = 'https://portal.goldsure.com.au';
+    const link = `${SITE}/aircons/job-tracker.html?q=${encodeURIComponent(jobNo || customer)}`;
     // A small colour per stage so the badge reads at a glance, matching the
     // board's own group colours (blue/amber/green) rather than a plain grey pill.
     const stageColor = (label) => {
@@ -1172,18 +1182,19 @@ export default async function handler(req, res) {
       kickerBg: toC.bg,
       kickerFg: toC.fg,
       title: `${esc(customer)} moved to ${esc(toLabel)}`,
-      subtitle: [jobNo ? `#${jobNo}` : null, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
+      subtitle: [jobNo || null, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml: badgeRow,
       metaRows: [['When', when]],
+      ctaHref: link,
     });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
-        subject: `Job moved to ${toLabel}${subjectBits ? ' — ' + subjectBits : ''}`,
+        subject: `Job moved to ${toLabel}${subjectBits ? ' - ' + subjectBits : ''}`,
         html,
-        text: `${customer}${jobNo ? ` (#${jobNo})` : ''} was moved${fromLabel ? ` from ${fromLabel}` : ''} to ${toLabel} on the VIC Aircon Job Tracker.\n\n` +
+        text: `${customer}${jobNo ? ` (${jobNo})` : ''} was moved${fromLabel ? ` from ${fromLabel}` : ''} to ${toLabel} on the VIC Aircon Job Tracker.\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + `Customer: ${customer}\n` +
           (address ? `Address: ${address}\n` : '') + `When: ${when}`,
       });
