@@ -42,6 +42,10 @@ export const CABLE_INCLUDED_METRES = 15; // included in the gas base price
 export const CABLE_PER_METRE = 20;
 export const FINANCE_TERM_YEARS = [1, 2, 3, 5, 7, 10];
 export const INCOME_THRESHOLD = 210000;
+// Minimum customer co-payment under the NSW schemes. Taken up front as the
+// deposit that starts the job — it is part of the quoted total, not an extra
+// on top of it.
+export const DEPOSIT_AMOUNT = 220;
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 

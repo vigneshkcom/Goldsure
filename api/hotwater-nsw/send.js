@@ -9,7 +9,7 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
-import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricing.js';
+import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
 
 const SITE = 'https://portal.goldsure.com.au';
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -173,6 +173,16 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       </tr></table>
       <div style="font-family:${FONT};font-size:11px;color:#9aa2b1;line-height:1.55;margin-top:9px;">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and Small-scale Technology Certificate discounts have already been applied to the price above.</div>
     </td></tr>
+
+    <!-- Deposit -->
+    <tr><td style="padding:14px 32px 0;font-family:${FONT};">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:8px;"><tr>
+        <td style="padding:13px 16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Deposit to Proceed</div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. This is the minimum customer contribution required under the NSW scheme and forms part of your total installed price above &mdash; it is not an additional charge.</div>
+        </td>
+      </tr></table>
+    </td></tr>
 ${financeBlock}
     <!-- Accredited provider & installer -->
     <tr><td style="padding:20px 32px 0;font-family:${FONT};">
@@ -189,7 +199,7 @@ ${financeBlock}
 
     <!-- Accept / view -->
     <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
-      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
+      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">Happy to go ahead? Accept your quote online and our team will call you shortly to take the $${DEPOSIT_AMOUNT} deposit and book your installation.</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
       <div style="font-size:12px;margin-top:14px;"><a href="${quoteUrl}" style="color:#8b93a3;text-decoration:underline;">or view your quote online</a></div>
