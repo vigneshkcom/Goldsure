@@ -10,6 +10,46 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 
+// Shared card shell for the VIC Aircon Job Tracker's notification emails
+// (eco-comment-notify, job-status-notify below) — a plain, monday.com-style
+// notification card: coloured top accent, an uppercase kicker pill, a bold
+// title/subtitle, whatever body content the caller supplies, then a quiet
+// meta list and a plain-text footer line. No logo — just typography.
+const trackerEmailEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function trackerEmailInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, avatarBg, initials, title, subtitle, bodyHtml, metaRows }) {
+  const meta = metaRows.filter(Boolean).map(([label, value]) =>
+    `<div style="margin-bottom:5px"><span style="color:#9699a6">${trackerEmailEsc(label)}</span>&nbsp;&nbsp;<span style="color:#323338;font-weight:600">${trackerEmailEsc(value)}</span></div>`
+  ).join('');
+  return `
+<div style="background:#f6f7fb;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #e6e9ef;box-shadow:0 1px 4px rgba(32,37,61,.08)">
+    <tr><td style="height:4px;line-height:4px;font-size:0;background:${accent};border-radius:12px 12px 0 0">&nbsp;</td></tr>
+    <tr><td style="padding:26px 30px 22px">
+      <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${kickerBg};color:${kickerFg};font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">${trackerEmailEsc(kickerLabel)}</span>
+      <div style="margin-top:13px;font-size:18px;font-weight:700;color:#323338;line-height:1.35">${title}</div>
+      ${subtitle ? `<div style="margin-top:3px;font-size:13px;color:#676879">${subtitle}</div>` : ''}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px">
+        <tr>
+          <td width="38" valign="top" style="padding-right:12px">
+            <div style="width:36px;height:36px;border-radius:50%;background:${avatarBg};color:#ffffff;font-size:13.5px;font-weight:700;text-align:center;line-height:36px;font-family:Arial,Helvetica,sans-serif">${trackerEmailEsc(initials)}</div>
+          </td>
+          <td valign="top">${bodyHtml}</td>
+        </tr>
+      </table>
+      ${meta ? `<div style="margin-top:18px;padding-top:16px;border-top:1px solid #eceef4;font-size:12.5px;line-height:1.6">${meta}</div>` : ''}
+    </td></tr>
+    <tr><td style="padding:13px 30px;border-top:1px solid #e6e9ef;background:#fafbfc;border-radius:0 0 12px 12px">
+      <span style="font-size:11px;color:#9699a6">VIC Aircon Job Tracker</span>
+    </td></tr>
+  </table>
+</div>`;
+}
+
 export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
@@ -934,26 +974,29 @@ export default async function handler(req, res) {
     const comment = String(body.comment || '').slice(0, 4000);
     if (!comment.trim()) return res.status(400).json({ error: 'comment required' });
 
-    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const esc = trackerEmailEsc;
     const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
     const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
+
+    const html = trackerEmailShell({
+      accent: '#00c875',
+      kickerLabel: 'Eco Comment',
+      kickerBg: '#e7f9f1',
+      kickerFg: '#037f4c',
+      avatarBg: '#00c875',
+      initials: trackerEmailInitials(customer),
+      title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
+      subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
+      bodyHtml: `<div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:10px;padding:13px 15px;font-size:14px;color:#323338;line-height:1.55;white-space:pre-wrap">${esc(comment)}</div>`,
+      metaRows: [['When', when]],
+    });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
         subject: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}`,
-        html: `
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#323338;max-width:560px">
-            <p style="margin:0 0 14px">A new <strong>Eco Comment</strong> was left on the VIC Aircon Job Tracker.</p>
-            <table style="border-collapse:collapse;width:100%;margin-bottom:14px">
-              ${jobNo ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Job No.</td><td style="padding:4px 0;font-weight:600">${esc(jobNo)}</td></tr>` : ''}
-              ${customer ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Customer</td><td style="padding:4px 0">${esc(customer)}</td></tr>` : ''}
-              ${address ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Address</td><td style="padding:4px 0">${esc(address)}</td></tr>` : ''}
-              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">When</td><td style="padding:4px 0">${esc(when)}</td></tr>
-            </table>
-            <div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:8px;padding:14px;white-space:pre-wrap">${esc(comment)}</div>
-          </div>`,
+        html,
         text: `New Eco Comment${subjectBits ? ' — ' + subjectBits : ''}\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
           (address ? `Address: ${address}\n` : '') + `When: ${when}\n\n${comment}`,
@@ -982,7 +1025,7 @@ export default async function handler(req, res) {
     const toLabel = String(body.to_label || '').slice(0, 60);
     if (!customer.trim() || !toLabel.trim()) return res.status(400).json({ error: 'customer and to_label required' });
 
-    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const esc = trackerEmailEsc;
     const when = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Australia/Melbourne' });
     const subjectBits = [jobNo ? `#${jobNo}` : null, customer || null].filter(Boolean).join(' — ');
     // A small colour per stage so the badge reads at a glance, matching the
@@ -997,27 +1040,33 @@ export default async function handler(req, res) {
     const fromC = stageColor(fromLabel || 'to book');
     const toC = stageColor(toLabel);
     const badge = (label, c) =>
-      `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${c.bg};color:${c.fg};font-weight:700;font-size:13px;white-space:nowrap">${esc(label)}</span>`;
+      `<span style="display:inline-block;padding:5px 13px;border-radius:999px;background:${c.bg};color:${c.fg};font-weight:700;font-size:12.5px;white-space:nowrap">${esc(label)}</span>`;
+    const badgeRow = `
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td>${badge(fromLabel || 'To Book', fromC)}</td>
+        <td style="padding:0 10px;color:#9699a6;font-size:15px;line-height:1">&#8594;</td>
+        <td>${badge(toLabel, toC)}</td>
+      </tr></table>`;
+
+    const html = trackerEmailShell({
+      accent: toC.fg,
+      kickerLabel: 'Status Change',
+      kickerBg: toC.bg,
+      kickerFg: toC.fg,
+      avatarBg: toC.fg,
+      initials: trackerEmailInitials(customer),
+      title: `${esc(customer)} moved to ${esc(toLabel)}`,
+      subtitle: [jobNo ? `#${jobNo}` : null, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
+      bodyHtml: badgeRow,
+      metaRows: [['When', when]],
+    });
 
     try {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
         subject: `Job moved to ${toLabel}${subjectBits ? ' — ' + subjectBits : ''}`,
-        html: `
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#323338;max-width:560px">
-            <p style="margin:0 0 16px">
-              <strong>${esc(customer)}</strong>${jobNo ? ` (#${esc(jobNo)})` : ''} was moved
-              ${fromLabel ? `from ${badge(fromLabel, fromC)} ` : ''}to ${badge(toLabel, toC)}
-              on the VIC Aircon Job Tracker.
-            </p>
-            <table style="border-collapse:collapse;width:100%">
-              ${jobNo ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Job No.</td><td style="padding:4px 0;font-weight:600">${esc(jobNo)}</td></tr>` : ''}
-              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Customer</td><td style="padding:4px 0">${esc(customer)}</td></tr>
-              ${address ? `<tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">Address</td><td style="padding:4px 0">${esc(address)}</td></tr>` : ''}
-              <tr><td style="padding:4px 10px 4px 0;color:#676879;white-space:nowrap">When</td><td style="padding:4px 0">${esc(when)}</td></tr>
-            </table>
-          </div>`,
+        html,
         text: `${customer}${jobNo ? ` (#${jobNo})` : ''} was moved${fromLabel ? ` from ${fromLabel}` : ''} to ${toLabel} on the VIC Aircon Job Tracker.\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + `Customer: ${customer}\n` +
           (address ? `Address: ${address}\n` : '') + `When: ${when}`,
