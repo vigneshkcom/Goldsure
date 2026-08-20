@@ -37,6 +37,9 @@
   }).join('');
 
   document.body.classList.add('has-internal-sidebar');
+  if (document.body.dataset.internalSidebarMode === 'hover') {
+    document.body.classList.add('internal-sidebar-hover-mode');
+  }
   document.body.insertAdjacentHTML('afterbegin', `
     <button class="internal-sidebar-toggle" type="button" aria-label="Open internal systems menu" aria-expanded="false" aria-controls="internalSystemsSidebar">
       ${icon('<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>')}
@@ -49,7 +52,13 @@
         </a>
         <div class="internal-sidebar-brand-tag">Internal Systems</div>
       </div>
-      <nav class="internal-sidebar-nav" aria-label="Quote and tracker systems">${groupMarkup}</nav>
+      <nav class="internal-sidebar-nav" aria-label="Quote and tracker systems">
+        <a class="internal-nav-home" href="/">
+          ${icon('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>')}
+          <span>Main Portal</span>
+        </a>
+        ${groupMarkup}
+      </nav>
       <div class="internal-sidebar-footer"><div class="internal-sidebar-status"><span class="internal-sidebar-status-dot"></span><span>Systems Online</span><strong>Internal</strong></div></div>
     </aside>`);
 
