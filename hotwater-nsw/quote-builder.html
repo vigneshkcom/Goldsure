@@ -52,6 +52,10 @@ header{background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(10px
 .nav-btn{font-family:inherit;font-size:11px;font-weight:600;padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#54627a;cursor:pointer;text-decoration:none;transition:.15s;display:inline-flex;align-items:center;white-space:nowrap;}
 .nav-btn:hover{background:#f7f9fc;color:var(--text);border-color:var(--gold-line);}
 .nav-btn.logout:hover{color:var(--red);border-color:#f1c9c9;background:var(--red-soft);}
+.tracker-nav{display:inline-flex;gap:3px;background:var(--line-soft);border:1px solid var(--line);border-radius:9px;padding:3px;}
+.trk-link{font-family:inherit;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:5px 10px;border-radius:6px;color:#54627a;text-decoration:none;transition:.15s;white-space:nowrap;}
+.trk-link:hover{background:#fff;color:var(--text);}
+.trk-link.is-active{background:var(--gold);color:#fff;}
 @media(max-width:700px){
   header{padding:0 12px;min-height:52px;gap:6px;flex-wrap:nowrap;}
   .header-left{gap:8px;min-width:0;}
@@ -213,7 +217,12 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
       <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
     </div>
     <div class="hd meta-only"></div>
-    <span class="page-label meta-only">NSW Hot Water Quote</span>
+    <nav class="tracker-nav meta-only">
+      <a href="/hotwater/quote.html" class="trk-link">HWS</a>
+      <a href="/hotwater-nsw/quote-builder.html" class="trk-link is-active">NSW HWS</a>
+      <a href="/aircons/quote.html" class="trk-link">Aircon</a>
+      <a href="/smoke-alarms/smoke-alarm.html" class="trk-link">Smoke Alarm</a>
+    </nav>
   </div>
   <div class="header-right">
     <div class="agent-chip"><span class="agent-dot"></span><span class="agent-name" id="agentName"></span></div>
@@ -373,6 +382,7 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
           <div class="tot-row"><span class="lbl">Back-to-back relocation</span><span class="val" id="sumB2b">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Additional electrical cable</span><span class="val" id="sumCable">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Other extras</span><span class="val" id="sumOther">$0.00</span></div>
+          <div class="tot-row" id="discRow" style="display:none;"><span class="lbl">Upfront payment discount</span><span class="val" id="sumDisc" style="color:var(--green);">− $0.00</span></div>
           <div class="result-row total"><span class="lbl">Total Installed Price</span><span class="val" id="sumFinal">$0.00</span></div>
           <div class="note-box">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and STC discounts are already included in the pricing above.</div>
         </div>
@@ -415,14 +425,15 @@ const MODEL_LABEL = {
 };
 const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
+const NO_FINANCE_DISCOUNT = 200;
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price shown below already includes the applicable NSW scheme discounts. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 
-let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:false, other_extras:[] };
+let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:true, other_extras:[] };
 let calc = {};
 let agent = '';
 
 const $ = id => document.getElementById(id);
-const money = n => '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money = n => { const v = Number(n)||0; const s = Math.abs(v).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); return (v<0?'− $':'$') + s; };
 const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function showToast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 
@@ -439,7 +450,7 @@ function showApp(){
   $('app').style.display='block';
   $('agentName').textContent = agent;
   $('trackerLink').href = '/hotwater-nsw/quote-tracker.html?agent=' + encodeURIComponent(agent);
-  recalc();
+  setFinance(true);   // customers are quoted with the loan by default
 }
 window.addEventListener('DOMContentLoaded', ()=>{
   const saved = sessionStorage.getItem('nswhw_agent') || localStorage.getItem('nswhw_agent');
@@ -541,13 +552,18 @@ function recalc(){
 
   state.other_extras = collectExtras();
   const otherTotal = state.other_extras.reduce((s,e)=>s+e.amount,0);
-  const finalPrice = basePrice + relocCharge + b2bCharge + cableCharge + otherTotal;
+  const beforeDiscount = basePrice + relocCharge + b2bCharge + cableCharge + otherTotal;
+  // Paying up front instead of financing takes $200 off.
+  const discount = state.finance_requested ? 0 : Math.min(NO_FINANCE_DISCOUNT, beforeDiscount);
+  const finalPrice = beforeDiscount - discount;
 
   $('sumBase').textContent  = money(basePrice);
   $('sumReloc').textContent = money(relocCharge);
   $('sumB2b').textContent   = money(b2bCharge);
   $('sumCable').textContent = money(cableCharge);
   $('sumOther').textContent = money(otherTotal);
+  $('discRow').style.display = discount > 0 ? 'flex' : 'none';
+  $('sumDisc').textContent = '− ' + money(discount);
   $('sumFinal').textContent = money(finalPrice);
 
   const income = $('incomeEligible').value;
@@ -560,7 +576,7 @@ function recalc(){
   $('fortnightlyOut').textContent = money(fortnightly);
   $('monthlyOut').textContent = money(monthly);
 
-  calc = { basePrice, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
+  calc = { basePrice, discount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
            cableCharge, otherTotal, finalPrice, term, fortnightly, monthly };
 }
 
@@ -586,6 +602,7 @@ function openPreview(){
     calc.b2bCharge>0 ? ['Back-to-back tank relocation', calc.b2bCharge] : null,
     calc.cableCharge>0 ? [`Additional electrical cable<br><span style="font-size:11px;color:var(--muted2);">${calc.cableChargeable}m @ $20.00/m beyond the 15m included</span>`, calc.cableCharge] : null,
     ...state.other_extras.map(e=>[esc(e.label), e.amount]),
+    calc.discount>0 ? ['<span style="color:var(--green);">Upfront payment discount</span>', -calc.discount] : null,
   ].filter(Boolean);
 
   $('previewBody').innerHTML = `

@@ -46,6 +46,8 @@ CREATE TABLE nsw_hws_quotes (
   -- Pricing
   base_price numeric DEFAULT 0,
   total_extras numeric DEFAULT 0,
+  -- $200 waived when the customer pays up front instead of financing
+  no_finance_discount numeric DEFAULT 0,
   final_price numeric DEFAULT 0,
 
   -- Finance
@@ -80,3 +82,10 @@ ALTER TABLE nsw_hws_quotes DISABLE ROW LEVEL SECURITY;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- DELETE FROM nsw_hws_quotes WHERE status = 'draft';
 -- ALTER TABLE nsw_hws_quotes ALTER COLUMN status SET DEFAULT 'sent';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Migration: the no-finance discount column. REQUIRED on an existing install —
+-- the send endpoint writes this field, and Supabase rejects the whole insert if
+-- the column is missing, so quotes will fail to send until this is run.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS no_finance_discount numeric DEFAULT 0;

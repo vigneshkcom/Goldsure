@@ -35,6 +35,9 @@ export const HEAT_PUMP_LABEL = {
 
 export const RELOCATION_PER_METRE = 155;
 export const BACK_TO_BACK_FLAT = 460;
+// Waived off the quote when the customer pays up front instead of taking the
+// NSW Home Energy Saver loan.
+export const NO_FINANCE_DISCOUNT = 200;
 export const CABLE_INCLUDED_METRES = 15; // included in the gas base price
 export const CABLE_PER_METRE = 20;
 export const FINANCE_TERM_YEARS = [1, 2, 3, 5, 7, 10];
@@ -65,9 +68,13 @@ export function calculateQuote(input = {}) {
   const otherExtrasTotal = round2(otherExtras.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 
   const totalExtras = round2(relocationCharge + backToBackCharge + cableCharge + otherExtrasTotal);
-  const finalPrice = round2(basePrice + totalExtras);
 
+  // Paying up front rather than financing takes $200 off. Never let it push the
+  // quote below zero on a hypothetical tiny job.
   const financeRequested = !!input.finance_requested;
+  const noFinanceDiscount = financeRequested ? 0 : Math.min(NO_FINANCE_DISCOUNT, basePrice + totalExtras);
+  const finalPrice = round2(basePrice + totalExtras - noFinanceDiscount);
+
   const incomeEligible = input.income_eligible || null; // 'yes' | 'no' | 'needs_confirmation'
   const financeEligibility = !financeRequested
     ? 'n_a'
@@ -94,6 +101,7 @@ export function calculateQuote(input = {}) {
     cable_charge: cableCharge,
     other_extras: otherExtras,
     total_extras: totalExtras,
+    no_finance_discount: noFinanceDiscount,
     final_price: finalPrice,
     finance_requested: financeRequested,
     income_eligible: incomeEligible,

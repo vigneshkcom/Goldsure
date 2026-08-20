@@ -14,8 +14,13 @@ import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricin
 const SITE = 'https://portal.goldsure.com.au';
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100)
-  .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Negatives render as "− $200.00" rather than "$-200.00" so discount lines read
+// correctly on the quote.
+const money = (n) => {
+  const v = Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const s = Math.abs(v).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (v < 0 ? '− $' : '$') + s;
+};
 
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. '
   + 'The price shown below already includes the applicable NSW scheme discounts. Eligibility, final '
@@ -62,6 +67,7 @@ function buildEmailHtml(q, calc, quoteUrl, emailBody) {
     calc.back_to_back_charge > 0 ? { name: 'Back-to-back tank relocation', sub: 'Fixed charge', amt: calc.back_to_back_charge } : null,
     calc.cable_charge > 0 ? { name: 'Additional electrical cable', sub: `${calc.cable_chargeable_metres}m @ $20.00 per metre beyond the 15m included`, amt: calc.cable_charge } : null,
     ...(calc.other_extras || []).map(e => ({ name: e.label, sub: 'Additional charge', amt: Number(e.amount) || 0 })),
+    calc.no_finance_discount > 0 ? { name: 'Upfront payment discount', sub: 'Applied for paying up front rather than financing', amt: -calc.no_finance_discount } : null,
   ].filter(Boolean);
 
   const itemRows = lines.map(l => `<tr bgcolor="#ffffff">
