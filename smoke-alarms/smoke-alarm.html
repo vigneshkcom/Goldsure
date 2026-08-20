@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
 <script src="/assets/internal-systems-sidebar.js" defer></script>
+<script src="/assets/quote-builder-session.js"></script>
 <style>
 :root {
   /* monday palette — the gold/amber names are kept so every existing rule
@@ -593,7 +594,7 @@ function doLogin() {
   }
   errEl.style.display = 'none';
   // Persist for session
-  try { localStorage.setItem('agentName', agent); } catch(e) {}
+  GoldsureQuoteSession.set(agent);
   // Update runtime state (agentName let is in the lower script block)
   if (typeof window._setAgentName === 'function') window._setAgentName(agent);
   // Show app
@@ -605,7 +606,7 @@ function doLogin() {
   if (typeof loadGoogleMaps === 'function') loadGoogleMaps();
 }
 function doLogout() {
-  try { localStorage.removeItem('agentName'); } catch(e) {}
+  GoldsureQuoteSession.clear();
   document.getElementById('login-agent').value = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -649,12 +650,6 @@ function doLogout() {
     </div>
     <div class="hd"></div>
     <span class="header-title">Sales Portal</span>
-    <nav class="tracker-nav">
-      <a href="/hotwater/quote.html" class="trk-link">HWS</a>
-      <a href="/hotwater-nsw/quote-builder.html" class="trk-link">NSW HWS</a>
-      <a href="/aircons/quote.html" class="trk-link">Aircon</a>
-      <a href="/smoke-alarms/smoke-alarm.html" class="trk-link is-active">Smoke Alarm</a>
-    </nav>
   </div>
   <div class="header-right">
     <div class="agent-chip">
@@ -1047,6 +1042,7 @@ function doLogin() {
   if (!agent) { errEl.style.display='block'; errEl.innerText='Please enter your name.'; return; }
   errEl.style.display='none';
   agentName = agent;
+  GoldsureQuoteSession.set(agent);
   document.getElementById('header-agent-name').innerText = agentName;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -1056,6 +1052,7 @@ function doLogin() {
   loadGoogleMaps(); // ← load Maps after login
 }
 function doLogout() {
+  GoldsureQuoteSession.clear();
   agentName = customerName = '';
   document.getElementById('login-agent').value='';
   document.getElementById('app').style.display='none';
@@ -1067,6 +1064,13 @@ function doLogout() {
     chasing: '—'
   });
 }
+
+window.addEventListener('DOMContentLoaded', function () {
+  const saved = GoldsureQuoteSession.get();
+  if (!saved) return;
+  document.getElementById('login-agent').value = saved;
+  doLogin();
+});
 
 function quoteTrackerDaysSince(dateStr) {
   if (!dateStr) return null;
