@@ -1038,6 +1038,9 @@ export default async function handler(req, res) {
   // updated on an EXISTING job. Deliberately does NOT fire when a new job is
   // created with a Goldsure Comment already filled in — new-job-notify above
   // already covers that, so this would just be a duplicate email.
+  // Goes to Ecogenica/Eco Alliance (troy@ecogenica.com.au, cc'd to Eco
+  // Alliance/Ecolightup), NOT to Goldsure — unlike every other tracker
+  // notification below, which stays internal to vignesh@goldsure.com.au.
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'goldsure-comment-notify') {
     const jobNo = String(body.job_no || '').slice(0, 40);
@@ -1066,7 +1069,8 @@ export default async function handler(req, res) {
 
     try {
       await sendHostingerMail({
-        to: ['vignesh@goldsure.com.au'],
+        to: ['troy@ecogenica.com.au'],
+        cc: ['joan@ecoalliance.com.au', 'leoann@ecoalliance.com.au', 'ashleigh.kendell@ecolightup.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
         subject: `New Goldsure Comment${subjectBits ? ' - ' + subjectBits : ''}`,
         html,
