@@ -55,6 +55,9 @@ CREATE TABLE nsw_hws_quotes (
   income_eligible text,          -- yes | no | needs_confirmation
   finance_eligibility text,      -- not_eligible | potentially_eligible | n_a
   finance_term_years integer DEFAULT 10,
+  -- $220 NSW scheme co-payment, taken up front; Brighte finances the balance
+  deposit_amount numeric DEFAULT 0,
+  amount_financed numeric DEFAULT 0,
   fortnightly_repayment numeric DEFAULT 0,
   monthly_repayment numeric DEFAULT 0,
 
@@ -89,3 +92,11 @@ ALTER TABLE nsw_hws_quotes DISABLE ROW LEVEL SECURITY;
 -- the column is missing, so quotes will fail to send until this is run.
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS no_finance_discount numeric DEFAULT 0;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Migration: deposit + financed amount. REQUIRED on an existing install — the
+-- send endpoint writes both fields, and Supabase rejects the whole insert if a
+-- column is missing, so quotes will fail to send until this is run.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS deposit_amount  numeric DEFAULT 0;
+-- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS amount_financed numeric DEFAULT 0;

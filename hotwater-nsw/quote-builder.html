@@ -365,6 +365,8 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
               </div>
             </div>
             <div class="readout"><span class="lbl">Eligibility</span><span id="eligibilityOut">—</span></div>
+            <div class="readout"><span class="lbl">Deposit (up front)</span><span class="val">$220.00</span></div>
+            <div class="readout"><span class="lbl">Amount financed</span><span class="val" id="financedOut">$0.00</span></div>
             <div class="fin-figs">
               <div class="fin-fig"><div class="amt" id="fortnightlyOut">$0.00</div><div class="lbl">per fortnight</div></div>
               <div class="fin-fig"><div class="amt" id="monthlyOut">$0.00</div><div class="lbl">per month</div></div>
@@ -426,6 +428,7 @@ const MODEL_LABEL = {
 const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
 const NO_FINANCE_DISCOUNT = 200;
+const DEPOSIT_AMOUNT = 220;
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price below includes the applicable NSW scheme discounts and covers the installation as quoted, based on the information provided. If anything unforeseen is identified on site that requires additional work, we\u2019ll explain it clearly and confirm any cost with you before proceeding.';
 
 let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:true, other_extras:[] };
@@ -599,12 +602,16 @@ function recalc(){
     : income==='yes' ? '<span class="tag code">Potentially eligible</span>'
     : '<span class="tag na">Needs confirmation</span>';
   const term = Number($('financeTerm').value)||10;
-  const fortnightly = finalPrice/(term*26), monthly = finalPrice/(term*12);
+  // Brighte finances the balance after the $220 deposit, so repayments are
+  // worked out on what is actually borrowed.
+  const financed = state.finance_requested ? Math.max(0, finalPrice - DEPOSIT_AMOUNT) : 0;
+  const fortnightly = financed/(term*26), monthly = financed/(term*12);
+  $('financedOut').textContent = money(financed);
   $('fortnightlyOut').textContent = money(fortnightly);
   $('monthlyOut').textContent = money(monthly);
 
   calc = { basePrice, discount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
-           cableCharge, otherTotal, finalPrice, term, fortnightly, monthly };
+           cableCharge, otherTotal, finalPrice, term, financed, fortnightly, monthly };
 }
 
 function currentCustomer(){
@@ -653,6 +660,7 @@ function openPreview(){
     </table>
     ${state.finance_requested?`<div class="pv-fin">
       <strong>NSW Home Energy Saver — 0% interest</strong><br>
+      ${money(DEPOSIT_AMOUNT)} deposit up front · ${money(calc.financed)} financed<br>
       ${money(calc.fortnightly)} per fortnight · ${money(calc.monthly)} per month · ${calc.term} year term
     </div>`:''}
     <label class="pv-lbl" for="emailBody">Email message</label>

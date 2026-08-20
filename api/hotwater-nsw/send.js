@@ -99,7 +99,12 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
             <div style="font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#9c8a5e;padding-top:3px;">term</div>
           </td>
         </tr></table>
-        <div style="font-size:11px;color:#8b7c56;margin-top:13px;line-height:1.6;">0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:14px;border-top:1px solid #eaddb4;">
+          <tr><td style="padding:9px 0 0;font-size:12px;color:#8b7c56;">Total installed price</td><td style="padding:9px 0 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(calc.final_price)}</td></tr>
+          <tr><td style="padding:3px 0;font-size:12px;color:#8b7c56;">Less deposit paid up front</td><td style="padding:3px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">− ${money(calc.deposit_amount)}</td></tr>
+          <tr><td style="padding:3px 0;font-size:12.5px;color:#141c2e;font-weight:700;">Amount financed</td><td style="padding:3px 0;font-size:13.5px;color:#b08d2e;text-align:right;font-weight:700;">${money(calc.amount_financed)}</td></tr>
+        </table>
+        <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit. 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -389,7 +394,7 @@ export default async function handler(req, res) {
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`
-        + (calc.finance_requested ? `\nFinance: ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
+        + (calc.finance_requested ? `\nDeposit: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
       await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },

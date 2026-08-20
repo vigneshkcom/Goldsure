@@ -53,6 +53,11 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 .fin-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;}
 .fin-fig .amt{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--gold);}
 .fin-fig .lbl{font-size:9.5px;color:#9c8a5e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.fin-breakdown{margin-top:13px;padding-top:11px;border-top:1px solid var(--gold-line);}
+.fb-row{display:flex;justify-content:space-between;gap:12px;padding:3px 0;font-size:12px;color:#8b7c56;}
+.fb-row span:last-child{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text);}
+.fb-row.strong{font-size:12.5px;color:var(--text);font-weight:700;}
+.fb-row.strong span:last-child{color:var(--gold);font-size:13.5px;}
 .fin-note{font-size:11px;color:#8b7c56;line-height:1.6;margin-top:10px;}
 
 .installer{margin:18px 30px 0;border:1px solid var(--line);border-radius:13px;padding:13px 15px;display:flex;align-items:center;gap:14px;}
@@ -167,7 +172,12 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
       <div class="fin-fig"><div class="amt" id="fMonth"></div><div class="lbl">per month</div></div>
       <div class="fin-fig"><div class="amt" id="fTerm"></div><div class="lbl">term</div></div>
     </div>
-    <div class="fin-note">0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
+    <div class="fin-breakdown">
+      <div class="fb-row"><span>Total installed price</span><span id="fbTotal"></span></div>
+      <div class="fb-row"><span>Less deposit paid up front</span><span id="fbDeposit"></span></div>
+      <div class="fb-row strong"><span>Amount financed</span><span id="fbFinanced"></span></div>
+    </div>
+    <div class="fin-note">Repayments are calculated on the amount financed after your $220 deposit. 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
   </div>
 
   <div class="installer">
@@ -283,6 +293,9 @@ const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('
       document.getElementById('fFort').textContent  = money(q.fortnightly_repayment);
       document.getElementById('fMonth').textContent = money(q.monthly_repayment);
       document.getElementById('fTerm').textContent  = (q.finance_term_years||10) + ' yrs';
+      document.getElementById('fbTotal').textContent    = money(q.final_price);
+      document.getElementById('fbDeposit').textContent  = '− ' + money(q.deposit_amount || 220);
+      document.getElementById('fbFinanced').textContent = money(q.amount_financed);
     }
 
     show('ok');

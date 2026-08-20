@@ -571,12 +571,12 @@ async function deleteSelected(){
 
 function exportCSV(){
   if(!filtered.length){ showToast('No quotes to export.'); return; }
-  const headers=['Date Sent','Customer','Email','Phone','Address','Agent','Heat Pump','Existing System','Total Installed','Finance','Fortnightly','Term (yrs)','Days Since Quote','Status'];
+  const headers=['Date Sent','Customer','Email','Phone','Address','Agent','Heat Pump','Existing System','Total Installed','Deposit','Finance','Amount Financed','Fortnightly','Term (yrs)','Days Since Quote','Status'];
   const rows=filtered.map(q=>[
     q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
     q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.property_address||'',q.agent_name||'',
     q.heat_pump_model||'',q.existing_system||'',q.final_price||'',
-    q.finance_requested?'Yes':'No',q.fortnightly_repayment||'',q.finance_term_years||'',
+    q.deposit_amount||220,q.finance_requested?'Yes':'No',q.amount_financed||'',q.fortnightly_repayment||'',q.finance_term_years||'',
     daysSince(q.sent_at)??'',q.status||'sent'
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   const csv=[headers.join(','),...rows].join('\n');

@@ -91,8 +91,14 @@ export function calculateQuote(input = {}) {
   const termYears = FINANCE_TERM_YEARS.includes(Number(input.finance_term_years))
     ? Number(input.finance_term_years)
     : 10;
-  const fortnightlyRepayment = round2(finalPrice / (termYears * 26));
-  const monthlyRepayment = round2(finalPrice / (termYears * 12));
+  // Brighte finances the balance after the deposit, not the whole job — the $220
+  // scheme co-payment is taken up front, so repayments are worked out on what is
+  // actually borrowed.
+  const amountFinanced = financeRequested
+    ? round2(Math.max(0, finalPrice - DEPOSIT_AMOUNT))
+    : 0;
+  const fortnightlyRepayment = round2(amountFinanced / (termYears * 26));
+  const monthlyRepayment = round2(amountFinanced / (termYears * 12));
 
   return {
     base_price: basePrice,
@@ -111,6 +117,8 @@ export function calculateQuote(input = {}) {
     income_eligible: incomeEligible,
     finance_eligibility: financeEligibility,
     finance_term_years: termYears,
+    deposit_amount: DEPOSIT_AMOUNT,
+    amount_financed: amountFinanced,
     fortnightly_repayment: fortnightlyRepayment,
     monthly_repayment: monthlyRepayment,
   };
