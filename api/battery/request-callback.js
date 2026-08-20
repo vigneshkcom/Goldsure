@@ -1055,7 +1055,7 @@ export default async function handler(req, res) {
       kickerFg: '#7e5aa8',
       avatarBg: '#a25ddc',
       initials: trackerEmailInitials(customer),
-      title: jobNo ? `Note updated on #${esc(jobNo)}` : 'Note updated',
+      title: jobNo ? `New comment on #${esc(jobNo)}` : 'New comment',
       subtitle: [customer, address].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; '),
       bodyHtml: `<div style="background:#f5f6f8;border:1px solid #e6e9ef;border-radius:10px;padding:13px 15px;font-size:14px;color:#323338;line-height:1.55;white-space:pre-wrap">${esc(comment)}</div>`,
       metaRows: [['When', when]],
@@ -1065,9 +1065,9 @@ export default async function handler(req, res) {
       await sendHostingerMail({
         to: ['vignesh@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
-        subject: `Goldsure Comment updated${subjectBits ? ' — ' + subjectBits : ''}`,
+        subject: `New Goldsure Comment${subjectBits ? ' — ' + subjectBits : ''}`,
         html,
-        text: `Goldsure Comments was updated on the VIC Aircon Job Tracker.\n\n` +
+        text: `A new Goldsure Comment was left on the VIC Aircon Job Tracker.\n\n` +
           (jobNo ? `Job No.: ${jobNo}\n` : '') + (customer ? `Customer: ${customer}\n` : '') +
           (address ? `Address: ${address}\n` : '') + `When: ${when}\n\n${comment}`,
       });
