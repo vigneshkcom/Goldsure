@@ -244,10 +244,13 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
         <div class="card-head"><span class="step-badge">Step 1</span><h3>Customer Details</h3></div>
         <div class="card-body">
           <div class="field">
-            <label>Customer Name *</label>
-            <input type="text" id="custName" placeholder="Type a name, or search GHL…" autocomplete="off" oninput="onGhlSearch()">
+            <label>Find Customer in GHL</label>
+            <input type="text" id="ghlSearch" placeholder="Search by name, phone or email…" autocomplete="off" oninput="onGhlSearch()">
             <div class="ghl-results" id="ghlResults"></div>
-            <div class="sub">Pick a GHL contact to auto-fill their details, or just type the name — the customer doesn't need to exist in GHL.</div>
+          </div>
+          <div class="field">
+            <label>Customer Name *</label>
+            <input type="text" id="custName" placeholder="Full name">
           </div>
           <div class="grid2">
             <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
@@ -489,7 +492,7 @@ function setFinance(v){
 // ── GHL customer search ──
 let ghlTimer = null;
 function onGhlSearch(){
-  const q = $('custName').value.trim();
+  const q = $('ghlSearch').value.trim();
   const box = $('ghlResults');
   clearTimeout(ghlTimer);
   if(q.length < 2){ box.classList.remove('open'); box.innerHTML=''; return; }
@@ -518,9 +521,10 @@ function pickGhl(c){
   $('custEmail').value = c.email || '';
   if(c.address){ $('custAddress').value = c.address; setAddr('valid','✓ From GHL — confirm it is a NSW address'); }
   $('ghlResults').classList.remove('open');
+  $('ghlSearch').value = c.name || '';
 }
 document.addEventListener('click', e=>{
-  if(!e.target.closest('#custName') && !e.target.closest('#ghlResults')) $('ghlResults').classList.remove('open');
+  if(!e.target.closest('#ghlSearch') && !e.target.closest('#ghlResults')) $('ghlResults').classList.remove('open');
 });
 
 // ── Google Places address autocomplete (NSW only) ──
