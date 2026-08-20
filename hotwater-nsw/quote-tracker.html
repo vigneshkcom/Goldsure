@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSW Hot Water Quote Tracker · Goldsure</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<style>
+:root{
+  --navy:#292f4c; --blue:#0073ea; --blue-hover:#0060b9; --green:#00c875; --purple:#a25ddc;
+  --yellow:#fdab3d; --red:#e2445c; --teal:#009eb5;
+  --bg:#f6f7fb; --surface:#ffffff; --border:#e6e9ef; --text:#323338; --muted:#676879; --faint:#9699a6;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:var(--text);}
+.head{background:var(--navy);color:#fff;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.head h1{font-size:19px;margin:0;}
+.head .sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;}
+.btn{border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-hover);}
+.toolbar{max-width:1200px;margin:18px auto 0;padding:0 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.toolbar input{flex:1;min-width:220px;border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-size:13.5px;font-family:inherit;}
+.wrap{max-width:1200px;margin:0 auto;padding:16px 20px 60px;}
+.group{margin-bottom:22px;}
+.group-head{display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:13px;font-weight:700;}
+.group-count{color:var(--faint);font-weight:500;}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--border);background:#fafbfc;}
+tbody td{padding:11px 14px;font-size:13px;border-bottom:1px solid #f1f2f6;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr{cursor:pointer;}
+tbody tr:hover{background:#fafbff;}
+.status-pill{display:inline-block;padding:4px 10px;border-radius:5px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;}
+.muted{color:var(--faint);}
+.empty{padding:40px;text-align:center;color:var(--faint);font-size:13.5px;}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div>
+    <h1>NSW Hot Water Quote Tracker</h1>
+    <div class="sub">Every saved NSW heat pump quote, grouped by status</div>
+  </div>
+  <a class="btn btn-primary" href="/hotwater-nsw/quote-builder.html">+ New Quote</a>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Search by customer name, phone, email or address…" oninput="render()">
+</div>
+
+<div class="wrap" id="wrap"><div class="empty">Loading…</div></div>
+
+<script>
+const STATUS_META = {
+  draft:['Draft','#9699a6'], quote_ready:['Quote Ready','#0073ea'], quote_sent:['Quote Sent','#fdab3d'],
+  customer_reviewing:['Customer Reviewing','#a25ddc'], follow_up:['Follow Up','#e2445c'],
+  accepted:['Accepted','#00c875'], declined:['Declined','#676879'],
+  finance_pending:['Finance Pending','#009eb5'], finance_approved:['Finance Approved','#037f4c'], booked:['Booked','#292f4c'],
+};
+const MODEL_LABEL = { '290-all-in-one':'290L All-in-One', '290-split':'290L Split System', '330-split':'330L Split System' };
+const GROUP_ORDER = ['draft','quote_ready','quote_sent','customer_reviewing','follow_up','finance_pending','finance_approved','booked','accepted','declined'];
+
+let quotes = [];
+function money(n){ return '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const filtered = quotes.filter(r => !q || [r.customer_name,r.customer_phone,r.customer_email,r.property_address].some(v=>String(v||'').toLowerCase().includes(q)));
+  const wrap = document.getElementById('wrap');
+  if(!filtered.length){ wrap.innerHTML = '<div class="empty">No quotes found.</div>'; return; }
+
+  const groups = {};
+  filtered.forEach(r => { const s = r.status || 'draft'; (groups[s] = groups[s] || []).push(r); });
+
+  wrap.innerHTML = GROUP_ORDER.filter(s=>groups[s]).map(s => {
+    const [label, color] = STATUS_META[s] || ['Unknown','#9699a6'];
+    const rows = groups[s];
+    return `<div class="group">
+      <div class="group-head"><span class="status-pill" style="background:${color}">${label}</span><span class="group-count">${rows.length}</span></div>
+      <table>
+        <thead><tr><th>Customer</th><th>Property</th><th>Model</th><th>Final Price</th><th>Finance</th><th>Updated</th></tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr onclick="location.href='/hotwater-nsw/quote-builder.html?token=${encodeURIComponent(r.quote_token)}'">
+            <td><strong>${esc(r.customer_name)||'—'}</strong><br><span class="muted">${esc(r.customer_phone)||''}</span></td>
+            <td class="muted">${esc(r.property_address)||'—'}</td>
+            <td>${MODEL_LABEL[r.heat_pump_model]||r.heat_pump_model||'—'}</td>
+            <td><strong>${money(r.final_price)}</strong></td>
+            <td class="muted">${r.finance_requested ? `${money(r.fortnightly_repayment)}/ftn` : '—'}</td>
+            <td class="muted">${r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-AU') : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+async function load(){
+  try{
+    const res = await fetch('/api/hotwater-nsw/quotes');
+    quotes = res.ok ? await res.json() : [];
+  }catch(e){ console.error(e); quotes = []; }
+  render();
+}
+load();
+</script>
+</body>
+</html>

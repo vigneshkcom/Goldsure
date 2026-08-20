@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSW Hot Water Quote Builder · Goldsure</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<style>
+:root{
+  --navy:#292f4c; --navy-deep:#20253d; --blue:#0073ea; --blue-hover:#0060b9;
+  --green:#00c875; --green-dark:#037f4c; --purple:#a25ddc; --yellow:#fdab3d;
+  --red:#e2445c; --teal:#009eb5;
+  --bg:#f6f7fb; --surface:#ffffff; --border:#e6e9ef; --text:#323338; --muted:#676879; --faint:#9699a6;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:var(--text);}
+
+/* Record header */
+.record-head{background:var(--navy);color:#fff;padding:18px 28px;position:sticky;top:0;z-index:20;}
+.record-head-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.record-title-row{display:flex;align-items:center;gap:12px;min-width:0;}
+.record-title-row input{background:transparent;border:none;color:#fff;font-size:20px;font-weight:700;min-width:0;padding:4px 2px;border-radius:6px;}
+.record-title-row input:focus{outline:2px solid var(--blue);background:rgba(255,255,255,.06);}
+.record-title-row input::placeholder{color:rgba(255,255,255,.4);}
+.back-link{color:rgba(255,255,255,.65);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;}
+.back-link:hover{color:#fff;}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.status-select{appearance:none;-webkit-appearance:none;border:none;border-radius:6px;padding:8px 30px 8px 12px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;background-repeat:no-repeat;background-position:right 10px center;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='white'/%3E%3C/svg%3E");}
+.btn{border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-hover);}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;}
+.btn-ghost:hover{background:rgba(255,255,255,.18);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.subline{margin-top:8px;font-size:12px;color:rgba(255,255,255,.55);display:flex;gap:14px;flex-wrap:wrap;}
+
+/* Layout */
+.wrap{max-width:1120px;margin:0 auto;padding:22px 20px 80px;display:grid;grid-template-columns:1fr 340px;gap:18px;}
+@media (max-width:900px){ .wrap{grid-template-columns:1fr;} }
+.col-main, .col-side{display:flex;flex-direction:column;gap:18px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.card-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+.card-title{font-size:14px;font-weight:700;color:var(--text);}
+.card-body{padding:16px 18px;}
+
+.field-row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid #f1f2f6;}
+.field-row:last-child{border-bottom:none;}
+.field-label{font-size:12.5px;color:var(--muted);font-weight:500;}
+.field-row input[type=text], .field-row input[type=email], .field-row input[type=tel], .field-row input[type=number], .field-row select, .field-row textarea{
+  width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13.5px;font-family:inherit;color:var(--text);background:#fff;
+}
+.field-row textarea{resize:vertical;min-height:52px;}
+.field-row input:focus, .field-row select:focus, .field-row textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12);}
+
+.pill-group{display:flex;gap:8px;flex-wrap:wrap;}
+.pill-opt{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+.pill-opt.active{border-color:var(--blue);background:#e5f1fd;color:var(--blue);}
+
+/* Product picker */
+.product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media (max-width:640px){ .product-grid{grid-template-columns:1fr;} }
+.product-card{border:1.5px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:border-color .15s;}
+.product-card:hover{border-color:#c3cbe0;}
+.product-card.active{border-color:var(--blue);background:#f2f8ff;}
+.product-img{width:100%;aspect-ratio:1/1;border-radius:8px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:11px;margin-bottom:8px;overflow:hidden;}
+.product-img img{width:100%;height:100%;object-fit:contain;}
+.product-name{font-size:12.5px;font-weight:700;color:var(--text);}
+
+/* Extras list */
+.extra-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.extra-row input[type=text]{flex:1;}
+.extra-row input[type=number]{width:100px;}
+.extra-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;line-height:1;padding:4px;}
+.add-extra-btn{background:none;border:1.5px dashed var(--border);border-radius:6px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;width:100%;}
+.add-extra-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* Pricing summary */
+.price-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:var(--muted);}
+.price-row .v{color:var(--text);font-weight:600;}
+.price-row.total{border-top:2px solid var(--navy);margin-top:6px;padding-top:12px;font-size:15px;font-weight:700;color:var(--text);}
+.price-row.total .v{color:var(--blue);font-size:18px;}
+
+.finance-figure{background:#f2f8ff;border-radius:8px;padding:14px;text-align:center;}
+.finance-figure .amt{font-size:22px;font-weight:700;color:var(--blue);}
+.finance-figure .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+.finance-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.badge-code{background:#eef0f4;color:var(--navy);font-family:monospace;}
+.badge-tbd{background:#fff4e5;color:#9a6a00;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 22px;border-radius:8px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:100;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.hint{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.5;}
+.action-bar{display:flex;gap:10px;flex-wrap:wrap;padding:16px 18px;}
+.action-bar .btn{flex:1;justify-content:center;min-width:130px;}
+.btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--text);}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+</style>
+</head>
+<body>
+
+<div class="record-head">
+  <div class="record-head-top">
+    <div class="record-title-row">
+      <a class="back-link" href="/hotwater-nsw/quote-tracker.html">‹ Tracker</a>
+      <input id="customerNameInput" placeholder="Customer name…" oninput="markDirty()">
+    </div>
+    <div class="head-actions">
+      <select id="statusSelect" class="status-select" onchange="markDirty()"></select>
+      <button class="btn btn-ghost" onclick="saveQuote()">Save</button>
+    </div>
+  </div>
+  <div class="subline">
+    <span id="tokenLine">New quote — not yet saved</span>
+    <span id="savedLine"></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="col-main">
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Customer</span></div>
+      <div class="card-body">
+        <div class="field-row"><span class="field-label">Mobile</span><input type="tel" id="customerPhone" placeholder="04xx xxx xxx" oninput="markDirty()"></div>
+        <div class="field-row"><span class="field-label">Email</span><input type="email" id="customerEmail" placeholder="customer@email.com" oninput="markDirty()"></div>
+        <div class="field-row"><span class="field-label">Property address</span><input type="text" id="propertyAddress" placeholder="Street, Suburb NSW" oninput="markDirty()"></div>
+        <div class="field-row"><span class="field-label">Agent</span><input type="text" id="agentName" placeholder="Your name" oninput="markDirty()"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--purple)"></span><span class="card-title">Existing Hot Water System</span></div>
+      <div class="card-body">
+        <div class="field-row"><span class="field-label">Currently has</span>
+          <div class="pill-group" id="existingSystemGroup">
+            <button type="button" class="pill-opt" data-val="electric" onclick="setExisting('electric')">Electric</button>
+            <button type="button" class="pill-opt" data-val="gas" onclick="setExisting('gas')">Gas</button>
+            <button type="button" class="pill-opt" data-val="solar_boosted" onclick="setExisting('solar_boosted')">Solar Boosted</button>
+          </div>
+        </div>
+        <div class="field-row"><span class="field-label">Base price</span><span id="basePriceOut" class="v" style="font-weight:700;">—</span></div>
+        <div class="field-row"><span class="field-label">Activity code</span><span id="activityCodeOut">—</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--teal)"></span><span class="card-title">New Heat Pump Selection</span></div>
+      <div class="card-body">
+        <div class="product-grid" id="productGrid">
+          <div class="product-card" data-val="290-all-in-one" onclick="setModel('290-all-in-one')">
+            <div class="product-img"><img src="/assets/hotwater/290-fr.jpg" alt="" onerror="this.parentElement.textContent='290 FR photo pending'"></div>
+            <div class="product-name">290L All-in-One</div>
+          </div>
+          <div class="product-card" data-val="290-split" onclick="setModel('290-split')">
+            <div class="product-img"><img src="/assets/hotwater/econova-330-fr.jpg" alt="" onerror="this.parentElement.textContent='Econova 330 FR photo pending'"></div>
+            <div class="product-name">290L Split System</div>
+          </div>
+          <div class="product-card" data-val="330-split" onclick="setModel('330-split')">
+            <div class="product-img"><img src="/assets/hotwater/econova-330-fr.jpg" alt="" onerror="this.parentElement.textContent='Econova 330 FR photo pending'"></div>
+            <div class="product-name">330L Split System</div>
+          </div>
+        </div>
+        <div class="hint">Product photos are placeholders until the real 290 FR / Econova 330 FR images are uploaded to /assets/hotwater/.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--yellow)"></span><span class="card-title">Installation Requirements</span></div>
+      <div class="card-body">
+        <div class="field-row"><span class="field-label">Staying in existing location?</span>
+          <div class="pill-group">
+            <button type="button" class="pill-opt" id="stayYesBtn" onclick="setStaying(true)">Yes</button>
+            <button type="button" class="pill-opt" id="stayNoBtn" onclick="setStaying(false)">No</button>
+          </div>
+        </div>
+        <div id="relocationFields" style="display:none;">
+          <div class="field-row"><span class="field-label">Relocation type</span>
+            <div class="pill-group">
+              <button type="button" class="pill-opt" data-val="standard" onclick="setRelocationType('standard')">Standard</button>
+              <button type="button" class="pill-opt" data-val="back_to_back" onclick="setRelocationType('back_to_back')">Back-to-back</button>
+            </div>
+          </div>
+          <div class="field-row"><span class="field-label">Relocation metres</span><input type="number" id="relocationMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
+          <div class="hint" id="relocationHint"></div>
+        </div>
+        <div id="cableFields" style="display:none;">
+          <div class="field-row"><span class="field-label">Switchboard cable run (m)</span><input type="number" id="cableMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
+          <div class="hint">First 15m included in the gas base price. Additional metres charged at $20/m.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--red)"></span><span class="card-title">Other Installation Extras</span></div>
+      <div class="card-body">
+        <div id="extrasList"></div>
+        <button type="button" class="add-extra-btn" onclick="addExtraRow()">+ Add extra charge</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-side">
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--navy)"></span><span class="card-title">Pricing Summary</span></div>
+      <div class="card-body">
+        <div class="price-row"><span>Base price</span><span class="v" id="sumBase">$0.00</span></div>
+        <div class="price-row"><span>Relocation</span><span class="v" id="sumReloc">$0.00</span></div>
+        <div class="price-row"><span>Back-to-back fee</span><span class="v" id="sumB2b">$0.00</span></div>
+        <div class="price-row"><span>Electrical cable</span><span class="v" id="sumCable">$0.00</span></div>
+        <div class="price-row"><span>Other extras</span><span class="v" id="sumOther">$0.00</span></div>
+        <div class="price-row total"><span>Final price (inc GST)</span><span class="v" id="sumFinal">$0.00</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--green)"></span><span class="card-title">Finance — NSW Home Energy Saver</span></div>
+      <div class="card-body">
+        <div class="field-row"><span class="field-label">Use finance?</span>
+          <div class="pill-group">
+            <button type="button" class="pill-opt" id="financeYesBtn" onclick="setFinanceRequested(true)">Yes</button>
+            <button type="button" class="pill-opt" id="financeNoBtn" onclick="setFinanceRequested(false)">No</button>
+          </div>
+        </div>
+        <div id="financeFields" style="display:none;">
+          <div class="field-row"><span class="field-label">Income ≤ $210k/yr?</span>
+            <select id="incomeEligible" onchange="recalc()">
+              <option value="needs_confirmation">Needs confirmation</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div class="field-row"><span class="field-label">Eligibility</span><span id="eligibilityOut" class="v">—</span></div>
+          <div class="field-row"><span class="field-label">Term</span>
+            <select id="financeTerm" onchange="recalc()">
+              <option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option>
+              <option value="5">5 years</option><option value="7">7 years</option><option value="10" selected>10 years</option>
+            </select>
+          </div>
+          <div class="finance-grid" style="margin-top:10px;">
+            <div class="finance-figure"><div class="amt" id="fortnightlyOut">$0.00</div><div class="lbl">per fortnight</div></div>
+            <div class="finance-figure"><div class="amt" id="monthlyOut">$0.00</div><div class="lbl">per month</div></div>
+          </div>
+          <div class="hint">0% interest, up to $15,000, up to 10-year term. Final approval subject to Brighte.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Quote Actions</span></div>
+      <div class="action-bar" style="flex-direction:column;">
+        <button class="btn btn-primary" onclick="saveQuote()">💾 Save Quote</button>
+        <button class="btn btn-outline" onclick="window.open(viewUrl(), '_blank')" id="viewBtn" disabled>👁 View Customer Quote</button>
+        <button class="btn btn-outline" onclick="emailQuote()" id="emailBtn" disabled>✉ Email Quote</button>
+        <button class="btn btn-outline" onclick="smsQuote()" id="smsBtn" disabled>💬 SMS Quote</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = [
+  ['draft','Draft', '#9699a6'], ['quote_ready','Quote Ready', '#0073ea'], ['quote_sent','Quote Sent', '#fdab3d'],
+  ['customer_reviewing','Customer Reviewing', '#a25ddc'], ['follow_up','Follow Up', '#e2445c'],
+  ['accepted','Accepted', '#00c875'], ['declined','Declined', '#676879'],
+  ['finance_pending','Finance Pending', '#009eb5'], ['finance_approved','Finance Approved', '#037f4c'], ['booked','Booked', '#292f4c'],
+];
+const statusSelect = document.getElementById('statusSelect');
+STATUSES.forEach(([val,label])=>{ const o=document.createElement('option'); o.value=val; o.textContent=label; statusSelect.appendChild(o); });
+function paintStatus(){ const s=STATUSES.find(x=>x[0]===statusSelect.value)||STATUSES[0]; statusSelect.style.background=s[2]; }
+statusSelect.addEventListener('change', paintStatus);
+
+const BASE_PRICE = { electric:2499, gas:2899, solar_boosted:3339 };
+const ACTIVITY_CODE = { electric:'D17', gas:'D19', solar_boosted:null };
+const MODEL_LABEL = { '290-all-in-one':'290L All-in-One', '290-split':'290L Split System', '330-split':'330L Split System' };
+const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
+
+let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:false, other_extras:[] };
+let currentToken = new URLSearchParams(location.search).get('token') || null;
+let dirty = false;
+
+function markDirty(){ dirty = true; }
+function money(n){ return '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+
+function setExisting(v){ state.existing_system=v; document.querySelectorAll('#existingSystemGroup .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); markDirty(); recalc(); }
+function setModel(v){ state.heat_pump_model=v; document.querySelectorAll('#productGrid .product-card').forEach(c=>c.classList.toggle('active', c.dataset.val===v)); markDirty(); recalc(); }
+function setStaying(v){
+  state.tank_staying=v;
+  document.getElementById('stayYesBtn').classList.toggle('active', v===true);
+  document.getElementById('stayNoBtn').classList.toggle('active', v===false);
+  document.getElementById('relocationFields').style.display = v===false ? 'block' : 'none';
+  if(v){ state.relocation_type=null; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.remove('active')); }
+  markDirty(); recalc();
+}
+function setRelocationType(v){ state.relocation_type=v; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); markDirty(); recalc(); }
+function setFinanceRequested(v){
+  state.finance_requested=v;
+  document.getElementById('financeYesBtn').classList.toggle('active', v===true);
+  document.getElementById('financeNoBtn').classList.toggle('active', v===false);
+  document.getElementById('financeFields').style.display = v ? 'block' : 'none';
+  markDirty(); recalc();
+}
+
+function addExtraRow(label, amount){
+  const row = document.createElement('div'); row.className='extra-row';
+  row.innerHTML = `<input type="text" placeholder="Description" value="${label?String(label).replace(/"/g,'&quot;'):''}" oninput="markDirty();recalc()">
+    <input type="number" placeholder="0.00" min="0" step="0.01" value="${amount!=null?amount:''}" oninput="markDirty();recalc()">
+    <button type="button" class="extra-remove" onclick="this.parentElement.remove();recalc()">✕</button>`;
+  document.getElementById('extrasList').appendChild(row);
+}
+
+function collectExtras(){
+  return [...document.querySelectorAll('#extrasList .extra-row')].map(row=>{
+    const [labelInput, amountInput] = row.querySelectorAll('input');
+    return { label: labelInput.value.trim(), amount: Number(amountInput.value)||0 };
+  }).filter(e=>e.label || e.amount);
+}
+
+function recalc(){
+  const basePrice = BASE_PRICE[state.existing_system] || 0;
+  const activityCode = state.existing_system ? (ACTIVITY_CODE[state.existing_system] ?? null) : null;
+  document.getElementById('basePriceOut').textContent = state.existing_system ? money(basePrice) : '—';
+  document.getElementById('activityCodeOut').innerHTML = state.existing_system
+    ? (activityCode ? `<span class="badge badge-code">${activityCode}</span>` : `<span class="badge badge-tbd">No HEER code — solar-boosted not eligible</span>`)
+    : '—';
+
+  const cableFields = document.getElementById('cableFields');
+  cableFields.style.display = state.existing_system==='gas' ? 'block' : 'none';
+
+  const relocMetres = state.tank_staying===false ? Math.max(0, Number(document.getElementById('relocationMetres').value)||0) : 0;
+  const relocCharge = (state.relocation_type && relocMetres>0) ? relocMetres*RELOCATION_PER_METRE : 0;
+  const b2bCharge = state.relocation_type==='back_to_back' ? BACK_TO_BACK_FLAT : 0;
+  document.getElementById('relocationHint').textContent = state.relocation_type==='back_to_back'
+    ? 'Back-to-back flat fee is charged in addition to any relocation metres entered above.'
+    : '';
+
+  const cableMetres = state.existing_system==='gas' ? Math.max(0, Number(document.getElementById('cableMetres').value)||0) : 0;
+  const cableChargeable = Math.max(0, cableMetres - CABLE_INCLUDED_METRES);
+  const cableCharge = cableChargeable * CABLE_PER_METRE;
+
+  state.other_extras = collectExtras();
+  const otherTotal = state.other_extras.reduce((s,e)=>s+e.amount,0);
+
+  const totalExtras = relocCharge + b2bCharge + cableCharge + otherTotal;
+  const finalPrice = basePrice + totalExtras;
+
+  document.getElementById('sumBase').textContent = money(basePrice);
+  document.getElementById('sumReloc').textContent = money(relocCharge);
+  document.getElementById('sumB2b').textContent = money(b2bCharge);
+  document.getElementById('sumCable').textContent = money(cableCharge);
+  document.getElementById('sumOther').textContent = money(otherTotal);
+  document.getElementById('sumFinal').textContent = money(finalPrice);
+
+  const incomeEligible = document.getElementById('incomeEligible').value;
+  const eligibility = !state.finance_requested ? 'n/a' : incomeEligible==='no' ? 'Not Eligible' : incomeEligible==='yes' ? 'Potentially Eligible' : 'Needs Confirmation';
+  document.getElementById('eligibilityOut').textContent = eligibility;
+  const term = Number(document.getElementById('financeTerm').value)||10;
+  document.getElementById('fortnightlyOut').textContent = money(finalPrice/(term*26));
+  document.getElementById('monthlyOut').textContent = money(finalPrice/(term*12));
+
+  return { basePrice, activityCode, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable, cableCharge, otherTotal, totalExtras, finalPrice, term };
+}
+
+function viewUrl(){ return `/hotwater-nsw/quote.html?token=${encodeURIComponent(currentToken||'')}`; }
+
+function buildPayload(){
+  return {
+    action:'save', token: currentToken,
+    status: statusSelect.value,
+    agent_name: document.getElementById('agentName').value.trim(),
+    customer_name: document.getElementById('customerNameInput').value.trim(),
+    customer_phone: document.getElementById('customerPhone').value.trim(),
+    customer_email: document.getElementById('customerEmail').value.trim(),
+    property_address: document.getElementById('propertyAddress').value.trim(),
+    existing_system: state.existing_system,
+    heat_pump_model: state.heat_pump_model,
+    tank_staying: state.tank_staying,
+    relocation_type: state.relocation_type,
+    relocation_metres: Number(document.getElementById('relocationMetres').value)||0,
+    cable_metres: Number(document.getElementById('cableMetres').value)||0,
+    other_extras: state.other_extras,
+    finance_requested: state.finance_requested,
+    income_eligible: document.getElementById('incomeEligible').value,
+    finance_term_years: Number(document.getElementById('financeTerm').value)||10,
+  };
+}
+
+async function saveQuote(){
+  if(!document.getElementById('customerNameInput').value.trim()){ showToast('Enter the customer name first.'); return; }
+  try{
+    const res = await fetch('/api/hotwater-nsw/quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error || 'Save failed.'); return; }
+    currentToken = data.quote_token;
+    history.replaceState(null, '', `/hotwater-nsw/quote-builder.html?token=${encodeURIComponent(currentToken)}`);
+    document.getElementById('tokenLine').textContent = `Quote ${currentToken.slice(0,8)}…`;
+    document.getElementById('savedLine').textContent = `Saved ${new Date().toLocaleTimeString('en-AU')}`;
+    ['viewBtn','emailBtn','smsBtn'].forEach(id=>document.getElementById(id).disabled=false);
+    dirty = false;
+    showToast('Quote saved.');
+  }catch(e){ console.error(e); showToast('Network error saving quote.'); }
+}
+
+async function emailQuote(){
+  if(dirty){ await saveQuote(); }
+  if(!currentToken) return;
+  if(!document.getElementById('customerEmail').value.includes('@')){ showToast('Enter a valid customer email first.'); return; }
+  const btn = document.getElementById('emailBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
+  try{
+    const res = await fetch('/api/hotwater-nsw/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'email', token: currentToken }) });
+    const data = await res.json();
+    showToast(res.ok ? 'Quote emailed to customer.' : (data.error||'Email failed.'));
+    if(res.ok) statusSelect.value='quote_sent', paintStatus();
+  }catch(e){ showToast('Network error sending email.'); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+
+async function smsQuote(){
+  if(dirty){ await saveQuote(); }
+  if(!currentToken) return;
+  if(!document.getElementById('customerPhone').value.trim()){ showToast('Enter a customer mobile number first.'); return; }
+  const btn = document.getElementById('smsBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
+  try{
+    const res = await fetch('/api/hotwater-nsw/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'sms', token: currentToken }) });
+    const data = await res.json();
+    showToast(res.ok ? 'Quote texted to customer.' : (data.error||'SMS failed.'));
+    if(res.ok) statusSelect.value='quote_sent', paintStatus();
+  }catch(e){ showToast('Network error sending SMS.'); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+
+async function loadExisting(){
+  if(!currentToken) { paintStatus(); recalc(); return; }
+  try{
+    const res = await fetch(`/api/hotwater-nsw/quotes?token=${encodeURIComponent(currentToken)}`);
+    if(!res.ok){ showToast('Could not load quote.'); paintStatus(); recalc(); return; }
+    const q = await res.json();
+    document.getElementById('customerNameInput').value = q.customer_name || '';
+    document.getElementById('customerPhone').value = q.customer_phone || '';
+    document.getElementById('customerEmail').value = q.customer_email || '';
+    document.getElementById('propertyAddress').value = q.property_address || '';
+    document.getElementById('agentName').value = q.agent_name || '';
+    statusSelect.value = q.status || 'draft';
+    if(q.existing_system) setExisting(q.existing_system);
+    if(q.heat_pump_model) setModel(q.heat_pump_model);
+    if(q.tank_staying != null) setStaying(q.tank_staying);
+    if(q.relocation_type) setRelocationType(q.relocation_type);
+    document.getElementById('relocationMetres').value = q.relocation_metres || 0;
+    document.getElementById('cableMetres').value = q.cable_metres || 0;
+    (q.other_extras||[]).forEach(e=>addExtraRow(e.label, e.amount));
+    setFinanceRequested(!!q.finance_requested);
+    document.getElementById('incomeEligible').value = q.income_eligible || 'needs_confirmation';
+    document.getElementById('financeTerm').value = q.finance_term_years || 10;
+    document.getElementById('tokenLine').textContent = `Quote ${currentToken.slice(0,8)}…`;
+    document.getElementById('savedLine').textContent = q.updated_at ? `Last saved ${new Date(q.updated_at).toLocaleString('en-AU')}` : '';
+    ['viewBtn','emailBtn','smsBtn'].forEach(id=>document.getElementById(id).disabled=false);
+    paintStatus();
+    recalc();
+    dirty = false;
+  }catch(e){ console.error(e); showToast('Network error loading quote.'); paintStatus(); recalc(); }
+}
+
+loadExisting();
+</script>
+</body>
+</html>
