@@ -6,6 +6,9 @@
 <title>Goldsure · Hot Water Quote Builder</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+<script src="/assets/internal-systems-sidebar.js" defer></script>
+<script src="/assets/quote-builder-session.js"></script>
 <style>
 :root{
   --bg:#eaeef3;--surface:#ffffff;--line:#e9edf3;--line-soft:#f1f4f8;
@@ -259,17 +262,6 @@ table.quote td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-
 <!-- APP -->
 <div id="app">
 <header>
-  <div class="header-left">
-    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
-    <div class="hd meta-only"></div>
-    <span class="page-label meta-only">Hot Water · Quote Builder</span>
-    <nav class="tracker-nav meta-only">
-      <a href="/hotwater/quote.html" class="trk-link is-active">HWS</a>
-      <a href="/hotwater-nsw/quote-builder.html" class="trk-link">NSW HWS</a>
-      <a href="/aircons/quote.html" class="trk-link">Aircon</a>
-      <a href="/smoke-alarms/smoke-alarm.html" class="trk-link">Smoke Alarm</a>
-    </nav>
-  </div>
   <div class="header-right">
     <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name" id="agentName">Agent</span></div>
     <div class="hd meta-only"></div>
@@ -464,9 +456,9 @@ const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to provide a quotation
 function doLogin(){
   const a = document.getElementById('login-agent').value;
   if(!a){ document.getElementById('login-error').classList.add('show'); return; }
-  agent = a; sessionStorage.setItem('hw_agent', a); localStorage.setItem('hw_agent', a); showApp();
+  agent = a; GoldsureQuoteSession.set(a); showApp();
 }
-function doLogout(){ sessionStorage.removeItem('hw_agent'); location.reload(); }
+function doLogout(){ GoldsureQuoteSession.clear(); location.reload(); }
 function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -478,8 +470,8 @@ function showApp(){
   recalc();
 }
 window.addEventListener('DOMContentLoaded', ()=>{
-  const saved = sessionStorage.getItem('hw_agent');
-  if(saved){ agent = saved; showApp(); }
+  const saved = GoldsureQuoteSession.get();
+  if(saved){ agent = saved; document.getElementById('login-agent').value = saved; showApp(); }
 });
 
 // ── Money helpers ──

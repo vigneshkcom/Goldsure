@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Goldsure · Aircon Quote Builder</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+<script src="/assets/internal-systems-sidebar.js" defer></script>
+<script src="/assets/quote-builder-session.js"></script>
 <style>
 :root{
   --bg:#eaeef3;--surface:#ffffff;--line:#e9edf3;--line-soft:#f1f4f8;
@@ -205,17 +208,6 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 <!-- APP -->
 <div id="app">
 <header>
-  <div class="header-left">
-    <div class="header-logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
-    <div class="hd meta-only"></div>
-    <span class="page-label meta-only">Aircon · Quote Builder</span>
-    <nav class="tracker-nav meta-only">
-      <a href="/hotwater/quote.html" class="trk-link">HWS</a>
-      <a href="/hotwater-nsw/quote-builder.html" class="trk-link">NSW HWS</a>
-      <a href="/aircons/quote.html" class="trk-link is-active">Aircon</a>
-      <a href="/smoke-alarms/smoke-alarm.html" class="trk-link">Smoke Alarm</a>
-    </nav>
-  </div>
   <div class="header-right">
     <div class="agent-chip"><div class="agent-dot"></div><span class="agent-name" id="agentName">Agent</span></div>
     <div class="hd meta-only"></div>
@@ -363,9 +355,9 @@ function showToast(m){ const t=$('toast'); t.textContent=m; t.classList.add('sho
 function doLogin(){
   const a=$('login-agent').value;
   if(!a){ $('login-error').classList.add('show'); return; }
-  agent=a; sessionStorage.setItem('ac_agent',a); localStorage.setItem('ac_agent',a); showApp();
+  agent=a; GoldsureQuoteSession.set(a); showApp();
 }
-function doLogout(){ sessionStorage.removeItem('ac_agent'); location.reload(); }
+function doLogout(){ GoldsureQuoteSession.clear(); location.reload(); }
 function showApp(){
   $('login-screen').style.display='none';
   $('app').style.display='block';
@@ -373,7 +365,7 @@ function showApp(){
   const tl=$('trackerLink'); if(tl) tl.href='/aircons/quote-tracker.html?agent='+encodeURIComponent(agent);
   loadGoogleMaps(); recalc();
 }
-window.addEventListener('DOMContentLoaded',()=>{ const s=sessionStorage.getItem('ac_agent'); if(s){ agent=s; showApp(); } });
+window.addEventListener('DOMContentLoaded',()=>{ const s=GoldsureQuoteSession.get(); if(s){ agent=s; $('login-agent').value=s; showApp(); } });
 
 // ── Pricing: VEEC qty × rate is fixed; outdoor price balances to OOP ──
 function buildLines(includeOutdoor=true){

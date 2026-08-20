@@ -6,6 +6,9 @@
 <title>NSW Hot Water Quote Builder · Goldsure</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
+<link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+<script src="/assets/internal-systems-sidebar.js" defer></script>
+<script src="/assets/quote-builder-session.js"></script>
 <style>
 :root{
   --bg:#eaeef3;--surface:#ffffff;--line:#e9edf3;--line-soft:#f1f4f8;
@@ -215,18 +218,6 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
 <!-- APP -->
 <div id="app">
 <header>
-  <div class="header-left">
-    <div class="header-logo">
-      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
-    </div>
-    <div class="hd meta-only"></div>
-    <nav class="tracker-nav meta-only">
-      <a href="/hotwater/quote.html" class="trk-link">HWS</a>
-      <a href="/hotwater-nsw/quote-builder.html" class="trk-link is-active">NSW HWS</a>
-      <a href="/aircons/quote.html" class="trk-link">Aircon</a>
-      <a href="/smoke-alarms/smoke-alarm.html" class="trk-link">Smoke Alarm</a>
-    </nav>
-  </div>
   <div class="header-right">
     <div class="agent-chip"><span class="agent-dot"></span><span class="agent-name" id="agentName"></span></div>
     <a class="nav-btn" id="trackerLink" href="/hotwater-nsw/quote-tracker.html">Tracker</a>
@@ -451,10 +442,10 @@ function showToast(m){ const t=$('toast'); t.textContent=m; t.classList.add('sho
 function doLogin(){
   const a = $('login-agent').value;
   if(!a){ $('login-error').classList.add('show'); return; }
-  agent = a; sessionStorage.setItem('nswhw_agent', a); localStorage.setItem('nswhw_agent', a);
+  agent = a; GoldsureQuoteSession.set(a);
   showApp();
 }
-function doLogout(){ sessionStorage.removeItem('nswhw_agent'); location.reload(); }
+function doLogout(){ GoldsureQuoteSession.clear(); location.reload(); }
 function showApp(){
   $('login-screen').style.display='none';
   $('app').style.display='block';
@@ -464,7 +455,7 @@ function showApp(){
   setFinance(true);   // customers are quoted with the loan by default
 }
 window.addEventListener('DOMContentLoaded', ()=>{
-  const saved = sessionStorage.getItem('nswhw_agent') || localStorage.getItem('nswhw_agent');
+  const saved = GoldsureQuoteSession.get();
   if(saved){ agent = saved; $('login-agent').value = saved; showApp(); }
 });
 
