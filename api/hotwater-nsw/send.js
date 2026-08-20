@@ -78,6 +78,11 @@ function buildQuoteEmailHtml(q, quoteUrl) {
     </td></tr>
     <tr><td style="height:3px;background:#0073ea;font-size:0;line-height:0;">&nbsp;</td></tr>
 
+    <tr><td style="padding:11px 32px;background:#fafbfc;border-bottom:1px solid #e3e6ea;font-family:${FONT};">
+      <img src="${SITE}/assets/hotwater/ecogenica-logo.svg" alt="Ecogenica" height="18" style="vertical-align:middle;height:18px;width:auto;">
+      <span style="font-size:11px;color:#676879;font-weight:600;margin-left:8px;vertical-align:middle;">Authorised Ecogenica Heat Pump Dealer</span>
+    </td></tr>
+
     <tr><td style="padding:26px 32px 4px;font-family:${FONT};">
       <div style="font-size:16px;font-weight:700;color:#141c2e;">Hi ${esc(String(q.customer_name || '').split(/\s+/)[0] || 'there')},</div>
       <p style="margin:8px 0 0;font-size:14px;color:#3d4658;line-height:1.65;">Your Goldsure heat pump hot water quote is ready. Here's a summary — the full quote is always available at the link below.</p>
