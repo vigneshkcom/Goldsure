@@ -10,9 +10,9 @@ CREATE TABLE nsw_hws_quotes (
 
   -- Ownership / lifecycle
   agent_name text,
-  status text NOT NULL DEFAULT 'draft',
-  -- Suggested values: draft, quote_ready, quote_sent, customer_reviewing,
-  -- follow_up, accepted, declined, finance_pending, finance_approved, booked
+  status text NOT NULL DEFAULT 'sent',
+  -- sent | accepted | rejected | installed — same lifecycle as hotwater_quotes.
+  -- Rows only exist once a quote has actually been sent; there are no drafts.
 
   -- Customer
   customer_name text,
@@ -71,3 +71,12 @@ CREATE INDEX ON nsw_hws_quotes (quote_token);
 CREATE INDEX ON nsw_hws_quotes (status);
 CREATE INDEX ON nsw_hws_quotes (created_at);
 ALTER TABLE nsw_hws_quotes DISABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Migration for an install created before the draft workflow was removed.
+-- Quotes are now only written when they are sent, matching the VIC hot water
+-- flow, so the status vocabulary is sent/accepted/rejected/installed and any
+-- leftover drafts should go.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- DELETE FROM nsw_hws_quotes WHERE status = 'draft';
+-- ALTER TABLE nsw_hws_quotes ALTER COLUMN status SET DEFAULT 'sent';

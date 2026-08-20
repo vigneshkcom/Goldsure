@@ -2556,7 +2556,7 @@ ${notesHtml}
   // delete). Password matches SMS_DELETE_PIN (defaults to 4321).
   if (body.action === 'delete-quotes') {
     const { table, ids, pin } = body;
-    const ALLOWED = { hotwater_quotes: 1, aircon_quotes: 1, quote_emails: 1 };
+    const ALLOWED = { hotwater_quotes: 1, aircon_quotes: 1, quote_emails: 1, nsw_hws_quotes: 1 };
     if (!ALLOWED[table]) return res.status(400).json({ error: 'Invalid table.' });
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No quote ids provided.' });
     const expected = process.env.SMS_DELETE_PIN || '4321';

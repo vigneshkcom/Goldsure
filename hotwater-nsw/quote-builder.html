@@ -122,6 +122,33 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
 .agent-chip button{background:none;border:none;color:rgba(255,255,255,.45);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:0 0 0 6px;}
 .agent-chip button:hover{color:#fff;}
 #app{display:none;}
+
+/* Preview & send modal */
+.modal{position:fixed;inset:0;background:rgba(20,25,45,.55);display:none;align-items:flex-start;justify-content:center;padding:28px 16px;z-index:500;overflow-y:auto;}
+.modal.open{display:flex;}
+.modal-card{background:#fff;border-radius:12px;width:100%;max-width:600px;box-shadow:0 24px 70px rgba(0,0,0,.35);}
+.modal-head{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-head h2{font-size:15px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:19px;color:var(--faint);cursor:pointer;line-height:1;}
+.modal-body{padding:18px 22px;}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;}
+.pv-to{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.pv-to .lbl{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);margin-bottom:4px;}
+.pv-to .nm{font-size:14px;font-weight:700;}
+.pv-to .ln{font-size:12px;color:var(--muted);line-height:1.55;}
+table.pv{width:100%;border-collapse:collapse;margin-bottom:14px;}
+table.pv td{padding:8px 0;border-bottom:1px solid #f1f2f6;font-size:12.5px;}
+table.pv td.r{text-align:right;font-weight:600;white-space:nowrap;}
+table.pv tr.grand td{border-top:2px solid var(--navy);border-bottom:none;padding-top:11px;font-size:14px;font-weight:800;}
+table.pv tr.grand td.r{color:var(--blue);font-size:16px;}
+.pv-fin{background:#f2f8ff;border-radius:7px;padding:11px 14px;font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.7;}
+.pv-fin strong{color:var(--text);}
+.pv-lbl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);margin-bottom:5px;}
+.pv-body{width:100%;min-height:92px;border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:inherit;font-size:12.5px;line-height:1.6;color:var(--text);resize:vertical;}
+.pv-body:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12);}
+.pv-sms{display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:12.5px;color:var(--text);cursor:pointer;}
+.pv-sms input{margin-top:2px;}
+.pv-sms .sub{display:block;font-size:11px;color:var(--faint);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -158,18 +185,13 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
   <div class="record-head-top">
     <div class="record-title-row">
       <img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure">
-      <a class="back-link" href="/hotwater-nsw/quote-tracker.html">‹ Tracker</a>
-      <span class="record-title-text placeholder" id="recordTitleText">New Quote</span>
+      <span class="record-title-text">NSW Hot Water Quote</span>
+      <a class="back-link" href="/hotwater-nsw/quote-tracker.html" id="trackerLink">Quote Tracker ›</a>
     </div>
     <div class="head-actions">
       <span class="agent-chip"><span id="agentChipName"></span><button onclick="doLogout()">Switch</button></span>
-      <select id="statusSelect" class="status-select" onchange="markDirty()"></select>
-      <button class="btn btn-ghost" onclick="saveQuote()">Save</button>
+      <button class="btn btn-primary" onclick="openPreview()">✉ Preview &amp; Send</button>
     </div>
-  </div>
-  <div class="subline">
-    <span id="tokenLine">New quote — autosaves as you type</span>
-    <span id="savedLine"></span>
   </div>
 </div>
 
@@ -180,12 +202,12 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
       <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Customer</span></div>
       <div class="card-body">
         <div class="field-row ghl-wrap"><span class="field-label">Customer name</span>
-          <input type="text" id="customerNameInput" placeholder="Search GHL or type a name…" autocomplete="off" oninput="onGhlSearch(); markDirty();">
+          <input type="text" id="customerNameInput" placeholder="Search GHL or type a name…" autocomplete="off" oninput="onGhlSearch()">
           <div class="ghl-results" id="ghlResults"></div>
         </div>
-        <div class="field-row"><span class="field-label">Mobile</span><input type="tel" id="customerPhone" placeholder="04xx xxx xxx" oninput="markDirty()"></div>
-        <div class="field-row"><span class="field-label">Email</span><input type="email" id="customerEmail" placeholder="customer@email.com" oninput="markDirty()"></div>
-        <div class="field-row"><span class="field-label">Property address</span><input type="text" id="propertyAddress" placeholder="Street, Suburb NSW" oninput="markDirty()"></div>
+        <div class="field-row"><span class="field-label">Mobile</span><input type="tel" id="customerPhone" placeholder="04xx xxx xxx"></div>
+        <div class="field-row"><span class="field-label">Email</span><input type="email" id="customerEmail" placeholder="customer@email.com"></div>
+        <div class="field-row"><span class="field-label">Property address</span><input type="text" id="propertyAddress" placeholder="Street, Suburb NSW"></div>
       </div>
     </div>
 
@@ -233,11 +255,11 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
               <button type="button" class="pill-opt" data-val="back_to_back" onclick="setRelocationType('back_to_back')">Back-to-back</button>
             </div>
           </div>
-          <div class="field-row"><span class="field-label">Relocation metres</span><input type="number" id="relocationMetres" min="0" step="0.5" value="0" oninput="markDirty();recalc()"></div>
+          <div class="field-row"><span class="field-label">Relocation metres</span><input type="number" id="relocationMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
           <div class="hint" id="relocationHint"></div>
         </div>
         <div id="cableFields" style="display:none;">
-          <div class="field-row"><span class="field-label">Switchboard cable run (m)</span><input type="number" id="cableMetres" min="0" step="0.5" value="0" oninput="markDirty();recalc()"></div>
+          <div class="field-row"><span class="field-label">Switchboard cable run (m)</span><input type="number" id="cableMetres" min="0" step="0.5" value="0" oninput="recalc()"></div>
           <div class="hint">First 15m included in the gas base price. Additional metres charged at $20/m.</div>
         </div>
       </div>
@@ -278,7 +300,7 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
         </div>
         <div id="financeFields" style="display:none;">
           <div class="field-row"><span class="field-label">Income ≤ $210k/yr?</span>
-            <select id="incomeEligible" onchange="markDirty();recalc()">
+            <select id="incomeEligible" onchange="recalc()">
               <option value="needs_confirmation">Needs confirmation</option>
               <option value="yes">Yes</option>
               <option value="no">No</option>
@@ -286,7 +308,7 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
           </div>
           <div class="field-row"><span class="field-label">Eligibility</span><span id="eligibilityOut" class="v">—</span></div>
           <div class="field-row"><span class="field-label">Term</span>
-            <select id="financeTerm" onchange="markDirty();recalc()">
+            <select id="financeTerm" onchange="recalc()">
               <option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option>
               <option value="5">5 years</option><option value="7">7 years</option><option value="10" selected>10 years</option>
             </select>
@@ -301,11 +323,10 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
     </div>
 
     <div class="card">
-      <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Quote Actions</span></div>
-      <div class="action-bar" style="flex-direction:column;">
-        <button class="btn btn-outline" onclick="viewQuote()" id="viewBtn">👁 View Customer Quote</button>
-        <button class="btn btn-outline" onclick="emailQuote()" id="emailBtn">✉ Email Quote</button>
-        <button class="btn btn-outline" onclick="smsQuote()" id="smsBtn">💬 SMS Quote</button>
+      <div class="card-head"><span class="card-dot" style="background:var(--blue)"></span><span class="card-title">Send Quote</span></div>
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="openPreview()">✉ Preview &amp; Send</button>
+        <div class="hint" style="text-align:center;">The quote is emailed to the customer and appears in the tracker once sent.</div>
       </div>
     </div>
 
@@ -313,29 +334,33 @@ body{margin:0;font-family:'Roboto',Arial,sans-serif;background:var(--bg);color:v
 </div>
 </div>
 
+<!-- PREVIEW & SEND -->
+<div class="modal" id="previewModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Preview &amp; Send Quotation</h2>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closePreview()">Cancel</button>
+      <button class="btn btn-primary" id="confirmSendBtn" onclick="doSend()">✉ Confirm &amp; Send</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const STATUSES = [
-  ['draft','Draft', '#9699a6'], ['quote_ready','Quote Ready', '#0073ea'], ['quote_sent','Quote Sent', '#fdab3d'],
-  ['customer_reviewing','Customer Reviewing', '#a25ddc'], ['follow_up','Follow Up', '#e2445c'],
-  ['accepted','Accepted', '#00c875'], ['declined','Declined', '#676879'],
-  ['finance_pending','Finance Pending', '#009eb5'], ['finance_approved','Finance Approved', '#037f4c'], ['booked','Booked', '#292f4c'],
-];
-const statusSelect = document.getElementById('statusSelect');
-STATUSES.forEach(([val,label])=>{ const o=document.createElement('option'); o.value=val; o.textContent=label; statusSelect.appendChild(o); });
-function paintStatus(){ const s=STATUSES.find(x=>x[0]===statusSelect.value)||STATUSES[0]; statusSelect.style.background=s[2]; }
-statusSelect.addEventListener('change', paintStatus);
-
 const BASE_PRICE = { electric:2499, gas:2899, solar_boosted:3339 };
 const ACTIVITY_CODE = { electric:'D17', gas:'D19', solar_boosted:null };
 const MODEL_LABEL = { '290-all-in-one':'290L All-in-One', '290-split':'290L Split System', '330-split':'330L Split System' };
+const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
+const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price shown below already includes the applicable NSW scheme discounts. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
 
 let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:false, other_extras:[] };
-let currentToken = new URLSearchParams(location.search).get('token') || null;
-let dirty = false;
-let autosaveTimer = null;
+let calc = {};
 let agent = '';
 
 // ── Agent sign-in (same pattern as the VIC hot water / aircon builders) ──
@@ -351,34 +376,43 @@ function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('agentChipName').textContent = agent;
-  paintStatus();
-  loadExisting();
+  const tl=document.getElementById('trackerLink');
+  if(tl) tl.href='/hotwater-nsw/quote-tracker.html?agent='+encodeURIComponent(agent);
+  recalc();
 }
 window.addEventListener('DOMContentLoaded', ()=>{
   const saved = sessionStorage.getItem('nswhw_agent') || localStorage.getItem('nswhw_agent');
   if(saved){ agent = saved; document.getElementById('login-agent').value = saved; showApp(); }
 });
 
-// Autosave, debounced — no manual "Save" step needed. Any field change
-// schedules a silent save a second after the user stops typing/clicking.
-function markDirty(){
-  dirty = true;
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(()=>{ if(document.getElementById('customerNameInput').value.trim()) saveQuote(true); }, 1000);
-}
 function money(n){ return '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 
-function setExisting(v){ state.existing_system=v; document.querySelectorAll('#existingSystemGroup .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); markDirty(); recalc(); }
-function setModel(v){ state.heat_pump_model=v; document.querySelectorAll('#productGrid .pill-opt').forEach(c=>c.classList.toggle('active', c.dataset.val===v)); markDirty(); recalc(); }
+function setExisting(v){ state.existing_system=v; document.querySelectorAll('#existingSystemGroup .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); recalc(); }
+function setModel(v){ state.heat_pump_model=v; document.querySelectorAll('#productGrid .pill-opt').forEach(c=>c.classList.toggle('active', c.dataset.val===v)); recalc(); }
+function setStaying(v){
+  state.tank_staying=v;
+  document.getElementById('stayYesBtn').classList.toggle('active', v===true);
+  document.getElementById('stayNoBtn').classList.toggle('active', v===false);
+  document.getElementById('relocationFields').style.display = v===false ? 'block' : 'none';
+  if(v){ state.relocation_type=null; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.remove('active')); }
+  recalc();
+}
+function setRelocationType(v){ state.relocation_type=v; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); recalc(); }
+function setFinanceRequested(v){
+  state.finance_requested=v;
+  document.getElementById('financeYesBtn').classList.toggle('active', v===true);
+  document.getElementById('financeNoBtn').classList.toggle('active', v===false);
+  document.getElementById('financeFields').style.display = v ? 'block' : 'none';
+  recalc();
+}
 
-// ── GHL customer search (mirrors the VIC hot water / aircon quote builders) ──
+// ── GHL customer search (mirrors the VIC hot water / aircon builders) ──
 let ghlTimer = null;
 function onGhlSearch(){
-  document.getElementById('recordTitleText').textContent = document.getElementById('customerNameInput').value.trim() || 'New Quote';
-  document.getElementById('recordTitleText').classList.toggle('placeholder', !document.getElementById('customerNameInput').value.trim());
-  const q = document.getElementById('customerNameInput').value.trim();
+  const nameInput = document.getElementById('customerNameInput');
+  const q = nameInput.value.trim();
   const box = document.getElementById('ghlResults');
   clearTimeout(ghlTimer);
   if(q.length < 2){ box.classList.remove('open'); box.innerHTML=''; return; }
@@ -388,21 +422,14 @@ function onGhlSearch(){
       const res = await fetch(`/api/hotwater-nsw/quotes?action=search-contacts&q=${encodeURIComponent(q)}`);
       const data = await res.json().catch(()=>({}));
       const list = Array.isArray(data.contacts) ? data.contacts : [];
-      if(data.error){
-        box.innerHTML = `<div class="ghl-item empty">${esc(data.error)}</div>`; return;
-      }
-      if(!list.length){
-        box.innerHTML = '<div class="ghl-item empty">No matching GHL contacts</div>'; return;
-      }
+      if(data.error){ box.innerHTML = `<div class="ghl-item empty">${esc(data.error)}</div>`; return; }
+      if(!list.length){ box.innerHTML = '<div class="ghl-item empty">No matching GHL contacts</div>'; return; }
       box.innerHTML = list.map(c=>`<div class="ghl-item" onclick='pickGhl(${JSON.stringify(c).replace(/'/g,"&#39;")})'>
         <div class="n">${esc(c.name||'—')}</div>
         <div class="s">${esc(c.phone||'')}${c.email?' · '+esc(c.email):''}${c.address?' · '+esc(c.address):''}</div>
       </div>`).join('');
     }catch(e){
-      // Don't assert a cause here — this catch also fires on a bug in the
-      // rendering code above, and blaming the network for that sends you
-      // hunting the wrong problem. Report it as a lookup failure and put the
-      // real error in the console.
+      // Don't assert a cause — this also fires on a bug in the rendering above.
       console.error('[NSW HWS] contact lookup failed:', e);
       box.innerHTML = '<div class="ghl-item empty">Contact lookup failed — see browser console.</div>';
     }
@@ -414,40 +441,23 @@ function pickGhl(c){
   document.getElementById('customerEmail').value = c.email || '';
   if(c.address) document.getElementById('propertyAddress').value = c.address;
   document.getElementById('ghlResults').classList.remove('open');
-  document.getElementById('recordTitleText').textContent = c.name || 'New Quote';
-  document.getElementById('recordTitleText').classList.toggle('placeholder', !c.name);
-  markDirty();
 }
-document.addEventListener('click', (e)=>{ if(!e.target.closest('#customerNameInput') && !e.target.closest('#ghlResults')) document.getElementById('ghlResults').classList.remove('open'); });
-function setStaying(v){
-  state.tank_staying=v;
-  document.getElementById('stayYesBtn').classList.toggle('active', v===true);
-  document.getElementById('stayNoBtn').classList.toggle('active', v===false);
-  document.getElementById('relocationFields').style.display = v===false ? 'block' : 'none';
-  if(v){ state.relocation_type=null; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.remove('active')); }
-  markDirty(); recalc();
-}
-function setRelocationType(v){ state.relocation_type=v; document.querySelectorAll('#relocationFields .pill-opt').forEach(b=>b.classList.toggle('active', b.dataset.val===v)); markDirty(); recalc(); }
-function setFinanceRequested(v){
-  state.finance_requested=v;
-  document.getElementById('financeYesBtn').classList.toggle('active', v===true);
-  document.getElementById('financeNoBtn').classList.toggle('active', v===false);
-  document.getElementById('financeFields').style.display = v ? 'block' : 'none';
-  markDirty(); recalc();
-}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#customerNameInput') && !e.target.closest('#ghlResults'))
+    document.getElementById('ghlResults').classList.remove('open');
+});
 
 function addExtraRow(label, amount){
   const row = document.createElement('div'); row.className='extra-row';
-  row.innerHTML = `<input type="text" placeholder="Description" value="${label?String(label).replace(/"/g,'&quot;'):''}" oninput="markDirty();recalc()">
-    <input type="number" placeholder="0.00" min="0" step="0.01" value="${amount!=null?amount:''}" oninput="markDirty();recalc()">
-    <button type="button" class="extra-remove" onclick="this.parentElement.remove();markDirty();recalc()">✕</button>`;
+  row.innerHTML = `<input type="text" placeholder="Description" value="${label?String(label).replace(/"/g,'&quot;'):''}" oninput="recalc()">
+    <input type="number" placeholder="0.00" min="0" step="0.01" value="${amount!=null?amount:''}" oninput="recalc()">
+    <button type="button" class="extra-remove" onclick="this.parentElement.remove();recalc()">✕</button>`;
   document.getElementById('extrasList').appendChild(row);
 }
-
 function collectExtras(){
   return [...document.querySelectorAll('#extrasList .extra-row')].map(row=>{
-    const [labelInput, amountInput] = row.querySelectorAll('input');
-    return { label: labelInput.value.trim(), amount: Number(amountInput.value)||0 };
+    const [l,a] = row.querySelectorAll('input');
+    return { label:l.value.trim(), amount:Number(a.value)||0 };
   }).filter(e=>e.label || e.amount);
 }
 
@@ -459,15 +469,13 @@ function recalc(){
     ? (activityCode ? `<span class="badge badge-code">${activityCode}</span>` : `<span class="badge badge-tbd">No HEER code — solar-boosted not eligible</span>`)
     : '—';
 
-  const cableFields = document.getElementById('cableFields');
-  cableFields.style.display = state.existing_system==='gas' ? 'block' : 'none';
+  document.getElementById('cableFields').style.display = state.existing_system==='gas' ? 'block' : 'none';
 
   const relocMetres = state.tank_staying===false ? Math.max(0, Number(document.getElementById('relocationMetres').value)||0) : 0;
   const relocCharge = (state.relocation_type && relocMetres>0) ? relocMetres*RELOCATION_PER_METRE : 0;
   const b2bCharge = state.relocation_type==='back_to_back' ? BACK_TO_BACK_FLAT : 0;
   document.getElementById('relocationHint').textContent = state.relocation_type==='back_to_back'
-    ? 'Back-to-back flat fee is charged in addition to any relocation metres entered above.'
-    : '';
+    ? 'Back-to-back flat fee is charged in addition to any relocation metres entered above.' : '';
 
   const cableMetres = state.existing_system==='gas' ? Math.max(0, Number(document.getElementById('cableMetres').value)||0) : 0;
   const cableChargeable = Math.max(0, cableMetres - CABLE_INCLUDED_METRES);
@@ -475,131 +483,125 @@ function recalc(){
 
   state.other_extras = collectExtras();
   const otherTotal = state.other_extras.reduce((s,e)=>s+e.amount,0);
-
   const totalExtras = relocCharge + b2bCharge + cableCharge + otherTotal;
   const finalPrice = basePrice + totalExtras;
 
-  document.getElementById('sumBase').textContent = money(basePrice);
+  document.getElementById('sumBase').textContent  = money(basePrice);
   document.getElementById('sumReloc').textContent = money(relocCharge);
-  document.getElementById('sumB2b').textContent = money(b2bCharge);
+  document.getElementById('sumB2b').textContent   = money(b2bCharge);
   document.getElementById('sumCable').textContent = money(cableCharge);
   document.getElementById('sumOther').textContent = money(otherTotal);
   document.getElementById('sumFinal').textContent = money(finalPrice);
 
   const incomeEligible = document.getElementById('incomeEligible').value;
-  const eligibility = !state.finance_requested ? 'n/a' : incomeEligible==='no' ? 'Not Eligible' : incomeEligible==='yes' ? 'Potentially Eligible' : 'Needs Confirmation';
-  document.getElementById('eligibilityOut').textContent = eligibility;
+  document.getElementById('eligibilityOut').textContent = !state.finance_requested ? 'n/a'
+    : incomeEligible==='no' ? 'Not Eligible'
+    : incomeEligible==='yes' ? 'Potentially Eligible' : 'Needs Confirmation';
   const term = Number(document.getElementById('financeTerm').value)||10;
-  document.getElementById('fortnightlyOut').textContent = money(finalPrice/(term*26));
-  document.getElementById('monthlyOut').textContent = money(finalPrice/(term*12));
+  const fortnightly = finalPrice/(term*26), monthly = finalPrice/(term*12);
+  document.getElementById('fortnightlyOut').textContent = money(fortnightly);
+  document.getElementById('monthlyOut').textContent = money(monthly);
 
-  return { basePrice, activityCode, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable, cableCharge, otherTotal, totalExtras, finalPrice, term };
+  calc = { basePrice, activityCode, relocMetres, relocCharge, b2bCharge, cableMetres,
+           cableChargeable, cableCharge, otherTotal, totalExtras, finalPrice, term, fortnightly, monthly };
 }
 
-function viewUrl(){ return `/hotwater-nsw/quote.html?token=${encodeURIComponent(currentToken||'')}`; }
-
-function buildPayload(){
+function currentCustomer(){
   return {
-    action:'save', token: currentToken,
-    status: statusSelect.value,
-    agent_name: agent,
-    customer_name: document.getElementById('customerNameInput').value.trim(),
-    customer_phone: document.getElementById('customerPhone').value.trim(),
-    customer_email: document.getElementById('customerEmail').value.trim(),
-    property_address: document.getElementById('propertyAddress').value.trim(),
-    existing_system: state.existing_system,
-    heat_pump_model: state.heat_pump_model,
-    tank_staying: state.tank_staying,
-    relocation_type: state.relocation_type,
-    relocation_metres: Number(document.getElementById('relocationMetres').value)||0,
-    cable_metres: Number(document.getElementById('cableMetres').value)||0,
-    other_extras: state.other_extras,
-    finance_requested: state.finance_requested,
-    income_eligible: document.getElementById('incomeEligible').value,
-    finance_term_years: Number(document.getElementById('financeTerm').value)||10,
+    name:  document.getElementById('customerNameInput').value.trim(),
+    phone: document.getElementById('customerPhone').value.trim(),
+    email: document.getElementById('customerEmail').value.trim(),
+    address: document.getElementById('propertyAddress').value.trim(),
   };
 }
 
-async function saveQuote(silent){
-  if(!document.getElementById('customerNameInput').value.trim()){ if(!silent) showToast('Enter the customer name first.'); return false; }
-  clearTimeout(autosaveTimer);
+// ── Preview then send ──
+function openPreview(){
+  const c = currentCustomer();
+  if(!c.name){ showToast('Enter the customer name.'); return; }
+  if(!c.email || !c.email.includes('@')){ showToast('Enter a valid customer email.'); return; }
+  if(!state.existing_system){ showToast('Select the existing hot water system.'); return; }
+  if(!state.heat_pump_model){ showToast('Select the heat pump being quoted.'); return; }
+  recalc();
+
+  const rows = [
+    [`${MODEL_LABEL[state.heat_pump_model]}<br><span style="font-size:11px;color:var(--faint);">Upgrade from ${EXISTING_LABEL[state.existing_system].toLowerCase()} hot water</span>`, calc.basePrice],
+    calc.relocCharge>0 ? [`Standard tank relocation<br><span style="font-size:11px;color:var(--faint);">${calc.relocMetres}m @ $155.00 per metre</span>`, calc.relocCharge] : null,
+    calc.b2bCharge>0 ? ['Back-to-back tank relocation', calc.b2bCharge] : null,
+    calc.cableCharge>0 ? [`Additional electrical cable<br><span style="font-size:11px;color:var(--faint);">${calc.cableChargeable}m @ $20.00 per metre beyond the 15m included</span>`, calc.cableCharge] : null,
+    ...state.other_extras.map(e=>[esc(e.label), e.amount]),
+  ].filter(Boolean);
+
+  document.getElementById('previewBody').innerHTML = `
+    <div class="pv-to">
+      <div>
+        <div class="lbl">Quotation For</div>
+        <div class="nm">${esc(c.name)}</div>
+        ${c.address?`<div class="ln">${esc(c.address)}</div>`:''}
+        ${c.phone?`<div class="ln">${esc(c.phone)}</div>`:''}
+        <div class="ln">${esc(c.email)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="lbl">Prepared by</div>
+        <div class="nm">${esc(agent)}</div>
+        <div class="ln">Goldsure Pty Ltd</div>
+      </div>
+    </div>
+    <table class="pv">
+      ${rows.map(([l,a])=>`<tr><td>${l}</td><td class="r">${money(a)}</td></tr>`).join('')}
+      <tr class="grand"><td>Grand TOTAL (inc GST)</td><td class="r">${money(calc.finalPrice)}</td></tr>
+    </table>
+    ${state.finance_requested?`<div class="pv-fin">
+      <strong>NSW Home Energy Saver — 0% interest</strong><br>
+      ${money(calc.fortnightly)} per fortnight &nbsp;·&nbsp; ${money(calc.monthly)} per month &nbsp;·&nbsp; ${calc.term} year term
+    </div>`:''}
+    <label class="pv-lbl" for="emailBody">Email message</label>
+    <textarea class="pv-body" id="emailBody">${esc(DEFAULT_EMAIL_BODY)}</textarea>
+    <label class="pv-sms"><input type="checkbox" id="sendSms" ${c.phone?'checked':'disabled'}>
+      <span>Also send the quote by SMS${c.phone?` to ${esc(c.phone)}`:' (no mobile number entered)'}
+      <span class="sub">The customer gets a link to the same quotation page.</span></span></label>`;
+  document.getElementById('previewModal').classList.add('open');
+}
+function closePreview(){ document.getElementById('previewModal').classList.remove('open'); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePreview(); });
+
+async function doSend(){
+  const c = currentCustomer();
+  const emailBody = document.getElementById('emailBody').value.trim();
+  const sendSms = document.getElementById('sendSms').checked;
+  if(!emailBody){ showToast('Enter an email message.'); return; }
+  recalc();
+
+  const btn = document.getElementById('confirmSendBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
   try{
-    const res = await fetch('/api/hotwater-nsw/quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
-    const data = await res.json();
-    if(!res.ok){ showToast(data.error || 'Save failed.'); return false; }
-    currentToken = data.quote_token;
-    history.replaceState(null, '', `/hotwater-nsw/quote-builder.html?token=${encodeURIComponent(currentToken)}`);
-    document.getElementById('tokenLine').textContent = `Quote ${currentToken.slice(0,8)}…`;
-    document.getElementById('savedLine').textContent = `Saved ${new Date().toLocaleTimeString('en-AU')}`;
-    dirty = false;
-    if(!silent) showToast('Quote saved.');
-    return true;
-  }catch(e){ console.error(e); showToast('Network error saving quote.'); return false; }
+    const res = await fetch('/api/hotwater-nsw/send',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent_name: agent,
+        customer_name: c.name, customer_phone: c.phone, customer_email: c.email,
+        property_address: c.address,
+        existing_system: state.existing_system,
+        heat_pump_model: state.heat_pump_model,
+        tank_staying: state.tank_staying,
+        relocation_type: state.relocation_type,
+        relocation_metres: Number(document.getElementById('relocationMetres').value)||0,
+        cable_metres: Number(document.getElementById('cableMetres').value)||0,
+        other_extras: state.other_extras,
+        finance_requested: state.finance_requested,
+        income_eligible: document.getElementById('incomeEligible').value,
+        finance_term_years: Number(document.getElementById('financeTerm').value)||10,
+        email_body: emailBody, send_sms: sendSms,
+      }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error || 'Send failed.'); return; }
+    closePreview();
+    showToast(data.sms_sent ? `Quote emailed to ${c.email} + SMS sent` : `Quote emailed to ${c.email}`);
+    setTimeout(()=>{ location.href='/hotwater-nsw/quote-tracker.html?agent='+encodeURIComponent(agent); }, 1400);
+  }catch(e){ console.error(e); showToast('Network error — please try again.'); }
+  finally{ btn.disabled=false; btn.textContent='✉ Confirm & Send'; }
 }
-
-async function viewQuote(){
-  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
-  window.open(viewUrl(), '_blank');
-}
-
-async function emailQuote(){
-  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
-  if(!document.getElementById('customerEmail').value.includes('@')){ showToast('Enter a valid customer email first.'); return; }
-  const btn = document.getElementById('emailBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
-  try{
-    const res = await fetch('/api/hotwater-nsw/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'email', token: currentToken }) });
-    const data = await res.json();
-    showToast(res.ok ? 'Quote emailed to customer.' : (data.error||'Email failed.'));
-    if(res.ok) statusSelect.value='quote_sent', paintStatus();
-  }catch(e){ showToast('Network error sending email.'); }
-  finally{ btn.disabled=false; btn.textContent=orig; }
-}
-
-async function smsQuote(){
-  if(dirty || !currentToken){ const ok = await saveQuote(true); if(!ok) return; }
-  if(!document.getElementById('customerPhone').value.trim()){ showToast('Enter a customer mobile number first.'); return; }
-  const btn = document.getElementById('smsBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Sending…';
-  try{
-    const res = await fetch('/api/hotwater-nsw/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'sms', token: currentToken }) });
-    const data = await res.json();
-    showToast(res.ok ? 'Quote texted to customer.' : (data.error||'SMS failed.'));
-    if(res.ok) statusSelect.value='quote_sent', paintStatus();
-  }catch(e){ showToast('Network error sending SMS.'); }
-  finally{ btn.disabled=false; btn.textContent=orig; }
-}
-
-async function loadExisting(){
-  if(!currentToken) { paintStatus(); recalc(); return; }
-  try{
-    const res = await fetch(`/api/hotwater-nsw/quotes?token=${encodeURIComponent(currentToken)}`);
-    if(!res.ok){ showToast('Could not load quote.'); paintStatus(); recalc(); return; }
-    const q = await res.json();
-    document.getElementById('customerNameInput').value = q.customer_name || '';
-    document.getElementById('recordTitleText').textContent = q.customer_name || 'New Quote';
-    document.getElementById('recordTitleText').classList.toggle('placeholder', !q.customer_name);
-    document.getElementById('customerPhone').value = q.customer_phone || '';
-    document.getElementById('customerEmail').value = q.customer_email || '';
-    document.getElementById('propertyAddress').value = q.property_address || '';
-    statusSelect.value = q.status || 'draft';
-    if(q.existing_system) setExisting(q.existing_system);
-    if(q.heat_pump_model) setModel(q.heat_pump_model);
-    if(q.tank_staying != null) setStaying(q.tank_staying);
-    if(q.relocation_type) setRelocationType(q.relocation_type);
-    document.getElementById('relocationMetres').value = q.relocation_metres || 0;
-    document.getElementById('cableMetres').value = q.cable_metres || 0;
-    (q.other_extras||[]).forEach(e=>addExtraRow(e.label, e.amount));
-    setFinanceRequested(!!q.finance_requested);
-    document.getElementById('incomeEligible').value = q.income_eligible || 'needs_confirmation';
-    document.getElementById('financeTerm').value = q.finance_term_years || 10;
-    document.getElementById('tokenLine').textContent = `Quote ${currentToken.slice(0,8)}…`;
-    document.getElementById('savedLine').textContent = q.updated_at ? `Last saved ${new Date(q.updated_at).toLocaleString('en-AU')}` : '';
-    ['viewBtn','emailBtn','smsBtn'].forEach(id=>document.getElementById(id).disabled=false);
-    paintStatus();
-    recalc();
-    dirty = false;
-  }catch(e){ console.error(e); showToast('Network error loading quote.'); paintStatus(); recalc(); }
-}
-
 </script>
 </body>
 </html>
