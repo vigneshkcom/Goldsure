@@ -1197,7 +1197,7 @@ export default async function handler(req, res) {
 
     try {
       await sendHostingerMail({
-        to: ['vignesh@goldsure.com.au'],
+        to: ['vignesh@goldsure.com.au', 'amit@goldsure.com.au'],
         displayName: 'Goldsure VIC Aircon Tracker',
         subject: `Job moved to ${toLabel}${subjectBits ? ' - ' + subjectBits : ''}`,
         html,
