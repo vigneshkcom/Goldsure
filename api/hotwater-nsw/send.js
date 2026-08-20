@@ -263,6 +263,40 @@ export default async function handler(req, res) {
     }).catch(() => {});
   };
 
+  // ── Attach the model's brochure, as the VIC quote does. The PDFs live at
+  //    /assets/hotwater/<PRODUCT CODE>.pdf, and heat_pump_model IS the product
+  //    code, so no lookup table is needed. Best-effort throughout: a missing,
+  //    unreachable or oversized brochure must never stop a quote going out.
+  //    The size cap matters — some datasheets are 14MB, which would push the
+  //    message past what mailboxes accept and bounce the whole quote.
+  const attachments = [];
+  const MAX_BROCHURE_BYTES = 7 * 1024 * 1024;
+  if (body.heat_pump_model) {
+    const brochureUrl = `${SITE}/assets/hotwater/${encodeURIComponent(body.heat_pump_model)}.pdf`;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      const bRes = await fetch(brochureUrl, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (bRes.ok) {
+        const buf = Buffer.from(await bRes.arrayBuffer());
+        if (buf.length <= MAX_BROCHURE_BYTES) {
+          attachments.push({
+            filename: `${body.heat_pump_model} Brochure.pdf`,
+            content: buf.toString('base64'),
+            contentType: 'application/pdf',
+          });
+        } else {
+          console.warn('[NSW HWS] brochure too large to attach:', brochureUrl, buf.length);
+        }
+      } else {
+        console.warn('[NSW HWS] brochure not reachable:', brochureUrl, bRes.status);
+      }
+    } catch (e) {
+      console.warn('[NSW HWS] brochure fetch failed:', e.message);
+    }
+  }
+
   // ── Email (required — a quote that could not be emailed was not sent) ──
   try {
     await sendHostingerMail({
@@ -271,6 +305,7 @@ export default async function handler(req, res) {
       displayName: 'Goldsure Pty Ltd',
       subject: 'Your Heat Pump Hot Water Quotation – Goldsure',
       html: buildEmailHtml(body, calc, quoteUrl, email_body),
+      ...(attachments.length ? { attachments } : {}),
     });
   } catch (e) {
     console.error('[NSW HWS] email send failed:', e.message);
@@ -333,6 +368,7 @@ export default async function handler(req, res) {
     quote_token: token,
     id: inserted.id || null,
     sms_sent: smsSent,
+    brochure_attached: attachments.length > 0,
     quote_url: quoteUrl,
   });
 }

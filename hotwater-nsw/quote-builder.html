@@ -233,8 +233,9 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
         <div class="card-body">
           <div class="field">
             <label>Customer Name *</label>
-            <input type="text" id="custName" placeholder="Search GHL or type a name…" autocomplete="off" oninput="onGhlSearch()">
+            <input type="text" id="custName" placeholder="Type a name, or search GHL…" autocomplete="off" oninput="onGhlSearch()">
             <div class="ghl-results" id="ghlResults"></div>
+            <div class="sub">Pick a GHL contact to auto-fill their details, or just type the name — the customer doesn't need to exist in GHL.</div>
           </div>
           <div class="grid2">
             <div class="field"><label>Mobile</label><input type="tel" id="custPhone" placeholder="e.g. 0412 345 678"></div>
@@ -256,7 +257,6 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
             </div>
           </div>
           <div class="readout"><span class="lbl">Base price (inc GST)</span><span class="val" id="basePriceOut">—</span></div>
-          <div class="readout"><span class="lbl">Activity code</span><span id="activityCodeOut">—</span></div>
         </div>
       </div>
 
@@ -265,11 +265,18 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
         <div class="card-body">
           <div class="field" style="margin-bottom:0;">
             <label>Which system are we quoting?</label>
-            <div class="seg wide" id="segModel">
-              <button type="button" data-v="290-all-in-one" onclick="setModel('290-all-in-one')">290L All-in-One</button>
-              <button type="button" data-v="290-split" onclick="setModel('290-split')">290L Split</button>
-              <button type="button" data-v="330-split" onclick="setModel('330-split')">330L Split</button>
-            </div>
+            <select id="modelSelect" onchange="setModel(this.value)">
+              <option value="">— Select a heat pump —</option>
+              <optgroup label="Split Systems">
+                <option value="ECON-300SV-4.2E">ECON-300SV-4.2E – 290L</option>
+                <option value="EG-330FRE-WR">EG-330FRE-WR – 330L</option>
+              </optgroup>
+              <optgroup label="All-in-One Systems">
+                <option value="ECON-300RVW">ECON-300RVW – 290L</option>
+                <option value="ECON-300RVW-2.0E">ECON-300RVW-2.0E – 290L</option>
+              </optgroup>
+            </select>
+            <div class="sub">The matching product brochure is attached to the quote email automatically.</div>
           </div>
         </div>
       </div>
@@ -400,8 +407,12 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
 
 <script>
 const BASE_PRICE = { electric:2499, gas:2899, solar_boosted:3339 };
-const ACTIVITY_CODE = { electric:'D17', gas:'D19', solar_boosted:null };
-const MODEL_LABEL = { '290-all-in-one':'290L All-in-One', '290-split':'290L Split System', '330-split':'330L Split System' };
+const MODEL_LABEL = {
+  'ECON-300SV-4.2E':  'ECON-300SV-4.2E — 290L Split System',
+  'EG-330FRE-WR':     'EG-330FRE-WR — 330L Split System',
+  'ECON-300RVW':      'ECON-300RVW — 290L All-in-One',
+  'ECON-300RVW-2.0E': 'ECON-300RVW-2.0E — 290L All-in-One',
+};
 const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price shown below already includes the applicable NSW scheme discounts. Eligibility, final system requirements and installation scope will be confirmed on site by a licensed installer.';
@@ -438,7 +449,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 // ── Selections ──
 function setSeg(container, v){ document.querySelectorAll(`#${container} button`).forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
 function setExisting(v){ state.existing_system=v; setSeg('segExisting',v); recalc(); }
-function setModel(v){ state.heat_pump_model=v; setSeg('segModel',v); recalc(); }
+function setModel(v){ state.heat_pump_model = v || null; recalc(); }
 function setStaying(v){
   state.tank_staying=v;
   $('stayYes').classList.toggle('on', v===true);
@@ -511,11 +522,7 @@ function collectExtras(){
 // ── Pricing ──
 function recalc(){
   const basePrice = BASE_PRICE[state.existing_system] || 0;
-  const code = state.existing_system ? (ACTIVITY_CODE[state.existing_system] ?? null) : null;
   $('basePriceOut').textContent = state.existing_system ? money(basePrice) : '—';
-  $('activityCodeOut').innerHTML = state.existing_system
-    ? (code ? `<span class="tag code">${code}</span>` : `<span class="tag na">No HEER code — solar not eligible</span>`)
-    : '—';
 
   const isGas = state.existing_system === 'gas';
   $('cableField').style.display = isGas ? 'block' : 'none';
@@ -553,7 +560,7 @@ function recalc(){
   $('fortnightlyOut').textContent = money(fortnightly);
   $('monthlyOut').textContent = money(monthly);
 
-  calc = { basePrice, code, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
+  calc = { basePrice, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
            cableCharge, otherTotal, finalPrice, term, fortnightly, monthly };
 }
 

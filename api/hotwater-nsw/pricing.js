@@ -4,25 +4,17 @@
 // the numbers it's emailed/texted with can never drift apart.
 //
 // Figures confirmed for this build (2026-08):
-//   Base price is driven by existing system only — all 3 heat pump models
-//   (290L All-in-One, 290L Split, 330L Split) share the same base price.
+//   Base price is driven by the existing system only — every heat pump model
+//   shares the same base price for a given existing system.
 //   Back-to-back relocation ($460 flat) is charged IN ADDITION TO any
 //   standard per-metre relocation metres entered for the same job (not a
 //   replacement) — e.g. a back-to-back job that also needs some pipe run
 //   relocated pays $460 + (metres × $155).
-//   Solar-boosted-to-heat-pump has no HEER activity code (only D17 electric
-//   and D19 gas are eligible activities) — the field is left blank/TBD.
 
 export const BASE_PRICE = {
   electric: 2499,
   gas: 2899,
   solar_boosted: 3339,
-};
-
-export const ACTIVITY_CODE = {
-  electric: 'D17',
-  gas: 'D19',
-  solar_boosted: null, // no HEER activity code for solar-boosted → heat pump
 };
 
 export const EXISTING_SYSTEM_LABEL = {
@@ -31,10 +23,14 @@ export const EXISTING_SYSTEM_LABEL = {
   solar_boosted: 'Solar boosted hot water',
 };
 
+// Keyed by product code, which is also what the brochure PDFs in
+// /assets/hotwater/ are named after (<CODE>.pdf), so the right datasheet can be
+// attached to the quote without a second lookup table.
 export const HEAT_PUMP_LABEL = {
-  '290-all-in-one': '290L All-in-One',
-  '290-split': '290L Split System',
-  '330-split': '330L Split System',
+  'ECON-300SV-4.2E':  'ECON-300SV-4.2E — 290L Split System',
+  'EG-330FRE-WR':     'EG-330FRE-WR — 330L Split System',
+  'ECON-300RVW':      'ECON-300RVW — 290L All-in-One',
+  'ECON-300RVW-2.0E': 'ECON-300RVW-2.0E — 290L All-in-One',
 };
 
 export const RELOCATION_PER_METRE = 155;
@@ -52,7 +48,6 @@ const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 export function calculateQuote(input = {}) {
   const existingSystem = input.existing_system;
   const basePrice = BASE_PRICE[existingSystem] || 0;
-  const activityCode = ACTIVITY_CODE[existingSystem] ?? null;
 
   const tankStaying = !!input.tank_staying;
   const relocationType = tankStaying ? null : (input.relocation_type || null);
@@ -90,7 +85,6 @@ export function calculateQuote(input = {}) {
 
   return {
     base_price: basePrice,
-    activity_code: activityCode,
     relocation_type: relocationType,
     relocation_metres: relocationMetres,
     relocation_charge: relocationCharge,
