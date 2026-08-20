@@ -18,32 +18,26 @@
     }
   ];
 
-  const groupStorageKey = 'goldsure_internal_nav_groups';
   const pinStorageKey = 'goldsure_internal_nav_pinned';
   const normalize = path => path.replace(/\/+$/, '') || '/';
   const currentPath = normalize(window.location.pathname);
   const icon = paths => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-  const chevron = icon('<polyline points="9 18 15 12 9 6"/>').replace('<svg ', '<svg class="internal-nav-chevron" ');
   const readStorage = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; }
   };
   const writeStorage = (key, value) => {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
   };
-  const savedGroups = readStorage(groupStorageKey, {});
-
-  const groupMarkup = groups.map((group, index) => {
-    const hasActiveItem = group.items.some(([, href]) => normalize(href) === currentPath);
-    const isOpen = hasActiveItem || savedGroups[group.key] === true;
+  const groupMarkup = groups.map(group => {
     const items = group.items.map(([label, href]) => {
       const active = normalize(href) === currentPath;
       return `<a class="internal-nav-item${active ? ' active' : ''}" href="${href}"${active ? ' aria-current="page"' : ''}>${label}</a>`;
     }).join('');
     return `<div class="internal-nav-group" data-group-key="${group.key}" style="--internal-group-color:${group.color}">
-      <button class="internal-nav-trigger" type="button" aria-expanded="${isOpen}" aria-controls="internalNavGroup${index}">
-        ${icon(group.icon)}<span>${group.label}</span>${chevron}
-      </button>
-      <div class="internal-nav-children${isOpen ? ' open' : ''}" id="internalNavGroup${index}"><div class="internal-nav-children-inner">${items}</div></div>
+      <div class="internal-nav-trigger">
+        ${icon(group.icon)}<span>${group.label}</span>
+      </div>
+      <div class="internal-nav-children open"><div class="internal-nav-children-inner">${items}</div></div>
     </div>`;
   }).join('');
 
@@ -100,19 +94,6 @@
   });
   scrim.addEventListener('click', () => setOpen(false));
   sidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', () => setOpen(false)));
-  sidebar.querySelectorAll('.internal-nav-trigger').forEach(button => {
-    button.addEventListener('click', () => {
-      const children = document.getElementById(button.getAttribute('aria-controls'));
-      const open = button.getAttribute('aria-expanded') !== 'true';
-      button.setAttribute('aria-expanded', String(open));
-      children.classList.toggle('open', open);
-      const state = {};
-      sidebar.querySelectorAll('.internal-nav-group').forEach(group => {
-        state[group.dataset.groupKey] = group.querySelector('.internal-nav-trigger').getAttribute('aria-expanded') === 'true';
-      });
-      writeStorage(groupStorageKey, state);
-    });
-  });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') setOpen(false); });
   window.addEventListener('resize', () => { if (window.innerWidth > 860) setOpen(false); });
 })();
