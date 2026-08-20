@@ -45,70 +45,160 @@ async function isOptedOut(phone, SUPABASE_URL, SUPABASE_KEY) {
   } catch { return false; }
 }
 
+// The customer-facing quotation, sent inline in the email body so everything
+// they need is in front of them without opening anything. Follows the VIC hot
+// water quote layout and Goldsure's black/gold branding, with Ecogenica named
+// as the accredited provider and installer.
 function buildEmailHtml(q, calc, quoteUrl, emailBody) {
   const modelLabel = HEAT_PUMP_LABEL[q.heat_pump_model] || q.heat_pump_model || '';
   const systemLabel = (EXISTING_SYSTEM_LABEL[q.existing_system] || '').toLowerCase();
   const bodyHtml = esc(String(emailBody || '').trim() || DEFAULT_EMAIL_BODY).replace(/\r?\n/g, '<br>');
-  const extras = [
-    calc.relocation_charge > 0 ? ['Standard tank relocation', calc.relocation_charge] : null,
-    calc.back_to_back_charge > 0 ? ['Back-to-back tank relocation', calc.back_to_back_charge] : null,
-    calc.cable_charge > 0 ? ['Additional electrical cable', calc.cable_charge] : null,
-    ...(calc.other_extras || []).map(e => [e.label, Number(e.amount) || 0]),
+  const exGst = (inc) => (Number(inc) || 0) / 1.1;
+
+  const lines = [
+    // systemLabel already ends in "hot water" (e.g. "gas hot water") — don't append it again.
+    { name: modelLabel, sub: `Supply and installation — upgrade from ${systemLabel}`, amt: calc.base_price },
+    calc.relocation_charge > 0 ? { name: 'Standard tank relocation', sub: `${calc.relocation_metres}m @ $155.00 per metre`, amt: calc.relocation_charge } : null,
+    calc.back_to_back_charge > 0 ? { name: 'Back-to-back tank relocation', sub: 'Fixed charge', amt: calc.back_to_back_charge } : null,
+    calc.cable_charge > 0 ? { name: 'Additional electrical cable', sub: `${calc.cable_chargeable_metres}m @ $20.00 per metre beyond the 15m included`, amt: calc.cable_charge } : null,
+    ...(calc.other_extras || []).map(e => ({ name: e.label, sub: 'Additional charge', amt: Number(e.amount) || 0 })),
   ].filter(Boolean);
 
-  const finance = calc.finance_requested ? `
+  const itemRows = lines.map(l => `<tr bgcolor="#ffffff">
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#111111;">${esc(l.name)}<br><span style="font-size:11px;color:#8b93a3;">${esc(l.sub)}</span></td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#111111;text-align:center;">1</td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#111111;text-align:right;">${money(exGst(l.amt))}</td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;font-weight:700;color:#000000;text-align:right;">${money(exGst(l.amt))}</td>
+  </tr>`).join('');
+
+  const subtotalEx = exGst(calc.final_price);
+  const gst = calc.final_price - subtotalEx;
+
+  const financeBlock = calc.finance_requested ? `
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
-      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#eef6e8;border:1px solid #cfe3c0;border-radius:6px;"><tr><td style="padding:16px 20px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3d6b21;margin-bottom:8px;">NSW Home Energy Saver Loan by Brighte — 0% Interest</div>
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:6px;"><tr><td style="padding:14px 16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:9px;">NSW Home Energy Saver Loan by Brighte — 0% Interest</div>
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated fortnightly repayment</td><td style="padding:4px 0;font-size:13px;color:#1f2328;text-align:right;font-weight:700;">${money(calc.fortnightly_repayment)}</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated monthly repayment</td><td style="padding:4px 0;font-size:13px;color:#1f2328;text-align:right;font-weight:700;">${money(calc.monthly_repayment)}</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Term</td><td style="padding:4px 0;font-size:13px;color:#1f2328;text-align:right;">${calc.finance_term_years} years</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated fortnightly repayment</td><td style="padding:4px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(calc.fortnightly_repayment)}</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Estimated monthly repayment</td><td style="padding:4px 0;font-size:14px;color:#141c2e;text-align:right;font-weight:700;">${money(calc.monthly_repayment)}</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#3d4658;">Finance term</td><td style="padding:4px 0;font-size:13px;color:#141c2e;text-align:right;">${calc.finance_term_years} years</td></tr>
         </table>
-        <div style="font-size:11px;color:#5b6470;margin-top:10px;line-height:1.5;">Estimate only — subject to Brighte credit approval and household income eligibility ($210,000 or less per year).</div>
+        <div style="font-size:11px;color:#8b93a3;margin-top:9px;line-height:1.55;">0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
+  const quoteNo = 'NSW-' + String(q.quote_token || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
+  const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const preheader = `Your Goldsure heat pump hot water quote — ${money(calc.final_price)} installed.`;
+
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Your Heat Pump Hot Water Quotation</title></head>
-<body style="margin:0;padding:0;background-color:#eceff1;">
-<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eceff1"><tr><td align="center" style="padding:32px 14px 44px;">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Goldsure Hot Water Quotation</title></head>
+<body style="margin:0;padding:0;background-color:#eef0f4;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#eef0f4;">${esc(preheader)}</div>
+<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#eef0f4"><tr><td align="center" style="padding:32px 14px 44px;">
   <table role="presentation" width="600" border="0" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(20,28,46,0.08);">
 
-    <tr><td style="padding:24px 32px 16px;font-family:${FONT};">
-      <img src="${SITE}/assets/hotwater/ecogenica-logo.png" alt="Ecogenica" height="56" style="height:56px;width:auto;display:block;">
+    <!-- Header -->
+    <tr><td style="background:#000000;padding:22px 32px;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+        <td valign="middle"><img src="${SITE}/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="150" style="display:block;width:150px;height:auto;"></td>
+        <td valign="middle" align="right">
+          <div style="font-family:${FONT};font-size:18px;font-weight:700;letter-spacing:5px;color:#c9a13b;">QUOTATION</div>
+          <div style="font-family:${FONT};font-size:11px;color:#8b93a3;margin-top:5px;">${quoteNo} &nbsp;·&nbsp; ${quoteDate}</div>
+        </td>
+      </tr></table>
     </td></tr>
-    <tr><td style="height:4px;background:#5a9e31;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="height:3px;background:#b08d2e;font-size:0;line-height:0;">&nbsp;</td></tr>
 
-    <tr><td style="padding:24px 32px 4px;font-family:${FONT};">
-      <div style="font-size:16px;font-weight:700;color:#1f2328;">Hi ${esc(String(q.customer_name || '').split(/\s+/)[0] || 'there')},</div>
-      <p style="margin:8px 0 0;font-size:14px;color:#3d4658;line-height:1.65;">${bodyHtml}</p>
+    <!-- Parties -->
+    <tr><td style="padding:26px 32px 8px;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
+        <td valign="top" width="52%" style="font-family:${FONT};">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">Prepared For</div>
+          <div style="font-size:16px;font-weight:700;color:#141c2e;line-height:1.35;">${esc(q.customer_name)}</div>
+          ${q.property_address ? `<div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">${esc(q.property_address)}</div>` : ''}
+          ${q.customer_phone ? `<div style="font-size:12px;color:#5b6577;line-height:1.6;">${esc(q.customer_phone)}</div>` : ''}
+          <div style="font-size:12px;color:#5b6577;line-height:1.6;">${esc(q.customer_email)}</div>
+        </td>
+        <td valign="top" width="48%" align="right" style="font-family:${FONT};">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">From</div>
+          <div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">ABN 66 683 305 106<br>Suite 4, Level 1, 293 High Street<br>Preston VIC 3072<br>info@goldsure.com.au</div>
+        </td>
+      </tr></table>
     </td></tr>
 
+    <!-- Intro -->
+    <tr><td style="padding:14px 32px 4px;font-family:${FONT};">
+      <p style="margin:0;font-size:14px;color:#3d4658;line-height:1.65;">${bodyHtml}</p>
+    </td></tr>
+
+    <!-- Line items -->
     <tr><td style="padding:20px 32px 0;">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:${FONT};">
         <tr>
-          <td style="padding:9px 12px;background:#5a9e31;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;">Item</td>
-          <td style="padding:9px 12px;background:#5a9e31;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;text-align:right;">Amount</td>
+          <td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;">Item</td>
+          <td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:center;">Qty</td>
+          <td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:right;">Rate ex GST</td>
+          <td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:right;">Total ex GST</td>
         </tr>
-        <tr><td style="padding:11px 12px;font-size:13px;color:#111;border-bottom:1px solid #e2e6ea;">${esc(modelLabel)}<br><span style="font-size:11px;color:#98a0aa;">Upgrade from ${esc(systemLabel)} hot water</span></td><td style="padding:11px 12px;font-size:13px;color:#111;text-align:right;border-bottom:1px solid #e2e6ea;">${money(calc.base_price)}</td></tr>
-        ${extras.map(([l, a]) => `<tr><td style="padding:9px 12px;font-size:13px;color:#3d4658;border-bottom:1px solid #e2e6ea;">${esc(l)}</td><td style="padding:9px 12px;font-size:13px;color:#111;text-align:right;border-bottom:1px solid #e2e6ea;">${money(a)}</td></tr>`).join('')}
-        <tr><td style="padding:12px;font-size:14px;color:#1f2328;font-weight:700;border-top:2px solid #5a9e31;">Grand TOTAL (inc GST)</td><td style="padding:12px;font-size:16px;color:#3d6b21;text-align:right;font-weight:700;border-top:2px solid #5a9e31;">${money(calc.final_price)}</td></tr>
+        ${itemRows}
+        <tr><td colspan="3" style="padding:9px 12px;font-size:12px;color:#5b6577;text-align:right;border-bottom:1px solid #eef0f4;">Subtotal (ex GST)</td><td style="padding:9px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">${money(subtotalEx)}</td></tr>
+        <tr><td colspan="3" style="padding:9px 12px;font-size:12px;color:#5b6577;text-align:right;border-bottom:1px solid #eef0f4;">GST (10%)</td><td style="padding:9px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">${money(gst)}</td></tr>
+        <tr><td colspan="3" style="padding:11px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #141c2e;">Total (inc GST)</td><td style="padding:11px 12px;font-size:14px;color:#141c2e;text-align:right;font-weight:700;border-bottom:2px solid #141c2e;">${money(calc.final_price)}</td></tr>
       </table>
     </td></tr>
-${finance}
-    <tr><td align="center" style="padding:26px 32px 30px;font-family:${FONT};">
-      <a href="${quoteUrl}" style="display:inline-block;background:#5a9e31;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">View &amp; Download Your Quotation</a>
-      <div style="font-size:11px;color:#98a0aa;margin-top:13px;">This quote remains valid for 21 days from the date on the quote.</div>
+
+    <!-- Total installed price -->
+    <tr><td style="padding:16px 32px 0;">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background:#000000;border-radius:6px;"><tr>
+        <td style="padding:16px 20px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#c9a13b;">Your Total Installed Price</td>
+        <td style="padding:16px 20px;font-family:${FONT};font-size:24px;font-weight:700;color:#ffffff;text-align:right;">${money(calc.final_price)}</td>
+      </tr></table>
+      <div style="font-family:${FONT};font-size:11px;color:#9aa2b1;line-height:1.55;margin-top:9px;">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and Small-scale Technology Certificate discounts have already been applied to the price above.</div>
+    </td></tr>
+${financeBlock}
+    <!-- Accredited provider & installer -->
+    <tr><td style="padding:20px 32px 0;font-family:${FONT};">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:6px;"><tr>
+        <td valign="middle" width="74" style="padding:14px 0 14px 16px;">
+          <img src="${SITE}/assets/hotwater/ecogenica-logo.png" alt="Ecogenica" width="58" style="display:block;width:58px;height:auto;">
+        </td>
+        <td valign="middle" style="padding:14px 16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Accredited Provider &amp; Installer</div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">Your system is supplied and installed by <strong style="color:#141c2e;">Ecogenica</strong>, the accredited provider and installer for this upgrade.<br>NSW Contractor Licence: <strong style="color:#141c2e;">397621C</strong></div>
+        </td>
+      </tr></table>
     </td></tr>
 
-    <tr><td style="padding:0 32px 20px;font-family:${FONT};">
-      <p style="margin:0;font-size:10px;color:#98a0aa;line-height:1.65;"><strong style="color:#b23a3a;">THIS IS NOT AN INVOICE.</strong> This quote is an estimate based on the information known or provided at the time. An invoice will be issued after the assessment, products installed and services rendered.</p>
+    <!-- View quote -->
+    <tr><td align="center" style="padding:24px 32px 6px;font-family:${FONT};">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${quoteUrl}" style="height:48px;v-text-anchor:middle;width:200px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">View Quote</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${quoteUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">View Quote</a><!--<![endif]-->
+      <div style="font-size:11px;color:#9aa2b1;margin-top:13px;">This quote remains valid for 21 days from ${quoteDate}.</div>
     </td></tr>
 
-    <tr><td align="center" style="background:#1f2328;padding:16px 20px;font-family:${FONT};">
-      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#8fbf6a;margin-bottom:3px;">Goldsure Pty Ltd · Authorised Ecogenica Dealer</div>
-      <div style="font-size:10px;color:#8b93a3;">ABN 66 683 305 106 · 03 7050 2846 · info@goldsure.com.au</div>
+    <!-- Fine print -->
+    <tr><td style="padding:20px 32px 0;font-family:${FONT};">
+      <p style="margin:0;font-size:10px;color:#aeb4c0;line-height:1.6;">This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Scheme eligibility is subject to approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty.</p>
+    </td></tr>
+
+    <!-- Signature -->
+    <tr><td style="padding:18px 32px 24px;font-family:${FONT};">
+      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #eef0f4;"><tr>
+        <td valign="middle" style="padding:16px 16px 0 0;width:118px;"><img src="${SITE}/assets/goldsure-logo.jpg" alt="Goldsure" width="108" style="display:block;width:108px;height:auto;"></td>
+        <td valign="middle" style="padding:16px 0 0 16px;border-left:2px solid #b08d2e;">
+          <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(q.agent_name || 'The Goldsure Team')}</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.85;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a><br>p: <a href="tel:0370502846" style="color:#5b6577;text-decoration:none;font-weight:600;">03 7050 2846</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
+        </td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Footer -->
+    <tr><td align="center" style="background:#000000;padding:16px 20px;font-family:${FONT};">
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#c9a13b;margin-bottom:3px;">Goldsure Pty Ltd</div>
+      <div style="font-size:10px;color:#8b93a3;line-height:1.5;">ABN 66 683 305 106 &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
     </td></tr>
   </table>
 </td></tr></table></body></html>`;
