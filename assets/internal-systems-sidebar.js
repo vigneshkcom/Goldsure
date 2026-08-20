@@ -62,10 +62,16 @@
         </button>
       </div>
       <nav class="internal-sidebar-nav" aria-label="Quote and tracker systems">
-        <a class="internal-nav-home" href="/">
-          ${icon('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>')}
-          <span>Main Portal</span>
-        </a>
+        <div class="internal-nav-shortcuts">
+          <a class="internal-nav-home" href="/">
+            ${icon('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>')}
+            <span>Main Portal</span>
+          </a>
+          <a class="internal-nav-home internal-nav-sms" href="/sms/">
+            ${icon('<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>')}
+            <span>Text Message</span>
+          </a>
+        </div>
         ${groupMarkup}
       </nav>
       <div class="internal-sidebar-footer"><div class="internal-sidebar-status"><span class="internal-sidebar-status-dot"></span><span>Systems Online</span><strong>Internal</strong></div></div>
