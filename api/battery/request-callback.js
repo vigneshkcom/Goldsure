@@ -2422,12 +2422,16 @@ ${notesHtml}
     const product = String(body.pipeline || '').toLowerCase();
     const emails = [...new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e || '').toLowerCase().trim()).filter(Boolean))].slice(0, 400);
     const pipeIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '')
-      : product === 'hotwater-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || process.env.HWS_PIPELINE_ID || '')
+      : product === 'hotwater-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || '')
       : (process.env.HWS_PIPELINE_ID || '');
+    // NSW gets its own, narrow hint list — GHL's pipeline list has "HWS Pipeline"
+    // (VIC) ahead of "NSW HWS Pipeline", and broad hints like "hws"/"hot water"
+    // matched both, so .find() always landed on the VIC one first. Only "nsw"-
+    // qualified names are allowed to match here.
     const nameHints = product === 'aircon'
       ? ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac']
       : product === 'hotwater-nsw'
-      ? ['nsw hot water', 'nsw hws', 'nsw', 'hot water', 'hotwater', 'heat pump', 'hws', 'water']
+      ? ['nsw hws pipeline', 'nsw hot water', 'nsw hws']
       : ['hot water', 'hotwater', 'heat pump', 'hws', 'water'];
 
     let stages = [], pipelineId = '';

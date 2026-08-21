@@ -12,12 +12,13 @@ import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
 
-// Pipeline the "GHL Stage" column on the NSW tracker reads from. Set
-// NSW_HWS_PIPELINE_ID in the environment if NSW leads get their own GHL
-// pipeline; otherwise this falls back to matching a "Hot Water" pipeline by
-// name, same as the VIC tracker uses.
-const NSW_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || process.env.HWS_PIPELINE_ID || '';
-const NSW_PIPELINE_NAME_HINTS = ['nsw hot water', 'nsw hws', 'nsw', 'hot water', 'hotwater', 'heat pump', 'hws', 'water'];
+// Pipeline the "GHL Stage" column on the NSW tracker reads from — GHL has a
+// dedicated "NSW HWS Pipeline" alongside the VIC "HWS Pipeline". Name hints
+// are deliberately narrow (no bare "hws"/"hot water") so this never matches
+// the VIC pipeline, which sits earlier in GHL's pipeline list. Set
+// NSW_HWS_PIPELINE_ID in the environment to pin the exact pipeline id instead.
+const NSW_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || '';
+const NSW_PIPELINE_NAME_HINTS = ['nsw hws pipeline', 'nsw hot water', 'nsw hws'];
 
 const SITE = 'https://portal.goldsure.com.au';
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
