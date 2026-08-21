@@ -9,7 +9,15 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
+import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
+
+// Pipeline the "GHL Stage" column on the NSW tracker reads from. Set
+// NSW_HWS_PIPELINE_ID in the environment if NSW leads get their own GHL
+// pipeline; otherwise this falls back to matching a "Hot Water" pipeline by
+// name, same as the VIC tracker uses.
+const NSW_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || process.env.HWS_PIPELINE_ID || '';
+const NSW_PIPELINE_NAME_HINTS = ['nsw hot water', 'nsw hws', 'nsw', 'hot water', 'hotwater', 'heat pump', 'hws', 'water'];
 
 const SITE = 'https://portal.goldsure.com.au';
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -318,6 +326,15 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: `NSW Hot Water reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}` }),
       });
+      // Backfill an opportunity for older leads that never got one, so the
+      // tracker's GHL Stage column has something to show and change.
+      await ensureOpportunityInStage({
+        contactId: found.contactId,
+        opportunityName: `NSW Hot Water — ${customer_name || 'Quote'}`,
+        pipelineIdEnv: NSW_PIPELINE_ID_ENV,
+        nameHints: NSW_PIPELINE_NAME_HINTS,
+        stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+      });
     }
   } catch (e) { console.warn('[NSW HWS] reminder GHL note failed (non-fatal):', e.message); }
 
@@ -502,6 +519,15 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: noteBody }),
+      });
+      // Put the contact's opportunity on the board so the tracker's GHL Stage
+      // column has something to show — a contact alone carries no stage.
+      await ensureOpportunityInStage({
+        contactId: found.contactId,
+        opportunityName: `NSW Hot Water — ${customer_name}`,
+        pipelineIdEnv: NSW_PIPELINE_ID_ENV,
+        nameHints: NSW_PIPELINE_NAME_HINTS,
+        stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
       });
     }
   } catch (e) { console.warn('[NSW HWS] GHL note failed (non-fatal):', e.message); }
