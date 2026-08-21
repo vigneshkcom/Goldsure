@@ -71,7 +71,7 @@ export function calculateQuote(input = {}) {
 
   const totalExtras = round2(relocationCharge + backToBackCharge + cableCharge + otherExtrasTotal);
 
-  // The NSW Home Energy Saver loan does not charge Goldsure a vendor fee, so
+  // The Home Energy Saver loan by Brighte does not charge Goldsure a vendor fee, so
   // choosing upfront payment must not alter the price automatically. An agent
   // can deliberately apply a discretionary Goldsure discount and choose its
   // amount; never let that reduce the quote below zero.

@@ -94,7 +94,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   const financeBlock = calc.finance_requested ? `
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:12px;"><tr><td style="padding:16px 18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:13px;">NSW Home Energy Saver Loan by Brighte — 0% Interest</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:13px;">Home Energy Saver loan by Brighte — 0% interest</div>
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
           <td width="33%" align="center" style="padding:0 4px;">
             <div style="font-size:20px;font-weight:700;color:#b08d2e;line-height:1.2;">${money(calc.fortnightly_repayment)}</div>
@@ -114,7 +114,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
           <tr><td style="padding:3px 0;font-size:12px;color:#8b7c56;">Less deposit paid up front</td><td style="padding:3px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">− ${money(calc.deposit_amount)}</td></tr>
           <tr><td style="padding:3px 0;font-size:12.5px;color:#141c2e;font-weight:700;">Amount financed</td><td style="padding:3px 0;font-size:13.5px;color:#b08d2e;text-align:right;font-weight:700;">${money(calc.amount_financed)}</td></tr>
         </table>
-        <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit. 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only — subject to Brighte credit approval and household taxable income of $210,000 or less per year.</div>
+        <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit. 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -374,7 +374,7 @@ export default async function handler(req, res) {
       if (smsUser && smsPass && !(await isOptedOut(smsPhone, SUPABASE_URL, SUPABASE_KEY))) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
-        const smsText = `Hi ${first}, your Goldsure heat pump quote is ready. Your total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with 0% finance options available' : ''}. View your quote here: ${quoteUrl}`;
+        const smsText = `Hi ${first}, your Goldsure heat pump quote is ready. Your total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}. View your quote here: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
           method: 'POST',
@@ -406,7 +406,7 @@ export default async function handler(req, res) {
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`
-        + (calc.finance_requested ? `\nDeposit: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
+        + (calc.finance_requested ? `\nLoan: Home Energy Saver loan by Brighte\nDeposit: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
       await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
