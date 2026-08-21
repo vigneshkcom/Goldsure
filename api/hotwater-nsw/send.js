@@ -68,7 +68,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
     calc.back_to_back_charge > 0 ? { name: 'Back-to-back tank relocation', sub: 'Fixed charge', amt: calc.back_to_back_charge } : null,
     calc.cable_charge > 0 ? { name: 'Additional electrical cable', sub: `${calc.cable_chargeable_metres}m @ $20.00 per metre beyond the 15m included`, amt: calc.cable_charge } : null,
     ...(calc.other_extras || []).map(e => ({ name: e.label, sub: 'Additional charge', amt: Number(e.amount) || 0 })),
-    calc.no_finance_discount > 0 ? { name: 'Upfront payment discount', sub: 'Applied for paying up front rather than financing', amt: -calc.no_finance_discount } : null,
+    calc.no_finance_discount > 0 ? { name: 'Upfront payment discount', sub: 'Discretionary discount applied by Goldsure', amt: -calc.no_finance_discount } : null,
   ].filter(Boolean);
 
   const itemRows = lines.map(l => `<tr bgcolor="#ffffff">
