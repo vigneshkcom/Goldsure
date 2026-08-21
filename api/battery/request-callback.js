@@ -2409,11 +2409,11 @@ ${notesHtml}
   }
 
   // ── POST action=quote-ghl-stages: pipeline stages + email→stage map ─────────
-  // Powers the "GHL Stage" column on the Aircon / Hot Water quote trackers.
-  // Body: { pipeline:'aircon'|'hotwater', emails:[...] }. Picks the product's
-  // pipeline (env id override, else name match), returns its ordered stages plus,
-  // for each email, that contact's current opportunity stage. Best-effort: a GHL
-  // hiccup returns empty data rather than failing the tracker.
+  // Powers the "GHL Stage" column on the Aircon / Hot Water / NSW Hot Water quote
+  // trackers. Body: { pipeline:'aircon'|'hotwater'|'hotwater-nsw', emails:[...] }.
+  // Picks the product's pipeline (env id override, else name match), returns its
+  // ordered stages plus, for each email, that contact's current opportunity stage.
+  // Best-effort: a GHL hiccup returns empty data rather than failing the tracker.
   if (body.action === 'quote-ghl-stages') {
     const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
     if (!apiKey || !locationId) return res.status(200).json({ stages: [], pipelineId: '', map: {} });
@@ -2421,9 +2421,13 @@ ${notesHtml}
     const GHL = 'https://services.leadconnectorhq.com';
     const product = String(body.pipeline || '').toLowerCase();
     const emails = [...new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e || '').toLowerCase().trim()).filter(Boolean))].slice(0, 400);
-    const pipeIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '') : (process.env.HWS_PIPELINE_ID || '');
+    const pipeIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '')
+      : product === 'hotwater-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || process.env.HWS_PIPELINE_ID || '')
+      : (process.env.HWS_PIPELINE_ID || '');
     const nameHints = product === 'aircon'
       ? ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac']
+      : product === 'hotwater-nsw'
+      ? ['nsw hot water', 'nsw hws', 'nsw', 'hot water', 'hotwater', 'heat pump', 'hws', 'water']
       : ['hot water', 'hotwater', 'heat pump', 'hws', 'water'];
 
     let stages = [], pipelineId = '';

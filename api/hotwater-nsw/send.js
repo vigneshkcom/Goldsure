@@ -246,6 +246,94 @@ ${financeBlock}
 </td></tr></table></body></html>`;
 }
 
+// A reminder resends the original quote email (and optionally an SMS) for an
+// already-sent NSW quote, then bumps reminder_count/last_reminder_sent_at on
+// the existing row rather than inserting a new one. Mirrors the VIC hot water
+// reminder branch (action=hws-quote, is_reminder:true) in
+// api/battery/request-callback.js. The tracker sends the whole stored quote
+// row back as the body, and since that row already carries every field
+// calculateQuote() would produce, it doubles as both `q` and `calc` for
+// buildEmailHtml — no re-pricing needed.
+async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
+  const { quote_token, customer_name, customer_email, customer_phone, agent_name, reminder_count = 0, email_body = '', send_sms = false, sms_text = '' } = body;
+  if (!quote_token) return res.status(400).json({ error: 'quote_token is required for a reminder.' });
+
+  const quoteUrl = `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(quote_token)}`;
+  const acceptUrl = `${SITE}/hotwater-nsw/accept.html?token=${encodeURIComponent(quote_token)}`;
+
+  try {
+    await sendHostingerMail({
+      to: [customer_email],
+      bcc: ['info@goldsure.com.au'],
+      displayName: 'Goldsure Pty Ltd',
+      subject: 'Reminder: Your Heat Pump Hot Water Quotation – Goldsure',
+      html: buildEmailHtml(body, body, quoteUrl, acceptUrl, email_body),
+    });
+  } catch (e) {
+    console.error('[NSW HWS] reminder email send failed:', e.message);
+    return res.status(502).json({ error: 'Could not send the reminder email.' });
+  }
+
+  let smsSent = false;
+  if (send_sms && customer_phone) {
+    try {
+      const smsPhone = normalizeAuPhone(customer_phone);
+      const smsUser = process.env.SMSGATE_USERNAME, smsPass = process.env.SMSGATE_PASSWORD;
+      if (smsUser && smsPass && !(await isOptedOut(smsPhone, SUPABASE_URL, SUPABASE_KEY))) {
+        const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
+        const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
+        const smsText = (typeof sms_text === 'string' && sms_text.trim())
+          ? sms_text.trim()
+          : `Hi ${custFirst}, this is ${agentFirst} from Goldsure. We recently emailed your quote to ${customer_email}. If you are happy to proceed, click Accept on your quote and we will give you a call to arrange the next steps. Otherwise, please reply YES or NO to let us know how you would like to proceed. Thank you.`;
+        const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
+        const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+          method: 'POST',
+          headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
+        });
+        if (smsRes.ok) {
+          smsSent = true;
+          const smsData = await smsRes.json().catch(() => ({}));
+          fetch(`${SUPABASE_URL}/rest/v1/sms_messages`, {
+            method: 'POST', headers: { ...HEADERS, Prefer: 'return=minimal' },
+            body: JSON.stringify({ phone_number: smsPhone, message: smsText, direction: 'outbound', status: 'sent', sms_gate_id: smsData.id || null }),
+          }).catch(() => {});
+        }
+      }
+    } catch (e) { console.warn('[NSW HWS] reminder SMS failed (non-fatal):', e.message); }
+  }
+
+  // ── GHL note (best-effort) ──
+  try {
+    const found = await findOrCreateGhlContactByPhone(customer_phone, {
+      firstName: String(customer_name || '').trim().split(/\s+/)[0],
+      lastName: String(customer_name || '').trim().split(/\s+/).slice(1).join(' '),
+      email: customer_email,
+    });
+    if (found?.contactId) {
+      const reminderNo = (Number(reminder_count) || 0) + 1;
+      const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: '2-digit', month: 'short', year: 'numeric' });
+      await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: `NSW Hot Water reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}` }),
+      });
+    }
+  } catch (e) { console.warn('[NSW HWS] reminder GHL note failed (non-fatal):', e.message); }
+
+  const nowIso = new Date().toISOString();
+  const newCount = (Number(reminder_count) || 0) + 1;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=eq.${encodeURIComponent(quote_token)}`, {
+      method: 'PATCH',
+      headers: { ...HEADERS, Prefer: 'return=minimal' },
+      body: JSON.stringify({ reminder_count: newCount, last_reminder_sent_at: nowIso, updated_at: nowIso }),
+    });
+  } catch (e) { console.error('[NSW HWS] reminder tracker update failed (non-fatal):', e.message); }
+
+  return res.status(200).json({ success: true, sms_sent: smsSent, reminder_count: newCount, last_reminder_sent_at: nowIso });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
@@ -255,12 +343,15 @@ export default async function handler(req, res) {
   const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
 
   const body = req.body || {};
-  const { customer_name, customer_email, customer_phone, email_body = '', send_sms = true } = body;
+  const { customer_name, customer_email, customer_phone, email_body = '', send_sms = true, is_reminder = false } = body;
 
   if (!customer_name) return res.status(400).json({ error: 'Customer name is required.' });
   if (!customer_email || !String(customer_email).includes('@')) {
     return res.status(400).json({ error: 'A valid customer email is required.' });
   }
+
+  if (is_reminder) return sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS);
+
   if (!body.existing_system) return res.status(400).json({ error: 'Select the existing hot water system.' });
   if (!body.heat_pump_model) return res.status(400).json({ error: 'Select the heat pump being quoted.' });
 

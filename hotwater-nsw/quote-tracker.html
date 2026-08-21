@@ -196,6 +196,32 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .status-btn:hover .badge { opacity: .86; }
 
+/* GHL stage chips — solid fills too, one colour per stage */
+.badge-ghl { background: #c4c4c4; color: #fff; border: none; cursor: pointer; }
+.badge-ghl:hover { opacity: .86; }
+.badge-ghl-loading { background: var(--surface3); color: var(--muted); border: none; font-style: italic; }
+.badge-ghl-none { background: var(--surface3); color: var(--muted); border: none; cursor: pointer; }
+.badge-ghl-new-lead       { background: #c4c4c4; color: #fff; border: none; }
+.badge-ghl-follow-up      { background: var(--teal); color: #fff; border: none; }
+.badge-ghl-shopping       { background: var(--purple); color: #fff; border: none; }
+.badge-ghl-quote-sent     { background: var(--blue); color: #fff; border: none; }
+.badge-ghl-won            { background: var(--green); color: #fff; border: none; }
+.badge-ghl-not-reachable  { background: var(--amber); color: #fff; border: none; }
+.badge-ghl-not-interested { background: var(--red); color: #fff; border: none; }
+.badge-ghl-out-of-area    { background: #7e5aa8; color: #fff; border: none; }
+
+.ghl-stage-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
+.ghl-stage-menu { min-width: 170px; }
+
+.reminder-btn {
+  font-family: inherit; font-size: 12.5px; font-weight: 400; padding: 0 10px; height: 28px;
+  border-radius: 4px; border: 1px solid var(--border2); background: var(--surface); color: var(--muted);
+  cursor: pointer; text-transform: none; letter-spacing: 0; white-space: nowrap; transition: all .12s;
+}
+.reminder-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: var(--surface); box-shadow: none; }
+.reminder-btn:disabled { opacity: .45; cursor: not-allowed; background: var(--surface2); color: #9699a6; border-color: var(--border); }
+.count-badge { display: inline; background: none; border: none; padding: 0; min-width: 0; height: auto; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+
 .days-pill {
   display: inline-flex; align-items: center; justify-content: center; min-width: 40px;
   padding: 3px 9px; border-radius: 4px; background: var(--surface3); border: none;
@@ -342,12 +368,16 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
             <th onclick="sortBy('final_price')" data-col="final_price">Total Installed<i class="sort-caret"></i></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th>Status</th>
+            <th>GHL Stage</th>
             <th>Home Energy Saver Loan</th>
             <th>Quote</th>
+            <th>Send Reminder</th>
+            <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
+            <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders<i class="sort-caret"></i></th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -370,6 +400,9 @@ const MODEL_LABEL = {
 const STATUSES = ['sent','accepted','rejected','installed'];
 
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
+let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
+let ghlStages  = [];   // [{ id, name, position }] for the NSW Hot Water pipeline
+let ghlStagesLoaded = false;
 
 // ── Mobile scoping: on a phone, a tracker opened from the builder (which passes
 //    ?agent=) shows ONLY that agent's quotes. Desktop always shows everyone. ──
@@ -392,6 +425,7 @@ async function loadQuotes(){
       if(lbl) lbl.innerHTML=`NSW Hot Water · <span class="scope-chip">${esc(SCOPE_AGENT)}</span>`;
     }
     populateFilters(); renderKPIs(); renderCharts(); applyFilters();
+    loadGhlStages(allQuotes);
   }catch(e){ console.error(e); showEmptyTable('Network error loading quotes.'); }
   finally{ btn.classList.remove('spinning'); }
 }
@@ -401,6 +435,7 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
 function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
+function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
 
 const AGENT_COLORS = ['#0073ea','#00c875','#a25ddc','#fdab3d','#e2445c','#009eb5','#ff642e','#7e5aa8','#037f4c','#bb3354'];
 function agentColor(name){
@@ -483,8 +518,8 @@ function applyFilters(){
   });
   filtered.sort((a,b)=>{
     let av=a[sortCol],bv=b[sortCol];
-    if(sortCol==='sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
-    if(sortCol==='final_price'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
+    if(sortCol==='final_price'||sortCol==='reminder_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
     if(av<bv)return sortDir==='asc'?-1:1; if(av>bv)return sortDir==='asc'?1:-1; return 0;
   });
   document.getElementById('results-count').textContent=filtered.length;
@@ -494,14 +529,75 @@ function applyFilters(){
 function sortBy(col){ sortDir=(sortCol===col&&sortDir==='desc')?'asc':'desc'; sortCol=col; document.querySelectorAll('th').forEach(th=>{const on=th.dataset.col===col;th.classList.toggle('sorted',on);th.classList.toggle('asc',on&&sortDir==='asc');}); applyFilters(); }
 function clearFilters(){ ['searchInput','filterModel','filterAgent','filterStatus','filterPeriod'].forEach(id=>document.getElementById(id).value=''); applyFilters(); }
 
+async function loadGhlStages(quotes){
+  const emails=[...new Set(quotes.map(q=>q.customer_email).filter(Boolean))];
+  if(!emails.length){ ghlStagesLoaded=true; return; }
+  let stages=[], map={};
+  try{
+    const res=await fetch('/api/battery/request-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'quote-ghl-stages',pipeline:'hotwater-nsw',emails})});
+    if(res.ok){ const d=await res.json(); stages=d.stages||[]; map=d.map||{}; }
+  }catch(e){ console.warn('GHL stage fetch failed',e); }
+  ghlStages=stages; ghlOppData=map; ghlStagesLoaded=true;
+  quotes.forEach(q=>{ const el=document.getElementById(`ghl-${q.id}`); if(!el)return; const data=map[(q.customer_email||'').toLowerCase().trim()]; el.textContent=data?.stage||'—'; el.className=ghlBadgeClass(data?.stage); });
+}
+function ghlBadgeClass(stageName){
+  const s=(stageName||'').toLowerCase();
+  if(!s||s==='—') return 'badge badge-ghl badge-ghl-none';
+  if(s.includes('new lead'))          return 'badge badge-ghl badge-ghl-new-lead';
+  if(s.includes('follow'))            return 'badge badge-ghl badge-ghl-follow-up';
+  if(s.includes('shopping'))          return 'badge badge-ghl badge-ghl-shopping';
+  if(s.includes('quote sent'))        return 'badge badge-ghl badge-ghl-quote-sent';
+  if(s.includes('won')||s.includes('install')) return 'badge badge-ghl badge-ghl-won';
+  if(s.includes('not reachable'))     return 'badge badge-ghl badge-ghl-not-reachable';
+  if(s.includes('not interested')||s.includes('spam')) return 'badge badge-ghl badge-ghl-not-interested';
+  if(s.includes('out of area'))       return 'badge badge-ghl badge-ghl-out-of-area';
+  return 'badge badge-ghl';
+}
+function toggleGhlMenu(e,btn,quoteId){
+  e.stopPropagation();
+  const menu=btn.querySelector('.ghl-stage-menu');
+  const isOpen=menu.classList.contains('open');
+  document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open'));
+  if(!isOpen){ populateGhlMenu(menu,btn.dataset.email,quoteId); menu.classList.add('open'); }
+}
+function populateGhlMenu(menu,email,quoteId){
+  const oppData=ghlOppData[email];
+  if(!oppData?.opportunityId){ menu.innerHTML='<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">No GHL record found</div>'; return; }
+  if(!ghlStages.length){ menu.innerHTML='<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">Loading stages…</div>'; return; }
+  const cur=oppData.stageId;
+  menu.innerHTML=ghlStages.map(s=>`<div class="status-menu-item${s.id===cur?' active':''}" onclick="updateGhlStage(event,'${quoteId}','${esc(email)}','${s.id}','${esc(s.name)}')"><span class="dot" style="background:#6b7899;flex-shrink:0;"></span>${esc(s.name)}</div>`).join('');
+}
+async function updateGhlStage(e,quoteId,email,stageId,stageName){
+  e.stopPropagation();
+  document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open'));
+  const oppData=ghlOppData[email];
+  if(!oppData?.opportunityId){ showToast('No GHL opportunity for this contact.'); return; }
+  const el=document.getElementById(`ghl-${quoteId}`);
+  const prevText=el?el.textContent:'';
+  if(el){ el.textContent='Saving…'; el.className='badge badge-ghl-loading'; }
+  try{
+    const res=await fetch('/api/battery/request-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update-stage',opportunityId:oppData.opportunityId,pipelineId:oppData.pipelineId,stageId})});
+    if(!res.ok){ const err=await res.json().catch(()=>({})); showToast('GHL update failed: '+(err.error||res.status)); if(el){ el.textContent=prevText; el.className=ghlBadgeClass(prevText); } return; }
+    oppData.stageId=stageId; oppData.stage=stageName;
+    if(el){ el.textContent=stageName; el.className=ghlBadgeClass(stageName); }
+    const menu=document.getElementById(`ghl-menu-${quoteId}`); if(menu) menu.innerHTML='';
+    showToast(`GHL stage → ${stageName}`);
+  }catch(err){ console.error(err); showToast('Network error updating GHL stage.'); if(el){ el.textContent=prevText; el.className=ghlBadgeClass(prevText); } }
+}
+
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
     const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st]||'badge-sent';
+    const canRemind=st==='sent'&&!!q.customer_email&&!!q.quote_token;
     const menuItems=STATUSES.map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
+    const ghlEmail=(q.customer_email||'').toLowerCase().trim();
+    const ghlD=ghlOppData[ghlEmail];
+    const ghlBadgeText=ghlStagesLoaded?(ghlD?.stage||'—'):'…';
+    const ghlBadgeCls=ghlStagesLoaded?ghlBadgeClass(ghlD?.stage):'badge badge-ghl-loading';
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
@@ -511,8 +607,12 @@ function renderTable(){
       <td class="td-oop">${money(q.final_price)}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
+      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td>${q.finance_requested?`<span class="fin-badge fin-yes">${money(q.fortnightly_repayment)}/ftn · ${esc(String(q.finance_term_years||10))}yr</span>`:'<span class="fin-badge fin-no">Upfront</span>'}</td>
       <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}" target="_blank">View</a></td>
+      <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
+      <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
+      <td><span class="count-badge">${getReminderCount(q)}</span></td>
     </tr>`;
   }).join('');
   updateDeleteBtn();
@@ -573,13 +673,13 @@ async function deleteSelected(){
 
 function exportCSV(){
   if(!filtered.length){ showToast('No quotes to export.'); return; }
-  const headers=['Date Sent','Customer','Email','Phone','Address','Agent','Heat Pump','Existing System','Total Installed','Deposit','Home Energy Saver Loan by Brighte','Amount Financed','Fortnightly','Term (yrs)','Days Since Quote','Status'];
+  const headers=['Date Sent','Customer','Email','Phone','Address','Agent','Heat Pump','Existing System','Total Installed','Deposit','Home Energy Saver Loan by Brighte','Amount Financed','Fortnightly','Term (yrs)','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
   const rows=filtered.map(q=>[
     q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
     q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.property_address||'',q.agent_name||'',
     q.heat_pump_model||'',q.existing_system||'',q.final_price||'',
     q.deposit_amount||220,q.finance_requested?'Yes':'No',q.amount_financed||'',q.fortnightly_repayment||'',q.finance_term_years||'',
-    daysSince(q.sent_at)??'',q.status||'sent'
+    daysSince(q.sent_at)??'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   const csv=[headers.join(','),...rows].join('\n');
   const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
@@ -587,7 +687,103 @@ function exportCSV(){
   showToast(`Exported ${filtered.length} quotes`);
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
+
+async function doSendReminder(id, sendSms, smsText){
+  const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
+  if(!q.customer_email){ showToast('This quote has no customer email.'); return; }
+  if((q.status||'sent').toLowerCase()!=='sent'){ showToast('Only quotes still marked Sent can receive reminders.'); return; }
+  q._reminderSending=true; applyFilters();
+  try{
+    const res=await fetch('/api/hotwater-nsw/send',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        ...q, is_reminder:true,
+        reminder_count:getReminderCount(q),
+        send_sms:sendSms, sms_text:sendSms?smsText:'',
+      })
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error||'Reminder failed.'); return; }
+    q.reminder_count=data.reminder_count ?? (getReminderCount(q)+1);
+    q.last_reminder_sent_at=data.last_reminder_sent_at||new Date().toISOString();
+    showToast(data.sms_sent?`Reminder emailed to ${q.customer_email} + SMS`:`Reminder sent to ${q.customer_email}`);
+  }catch(err){ console.error(err); showToast('Network error sending reminder.'); }
+  finally{ q._reminderSending=false; applyFilters(); }
+}
+</script>
+
+<style>
+.rm-overlay{display:none;position:fixed;inset:0;background:rgba(20,28,46,.55);z-index:2000;align-items:center;justify-content:center;padding:20px;}
+.rm-overlay.open{display:flex;}
+.rm-card{background:#fff;border-radius:14px;max-width:500px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;font-family:inherit;}
+.rm-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.rm-head h3{font-size:16px;font-weight:700;margin:0;color:var(--text);}
+.rm-close{background:none;border:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;}
+.rm-body{padding:20px 22px;}
+.rm-line{font-size:13px;color:var(--text);margin:0 0 16px;line-height:1.5;}
+.rm-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer;font-weight:600;}
+.rm-check input{width:16px;height:16px;cursor:pointer;flex-shrink:0;}
+.rm-textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:inherit;font-size:13px;line-height:1.5;color:var(--text);resize:vertical;box-sizing:border-box;}
+.rm-textarea:disabled{background:var(--surface2);color:var(--muted);}
+.rm-count{font-size:11px;color:var(--muted);margin-top:6px;text-align:right;}
+.rm-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border);}
+.rm-btn-cancel{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;}
+.rm-btn-send{padding:9px 18px;border-radius:8px;border:none;background:var(--gold);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}
+.rm-btn-send:disabled{opacity:.5;cursor:not-allowed;}
+</style>
+<div id="reminderModal" class="rm-overlay" onclick="if(event.target===this)closeReminderModal()">
+  <div class="rm-card">
+    <div class="rm-head"><h3>Send Reminder</h3><button class="rm-close" onclick="closeReminderModal()">×</button></div>
+    <div class="rm-body">
+      <p class="rm-line">A reminder email will be sent to <strong id="rmEmail"></strong>.</p>
+      <label class="rm-check"><input type="checkbox" id="rmSmsToggle" onchange="toggleRmSms()"> <span id="rmSmsLabel">Also send an SMS</span></label>
+      <textarea id="rmSmsText" class="rm-textarea" rows="8" oninput="updateRmCount()"></textarea>
+      <div class="rm-count"><span id="rmCount"></span></div>
+    </div>
+    <div class="rm-foot"><button class="rm-btn-cancel" onclick="closeReminderModal()">Cancel</button><button class="rm-btn-send" id="rmSendBtn" onclick="confirmReminder()">Send Reminder</button></div>
+  </div>
+</div>
+<script>
+let _rmQuoteId=null;
+function buildReminderSms(q){
+  const first=(q.customer_name||'there').trim().split(/\s+/)[0]||'there';
+  const agent=(q.agent_name||'Goldsure').trim().split(/\s+/)[0]||'Goldsure';
+  return `Hi ${first}, this is ${agent} from Goldsure. We recently emailed your quote to ${q.customer_email}. If you are happy to proceed, click Accept on your quote and we will give you a call to arrange the next steps. Otherwise, please reply YES or NO to let us know how you would like to proceed. Thank you.`;
+}
+function sendReminder(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
+  if(!q.customer_email){ showToast('This quote has no customer email.'); return; }
+  if((q.status||'sent').toLowerCase()!=='sent'){ showToast('Only quotes still marked Sent can receive reminders.'); return; }
+  _rmQuoteId=id;
+  document.getElementById('rmEmail').textContent=q.customer_email;
+  const hasPhone=!!(q.customer_phone&&String(q.customer_phone).trim());
+  const toggle=document.getElementById('rmSmsToggle');
+  toggle.checked=hasPhone; toggle.disabled=!hasPhone;
+  document.getElementById('rmSmsLabel').textContent=hasPhone?`Also send an SMS to ${q.customer_phone}`:'No phone number on file — SMS unavailable';
+  document.getElementById('rmSmsText').value=buildReminderSms(q);
+  toggleRmSms(); updateRmCount();
+  document.getElementById('reminderModal').classList.add('open');
+}
+function toggleRmSms(){
+  const on=document.getElementById('rmSmsToggle').checked;
+  document.getElementById('rmSmsText').disabled=!on;
+  document.getElementById('rmCount').style.visibility=on?'visible':'hidden';
+}
+function updateRmCount(){
+  const len=document.getElementById('rmSmsText').value.length;
+  const seg=len<=160?1:Math.ceil(len/153);
+  document.getElementById('rmCount').textContent=`${len} chars · ${seg} SMS segment${seg===1?'':'s'}`;
+}
+function closeReminderModal(){ document.getElementById('reminderModal').classList.remove('open'); _rmQuoteId=null; }
+async function confirmReminder(){
+  const id=_rmQuoteId; if(id==null)return;
+  const sendSms=document.getElementById('rmSmsToggle').checked;
+  const smsText=document.getElementById('rmSmsText').value;
+  const btn=document.getElementById('rmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
+  try{ await doSendReminder(id, sendSms, smsText); }
+  finally{ btn.disabled=false; btn.textContent='Send Reminder'; closeReminderModal(); }
+}
 </script>
 </body>
 </html>
