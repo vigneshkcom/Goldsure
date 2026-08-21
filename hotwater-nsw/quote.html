@@ -268,8 +268,17 @@ const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('
       q.back_to_back_charge > 0 ? { name:'Back-to-back tank relocation', sub:'Fixed charge', amt:q.back_to_back_charge } : null,
       q.cable_charge > 0 ? { name:'Additional electrical cable', sub:`${q.cable_chargeable_metres||0}m @ $20.00 per metre beyond the 15m included`, amt:q.cable_charge } : null,
       ...(Array.isArray(q.other_extras) ? q.other_extras.map(e=>({ name:e.label, sub:'Additional charge', amt:Number(e.amount)||0 })) : []),
-      q.no_finance_discount > 0 ? { name:'Upfront payment discount', sub:'Discretionary discount applied by Goldsure', amt:-q.no_finance_discount } : null,
     ].filter(Boolean);
+
+    // Present the customer's agreed net prices without exposing Goldsure's
+    // internal discretionary discount, while keeping the itemised total exact.
+    let concealedDiscount = Math.max(0, Number(q.no_finance_discount)||0);
+    for(const line of lines){
+      const reduction = Math.min(Math.max(0, Number(line.amt)||0), concealedDiscount);
+      line.amt -= reduction;
+      concealedDiscount -= reduction;
+      if(concealedDiscount<=0) break;
+    }
 
     document.getElementById('itemRows').innerHTML = lines.map(l=>`<tr>
       <td><div class="it-name">${esc(l.name)}</div><div class="it-sub">${esc(l.sub)}</div></td>

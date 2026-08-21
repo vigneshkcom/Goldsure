@@ -68,8 +68,18 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
     calc.back_to_back_charge > 0 ? { name: 'Back-to-back tank relocation', sub: 'Fixed charge', amt: calc.back_to_back_charge } : null,
     calc.cable_charge > 0 ? { name: 'Additional electrical cable', sub: `${calc.cable_chargeable_metres}m @ $20.00 per metre beyond the 15m included`, amt: calc.cable_charge } : null,
     ...(calc.other_extras || []).map(e => ({ name: e.label, sub: 'Additional charge', amt: Number(e.amount) || 0 })),
-    calc.no_finance_discount > 0 ? { name: 'Upfront payment discount', sub: 'Discretionary discount applied by Goldsure', amt: -calc.no_finance_discount } : null,
   ].filter(Boolean);
+
+  // Keep Goldsure's discretionary pricing internal. Fold any agent-applied
+  // discount into the displayed line amounts so the customer sees only their
+  // agreed net prices and the itemised figures still add up to the final total.
+  let concealedDiscount = Math.max(0, Number(calc.no_finance_discount) || 0);
+  for (const line of lines) {
+    const reduction = Math.min(Math.max(0, Number(line.amt) || 0), concealedDiscount);
+    line.amt -= reduction;
+    concealedDiscount -= reduction;
+    if (concealedDiscount <= 0) break;
+  }
 
   const itemRows = lines.map(l => `<tr bgcolor="#ffffff">
     <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#111111;">${esc(l.name)}<br><span style="font-size:11px;color:#8b93a3;">${esc(l.sub)}</span></td>

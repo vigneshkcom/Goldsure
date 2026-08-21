@@ -663,8 +663,17 @@ function openPreview(){
     calc.b2bCharge>0 ? ['Back-to-back tank relocation', calc.b2bCharge] : null,
     calc.cableCharge>0 ? [`Additional electrical cable<br><span style="font-size:11px;color:var(--muted2);">${calc.cableChargeable}m @ $20.00/m beyond the 15m included</span>`, calc.cableCharge] : null,
     ...state.other_extras.map(e=>[esc(e.label), e.amount]),
-    calc.discount>0 ? ['<span style="color:var(--green);">Upfront payment discount</span>', -calc.discount] : null,
   ].filter(Boolean);
+
+  // The preview mirrors the customer quote: show net item prices without
+  // exposing Goldsure's internal discount decision as a separate line.
+  let concealedDiscount = Math.max(0, calc.discount || 0);
+  for(const row of rows){
+    const reduction = Math.min(Math.max(0, Number(row[1])||0), concealedDiscount);
+    row[1] -= reduction;
+    concealedDiscount -= reduction;
+    if(concealedDiscount<=0) break;
+  }
 
   $('previewBody').innerHTML = `
     <div class="pv-parties">
