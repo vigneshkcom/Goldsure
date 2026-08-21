@@ -144,7 +144,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         <td valign="top" width="48%" align="right" style="font-family:${FONT};">
           <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9aa2b1;margin-bottom:7px;">From</div>
           <div style="font-size:14px;font-weight:700;color:#141c2e;">Goldsure Pty Ltd</div>
-          <div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">ABN 66 683 305 106<br>Suite 4, Level 1, 293 High Street<br>Preston VIC 3072<br>info@goldsure.com.au</div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.6;margin-top:4px;">ABN 66 683 305 106<br>info@goldsure.com.au</div>
         </td>
       </tr></table>
     </td></tr>
@@ -197,7 +197,7 @@ ${financeBlock}
         </td>
         <td valign="middle" style="padding:14px 16px;">
           <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Accredited Provider &amp; Installer</div>
-          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">Your system is supplied and installed by <strong style="color:#141c2e;">Ecogenica</strong>, the accredited provider and installer for this upgrade.<br>NSW Contractor Licence: <strong style="color:#141c2e;">397621C</strong></div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">Your system is installed by <strong style="color:#141c2e;">Ecogenica</strong>, the accredited provider for this upgrade.<br>NSW Contractor Licence: <strong style="color:#141c2e;">397621C</strong></div>
         </td>
       </tr></table>
     </td></tr>
@@ -207,8 +207,7 @@ ${financeBlock}
       <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">Happy to go ahead? Accept your quote online and our team will call you shortly to take the $${DEPOSIT_AMOUNT} deposit and book your installation.</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
-      <div style="font-size:12px;margin-top:14px;"><a href="${quoteUrl}" style="color:#8b93a3;text-decoration:underline;">or view your quote online</a></div>
-      <div style="font-size:11px;color:#9aa2b1;margin-top:11px;">This quote remains valid for 21 days from ${quoteDate}.</div>
+      <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote remains valid for 21 days from ${quoteDate}.</div>
     </td></tr>
 
     <!-- Fine print -->
@@ -223,7 +222,7 @@ ${financeBlock}
         <td valign="middle" style="padding:16px 0 0 16px;border-left:2px solid #b08d2e;">
           <div style="font-size:15px;font-weight:700;color:#141c2e;">${esc(q.agent_name || 'The Goldsure Team')}</div>
           <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b08d2e;margin-top:2px;">Goldsure Pty Ltd</div>
-          <div style="font-size:12px;color:#5b6577;line-height:1.85;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a><br>p: <a href="tel:0370502846" style="color:#5b6577;text-decoration:none;font-weight:600;">03 7050 2846</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
+          <div style="font-size:12px;color:#5b6577;line-height:1.85;margin-top:6px;">e: <a href="mailto:info@goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">info@goldsure.com.au</a><br>p: <a href="tel:0272510007" style="color:#5b6577;text-decoration:none;font-weight:600;">02 7251 0007</a><br>w: <a href="https://www.goldsure.com.au" style="color:#b08d2e;text-decoration:none;font-weight:600;">www.goldsure.com.au</a></div>
         </td>
       </tr></table>
     </td></tr>
@@ -231,7 +230,7 @@ ${financeBlock}
     <!-- Footer -->
     <tr><td align="center" style="background:#000000;padding:16px 20px;font-family:${FONT};">
       <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#c9a13b;margin-bottom:3px;">Goldsure Pty Ltd</div>
-      <div style="font-size:10px;color:#8b93a3;line-height:1.5;">ABN 66 683 305 106 &nbsp;·&nbsp; Suite 4, Level 1, 293 High Street, Preston VIC 3072</div>
+      <div style="font-size:10px;color:#8b93a3;line-height:1.5;">ABN 66 683 305 106</div>
     </td></tr>
   </table>
 </td></tr></table></body></html>`;
