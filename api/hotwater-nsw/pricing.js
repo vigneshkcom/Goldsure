@@ -23,14 +23,15 @@ export const EXISTING_SYSTEM_LABEL = {
   solar_boosted: 'Solar boosted hot water',
 };
 
-// Keyed by product code, which is also what the brochure PDFs in
-// /assets/hotwater/ are named after (<CODE>.pdf), so the right datasheet can be
-// attached to the quote without a second lookup table.
+// Keep legacy model labels here as well so previously saved quotes continue to
+// display their original product names correctly.
 export const HEAT_PUMP_LABEL = {
+  'EG-290FR':          'EG-290FR — 290L Split System',
+  'EG-330FR':          'EG-330FR — 330L Split System',
+  'ECON-300RVW':       'ECON-300RVW — 290L All-in-One',
+  'ECON-300RVW-2.0E':  'ECON-300RVW-2.0E — 290L All-in-One',
   'ECON-300SV-4.2E':  'ECON-300SV-4.2E — 290L Split System',
   'EG-330FRE-WR':     'EG-330FRE-WR — 330L Split System',
-  'ECON-300RVW':      'ECON-300RVW — 290L All-in-One',
-  'ECON-300RVW-2.0E': 'ECON-300RVW-2.0E — 290L All-in-One',
 };
 
 export const RELOCATION_PER_METRE = 155;

@@ -302,16 +302,19 @@ export default async function handler(req, res) {
     }).catch(() => {});
   };
 
-  // ── Attach the model's brochure, as the VIC quote does. The PDFs live at
-  //    /assets/hotwater/<PRODUCT CODE>.pdf, and heat_pump_model IS the product
-  //    code, so no lookup table is needed. Best-effort throughout: a missing,
+  // ── Attach the model's brochure, as the VIC quote does. Best-effort
+  //    throughout: a missing,
   //    unreachable or oversized brochure must never stop a quote going out.
   //    The size cap matters — some datasheets are 14MB, which would push the
   //    message past what mailboxes accept and bounce the whole quote.
   const attachments = [];
   const MAX_BROCHURE_BYTES = 7 * 1024 * 1024;
   if (body.heat_pump_model) {
-    const brochureUrl = `${SITE}/assets/hotwater/${encodeURIComponent(body.heat_pump_model)}.pdf`;
+    // The existing EG-290FR brochure predates the current product-code format.
+    const brochureFile = body.heat_pump_model === 'EG-290FR'
+      ? 'EG290-FR.pdf'
+      : `${body.heat_pump_model}.pdf`;
+    const brochureUrl = `${SITE}/assets/hotwater/${encodeURIComponent(brochureFile)}`;
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 6000);
