@@ -54,7 +54,7 @@ async function isOptedOut(phone, SUPABASE_URL, SUPABASE_KEY) {
 // The customer-facing quotation, sent inline in the email body so everything
 // they need is in front of them without opening anything. Follows the VIC hot
 // water quote layout and Goldsure's black/gold branding, with Ecogenica named
-// as the accredited provider and installer.
+// as the installer.
 function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   const modelLabel = HEAT_PUMP_LABEL[q.heat_pump_model] || q.heat_pump_model || '';
   const systemLabel = (EXISTING_SYSTEM_LABEL[q.existing_system] || '').toLowerCase();
@@ -199,15 +199,15 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       </tr></table>
     </td></tr>
 ${financeBlock}
-    <!-- Accredited provider & installer -->
+    <!-- Installer -->
     <tr><td style="padding:20px 32px 0;font-family:${FONT};">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:6px;"><tr>
         <td valign="middle" width="74" style="padding:14px 0 14px 16px;">
           <img src="${SITE}/assets/hotwater/ecogenica-logo.png" alt="Ecogenica" width="58" style="display:block;width:58px;height:auto;">
         </td>
         <td valign="middle" style="padding:14px 16px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Accredited Provider &amp; Installer</div>
-          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">Your system is installed by <strong style="color:#141c2e;">Ecogenica</strong>, the accredited provider for this upgrade.<br>NSW Contractor Licence: <strong style="color:#141c2e;">397621C</strong></div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Installer</div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">Your system will be installed by <strong style="color:#141c2e;">Ecogenica</strong>.<br>NSW Contractor Licence: <strong style="color:#141c2e;">397621C</strong></div>
         </td>
       </tr></table>
     </td></tr>
