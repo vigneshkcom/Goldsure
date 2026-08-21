@@ -63,7 +63,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
 
   const lines = [
     // systemLabel already ends in "hot water" (e.g. "gas hot water") — don't append it again.
-    { name: modelLabel, sub: `Supply and installation — upgrade from ${systemLabel}`, amt: calc.base_price },
+    { name: modelLabel, sub: `Supply and installation: upgrade from ${systemLabel}`, amt: calc.base_price },
     calc.relocation_charge > 0 ? { name: 'Standard tank relocation', sub: `${calc.relocation_metres}m @ $155.00 per metre`, amt: calc.relocation_charge } : null,
     calc.back_to_back_charge > 0 ? { name: 'Back-to-back tank relocation', sub: 'Fixed charge', amt: calc.back_to_back_charge } : null,
     calc.cable_charge > 0 ? { name: 'Additional electrical cable', sub: `${calc.cable_chargeable_metres}m @ $20.00 per metre beyond the 15m included`, amt: calc.cable_charge } : null,
@@ -94,7 +94,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   const financeBlock = calc.finance_requested ? `
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:12px;"><tr><td style="padding:16px 18px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:13px;">Home Energy Saver loan by Brighte — 0% interest</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:13px;">Home Energy Saver loan by Brighte - 0% interest</div>
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
           <td width="33%" align="center" style="padding:0 4px;">
             <div style="font-size:20px;font-weight:700;color:#b08d2e;line-height:1.2;">${money(calc.fortnightly_repayment)}</div>
@@ -120,7 +120,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
 
   const quoteNo = 'NSW-' + String(q.quote_token || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
   const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
-  const preheader = `Your Goldsure heat pump hot water quote — ${money(calc.final_price)} installed.`;
+  const preheader = `Your Goldsure heat pump hot water quote: ${money(calc.final_price)} installed.`;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Goldsure Hot Water Quotation</title></head>
@@ -194,7 +194,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:8px;"><tr>
         <td style="padding:13px 16px;">
           <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Deposit to Proceed</div>
-          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. This is the minimum customer contribution required under the NSW scheme and forms part of your total installed price above &mdash; it is not an additional charge.</div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. This is the minimum customer contribution required under the NSW scheme and forms part of your total installed price above; it is not an additional charge.</div>
         </td>
       </tr></table>
     </td></tr>
