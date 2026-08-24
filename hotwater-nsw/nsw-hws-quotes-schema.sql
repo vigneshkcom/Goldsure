@@ -65,6 +65,8 @@ CREATE TABLE nsw_hws_quotes (
   sent_at timestamptz,
   reminder_count integer DEFAULT 0,
   last_reminder_sent_at timestamptz,
+  view_count integer NOT NULL DEFAULT 0,
+  last_viewed_at timestamptz,
   accepted boolean DEFAULT false,
   accepted_at timestamptz,
 
@@ -100,3 +102,25 @@ ALTER TABLE nsw_hws_quotes DISABLE ROW LEVEL SECURITY;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS deposit_amount  numeric DEFAULT 0;
 -- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS amount_financed numeric DEFAULT 0;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Migration: customer online quote views. The RPC performs an atomic increment
+-- so simultaneous opens cannot overwrite one another.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS view_count integer NOT NULL DEFAULT 0;
+-- ALTER TABLE nsw_hws_quotes ADD COLUMN IF NOT EXISTS last_viewed_at timestamptz;
+-- CREATE OR REPLACE FUNCTION public.record_nsw_hws_quote_view(p_token text)
+-- RETURNS TABLE(view_count integer, last_viewed_at timestamptz)
+-- LANGUAGE sql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+--   UPDATE nsw_hws_quotes
+--      SET view_count = nsw_hws_quotes.view_count + 1,
+--          last_viewed_at = now(),
+--          updated_at = now()
+--    WHERE quote_token = p_token
+--   RETURNING nsw_hws_quotes.view_count, nsw_hws_quotes.last_viewed_at;
+-- $$;
+-- REVOKE ALL ON FUNCTION public.record_nsw_hws_quote_view(text) FROM PUBLIC;
+-- GRANT EXECUTE ON FUNCTION public.record_nsw_hws_quote_view(text) TO anon, authenticated, service_role;

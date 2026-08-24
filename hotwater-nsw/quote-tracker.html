@@ -221,6 +221,9 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .reminder-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: var(--surface); box-shadow: none; }
 .reminder-btn:disabled { opacity: .45; cursor: not-allowed; background: var(--surface2); color: #9699a6; border-color: var(--border); }
 .count-badge { display: inline; background: none; border: none; padding: 0; min-width: 0; height: auto; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.view-stat { min-width: 82px; }
+.view-stat strong { display: block; font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; }
+.view-stat span { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
 
 .days-pill {
   display: inline-flex; align-items: center; justify-content: center; min-width: 40px;
@@ -371,6 +374,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
             <th>Heat Pump</th>
             <th onclick="sortBy('final_price')" data-col="final_price">Total Installed<i class="sort-caret"></i></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
+            <th onclick="sortBy('view_count')" data-col="view_count">Online Views<i class="sort-caret"></i></th>
             <th>Status</th>
             <th>GHL Stage</th>
             <th>Home Energy Saver Loan</th>
@@ -381,7 +385,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -440,6 +444,13 @@ function showToast(m){ const t=document.getElementById('toast'); t.textContent=m
 function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
 function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
 function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
+function getViewCount(q){ const c=parseInt(q.view_count,10); return Number.isFinite(c)?c:0; }
+function renderViewStat(q){
+  const count=getViewCount(q);
+  const last=q.last_viewed_at?new Date(q.last_viewed_at):null;
+  const when=last&&!isNaN(last)?last.toLocaleString('en-AU',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit'}):'Never viewed';
+  return `<div class="view-stat"><strong>${count}</strong><span>${esc(when)}</span></div>`;
+}
 
 const AGENT_COLORS = ['#0073ea','#00c875','#a25ddc','#fdab3d','#e2445c','#009eb5','#ff642e','#7e5aa8','#037f4c','#bb3354'];
 function agentColor(name){
@@ -522,8 +533,8 @@ function applyFilters(){
   });
   filtered.sort((a,b)=>{
     let av=a[sortCol],bv=b[sortCol];
-    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
-    if(sortCol==='final_price'||sortCol==='reminder_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'||sortCol==='last_viewed_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
+    if(sortCol==='final_price'||sortCol==='reminder_count'||sortCol==='view_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
     if(av<bv)return sortDir==='asc'?-1:1; if(av>bv)return sortDir==='asc'?1:-1; return 0;
   });
   document.getElementById('results-count').textContent=filtered.length;
@@ -591,7 +602,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -610,10 +621,11 @@ function renderTable(){
       <td>${q.heat_pump_model?`<span class="model-badge">${esc(MODEL_LABEL[q.heat_pump_model]||q.heat_pump_model)}</span>`:'—'}</td>
       <td class="td-oop">${money(q.final_price)}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
+      <td>${renderViewStat(q)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td>${q.finance_requested?`<span class="fin-badge fin-yes">${money(q.fortnightly_repayment)}/ftn · ${esc(String(q.finance_term_years||10))}yr</span>`:'<span class="fin-badge fin-no">Upfront</span>'}</td>
-      <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}" target="_blank">View</a></td>
+      <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a></td>
       <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
       <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
       <td><span class="count-badge">${getReminderCount(q)}</span></td>
@@ -691,7 +703,7 @@ function exportCSV(){
   showToast(`Exported ${filtered.length} quotes`);
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
 
 async function doSendReminder(id, sendSms, smsText){
   const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
