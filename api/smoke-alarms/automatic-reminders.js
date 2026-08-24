@@ -17,7 +17,10 @@ const VIC_AUTOMATION_START = new Date('2026-08-23T14:00:00.000Z');
 
 const BLOCKED_GHL_STAGE_PHRASES = [
   'not interested',
+  'spam',
   'quote not accepted',
+  'unserviceable',
+  'out of area',
   'lost',
   'won',
   'installed',
