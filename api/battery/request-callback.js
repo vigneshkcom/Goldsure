@@ -1485,7 +1485,7 @@ ${notesHtml}
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
           const customSms = (typeof body.sms_text === 'string' && body.sms_text.trim()) ? body.sms_text.trim() : null;
-          const quoteUrl = `${SITE}/hotwater/accept.html?token=${encodeURIComponent(token)}&view=1`;
+          const quoteUrl = `${SITE}/hotwater/view.html?token=${encodeURIComponent(token)}`;
           const smsText = customSms
             ? customSms
             : is_reminder
