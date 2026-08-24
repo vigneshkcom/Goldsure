@@ -1,4 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { agentEmail } from '../../lib/portal-agents.js';
 
 // Sweeps the task board every 15 minutes and emails an assignee when a task
 // they own reaches its optional due time. Tasks without a due_time are covered
@@ -9,24 +10,6 @@ const SYDNEY = 'Australia/Sydney';
 // Don't chase tasks whose time slipped by long ago — the daily digest already
 // lists everything overdue, and a cron outage should not fire a burst of mail.
 const LATE_GRACE_MINUTES = 180;
-
-const AGENT_EMAIL_FALLBACK = {
-  Vignesh: 'vignesh@goldsure.com.au',
-  David: 'david@goldsure.com.au',
-  Shanira: 'shanira@goldsure.com.au',
-  Alda: 'alda@goldsure.com.au',
-  Amit: 'amit@goldsure.com.au',
-};
-
-// TODO_AGENT_EMAILS overrides the map above, e.g. "Vignesh:v@x.com,Amit:a@x.com".
-function agentEmails() {
-  const map = { ...AGENT_EMAIL_FALLBACK };
-  for (const pair of String(process.env.TODO_AGENT_EMAILS || '').split(',')) {
-    const [name, email] = pair.split(':').map(part => part && part.trim());
-    if (name && email) map[name] = email;
-  }
-  return map;
-}
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -120,10 +103,9 @@ export default async function handler(req, res) {
 
     if (!due.length) return res.status(200).json({ ok: true, checked: todayText, sent: 0 });
 
-    const emails = agentEmails();
     const results = [];
     for (const task of due) {
-      const to = emails[task.assignee];
+      const to = agentEmail(task.assignee);
       if (!to) { results.push({ id: task.id, sent: false, reason: 'no_email_for_assignee' }); continue; }
 
       // Claim the task before sending so a retried invocation cannot double-mail.
