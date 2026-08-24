@@ -75,11 +75,16 @@ async function sendTaskDigest({ supabaseUrl, serviceKey, origin, now }) {
     }).format(now);
     const horizon = addCalendarDays(digestDate, 7);
     const tasksResponse = await fetch(
-      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,priority&status=eq.open&archived_at=is.null&due_date=lte.${horizon}&order=due_date.asc,priority.asc`,
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,priority&status=eq.open&archived_at=is.null&due_date=lte.${horizon}&order=due_date.asc`,
       { headers: supabaseHeaders(serviceKey) }
     );
     if (!tasksResponse.ok) return { sent: false, error: 'task_table_unavailable' };
-    const tasks = await tasksResponse.json();
+    // Priority is text, so ordering it in SQL sorts alphabetically
+    // (high, low, normal, urgent) and buries urgent work. Rank it explicitly.
+    const priorityRank = { urgent: 0, high: 1, normal: 2, low: 3 };
+    const tasks = (await tasksResponse.json())
+      .sort((a, b) => a.due_date.localeCompare(b.due_date)
+        || ((priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9)));
     if (!tasks.length) return { sent: false, taskCount: 0, reason: 'nothing_due' };
 
     // Claim the Sydney calendar day before sending, preventing duplicate mail
@@ -103,7 +108,9 @@ async function sendTaskDigest({ supabaseUrl, serviceKey, origin, now }) {
     const sectionsHtml = sections.map(section => `<tr><td style="padding:18px 28px 8px"><div style="font:700 12px Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;color:${section.colour}">${section.title} (${section.rows.length})</div></td></tr><tr><td style="padding:0 28px 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${section.rows.map(task => `<tr><td style="padding:12px 0;border-bottom:1px solid #e6e9ef;vertical-align:top"><div style="font:700 14px Arial,sans-serif;color:#323338">${escapeHtml(task.title)}</div>${task.description ? `<div style="font:12px/1.45 Arial,sans-serif;color:#676879;margin-top:3px">${escapeHtml(task.description)}</div>` : ''}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid #e6e9ef;vertical-align:top;white-space:nowrap"><div style="font:700 13px Arial,sans-serif;color:#323338">${escapeHtml(task.assignee)}</div><div style="font:12px Arial,sans-serif;color:#676879;margin-top:3px">${dateLabel(task.due_date)}</div><div style="font:700 10px Arial,sans-serif;text-transform:uppercase;color:${priorityColour[task.priority] || '#0073ea'};margin-top:5px">${escapeHtml(task.priority)}</div></td></tr>`).join('')}</table></td></tr>`).join('');
     const html = `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:24px 28px;border-bottom:3px solid #c9a13b"><div style="font:700 21px Arial,sans-serif;color:#fff">Goldsure Team Tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Daily assignment summary · ${dateLabel(digestDate)}</div></td></tr>${sectionsHtml}<tr><td style="padding:18px 28px 26px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open task board</a></td></tr></table></td></tr></table></body></html>`;
     const text = tasks.map(task => `${task.due_date} | ${task.assignee} | ${task.priority.toUpperCase()} | ${task.title}`).join('\n');
-    const recipients = String(process.env.TODO_DIGEST_RECIPIENTS || 'vignesh@goldsure.com.au,david@goldsure.com.au,amit@goldsure.com.au').split(',').map(item => item.trim()).filter(Boolean);
+    // Every assignable agent gets the digest; Shanira and Alda were previously
+    // omitted from the fallback list and so never received it.
+    const recipients = String(process.env.TODO_DIGEST_RECIPIENTS || 'vignesh@goldsure.com.au,david@goldsure.com.au,amit@goldsure.com.au,shanira@goldsure.com.au,alda@goldsure.com.au').split(',').map(item => item.trim()).filter(Boolean);
     try {
       await sendHostingerMail({ to: recipients, displayName: 'Goldsure Team Tasks', subject: `Team tasks for ${dateLabel(digestDate)} (${tasks.length})`, html, text: `Goldsure team tasks\n\n${text}\n\nOpen: ${origin}/todo/` });
       await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${digestDate}`, { method: 'PATCH', headers: supabaseHeaders(serviceKey, 'return=minimal'), body: JSON.stringify({ sent_at: new Date().toISOString() }) });
