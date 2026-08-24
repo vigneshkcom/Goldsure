@@ -58,9 +58,10 @@
     .card:last-child{margin-bottom:0}
     .card:hover{border-color:#c7cddb}
     .card.dragging{opacity:.45}
-    .card.done .card-title{text-decoration:line-through;color:var(--muted)}
+    .card.done .card-task,.card.done .card-primary.no-customer{text-decoration:line-through;color:var(--muted)}
     .card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-    .card-title{font-weight:600;font-size:13.5px;line-height:1.4}
+    .card-primary{font-weight:700;font-size:15px;line-height:1.35;color:#24283a;overflow-wrap:anywhere}
+    .card-task{font-weight:600;font-size:12.5px;line-height:1.4;color:#50566d;margin-top:5px;overflow-wrap:anywhere}
     .card-desc{font-size:12px;color:var(--muted);line-height:1.45;margin-top:5px;overflow-wrap:anywhere}
     .card-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
     .avatar{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--blue-soft);color:#075ea8;font-weight:700;font-size:10px;flex:none}
@@ -76,8 +77,7 @@
     .kebab{border:0;background:transparent;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:17px;line-height:1;color:var(--muted);flex:none}
     .kebab:hover{background:#eceef3}
     /* Linked GHL customer + note count on the card */
-    .cust{display:flex;align-items:center;gap:6px;margin-top:8px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:7px;padding:6px 8px;font-size:11.5px}
-    .cust .cn{font-weight:700;color:#38405a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cust{display:flex;align-items:center;gap:6px;margin-top:8px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:7px;padding:6px 8px;font-size:11.5px;overflow:hidden}
     .cust a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
     .cust .sep{color:#c3c9d6}
     .notes-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 9px;font:600 11px inherit;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
@@ -209,11 +209,9 @@
     <div class="modal-head"><h2 id="modalTitle">New task</h2><button type="button" class="close" onclick="taskDialog.close()">×</button></div>
     <div class="form">
       <input type="hidden" id="taskId">
-      <div class="field"><label for="title">Task or follow-up</label><input id="title" maxlength="180" required placeholder="e.g. Call customer about installation date"></div>
-      <div class="field"><label for="description">Details</label><textarea id="description" placeholder="Anything the assignee needs to know"></textarea></div>
       <div class="field cust-field">
-        <label for="custSearch">Customer <span style="font-weight:400;color:var(--muted)">(optional · from GHL)</span></label>
-        <input id="custSearch" autocomplete="off" placeholder="Search GHL by name, phone or email…">
+        <label for="custSearch">Customer <span style="font-weight:400;color:var(--muted)">(select from GHL or type any name)</span></label>
+        <input id="custSearch" autocomplete="off" maxlength="180" placeholder="Search GHL or type a customer name…">
         <div class="ghl-results" id="ghlResults"></div>
         <div class="cust-picked" id="custPicked" hidden>
           <div style="min-width:0">
@@ -223,6 +221,8 @@
           <button type="button" class="x" onclick="clearCustomer()" aria-label="Remove customer">×</button>
         </div>
       </div>
+      <div class="field"><label for="title">Task or follow-up</label><input id="title" maxlength="180" required placeholder="e.g. Call about installation date"></div>
+      <div class="field"><label for="description">Details</label><textarea id="description" placeholder="Anything the assignee needs to know"></textarea></div>
       <div class="form-grid">
         <div class="field"><label for="assignee">Assign to</label>
           <div class="assign-row">
@@ -414,14 +414,15 @@
       const cls=x.status==='done'?'':(x.due_date<t?'over':x.due_date===t?'today':'');
       return `<div class="card ${x.status==='done'?'done':''}" draggable="true" data-id="${x.id}">
         <div class="card-top">
-          <div class="card-title">${esc(x.title)}</div>
+          <div class="card-primary ${x.customer_name?'customer-name':'no-customer'}">${esc(x.customer_name||x.title)}</div>
           <button class="kebab" aria-label="Edit task" onclick="openTask('${x.id}')">⋯</button>
         </div>
+        ${x.customer_name?`<div class="card-task">${esc(x.title)}</div>`:''}
         ${x.description?`<div class="card-desc">${esc(x.description)}</div>`:''}
-        ${x.customer_name?`<div class="cust">
-          <span class="cn">${esc(x.customer_name)}</span>
-          ${x.customer_phone?`<span class="sep">·</span><a href="tel:${esc(x.customer_phone)}">${esc(x.customer_phone)}</a>`:''}
-          ${x.ghl_contact_url?`<span class="sep">·</span><a href="${esc(x.ghl_contact_url)}" target="_blank" rel="noopener">GHL</a>`:''}
+        ${x.customer_name&&(x.customer_phone||x.customer_email||x.ghl_contact_url)?`<div class="cust">
+          ${x.customer_phone?`<a href="tel:${esc(x.customer_phone)}">${esc(x.customer_phone)}</a>`:''}
+          ${x.customer_email?`${x.customer_phone?'<span class="sep">·</span>':''}<a href="mailto:${esc(x.customer_email)}">${esc(x.customer_email)}</a>`:''}
+          ${x.ghl_contact_url?`${x.customer_phone||x.customer_email?'<span class="sep">·</span>':''}<a href="${esc(x.ghl_contact_url)}" target="_blank" rel="noopener">GHL</a>`:''}
         </div>`:''}
         <div class="card-meta">
           <span class="avatar" title="${esc(x.assignee)}">${initials(x.assignee)}</span>
@@ -488,10 +489,12 @@
         try{
           const r=await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
           const list=r.ok?await r.json():[];
-          if(!Array.isArray(list)||!list.length){box.innerHTML='<div class="ghl-item info">No matching GHL contacts</div>';return}
-          box.innerHTML=list.map((c,i)=>`<div class="ghl-item" data-i="${i}">
+          const manual=`<div class="ghl-item" data-manual="1"><div class="n">Use “${esc(q)}”</div><div class="s">Create the task with this typed customer name</div></div>`;
+          if(!Array.isArray(list)||!list.length){box.innerHTML=manual;box.querySelector('[data-manual]').onclick=()=>setCustomer({name:q,manual:true});return}
+          box.innerHTML=manual+list.map((c,i)=>`<div class="ghl-item" data-i="${i}">
             <div class="n">${esc(c.name||'—')}</div>
             <div class="s">${esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))}</div></div>`).join('');
+          box.querySelector('[data-manual]').onclick=()=>setCustomer({name:q,manual:true});
           box.querySelectorAll('.ghl-item[data-i]').forEach(el=>{
             el.onclick=()=>setCustomer(list[Number(el.dataset.i)]);
           });
@@ -559,22 +562,24 @@
       if(x&&notesReady)renderNotes(x);
       $('noteInput').value='';
       taskDialog.showModal();
-      setTimeout(()=>(focusNotes&&notesReady?$('noteInput'):$('title')).focus(),50);
+      setTimeout(()=>(focusNotes&&notesReady?$('noteInput'):(x?$('title'):$('custSearch'))).focus(),50);
     }
 
     $('taskForm').onsubmit=async e=>{
       e.preventDefault();
       const id=$('taskId').value;
       const status=$('status').value,done=status==='done';
+      const typedCustomer=$('custSearch').value.trim();
+      const customer=pickedCustomer||(typedCustomer?{name:typedCustomer,manual:true}:null);
       const payload={
         title:$('title').value.trim(),
         description:$('description').value.trim(),
         assignee:isManager()?$('assignee').value:currentUser(),
-        ghl_contact_id:pickedCustomer?.id||null,
-        ghl_contact_url:pickedCustomer?.link||null,
-        customer_name:pickedCustomer?.name||null,
-        customer_phone:pickedCustomer?.phone||null,
-        customer_email:pickedCustomer?.email||null,
+        ghl_contact_id:customer?.id||null,
+        ghl_contact_url:customer?.link||null,
+        customer_name:customer?.name||null,
+        customer_phone:customer?.phone||null,
+        customer_email:customer?.email||null,
         due_date:$('dueDate').value,
         due_time:$('dueTime').value||null,
         priority:$('priority').value,
