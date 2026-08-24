@@ -94,18 +94,39 @@ create table if not exists public.portal_task_notes (
   task_id uuid not null references public.portal_tasks(id) on delete cascade,
   author text not null check (author in ('Vignesh','David','Shanira','Alda','Amit')),
   body text not null check (char_length(trim(body)) between 1 and 2000),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+alter table public.portal_task_notes
+  add column if not exists updated_at timestamptz not null default now();
 
 create index if not exists portal_task_notes_task_idx
   on public.portal_task_notes (task_id, created_at);
 
+create or replace function public.set_portal_task_note_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists portal_task_notes_updated_at on public.portal_task_notes;
+create trigger portal_task_notes_updated_at
+before update on public.portal_task_notes
+for each row execute function public.set_portal_task_note_updated_at();
+
 alter table public.portal_task_notes enable row level security;
 drop policy if exists "portal staff can read notes" on public.portal_task_notes;
 drop policy if exists "portal staff can create notes" on public.portal_task_notes;
+drop policy if exists "portal staff can update notes" on public.portal_task_notes;
+drop policy if exists "portal staff can delete notes" on public.portal_task_notes;
 create policy "portal staff can read notes" on public.portal_task_notes for select using (true);
 create policy "portal staff can create notes" on public.portal_task_notes for insert with check (true);
-grant select, insert on public.portal_task_notes to anon, authenticated;
+create policy "portal staff can update notes" on public.portal_task_notes for update using (true) with check (true);
+create policy "portal staff can delete notes" on public.portal_task_notes for delete using (true);
+grant select, insert, update, delete on public.portal_task_notes to anon, authenticated;
 
 -- ── Daily digest run log (service role only) ───────────────────────────────
 create table if not exists public.portal_task_digest_runs (

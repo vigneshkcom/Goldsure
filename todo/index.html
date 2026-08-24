@@ -54,7 +54,7 @@
     .col-todo .col-dot{background:var(--blue)}.col-followup .col-dot{background:var(--orange)}.col-done .col-dot{background:var(--green)}
     .col-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px}
     .col-count{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:#fff;border-radius:20px;padding:2px 8px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:9px;box-shadow:var(--shadow);cursor:grab}
+    .card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:9px;box-shadow:var(--shadow);cursor:pointer}
     .card:last-child{margin-bottom:0}
     .card:hover{border-color:#c7cddb}
     .card.dragging{opacity:.45}
@@ -130,6 +130,14 @@
     .note:last-child{border-bottom:0}
     .note .body{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
     .note .who{font-size:11px;color:var(--muted);margin-top:3px}
+    .note-main{min-width:0;flex:1}
+    .note-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .note-actions{display:flex;gap:4px;flex:none}
+    .note-actions button{border:0;background:transparent;color:var(--blue);font:inherit;font-size:10.5px;font-weight:600;padding:2px 4px;cursor:pointer}
+    .note-actions button.delete{color:var(--red)}
+    .note-edit{width:100%;min-height:68px;border:1px solid #b8c1d1;border-radius:7px;padding:8px 9px;font:13px/1.45 inherit;resize:vertical}
+    .note-edit-actions{display:flex;gap:7px;margin-top:7px}
+    .note-edit-actions button{height:30px;padding:0 10px;font-size:11px}
     .note-empty{font-size:12px;color:var(--muted);padding:4px 0 10px}
     .note-add{display:flex;gap:8px}
     .note-add input{flex:1}
@@ -278,7 +286,7 @@
     const PRIORITY_RANK={urgent:0,high:1,normal:2,low:3};
     const H={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'};
 
-    let tasks=[],scope='team',notesReady=true,pickedCustomer=null;
+    let tasks=[],scope='team',notesReady=true,pickedCustomer=null,editingNoteId=null;
     const $=id=>document.getElementById(id);
     const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -336,7 +344,7 @@
       try{
         // Pull each task's notes in the same round trip. If the notes table
         // has not been created yet, fall back so the board still works.
-        const withNotes='?select=*,notes:portal_task_notes(id,author,body,created_at)&archived_at=is.null&order=due_date.asc,created_at.desc';
+        const withNotes='?select=*,notes:portal_task_notes(id,author,body,created_at,updated_at)&archived_at=is.null&order=due_date.asc,created_at.desc';
         let r=await api(withNotes);
         if(!r.ok){notesReady=false;r=await api('?select=*&archived_at=is.null&order=due_date.asc,created_at.desc')}
         if(!r.ok)throw new Error(await r.text());
@@ -412,7 +420,7 @@
     function cardHtml(x){
       const t=today();
       const cls=x.status==='done'?'':(x.due_date<t?'over':x.due_date===t?'today':'');
-      return `<div class="card ${x.status==='done'?'done':''}" draggable="true" data-id="${x.id}">
+      return `<div class="card ${x.status==='done'?'done':''}" draggable="true" data-id="${x.id}" onclick="openCard(event,'${x.id}')" aria-label="Open task for ${esc(x.customer_name||x.title)}">
         <div class="card-top">
           <div class="card-primary ${x.customer_name?'customer-name':'no-customer'}">${esc(x.customer_name||x.title)}</div>
           <button class="kebab" aria-label="Edit task" onclick="openTask('${x.id}')">⋯</button>
@@ -428,11 +436,16 @@
           <span class="avatar" title="${esc(x.assignee)}">${initials(x.assignee)}</span>
           <span class="due ${cls}">${fmtDate(x.due_date)}<span class="t">${fmtTime(x.due_time)}</span></span>
           <span class="pill ${x.priority}">${x.priority}</span>
-          ${notesReady?`<button class="notes-btn ${x.notes?.length?'has':''}" onclick="openTask('${x.id}',true)">💬 ${x.notes?.length||0}</button>`:''}
+          ${notesReady?`<button class="notes-btn ${x.notes?.length?'has':''}" onclick="openTask('${x.id}',true)">Notes ${x.notes?.length||0}</button>`:''}
         </div>
         <div class="moves">${COLUMNS.map(c=>
           `<button ${c.id===x.status?'disabled':''} onclick="moveTask('${x.id}','${c.id}')">${c.name}</button>`).join('')}</div>
       </div>`;
+    }
+
+    function openCard(event,id){
+      if(event.target.closest('button,a,input,select,textarea'))return;
+      openTask(id);
     }
 
     // Drag and drop for pointer devices; the per-card move buttons cover touch,
@@ -509,12 +522,35 @@
     function renderNotes(x){
       const list=$('noteList'),notes=x?.notes||[];
       list.innerHTML=notes.length
-        ? notes.map(n=>`<div class="note"><span class="avatar">${initials(n.author)}</span><div>
-            <div class="body">${esc(n.body)}</div>
-            <div class="who">${esc(n.author)} · ${new Date(n.created_at).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Australia/Sydney'})}</div>
+        ? notes.map(n=>`<div class="note"><span class="avatar">${initials(n.author)}</span><div class="note-main">
+            ${editingNoteId===n.id?`<textarea class="note-edit" id="noteEditInput" maxlength="2000">${esc(n.body)}</textarea>
+              <div class="note-edit-actions"><button type="button" class="btn btn-primary" onclick="saveNote('${n.id}')">Save</button><button type="button" class="btn btn-light" onclick="cancelEditNote()">Cancel</button></div>`:
+              `<div class="note-head"><div class="body">${esc(n.body)}</div><div class="note-actions"><button type="button" onclick="startEditNote('${n.id}')">Edit</button><button type="button" class="delete" onclick="deleteNote('${n.id}')">Delete</button></div></div>
+              <div class="who">${esc(n.author)} · ${new Date(n.created_at).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Australia/Sydney'})}${n.updated_at&&new Date(n.updated_at)-new Date(n.created_at)>1000?' · Edited':''}</div>`}
           </div></div>`).join('')
         : '<div class="note-empty">No notes yet.</div>';
       list.scrollTop=list.scrollHeight;
+    }
+
+    function currentModalTask(){return tasks.find(t=>String(t.id)===String($('taskId').value))}
+    function startEditNote(id){editingNoteId=id;renderNotes(currentModalTask());setTimeout(()=>$('noteEditInput')?.focus(),20)}
+    function cancelEditNote(){editingNoteId=null;renderNotes(currentModalTask())}
+    async function saveNote(id){
+      const body=$('noteEditInput')?.value.trim();if(!body)return toast('Note cannot be empty');
+      try{
+        const r=await fetch(`${SB_URL}/rest/v1/portal_task_notes?id=eq.${id}`,{method:'PATCH',headers:{...H,Prefer:'return=representation'},body:JSON.stringify({body})});
+        if(!r.ok)throw new Error(await r.text());
+        const [saved]=await r.json(),x=currentModalTask(),note=x?.notes?.find(n=>n.id===id);
+        if(note)Object.assign(note,saved);editingNoteId=null;renderNotes(x);render();toast('Note updated');
+      }catch(e){toast('Could not update note');console.error(e)}
+    }
+    async function deleteNote(id){
+      if(!confirm('Delete this note? This cannot be undone.'))return;
+      try{
+        const r=await fetch(`${SB_URL}/rest/v1/portal_task_notes?id=eq.${id}`,{method:'DELETE',headers:{...H,Prefer:'return=minimal'}});
+        if(!r.ok)throw new Error(await r.text());
+        const x=currentModalTask();if(x)x.notes=(x.notes||[]).filter(n=>n.id!==id);editingNoteId=null;renderNotes(x);render();toast('Note deleted');
+      }catch(e){toast('Could not delete note');console.error(e)}
     }
     async function addNote(){
       const id=$('taskId').value,body=$('noteInput').value.trim();
@@ -559,7 +595,7 @@
       }:null);
       $('custSearch').value='';
       $('notesSection').hidden=!x||!notesReady;
-      if(x&&notesReady)renderNotes(x);
+      editingNoteId=null;if(x&&notesReady)renderNotes(x);
       $('noteInput').value='';
       taskDialog.showModal();
       setTimeout(()=>(focusNotes&&notesReady?$('noteInput'):(x?$('title'):$('custSearch'))).focus(),50);
