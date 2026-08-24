@@ -192,6 +192,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .badge-accepted  { background: var(--green); }
 .badge-rejected  { background: var(--red); }
 .badge-installed { background: var(--purple); }
+.badge-expired   { background: #7f8795; }
 
 .status-btn { cursor: pointer; position: relative; border: none; background: none; padding: 0; font: inherit; }
 .status-btn:hover .badge { opacity: .86; }
@@ -250,6 +251,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .dot-accepted { background: var(--green); }
 .dot-rejected { background: var(--red); }
 .dot-installed { background: var(--purple); }
+.dot-expired { background: #7f8795; }
 
 /* ── Small labels ── */
 .model-badge {
@@ -355,7 +357,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
     <div class="filter-divider"></div>
     <select class="filter-select" id="filterModel" onchange="applyFilters()"><option value="">All Models</option></select>
     <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
-    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="installed">Installed</option></select>
+    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="expired">Expired</option><option value="installed">Installed</option></select>
     <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
     <button class="clear-btn" onclick="clearFilters()">Clear</button>
     <span class="results-count"><strong id="results-count">0</strong> quotes shown</span>
@@ -405,7 +407,7 @@ const MODEL_LABEL = {
   'ECON-300SV-4.2E':  'ECON-300SV-4.2E — 290L Split System',
   'EG-330FRE-WR':     'EG-330FRE-WR — 330L Split System',
 };
-const STATUSES = ['sent','accepted','rejected','installed'];
+const STATUSES = ['sent','accepted','rejected','expired','installed'];
 
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
@@ -606,7 +608,7 @@ function renderTable(){
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
-    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st]||'badge-sent';
+    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',expired:'badge-expired',installed:'badge-installed'}[st]||'badge-sent';
     const canRemind=st==='sent'&&!!q.customer_email&&!!q.quote_token;
     const menuItems=STATUSES.map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
     const ghlEmail=(q.customer_email||'').toLowerCase().trim();

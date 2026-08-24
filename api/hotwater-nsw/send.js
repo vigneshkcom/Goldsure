@@ -128,7 +128,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
     </td></tr>` : '';
 
   const quoteNo = 'NSW-' + String(q.quote_token || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
-  const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const quoteDate = new Date(q.sent_at || Date.now()).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
   const preheader = `Your Goldsure heat pump hot water quote: ${money(calc.final_price)} installed.`;
 
   return `<!DOCTYPE html>
@@ -270,13 +270,24 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
   const quoteUrl = `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(quote_token)}`;
   const acceptUrl = `${SITE}/hotwater-nsw/accept.html?token=${encodeURIComponent(quote_token)}`;
 
+  const reminderNo = (Number(reminder_count) || 0) + 1;
+  const reminderCopy = reminderNo >= 2
+    ? {
+        subject: 'Final reminder: Your Goldsure NSW hot water quote expires soon',
+        body: 'This is a final reminder that your Goldsure NSW hot water quote is still available. It expires after 21 days from the date it was sent. Please review and accept it online today if you would like to proceed. If you need any changes, reply to this email or call our team on 02 7251 0007.',
+      }
+    : {
+        subject: 'Reminder: Your Goldsure NSW hot water quote is ready',
+        body: 'Just a friendly reminder that your Goldsure NSW hot water quote is ready to review online. If you would like to proceed, click Accept on the quote and our team will call you to arrange the next steps. If you have any questions, reply to this email or call 02 7251 0007.',
+      };
+
   try {
     await sendHostingerMail({
       to: [customer_email],
       bcc: ['info@goldsure.com.au'],
       displayName: 'Goldsure Pty Ltd',
-      subject: 'Reminder: Your Heat Pump Hot Water Quotation – Goldsure',
-      html: buildEmailHtml(body, body, quoteUrl, acceptUrl, email_body),
+      subject: reminderCopy.subject,
+      html: buildEmailHtml(body, body, quoteUrl, acceptUrl, email_body || reminderCopy.body),
     });
   } catch (e) {
     console.error('[NSW HWS] reminder email send failed:', e.message);
@@ -320,7 +331,6 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
       email: customer_email,
     });
     if (found?.contactId) {
-      const reminderNo = (Number(reminder_count) || 0) + 1;
       const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: '2-digit', month: 'short', year: 'numeric' });
       await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
         method: 'POST',

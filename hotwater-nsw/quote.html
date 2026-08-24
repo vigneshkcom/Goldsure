@@ -74,7 +74,7 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 .accept-cta .msg{font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;}
 .accept-btn{display:inline-block;background:var(--gold);color:#1b1405;font-family:inherit;font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:11px;box-shadow:0 5px 16px rgba(176,141,46,.32);transition:.15s;}
 .accept-btn:hover{background:var(--gold-2);}
-.accepted-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf6f0;color:#1f7d52;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;}
+.accepted-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf6f0;color:#1f7d52;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;}.expired-chip{display:block;background:#f1f3f7;color:#596174;border-radius:11px;padding:13px 20px;font-size:13px;line-height:1.65;}.expired-chip a{color:#8b6a12;font-weight:700;}
 .fineprint{padding:20px 30px 0;font-size:10px;color:#aeb4c0;line-height:1.65;}
 .sig{margin:18px 30px 0;padding-top:16px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .sig img{height:34px;width:auto;}
@@ -305,8 +305,14 @@ const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('
 
     // Accept CTA — swapped for a confirmation once the quote has been accepted.
     const cta = document.getElementById('acceptCta');
-    if(q.accepted === true || q.status === 'accepted'){
+    const status = String(q.status || '').toLowerCase();
+    const isExpired = status === 'expired' || Date.now() >= issued.getTime() + 21 * 86400000;
+    if(q.accepted === true || status === 'accepted'){
       cta.innerHTML = '<div class="accepted-chip">✓ You accepted this quote. Our team will be in touch.</div>';
+    }else if(status === 'rejected'){
+      cta.innerHTML = '<div class="expired-chip">This quote has been marked as not proceeding.</div>';
+    }else if(isExpired){
+      cta.innerHTML = '<div class="expired-chip"><strong>This quote has expired.</strong><br>Please call <a href="tel:0272510007">02 7251 0007</a> or email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> for an updated quote.</div>';
     }else{
       document.getElementById('acceptBtn').href = '/hotwater-nsw/accept.html?token=' + encodeURIComponent(q.quote_token);
     }
