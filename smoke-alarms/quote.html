@@ -78,6 +78,15 @@ async function fetchQuote(token){
   try{
     const q=await fetchQuote(token);
     if(!q){show('error');return}
+    // Record one genuine customer open per browser tab/session. Staff previews
+    // opened from the tracker carry source=tracker and are deliberately excluded.
+    const params=new URLSearchParams(location.search);
+    const viewKey=`smoke_quote_viewed_${token}`;
+    if(params.get('source')!=='tracker'&&!sessionStorage.getItem(viewKey)){
+      fetch('/api/smoke-alarms/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'record-view',token})})
+        .then(response=>{if(response.ok)sessionStorage.setItem(viewKey,'1')})
+        .catch(error=>console.warn('Quote view tracking failed',error));
+    }
     const issued=q.sent_at?new Date(q.sent_at):(q.created_at?new Date(q.created_at):new Date());
     const isInstall=q.service_type==='Installation Quote';
     const alarmQty=Number(q.alarm_qty)||0,controllerQty=Number(q.ctrl_qty)||0;
