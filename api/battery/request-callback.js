@@ -1489,8 +1489,8 @@ ${notesHtml}
           const smsText = customSms
             ? customSms
             : is_reminder
-            ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure. Your hot water quote is still ready to review. View your quote online: ${quoteUrl} If you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps. Questions? Reply here or call 03 7050 2846. Thanks!`
-            : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your quote for the ${tank_model || 'heat pump hot water system'} is ready. View your quote online: ${quoteUrl} We have also emailed a copy to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Questions? Reply here or call 03 7050 2846. Thanks!`;
+            ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure.\n\nYour hot water quote is still ready to review.\n\nView your quote online: ${quoteUrl}\n\nIf you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`
+            : `Hi ${custFirst}, ${agentFirst} from Goldsure here.\n\nYour quote for the ${tank_model || 'heat pump hot water system'} is ready.\n\nView your quote online: ${quoteUrl}\n\nWe have also emailed a copy to ${customer_email}.\n\nYour out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
           const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
             method: 'POST',
@@ -1959,8 +1959,8 @@ ${notesHtml}
           const smsText = customSms
             ? customSms
             : is_reminder
-            ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure. Your air conditioning quote is still ready to review. View your quote online: ${quoteUrl} If you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps. Questions? Reply here or call 03 7050 2846. Thanks!`
-            : `Hi ${custFirst}, ${agentFirst} from Goldsure here. Your air conditioning quote is ready. View your quote online: ${quoteUrl} We have also emailed a copy to ${customer_email}. Your out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates. Questions? Reply here or call 03 7050 2846. Thanks!`;
+            ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure.\n\nYour air conditioning quote is still ready to review.\n\nView your quote online: ${quoteUrl}\n\nIf you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`
+            : `Hi ${custFirst}, ${agentFirst} from Goldsure here.\n\nYour air conditioning quote is ready.\n\nView your quote online: ${quoteUrl}\n\nWe have also emailed a copy to ${customer_email}.\n\nYour out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
           const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
             method: 'POST', headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },

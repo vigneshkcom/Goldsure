@@ -116,9 +116,9 @@ async function sendReminderSms(data) {
 
     const smsText = (typeof data.sms_text === 'string' && data.sms_text.trim())
       ? data.sms_text.trim()
-      : `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-        `Just following up on your smoke alarm quote${quoteDetail}. ` +
-        `View and accept it online: ${quoteUrl} ` +
+      : `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd.\n\n` +
+        `Just following up on your smoke alarm quote${quoteDetail}.\n\n` +
+        `View and accept it online: ${quoteUrl}\n\n` +
         `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
     const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
