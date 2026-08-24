@@ -58,7 +58,7 @@ async function getPipelineStages(locationId) {
 
 // ── POST: batch email → stage lookup ───────────────────────────────────────
 
-async function getStageForEmail(email, locationId) {
+async function getStageForEmail(email, locationId, pipelineId) {
   const r = await ghlGetRaw(`/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`);
   if (!r.ok) {
     console.error(`GHL contacts lookup failed for ${email}: HTTP ${r.status}`, r.raw || r.data);
@@ -68,16 +68,20 @@ async function getStageForEmail(email, locationId) {
   const contact = contacts.find(c => (c.email || '').toLowerCase() === email.toLowerCase()) || contacts[0];
   if (!contact) return null;
 
-  const o = await ghlGetRaw(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=1`);
+  const o = await ghlGetRaw(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=20`);
   if (!o.ok) {
     console.error(`GHL opportunities lookup failed for contact ${contact.id}: HTTP ${o.status}`, o.data);
     return null;
   }
-  const opp = o.data?.opportunities?.[0];
+  const opportunities = o.data?.opportunities || [];
+  const matching = pipelineId ? opportunities.filter(item => item.pipelineId === pipelineId) : opportunities;
+  const opp = matching
+    .sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
   if (!opp) return null;
 
   return {
     stage: opp.pipelineStageName || opp.pipelineStage?.name || null,
+    status: opp.status || null,
     stageId: opp.pipelineStageId || opp.pipelineStage?.id || null,
     opportunityId: opp.id || null,
     pipelineId: opp.pipelineId || null,
@@ -137,7 +141,7 @@ export default async function handler(req, res) {
       const batch = unique.slice(i, i + BATCH);
       await Promise.all(batch.map(async (email) => {
         try {
-          const data = await getStageForEmail(email, locationId);
+          const data = await getStageForEmail(email, locationId, pipelineInfo.pipelineId || '');
           if (data && data.stageId && !data.stage && stageMap[data.stageId]) {
             data.stage = stageMap[data.stageId];
           }

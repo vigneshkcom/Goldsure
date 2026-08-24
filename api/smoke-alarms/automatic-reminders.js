@@ -15,6 +15,22 @@ const NSW_AUTOMATION_START = new Date(0);
 // deliberately excluded. Existing reminder_count values are preserved.
 const VIC_AUTOMATION_START = new Date('2026-08-23T14:00:00.000Z');
 
+const BLOCKED_GHL_STAGE_PHRASES = [
+  'not interested',
+  'quote not accepted',
+  'lost',
+  'won',
+  'installed',
+  'completed',
+];
+
+function isBlockedGhlOpportunity(info) {
+  const stage = String(info?.stage || '').trim().toLowerCase();
+  const status = String(info?.status || '').trim().toLowerCase();
+  return ['lost', 'won', 'closed', 'abandoned'].includes(status)
+    || BLOCKED_GHL_STAGE_PHRASES.some(phrase => stage.includes(phrase));
+}
+
 function parseQuoteDate(value) {
   if (!value) return null;
   // Older rows used a Queensland wall-clock string (MM/DD/YYYY HH:mm:ss)
@@ -78,7 +94,38 @@ async function runInBatches(items, batchSize, work) {
   return results;
 }
 
-async function runService({ table, reminderDays, automationStart, sendPath, action, isNsw, supabaseUrl, serviceKey, origin, now }) {
+async function filterDueByGhl({ due, ghlPipeline, ghlEndpoint, origin }) {
+  if (!due.length) return { eligible: [], excluded: 0, unverified: 0 };
+  const emails = [...new Set(due.map(item => String(item.quote.customer_email || '').toLowerCase().trim()).filter(Boolean))];
+  try {
+    const response = await fetch(`${origin}${ghlEndpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ghlPipeline ? { action: 'quote-ghl-stages', pipeline: ghlPipeline, emails } : { emails }),
+    });
+    if (!response.ok) return { eligible: [], excluded: 0, unverified: due.length };
+    const data = await response.json();
+    const map = ghlPipeline ? data?.map : data;
+    if (!map || typeof map !== 'object') return { eligible: [], excluded: 0, unverified: due.length };
+
+    const eligible = [];
+    let excluded = 0, unverified = 0;
+    for (const item of due) {
+      const email = String(item.quote.customer_email || '').toLowerCase().trim();
+      const info = map[email];
+      // Fail closed: if GHL cannot confirm the opportunity and stage, do not
+      // send a reminder that could reach a lost/not-interested customer.
+      if (!info || !info.stage) { unverified += 1; continue; }
+      if (isBlockedGhlOpportunity(info)) { excluded += 1; continue; }
+      eligible.push(item);
+    }
+    return { eligible, excluded, unverified };
+  } catch (_) {
+    return { eligible: [], excluded: 0, unverified: due.length };
+  }
+}
+
+async function runService({ table, reminderDays, automationStart, sendPath, action, isNsw, ghlPipeline, ghlEndpoint, supabaseUrl, serviceKey, origin, now }) {
   const quotesResponse = await fetch(
     `${supabaseUrl}/rest/v1/${table}?select=*&status=eq.sent&order=sent_at.asc&limit=1000`,
     { headers: supabaseHeaders(serviceKey) }
@@ -115,7 +162,8 @@ async function runService({ table, reminderDays, automationStart, sendPath, acti
     return response.ok;
   });
 
-  const reminderResults = await runInBatches(due, 4, async ({ quote, reminderNumber }) => {
+  const ghlCheck = await filterDueByGhl({ due, ghlPipeline, ghlEndpoint, origin });
+  const reminderResults = await runInBatches(ghlCheck.eligible, 4, async ({ quote, reminderNumber }) => {
     const claimedAt = new Date().toISOString();
     try {
       if (!await claimReminder(supabaseUrl, serviceKey, table, quote, reminderNumber, claimedAt)) return { state: 'duplicate' };
@@ -141,6 +189,8 @@ async function runService({ table, reminderDays, automationStart, sendPath, acti
     remindersSent: count('sent'),
     duplicatesSkipped: count('duplicate'),
     remindersFailed: count('failed'),
+    ghlExcluded: ghlCheck.excluded,
+    ghlUnverifiedSkipped: ghlCheck.unverified,
     invalidDates,
   };
 }
@@ -163,10 +213,10 @@ export default async function handler(req, res) {
   const origin = (process.env.SITE_URL || `https://${req.headers.host}`).replace(/\/$/, '');
   try {
     const [smoke, nsw, vicHotwater, vicAircon] = await Promise.all([
-      runService({ table: 'quote_emails', reminderDays: REMINDER_DAYS, automationStart: AUTOMATION_START, sendPath: '/api/smoke-alarms/send-reminder', isNsw: false, supabaseUrl, serviceKey, origin, now }),
-      runService({ table: 'nsw_hws_quotes', reminderDays: NSW_REMINDER_DAYS, automationStart: NSW_AUTOMATION_START, sendPath: '/api/hotwater-nsw/send', isNsw: true, supabaseUrl, serviceKey, origin, now }),
-      runService({ table: 'hotwater_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'hws-quote', isNsw: false, supabaseUrl, serviceKey, origin, now }),
-      runService({ table: 'aircon_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'aircon-quote', isNsw: false, supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'quote_emails', reminderDays: REMINDER_DAYS, automationStart: AUTOMATION_START, sendPath: '/api/smoke-alarms/send-reminder', isNsw: false, ghlEndpoint: '/api/smoke-alarms/ghl', supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'nsw_hws_quotes', reminderDays: NSW_REMINDER_DAYS, automationStart: NSW_AUTOMATION_START, sendPath: '/api/hotwater-nsw/send', isNsw: true, ghlPipeline: 'hotwater-nsw', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'hotwater_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'hws-quote', isNsw: false, ghlPipeline: 'hotwater', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'aircon_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'aircon-quote', isNsw: false, ghlPipeline: 'aircon', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
     ]);
     return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, completed_at: new Date().toISOString() });
   } catch (error) {
