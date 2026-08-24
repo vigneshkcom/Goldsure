@@ -2466,9 +2466,13 @@ ${notesHtml}
           const opps = (await oRes.json()).opportunities || [];
           if (!opps.length) return;
           const inPipe = pipelineId ? opps.filter(o => o.pipelineId === pipelineId) : [];
-          const opp = (inPipe.length ? inPipe : opps).sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
+          // Never substitute an opportunity from another product pipeline. A
+          // missing match must remain unverified so reminder sends fail closed.
+          if (pipelineId && !inPipe.length) return;
+          const opp = (pipelineId ? inPipe : opps).sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
           map[email] = {
             stage: opp.pipelineStageName || stageNameById[opp.pipelineStageId] || opp.pipelineStage?.name || null,
+            status: opp.status || null,
             stageId: opp.pipelineStageId || null,
             opportunityId: opp.id || null,
             pipelineId: opp.pipelineId || null,
