@@ -71,6 +71,10 @@
             ${icon('<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>')}
             <span>Text Message</span>
           </a>
+          <a class="internal-nav-home" href="/todo/">
+            ${icon('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>')}
+            <span>Team Tasks</span>
+          </a>
         </div>
         ${groupMarkup}
       </nav>

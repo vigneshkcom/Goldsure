@@ -1,3 +1,5 @@
+import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 export const config = { maxDuration: 300 };
 
 const DAY_MS = 86400000;
@@ -54,6 +56,66 @@ function supabaseHeaders(serviceKey, prefer) {
     'Content-Type': 'application/json',
     ...(prefer ? { Prefer: prefer } : {}),
   };
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function addCalendarDays(dateText, days) {
+  const [year, month, day] = dateText.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return date.toISOString().slice(0, 10);
+}
+
+async function sendTaskDigest({ supabaseUrl, serviceKey, origin, now }) {
+  try {
+    const digestDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now);
+    const horizon = addCalendarDays(digestDate, 7);
+    const tasksResponse = await fetch(
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,priority&status=eq.open&archived_at=is.null&due_date=lte.${horizon}&order=due_date.asc,priority.asc`,
+      { headers: supabaseHeaders(serviceKey) }
+    );
+    if (!tasksResponse.ok) return { sent: false, error: 'task_table_unavailable' };
+    const tasks = await tasksResponse.json();
+    if (!tasks.length) return { sent: false, taskCount: 0, reason: 'nothing_due' };
+
+    // Claim the Sydney calendar day before sending, preventing duplicate mail
+    // if Vercel retries the cron invocation.
+    const claimResponse = await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs`, {
+      method: 'POST',
+      headers: supabaseHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
+      body: JSON.stringify({ digest_date: digestDate, task_count: tasks.length }),
+    });
+    if (!claimResponse.ok) return { sent: false, error: 'digest_claim_failed' };
+    const claimed = await claimResponse.json();
+    if (!claimed.length) return { sent: false, taskCount: tasks.length, reason: 'already_sent' };
+
+    const priorityColour = { urgent: '#d83a52', high: '#c26b00', normal: '#0073ea', low: '#087657' };
+    const dateLabel = value => new Date(`${value}T00:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const sections = [
+      { title: 'Overdue', rows: tasks.filter(task => task.due_date < digestDate), colour: '#d83a52' },
+      { title: 'Due today', rows: tasks.filter(task => task.due_date === digestDate), colour: '#0073ea' },
+      { title: 'Coming up', rows: tasks.filter(task => task.due_date > digestDate), colour: '#00a86b' },
+    ].filter(section => section.rows.length);
+    const sectionsHtml = sections.map(section => `<tr><td style="padding:18px 28px 8px"><div style="font:700 12px Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;color:${section.colour}">${section.title} (${section.rows.length})</div></td></tr><tr><td style="padding:0 28px 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${section.rows.map(task => `<tr><td style="padding:12px 0;border-bottom:1px solid #e6e9ef;vertical-align:top"><div style="font:700 14px Arial,sans-serif;color:#323338">${escapeHtml(task.title)}</div>${task.description ? `<div style="font:12px/1.45 Arial,sans-serif;color:#676879;margin-top:3px">${escapeHtml(task.description)}</div>` : ''}</td><td align="right" style="padding:12px 0 12px 16px;border-bottom:1px solid #e6e9ef;vertical-align:top;white-space:nowrap"><div style="font:700 13px Arial,sans-serif;color:#323338">${escapeHtml(task.assignee)}</div><div style="font:12px Arial,sans-serif;color:#676879;margin-top:3px">${dateLabel(task.due_date)}</div><div style="font:700 10px Arial,sans-serif;text-transform:uppercase;color:${priorityColour[task.priority] || '#0073ea'};margin-top:5px">${escapeHtml(task.priority)}</div></td></tr>`).join('')}</table></td></tr>`).join('');
+    const html = `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:24px 28px;border-bottom:3px solid #c9a13b"><div style="font:700 21px Arial,sans-serif;color:#fff">Goldsure Team Tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Daily assignment summary · ${dateLabel(digestDate)}</div></td></tr>${sectionsHtml}<tr><td style="padding:18px 28px 26px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open task board</a></td></tr></table></td></tr></table></body></html>`;
+    const text = tasks.map(task => `${task.due_date} | ${task.assignee} | ${task.priority.toUpperCase()} | ${task.title}`).join('\n');
+    const recipients = String(process.env.TODO_DIGEST_RECIPIENTS || 'vignesh@goldsure.com.au,david@goldsure.com.au,amit@goldsure.com.au').split(',').map(item => item.trim()).filter(Boolean);
+    try {
+      await sendHostingerMail({ to: recipients, displayName: 'Goldsure Team Tasks', subject: `Team tasks for ${dateLabel(digestDate)} (${tasks.length})`, html, text: `Goldsure team tasks\n\n${text}\n\nOpen: ${origin}/todo/` });
+      await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${digestDate}`, { method: 'PATCH', headers: supabaseHeaders(serviceKey, 'return=minimal'), body: JSON.stringify({ sent_at: new Date().toISOString() }) });
+      return { sent: true, taskCount: tasks.length, recipients: recipients.length };
+    } catch (error) {
+      await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${digestDate}&sent_at=is.null`, { method: 'DELETE', headers: supabaseHeaders(serviceKey, 'return=minimal') }).catch(() => {});
+      return { sent: false, taskCount: tasks.length, error: 'email_failed' };
+    }
+  } catch (error) {
+    console.error('[Task digest]', error);
+    return { sent: false, error: 'unexpected_error' };
+  }
 }
 
 async function claimReminder(supabaseUrl, serviceKey, table, quote, reminderNumber, claimedAt) {
@@ -215,13 +277,14 @@ export default async function handler(req, res) {
   const now = new Date();
   const origin = (process.env.SITE_URL || `https://${req.headers.host}`).replace(/\/$/, '');
   try {
-    const [smoke, nsw, vicHotwater, vicAircon] = await Promise.all([
+    const [smoke, nsw, vicHotwater, vicAircon, taskDigest] = await Promise.all([
       runService({ table: 'quote_emails', reminderDays: REMINDER_DAYS, automationStart: AUTOMATION_START, sendPath: '/api/smoke-alarms/send-reminder', isNsw: false, ghlEndpoint: '/api/smoke-alarms/ghl', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'nsw_hws_quotes', reminderDays: NSW_REMINDER_DAYS, automationStart: NSW_AUTOMATION_START, sendPath: '/api/hotwater-nsw/send', isNsw: true, ghlPipeline: 'hotwater-nsw', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'hotwater_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'hws-quote', isNsw: false, ghlPipeline: 'hotwater', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'aircon_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'aircon-quote', isNsw: false, ghlPipeline: 'aircon', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
+      sendTaskDigest({ supabaseUrl, serviceKey, origin, now }),
     ]);
-    return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, completed_at: new Date().toISOString() });
+    return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, taskDigest, completed_at: new Date().toISOString() });
   } catch (error) {
     console.error('[Automatic reminders]', error);
     return res.status(502).json({ error: 'Could not process automatic reminders.' });
