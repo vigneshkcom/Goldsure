@@ -304,7 +304,7 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
         const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
         const smsText = (typeof sms_text === 'string' && sms_text.trim())
           ? sms_text.trim()
-          : `Hi ${custFirst}, this is ${agentFirst} from Goldsure. We recently emailed your quote to ${customer_email}. If you are happy to proceed, click Accept on your quote and we will give you a call to arrange the next steps. Otherwise, please reply YES or NO to let us know how you would like to proceed. Thank you.`;
+          : `Hi ${custFirst}, this is ${agentFirst} from Goldsure. Your NSW hot water quote is still ready to review. View your quote online: ${quoteUrl} If you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps. Questions? Reply here or call 02 7251 0007. Thanks!`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
           method: 'POST',
@@ -493,7 +493,7 @@ export default async function handler(req, res) {
       if (smsUser && smsPass && !(await isOptedOut(smsPhone, SUPABASE_URL, SUPABASE_KEY))) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
-        const smsText = `Hi ${first}, your Goldsure heat pump quote is ready. Your total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}. View your quote here: ${quoteUrl}`;
+        const smsText = `Hi ${first}, your Goldsure heat pump quote is ready. Your total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}. View your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
           method: 'POST',
