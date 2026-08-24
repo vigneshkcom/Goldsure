@@ -294,6 +294,9 @@
     .chat-name-lg { font-weight: 700; font-size: 16px; }
     .chat-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.2px; }
     .header-actions { display: flex; gap: 8px; }
+    .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
+    .create-task-btn:hover { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 4px 12px rgba(115,103,240,.22); }
+    .create-task-btn svg { flex: none; }
 
     /* Messages */
     .messages {
@@ -409,6 +412,43 @@
     .name-opt { display: block; width: 100%; margin-bottom: 8px; background: var(--purple-soft); color: var(--purple); border: 1px solid transparent; padding: 11px; border-radius: 9px; font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.12s; }
     .name-opt:hover { background: var(--purple); color: #fff; }
     .name-opt:last-child { margin-bottom: 0; }
+
+    /* ── Create task from the active customer conversation ── */
+    .task-create-dialog { width: min(610px,calc(100vw - 28px)); max-height: 92dvh; margin: auto; padding: 0; border: 1px solid rgba(226,224,238,.95); border-radius: 17px; color: var(--text); background: #fff; overflow: hidden; box-shadow: 0 28px 85px rgba(35,31,55,.3),0 5px 18px rgba(35,31,55,.12); }
+    .task-create-dialog::backdrop { background: rgba(35,31,55,.55); backdrop-filter: blur(3px); }
+    .task-create-form { display: flex; flex-direction: column; max-height: 92dvh; }
+    .task-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 21px 23px 18px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg,#fff 0%,#f7f5ff 100%); }
+    .task-modal-title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+    .task-modal-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg,var(--purple),var(--purple-dark)); color: #fff; box-shadow: 0 6px 16px rgba(115,103,240,.24); flex: none; }
+    .task-modal-icon svg { width: 19px; height: 19px; }
+    .task-modal-kicker { margin-bottom: 3px; color: var(--purple); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .task-modal-head h2 { font-size: 19px; line-height: 1.25; }
+    .task-modal-head p { margin-top: 4px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+    .task-modal-close { width: 33px; height: 33px; display: grid; place-items: center; flex: none; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted); font: 400 22px/1 'Inter',sans-serif; cursor: pointer; }
+    .task-modal-close:hover { border-color: var(--border); background: #fff; color: var(--text); }
+    .task-modal-body { padding: 20px 23px 5px; overflow-y: auto; overscroll-behavior: contain; }
+    .task-customer { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 13px 14px; border: 1px solid #ddd9fa; border-radius: 12px; background: linear-gradient(135deg,var(--purple-soft),#fff 82%); }
+    .task-customer-avatar { width: 38px; height: 38px; display: grid; place-items: center; flex: none; border-radius: 50%; background: var(--purple); color: #fff; font-size: 11px; font-weight: 700; }
+    .task-customer-main { min-width: 0; flex: 1; }
+    .task-customer-label { margin-bottom: 3px; color: var(--purple); font-size: 9.5px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
+    .task-customer-name { width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 700 14.5px 'Inter',sans-serif; }
+    .task-customer-phone { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+    .task-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 13px; }
+    .task-field { margin-bottom: 15px; }
+    .task-field.full { grid-column: 1/-1; }
+    .task-field label { display: block; margin-bottom: 6px; color: #4c485d; font-size: 11.5px; font-weight: 700; }
+    .task-field input,.task-field textarea,.task-field select { width: 100%; padding: 10px 11px; border: 1px solid #d8d5e2; border-radius: 9px; outline: 0; background: #fff; color: var(--text); font: 13px 'Inter',sans-serif; transition: border-color .15s,box-shadow .15s; }
+    .task-field textarea { min-height: 78px; resize: vertical; line-height: 1.5; }
+    .task-field input:hover,.task-field textarea:hover,.task-field select:hover { border-color: #bdb7d2; }
+    .task-field input:focus,.task-field textarea:focus,.task-field select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(115,103,240,.12); }
+    .task-field .task-hint { margin-top: 5px; color: var(--muted); font-size: 10.5px; line-height: 1.35; }
+    .task-modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 23px; border-top: 1px solid var(--border); background: #fff; box-shadow: 0 -8px 22px rgba(47,43,61,.04); }
+    .task-modal-btn { height: 40px; min-width: 92px; padding: 0 15px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); font: 600 12.5px 'Inter',sans-serif; cursor: pointer; }
+    .task-modal-btn.primary { min-width: 112px; border-color: var(--purple); background: var(--purple); color: #fff; }
+    .task-modal-btn.primary:hover { background: var(--purple-dark); }
+    .task-modal-btn:disabled { opacity: .6; cursor: wait; }
+    .task-created-toast { position: fixed; right: 22px; bottom: 22px; z-index: 130; padding: 11px 15px; border-radius: 9px; background: #2f2b3d; color: #fff; box-shadow: 0 8px 28px rgba(47,43,61,.25); font-size: 12.5px; transform: translateY(70px); opacity: 0; pointer-events: none; transition: .2s; }
+    .task-created-toast.show { transform: none; opacity: 1; }
 
     /* ── Dashboard ───────────────────────────────────────────── */
     .dash-btn {
@@ -741,6 +781,23 @@
       .back-btn { display: inline-flex; }
       .msg-group { max-width: 85%; }
     }
+    @media (max-width: 560px) {
+      .chat-header { gap: 8px; padding: 12px 13px; }
+      .chat-header .avatar { width: 38px; height: 38px; }
+      .create-task-btn { width: 40px; padding: 0; justify-content: center; }
+      .create-task-btn span { display: none; }
+      .header-actions { gap: 5px; }
+      .task-create-dialog { width: calc(100vw - 16px); max-height: 94dvh; border-radius: 15px; }
+      .task-create-form { max-height: 94dvh; }
+      .task-modal-head { padding: 18px 16px 16px; }
+      .task-modal-head p { display: none; }
+      .task-modal-body { padding: 16px 14px 3px; }
+      .task-fields { grid-template-columns: 1fr; }
+      .task-field.full { grid-column: auto; }
+      .task-modal-actions { padding: 12px 14px; }
+      .task-modal-btn { min-width: 0; }
+      .task-created-toast { left: 14px; right: 14px; bottom: 14px; text-align: center; }
+    }
   </style>
   <!-- Purple tile + white chat bubble favicon so the SMS portal's tab is easy to spot -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Cpath d='M6 8h20c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-9l-4 4v-4H6c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z' fill='white'/%3E%3C/svg%3E">
@@ -850,6 +907,10 @@
           <div class="chat-sub"><span id="chatSubPhone"></span>SMS · via SMS Gate <span id="chatChips"></span></div>
         </div>
         <div class="header-actions">
+          <button class="create-task-btn" onclick="openCreateTask()" title="Create a task for this customer">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Create task</span>
+          </button>
           <button class="icon-btn" onclick="reloadMessages()" title="Refresh">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
@@ -1013,14 +1074,140 @@
   </div>
 </div>
 
+<dialog class="task-create-dialog" id="taskCreateDialog">
+  <form class="task-create-form" id="taskCreateForm" onsubmit="createCustomerTask(event)">
+    <div class="task-modal-head">
+      <div class="task-modal-title">
+        <span class="task-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <div><div class="task-modal-kicker">Team task</div><h2>Create task for this customer</h2><p>The customer and SMS conversation are linked automatically.</p></div>
+      </div>
+      <button type="button" class="task-modal-close" onclick="taskCreateDialog.close()" aria-label="Close">×</button>
+    </div>
+    <div class="task-modal-body">
+      <div class="task-customer">
+        <span class="task-customer-avatar" id="taskCustomerAvatar"></span>
+        <div class="task-customer-main">
+          <div class="task-customer-label">Customer from this conversation</div>
+          <input class="task-customer-name" id="taskCustomerName" maxlength="180" aria-label="Customer name" required>
+          <div class="task-customer-phone" id="taskCustomerPhone"></div>
+        </div>
+      </div>
+      <div class="task-fields">
+        <div class="task-field full"><label for="taskTitle">Task or follow-up</label><input id="taskTitle" maxlength="180" required placeholder="What needs to be done?"></div>
+        <div class="task-field full"><label for="taskDescription">Details</label><textarea id="taskDescription" placeholder="Add any context from the conversation"></textarea></div>
+        <div class="task-field"><label for="taskCreatedBy">Creating as</label><select id="taskCreatedBy" required onchange="document.getElementById('taskAssignee').value=this.value"></select></div>
+        <div class="task-field"><label for="taskAssignee">Assign to</label><select id="taskAssignee" required></select></div>
+        <div class="task-field"><label for="taskDueDate">Due date</label><input id="taskDueDate" type="date" required></div>
+        <div class="task-field"><label for="taskDueTime">Due time <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input id="taskDueTime" type="time"><div class="task-hint">If set, the assignee is emailed at this time.</div></div>
+        <div class="task-field full"><label for="taskPriority">Priority</label><select id="taskPriority"><option value="urgent">Urgent</option><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></div>
+      </div>
+    </div>
+    <div class="task-modal-actions">
+      <button type="button" class="task-modal-btn" onclick="taskCreateDialog.close()">Cancel</button>
+      <button type="submit" class="task-modal-btn primary" id="taskCreateBtn">Create task</button>
+    </div>
+  </form>
+</dialog>
+<div class="task-created-toast" id="taskCreatedToast"></div>
+
 <script>
   const API = '/api/battery/request-callback';
   const AGENT_NAME = 'Goldsure';
   const DEFAULT_TITLE = 'SMS – Goldsure';
   const FAVICON = "/assets/gs-favicon-96px.png";
+  const TASK_SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
+  const TASK_SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
+  const TASK_PEOPLE = ['Vignesh','David','Shanira','Alda','Amit'];
   let activePhone = null;
+  let taskCustomerPhone = null;
   let pollTimer = null;
   let allContacts = [];
+
+  function sydneyTaskDate() {
+    const parts = new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Sydney',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const get = type => (parts.find(p => p.type === type) || {}).value || '';
+    return `${get('year')}-${get('month')}-${get('day')}`;
+  }
+
+  function showTaskCreatedToast(message) {
+    const el = document.getElementById('taskCreatedToast');
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(showTaskCreatedToast.timer);
+    showTaskCreatedToast.timer = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  function openCreateTask() {
+    if (!activePhone) return alert('Open a customer conversation first.');
+    taskCustomerPhone = activePhone;
+    const info = ghlInfo[activePhone] || {};
+    const customerName = (ghlNames[activePhone] || info.name || activePhone).trim();
+    const savedStaff = (localStorage.getItem('staffFirstName') || '').trim();
+    const currentStaff = TASK_PEOPLE.includes(savedStaff) ? savedStaff : 'Vignesh';
+    const options = TASK_PEOPLE.map(name => `<option value="${name}">${name}</option>`).join('');
+    document.getElementById('taskCreatedBy').innerHTML = options;
+    document.getElementById('taskAssignee').innerHTML = options;
+    document.getElementById('taskCreatedBy').value = currentStaff;
+    document.getElementById('taskAssignee').value = currentStaff;
+    document.getElementById('taskCustomerName').value = customerName;
+    document.getElementById('taskCustomerPhone').textContent = activePhone;
+    document.getElementById('taskCustomerAvatar').textContent = nameInitials(customerName === activePhone ? '' : customerName,activePhone);
+    document.getElementById('taskTitle').value = 'Follow up - SMS conversation';
+    document.getElementById('taskDescription').value = '';
+    document.getElementById('taskDueDate').value = sydneyTaskDate();
+    document.getElementById('taskDueTime').value = '';
+    document.getElementById('taskPriority').value = 'normal';
+    document.getElementById('taskCreateBtn').disabled = false;
+    document.getElementById('taskCreateBtn').textContent = 'Create task';
+    document.getElementById('taskCreateDialog').showModal();
+    setTimeout(() => document.getElementById('taskTitle').select(),50);
+  }
+
+  async function createCustomerTask(event) {
+    event.preventDefault();
+    if (!taskCustomerPhone) return;
+    const button = document.getElementById('taskCreateBtn');
+    const createdBy = document.getElementById('taskCreatedBy').value;
+    const assignee = document.getElementById('taskAssignee').value;
+    const info = ghlInfo[taskCustomerPhone] || {};
+    const payload = {
+      title: document.getElementById('taskTitle').value.trim(),
+      description: document.getElementById('taskDescription').value.trim(),
+      assignee,
+      created_by: createdBy,
+      due_date: document.getElementById('taskDueDate').value,
+      due_time: document.getElementById('taskDueTime').value || null,
+      priority: document.getElementById('taskPriority').value,
+      status: 'todo',
+      ghl_contact_id: info.contactId || null,
+      ghl_contact_url: info.link || null,
+      customer_name: document.getElementById('taskCustomerName').value.trim(),
+      customer_phone: taskCustomerPhone,
+      customer_email: null,
+    };
+    button.disabled = true;
+    button.textContent = 'Creating…';
+    try {
+      const response = await fetch(`${TASK_SB_URL}/rest/v1/portal_tasks`,{
+        method:'POST',
+        headers:{apikey:TASK_SB_KEY,Authorization:`Bearer ${TASK_SB_KEY}`,'Content-Type':'application/json',Prefer:'return=representation'},
+        body:JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      localStorage.setItem('staffFirstName',createdBy);
+      document.getElementById('taskCreateDialog').close();
+      showTaskCreatedToast(`Task created and assigned to ${assignee}.`);
+    } catch (error) {
+      console.error('[Create task]',error);
+      alert('The task could not be created. Please try again.');
+      button.disabled = false;
+      button.textContent = 'Create task';
+    }
+  }
+
+  document.getElementById('taskCreateDialog').addEventListener('click',event => {
+    if (event.target === event.currentTarget) event.currentTarget.close();
+  });
 
   // ── Egress control ──────────────────────────────────────────────────────────
   // Poll faster when the tab is being watched, slower when it's in the background.
