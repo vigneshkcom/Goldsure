@@ -111,14 +111,15 @@ async function sendReminderSms(data) {
     const quoteDetail = (isInstall && alarmCount > 0)
       ? ` for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'}, total ${totalDisplay}`
       : `, total ${totalDisplay}`;
+    const baseUrl = (process.env.SITE_URL || 'https://portal.goldsure.com.au').replace(/\/$/, '');
+    const quoteUrl = `${baseUrl}/smoke-alarms/quote.html?token=${encodeURIComponent(data.quote_token)}`;
 
     const smsText = (typeof data.sms_text === 'string' && data.sms_text.trim())
       ? data.sms_text.trim()
       : `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-        `Just following up on the quote we emailed to ${data.customer_email}${quoteDetail}.\n\n` +
-        `When you are ready to proceed, you can accept the quote from the email and we will contact you to arrange a booking. If you are not interested, just reply NO or tap 'Reject this quote' in the email and we will close it off.\n\n` +
-        `If you have any questions or would like us to resend the quote, just reply here or call us on 07 2145 5155.\n\n` +
-        `Thanks,\nGoldsure Pty Ltd`;
+        `Just following up on your smoke alarm quote${quoteDetail}. ` +
+        `View and accept it online: ${quoteUrl} ` +
+        `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
     const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
     const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
@@ -394,6 +395,7 @@ export default async function handler(req, res) {
       alarm_qty,
       grand_total,
       grand_total_numeric,
+      quote_token,
       sms_text,
     });
 

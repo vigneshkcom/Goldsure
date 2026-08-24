@@ -68,9 +68,10 @@ export default async function handler(req, res) {
   const quotedGrandTotal = money(finalTotalNumeric);
 
   // ── Build Accept Quote URL using token ──
-  const baseUrl   = process.env.SITE_URL || 'https://www.goldsure.com.au';
+  const baseUrl   = (process.env.SITE_URL || 'https://portal.goldsure.com.au').replace(/\/$/, '');
   const token     = quote_token || crypto.randomUUID();
   const acceptUrl = `${baseUrl}/accept-quote.html?token=${token}`;
+  const quoteUrl  = `${baseUrl}/smoke-alarms/quote.html?token=${encodeURIComponent(token)}`;
 
   // ── Phone display in email ──
   const phoneDisplay = customer_phone
@@ -367,10 +368,9 @@ export default async function handler(req, res) {
           : `Your smoke alarm quote (${quotedGrandTotal} total)`;
         const smsText =
           `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-          `${quoteSummary} has just been emailed to ${to_email}. ` +
-          `Please check your inbox and your spam/junk folder. ` +
-          `Ready to proceed? Just tap Accept This Quote at the bottom of the email and we'll call you to book it in. ` +
-          `If that email address is wrong or you can't find it, reply here or call us on 07 2145 5155 and we'll resend it. Thanks!`;
+          `${quoteSummary} is ready. View and accept your quote online: ${quoteUrl} ` +
+          `We have also emailed a copy to ${to_email}. ` +
+          `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
         const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
