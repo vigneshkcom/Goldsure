@@ -75,7 +75,7 @@ async function sendTaskDigest({ supabaseUrl, serviceKey, origin, now }) {
     }).format(now);
     const horizon = addCalendarDays(digestDate, 7);
     const tasksResponse = await fetch(
-      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,priority&status=eq.open&archived_at=is.null&due_date=lte.${horizon}&order=due_date.asc`,
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,due_time,priority&status=in.(todo,followup)&archived_at=is.null&due_date=lte.${horizon}&order=due_date.asc`,
       { headers: supabaseHeaders(serviceKey) }
     );
     if (!tasksResponse.ok) return { sent: false, error: 'task_table_unavailable' };
