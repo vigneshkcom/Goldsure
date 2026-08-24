@@ -2,9 +2,19 @@ export const config = { maxDuration: 300 };
 
 const DAY_MS = 86400000;
 const REMINDER_DAYS = [7, 14, 20];
+// Only quotes sent after the user approved automation are eligible. Existing
+// quotes must never be reminded or expired by this job.
+const AUTOMATION_START = new Date('2026-08-24T06:20:32.673Z');
 
 function parseQuoteDate(value) {
   if (!value) return null;
+  // Older rows used a Queensland wall-clock string (MM/DD/YYYY HH:mm:ss)
+  // without a timezone. Interpret those as AEST rather than Vercel's UTC.
+  const legacy = String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (legacy) {
+    const [, month, day, year, hour, minute, second] = legacy.map(Number);
+    return new Date(Date.UTC(year, month - 1, day, hour - 10, minute, second));
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -90,6 +100,7 @@ export default async function handler(req, res) {
   for (const quote of quotes) {
     const issued = parseQuoteDate(quote.sent_at || quote.created_at);
     if (!issued) { invalidDates += 1; continue; }
+    if (issued < AUTOMATION_START) continue;
     const ageDays = (now.getTime() - issued.getTime()) / DAY_MS;
     if (ageDays >= 21) {
       expired.push(quote);
