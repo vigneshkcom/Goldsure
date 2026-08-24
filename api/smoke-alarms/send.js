@@ -367,9 +367,10 @@ export default async function handler(req, res) {
           ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${quotedGrandTotal} total)`
           : `Your smoke alarm quote (${quotedGrandTotal} total)`;
         const smsText =
-          `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd. ` +
-          `${quoteSummary} is ready. View and accept your quote online: ${quoteUrl} ` +
-          `We have also emailed a copy to ${to_email}. ` +
+          `Hi ${customerFirst}, this is ${agentFirst} from Goldsure Pty Ltd.\n\n` +
+          `${quoteSummary} is ready.\n\n` +
+          `View and accept your quote online: ${quoteUrl}\n\n` +
+          `We have also emailed a copy to ${to_email}.\n\n` +
           `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
         const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
