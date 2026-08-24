@@ -67,7 +67,7 @@ h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 10px;
 .contact-strip { background: #141c2e; border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
 .contact-item { font-size: 12px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; }
 .contact-item a { color: var(--gold); font-weight: 600; text-decoration: none; }
-.state-success, .state-already, .state-accepted, .state-error { display: none; }
+.state-success, .state-already, .state-accepted, .state-expired, .state-error { display: none; }
 footer {
   background: var(--surface); border-top: 1px solid var(--border);
   padding: 18px 28px; text-align: center;
@@ -135,6 +135,13 @@ footer a { color: var(--gold); text-decoration: none; }
       </div>
     </div>
 
+    <div class="state-expired" id="stateExpired">
+      <div class="icon-wrap neutral">⌛</div>
+      <h2>This Quote Has Expired</h2>
+      <p class="subtitle">This quote was valid for 21 days and is already closed. If you would like an updated quote, please contact us.</p>
+      <div class="contact-strip"><div class="contact-item">📞 <a href="tel:0721455155">(07) 2145 5155</a></div><div class="contact-item">✉️ <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a></div></div>
+    </div>
+
     <!-- ERROR -->
     <div class="state-error" id="stateError">
       <div class="icon-wrap err">⚠️</div>
@@ -158,7 +165,7 @@ const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 
 function showState(id) {
-  ['stateLoading','stateSuccess','stateAlready','stateAccepted','stateError'].forEach(s => {
+  ['stateLoading','stateSuccess','stateAlready','stateAccepted','stateExpired','stateError'].forEach(s => {
     document.getElementById(s).style.display = s === id ? 'block' : 'none';
   });
 }
@@ -201,6 +208,11 @@ async function processRejection() {
     }
     if (row.status === 'rejected') {
       showState('stateAlready');
+      return;
+    }
+    const issuedAt = new Date(row.sent_at || row.created_at);
+    if (String(row.status).toLowerCase() === 'expired' || (!Number.isNaN(issuedAt.getTime()) && Date.now() >= issuedAt.getTime() + 21 * 86400000)) {
+      showState('stateExpired');
       return;
     }
 

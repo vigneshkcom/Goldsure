@@ -125,6 +125,10 @@ main {
 }
 .state-already h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .state-already p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.state-expired { display: none; }
+.state-expired .icon-wrap { width:72px;height:72px;border-radius:50%;background:#f1f3f7;border:2px solid #d7dbe3;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:32px; }
+.state-expired h2 { font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px; }
+.state-expired p { font-size:13px;color:var(--muted);line-height:1.7; }
 
 /* ── FOOTER ── */
 footer {
@@ -233,6 +237,12 @@ footer a { color: var(--gold); text-decoration: none; }
       <p>This quote has already been accepted. Our team will be in touch if they haven't already.<br><br>Questions? Call us on <a href="tel:0721455155" style="color:var(--gold);font-weight:600;">(07) 2145 5155</a>.</p>
     </div>
 
+    <div class="state-expired" id="stateExpired">
+      <div class="icon-wrap">⌛</div>
+      <h2>This Quote Has Expired</h2>
+      <p>This quote was valid for 21 days and can no longer be accepted online.<br><br>Please call us on <a href="tel:0721455155" style="color:var(--gold);font-weight:600;">(07) 2145 5155</a> and we will prepare an updated quote for you.</p>
+    </div>
+
     <!-- ERROR -->
     <div class="state-error" id="stateError">
       <div class="icon-wrap">⚠️</div>
@@ -262,7 +272,7 @@ const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 // Helpers
 // ══════════════════════════════════════════════════════
 function showState(id) {
-  ['stateLoading','stateSuccess','stateAlready','stateError'].forEach(s => {
+  ['stateLoading','stateSuccess','stateAlready','stateExpired','stateError'].forEach(s => {
     document.getElementById(s).style.display = s === id ? 'block' : 'none';
   });
 }
@@ -348,6 +358,12 @@ async function processAcceptance() {
     // Already accepted — show info state
     if (row.accepted === true || row.status === 'accepted') {
       showState('stateAlready');
+      return;
+    }
+
+    const issuedAt = new Date(row.sent_at || row.created_at);
+    if (String(row.status).toLowerCase() === 'expired' || (!Number.isNaN(issuedAt.getTime()) && Date.now() >= issuedAt.getTime() + 21 * 86400000)) {
+      showState('stateExpired');
       return;
     }
 

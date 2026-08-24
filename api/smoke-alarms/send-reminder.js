@@ -169,13 +169,52 @@ async function sendReminderSms(data) {
   }
 }
 
-function buildReminderEmail(data) {
+function parseQuoteDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function reminderCopy(reminderNumber, expiryDate) {
+  const expiry = expiryDate
+    ? expiryDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  if (reminderNumber >= 3) return {
+    eyebrow: 'Final Quote Reminder',
+    heading: 'Your quote expires tomorrow',
+    intro: `This is a final reminder that your Goldsure smoke alarm quote${expiry ? ` expires on <strong>${esc(expiry)}</strong>` : ' is about to expire'}.`,
+    detail: 'If you would like to proceed at the quoted price, please view and accept it online today. If you need help or would like to discuss any details, simply reply to this email or call our team.',
+    subject: 'Final reminder: Your Goldsure quote expires tomorrow',
+  };
+  if (reminderNumber === 2) return {
+    eyebrow: 'Quote Reminder',
+    heading: 'A quick follow-up on your quote',
+    intro: `Your Goldsure smoke alarm quote is still available${expiry ? ` and remains valid until <strong>${esc(expiry)}</strong>` : ''}.`,
+    detail: 'You can review the full quote and accept it online whenever you are ready. If anything needs changing, reply to this email and our team will be happy to help.',
+    subject: 'Reminder: Your Goldsure smoke alarm quote',
+  };
+  return {
+    eyebrow: 'Quote Reminder',
+    heading: 'Your quote is ready when you are',
+    intro: `Just a friendly reminder that your Goldsure smoke alarm quote is ready to view online${expiry ? ` and is valid until <strong>${esc(expiry)}</strong>` : ''}.`,
+    detail: 'You can review every detail and accept the quote online. If you have any questions, reply to this email or call us and we will be glad to help.',
+    subject: 'Your Goldsure smoke alarm quote is ready to view',
+  };
+}
+
+export function buildReminderSubject(data) {
+  return reminderCopy(qty(data.reminder_count) + 1, null).subject;
+}
+
+export function buildReminderEmail(data) {
   const customerName = esc(data.customer_name || 'there');
   const reminderCount = qty(data.reminder_count) + 1;
-  const sentDate = data.sent_at
-    ? new Date(data.sent_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
-    : '';
+  const issuedDate = parseQuoteDate(data.sent_at);
+  const sentDate = issuedDate ? issuedDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const expiryDate = issuedDate ? new Date(issuedDate.getTime() + 21 * 86400000) : null;
+  const copy = reminderCopy(reminderCount, expiryDate);
   const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
+  const quoteUrl = `${baseUrl.replace(/\/$/, '')}/smoke-alarms/quote.html?token=${encodeURIComponent(data.quote_token)}`;
   const acceptUrl = `${baseUrl.replace(/\/$/, '')}/accept-quote.html?token=${encodeURIComponent(data.quote_token)}`;
   const rejectUrl = `${baseUrl.replace(/\/$/, '')}/reject-quote.html?token=${encodeURIComponent(data.quote_token)}`;
   const alarmQty = qty(data.alarm_qty);
@@ -194,7 +233,7 @@ function buildReminderEmail(data) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Smoke Alarm Quote Reminder</title>
+  <title>${copy.subject}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#ebebeb;">
   <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#ebebeb">
@@ -208,15 +247,23 @@ function buildReminderEmail(data) {
           </tr>
           <tr>
             <td bgcolor="#000000" align="center" style="padding:0 32px 16px;">
-              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">Smoke Alarm Quote Reminder</p>
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#b08d2e;">${copy.eyebrow}</p>
             </td>
           </tr>
           <tr><td bgcolor="#b08d2e" style="height:2px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
           <tr>
             <td style="padding:24px 30px;background:#ffffff;">
-              <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#000000;">Hi ${customerName},</p>
-              <p style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.7;">Your smoke alarm quote${sentDate ? ` sent on <strong>${esc(sentDate)}</strong>` : ''} is awaiting approval and the details are set out below.</p>
-              <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.7;">Please accept your quote to secure current pricing and avoid delays in arranging your installation. Once accepted, our team will contact you to schedule the next available booking.</p>
+              <p style="margin:0 0 5px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#444444;">Hi ${customerName},</p>
+              <p style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:700;color:#000000;line-height:1.25;">${copy.heading}</p>
+              <p style="margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.7;">${copy.intro}</p>
+              <p style="margin:0 0 18px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;line-height:1.7;">${copy.detail}</p>
+
+              <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:0 0 20px;background:#111111;border-radius:10px;">
+                <tr><td align="center" style="padding:18px 20px;">
+                  <a href="${esc(quoteUrl)}" style="display:inline-block;padding:14px 28px;background:#b08d2e;color:#111111;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;">View Quote Online</a>
+                  <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#c9ccd3;">View the full quote, then accept online when you are ready.</p>
+                </td></tr>
+              </table>
 
               <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border:1px solid #e0e0e0;">
                 <tr>
@@ -229,11 +276,11 @@ function buildReminderEmail(data) {
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQty}</td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarmAmount}</td>
                 </tr>
-                <tr bgcolor="#f9f9f9">
+                ${controllerQty > 0 ? `<tr bgcolor="#f9f9f9">
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><strong>Smoke Alarm Controller</strong><br><span style="font-size:11px;color:#888888;">Remote control and status display</span></td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${controllerQty}</td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${controllerAmount}</td>
-                </tr>
+                </tr>` : ''}
                 <tr bgcolor="#ffffff">
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><strong>${feeLabel}</strong><br><span style="font-size:11px;color:#888888;">Payable upfront to secure your booking</span></td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">1</td>
@@ -248,7 +295,7 @@ function buildReminderEmail(data) {
               <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;">
                 <tr><td style="padding:10px 14px;">
                   <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Quote Details</p>
-                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.6;">Service: ${serviceType}<br>Address: ${customerAddress}<br>Reminder No.: ${reminderCount}</p>
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.6;">Service: ${serviceType}<br>Address: ${customerAddress}${sentDate ? `<br>Quote issued: ${esc(sentDate)}` : ''}${expiryDate ? `<br>Valid until: ${esc(expiryDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))}` : ''}</p>
                 </td></tr>
               </table>
 
@@ -349,7 +396,7 @@ export default async function handler(req, res) {
   });
 
   try {
-    const reminderSubject = 'Reminder: Your Goldsure quote is ready';
+    const reminderSubject = buildReminderSubject({ reminder_count });
     // Send via Hostinger (from info@); fall back to Resend so a reminder is never lost.
     let emailSent = false;
     try {
