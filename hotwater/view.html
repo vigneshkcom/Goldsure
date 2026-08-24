@@ -9,90 +9,174 @@
 <style>
 :root{
   --bg:#eaeef3;--surface:#fff;--line:#e9edf3;--line-soft:#f1f4f8;
-  --text:#1b2431;--muted:#78859a;--muted2:#9aa5b4;
+  --text:#1b2431;--muted:#68758a;--muted2:#8e9aab;
   --gold:#b08d2e;--gold-2:#c9a13b;--gold-soft:#faf4e4;--gold-line:#eaddb4;
   --green:#2f9e6b;--dark:#161c26;
+  --pad:34px;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);padding:26px 14px 60px;-webkit-font-smoothing:antialiased;}
-.sheet{max-width:640px;margin:0 auto;background:var(--surface);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.05),0 14px 40px rgba(16,24,40,.10);}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);padding:26px 14px 60px;-webkit-font-smoothing:antialiased;line-height:1.5}
+.sheet{max-width:660px;margin:0 auto;background:var(--surface);border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.05),0 18px 48px rgba(16,24,40,.12)}
 
-.head{background:#000;padding:22px 30px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
-.head img{width:140px;height:62px;object-fit:cover;object-position:center;flex:none;}
-.head .meta{text-align:right;}
-.head .tag{font-size:15px;font-weight:700;letter-spacing:5px;color:var(--gold-2);}
-.head .ref{font-size:11px;color:#8b93a3;margin-top:4px;}
-.gold-rule{height:3px;background:var(--gold);}
+/* ── Header ── */
+.head{background:#000;padding:18px var(--pad);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:nowrap}
+/* The logo asset is a 720×720 square whose mark fills only ~74%×45% of the
+   canvas. Crop the baked-in padding so the mark reads at a usable size. */
+.logo{width:104px;height:62px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex:none}
+.logo img{width:138px;height:138px;object-fit:contain;flex:none;display:block}
+.head .meta{text-align:right;min-width:0}
+.head .tag{font-size:15px;font-weight:700;letter-spacing:5.5px;color:var(--gold-2);white-space:nowrap}
+.head .ref{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#9199a6;margin-top:6px;white-space:nowrap}
+.gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2))}
 
-.parties{display:flex;justify-content:space-between;gap:20px;padding:24px 30px 6px;flex-wrap:wrap;}
-.parties .lbl{font-size:9.5px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted2);margin-bottom:6px;}
-.parties .nm{font-size:15px;font-weight:700;line-height:1.35;}
-.parties .ln{font-size:12px;color:var(--muted);line-height:1.65;}
+/* ── Parties ── */
+.parties{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px;padding:26px var(--pad) 4px}
+.parties>div{min-width:0}
+.parties>div:last-child{text-align:right}
+.lbl{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted2);margin-bottom:7px}
+.nm{font-size:15.5px;font-weight:700;line-height:1.35;letter-spacing:-.1px}
+.ln{font-size:12px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
 
-.intro{padding:14px 30px 4px;font-size:13.5px;color:#3d4658;line-height:1.65;}
+.intro{padding:20px var(--pad) 0;font-size:13.5px;color:#3d4658;line-height:1.72}
 
-.items{padding:18px 30px 0;overflow-x:auto;}
-table.q{width:100%;border-collapse:collapse;min-width:420px;}
-table.q th{font-size:9.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text);padding:9px 10px;text-align:left;border-bottom:2px solid var(--text);}
-table.q th.r{text-align:right;}
-table.q td{padding:11px 10px;font-size:13px;border-bottom:1px solid var(--line-soft);vertical-align:top;}
-table.q td.r{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
-.it-name{font-weight:600;}
-.it-sub{font-size:11px;color:var(--muted2);margin-top:2px;}
-tr.sub td{color:var(--muted);font-size:12px;}
-tr.grand td{border-top:2px solid var(--text);border-bottom:none;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.5px;padding-top:11px;}
-tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
+/* ── Items ── */
+.items{padding:20px var(--pad) 0}
+table.q{width:100%;border-collapse:collapse;table-layout:fixed}
+table.q th{font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--muted2);padding:0 0 9px;text-align:left;border-bottom:1.5px solid var(--text)}
+table.q th.r,table.q td.r{text-align:right}
+table.q td{padding:13px 0;font-size:13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.q td.r{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap}
+table.q th.c,table.q td.c{text-align:center}
+td.tl{text-align:right}
+col.c-item{width:auto}col.c-qty{width:44px}col.c-rate{width:104px}col.c-tot{width:110px}
+.it-name{font-weight:600;line-height:1.4;padding-right:10px}
+.it-sub{font-size:11px;color:var(--muted2);margin-top:3px;line-height:1.45}
+.it-meta{display:none;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted2);margin-top:4px}
+table.q tfoot td{border-bottom:none;padding:6px 0;font-size:12.5px;color:var(--muted)}
+table.q tfoot tr:first-child td{padding-top:14px}
+table.q tfoot tr.grand td{border-top:1.5px solid var(--text);padding-top:12px;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:1px;color:var(--text)}
+table.q tfoot tr.grand td.r{font-size:15px;text-transform:none;letter-spacing:0}
 
-.rebates{margin:18px 30px 0;border:1px solid var(--line);border-radius:13px;padding:14px 16px;}
-.rebates h3{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted2);margin-bottom:8px;}
-.rb-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:13px;color:#3d4658;}
-.rb-row:last-child{border-bottom:none;}
-.rb-row .v{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--green);white-space:nowrap;}
-.rb-row.pos{border-top:1.5px solid #cdd4de;border-bottom:none;padding-top:10px;margin-top:2px;font-weight:700;color:var(--text);}
-.rb-row.pos .v{color:var(--text);}
-.rb-row.sv{border-top:1px dashed var(--line);margin-top:2px;padding-top:10px;}
+/* ── Rebates ── */
+.rebates{margin:22px var(--pad) 0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rebates h3{background:#f7f9fc;font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);padding:11px 16px;border-bottom:1px solid var(--line)}
+.rb-list{padding:6px 16px 12px}
+.rb-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:#3d4658;line-height:1.45}
+.rb-row .v{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--green);white-space:nowrap}
+.rb-row.pos{border-bottom:none;border-top:1.5px solid var(--line);margin-top:2px;padding-top:11px;font-weight:700;color:var(--text);font-size:13px}
+.rb-row.pos .v{color:var(--text);font-size:13.5px}
+.rb-row.sv{border-bottom:none}
 
-.total-band{margin:16px 30px 0;background:linear-gradient(135deg,#212a39,#12161f);border-radius:14px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 10px 28px rgba(18,24,34,.28);}
-.total-band .lbl{color:var(--gold-2);text-transform:uppercase;font-size:10.5px;font-weight:700;letter-spacing:.9px;}
-.total-band .val{font-family:'JetBrains Mono',monospace;color:#fff;font-size:25px;font-weight:700;letter-spacing:-.5px;}
+/* ── Total ── */
+.total-band{margin:18px var(--pad) 0;background:linear-gradient(135deg,#232d3d,#11151d);border-radius:15px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 12px 30px rgba(18,24,34,.26)}
+.total-band .lbl{color:var(--gold-2);margin:0;line-height:1.4}
+.total-band .val{font-family:'JetBrains Mono',monospace;color:#fff;font-size:27px;font-weight:700;letter-spacing:-1px;white-space:nowrap}
 
-.note{margin:16px 30px 0;border:1px solid var(--gold-line);background:linear-gradient(180deg,#fffdf7,#faf3e2);border-radius:13px;padding:13px 16px;}
-.note .lbl{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
-.note p{font-size:12.5px;color:#514831;line-height:1.65;}
+.note{margin:16px var(--pad) 0;border:1px solid var(--gold-line);background:linear-gradient(180deg,#fffdf7,#faf3e2);border-radius:13px;padding:14px 16px}
+.note .lbl{color:var(--gold)}
+.note p{font-size:12px;color:#5d5334;line-height:1.65}
 
-.accept-cta{padding:24px 30px 0;text-align:center;}
-.accept-cta .msg{font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;}
-.accept-btn{display:inline-block;background:var(--gold);color:#1b1405;font-family:inherit;font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:11px;box-shadow:0 5px 16px rgba(176,141,46,.32);transition:.15s;}
-.accept-btn:hover{background:var(--gold-2);}
-.reject-link{display:block;margin-top:14px;color:var(--muted);font-size:11px;text-decoration:underline;}
-.accepted-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf6f0;color:#1f7d52;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;}
-.rejected-chip{display:inline-flex;align-items:center;background:#fff0f0;color:#a43c3c;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;}
-.expired-chip{display:block;background:#f1f3f7;color:#596174;border-radius:11px;padding:13px 20px;font-size:13px;line-height:1.65;}
-.expired-chip a{color:#8b6a12;font-weight:700;}
-.fineprint{padding:20px 30px 0;font-size:10px;color:#aeb4c0;line-height:1.65;}
-.sig{margin:18px 30px 0;padding-top:16px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.sig img{height:34px;width:auto;}
-.sig .bar{border-left:2px solid var(--gold);padding-left:14px;}
-.sig .nm{font-size:14px;font-weight:700;}
-.sig .co{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);margin-top:2px;}
-.sig .ct{font-size:12px;color:var(--muted);line-height:1.8;margin-top:5px;}
-.sig .ct a{color:var(--gold);text-decoration:none;font-weight:600;}
-.foot{margin-top:22px;background:#000;padding:16px 20px;text-align:center;}
-.foot .b{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold-2);margin-bottom:3px;}
-.foot p{font-size:10px;color:#8b93a3;line-height:1.5;}
+/* ── CTA ── */
+.accept-cta{padding:26px var(--pad) 0;text-align:center}
+.accept-cta .msg{font-size:13px;color:#3d4658;line-height:1.65;margin-bottom:17px}
+.accept-btn{display:inline-block;background:var(--gold);color:#1b1405;font-family:inherit;font-size:15px;font-weight:700;text-decoration:none;padding:16px 44px;border-radius:12px;box-shadow:0 6px 18px rgba(176,141,46,.34);transition:.15s}
+.accept-btn:hover{background:var(--gold-2)}
+.valid{font-size:11px;color:var(--muted2);margin-top:14px}
+.reject-link{display:inline-block;margin-top:10px;color:var(--muted2);font-size:11px;text-decoration:underline}
+.chip{display:block;border-radius:12px;padding:15px 20px;font-size:13.5px;line-height:1.6}
+.chip.ok{background:#eaf6f0;color:#1f7d52;font-weight:700}
+.chip.no{background:#fdf0f0;color:#a43c3c;font-weight:700}
+.chip.exp{background:#f4f6f9;color:#59637a}
+.chip.exp a{color:#8b6a12;font-weight:700}
 
-.spinner{width:36px;height:36px;border:3.5px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:90px auto;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.err{max-width:460px;margin:60px auto;text-align:center;background:#fff;border-radius:16px;padding:40px 30px;box-shadow:0 12px 32px rgba(16,24,40,.08);}
-.err h1{font-size:18px;margin-bottom:9px;}
-.err p{font-size:13px;color:var(--muted);line-height:1.7;}
-.err a{color:var(--gold);font-weight:600;text-decoration:none;}
-.hidden{display:none!important;}
+.fineprint{padding:24px var(--pad) 0;font-size:10px;color:#98a2b1;line-height:1.7}
 
-@media(max-width:560px){
-  .head,.parties,.intro,.items,.fineprint{padding-left:18px;padding-right:18px;}
-  .total-band,.rebates,.note,.sig{margin-left:18px;margin-right:18px;}
-  .head .meta{text-align:left;}
+/* ── Signature + footer ── */
+.sig{margin:20px var(--pad) 24px;padding-top:18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px}
+.sig .logo{width:96px;height:58px}
+.sig .logo img{width:128px;height:128px}
+.sig .bar{border-left:2px solid var(--gold);padding-left:16px;min-width:0}
+.sig .nm{font-size:14px}
+.sig .co{font-size:9.5px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--gold);margin-top:3px}
+.sig .ct{font-size:12px;color:var(--muted);line-height:1.85;margin-top:7px;overflow-wrap:anywhere}
+.sig .ct a{color:var(--gold);text-decoration:none;font-weight:600}
+.foot{background:#000;padding:18px 20px;text-align:center}
+.foot .b{font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold-2);margin-bottom:4px}
+.foot p{font-size:9.5px;color:#868e9c;line-height:1.6}
+
+/* ── States ── */
+.spinner{width:36px;height:36px;border:3.5px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:90px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{max-width:460px;margin:60px auto;text-align:center;background:#fff;border-radius:16px;padding:40px 30px;box-shadow:0 12px 32px rgba(16,24,40,.08)}
+.err h1{font-size:18px;margin-bottom:9px}
+.err p{font-size:13px;color:var(--muted);line-height:1.7}
+.err a{color:var(--gold);font-weight:600;text-decoration:none}
+.hidden{display:none!important}
+
+/* ── Mobile: no horizontal scroll, ever ── */
+@media(max-width:600px){
+  :root{--pad:18px}
+  body{padding:0 0 max(24px,env(safe-area-inset-bottom));background:#fff}
+  .sheet{border-radius:0;box-shadow:none}
+  .head{padding:14px var(--pad);gap:10px}
+  .logo{width:88px;height:52px}
+  .logo img{width:116px;height:116px}
+  .head .tag{font-size:12px;letter-spacing:3px}
+  .head .ref{font-size:9.5px;margin-top:4px}
+  .parties{gap:14px;padding-top:20px}
+  .lbl{font-size:8.5px;letter-spacing:1.1px;margin-bottom:5px}
+  .nm{font-size:13.5px}
+  .parties>div:last-child .nm{font-size:12.5px}
+  .ln{font-size:11px;line-height:1.6}
+  .intro{padding-top:18px;font-size:12.5px;line-height:1.68}
+
+  /* Table → two-column grid; qty/rate fold into a meta line under the name. */
+  table.q{table-layout:auto}
+  table.q colgroup{display:none}
+  table.q,table.q thead,table.q tbody,table.q tfoot,table.q tr,table.q th,table.q td{display:block;width:auto}
+  table.q thead tr,table.q tbody tr,table.q tfoot tr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:14px}
+  table.q th.c,table.q th.r:not(:last-child),table.q td.c,table.q tbody td.r:not(:last-child){display:none}
+  td.tl{text-align:left}
+  table.q th{padding:0 0 8px;font-size:8.5px}
+  table.q td{padding:12px 0;border-bottom:none;font-size:12.5px}
+  table.q tbody tr{border-bottom:1px solid var(--line-soft)}
+  .it-name{font-size:12.5px;padding-right:0}
+  .it-meta{display:block}
+  table.q tfoot tr{padding:5px 0}
+  table.q tfoot tr:first-child{padding-top:12px}
+  table.q tfoot td{padding:0;font-size:12px}
+  table.q tfoot tr:first-child td{padding-top:0}
+  table.q tfoot tr.grand{border-top:1.5px solid var(--text);margin-top:6px;padding-top:11px}
+  table.q tfoot tr.grand td{border-top:none;padding-top:0;font-size:9.5px}
+  table.q tfoot tr.grand td.r{font-size:14px}
+
+  .rebates{margin-top:18px;border-radius:12px}
+  .rebates h3{padding:10px 14px}
+  .rb-list{padding:4px 14px 10px}
+  .rb-row{font-size:11.5px;gap:10px;padding:8px 0}
+  .total-band{margin-top:16px;border-radius:13px;padding:15px 16px}
+  .total-band .lbl{font-size:8.5px;letter-spacing:1.1px}
+  .total-band .val{font-size:21px}
+  .note{border-radius:12px;padding:12px 14px}
+  .note p{font-size:11.5px}
+  .accept-cta{padding-top:22px}
+  .accept-cta .msg{font-size:12px;margin-bottom:14px}
+  .accept-btn{display:block;width:100%;padding:15px 18px;font-size:14px;border-radius:11px}
+  .fineprint{padding-top:20px;font-size:9.5px;line-height:1.65}
+  .sig{gap:12px;margin-bottom:20px}
+  .sig .logo{width:78px;height:48px}
+  .sig .logo img{width:104px;height:104px}
+  .sig .bar{padding-left:13px}
+  .sig .nm{font-size:13px}
+  .sig .ct{font-size:11.5px;line-height:1.75}
+  .foot{padding:15px 18px}
+}
+@media(max-width:360px){
+  .parties{grid-template-columns:1fr;gap:12px}
+  .parties>div:last-child{text-align:left;padding-top:12px;border-top:1px solid var(--line)}
+  .head .tag{font-size:11px;letter-spacing:2px}
+  .total-band .val{font-size:19px}
 }
 </style>
 </head>
@@ -108,7 +192,7 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 <div id="state-ok" class="sheet hidden">
 
   <div class="head">
-    <img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure">
+    <div class="logo"><img src="/assets/goldsure-inverted-logo.jpg" alt="Goldsure"></div>
     <div class="meta">
       <div class="tag">QUOTATION</div>
       <div class="ref"><span id="qRef"></span> &nbsp;·&nbsp; <span id="qDate"></span></div>
@@ -124,10 +208,10 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
       <div class="ln" id="cPhone"></div>
       <div class="ln" id="cEmail"></div>
     </div>
-    <div style="text-align:right;">
+    <div>
       <div class="lbl">From</div>
-      <div class="nm" style="font-size:14px;">Goldsure Pty Ltd</div>
-      <div class="ln">ABN 66 683 305 106<br>info@goldsure.com.au</div>
+      <div class="nm" style="font-size:13.5px">Goldsure Pty Ltd</div>
+      <div class="ln">ABN 66 683 305 106<br>Suite 4, Level 1<br>293 High Street<br>Preston VIC 3072</div>
     </div>
   </div>
 
@@ -135,42 +219,50 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 
   <div class="items">
     <table class="q">
-      <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate ex GST</th><th class="r">Total ex GST</th></tr></thead>
+      <colgroup><col class="c-item"><col class="c-qty"><col class="c-rate"><col class="c-tot"></colgroup>
+      <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Rate ex GST</th><th class="r">Total ex GST</th></tr></thead>
       <tbody id="itemRows"></tbody>
       <tfoot>
-        <tr class="sub"><td colspan="3" style="text-align:right;">Subtotal (ex GST)</td><td class="r" id="tSub"></td></tr>
-        <tr class="sub"><td colspan="3" style="text-align:right;">GST (10%)</td><td class="r" id="tGst"></td></tr>
-        <tr class="grand"><td colspan="3" style="text-align:right;">Total (inc GST)</td><td class="r" id="tTotal"></td></tr>
+        <tr><td colspan="3" class="tl">Subtotal (ex GST)</td><td class="r" id="tSub"></td></tr>
+        <tr><td colspan="3" class="tl">GST (10%)</td><td class="r" id="tGst"></td></tr>
+        <tr class="grand"><td colspan="3" class="tl">Total (inc GST)</td><td class="r" id="tTotal"></td></tr>
       </tfoot>
     </table>
   </div>
 
   <div class="rebates">
-    <h3>Less Rebates</h3>
-    <div class="rb-row"><span>Small-scale Technology Certificate (STC) discount</span><span class="v" id="rSTC"></span></div>
-    <div class="rb-row"><span>Victorian Energy Efficiency (VEEC) discount</span><span class="v" id="rVEEC"></span></div>
-    <div class="rb-row pos"><span>Payable at point of sale</span><span class="v" id="rPOS"></span></div>
-    <div class="rb-row sv hidden" id="rSvRow"><span>Solar Victoria rebate (delayed)</span><span class="v" id="rSV"></span></div>
+    <h3>Less Rebates &amp; Discounts</h3>
+    <div class="rb-list">
+      <div class="rb-row"><span>Small-scale Technology Certificate (STC) discount</span><span class="v" id="rSTC"></span></div>
+      <div class="rb-row"><span>Victorian Energy Efficiency (VEEC) discount</span><span class="v" id="rVEEC"></span></div>
+      <div class="rb-row pos"><span>Payable at point of sale</span><span class="v" id="rPOS"></span></div>
+      <div class="rb-row sv hidden" id="rSvRow"><span>Solar Victoria rebate <span style="color:var(--muted2)">(paid after install)</span></span><span class="v" id="rSV"></span></div>
+    </div>
   </div>
 
   <div class="total-band">
     <span class="lbl">Your Total Out-of-Pocket</span>
     <span class="val" id="bandTotal"></span>
   </div>
-  <div class="note hidden" id="svNote"><div class="lbl">Solar Victoria (Delayed) Rebate</div><p>Your out-of-pocket price above already accounts for the Solar Victoria rebate, which is paid after installation once your rebate application is approved.</p></div>
+
+  <div class="note hidden" id="svNote">
+    <div class="lbl">Solar Victoria Rebate</div>
+    <p>Your out-of-pocket price above already accounts for the Solar Victoria rebate. This rebate is paid after installation, once your application is approved by Solar Victoria.</p>
+  </div>
 
   <div class="accept-cta" id="acceptCta">
     <div class="msg">Happy to go ahead? Accept your quote online and our team will call to book your installation.</div>
     <a class="accept-btn" id="acceptBtn" href="#">Accept This Quote</a>
+    <div class="valid">Valid until <span id="validUntil"></span></div>
     <a class="reject-link" id="rejectBtn" href="#">I'm not proceeding with this quote</a>
   </div>
 
   <div class="fineprint">
-    This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Rebate eligibility is subject to Solar Victoria and scheme approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty. This quote remains valid for 21 days from the date shown above.
+    This is not a tax invoice. This quotation is an estimate based on the information provided and is subject to on-site assessment. Rebate eligibility is subject to Solar Victoria and scheme approval. A tax invoice is issued once products are installed and services rendered. All products carry a minimum 1-year warranty.
   </div>
 
   <div class="sig">
-    <img src="/assets/goldsure-logo.jpg" alt="Goldsure">
+    <div class="logo"><img src="/assets/goldsure-logo.jpg" alt="Goldsure"></div>
     <div class="bar">
       <div class="nm" id="agentName"></div>
       <div class="co">Goldsure Pty Ltd</div>
@@ -192,9 +284,10 @@ tr.grand td.r{font-size:14px;text-transform:none;letter-spacing:0;}
 const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
-const money = n => { const v = Number(n)||0; return '$' + v.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const money = n => '$' + (Number(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id));
+const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
 
 function recordView(token){
   try{
@@ -216,8 +309,10 @@ function recordView(token){
     recordView(token);
 
     const issued = q.sent_at ? new Date(q.sent_at) : (q.created_at ? new Date(q.created_at) : new Date());
+    const expiresAt = new Date(issued.getTime() + 21*86400000);
     document.getElementById('qRef').textContent  = 'HW-' + String(token).replace(/[^a-z0-9]/gi,'').slice(0,8).toUpperCase();
-    document.getElementById('qDate').textContent = issued.toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+    document.getElementById('qDate').textContent = auDate(issued);
+    document.getElementById('validUntil').textContent = auDate(expiresAt);
 
     document.getElementById('cName').textContent  = q.customer_name || '';
     document.getElementById('cAddr').textContent  = q.customer_address || '';
@@ -226,13 +321,29 @@ function recordView(token){
     document.getElementById('agentName').textContent = q.agent_name || 'The Goldsure Team';
 
     const first = String(q.customer_name||'there').trim().split(/\s+/)[0] || 'there';
-    document.getElementById('intro').textContent = `Hi ${first}, thank you for the opportunity to quote your heat pump hot water system upgrade.`;
+    document.getElementById('intro').textContent =
+      `Hi ${first}, thank you for the opportunity to quote your heat pump hot water system upgrade. `
+      + `The price below includes the applicable STC and Victorian Energy Upgrades discounts, with any `
+      + `Solar Victoria rebate shown separately. Final system requirements and installation scope are `
+      + `confirmed on site by a licensed installer.`;
 
     const items = Array.isArray(q.line_items) ? q.line_items : [];
-    document.getElementById('itemRows').innerHTML = items.map(item=>{
-      const qty = Number(item.qty)||0, rate = Number(item.rate)||0;
-      return `<tr><td><div class="it-name">${esc(item.name||'Hot water system')}</div>${item.type?`<div class="it-sub">${esc(item.type)}</div>`:''}</td><td class="r">${qty}</td><td class="r">${money(rate)}</td><td class="r">${money(qty*rate)}</td></tr>`;
-    }).join('') || `<tr><td><div class="it-name">${esc(q.tank_model||'Heat pump hot water system')}</div></td><td class="r">1</td><td class="r">${money(q.subtotal_ex_gst)}</td><td class="r">${money(q.subtotal_ex_gst)}</td></tr>`;
+    const rowHtml = (name, sub, qty, rate) => {
+      const total = (Number(qty)||0) * (Number(rate)||0);
+      return `<tr>
+        <td>
+          <div class="it-name">${esc(name)}</div>
+          ${sub?`<div class="it-sub">${esc(sub)}</div>`:''}
+          <div class="it-meta">${qty} × ${money(rate)} ex GST</div>
+        </td>
+        <td class="c">${qty}</td>
+        <td class="r">${money(rate)}</td>
+        <td class="r">${money(total)}</td>
+      </tr>`;
+    };
+    document.getElementById('itemRows').innerHTML =
+      items.map(it => rowHtml(it.name || 'Hot water system', it.type || '', Number(it.qty)||0, Number(it.rate)||0)).join('')
+      || rowHtml(q.tank_model || 'Heat pump hot water system', 'Primary Product', 1, Number(q.subtotal_ex_gst)||0);
 
     document.getElementById('tSub').textContent   = money(q.subtotal_ex_gst);
     document.getElementById('tGst').textContent   = money(q.gst);
@@ -253,13 +364,13 @@ function recordView(token){
 
     const cta = document.getElementById('acceptCta');
     const status = String(q.status || '').toLowerCase();
-    const isExpired = status === 'expired' || (!isNaN(issued) && Date.now() >= issued.getTime() + 21*86400000);
+    const isExpired = status === 'expired' || (!isNaN(issued) && Date.now() >= expiresAt.getTime());
     if(q.accepted === true || status === 'accepted'){
-      cta.innerHTML = '<div class="accepted-chip">✓ You accepted this quote. Our team will be in touch.</div>';
+      cta.innerHTML = '<div class="chip ok">✓ You accepted this quote. Our team will be in touch.</div>';
     }else if(status === 'rejected'){
-      cta.innerHTML = '<div class="rejected-chip">This quote has been marked as not proceeding.</div>';
+      cta.innerHTML = '<div class="chip no">This quote has been marked as not proceeding.</div>';
     }else if(isExpired){
-      cta.innerHTML = '<div class="expired-chip"><strong>This quote has expired.</strong><br>Please call <a href="tel:0370502846">03 7050 2846</a> or email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> and we will prepare an updated quote for you.</div>';
+      cta.innerHTML = '<div class="chip exp"><strong>This quote has expired.</strong><br>Please call <a href="tel:0370502846">03 7050 2846</a> or email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> and we will prepare an updated quote for you.</div>';
     }else{
       document.getElementById('acceptBtn').href = '/hotwater/accept.html?token=' + encodeURIComponent(token);
       document.getElementById('rejectBtn').href = '/hotwater/reject.html?token=' + encodeURIComponent(token);
