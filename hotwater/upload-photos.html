@@ -50,6 +50,21 @@
     border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
   }
 
+  .extra-sec { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .extra-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .extra-grid:empty { margin-top: 0; }
+  .extra-thumb { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #edf2f7; }
+  .extra-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .extra-thumb button {
+    position: absolute; top: 4px; right: 4px; border: none; background: rgba(0,0,0,.6); color: #fff;
+    border-radius: 6px; width: 22px; height: 22px; font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .extra-add-btn {
+    display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 9px;
+    border: 1px dashed #cbd5e0; background: #f7fafc; color: #2b6cb0; font-size: 14px;
+    font-weight: 600; cursor: pointer; text-align: center;
+  }
+
   button.submit {
     width: 100%; margin-top: 8px; padding: 15px; border: none; border-radius: 10px;
     background: #2b6cb0; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
@@ -70,6 +85,14 @@
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
       <div id="slots"></div>
+
+      <div class="extra-sec">
+        <div class="slot-title">Additional photos <span class="optional">(optional)</span></div>
+        <div class="slot-note">Anything else that helps us see the property — extra angles, the roof, meter box, tricky access, and so on. Add as many as you like.</div>
+        <div class="extra-grid" id="extraGrid"></div>
+        <button type="button" class="extra-add-btn" id="extraAddBtn">+ Add more photos</button>
+        <input type="file" id="extraFile" accept="image/*" multiple>
+      </div>
 
       <button class="submit" id="submitBtn" disabled>Upload Photos</button>
       <div class="status" id="status"></div>
@@ -204,6 +227,43 @@ function clearPick(key) {
   refreshSubmit();
 }
 
+// ── Additional photos: no fixed count, customer adds as many as they like ──
+let extraPhotos = [];   // [{ id, blob }]
+let extraSeq = 0;
+
+document.getElementById('extraAddBtn').onclick = () => document.getElementById('extraFile').click();
+document.getElementById('extraFile').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';   // lets the same file be picked again if removed and re-added
+  if (!files.length) return;
+  setStatus(files.length > 1 ? 'Processing photos…' : 'Processing photo…');
+  for (const file of files) {
+    try {
+      const blob = await compressImage(file);
+      extraPhotos.push({ id: 'extra-' + (++extraSeq), blob });
+    } catch {
+      setStatus('Could not process one of those photos — the rest were added.', 'err');
+    }
+  }
+  if (!document.getElementById('status').classList.contains('err')) setStatus('');
+  renderExtraGrid();
+  refreshSubmit();
+});
+
+function renderExtraGrid() {
+  document.getElementById('extraGrid').innerHTML = extraPhotos.map(p => `
+    <div class="extra-thumb">
+      <img src="${URL.createObjectURL(p.blob)}" alt="">
+      <button type="button" onclick="removeExtra('${p.id}')">×</button>
+    </div>`).join('');
+}
+
+function removeExtra(id) {
+  extraPhotos = extraPhotos.filter(p => p.id !== id);
+  renderExtraGrid();
+  refreshSubmit();
+}
+
 function refreshSubmit() {
   const missing = SLOTS.filter(s => s.required && !picked[s.key]);
   const btn = document.getElementById('submitBtn');
@@ -222,7 +282,10 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
 });
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
-  const entries = SLOTS.filter(s => picked[s.key]);
+  const entries = [
+    ...SLOTS.filter(s => picked[s.key]).map(s => ({ key: s.key, blob: picked[s.key], label: s.label })),
+    ...extraPhotos.map((p, i) => ({ key: p.id, blob: p.blob, label: `Additional photo ${i + 1}` })),
+  ];
   if (!entries.length) return;
 
   const btn = document.getElementById('submitBtn');
@@ -233,7 +296,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   try {
     for (const s of entries) {
       setStatus(`Uploading ${done + 1} of ${entries.length}…`);
-      const dataBase64 = await blobToBase64(picked[s.key]);
+      const dataBase64 = await blobToBase64(s.blob);
       const res = await fetch('/api/zoho/create-photo-request', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -244,7 +307,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           customerName: custName,
           phone: custPhone,
           // Only the last upload should trigger the team email/GHL note, so a
-          // four-photo submission doesn't fire four notifications.
+          // multi-photo submission doesn't fire one notification per photo.
           notify: done === entries.length - 1,
           photoLabel: s.label,
         }),
