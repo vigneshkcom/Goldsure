@@ -3355,7 +3355,7 @@
   // ── Templates ──────────────────────────────────────────────────────────────
   // Direct numbers per staff member — fills {{user.phone}} in signatures
   const STAFF_PHONES = { David: '(03) 7035 0700', Vignesh: '(07) 2146 1500', Amit: '(03) 7073 5008' };
-  const PIPELINE_PHONES = { 'Smoke Alarms': '(07) 2145 5155', 'HWS': '(03) 7050 2846', 'Aircon': '(03) 7050 2846' };
+  const PIPELINE_PHONES = { 'Smoke Alarms': '(07) 2145 5155', 'HWS': '(03) 7050 2846', 'Aircon': '(03) 7050 2846', 'NSW HWS': '(02) 7251 0007' };
 
   const CONSENT_BODY =
 `Hi {{contact.first_name}}, \n\nThank you for your recent call regarding energy efficient upgrades at your property. To assist you further, we need your consent to proceed. Please reply to this message with 'YES' via SMS to confirm your consent and our team will be in contact to continue the upgrade process.\n\nWe look forward to hearing back from you and exploring how we can help you achieve your energy efficiency goals.\n\nBest regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}`;
@@ -3430,7 +3430,11 @@
       { name: 'Quote Sent (No Answer)', body:
 `Hi {{contact.first_name}}, this is {{user.first_name}} from Goldsure. \n\nWe tried calling to follow up on the quote we sent a few days ago, but unfortunately missed you. Please let us know if you have any questions or if you are ready to proceed. \n\nYou can reply directly to this message, call us on {{pipeline.phone}}, or book a convenient time for a call using this link: https://booking.goldsure.com.au\n\nKind regards, \n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
     ]},
-    { folder: 'HWS', match: /hws|hot ?water/i, open: false, items: [
+    // Plain regexes would match "NSW HWS Pipeline" too (it still contains "hws"),
+    // so this folder explicitly excludes anything with "nsw" in the pipeline
+    // name — those customers get the NSW HWS folder below instead, with its
+    // own phone number.
+    { folder: 'HWS', match: { test: p => !/nsw/i.test(p || '') && /hws|hot ?water/i.test(p || '') }, open: false, items: [
       ...notReachableTemplates('hot water system enquiry', {
         amount: '$100',
         service: 'hot water system installation',
@@ -3440,6 +3444,18 @@
 `Hi {{contact.first_name}},\n\nTo proceed with your hot water system installation, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check rebate eligibility and book your installation.\n\nThank you,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
       { name: 'IHA Appointment – Next Day Reminder', body:
 `Hi {{contact.first_name}},\n\nJust a reminder your Home Assessment is booked in for tomorrow.\n\nTo speed up your rebate approval, please have ready:\n-Licence, passport or Medicare card\n-Latest ATO Notice of Assessment\n-Pension card (if applicable)\n\nPlease reply to confirm you will be home with the documents, or reply if you would like to reschedule.\n\nQuestions? \nCall {{pipeline.phone}}.\nThanks,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
+    ]},
+    { folder: 'NSW HWS', match: { test: p => /nsw/i.test(p || '') }, open: false, items: [
+      ...notReachableTemplates('heat pump hot water upgrade', {
+        amount: '$100',
+        service: 'heat pump hot water installation',
+        code: 'NSWHWS100',
+        noteText: 'Tried this customer multiple times. Sent the $100-off SMS (code NSWHWS100) as the final not-reachable lure. WHEN QUOTING: add $100 to the normal price first, then "apply" the $100 off so the final figure is unchanged. E.g. if the job is $998, quote $1,098 and apply the $100 discount to land back at $998, so the customer feels they got the $100 off.' }),
+      { name: 'Consent Form – Jotform', body:
+`Hi {{contact.first_name}},\n\nTo proceed with your heat pump hot water upgrade, could you please complete this form:\nhttps://form.jotform.com/252658181570865\n\nThis allows us to confirm your details, check scheme eligibility and book your installation.\n\nThank you,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
+      { name: 'IHA Appointment – Next Day Reminder', body:
+`Hi {{contact.first_name}},\n\nJust a reminder your Home Assessment is booked in for tomorrow.\n\nTo speed up your scheme approval, please have ready:\n-Licence, passport or Medicare card\n-Latest ATO Notice of Assessment\n-Pension card (if applicable)\n\nPlease reply to confirm you will be home with the documents, or reply if you would like to reschedule.\n\nQuestions? \nCall {{pipeline.phone}}.\nThanks,\n{{user.first_name}} (Direct: {{user.phone}})\nGoldsure Pty Ltd\n{{pipeline.phone}}` },
       { name: 'Referral / Incoming Call – Consent', body: CONSENT_BODY },
     ]},
     { folder: 'Aircon', match: /air ?con|\ba\/?c\b/i, open: false, items: [
