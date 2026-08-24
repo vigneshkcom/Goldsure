@@ -44,6 +44,12 @@ function reminderHtml({ task, origin, dueLabel }) {
   <tr><td style="padding:24px 26px 6px">
     <div style="font:700 17px Arial,sans-serif;color:#323338;line-height:1.4">${escapeHtml(task.title)}</div>
     ${task.description ? `<div style="font:13px/1.55 Arial,sans-serif;color:#676879;margin-top:8px">${escapeHtml(task.description)}</div>` : ''}
+    ${task.customer_name ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:8px"><tr><td style="padding:11px 13px;font:13px Arial,sans-serif;color:#38405a">
+      <strong>${escapeHtml(task.customer_name)}</strong>
+      ${task.customer_phone ? `<br><a href="tel:${escapeHtml(task.customer_phone)}" style="color:#0073ea;text-decoration:none;font-weight:700">${escapeHtml(task.customer_phone)}</a>` : ''}
+      ${task.customer_email ? `<br><span style="color:#676879;font-size:12px">${escapeHtml(task.customer_email)}</span>` : ''}
+      ${task.ghl_contact_url ? `<br><a href="${escapeHtml(task.ghl_contact_url)}" style="color:#0073ea;text-decoration:none;font-size:12px;font-weight:600">Open in GHL</a>` : ''}
+    </td></tr></table>` : ''}
     <div style="margin-top:14px">
       <span style="display:inline-block;font:700 10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.6px;color:${priorityColour[task.priority] || '#0073ea'}">${escapeHtml(task.priority)} priority</span>
     </div>
@@ -79,7 +85,7 @@ export default async function handler(req, res) {
     // Candidates: unfinished, un-reminded tasks carrying a due time, due today
     // or earlier. The exact time comparison happens below in Sydney terms.
     const query = `${supabaseUrl}/rest/v1/portal_tasks`
-      + `?select=id,title,description,assignee,due_date,due_time,priority`
+      + `?select=id,title,description,assignee,due_date,due_time,priority,customer_name,customer_phone,customer_email,ghl_contact_url`
       + `&status=in.(todo,followup)&archived_at=is.null`
       + `&due_time=not.is.null&reminder_sent_at=is.null&due_date=lte.${todayText}`
       + `&order=due_date.asc`;
@@ -127,7 +133,11 @@ export default async function handler(req, res) {
           displayName: 'Goldsure Team Tasks',
           subject: `Due now: ${task.title}`,
           html: reminderHtml({ task, origin, dueLabel }),
-          text: `${task.title}\n\n${task.description || ''}\n\nDue ${dueLabel}\nPriority: ${task.priority}\n\nOpen: ${origin}/todo/`,
+          text: [
+            task.title, '', task.description || '',
+            task.customer_name ? `Customer: ${task.customer_name}${task.customer_phone ? ` (${task.customer_phone})` : ''}` : '',
+            '', `Due ${dueLabel}`, `Priority: ${task.priority}`, '', `Open: ${origin}/todo/`,
+          ].filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n'),
         });
         results.push({ id: task.id, sent: true, to });
       } catch (error) {

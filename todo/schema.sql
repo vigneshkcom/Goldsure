@@ -29,6 +29,15 @@ alter table public.portal_tasks add column if not exists due_time time;
 -- so the 15-minute cron cannot email the same task twice.
 alter table public.portal_tasks add column if not exists reminder_sent_at timestamptz;
 
+-- ── Linked GHL customer (optional) ─────────────────────────────────────────
+-- Picked from the GHL contact search when the task is created. The URL is
+-- built server-side so the board never needs the GHL location id.
+alter table public.portal_tasks add column if not exists ghl_contact_id text;
+alter table public.portal_tasks add column if not exists ghl_contact_url text;
+alter table public.portal_tasks add column if not exists customer_name text;
+alter table public.portal_tasks add column if not exists customer_phone text;
+alter table public.portal_tasks add column if not exists customer_email text;
+
 -- ── Status model: open/completed -> todo/followup/done ─────────────────────
 -- Drop the constraint before rewriting values, then re-add it.
 alter table public.portal_tasks drop constraint if exists portal_tasks_status_check;
@@ -76,6 +85,27 @@ create policy "portal staff can read tasks" on public.portal_tasks for select us
 create policy "portal staff can create tasks" on public.portal_tasks for insert with check (true);
 create policy "portal staff can update tasks" on public.portal_tasks for update using (true) with check (true);
 grant select, insert, update on public.portal_tasks to anon, authenticated;
+
+-- ── Notes left on a task ───────────────────────────────────────────────────
+-- A running thread per task, newest shown last. Deleting a task removes its
+-- notes with it.
+create table if not exists public.portal_task_notes (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.portal_tasks(id) on delete cascade,
+  author text not null check (author in ('Vignesh','David','Shanira','Alda','Amit')),
+  body text not null check (char_length(trim(body)) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists portal_task_notes_task_idx
+  on public.portal_task_notes (task_id, created_at);
+
+alter table public.portal_task_notes enable row level security;
+drop policy if exists "portal staff can read notes" on public.portal_task_notes;
+drop policy if exists "portal staff can create notes" on public.portal_task_notes;
+create policy "portal staff can read notes" on public.portal_task_notes for select using (true);
+create policy "portal staff can create notes" on public.portal_task_notes for insert with check (true);
+grant select, insert on public.portal_task_notes to anon, authenticated;
 
 -- ── Daily digest run log (service role only) ───────────────────────────────
 create table if not exists public.portal_task_digest_runs (

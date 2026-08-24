@@ -241,6 +241,8 @@ export default async function handler(req, res) {
           phone: c.phone,
           email: c.email || '',
           address: [c.address1, c.city, c.state, c.postalCode].filter(Boolean).join(', '),
+          // Built here so callers never need the GHL location id client-side.
+          link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${c.id}`,
         }));
       return res.status(200).json(contacts);
     }

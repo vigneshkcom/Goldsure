@@ -75,6 +75,14 @@
     .low{background:#edf8f4;color:#087657}.low::before{background:var(--green)}
     .kebab{border:0;background:transparent;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:17px;line-height:1;color:var(--muted);flex:none}
     .kebab:hover{background:#eceef3}
+    /* Linked GHL customer + note count on the card */
+    .cust{display:flex;align-items:center;gap:6px;margin-top:8px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:7px;padding:6px 8px;font-size:11.5px}
+    .cust .cn{font-weight:700;color:#38405a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cust a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+    .cust .sep{color:#c3c9d6}
+    .notes-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 9px;font:600 11px inherit;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+    .notes-btn:hover{border-color:var(--blue);color:var(--blue)}
+    .notes-btn.has{background:var(--blue-soft);border-color:#cfe2fa;color:#075ea8}
     .moves{display:flex;gap:5px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
     .moves button{flex:1;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 4px;font:600 10.5px inherit;color:var(--muted);cursor:pointer;white-space:nowrap}
     .moves button:hover{border-color:var(--blue);color:var(--blue)}
@@ -96,6 +104,35 @@
     .field textarea{min-height:80px;resize:vertical}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .hint{font-size:11px;color:var(--muted);margin-top:5px}
+    /* GHL customer search inside the task modal */
+    .cust-field{position:relative}
+    .cust-picked{display:flex;align-items:center;gap:9px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:8px;padding:9px 11px}
+    .cust-picked .cn{font-weight:700;font-size:13.5px}
+    .cust-picked .cd{font-size:11.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+    .cust-picked .x{margin-left:auto;border:0;background:none;font-size:19px;color:var(--muted);cursor:pointer;line-height:1;flex:none}
+    .ghl-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 12px 30px rgba(16,24,40,.16);z-index:40;margin-top:5px;max-height:230px;overflow-y:auto;display:none}
+    .ghl-results.open{display:block}
+    .ghl-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+    .ghl-item:last-child{border-bottom:0}
+    .ghl-item:hover{background:var(--blue-soft)}
+    .ghl-item .n{font-size:13px;font-weight:600}
+    .ghl-item .s{font-size:11px;color:var(--muted);margin-top:2px}
+    .ghl-item.info{color:var(--muted);font-size:12px;font-style:italic;cursor:default}
+    .assign-row{display:flex;gap:8px;align-items:center}
+    .assign-row select{flex:1}
+    .me-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:10px 12px;font:600 12px inherit;color:var(--blue);cursor:pointer;white-space:nowrap}
+    .me-btn:hover{border-color:var(--blue);background:#f4f9ff}
+    /* Notes thread */
+    .notes{border-top:1px solid var(--line);margin-top:4px;padding-top:16px}
+    .notes h3{font-size:12px;font-weight:700;margin:0 0 10px}
+    .note-list{max-height:210px;overflow-y:auto;margin-bottom:10px}
+    .note{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+    .note:last-child{border-bottom:0}
+    .note .body{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+    .note .who{font-size:11px;color:var(--muted);margin-top:3px}
+    .note-empty{font-size:12px;color:var(--muted);padding:4px 0 10px}
+    .note-add{display:flex;gap:8px}
+    .note-add input{flex:1}
     .modal-actions{display:flex;justify-content:space-between;gap:10px;padding:15px 24px;border-top:1px solid var(--line);background:#fafbfc}
     .danger{color:var(--red);border-color:#f0bdc6}
     .toast{position:fixed;right:24px;bottom:24px;background:#262b3a;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:13px;z-index:1200;transform:translateY(80px);opacity:0;transition:.2s}
@@ -149,6 +186,14 @@
       <div class="filters">
         <input class="control search" id="search" placeholder="Search tasks">
         <select class="control" id="assigneeFilter" hidden><option value="">Everyone</option></select>
+        <select class="control" id="dueFilter">
+          <option value="">Any due date</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Due today</option>
+          <option value="tomorrow">Due tomorrow</option>
+          <option value="week">Next 7 days</option>
+          <option value="untimed">No due time set</option>
+        </select>
         <select class="control" id="priorityFilter">
           <option value="">Any priority</option>
           <option value="urgent">Urgent</option><option value="high">High</option>
@@ -165,9 +210,26 @@
     <div class="form">
       <input type="hidden" id="taskId">
       <div class="field"><label for="title">Task or follow-up</label><input id="title" maxlength="180" required placeholder="e.g. Call customer about installation date"></div>
-      <div class="field"><label for="description">Notes</label><textarea id="description" placeholder="Add the customer name, job number or anything the assignee needs"></textarea></div>
+      <div class="field"><label for="description">Details</label><textarea id="description" placeholder="Anything the assignee needs to know"></textarea></div>
+      <div class="field cust-field">
+        <label for="custSearch">Customer <span style="font-weight:400;color:var(--muted)">(optional · from GHL)</span></label>
+        <input id="custSearch" autocomplete="off" placeholder="Search GHL by name, phone or email…">
+        <div class="ghl-results" id="ghlResults"></div>
+        <div class="cust-picked" id="custPicked" hidden>
+          <div style="min-width:0">
+            <div class="cn" id="custPickedName"></div>
+            <div class="cd" id="custPickedMeta"></div>
+          </div>
+          <button type="button" class="x" onclick="clearCustomer()" aria-label="Remove customer">×</button>
+        </div>
+      </div>
       <div class="form-grid">
-        <div class="field"><label for="assignee">Assign to</label><select id="assignee" required></select></div>
+        <div class="field"><label for="assignee">Assign to</label>
+          <div class="assign-row">
+            <select id="assignee" required></select>
+            <button type="button" class="me-btn" id="meBtn" onclick="assignToMe()">Me</button>
+          </div>
+        </div>
         <div class="field"><label for="status">Column</label><select id="status">
           <option value="todo">To Do</option><option value="followup">Follow Up</option><option value="done">Completed</option>
         </select></div>
@@ -182,6 +244,14 @@
           <option value="normal" selected>Normal</option><option value="low">Low</option>
         </select></div>
         <div class="field"><label for="createdBy">Created by</label><select id="createdBy" required></select></div>
+      </div>
+      <div class="notes" id="notesSection" hidden>
+        <h3>Notes</h3>
+        <div class="note-list" id="noteList"></div>
+        <div class="note-add">
+          <input id="noteInput" maxlength="2000" placeholder="Leave a note…">
+          <button type="button" class="btn btn-light" id="noteBtn" onclick="addNote()">Add</button>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -208,12 +278,25 @@
     const PRIORITY_RANK={urgent:0,high:1,normal:2,low:3};
     const H={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'};
 
-    let tasks=[],scope='team';
+    let tasks=[],scope='team',notesReady=true,pickedCustomer=null;
     const $=id=>document.getElementById(id);
     const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const initials=n=>n.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
     const byPriority=(a,b)=>(PRIORITY_RANK[a.priority]??9)-(PRIORITY_RANK[b.priority]??9);
+    const timeOf=t=>t?String(t).slice(0,5):null;
+    // Soonest first: earliest date, then earliest time within that date. A task
+    // with a set time outranks an untimed one on the same day, since it has a
+    // real deadline. Priority only breaks ties between equally-due tasks.
+    const byDue=(a,b)=>{
+      const d=a.due_date.localeCompare(b.due_date); if(d)return d;
+      const at=timeOf(a.due_time),bt=timeOf(b.due_time);
+      if(at&&bt&&at!==bt)return at.localeCompare(bt);
+      if(at&&!bt)return -1;
+      if(bt&&!at)return 1;
+      return byPriority(a,b);
+    };
+    const addDays=(d,n)=>{const x=new Date(`${d}T00:00:00Z`);x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
     // Render the stored date as a plain calendar date; parsing it as a local
     // Date would shift the day for anyone not on Sydney time.
     const fmtDate=d=>new Date(`${d}T00:00:00Z`).toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
@@ -251,9 +334,13 @@
 
     async function load(){
       try{
-        const r=await api('?select=*&archived_at=is.null&order=due_date.asc,created_at.desc');
+        // Pull each task's notes in the same round trip. If the notes table
+        // has not been created yet, fall back so the board still works.
+        const withNotes='?select=*,notes:portal_task_notes(id,author,body,created_at)&archived_at=is.null&order=due_date.asc,created_at.desc';
+        let r=await api(withNotes);
+        if(!r.ok){notesReady=false;r=await api('?select=*&archived_at=is.null&order=due_date.asc,created_at.desc')}
         if(!r.ok)throw new Error(await r.text());
-        tasks=await r.json();
+        tasks=(await r.json()).map(t=>({...t,notes:(t.notes||[]).sort((a,b)=>a.created_at.localeCompare(b.created_at))}));
         render();
       }catch(e){
         $('boardHost').className='';
@@ -266,15 +353,27 @@
     function visible(){
       return isManager()?tasks:tasks.filter(t=>t.assignee===currentUser());
     }
+    function matchesDue(t,today){
+      const f=$('dueFilter').value;
+      if(!f)return true;
+      if(f==='overdue')return t.due_date<today;
+      if(f==='today')return t.due_date===today;
+      if(f==='tomorrow')return t.due_date===addDays(today,1);
+      if(f==='week')return t.due_date>=today&&t.due_date<=addDays(today,7);
+      if(f==='untimed')return !t.due_time;
+      return true;
+    }
     function filtered(){
       const q=$('search').value.trim().toLowerCase();
       const person=isManager()?$('assigneeFilter').value:'';
       const prio=$('priorityFilter').value;
+      const t0=today();
       return visible().filter(t=>{
         if(scope==='mine'&&t.assignee!==currentUser())return false;
         if(person&&t.assignee!==person)return false;
         if(prio&&t.priority!==prio)return false;
-        if(q&&!`${t.title} ${t.description} ${t.assignee}`.toLowerCase().includes(q))return false;
+        if(!matchesDue(t,t0))return false;
+        if(q&&!`${t.title} ${t.description} ${t.assignee} ${t.customer_name||''}`.toLowerCase().includes(q))return false;
         return true;
       });
     }
@@ -303,7 +402,7 @@
 
     function boardHtml(rows){
       return `<div class="board">${COLUMNS.map(col=>{
-        const list=rows.filter(x=>x.status===col.id).sort((a,b)=>a.due_date.localeCompare(b.due_date)||byPriority(a,b));
+        const list=rows.filter(x=>x.status===col.id).sort(byDue);
         return `<div class="col col-${col.id}" data-col="${col.id}">
           <div class="col-head"><span class="col-dot"></span><span class="col-name">${col.name}</span><span class="col-count">${list.length}</span></div>
           ${list.map(cardHtml).join('')||'<div class="col-empty">Nothing here</div>'}
@@ -319,10 +418,16 @@
           <button class="kebab" aria-label="Edit task" onclick="openTask('${x.id}')">⋯</button>
         </div>
         ${x.description?`<div class="card-desc">${esc(x.description)}</div>`:''}
+        ${x.customer_name?`<div class="cust">
+          <span class="cn">${esc(x.customer_name)}</span>
+          ${x.customer_phone?`<span class="sep">·</span><a href="tel:${esc(x.customer_phone)}">${esc(x.customer_phone)}</a>`:''}
+          ${x.ghl_contact_url?`<span class="sep">·</span><a href="${esc(x.ghl_contact_url)}" target="_blank" rel="noopener">GHL</a>`:''}
+        </div>`:''}
         <div class="card-meta">
           <span class="avatar" title="${esc(x.assignee)}">${initials(x.assignee)}</span>
           <span class="due ${cls}">${fmtDate(x.due_date)}<span class="t">${fmtTime(x.due_time)}</span></span>
           <span class="pill ${x.priority}">${x.priority}</span>
+          ${notesReady?`<button class="notes-btn ${x.notes?.length?'has':''}" onclick="openTask('${x.id}',true)">💬 ${x.notes?.length||0}</button>`:''}
         </div>
         <div class="moves">${COLUMNS.map(c=>
           `<button ${c.id===x.status?'disabled':''} onclick="moveTask('${x.id}','${c.id}')">${c.name}</button>`).join('')}</div>
@@ -357,7 +462,77 @@
       else{x.status=prev;render();toast('Could not move task')}
     }
 
-    function openTask(id){
+    // ── Assign to me ────────────────────────────────────────────────────────
+    function assignToMe(){$('assignee').value=currentUser()}
+
+    // ── GHL customer search ─────────────────────────────────────────────────
+    let ghlTimer=null;
+    function setCustomer(c){
+      pickedCustomer=c;
+      const has=!!c;
+      $('custPicked').hidden=!has;
+      $('custSearch').hidden=has;
+      $('ghlResults').classList.remove('open');
+      if(has){
+        $('custPickedName').textContent=c.name||'';
+        $('custPickedMeta').textContent=[c.phone,c.email].filter(Boolean).join(' · ');
+      }
+    }
+    function clearCustomer(){$('custSearch').value='';setCustomer(null);$('custSearch').focus()}
+    $('custSearch').oninput=()=>{
+      const q=$('custSearch').value.trim(),box=$('ghlResults');
+      clearTimeout(ghlTimer);
+      if(q.length<2){box.classList.remove('open');box.innerHTML='';return}
+      ghlTimer=setTimeout(async()=>{
+        box.innerHTML='<div class="ghl-item info">Searching GHL…</div>';box.classList.add('open');
+        try{
+          const r=await fetch(`/api/battery/request-callback?action=ghl-contacts&q=${encodeURIComponent(q)}`);
+          const list=r.ok?await r.json():[];
+          if(!Array.isArray(list)||!list.length){box.innerHTML='<div class="ghl-item info">No matching GHL contacts</div>';return}
+          box.innerHTML=list.map((c,i)=>`<div class="ghl-item" data-i="${i}">
+            <div class="n">${esc(c.name||'—')}</div>
+            <div class="s">${esc([c.phone,c.email,c.address].filter(Boolean).join(' · '))}</div></div>`).join('');
+          box.querySelectorAll('.ghl-item[data-i]').forEach(el=>{
+            el.onclick=()=>setCustomer(list[Number(el.dataset.i)]);
+          });
+        }catch(e){box.innerHTML='<div class="ghl-item info">Could not reach GHL</div>'}
+      },300);
+    };
+    document.addEventListener('click',e=>{
+      if(!e.target.closest('.cust-field'))$('ghlResults').classList.remove('open');
+    });
+
+    // ── Notes ───────────────────────────────────────────────────────────────
+    function renderNotes(x){
+      const list=$('noteList'),notes=x?.notes||[];
+      list.innerHTML=notes.length
+        ? notes.map(n=>`<div class="note"><span class="avatar">${initials(n.author)}</span><div>
+            <div class="body">${esc(n.body)}</div>
+            <div class="who">${esc(n.author)} · ${new Date(n.created_at).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Australia/Sydney'})}</div>
+          </div></div>`).join('')
+        : '<div class="note-empty">No notes yet.</div>';
+      list.scrollTop=list.scrollHeight;
+    }
+    async function addNote(){
+      const id=$('taskId').value,body=$('noteInput').value.trim();
+      if(!id||!body)return;
+      $('noteBtn').disabled=true;
+      try{
+        const r=await fetch(`${SB_URL}/rest/v1/portal_task_notes`,{
+          method:'POST',headers:{...H,Prefer:'return=representation'},
+          body:JSON.stringify({task_id:id,author:currentUser(),body}),
+        });
+        if(!r.ok)throw new Error(await r.text());
+        const [saved]=await r.json();
+        const x=tasks.find(t=>t.id===id);
+        if(x){x.notes=[...(x.notes||[]),saved];renderNotes(x)}
+        $('noteInput').value='';render();toast('Note added');
+      }catch(e){toast('Could not add note');console.error(e)}
+      finally{$('noteBtn').disabled=false}
+    }
+    $('noteInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addNote()}});
+
+    function openTask(id,focusNotes){
       const x=tasks.find(t=>t.id===id);
       if(x&&!isManager()&&x.assignee!==currentUser()){toast('That task belongs to someone else');return}
       $('taskId').value=x?.id||'';
@@ -372,8 +547,19 @@
       $('priority').value=x?.priority||'normal';
       $('createdBy').value=x?.created_by||currentUser();
       $('archiveBtn').hidden=!x;
+      // Employees always own what they create; only the manager reassigns.
+      $('assignee').disabled=!isManager();
+      $('meBtn').hidden=!isManager();
+      setCustomer(x?.customer_name?{
+        id:x.ghl_contact_id,name:x.customer_name,phone:x.customer_phone,
+        email:x.customer_email,link:x.ghl_contact_url,
+      }:null);
+      $('custSearch').value='';
+      $('notesSection').hidden=!x||!notesReady;
+      if(x&&notesReady)renderNotes(x);
+      $('noteInput').value='';
       taskDialog.showModal();
-      setTimeout(()=>$('title').focus(),50);
+      setTimeout(()=>(focusNotes&&notesReady?$('noteInput'):$('title')).focus(),50);
     }
 
     $('taskForm').onsubmit=async e=>{
@@ -383,7 +569,12 @@
       const payload={
         title:$('title').value.trim(),
         description:$('description').value.trim(),
-        assignee:$('assignee').value,
+        assignee:isManager()?$('assignee').value:currentUser(),
+        ghl_contact_id:pickedCustomer?.id||null,
+        ghl_contact_url:pickedCustomer?.link||null,
+        customer_name:pickedCustomer?.name||null,
+        customer_phone:pickedCustomer?.phone||null,
+        customer_email:pickedCustomer?.email||null,
         due_date:$('dueDate').value,
         due_time:$('dueTime').value||null,
         priority:$('priority').value,
@@ -418,6 +609,7 @@
     $('search').oninput=render;
     $('assigneeFilter').onchange=render;
     $('priorityFilter').onchange=render;
+    $('dueFilter').onchange=render;
 
     initPeople();load();
   </script>
