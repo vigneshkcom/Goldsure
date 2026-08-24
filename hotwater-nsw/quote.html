@@ -235,13 +235,25 @@ const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 const show = id => ['loading','error','ok'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id));
 
 (async function(){
-  const token = new URLSearchParams(location.search).get('token');
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
   if(!token){ show('error'); return; }
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`, { headers: HEADERS });
     const rows = res.ok ? await res.json() : [];
     const q = rows[0];
     if(!q){ show('error'); return; }
+
+    // Count genuine customer opens once per browser tab/session. Tracker opens
+    // carry source=tracker so staff checking a quote do not inflate the total.
+    const viewKey = `nsw_hws_quote_viewed_${token}`;
+    if(params.get('source')!=='tracker' && !sessionStorage.getItem(viewKey)){
+      fetch('/api/hotwater-nsw/quotes',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'record-view',token})
+      }).then(r=>{ if(r.ok) sessionStorage.setItem(viewKey,'1'); })
+        .catch(e=>console.warn('Quote view tracking failed',e));
+    }
 
     const issued = q.sent_at ? new Date(q.sent_at) : (q.created_at ? new Date(q.created_at) : new Date());
     document.getElementById('qRef').textContent  = 'NSW-' + String(q.quote_token).replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase();

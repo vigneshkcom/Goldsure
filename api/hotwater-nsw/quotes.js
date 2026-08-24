@@ -7,6 +7,7 @@
 // shared password-gated delete-quotes action in api/battery/request-callback.js.
 //
 //   GET  ?action=search-contacts&q=...   → GHL contact lookup for the name field
+//   POST { action:'record-view', token }   → increment the online quote view count
 //   POST { action:'accept-notify', token } → internal "quote accepted" email
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
@@ -84,12 +85,37 @@ export default async function handler(req, res) {
   // ── Customer accepted their quote → notify the team (best-effort email) ──
   if (req.method === 'POST') {
     const { action, token } = req.body || {};
-    if (action !== 'accept-notify') return res.status(400).json({ error: 'Unknown action.' });
     if (!token) return res.status(400).json({ error: 'token is required.' });
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
     if (!SUPABASE_URL || !SUPABASE_KEY) return res.status(503).json({ error: 'Supabase is not configured.' });
+
+    if (action === 'record-view') {
+      try {
+        const viewRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_nsw_hws_quote_view`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ p_token: token }),
+        });
+        if (!viewRes.ok) {
+          const detail = await viewRes.text().catch(() => '');
+          console.error('[NSW HWS view] update failed', viewRes.status, detail.slice(0, 300));
+          return res.status(502).json({ error: 'Could not record quote view.' });
+        }
+        const rows = await viewRes.json().catch(() => []);
+        return res.status(200).json({ success: true, ...(rows[0] || {}) });
+      } catch (e) {
+        console.error('[NSW HWS view] update error', e.message);
+        return res.status(502).json({ error: 'Could not record quote view.' });
+      }
+    }
+
+    if (action !== 'accept-notify') return res.status(400).json({ error: 'Unknown action.' });
 
     const r = await fetch(
       `${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`,
