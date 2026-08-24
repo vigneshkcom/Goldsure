@@ -243,6 +243,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
 .days-pill.is-stale { background: var(--amber); border: none; color: #fff; }
 .count-badge { display: inline; background: none; border: none; padding: 0; min-width: 0; height: auto; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .count-badge.has-reminders { color: var(--text); }
+.view-stat{min-width:82px}.view-stat strong{display:block;font-size:15px;font-weight:600;line-height:1.2;color:var(--text);font-variant-numeric:tabular-nums}.view-stat span{display:block;margin-top:2px;font-size:10.5px;line-height:1.25;color:var(--muted);white-space:nowrap}
 
 /* ── Dropdown menus ── */
 .status-menu {
@@ -388,6 +389,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
             <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket<i class="sort-caret"></i></th>
             <th>Goldsure Revenue</th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
+            <th onclick="sortBy('view_count')" data-col="view_count">Online Views<i class="sort-caret"></i></th>
             <th>Status</th>
             <th>GHL Stage</th>
             <th>Send Reminder</th>
@@ -459,6 +461,8 @@ function showToast(m){ const t=document.getElementById('toast'); t.textContent=m
 function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
 function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
 function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
+function getViewCount(q){ const c=parseInt(q.view_count,10); return Number.isFinite(c)?c:0; }
+function renderViewStat(q){const count=getViewCount(q);const last=q.last_viewed_at?new Date(q.last_viewed_at):null;const when=last&&!isNaN(last)?last.toLocaleString('en-AU',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit'}):'Never viewed';return `<div class="view-stat"><strong>${count}</strong><span>${esc(when)}</span></div>`;}
 // The outdoor compressor is a line item like any other, but it isn't a head —
 // counting it made a 4-head quote read as 5 units. New quotes tag their lines
 // with `kind`; older ones are identified by the ACV9 model in the name.
@@ -524,8 +528,8 @@ function applyFilters(){
   });
   filtered.sort((a,b)=>{
     let av=a[sortCol],bv=b[sortCol];
-    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
-    if(sortCol==='total_inc_gst'||sortCol==='total_out_of_pocket'||sortCol==='reminder_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(sortCol==='sent_at'||sortCol==='last_reminder_sent_at'||sortCol==='last_viewed_at'){av=av?new Date(av):new Date(0);bv=bv?new Date(bv):new Date(0);}
+    if(sortCol==='total_inc_gst'||sortCol==='total_out_of_pocket'||sortCol==='reminder_count'||sortCol==='view_count'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
     if(av<bv)return sortDir==='asc'?-1:1; if(av>bv)return sortDir==='asc'?1:-1; return 0;
   });
   document.getElementById('results-count').textContent=filtered.length;
@@ -615,7 +619,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -636,6 +640,7 @@ function renderTable(){
       <td class="td-oop">${money(q.total_out_of_pocket)}</td>
       <td class="td-cut">${money(goldsureCut(q))}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
+      <td>${renderViewStat(q)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
@@ -676,7 +681,7 @@ async function deleteSelected(){
   }catch(err){ console.error(err); showToast('Network error deleting.'); }
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
 
 function toggleMenu(e,btn){ e.stopPropagation(); const menu=btn.querySelector('.status-menu'); const open=menu.classList.contains('open'); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')); if(!open)menu.classList.add('open'); }
 document.addEventListener('click',()=>document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')));
@@ -726,11 +731,11 @@ async function doSendReminder(id, sendSms, smsText){
 
 function exportCSV(){
   if(!filtered.length){ showToast('No quotes to export.'); return; }
-  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Out-of-Pocket','Goldsure Revenue','Days Since Quote','Status','Days Since Reminder','Reminder Count'];
+  const headers=['Date Sent','Customer','Email','Phone','Agent','Units','Out-of-Pocket','Goldsure Revenue','Days Since Quote','Online Views','Last Viewed','Status','Days Since Reminder','Reminder Count'];
   const rows=filtered.map(q=>[
     q.sent_at?new Date(q.sent_at).toLocaleString('en-AU'):'',
     q.customer_name||'',q.customer_email||'',q.customer_phone||'',q.agent_name||'',unitCount(q),
-    q.total_out_of_pocket||'',goldsureCut(q),daysSince(q.sent_at)??'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
+    q.total_out_of_pocket||'',goldsureCut(q),daysSince(q.sent_at)??'',getViewCount(q),q.last_viewed_at?new Date(q.last_viewed_at).toLocaleString('en-AU'):'',q.status||'sent',daysSince(q.last_reminder_sent_at)??'',getReminderCount(q)
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   const csv=[headers.join(','),...rows].join('\n');
   const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);

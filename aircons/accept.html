@@ -130,6 +130,18 @@ function renderSummary(row, targetId='summaryBox'){
     <div class="row total"><span class="l">Your Out-of-Pocket</span><span class="v">${money(row.total_out_of_pocket)}</span></div>`;
 }
 
+function recordQuoteView(token){
+  try{
+    const params=new URLSearchParams(location.search);
+    if(params.get('source')==='tracker') return;
+    const key=`aircon_quote_viewed_${token}`;
+    if(sessionStorage.getItem(key)) return;
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/record_aircon_quote_view`,{method:'POST',headers:HEADERS,body:JSON.stringify({p_token:token})})
+      .then(response=>{if(response.ok)sessionStorage.setItem(key,'1')})
+      .catch(error=>console.warn('Quote view tracking failed',error));
+  }catch(_){ /* storage may be unavailable; the page should still work */ }
+}
+
 (async function(){
   const token = new URLSearchParams(location.search).get('token');
   const viewMode = new URLSearchParams(location.search).get('view') === '1';
@@ -141,6 +153,7 @@ function renderSummary(row, targetId='summaryBox'){
     const row = Array.isArray(rows) && rows[0];
     if(!row){ show('error'); document.getElementById('errorMsg').textContent='We could not find this quote. Please contact us directly.'; return; }
 
+    recordQuoteView(token);
     if(row.accepted === true || row.status === 'accepted'){ renderSummary(row); show('already'); return; }
     const issuedAt = new Date(row.sent_at || row.created_at);
     if(String(row.status || '').toLowerCase() === 'expired' || (!Number.isNaN(issuedAt.getTime()) && Date.now() >= issuedAt.getTime() + 21 * 86400000)){ show('expired'); return; }
