@@ -6,7 +6,10 @@ const NSW_REMINDER_DAYS = [7, 14];
 // Only quotes sent after the user approved automation are eligible. Existing
 // quotes must never be reminded or expired by this job.
 const AUTOMATION_START = new Date('2026-08-24T06:20:32.673Z');
-const NSW_AUTOMATION_START = new Date('2026-08-24T06:41:11.669Z');
+// NSW automation is intentionally backfilled across all existing Sent quotes;
+// unlike the smoke-alarm rollout, the user requested historical NSW customers
+// be included as well.
+const NSW_AUTOMATION_START = new Date(0);
 
 function parseQuoteDate(value) {
   if (!value) return null;
