@@ -33,6 +33,10 @@ h1{font-size:22px;font-weight:700;margin-bottom:10px;line-height:1.3;}
 .summary .row.total .v{color:var(--gold-light);font-size:16px;}
 .contact{font-size:13px;color:var(--muted);line-height:1.7;}
 .contact a{color:var(--gold);font-weight:600;text-decoration:none;}
+.view-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px;}
+.view-actions a{display:inline-block;padding:12px 22px;border-radius:7px;text-decoration:none;font-size:13px;font-weight:700;}
+.view-actions .accept-link{background:var(--gold);color:#141c2e;}
+.view-actions .help-link{border:1px solid var(--border);color:var(--muted);}
 .foot{padding:16px;text-align:center;background:var(--dark);}
 .foot p{font-size:10px;color:#8b93a3;line-height:1.5;}
 .foot .b{color:var(--gold-light);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;}
@@ -80,6 +84,18 @@ h1{font-size:22px;font-weight:700;margin-bottom:10px;line-height:1.3;}
       <p class="contact">Please call <a href="tel:0370502846">03 7050 2846</a> or email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> for an updated quote.</p>
     </div>
 
+    <!-- View-only mode used by the SMS quote link -->
+    <div id="state-view" class="hidden">
+      <div class="icon-badge info">▣</div>
+      <h1>Your Aircon Quote</h1>
+      <p class="subtitle">Review your quote below. Nothing has been accepted yet.</p>
+      <div class="summary" id="viewSummary"></div>
+      <div class="view-actions">
+        <a class="accept-link" id="viewAcceptBtn" href="#">Accept This Quote</a>
+        <a class="help-link" href="tel:0370502846">Call Goldsure</a>
+      </div>
+    </div>
+
     <!-- Error -->
     <div id="state-error" class="hidden">
       <div class="icon-badge err">!</div>
@@ -100,14 +116,14 @@ const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
 
-function show(id){ ['loading','success','already','expired','error'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id)); }
+function show(id){ ['loading','view','success','already','expired','error'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id)); }
 function money(n){ return '$'+(parseFloat(n)||0).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function unitCount(row){ try{ return (Array.isArray(row.line_items)?row.line_items:[]).reduce((s,l)=>s+(parseInt(l.qty,10)||0),0); }catch(e){ return 0; } }
-function renderSummary(row){
+function renderSummary(row, targetId='summaryBox'){
   const units=unitCount(row);
-  document.getElementById('summaryBox').innerHTML = `
+  document.getElementById(targetId).innerHTML = `
     ${units?`<div class="row"><span class="l">Units</span><span class="v">${units}</span></div>`:''}
     <div class="row"><span class="l">Total (inc GST)</span><span class="v">${money(row.products_inc_gst)}</span></div>
     <div class="row"><span class="l">VEEC discount</span><span class="v" style="color:var(--green);">− ${money(row.veec_discount)}</span></div>
@@ -116,6 +132,7 @@ function renderSummary(row){
 
 (async function(){
   const token = new URLSearchParams(location.search).get('token');
+  const viewMode = new URLSearchParams(location.search).get('view') === '1';
   if(!token){ show('error'); document.getElementById('errorMsg').textContent='No quote reference found in this link. Please contact us directly.'; return; }
   try{
     const getRes = await fetch(`${SUPABASE_URL}/rest/v1/aircon_quotes?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`, { headers: HEADERS });
@@ -127,6 +144,12 @@ function renderSummary(row){
     if(row.accepted === true || row.status === 'accepted'){ renderSummary(row); show('already'); return; }
     const issuedAt = new Date(row.sent_at || row.created_at);
     if(String(row.status || '').toLowerCase() === 'expired' || (!Number.isNaN(issuedAt.getTime()) && Date.now() >= issuedAt.getTime() + 21 * 86400000)){ show('expired'); return; }
+    if(viewMode){
+      renderSummary(row, 'viewSummary');
+      document.getElementById('viewAcceptBtn').href = '/aircons/accept.html?token=' + encodeURIComponent(token);
+      show('view');
+      return;
+    }
 
     const acceptedAt = new Date().toISOString();
     const upd = await fetch(`${SUPABASE_URL}/rest/v1/aircon_quotes?quote_token=eq.${encodeURIComponent(token)}`, {
