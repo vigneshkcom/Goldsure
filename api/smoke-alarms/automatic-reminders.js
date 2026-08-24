@@ -3,6 +3,7 @@ export const config = { maxDuration: 300 };
 const DAY_MS = 86400000;
 const REMINDER_DAYS = [7, 14, 20];
 const NSW_REMINDER_DAYS = [7, 14];
+const VIC_REMINDER_DAYS = [7, 14];
 // Only quotes sent after the user approved automation are eligible. Existing
 // quotes must never be reminded or expired by this job.
 const AUTOMATION_START = new Date('2026-08-24T06:20:32.673Z');
@@ -10,6 +11,9 @@ const AUTOMATION_START = new Date('2026-08-24T06:20:32.673Z');
 // unlike the smoke-alarm rollout, the user requested historical NSW customers
 // be included as well.
 const NSW_AUTOMATION_START = new Date(0);
+// VIC rollout starts at the beginning of today (AEST); older VIC quotes are
+// deliberately excluded. Existing reminder_count values are preserved.
+const VIC_AUTOMATION_START = new Date('2026-08-23T14:00:00.000Z');
 
 function parseQuoteDate(value) {
   if (!value) return null;
@@ -74,7 +78,7 @@ async function runInBatches(items, batchSize, work) {
   return results;
 }
 
-async function runService({ table, reminderDays, automationStart, sendPath, isNsw, supabaseUrl, serviceKey, origin, now }) {
+async function runService({ table, reminderDays, automationStart, sendPath, action, isNsw, supabaseUrl, serviceKey, origin, now }) {
   const quotesResponse = await fetch(
     `${supabaseUrl}/rest/v1/${table}?select=*&status=eq.sent&order=sent_at.asc&limit=1000`,
     { headers: supabaseHeaders(serviceKey) }
@@ -117,7 +121,7 @@ async function runService({ table, reminderDays, automationStart, sendPath, isNs
       if (!await claimReminder(supabaseUrl, serviceKey, table, quote, reminderNumber, claimedAt)) return { state: 'duplicate' };
       const response = await fetch(`${origin}${sendPath}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...quote, ...(isNsw ? { is_reminder: true } : {}), send_sms: false }),
+        body: JSON.stringify({ ...quote, ...(action ? { action } : {}), ...(isNsw || action ? { is_reminder: true } : {}), send_sms: false }),
       });
       if (!response.ok) {
         await releaseReminderClaim(supabaseUrl, serviceKey, table, quote, reminderNumber);
@@ -158,11 +162,13 @@ export default async function handler(req, res) {
   const now = new Date();
   const origin = (process.env.SITE_URL || `https://${req.headers.host}`).replace(/\/$/, '');
   try {
-    const [smoke, nsw] = await Promise.all([
+    const [smoke, nsw, vicHotwater, vicAircon] = await Promise.all([
       runService({ table: 'quote_emails', reminderDays: REMINDER_DAYS, automationStart: AUTOMATION_START, sendPath: '/api/smoke-alarms/send-reminder', isNsw: false, supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'nsw_hws_quotes', reminderDays: NSW_REMINDER_DAYS, automationStart: NSW_AUTOMATION_START, sendPath: '/api/hotwater-nsw/send', isNsw: true, supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'hotwater_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'hws-quote', isNsw: false, supabaseUrl, serviceKey, origin, now }),
+      runService({ table: 'aircon_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'aircon-quote', isNsw: false, supabaseUrl, serviceKey, origin, now }),
     ]);
-    return res.status(200).json({ ok: true, smoke, nsw, completed_at: new Date().toISOString() });
+    return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, completed_at: new Date().toISOString() });
   } catch (error) {
     console.error('[Automatic reminders]', error);
     return res.status(502).json({ error: 'Could not process automatic reminders.' });

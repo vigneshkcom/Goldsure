@@ -1236,7 +1236,7 @@ export default async function handler(req, res) {
       stc_qty = 0, stc_rate = 0, stc_total = 0,
       veec_qty = 0, veec_rate = 0, veec_total = 0,
       total_after_pos_rebates = 0, sv_delayed_rebate = 0, total_out_of_pocket = 0,
-      is_reminder = false, reminder_count = 0,
+      is_reminder = false, reminder_count = 0, sent_at = null,
     } = body;
 
     if (!customer_name || !customer_email || !String(customer_email).includes('@')) {
@@ -1280,7 +1280,7 @@ export default async function handler(req, res) {
 
     const acceptUrl = `${SITE}/hotwater/accept.html?token=${encodeURIComponent(token)}`;
     const rejectUrl = `${SITE}/hotwater/reject.html?token=${encodeURIComponent(token)}`;
-    const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+    const quoteDate = new Date(sent_at || Date.now()).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
     const quoteNo = 'HW-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
     const preheader = `Your Goldsure hot water quote — ${money(total_out_of_pocket)} out of pocket after rebates.`;
@@ -1796,7 +1796,7 @@ ${notesHtml}
       email_body = '', send_sms = true,
       products_ex_gst = 0, total_gst = 0, products_inc_gst = 0,
       subtotal = 0, total_out_of_pocket = 0,
-      is_reminder = false, reminder_count = 0,
+      is_reminder = false, reminder_count = 0, sent_at = null,
     } = body;
 
     if (!customer_name || !customer_email || !String(customer_email).includes('@')) {
@@ -1817,7 +1817,7 @@ ${notesHtml}
     };
     const acceptUrl = `${SITE}/aircons/accept.html?token=${encodeURIComponent(token)}`;
     const rejectUrl = `${SITE}/aircons/reject.html?token=${encodeURIComponent(token)}`;
-    const quoteDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+    const quoteDate = new Date(sent_at || Date.now()).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
     const quoteNo = 'AC-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 

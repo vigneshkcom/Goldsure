@@ -206,6 +206,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
 .badge-accepted  { background: var(--green); }
 .badge-rejected  { background: var(--red); }
 .badge-installed { background: var(--purple); }
+.badge-expired { background: #7f8795; }
 
 /* GHL stage chips — solid fills too, one colour per stage */
 .badge-ghl { background: #c4c4c4; color: #fff; border: none; cursor: pointer; }
@@ -366,7 +367,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
     <input type="search" class="filter-input" id="searchInput" placeholder="Search name, email, phone, agent…" oninput="applyFilters()">
     <div class="filter-divider"></div>
     <select class="filter-select" id="filterAgent" onchange="applyFilters()"><option value="">All Agents</option></select>
-    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="installed">Installed</option></select>
+    <select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All Statuses</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="expired">Expired</option><option value="installed">Installed</option></select>
     <select class="filter-select" id="filterPeriod" onchange="applyFilters()"><option value="">All Time</option><option value="today">Today</option><option value="week">Last 7 Days</option><option value="month">Last 30 Days</option></select>
     <button class="clear-btn" onclick="clearFilters()">Clear</button>
     <span class="results-count"><strong id="results-count">0</strong> quotes shown</span>
@@ -618,7 +619,7 @@ function renderTable(){
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
-    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',installed:'badge-installed'}[st]||'badge-sent';
+    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',expired:'badge-expired',installed:'badge-installed'}[st]||'badge-sent';
     const canRemind=st==='sent'&&!!q.customer_email&&!!q.quote_token;
     const menuItems=['sent','accepted','rejected','installed'].map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
     const ghlEmail=(q.customer_email||'').toLowerCase().trim();
