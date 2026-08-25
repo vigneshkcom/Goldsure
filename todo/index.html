@@ -6,189 +6,517 @@
   <title>Team Tasks | Goldsure</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
   <style>
-    :root{--bg:#f6f7fb;--card:#fff;--line:#e6e9ef;--text:#323338;--muted:#676879;--blue:#0073ea;--blue-soft:#e6f1fd;--green:#00a86b;--red:#d83a52;--orange:#fdab3d;--purple:#7b5cff;--shadow:0 1px 3px rgba(20,30,55,.08)}
+    /* ── monday.com-inspired design tokens ──────────────────────────────────
+       Palette, radii and type scale mirror monday's work-OS surfaces: a white
+       canvas, hairline dividers, solid label chips and a single accent blue. */
+    :root{
+      --bg:#ffffff;--canvas:#f6f7fb;--card:#fff;
+      --line:#e6e9ef;--line-strong:#d0d4e4;--line-soft:#eceff5;
+      --text:#323338;--muted:#676879;--faint:#9699a6;
+      --blue:#0073ea;--blue-hover:#0060b9;--blue-soft:#e5f4ff;--blue-ink:#0b5fb0;
+      --green:#00c875;--green-soft:#e5f9f0;--green-ink:#037f4c;
+      --red:#e2445c;--red-soft:#fdecef;--red-ink:#b3283d;
+      --orange:#fdab3d;--orange-soft:#fff4e4;--orange-ink:#8f5600;
+      --purple:#a25ddc;--purple-soft:#f3e9fc;--purple-ink:#6d2fa3;
+      --r-sm:4px;--r-md:8px;--r-lg:12px;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+      --shadow-md:0 4px 12px rgba(0,0,0,.08);
+      --shadow-lg:0 12px 34px rgba(0,0,0,.13);
+    }
     *{box-sizing:border-box}
     /* Class rules like .seg{display:flex} outrank the UA [hidden] rule, so the
        manager-only controls stayed visible for employees without this. */
     [hidden]{display:none!important}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Figtree,Arial,sans-serif}
-    .page{max-width:1560px;margin:auto;padding:28px 32px 60px}
-    .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px}
-    .eyebrow{font-size:11px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
-    h1{font-size:29px;line-height:1.15;margin:0 0 7px}
-    .subtitle{color:var(--muted);font-size:14px}
+    html{-webkit-text-size-adjust:100%}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:Figtree,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+      font-size:14px;line-height:1.5;font-weight:400;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+      font-variant-numeric:tabular-nums;
+    }
+    .page{max-width:1600px;margin:auto;padding:26px 32px 72px}
+
+    /* ── Board header ── */
+    .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:22px}
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+      letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;
+    }
+    .eyebrow::before{content:'';width:6px;height:6px;border-radius:2px;background:var(--blue)}
+    h1{font-size:28px;line-height:1.16;font-weight:700;letter-spacing:-.6px;margin:0 0 6px;color:#1f2034}
+    .subtitle{color:var(--muted);font-size:14px;line-height:1.5;max-width:62ch}
     .top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .who{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 10px 5px 6px}
+
+    .who{
+      display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line-strong);
+      border-radius:var(--r-md);padding:4px 10px 4px 5px;height:38px;transition:border-color .14s,box-shadow .14s;
+    }
+    .who:hover{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.08)}
     .who .avatar{margin:0}
-    .who select{border:0;background:none;font:600 14px inherit;color:var(--text);outline:none;padding:4px 2px}
-    .role-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:3px 7px;border-radius:5px;background:var(--blue-soft);color:#075ea8}
-    .role-tag.mgr{background:#efe9ff;color:#5636d6}
-    .control{height:40px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:0 12px;color:var(--text);font:inherit}
-    .btn{height:40px;border:0;border-radius:7px;padding:0 16px;font:600 14px inherit;cursor:pointer}
-    .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#0060b9}
-    .btn-light{background:#fff;color:var(--text);border:1px solid var(--line)}
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-    .kpi{background:#fff;border:1px solid var(--line);border-radius:9px;padding:15px 17px;box-shadow:var(--shadow)}
-    .kpi-label{font-size:12px;color:var(--muted);margin-bottom:7px}
-    .kpi-value{font-size:25px;font-weight:700}
-    .kpi.overdue .kpi-value{color:var(--red)}.kpi.today .kpi-value{color:var(--blue)}.kpi.done .kpi-value{color:var(--green)}
-    .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-    .filters{display:flex;gap:8px;flex-wrap:wrap}.search{min-width:220px}
-    .seg{display:flex;gap:3px;background:#e9ebf0;padding:3px;border-radius:8px}
-    .seg button{border:0;background:transparent;border-radius:6px;padding:8px 13px;color:var(--muted);font:600 13px inherit;cursor:pointer;white-space:nowrap}
-    .seg button.active{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+    .who select{
+      border:0;background:none;font-family:inherit;font-size:14px;font-weight:600;
+      color:var(--text);outline:none;padding:2px 2px;cursor:pointer;
+    }
+    .role-tag{
+      font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+      padding:4px 8px;border-radius:var(--r-sm);background:var(--blue-soft);color:var(--blue-ink);
+    }
+    .role-tag.mgr{background:var(--purple-soft);color:var(--purple-ink)}
+
+    /* ── Controls ── */
+    .control{
+      height:38px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:#fff;
+      padding:0 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none;
+      transition:border-color .14s,box-shadow .14s;
+    }
+    .control:hover{border-color:#b6bcd0}
+    .control:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12)}
+    select.control{cursor:pointer;padding-right:30px;
+      appearance:none;-webkit-appearance:none;
+      background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23676879' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 11px center;
+    }
+    .btn{
+      height:38px;border:0;border-radius:var(--r-sm);padding:0 17px;
+      font-family:inherit;font-size:14px;font-weight:600;letter-spacing:.1px;cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      transition:background .14s,border-color .14s,box-shadow .14s,color .14s;
+    }
+    .btn-primary{background:var(--blue);color:#fff;box-shadow:0 1px 2px rgba(0,115,234,.28)}
+    .btn-primary:hover{background:var(--blue-hover)}
+    .btn-primary:active{background:#00519e}
+    .btn-primary[disabled]{opacity:.55;cursor:default}
+    .btn-light{background:#fff;color:var(--text);border:1px solid var(--line-strong)}
+    .btn-light:hover{border-color:var(--blue);color:var(--blue)}
+
+    /* ── KPI widgets ── */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+    .kpi{
+      position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
+      padding:15px 18px 16px;overflow:hidden;transition:box-shadow .16s,border-color .16s;
+    }
+    .kpi::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--faint)}
+    .kpi:hover{box-shadow:var(--shadow-md);border-color:var(--line-strong)}
+    .kpi-label{font-size:12px;font-weight:600;letter-spacing:.2px;color:var(--muted);margin-bottom:8px}
+    .kpi-value{font-size:30px;font-weight:700;line-height:1;letter-spacing:-1px;color:#1f2034}
+    .kpi.today::before{background:var(--blue)}.kpi.today .kpi-value{color:var(--blue)}
+    .kpi.overdue::before{background:var(--red)}.kpi.overdue .kpi-value{color:var(--red)}
+    .kpi.done::before{background:var(--green)}.kpi.done .kpi-value{color:var(--green-ink)}
+
+    /* ── Toolbar ── */
+    .toolbar{
+      display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;
+      margin-bottom:20px;
+    }
+    .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .search-wrap{position:relative;display:flex}
+    .search-wrap svg{
+      position:absolute;left:11px;top:50%;transform:translateY(-50%);
+      width:15px;height:15px;color:var(--faint);pointer-events:none;
+    }
+    .search{min-width:236px;padding-left:33px}
+    /* monday's board chrome: underline view tabs on top, a grey pill segment
+       for the narrower team-scope switch below it. */
+    .viewbar{border-bottom:1px solid var(--line);margin-bottom:16px}
+    .view-tabs{display:flex;gap:2px;align-items:flex-end}
+    .view-tabs button{
+      position:relative;display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;
+      border-radius:var(--r-sm) var(--r-sm) 0 0;padding:9px 14px 11px;color:var(--muted);
+      font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;
+      transition:color .14s,background .14s;
+    }
+    .view-tabs svg{width:15px;height:15px;flex:none}
+    .view-tabs button::after{
+      content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;
+      background:transparent;border-radius:2px 2px 0 0;transition:background .14s;
+    }
+    .view-tabs button:hover{background:var(--canvas);color:var(--text)}
+    .view-tabs button.active{color:var(--blue);font-weight:600}
+    .view-tabs button.active::after{background:var(--blue)}
+    .seg{display:flex;gap:2px;background:var(--canvas);border:1px solid var(--line);padding:3px;border-radius:var(--r-md)}
+    .seg button{
+      border:0;background:transparent;border-radius:5px;padding:7px 14px;color:var(--muted);
+      font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+      transition:background .14s,color .14s,box-shadow .14s;
+    }
+    .seg button:hover{color:var(--text)}
+    .seg button.active{background:#fff;color:var(--text);box-shadow:var(--shadow-sm)}
+
+    /* ── Swimlanes ── */
+    .swim{margin-bottom:30px}
+    .swim-head{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+    .swim-head .nm{font-weight:700;font-size:15px;letter-spacing:-.1px}
+    .swim-head .ct{
+      font-size:11px;font-weight:600;color:var(--muted);background:var(--canvas);
+      border:1px solid var(--line);border-radius:999px;padding:3px 9px;
+    }
 
     /* ── Board ── */
-    .swim{margin-bottom:22px}
-    .swim-head{display:flex;align-items:center;gap:9px;margin:0 0 10px}
-    .swim-head .nm{font-weight:700;font-size:14px}
-    .swim-head .ct{font-size:12px;color:var(--muted)}
-    .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
-    .col{background:#eef0f5;border-radius:11px;padding:11px;min-height:120px;transition:background .12s}
-    .col.drag-over{background:#dbe7f8;outline:2px dashed var(--blue);outline-offset:-3px}
-    .col-head{display:flex;align-items:center;gap:8px;padding:2px 4px 11px}
-    .col-dot{width:9px;height:9px;border-radius:50%;flex:none}
-    .col-todo .col-dot{background:var(--blue)}.col-followup .col-dot{background:var(--orange)}.col-done .col-dot{background:var(--green)}
-    .col-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px}
-    .col-count{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:#fff;border-radius:20px;padding:2px 8px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:9px;box-shadow:var(--shadow);cursor:pointer}
-    .card:last-child{margin-bottom:0}
-    .card:hover{border-color:#c7cddb}
-    .card.dragging{opacity:.45}
-    .card.done .card-task,.card.done .card-primary.no-customer{text-decoration:line-through;color:var(--muted)}
-    .card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-    .card-primary{font-weight:700;font-size:15px;line-height:1.35;color:#24283a;overflow-wrap:anywhere}
-    .card-task{font-weight:600;font-size:12.5px;line-height:1.4;color:#50566d;margin-top:5px;overflow-wrap:anywhere}
-    .card-desc{font-size:12px;color:var(--muted);line-height:1.45;margin-top:5px;overflow-wrap:anywhere}
-    .card-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
-    .avatar{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--blue-soft);color:#075ea8;font-weight:700;font-size:10px;flex:none}
-    .due{font-size:11.5px;font-weight:600;color:var(--muted);background:#f1f3f7;border-radius:5px;padding:3px 7px;white-space:nowrap}
-    .due.over{background:#ffe8ec;color:#b3263e}.due.today{background:var(--blue-soft);color:#075ea8}
-    .due .t{opacity:.85}
-    .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 8px;font-size:10.5px;font-weight:700;text-transform:capitalize}
-    .pill::before{content:'';width:6px;height:6px;border-radius:50%}
-    .urgent{background:#ffe8ec;color:#b3263e}.urgent::before{background:var(--red)}
-    .high{background:#fff2dd;color:#a05d00}.high::before{background:var(--orange)}
-    .normal{background:#e6f1fd;color:#075ea8}.normal::before{background:var(--blue)}
-    .low{background:#edf8f4;color:#087657}.low::before{background:var(--green)}
-    .kebab{border:0;background:transparent;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:17px;line-height:1;color:var(--muted);flex:none}
-    .kebab:hover{background:#eceef3}
-    /* Linked GHL customer + note count on the card */
-    .cust{display:flex;align-items:center;gap:6px;margin-top:8px;background:#f6f8fc;border:1px solid #e4e9f2;border-radius:7px;padding:6px 8px;font-size:11.5px;overflow:hidden}
-    .cust a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
-    .cust .sep{color:#c3c9d6}
-    .notes-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 9px;font:600 11px inherit;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
-    .notes-btn:hover{border-color:var(--blue);color:var(--blue)}
-    .notes-btn.has{background:var(--blue-soft);border-color:#cfe2fa;color:#075ea8}
-    .moves{display:flex;gap:5px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
-    .moves button{flex:1;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 4px;font:600 10.5px inherit;color:var(--muted);cursor:pointer;white-space:nowrap}
-    .moves button:hover{border-color:var(--blue);color:var(--blue)}
-    .moves button[disabled]{opacity:.35;cursor:default}
-    .col-empty{padding:20px 8px;text-align:center;color:#9aa2b4;font-size:12px}
-    .loading{padding:55px;text-align:center;color:var(--muted)}
-    .setup{background:#fff;border:1px solid var(--line);border-radius:10px;padding:52px 24px;text-align:center}
-    .setup h3{margin:0 0 7px}.setup p{margin:0;color:var(--muted);font-size:13px}
+    .board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+    .col{
+      background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-md);
+      padding:0 10px 10px;min-height:150px;transition:background .12s,border-color .12s,box-shadow .12s;
+    }
+    .col.drag-over{background:var(--blue-soft);border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.1)}
+    /* Column identity comes from a coloured rule above the title, monday-style. */
+    .col-head{
+      display:flex;align-items:center;gap:9px;padding:13px 4px 12px;
+      border-top:3px solid var(--faint);margin:0 -10px 10px;padding-left:14px;padding-right:14px;
+      border-radius:var(--r-md) var(--r-md) 0 0;
+    }
+    .col-todo .col-head{border-top-color:var(--blue)}
+    .col-followup .col-head{border-top-color:var(--orange)}
+    .col-done .col-head{border-top-color:var(--green)}
+    .col-dot{width:8px;height:8px;border-radius:2px;flex:none;background:var(--faint)}
+    .col-todo .col-dot{background:var(--blue)}
+    .col-followup .col-dot{background:var(--orange)}
+    .col-done .col-dot{background:var(--green)}
+    .col-name{font-size:13px;font-weight:700;letter-spacing:.2px;color:#1f2034}
+    .col-todo .col-name{color:var(--blue-ink)}
+    .col-followup .col-name{color:var(--orange-ink)}
+    .col-done .col-name{color:var(--green-ink)}
+    .col-count{
+      margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);
+      background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;
+    }
 
-    dialog{border:1px solid rgba(225,229,238,.95);border-radius:16px;padding:0;width:min(760px,calc(100vw - 28px));max-height:min(96dvh,900px);overflow:hidden;box-shadow:0 30px 90px rgba(18,27,48,.28),0 5px 18px rgba(18,27,48,.12)}
-    dialog::backdrop{background:rgba(24,31,49,.56);backdrop-filter:blur(3px)}
-    dialog form{display:flex;flex-direction:column;max-height:min(96dvh,900px)}
-    .modal-head{padding:15px 20px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;background:linear-gradient(135deg,#fff 0%,#f7faff 100%)}
-    .modal-title{display:flex;align-items:flex-start;gap:13px;min-width:0}
-    .modal-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--blue);color:#fff;box-shadow:0 5px 13px rgba(0,115,234,.2);flex:none}
+    /* ── Cards ── */
+    .card{
+      position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
+      padding:13px 14px;margin-bottom:10px;box-shadow:var(--shadow-sm);cursor:pointer;
+      transition:box-shadow .16s,border-color .16s,transform .12s;
+    }
+    .card::before{
+      content:'';position:absolute;inset:9px auto 9px 0;width:3px;
+      border-radius:0 3px 3px 0;background:var(--line-strong);transition:background .16s;
+    }
+    .card.p-urgent::before{background:var(--red)}
+    .card.p-high::before{background:var(--orange)}
+    .card.p-normal::before{background:var(--blue)}
+    .card.p-low::before{background:var(--green)}
+    .card:last-child{margin-bottom:0}
+    .card:hover{border-color:var(--line-strong);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+    .card.dragging{opacity:.4;box-shadow:none;transform:none}
+    .card.done{background:#fcfdfe}
+    .card.done::before{background:var(--green)}
+    .card.done .card-task,.card.done .card-primary.no-customer{text-decoration:line-through;color:var(--faint)}
+    .card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+    .card-primary{font-weight:700;font-size:15px;line-height:1.32;letter-spacing:-.2px;color:#1f2034;overflow-wrap:anywhere}
+    .card-task{font-weight:500;font-size:13px;line-height:1.45;color:#4b4e69;margin-top:5px;overflow-wrap:anywhere}
+    .card-desc{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:6px;overflow-wrap:anywhere}
+    .card-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px}
+
+    .avatar{
+      display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
+      background:var(--blue);color:#fff;font-weight:700;font-size:10px;letter-spacing:.3px;
+      flex:none;box-shadow:0 0 0 2px #fff;
+    }
+    .due{
+      display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--muted);
+      background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);
+      padding:3px 8px;white-space:nowrap;
+    }
+    .due::before{
+      content:'';width:11px;height:11px;flex:none;background:currentColor;opacity:.75;
+      -webkit-mask:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2'/%3E%3Cpath d='M3 10h18M8 2.5v4M16 2.5v4'/%3E%3C/svg%3E") center/contain no-repeat;
+      mask:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2'/%3E%3Cpath d='M3 10h18M8 2.5v4M16 2.5v4'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+    .due.over{background:var(--red-soft);border-color:#f7ccd4;color:var(--red-ink)}
+    .due.today{background:var(--blue-soft);border-color:#c9e5fb;color:var(--blue-ink)}
+    .due .t{opacity:.85}
+    /* Solid label chips are monday's status signature. */
+    .pill{
+      display:inline-flex;align-items:center;border-radius:var(--r-sm);padding:4px 9px;
+      font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#fff;
+    }
+    .urgent{background:var(--red)}
+    .high{background:var(--orange);color:#5c3600}
+    .normal{background:var(--blue)}
+    .low{background:var(--green)}
+    .kebab{
+      border:0;background:transparent;width:28px;height:28px;border-radius:var(--r-sm);cursor:pointer;
+      font-size:18px;line-height:1;color:var(--faint);flex:none;transition:background .14s,color .14s;
+    }
+    .kebab:hover{background:var(--canvas);color:var(--text)}
+    /* Linked GHL customer + note count on the card */
+    .cust{
+      display:flex;align-items:center;gap:7px;margin-top:9px;background:var(--canvas);
+      border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 9px;font-size:11.5px;
+      overflow:hidden;flex-wrap:wrap;
+    }
+    .cust a{color:var(--blue);text-decoration:none;font-weight:600}
+    .cust a:hover{text-decoration:underline}
+    .cust .sep{color:var(--line-strong)}
+    .notes-btn{
+      border:1px solid var(--line-strong);background:#fff;border-radius:var(--r-sm);padding:4px 9px;
+      font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;
+      display:inline-flex;align-items:center;gap:5px;transition:.14s;
+    }
+    .notes-btn:hover{border-color:var(--blue);color:var(--blue)}
+    .notes-btn.has{background:var(--blue-soft);border-color:#c9e5fb;color:var(--blue-ink)}
+    .moves{display:flex;gap:6px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line-soft)}
+    .moves button{
+      flex:1;border:1px solid var(--line);background:#fff;border-radius:var(--r-sm);padding:6px 4px;
+      font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;
+      white-space:nowrap;transition:.14s;
+    }
+    .moves button:hover:not([disabled]){border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+    .moves button[disabled]{opacity:.35;cursor:default}
+    .col-empty{
+      padding:26px 10px;text-align:center;color:var(--faint);font-size:12.5px;
+      border:1px dashed var(--line-strong);border-radius:var(--r-md);background:rgba(255,255,255,.5);
+    }
+    .loading{padding:70px;text-align:center;color:var(--muted);font-size:14px}
+    .setup{
+      background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
+      padding:58px 24px;text-align:center;box-shadow:var(--shadow-sm);
+    }
+    .setup h3{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.2px}
+    .setup p{margin:0;color:var(--muted);font-size:13.5px}
+    .setup code{background:var(--canvas);border:1px solid var(--line);border-radius:var(--r-sm);padding:1px 5px;font-size:12.5px}
+
+    /* ── Modal ── */
+    dialog{
+      border:0;border-radius:var(--r-lg);padding:0;width:min(760px,calc(100vw - 28px));
+      max-height:min(96dvh,900px);overflow:hidden;box-shadow:var(--shadow-lg);color:var(--text);
+    }
+    dialog::backdrop{background:rgba(31,32,52,.5);backdrop-filter:blur(2px)}
+    dialog form{display:flex;flex-direction:column;max-height:min(96dvh,900px);background:#fff}
+    .modal-head{
+      padding:18px 22px 16px;border-bottom:1px solid var(--line);display:flex;
+      justify-content:space-between;align-items:flex-start;gap:16px;background:#fff;
+    }
+    .modal-title{display:flex;align-items:center;gap:13px;min-width:0}
+    .modal-mark{
+      display:grid;place-items:center;width:36px;height:36px;border-radius:var(--r-md);
+      background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(0,115,234,.28);flex:none;
+    }
     .modal-mark svg{width:19px;height:19px}
-    .modal-kicker{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin:0 0 3px}
-    .modal-head h2{font-size:19px;line-height:1.2;margin:0;color:#202536}
+    .modal-kicker{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
+    .modal-head h2{font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.4px;margin:0;color:#1f2034}
     .modal-subtitle{display:none}
-    .close{display:grid;place-items:center;width:34px;height:34px;border:1px solid transparent;border-radius:9px;background:transparent;font-size:23px;color:var(--muted);cursor:pointer;line-height:1;flex:none}
-    .close:hover{background:#fff;border-color:var(--line);color:var(--text)}
-    .form{padding:12px 18px 3px;overflow-y:auto;overscroll-behavior:contain}
-    .modal-section{border:1px solid var(--line);border-radius:11px;padding:10px 14px 0;margin-bottom:9px;background:#fff}
-    .customer-section{background:linear-gradient(135deg,#f8fbff 0%,#fff 75%);border-color:#dce8f8}
-    .section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-    .section-heading h3{font-size:13px;line-height:1.3;margin:0;color:#252a3a}
+    .close{
+      display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:var(--r-sm);
+      background:transparent;font-size:23px;color:var(--muted);cursor:pointer;line-height:1;flex:none;transition:.14s;
+    }
+    .close:hover{background:var(--canvas);color:var(--text)}
+    .form{padding:16px 22px 6px;overflow-y:auto;overscroll-behavior:contain;background:#fff}
+    .modal-section{border:1px solid var(--line);border-radius:var(--r-md);padding:13px 16px 4px;margin-bottom:12px;background:#fff}
+    .customer-section{background:var(--canvas);border-color:var(--line)}
+    .section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+    .section-heading h3{font-size:13px;font-weight:700;letter-spacing:.2px;line-height:1.3;margin:0;color:#1f2034}
     .section-heading p{display:none}
-    .section-tag{font-size:10px;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:#667085;background:#f1f3f7;border-radius:999px;padding:4px 8px;flex:none}
-    .field{margin-bottom:9px}
-    .field label{display:block;font-size:11px;font-weight:700;color:#404657;margin-bottom:5px}
-    .field input,.field textarea,.field select{width:100%;border:1px solid #cfd5e1;border-radius:8px;padding:8px 10px;font:13px inherit;color:var(--text);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
-    .field input:hover,.field textarea:hover,.field select:hover{border-color:#aeb7c7}
-    .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.11)}
-    .field textarea{min-height:52px;resize:vertical;line-height:1.45}
-    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
-    .hint{font-size:10px;color:var(--muted);margin-top:3px}
+    .section-tag{
+      font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+      background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 9px;flex:none;
+    }
+    .field{margin-bottom:12px}
+    .field label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.2px;color:var(--muted);margin-bottom:6px}
+    .field input,.field textarea,.field select{
+      width:100%;border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:9px 11px;
+      font-family:inherit;font-size:14px;color:var(--text);background:#fff;outline:none;
+      transition:border-color .14s,box-shadow .14s;
+    }
+    .field select{cursor:pointer}
+    .field input:hover,.field textarea:hover,.field select:hover{border-color:#b6bcd0}
+    .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12)}
+    .field textarea{min-height:60px;resize:vertical;line-height:1.5}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+    .hint{font-size:11px;color:var(--faint);margin-top:5px}
     /* GHL customer search inside the task modal */
     .cust-field{position:relative}
-    .cust-picked{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #bdd6f2;border-radius:9px;padding:8px 10px;box-shadow:0 2px 8px rgba(0,115,234,.06)}
-    .cust-picked .cn{font-weight:700;font-size:13.5px}
-    .cust-picked .cd{font-size:11.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+    .cust-picked{
+      display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--blue);
+      border-radius:var(--r-sm);padding:9px 11px;box-shadow:0 0 0 3px rgba(0,115,234,.09);
+    }
+    .cust-picked .cn{font-weight:700;font-size:14px;letter-spacing:-.1px}
+    .cust-picked .cd{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
     .cust-picked .x{margin-left:auto;border:0;background:none;font-size:19px;color:var(--muted);cursor:pointer;line-height:1;flex:none}
-    .ghl-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 12px 30px rgba(16,24,40,.16);z-index:40;margin-top:5px;max-height:230px;overflow-y:auto;display:none}
+    .ghl-results{
+      position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);
+      border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:40;margin-top:6px;
+      max-height:236px;overflow-y:auto;display:none;
+    }
     .ghl-results.open{display:block}
-    .ghl-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+    .ghl-item{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line-soft)}
     .ghl-item:last-child{border-bottom:0}
     .ghl-item:hover{background:var(--blue-soft)}
-    .ghl-item .n{font-size:13px;font-weight:600}
-    .ghl-item .s{font-size:11px;color:var(--muted);margin-top:2px}
-    .ghl-item.info{color:var(--muted);font-size:12px;font-style:italic;cursor:default}
+    .ghl-item .n{font-size:13.5px;font-weight:600}
+    .ghl-item .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+    .ghl-item.info{color:var(--muted);font-size:12.5px;font-style:italic;cursor:default}
     .assign-row{display:flex;gap:8px;align-items:center}
     .assign-row select{flex:1}
-    .me-btn{height:35px;border:1px solid #cfd5e1;background:#fff;border-radius:8px;padding:0 10px;font:600 11px inherit;color:var(--blue);cursor:pointer;white-space:nowrap}
-    .me-btn:hover{border-color:var(--blue);background:#f4f9ff}
+    .me-btn{
+      height:38px;border:1px solid var(--line-strong);background:#fff;border-radius:var(--r-sm);
+      padding:0 12px;font-family:inherit;font-size:12px;font-weight:700;color:var(--blue);
+      cursor:pointer;white-space:nowrap;transition:.14s;
+    }
+    .me-btn:hover{border-color:var(--blue);background:var(--blue-soft)}
     /* Notes thread */
-    .notes{border:1px solid var(--line);border-radius:11px;margin:0 0 9px;padding:10px 14px 11px;background:#fbfcfe}
-    .notes .section-heading{margin-bottom:6px}
-    .notes h3{font-size:13px;font-weight:700;margin:0}
-    .notes-count{font-size:10.5px;font-weight:700;color:#667085;background:#eef1f6;border-radius:999px;padding:4px 8px;white-space:nowrap}
-    .note-list{max-height:140px;overflow-y:auto;margin-bottom:7px}
-    .note{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+    .notes{border:1px solid var(--line);border-radius:var(--r-md);margin:0 0 12px;padding:13px 16px 14px;background:var(--canvas)}
+    .notes .section-heading{margin-bottom:8px}
+    .notes h3{font-size:13px;font-weight:700;letter-spacing:.2px;margin:0}
+    .notes-count{
+      font-size:10.5px;font-weight:700;color:var(--muted);background:#fff;border:1px solid var(--line);
+      border-radius:999px;padding:3px 9px;white-space:nowrap;
+    }
+    .note-list{max-height:160px;overflow-y:auto;margin-bottom:9px}
+    .note{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
     .note:last-child{border-bottom:0}
-    .note .body{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
-    .note .who{font-size:11px;color:var(--muted);margin-top:3px}
+    .note .body{font-size:13.5px;line-height:1.5;overflow-wrap:anywhere}
+    .note .who{font-size:11px;color:var(--faint);margin-top:4px;background:none;border:0;padding:0;height:auto;display:block}
+    .note .who:hover{border:0;box-shadow:none}
     .note-main{min-width:0;flex:1}
     .note-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
     .note-actions{display:flex;gap:4px;flex:none}
-    .note-actions button{border:0;background:transparent;color:var(--blue);font:inherit;font-size:10.5px;font-weight:600;padding:2px 4px;cursor:pointer}
+    .note-actions button{
+      border:0;background:transparent;color:var(--blue);font-family:inherit;font-size:11px;
+      font-weight:600;padding:2px 5px;border-radius:var(--r-sm);cursor:pointer;
+    }
+    .note-actions button:hover{background:var(--blue-soft)}
     .note-actions button.delete{color:var(--red)}
-    .note-edit{width:100%;min-height:68px;border:1px solid #b8c1d1;border-radius:7px;padding:8px 9px;font:13px/1.45 inherit;resize:vertical}
-    .note-edit-actions{display:flex;gap:7px;margin-top:7px}
-    .note-edit-actions button{height:30px;padding:0 10px;font-size:11px}
-    .note-empty{font-size:11.5px;color:var(--muted);padding:2px 0 7px}
+    .note-actions button.delete:hover{background:var(--red-soft)}
+    .note-edit{width:100%;min-height:70px;border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:9px 10px;font:13.5px/1.5 inherit;resize:vertical}
+    .note-edit-actions{display:flex;gap:8px;margin-top:8px}
+    .note-edit-actions button{height:32px;padding:0 12px;font-size:12px}
+    .note-empty{font-size:12.5px;color:var(--faint);padding:2px 0 8px}
     .note-add{display:flex;gap:9px;align-items:stretch}
-    .note-add textarea{flex:1;min-height:42px;border:1px solid #cfd5e1;border-radius:8px;padding:8px 10px;font:12.5px/1.4 inherit;resize:vertical;outline:none}
-    .note-add textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.11)}
-    .note-add .btn{height:auto;min-height:38px;align-self:stretch}
-    .modal-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 18px;border-top:1px solid var(--line);background:#fff;box-shadow:0 -6px 18px rgba(20,30,55,.04)}
-    .modal-actions-main{display:flex;align-items:center;gap:9px;margin-left:auto}
-    .modal-actions .btn{height:38px;min-width:88px;border-radius:8px}
-    .danger{color:var(--red);border-color:#f0bdc6}
-    .toast{position:fixed;right:24px;bottom:24px;background:#262b3a;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:13px;z-index:1200;transform:translateY(80px);opacity:0;transition:.2s}
+    .note-add textarea{
+      flex:1;min-height:44px;border:1px solid var(--line-strong);border-radius:var(--r-sm);
+      padding:9px 11px;font:13.5px/1.45 inherit;resize:vertical;outline:none;transition:.14s;
+    }
+    .note-add textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,115,234,.12)}
+    .note-add .btn{height:auto;min-height:44px;align-self:stretch}
+    .modal-actions{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 22px;
+      border-top:1px solid var(--line);background:#fff;
+    }
+    .modal-actions-main{display:flex;align-items:center;gap:10px;margin-left:auto}
+    .modal-actions .btn{height:38px;min-width:92px}
+    .danger{color:var(--red);border-color:#f0c2ca}
+    .danger:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+    .toast{
+      position:fixed;right:24px;bottom:24px;background:#1f2034;color:#fff;padding:12px 18px;
+      border-radius:var(--r-md);box-shadow:var(--shadow-lg);font-size:13.5px;font-weight:500;
+      z-index:1200;transform:translateY(80px);opacity:0;transition:.22s cubic-bezier(.2,.8,.3,1);
+    }
     .toast.show{transform:none;opacity:1}
 
+    /* ── Main Table view ────────────────────────────────────────────────────
+       monday's default surface: each status is a group with a coloured title
+       and a matching bar down the left of its rows, and the Priority/Status
+       cells are full-bleed colour blocks so a column reads at a glance. */
+    .tbl{display:flex;flex-direction:column;gap:26px}
+    .tgroup{--g:var(--faint)}
+    .g-todo{--g:var(--blue)}
+    .g-followup{--g:var(--orange)}
+    .g-done{--g:var(--green)}
+    .tg-head{display:flex;align-items:center;gap:9px;padding:0 0 10px 4px}
+    .tg-caret{
+      width:0;height:0;flex:none;border-left:6px solid var(--g);
+      border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;
+      transform:rotate(90deg);
+    }
+    .tg-title{font-size:15px;font-weight:700;letter-spacing:-.1px;color:var(--g);margin:0}
+    .tg-count{
+      font-size:11px;font-weight:600;color:var(--muted);background:var(--canvas);
+      border:1px solid var(--line);border-radius:999px;padding:3px 9px;
+    }
+    .tg-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:2px}
+    .tg-table{
+      --tcols:minmax(230px,2.4fr) 80px 178px 116px 140px minmax(190px,1.5fr) 80px;
+      min-width:1010px;background:#fff;border:1px solid var(--line);border-left:6px solid var(--g);
+      border-radius:var(--r-md);overflow:hidden;box-shadow:var(--shadow-sm);
+      transition:box-shadow .12s,border-color .12s;
+    }
+    .tgroup.drag-over .tg-table{box-shadow:0 0 0 3px rgba(0,115,234,.16);border-color:var(--blue)}
+    .trow{display:grid;grid-template-columns:var(--tcols);border-bottom:1px solid var(--line);background:#fff;cursor:pointer}
+    .trow:last-child{border-bottom:0}
+    .trow:hover{background:#fafbfd}
+    .trow.dragging{opacity:.4}
+    .tcell{
+      display:flex;align-items:center;gap:7px;min-height:44px;padding:8px 13px;
+      border-right:1px solid var(--line-soft);font-size:13.5px;min-width:0;overflow:hidden;
+    }
+    .tcell:last-child{border-right:0}
+    /* Header strip: quiet labels, centred over the chip columns. */
+    .trow-head{background:var(--canvas);cursor:default}
+    .trow-head:hover{background:var(--canvas)}
+    .trow-head .tcell{
+      min-height:36px;font-size:11.5px;font-weight:700;letter-spacing:.3px;color:var(--muted);
+      border-right-color:var(--line);
+    }
+    .trow-head .c-owner,.trow-head .c-prio,.trow-head .c-status,.trow-head .c-notes,
+    .c-owner,.c-notes{justify-content:center}
+    .c-task{flex-direction:column;align-items:flex-start;gap:2px}
+    .trow-head .c-task{flex-direction:row;align-items:center}
+    .t-main{font-weight:600;font-size:14px;line-height:1.35;color:#1f2034;overflow-wrap:anywhere}
+    .t-sub{font-size:12px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+    .t-empty{color:var(--line-strong)}
+    .trow.is-done .t-main{text-decoration:line-through;color:var(--faint)}
+    .c-due .due{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+    .c-contact{font-size:12px;overflow:hidden;flex-wrap:wrap;gap:4px 5px;line-height:1.5}
+    .c-contact a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+    .c-contact a:hover{text-decoration:underline}
+    .c-contact .sep{color:var(--line-strong)}
+    .c-notes .notes-btn{min-width:42px;justify-content:center}
+    /* Full-bleed colour cells — the monday signature. */
+    .c-prio,.c-status{padding:0}
+    .cellchip,.statuscell{
+      display:flex;align-items:center;justify-content:center;width:100%;align-self:stretch;
+      min-height:44px;border:0;color:#fff;font-family:inherit;font-size:12px;font-weight:600;
+      letter-spacing:.2px;text-transform:capitalize;
+    }
+    .cellchip.urgent{background:var(--red)}
+    .cellchip.high{background:var(--orange);color:#5c3600}
+    .cellchip.normal{background:var(--blue)}
+    .cellchip.low{background:var(--green)}
+    .statuscell{
+      cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;text-align:center;
+      padding:0 24px 0 12px;
+      background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 8px center;
+    }
+    .statuscell:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
+    .statuscell.s-todo{background-color:var(--blue)}
+    .statuscell.s-followup{background-color:var(--orange)}
+    .statuscell.s-done{background-color:var(--green)}
+    .trow-empty{padding:15px 16px;color:var(--faint);font-size:12.5px;background:#fff}
+
     @media(max-width:900px){
-      .page{padding:70px 14px 40px}
-      .topbar{display:block}.top-actions{margin-top:14px}
-      .kpis{grid-template-columns:1fr 1fr}
+      .page{padding:70px 16px 44px}
+      h1{font-size:24px}
+      .topbar{display:block}.top-actions{margin-top:16px}
+      .kpis{grid-template-columns:1fr 1fr;gap:10px}
+      .kpi-value{font-size:26px}
+      .toolbar{align-items:stretch}
       /* Columns scroll sideways as snap panes rather than squashing. */
-      .board{display:flex;gap:11px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -14px;padding:0 14px 6px}
+      .board{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 8px}
       .col{flex:0 0 84%;scroll-snap-align:start}
+      .search-wrap{width:100%}
       .search{min-width:0;width:100%}
-      .filters{width:100%}.filters>*{flex:1;min-width:0}
+      .filters{width:100%}.filters>.control{flex:1;min-width:0}
+      .filters>.search-wrap{flex:1 0 100%}
       .seg{width:100%}.seg button{flex:1}
+      .view-tabs button{flex:1;justify-content:center}
+      .tg-scroll{margin:0 -16px;padding:0 16px 4px}
+      .tg-table{border-radius:var(--r-md)}
     }
     @media(max-width:620px){
-      dialog{width:calc(100vw - 16px);max-height:96dvh;border-radius:14px}
+      dialog{width:calc(100vw - 16px);max-height:96dvh;border-radius:var(--r-md)}
       dialog form{max-height:96dvh}
-      .modal-head{padding:12px 14px 11px}
+      .modal-head{padding:14px 16px 13px}
       .modal-mark{width:32px;height:32px}
       .modal-subtitle{display:none}
-      .form{padding:9px 10px 2px}
-      .modal-section,.notes{padding:9px 10px 0;margin-bottom:7px;border-radius:10px}
-      .notes{padding-bottom:9px}
-      .modal-actions{padding:9px 10px}
-      .modal-actions .btn{min-width:0;padding:0 14px}
+      .form{padding:12px 14px 4px}
+      .modal-section,.notes{padding:11px 13px 2px;margin-bottom:9px}
+      .notes{padding-bottom:11px}
+      .modal-actions{padding:11px 14px}
+      .modal-actions .btn{min-width:0;padding:0 15px}
     }
     @media(max-width:360px){.form-grid{grid-template-columns:1fr}}
   </style>
@@ -218,6 +546,16 @@
       <div class="kpi done"><div class="kpi-label">Completed this week</div><div class="kpi-value" id="kDone">0</div></div>
     </section>
 
+    <div class="viewbar">
+      <div class="view-tabs" id="viewTabs">
+        <button type="button" data-view="table">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/></svg>Main Table
+        </button>
+        <button type="button" data-view="kanban">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="16" y="4" width="5" height="14" rx="1.5"/></svg>Kanban
+        </button>
+      </div>
+    </div>
     <div class="toolbar">
       <div class="seg" id="scopeSeg" hidden>
         <button data-scope="team" class="active">Whole team</button>
@@ -225,7 +563,7 @@
         <button data-scope="byagent">By agent</button>
       </div>
       <div class="filters">
-        <input class="control search" id="search" placeholder="Search tasks">
+        <div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><input class="control search" id="search" placeholder="Search tasks"></div>
         <select class="control" id="assigneeFilter" hidden><option value="">Everyone</option></select>
         <select class="control" id="dueFilter">
           <option value="">Any due date</option>
@@ -285,7 +623,7 @@
               <button type="button" class="me-btn" id="meBtn" onclick="assignToMe()">Me</button>
             </div>
           </div>
-          <div class="field"><label for="status">Column</label><select id="status">
+          <div class="field"><label for="status">Status</label><select id="status">
             <option value="todo">To Do</option><option value="followup">Follow Up</option><option value="done">Completed</option>
           </select></div>
           <div class="field"><label for="dueDate">Due date</label><input id="dueDate" type="date" required></div>
@@ -328,11 +666,19 @@
     const PRIORITY_RANK={urgent:0,high:1,normal:2,low:3};
     const H={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'};
 
-    let tasks=[],scope='team',notesReady=true,pickedCustomer=null,editingNoteId=null;
+    // The board opens on the Main Table (monday's default surface); the tab
+    // choice is remembered per browser, same as the working-as name.
+    let tasks=[],scope='team',view=localStorage.getItem('goldsure_task_view')==='kanban'?'kanban':'table',
+        notesReady=true,pickedCustomer=null,editingNoteId=null;
     const $=id=>document.getElementById(id);
     const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const initials=n=>n.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+    // monday gives every person a fixed avatar colour. Hash the name so the
+    // same person keeps the same colour on every render and every board.
+    const AVATAR_COLORS=['#0073ea','#00c875','#a25ddc','#fdab3d','#e2445c','#00c0d1','#ff5ac4','#5559df'];
+    const avatarColor=n=>AVATAR_COLORS[[...String(n??'')].reduce((h,c)=>h+c.charCodeAt(0),0)%AVATAR_COLORS.length];
+    const avatarHtml=(n,attrs='')=>`<span class="avatar" style="background:${avatarColor(n)}" ${attrs}>${initials(n)}</span>`;
     const byPriority=(a,b)=>(PRIORITY_RANK[a.priority]??9)-(PRIORITY_RANK[b.priority]??9);
     const timeOf=t=>t?String(t).slice(0,5):null;
     // Soonest first: earliest date, then earliest time within that date. A task
@@ -369,14 +715,15 @@
     function applyRole(){
       const mgr=isManager();
       $('whoAvatar').textContent=initials(currentUser());
+      $('whoAvatar').style.background=avatarColor(currentUser());
       $('roleTag').textContent=mgr?'Manager':'Employee';
       $('roleTag').classList.toggle('mgr',mgr);
       $('scopeSeg').hidden=!mgr;
       $('assigneeFilter').hidden=!mgr;
       $('kOpenLabel').textContent=mgr?'Open tasks (team)':'My open tasks';
       $('subtitle').textContent=mgr
-        ?'Every agent’s work in one board. Drag a card between columns to move it.'
-        :'Your assigned work. Drag a card between columns as you go.';
+        ?'Every agent’s work in one board. Drag between groups or set the status cell to move a task.'
+        :'Your assigned work. Drag between groups or set the status cell as you go.';
       if(!mgr){scope='mine';$('assigneeFilter').value=''}
       else{scope=$('scopeSeg').querySelector('.active').dataset.scope}
       $('assignee').value=mgr?$('assignee').value||currentUser():currentUser();
@@ -444,10 +791,62 @@
       }
       $('boardHost').innerHTML = (isManager()&&scope==='byagent')
         ? PEOPLE.map(p=>{const own=rows.filter(x=>x.assignee===p);return own.length
-            ?`<div class="swim"><div class="swim-head"><span class="avatar">${initials(p)}</span><span class="nm">${esc(p)}</span><span class="ct">${own.filter(open).length} open</span></div>${boardHtml(own)}</div>`:''}).join('')
+            ?`<div class="swim"><div class="swim-head">${avatarHtml(p)}<span class="nm">${esc(p)}</span><span class="ct">${own.filter(open).length} open</span></div>${viewHtml(own)}</div>`:''}).join('')
           ||'<div class="setup"><h3>Nothing here</h3><p>Create a task or clear your filters.</p></div>'
-        : boardHtml(rows);
-      wireDnd();
+        : viewHtml(rows);
+      wireBoard();
+    }
+
+    const viewHtml=rows=>view==='table'?tableHtml(rows):boardHtml(rows);
+
+    // Main Table: one group per column, each with its own header strip. monday
+    // repeats the column labels per group rather than floating one header.
+    function tableHtml(rows){
+      const t=today();
+      return `<div class="tbl">${COLUMNS.map(col=>{
+        const list=rows.filter(x=>x.status===col.id).sort(byDue);
+        return `<section class="tgroup g-${col.id}" data-col="${col.id}">
+          <div class="tg-head">
+            <span class="tg-caret" aria-hidden="true"></span>
+            <h3 class="tg-title">${col.name}</h3>
+            <span class="tg-count">${list.length} ${list.length===1?'task':'tasks'}</span>
+          </div>
+          <div class="tg-scroll"><div class="tg-table">
+            <div class="trow trow-head">
+              <div class="tcell c-task">Task</div>
+              <div class="tcell c-owner">Owner</div>
+              <div class="tcell c-due">Due date</div>
+              <div class="tcell c-prio">Priority</div>
+              <div class="tcell c-status">Status</div>
+              <div class="tcell c-contact">Contact</div>
+              <div class="tcell c-notes">Notes</div>
+            </div>
+            ${list.map(x=>rowHtml(x,t)).join('')||'<div class="trow-empty">Nothing in this group</div>'}
+          </div></div>
+        </section>`}).join('')}</div>`;
+    }
+
+    function rowHtml(x,t){
+      const cls=x.status==='done'?'':(x.due_date<t?'over':x.due_date===t?'today':'');
+      const contact=[
+        x.customer_phone?`<a href="tel:${esc(x.customer_phone)}">${esc(x.customer_phone)}</a>`:'',
+        x.customer_email?`<a href="mailto:${esc(x.customer_email)}">${esc(x.customer_email)}</a>`:'',
+        x.ghl_contact_url?`<a href="${esc(x.ghl_contact_url)}" target="_blank" rel="noopener">GHL</a>`:'',
+      ].filter(Boolean).join('<span class="sep">·</span>');
+      return `<div class="trow ${x.status==='done'?'is-done':''}" draggable="true" data-id="${x.id}" onclick="openCard(event,'${x.id}')" aria-label="Open task for ${esc(x.customer_name||x.title)}">
+        <div class="tcell c-task">
+          <span class="t-main">${esc(x.customer_name||x.title)}</span>
+          ${x.customer_name?`<span class="t-sub">${esc(x.title)}</span>`:''}
+        </div>
+        <div class="tcell c-owner">${avatarHtml(x.assignee,`title="${esc(x.assignee)}"`)}</div>
+        <div class="tcell c-due"><span class="due ${cls}">${fmtDate(x.due_date)}<span class="t">${fmtTime(x.due_time)}</span></span></div>
+        <div class="tcell c-prio"><span class="cellchip ${x.priority}">${x.priority}</span></div>
+        <div class="tcell c-status"><select class="statuscell s-${x.status}" data-id="${x.id}" aria-label="Status">${
+          COLUMNS.map(c=>`<option value="${c.id}"${c.id===x.status?' selected':''}>${c.name}</option>`).join('')
+        }</select></div>
+        <div class="tcell c-contact">${contact||'<span class="t-empty">—</span>'}</div>
+        <div class="tcell c-notes">${notesReady?`<button class="notes-btn ${x.notes?.length?'has':''}" onclick="openTask('${x.id}',true)" aria-label="Notes">${x.notes?.length||0}</button>`:''}</div>
+      </div>`;
     }
 
     function boardHtml(rows){
@@ -462,7 +861,7 @@
     function cardHtml(x){
       const t=today();
       const cls=x.status==='done'?'':(x.due_date<t?'over':x.due_date===t?'today':'');
-      return `<div class="card ${x.status==='done'?'done':''}" draggable="true" data-id="${x.id}" onclick="openCard(event,'${x.id}')" aria-label="Open task for ${esc(x.customer_name||x.title)}">
+      return `<div class="card p-${x.priority} ${x.status==='done'?'done':''}" draggable="true" data-id="${x.id}" onclick="openCard(event,'${x.id}')" aria-label="Open task for ${esc(x.customer_name||x.title)}">
         <div class="card-top">
           <div class="card-primary ${x.customer_name?'customer-name':'no-customer'}">${esc(x.customer_name||x.title)}</div>
           <button class="kebab" aria-label="Edit task" onclick="openTask('${x.id}')">⋯</button>
@@ -475,7 +874,7 @@
           ${x.ghl_contact_url?`${x.customer_phone||x.customer_email?'<span class="sep">·</span>':''}<a href="${esc(x.ghl_contact_url)}" target="_blank" rel="noopener">GHL</a>`:''}
         </div>`:''}
         <div class="card-meta">
-          <span class="avatar" title="${esc(x.assignee)}">${initials(x.assignee)}</span>
+          ${avatarHtml(x.assignee,`title="${esc(x.assignee)}"`)}
           <span class="due ${cls}">${fmtDate(x.due_date)}<span class="t">${fmtTime(x.due_time)}</span></span>
           <span class="pill ${x.priority}">${x.priority}</span>
           ${notesReady?`<button class="notes-btn ${x.notes?.length?'has':''}" onclick="openTask('${x.id}',true)">Notes ${x.notes?.length||0}</button>`:''}
@@ -490,18 +889,22 @@
       openTask(id);
     }
 
-    // Drag and drop for pointer devices; the per-card move buttons cover touch,
-    // where HTML5 drag events are unreliable.
-    function wireDnd(){
+    // Drag and drop for pointer devices, in either view: kanban cards drop on a
+    // column, table rows drop on a group. The per-card move buttons and the
+    // table's status cell cover touch, where HTML5 drag events are unreliable.
+    function wireBoard(){
       let dragId=null;
-      document.querySelectorAll('.card').forEach(card=>{
-        card.addEventListener('dragstart',e=>{dragId=card.dataset.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move'});
-        card.addEventListener('dragend',()=>{dragId=null;card.classList.remove('dragging')});
+      document.querySelectorAll('.card,.trow[data-id]').forEach(item=>{
+        item.addEventListener('dragstart',e=>{dragId=item.dataset.id;item.classList.add('dragging');e.dataTransfer.effectAllowed='move'});
+        item.addEventListener('dragend',()=>{dragId=null;item.classList.remove('dragging')});
       });
-      document.querySelectorAll('.col').forEach(col=>{
-        col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drag-over')});
-        col.addEventListener('dragleave',()=>col.classList.remove('drag-over'));
-        col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drag-over');if(dragId)moveTask(dragId,col.dataset.col)});
+      document.querySelectorAll('.col,.tgroup').forEach(zone=>{
+        zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over')});
+        zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+        zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag-over');if(dragId)moveTask(dragId,zone.dataset.col)});
+      });
+      document.querySelectorAll('.statuscell').forEach(sel=>{
+        sel.onchange=()=>moveTask(sel.dataset.id,sel.value);
       });
     }
 
@@ -565,7 +968,7 @@
       const list=$('noteList'),notes=x?.notes||[];
       if($('noteCount'))$('noteCount').textContent=`${notes.length} ${notes.length===1?'note':'notes'}`;
       list.innerHTML=notes.length
-        ? notes.map(n=>`<div class="note"><span class="avatar">${initials(n.author)}</span><div class="note-main">
+        ? notes.map(n=>`<div class="note">${avatarHtml(n.author)}<div class="note-main">
             ${editingNoteId===n.id?`<textarea class="note-edit" id="noteEditInput" maxlength="2000">${esc(n.body)}</textarea>
               <div class="note-edit-actions"><button type="button" class="btn btn-primary" onclick="saveNote('${n.id}')">Save</button><button type="button" class="btn btn-light" onclick="cancelEditNote()">Cancel</button></div>`:
               `<div class="note-head"><div class="body">${esc(n.body)}</div><div class="note-actions"><button type="button" onclick="startEditNote('${n.id}')">Edit</button><button type="button" class="delete" onclick="deleteNote('${n.id}')">Delete</button></div></div>
@@ -685,6 +1088,15 @@
       if(r.ok){taskDialog.close();toast('Task archived — not deleted');await load()}else toast('Could not archive task');
     }
 
+    function applyView(){
+      $('viewTabs').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+    }
+    $('viewTabs').onclick=e=>{
+      const b=e.target.closest('button');if(!b||b.dataset.view===view)return;
+      view=b.dataset.view;localStorage.setItem('goldsure_task_view',view);
+      applyView();render();
+    };
+
     $('scopeSeg').onclick=e=>{
       const b=e.target.closest('button');if(!b)return;
       $('scopeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
@@ -695,7 +1107,7 @@
     $('priorityFilter').onchange=render;
     $('dueFilter').onchange=render;
 
-    initPeople();load();
+    initPeople();applyView();load();
   </script>
 </body>
 </html>
