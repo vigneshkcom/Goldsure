@@ -562,6 +562,14 @@
     .cv-val>.chip-select.normal{background-color:var(--p-normal)}
     .cv-val>.chip-select.low{background-color:var(--p-low)}
 
+    .cv-val>#dueDate{flex:1 1 130px;min-width:0}
+    .cv-val>#dueTime{flex:1 1 118px;min-width:0}
+    .cv-val>select.bad,.cv-val>select.bad:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(226,68,92,.14)}
+    .slot-clash{
+      margin-top:7px;padding:8px 10px;border-radius:var(--r-sm);background:var(--red-soft);
+      border:1px solid #f7ccd4;color:var(--red-ink);font-size:12.5px;line-height:1.45;
+    }
+
     /* ── Updates tab ── */
     .notes{border:0;border-radius:0;margin:0;padding:0;background:none}
     .note-add{
@@ -904,19 +912,19 @@
             </select></div>
           </div>
           <div class="cv">
-            <span class="cv-label">Due date</span>
-            <div class="cv-val"><input id="dueDate" type="date" required></div>
+            <span class="cv-label">Due date &amp; time</span>
+            <div class="cv-val">
+              <input id="dueDate" type="date" required>
+              <select id="dueTime" aria-label="Due time"></select>
+            </div>
+            <div class="hint" id="timeHint">The assignee is emailed at this time.</div>
+            <div class="slot-clash" id="timeClash" hidden></div>
           </div>
         </div>
 
         <details class="more-opts">
           <summary>More options</summary>
           <div class="colvals">
-            <div class="cv">
-              <span class="cv-label">Due time</span>
-              <div class="cv-val"><input id="dueTime" type="time"></div>
-              <div class="hint">The assignee is emailed at this time.</div>
-            </div>
             <div class="cv">
               <span class="cv-label">Created by</span>
               <div class="cv-val"><select id="createdBy" required></select></div>
@@ -1484,6 +1492,52 @@
     }
     $('itemTabs').onclick=e=>{const b=e.target.closest('button');if(b)setTab(b.dataset.tab)};
 
+    // ── Due time ────────────────────────────────────────────────────────────
+    // Tasks are scheduled on a quarter-hour grid, so the picker offers exactly
+    // those slots rather than a free-text clock.
+    const SLOT_MINUTES=15;
+    const slotLabel=v=>{
+      const [h,m]=v.split(':').map(Number);
+      return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'am':'pm'}`;
+    };
+    function initTimes(){
+      const out=['<option value="">No time</option>'];
+      for(let mins=0;mins<24*60;mins+=SLOT_MINUTES){
+        const v=`${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+        out.push(`<option value="${v}">${slotLabel(v)}</option>`);
+      }
+      $('dueTime').innerHTML=out.join('');
+    }
+    // A task saved before this grid existed can sit between slots. Keep its own
+    // time on the list so opening the task cannot silently reschedule it.
+    function setDueTime(v){
+      const sel=$('dueTime');
+      sel.querySelectorAll('option[data-offgrid]').forEach(o=>o.remove());
+      if(v&&![...sel.options].some(o=>o.value===v))
+        sel.insertAdjacentHTML('beforeend',`<option value="${v}" data-offgrid="1">${slotLabel(v)}</option>`);
+      sel.value=v||'';
+    }
+
+    // Nobody can be booked twice for the same moment. Completed work no longer
+    // holds its slot, and the task being edited never clashes with itself.
+    function clashingTask(){
+      const time=$('dueTime').value;
+      if(!time)return null;
+      const id=String($('taskId').value),date=$('dueDate').value;
+      const who=isManager()?$('assignee').value:currentUser();
+      return tasks.find(t=>String(t.id)!==id&&t.assignee===who&&t.due_date===date
+        &&timeOf(t.due_time)===time&&t.status!=='done')||null;
+    }
+    function checkSlot(){
+      const c=clashingTask(),box=$('timeClash');
+      box.hidden=!c;
+      $('timeHint').hidden=!!c;
+      $('dueTime').classList.toggle('bad',!!c);
+      if(c)box.textContent=`${c.assignee} already has “${c.title}” at ${slotLabel($('dueTime').value)} that day. Pick another slot.`;
+      return !c;
+    }
+    for(const id of ['dueTime','dueDate','assignee'])$(id).addEventListener('change',checkSlot);
+
     function currentModalTask(){return tasks.find(t=>String(t.id)===String($('taskId').value))}
     function startEditNote(id){editingNoteId=id;renderNotes(currentModalTask());setTimeout(()=>{autogrow($('noteEditInput'));$('noteEditInput')?.focus()},20)}
     function cancelEditNote(){editingNoteId=null;renderNotes(currentModalTask())}
@@ -1535,7 +1589,7 @@
       $('assignee').disabled=!isManager()&&!!x;
       $('status').value=x?.status||'todo';
       $('dueDate').value=x?.due_date||today();
-      $('dueTime').value=x?.due_time?String(x.due_time).slice(0,5):'';
+      setDueTime(x?.due_time?String(x.due_time).slice(0,5):'');
       $('priority').value=x?.priority||'normal';
       $('createdBy').value=x?.created_by||currentUser();
       $('archiveBtn').hidden=!x;
@@ -1547,7 +1601,7 @@
         email:x.customer_email,link:x.ghl_contact_url,
       }:null);
       $('custSearch').value='';
-      syncChips();syncTitleCount();
+      syncChips();syncTitleCount();checkSlot();
 
       // An unsaved task has nothing to thread updates onto yet.
       const canNote=!!x&&notesReady;
@@ -1569,6 +1623,11 @@
 
     $('taskForm').onsubmit=async e=>{
       e.preventDefault();
+      if(!checkSlot()){
+        setTab('details');
+        $('dueTime').focus();
+        return toast('That time is already booked for this person');
+      }
       const id=$('taskId').value;
       const status=$('status').value,done=status==='done';
       const typedCustomer=$('custSearch').value.trim();
@@ -1627,7 +1686,7 @@
     $('priorityFilter').onchange=render;
     $('dueFilter').onchange=render;
 
-    initPeople();applyView();load();
+    initPeople();initTimes();applyView();load();
   </script>
 </body>
 </html>
