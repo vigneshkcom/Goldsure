@@ -284,14 +284,13 @@ export default async function handler(req, res) {
   const now = new Date();
   const origin = (process.env.SITE_URL || `https://${req.headers.host}`).replace(/\/$/, '');
   try {
-    const [smoke, nsw, vicHotwater, vicAircon, taskDigest] = await Promise.all([
+    const [smoke, nsw, vicHotwater, vicAircon] = await Promise.all([
       runService({ table: 'quote_emails', reminderDays: REMINDER_DAYS, automationStart: AUTOMATION_START, sendPath: '/api/smoke-alarms/send-reminder', isNsw: false, ghlEndpoint: '/api/smoke-alarms/ghl', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'nsw_hws_quotes', reminderDays: NSW_REMINDER_DAYS, automationStart: NSW_AUTOMATION_START, sendPath: '/api/hotwater-nsw/send', isNsw: true, ghlPipeline: 'hotwater-nsw', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'hotwater_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'hws-quote', isNsw: false, ghlPipeline: 'hotwater', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
       runService({ table: 'aircon_quotes', reminderDays: VIC_REMINDER_DAYS, automationStart: VIC_AUTOMATION_START, sendPath: '/api/battery/request-callback', action: 'aircon-quote', isNsw: false, ghlPipeline: 'aircon', ghlEndpoint: '/api/battery/request-callback', supabaseUrl, serviceKey, origin, now }),
-      sendTaskDigest({ supabaseUrl, serviceKey, origin, now }),
     ]);
-    return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, taskDigest, completed_at: new Date().toISOString() });
+    return res.status(200).json({ ok: true, smoke, nsw, vicHotwater, vicAircon, completed_at: new Date().toISOString() });
   } catch (error) {
     console.error('[Automatic reminders]', error);
     return res.status(502).json({ error: 'Could not process automatic reminders.' });
