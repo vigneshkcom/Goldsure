@@ -430,8 +430,8 @@
     }
     .tg-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:2px}
     .tg-table{
-      --tcols:minmax(260px,3fr) 80px 178px 116px 140px 148px 80px;
-      min-width:1010px;background:#fff;border:1px solid var(--line);border-left:6px solid var(--g);
+      --tcols:minmax(250px,3fr) 80px 202px 124px 140px 148px 80px;
+      min-width:1030px;background:#fff;border:1px solid var(--line);border-left:6px solid var(--g);
       border-radius:var(--r-md);overflow:hidden;box-shadow:var(--shadow-sm);
       transition:box-shadow .12s,border-color .12s;
     }
@@ -460,7 +460,8 @@
     .t-sub{font-size:13px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
     .t-empty{color:var(--line-strong)}
     .trow.is-done .t-main{text-decoration:line-through;color:var(--faint)}
-    .c-due .due{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+    .c-due .due{max-width:100%;white-space:nowrap;padding:3px 7px}
+    .c-due .due .t{margin-left:1px}
     .c-contact{font-size:13px;overflow:hidden;flex-wrap:wrap;gap:4px 5px;line-height:1.5}
     .c-contact a{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
     .c-contact a:hover{text-decoration:underline}
@@ -468,22 +469,22 @@
     .c-notes .notes-btn{min-width:42px;justify-content:center}
     /* Full-bleed colour cells — the monday signature. */
     .c-prio,.c-status{padding:0}
-    .cellchip,.statuscell{
+    .statuscell,.prioritycell{
       display:flex;align-items:center;justify-content:center;width:100%;align-self:stretch;
       min-height:38px;border:0;color:#fff;font-family:inherit;font-size:14px;font-weight:400;
       text-transform:capitalize;
     }
-    .cellchip.urgent{background:var(--p-urgent)}
-    .cellchip.high{background:var(--p-high)}
-    .cellchip.normal{background:var(--p-normal)}
-    .cellchip.low{background:var(--p-low)}
-    .statuscell{
+    .prioritycell.urgent{background-color:var(--p-urgent)}
+    .prioritycell.high{background-color:var(--p-high)}
+    .prioritycell.normal{background-color:var(--p-normal)}
+    .prioritycell.low{background-color:var(--p-low)}
+    .statuscell,.prioritycell{
       cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;text-align:center;
       padding:0 24px 0 12px;
       background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat:no-repeat;background-position:right 8px center;
     }
-    .statuscell:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
+    .statuscell:focus-visible,.prioritycell:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
     .statuscell.s-todo{background-color:var(--blue)}
     .statuscell.s-followup{background-color:var(--orange)}
     .statuscell.s-done{background-color:var(--green)}
@@ -622,6 +623,9 @@
     .trow-add{cursor:default;background:#fff}
     .trow-add:hover{background:#fff}
     .trow-add .tcell{min-height:38px;border-right-color:transparent}
+    .trow-add .c-task{flex-direction:row;align-items:center;gap:9px}
+    .qa-hint{flex:none;font-size:12px;color:var(--faint);opacity:0;transition:opacity .14s}
+    .trow-add .c-task:focus-within .qa-hint{opacity:1}
     .quick-add{
       width:100%;border:1px solid transparent;border-radius:var(--r-sm);background:none;
       padding:6px 8px;font-family:inherit;font-size:14px;color:var(--text);outline:none;
@@ -976,6 +980,7 @@
     // Priority is stored as text, so ordering it in SQL sorts alphabetically
     // (high, low, normal, urgent) and buries urgent work. Rank it explicitly.
     const PRIORITY_RANK={urgent:0,high:1,normal:2,low:3};
+    const PRIORITIES=Object.keys(PRIORITY_RANK);
     const H={apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`,'Content-Type':'application/json'};
 
     // The board opens on the Main Table (monday's default surface); the tab
@@ -1158,7 +1163,7 @@
             </div>
             ${list.map(x=>rowHtml(x,t)).join('')||'<div class="trow-empty">Nothing in this group</div>'}
             <div class="trow trow-add">
-              <div class="tcell c-task"><input class="quick-add" data-col="${col.id}" maxlength="180" placeholder="+ Add task" aria-label="Add a task to ${col.name}"></div>
+              <div class="tcell c-task"><input class="quick-add" data-col="${col.id}" maxlength="180" placeholder="+ Add task" aria-label="Add a task to ${col.name}"><span class="qa-hint">Enter to add</span></div>
               ${'<div class="tcell"></div>'.repeat(6)}
             </div>
           </div></div>
@@ -1175,7 +1180,9 @@
         </div>
         <div class="tcell c-owner">${avatarHtml(x.assignee,`title="${esc(x.assignee)}"`)}</div>
         <div class="tcell c-due"><span class="due ${cls}">${fmtDate(x.due_date)}<span class="t">${fmtTime(x.due_time)}</span></span></div>
-        <div class="tcell c-prio"><span class="cellchip ${x.priority}">${x.priority}</span></div>
+        <div class="tcell c-prio"><select class="prioritycell ${x.priority}" data-priority="${x.id}" aria-label="Priority">${
+          PRIORITIES.map(p=>`<option value="${p}"${p===x.priority?' selected':''}>${p[0].toUpperCase()+p.slice(1)}</option>`).join('')
+        }</select></div>
         <div class="tcell c-status"><select class="statuscell s-${x.status}" data-id="${x.id}" aria-label="Status">${
           COLUMNS.map(c=>`<option value="${c.id}"${c.id===x.status?' selected':''}>${c.name}</option>`).join('')
         }</select></div>
@@ -1247,8 +1254,13 @@
       document.querySelectorAll('.quick-add').forEach(inp=>{
         inp.onkeydown=e=>{
           if(e.key==='Enter'){e.preventDefault();quickAdd(inp)}
+          // Escape empties the box first, so the blur below finds nothing to save.
           if(e.key==='Escape'){inp.value='';inp.blur()}
         };
+        inp.onblur=()=>quickAdd(inp);
+      });
+      document.querySelectorAll('.prioritycell').forEach(sel=>{
+        sel.onchange=()=>setPriority(sel.dataset.priority,sel.value);
       });
       document.querySelectorAll('[data-contact]').forEach(btn=>{
         btn.onclick=e=>{e.stopPropagation();openContactPop(btn,btn.dataset.contact)};
@@ -1275,7 +1287,7 @@
         toast('Task added');
         // load() re-rendered the board, so focus the freshly built input.
         document.querySelector(`.quick-add[data-col="${col}"]`)?.focus();
-      }catch(e){toast('Could not add task');console.error(e)}
+      }catch(e){toast(`Could not add task — ${String(e.message||e).slice(0,90)}`);console.error(e)}
       finally{inp.disabled=false}
     }
 
@@ -1363,6 +1375,15 @@
       const r=await api(`?id=eq.${id}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});
       if(r.ok){toast(done?'Task completed':`Moved to ${COLUMNS.find(c=>c.id===status).name}`);await load()}
       else{x.status=prev;render();toast('Could not move task')}
+    }
+
+    async function setPriority(id,priority){
+      const x=tasks.find(t=>t.id===id);
+      if(!x||x.priority===priority)return;
+      const prev=x.priority;x.priority=priority;render();
+      const r=await api(`?id=eq.${id}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({priority})});
+      if(r.ok){toast(`Priority set to ${priority}`);await load()}
+      else{x.priority=prev;render();toast('Could not update priority')}
     }
 
     // ── Assign to me ────────────────────────────────────────────────────────
