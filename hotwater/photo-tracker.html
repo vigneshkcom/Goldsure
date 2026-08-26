@@ -123,7 +123,7 @@
 
   .row {
     display: grid;
-    grid-template-columns: 1fr 150px 150px 108px 96px 168px;
+    grid-template-columns: 1fr 150px 150px 108px 96px 196px;
     align-items: center;
     border-bottom: 1px solid var(--line-soft);
     position: relative;
@@ -453,7 +453,13 @@ function pipeHtml(f) {
 
 function rowHtml(f, i, gcolor) {
   const st = statusOf(f);
-  const canRemind = Boolean(phoneFor(f)) && (f.photoCount || 0) < 3;
+  const hasPhone = Boolean(phoneFor(f));
+  const count = f.photoCount || 0;
+  // Nothing in yet (or barely anything) → chase the original request. Once
+  // they've sent the set, the same link goes back out as a top-up: the upload
+  // page ticks off what it already holds, so they only add what's new.
+  const canRemind = hasPhone && count < 3;
+  const canAskMore = hasPhone && count >= 3;
   return `<div class="row item" style="--gcolor:${gcolor};animation-delay:${Math.min(i * 22, 300)}ms">
     <div class="cell m-name">
       <div class="with-avatar">
@@ -473,6 +479,9 @@ function rowHtml(f, i, gcolor) {
         ${canRemind ? `<button class="btn-mini" data-remind="${esc(f.id)}" title="Text this customer a reminder">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           Remind</button>` : ''}
+        ${canAskMore ? `<button class="btn-mini" data-more="${esc(f.id)}" title="Text this customer for more photos — they won't have to re-send the ones we have">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3z"/><path d="M12 10v6M9 13h6"/></svg>
+          Ask for more</button>` : ''}
         ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
       </div>
@@ -535,7 +544,11 @@ function render() {
   });
 
   board.querySelectorAll('[data-remind]').forEach(btn => {
-    btn.onclick = () => openSmsModal(btn.dataset.remind);
+    btn.onclick = () => openSmsModal(btn.dataset.remind, 'remind');
+  });
+
+  board.querySelectorAll('[data-more]').forEach(btn => {
+    btn.onclick = () => openSmsModal(btn.dataset.more, 'more');
   });
 }
 
@@ -569,41 +582,54 @@ async function loadPipelines() {
 const phoneFor = f => (ghl[ghlKey(f)] || {}).phone || f.phone || '';
 
 /* ── SMS reminder ── */
-function uploadLinkFor(f) {
+// The same link either way. The upload page reads the folder and ticks off
+// what's already in it, so a customer following a re-sent link isn't asked
+// for the photos they've sent before. `more=1` only sets the wording up
+// front, before that read has come back.
+function uploadLinkFor(f, mode) {
   const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || '';
   const n = first ? `&n=${encodeURIComponent(first)}` : '';
   const ph = phoneFor(f);
   const p = ph ? `&p=${encodeURIComponent(ph)}` : '';
-  return `${location.origin}/u?f=${encodeURIComponent(f.id)}${n}${p}`;
+  const more = mode === 'more' ? '&more=1' : '';
+  return `${location.origin}/u?f=${encodeURIComponent(f.id)}${n}${p}${more}`;
 }
 
-function reminderText(f) {
+function reminderText(f, mode) {
   const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || 'there';
   // The actual date the link went out, so the customer can place it.
   const sent = f.createdAt
     ? new Date(Number(f.createdAt)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })
     : '';
   const on = sent ? ` on ${sent}` : '';
-  const link = uploadLinkFor(f);
+  const link = uploadLinkFor(f, mode);
+
+  // Asking for extras on top of a complete set: say plainly that the earlier
+  // photos don't need re-sending, since it's the same link they used before.
+  if (mode === 'more') {
+    return `Hi ${first}, Goldsure here. Thanks for the photos you sent through — we just need a couple more to finish your hot water quote. Same link as before, and it already has your earlier photos ticked off, so you only need to add the new ones: ${link}`;
+  }
 
   return (f.photoCount || 0) > 0
-    ? `Hi ${first}, Goldsure here. Thanks for the photos you've sent through so far. We're still missing a couple before we can finish your hot water quote — could you add the rest when you get a minute? Here's the link again: ${link}`
+    ? `Hi ${first}, Goldsure here. Thanks for the photos you've sent through so far. We're still missing a couple before we can finish your hot water quote — could you add the rest when you get a minute? Here's the link again, and it won't ask you for the ones we already have: ${link}`
     : `Hi ${first}, Goldsure here. We sent you a link${on} to upload photos of your existing hot water system, switchboard and the access to your property. We need these before we can put your quote together. In case you missed it, here's the link again: ${link}`;
 }
 
 /* ── Reminder modal ── */
 let smsTarget = null;
 
-function openSmsModal(folderId) {
+function openSmsModal(folderId, mode = 'remind') {
   const f = folders.find(x => x.id === folderId);
   const phone = phoneFor(f || {});
   if (!f || !phone) return;
   smsTarget = { ...f, phone };
 
+  $('smsTitle').textContent = mode === 'more' ? 'Ask for more photos' : 'Send reminder';
+
   $('smsTo').innerHTML =
     `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>` +
     `${esc(f.name)} <span class="to-phone">${esc(phone)}</span>`;
-  $('smsText').value = reminderText(f);
+  $('smsText').value = reminderText(f, mode);
   $('smsMsg').textContent = '';
   $('smsMsg').className = 'modal-msg';
   $('smsSend').disabled = false;
@@ -708,7 +734,13 @@ $('reqBtn').onclick = async () => {
 
     $('reqLink').value = data.uploadPageUrl;
     $('out').style.display = 'flex';
-    msg(data.reused ? `Using ${name}'s existing folder.` : `Folder created for ${name}.`, 'ok');
+    msg(
+      data.reused
+        ? (data.photoCount
+            ? `Using ${name}'s existing folder — it already has ${data.photoCount} photo${data.photoCount === 1 ? '' : 's'}, so this link will only ask for what's new.`
+            : `Using ${name}'s existing folder.`)
+        : `Folder created for ${name}.`,
+      'ok');
     $('reqName').value = ''; $('reqPhone').value = '';
     load();
   } catch (e) {

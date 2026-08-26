@@ -24,6 +24,25 @@
 
   .slot { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; transition: border-color .15s, background .15s; }
   .slot.filled { border-color: #38a169; background: #f0fff4; }
+  /* Already in the folder from an earlier upload — ticked off, but still
+     replaceable if we've asked for a clearer shot of that same thing. */
+  .slot.have { border-color: #cbd5e0; background: #f7fafc; }
+  .slot.have .slot-num { background: #a0aec0; color: #fff; }
+  .slot.have.filled { border-color: #38a169; background: #f0fff4; }
+  .slot.have.filled .slot-num { background: #38a169; }
+  .slot.have .slot-btn { border-style: solid; border-color: #e2e8f0; background: #fff; color: #4a5568; font-weight: 600; }
+  .slot.have.filled .slot-btn { border-color: #9ae6b4; color: #2f855a; }
+  /* Nothing is outstanding on a slot we already hold, so the required marker
+     comes off it. */
+  .slot.have .req { display: none; }
+  .have-note { font-size: 12px; color: #2f855a; margin-top: 8px; font-weight: 600; }
+  .slot.have.filled .have-note { display: none; }
+
+  .recap {
+    display: none; border: 1px solid #bee3f8; background: #ebf8ff; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 16px; font-size: 13px; color: #2c5282; line-height: 1.5;
+  }
+  .recap b { display: block; font-size: 14px; margin-bottom: 2px; }
   .slot-head { display: flex; align-items: center; gap: 10px; }
   .slot-num {
     flex: none; width: 26px; height: 26px; border-radius: 50%; background: #edf2f7; color: #4a5568;
@@ -81,8 +100,10 @@
     <div class="brand"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"></div>
 
     <div id="formView">
-      <h1>Upload your photos</h1>
+      <h1 id="headline">Upload your photos</h1>
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
+
+      <div class="recap" id="recap"></div>
 
       <div id="slots"></div>
 
@@ -101,7 +122,7 @@
     <div class="done" id="doneView">
       <div class="check">✅</div>
       <h1>Thanks!</h1>
-      <p class="sub">Your photos have been received. We’ll review them and get your quote to you shortly — you can close this page now.</p>
+      <p class="sub" id="doneText">Your photos have been received. We’ll review them and get your quote to you shortly — you can close this page now.</p>
     </div>
   </div>
 
@@ -129,23 +150,125 @@ const setStatus = (msg, cls) => {
 };
 
 const BLURB = 'please take a clear photo of each item below so we can prepare your quote.';
+const TOPUP_BLURB = 'we already have the photos ticked below — just add whatever else you can, no need to send those again.';
+const MIXED_BLURB = 'the photos ticked below are already in — please add the ones still missing, and anything else that helps.';
+
+// `have` is what's already sitting in this customer's folder from an earlier
+// visit: key → { name, uploadedAt }. Once anything is in there the page turns
+// into a top-up: nothing is compulsory a second time, so the very same link
+// can be re-sent whenever we need more photos.
+let have = {};
+let haveExtras = 0;
+// `more=1` forces top-up wording even before the folder has been read (or if
+// reading it fails), for when we deliberately re-send the link.
+let followUp = ['1', 'true', 'yes'].includes(String(params.get('more') || '').toLowerCase());
+// False until we've actually read the folder. If we never manage to, we can't
+// tell a first upload from a return visit, so filenames get timestamped either
+// way rather than risk overwriting photos the customer already sent.
+let statusKnown = false;
+
+// What's still compulsory — a photo already in the folder doesn't count as
+// outstanding, which is what lets one link serve both asks.
+const outstanding = () => SLOTS.filter(s => s.required && !have[s.key]);
 
 function greet() {
-  document.getElementById('subText').textContent = custName
-    ? `Hi ${custName.split(/\s+/)[0]}, ${BLURB}`
-    : `Please take a clear photo of each item below so we can prepare your quote.`;
+  const first = custName ? custName.split(/\s+/)[0] : '';
+  // Three cases: nothing sent yet, a part-finished set, and a complete set we
+  // just want extras on top of. Only the last one drops the original ask.
+  const held = Object.keys(have).length;
+  const topUp = held > 0 && outstanding().length === 0;
+  const partial = held > 0 && !topUp;
+
+  document.getElementById('headline').textContent = topUp ? 'Send us a few more photos' : 'Upload your photos';
+  const blurb = topUp ? TOPUP_BLURB : partial ? MIXED_BLURB : BLURB;
+  document.getElementById('subText').textContent = first
+    ? `Hi ${first}, ${blurb}`
+    : blurb.charAt(0).toUpperCase() + blurb.slice(1);
 }
 greet();
 
-// When the name isn't in the link (new short links), ask the server for it —
-// the folder is named after the customer. Purely cosmetic, so a failure just
-// leaves the generic greeting in place.
-if (!custName && folderId) {
-  fetch(`/api/zoho/create-photo-request?action=folder&id=${encodeURIComponent(folderId)}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d && d.name) { custName = d.name; greet(); } })
-    .catch(() => {});
+// A file lands in the folder as "<name>-<slot>.jpg", with a timestamp added on
+// later visits so nothing is ever overwritten — so the slot it belongs to is
+// readable straight off the filename.
+function slotKeyOf(filename) {
+  const n = String(filename || '').toLowerCase();
+  const hit = SLOTS.find(sl => new RegExp(`-${sl.key}(-\\d+)?\\.[a-z0-9]+$`).test(n));
+  return hit ? hit.key : null;
 }
+
+const shortDate = ms => {
+  const d = ms ? new Date(Number(ms)) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }) : '';
+};
+
+// Ask the server what this folder already holds. This is what makes a re-sent
+// link work: the name for the greeting, and the photos we can tick off.
+// Entirely best-effort — if it fails the page simply asks for everything, the
+// way it always did.
+async function loadStatus() {
+  if (!folderId) return;
+  try {
+    const r = await fetch(`/api/zoho/create-photo-request?action=status&id=${encodeURIComponent(folderId)}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.name && !custName) custName = d.name;
+
+    for (const f of d.files || []) {
+      const key = slotKeyOf(f.name);
+      if (key) {
+        // Keep the most recent one, so the date shown is the latest send.
+        if (!have[key] || (f.uploadedAt || 0) > (have[key].uploadedAt || 0)) have[key] = f;
+      } else {
+        // Anything not matching a slot — the customer's own extras, or files
+        // the office dropped in by hand — still counts towards "we already
+        // have N photos from you".
+        haveExtras++;
+      }
+    }
+    if ((d.photoCount || 0) > 0) followUp = true;
+    statusKnown = true;
+
+    greet();
+    markReceived();
+    renderRecap();
+    refreshSubmit();
+  } catch {
+    // Leave the page exactly as it renders for a first-time visit.
+  }
+}
+
+// Tick off the slots we already hold, and stop them counting as compulsory.
+function markReceived() {
+  for (const sl of SLOTS) {
+    const got = have[sl.key];
+    const el = document.getElementById('slot-' + sl.key);
+    if (!el) continue;
+    el.classList.toggle('have', Boolean(got));
+    if (!got) continue;
+    const when = shortDate(got.uploadedAt);
+    document.getElementById('note-' + sl.key).textContent =
+      when ? `✓ Already sent on ${when}` : '✓ Already sent';
+    if (!picked[sl.key]) {
+      document.getElementById('num-' + sl.key).textContent = '✓';
+      document.getElementById('btn-' + sl.key).textContent = 'Replace this photo';
+    }
+  }
+}
+
+function renderRecap() {
+  const el = document.getElementById('recap');
+  const total = Object.keys(have).length + haveExtras;
+  if (!total) { el.style.display = 'none'; return; }
+  const missing = outstanding();
+  el.innerHTML = missing.length
+    ? `<b>We already have ${total} photo${total === 1 ? '' : 's'} from you.</b>` +
+      `Still to come: ${missing.map(m => m.label.toLowerCase()).join(', ')}. Add anything else below as well.`
+    : `<b>We already have ${total} photo${total === 1 ? '' : 's'} from you — thank you.</b>` +
+      `Just add the extra photos we've asked for. You don't need to send the earlier ones again.`;
+  el.style.display = 'block';
+}
+
+loadStatus();
 
 // Build the slots
 document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
@@ -164,6 +287,7 @@ document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
          iOS and Android show their normal chooser — Photo Library, Take Photo
          and Browse — which is what the button promises. -->
     <input type="file" id="file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
+    <div class="have-note" id="note-${s.key}"></div>
     <div class="thumb" id="thumb-${s.key}" style="display:none;">
       <img id="img-${s.key}" alt="">
       <button type="button" onclick="clearPick('${s.key}')">Remove</button>
@@ -222,8 +346,9 @@ function clearPick(key) {
   document.getElementById('file-' + key).value = '';
   document.getElementById('thumb-' + key).style.display = 'none';
   document.getElementById('slot-' + key).classList.remove('filled');
-  document.getElementById('num-' + key).textContent = String(i + 1);
-  document.getElementById('btn-' + key).textContent = 'Take / choose photo';
+  // Dropping a replacement doesn't undo the photo we're already holding.
+  document.getElementById('num-' + key).textContent = have[key] ? '✓' : String(i + 1);
+  document.getElementById('btn-' + key).textContent = have[key] ? 'Replace this photo' : 'Take / choose photo';
   refreshSubmit();
 }
 
@@ -265,12 +390,18 @@ function removeExtra(id) {
 }
 
 function refreshSubmit() {
-  const missing = SLOTS.filter(s => s.required && !picked[s.key]);
+  // A required photo already sitting in the folder counts — that's the whole
+  // point of a re-sent link. What's left is simply: send at least one new one.
+  const required = SLOTS.filter(s => s.required);
+  const missing = required.filter(s => !picked[s.key] && !have[s.key]);
+  const newCount = Object.keys(picked).length + extraPhotos.length;
   const btn = document.getElementById('submitBtn');
-  btn.disabled = missing.length > 0 || !folderId;
-  btn.textContent = missing.length
-    ? `Upload Photos (${SLOTS.filter(s => s.required).length - missing.length}/${SLOTS.filter(s => s.required).length} required)`
-    : 'Upload Photos';
+
+  btn.disabled = missing.length > 0 || newCount === 0 || !folderId;
+  btn.textContent =
+    missing.length ? `Upload Photos (${required.length - missing.length}/${required.length} required)`
+    : newCount === 0 ? 'Choose a photo to send'
+    : `Upload ${newCount} Photo${newCount === 1 ? '' : 's'}`;
 }
 refreshSubmit();
 
@@ -291,6 +422,11 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   const safeName = (custName || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  // WorkDrive overwrites same-named files. On a first upload that's what we
+  // want (a retake replaces the earlier attempt in this same session); on a
+  // top-up it would quietly delete photos the customer already sent, so every
+  // file from a return visit carries the time it was sent.
+  const stamp = (followUp || !statusKnown) ? `-${Date.now()}` : '';
   let done = 0;
 
   try {
@@ -302,7 +438,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           folderId,
-          filename: `${safeName}-${s.key}.jpg`,
+          filename: `${safeName}-${s.key}${stamp}.jpg`,
           dataBase64,
           customerName: custName,
           phone: custPhone,
@@ -310,11 +446,19 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           // multi-photo submission doesn't fire one notification per photo.
           notify: done === entries.length - 1,
           photoLabel: s.label,
+          // Tells the team this is a top-up on a folder they may already have
+          // looked at, rather than a first submission.
+          followUp,
+          uploadCount: entries.length,
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
       done++;
+    }
+    if (followUp) {
+      document.getElementById('doneText').textContent =
+        'Your extra photos have been received and added to the ones you sent earlier. We’ll take it from here — you can close this page now.';
     }
     document.getElementById('formView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';

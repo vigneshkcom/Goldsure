@@ -7,6 +7,12 @@
 //  POST /api/zoho/create-photo-request  { name: "Customer Name" }
 //    → { folderId, folderName, uploadPageUrl }
 //
+//  GET  /api/zoho/create-photo-request?action=status&id=<folderId>
+//    → { name, photoCount, files: [ { name, uploadedAt } ] }
+//    (lets the upload page see what the customer has already sent, so the
+//    same link can be re-sent to ask for more photos without demanding the
+//    mandatory ones a second time)
+//
 //  PUT  /api/zoho/create-photo-request  { folderId, filename, dataBase64 }
 //    → { success: true }
 //    (dataBase64 is a data URL or raw base64 string of the photo, sent by
@@ -212,6 +218,45 @@ export default async function handler(req, res) {
     }
   }
 
+  // GET ?action=status&id=<folderId> → what that customer has already sent.
+  // The upload page uses this to tick off the photos it already holds, which
+  // is what lets the very same link be re-sent when we need more: the customer
+  // sees what's in already and only has to add what's new.
+  if (req.method === 'GET' && req.query.action === 'status') {
+    const id = req.query.id;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    try {
+      const accessToken = await getAccessToken();
+      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+      });
+      if (!r.ok) {
+        const text = await r.text();
+        return res.status(404).json({ error: 'not found', status: r.status, detail: text.slice(0, 300) });
+      }
+      const meta = await r.json();
+      const name = meta?.data?.attributes?.name || '';
+
+      // File listing is best-effort: if it fails the page still works, it just
+      // falls back to asking for everything.
+      let files = [];
+      try {
+        files = (await listChildren(accessToken, id))
+          .filter(f => f?.attributes?.is_folder === false)
+          .map(f => ({
+            name: f.attributes?.name || '',
+            uploadedAt: f.attributes?.created_time_in_millisecond || null,
+          }));
+      } catch (listErr) {
+        console.error('[Zoho] status file list failed:', listErr.message);
+      }
+
+      return res.status(200).json({ name, photoCount: files.length, files });
+    } catch (err) {
+      return res.status(502).json({ error: 'lookup failed', detail: err.message });
+    }
+  }
+
   // GET ?debug=<folderId> → raw Zoho metadata for that folder, so the correct
   // link field can be identified without guessing. Diagnostic only.
   if (req.method === 'GET' && req.query.debug) {
@@ -243,6 +288,16 @@ export default async function handler(req, res) {
       const folderName = last4 ? `${name.trim()} (${last4})` : name.trim();
       const existingId = await findFolderByName(accessToken, folderName, parentId);
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
+      // On reuse, say how many photos are already in there. The office then
+      // knows the same link is going out as a top-up request rather than a
+      // first ask — the upload page works that out for itself as well.
+      let photoCount = 0;
+      if (existingId) {
+        try {
+          photoCount = (await listChildren(accessToken, existingId))
+            .filter(f => f?.attributes?.is_folder === false).length;
+        } catch { photoCount = 0; }
+      }
       // Written on reuse too, so folders made before this existed pick the
       // number up the next time a link is generated for that customer.
       if (phone) await setFolderPhone(accessToken, folderId, phone);
@@ -256,7 +311,7 @@ export default async function handler(req, res) {
       const firstName = name.trim().split(/\s+/)[0];
       const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
       const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
-      return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId) });
+      return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId), photoCount });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
       return res.status(502).json({ error: 'Zoho request failed', detail: err.message });
@@ -265,7 +320,7 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64, customerName, phone, notify = true } = req.body || {};
+    const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0 } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
 
     try {
@@ -282,13 +337,21 @@ export default async function handler(req, res) {
       try {
         const who = (customerName || '').trim() || 'A customer';
         const folderUrl = await getFolderLink(accessToken, folderId);
+        // A top-up sent through the same link reads differently to a first
+        // submission — the team needs to know these are extras added to a
+        // folder they may have already looked at.
+        const n = Number(uploadCount) || 0;
+        const many = n === 1 ? '1 photo' : `${n} photos`;
+        const what = followUp
+          ? `has sent through ${n ? many + ' more' : 'more photos'}`
+          : 'has uploaded their site photos';
 
         // Log it against the GHL contact too, so it shows up where the rest of
         // the customer's history lives. Also best-effort.
         if (phone) {
           const noteBody = folderUrl
-            ? `[Photo Upload]\n${who} has uploaded their site photos. View them here: ${folderUrl}`
-            : `[Photo Upload]\n${who} has uploaded their site photos to their WorkDrive folder (${folderId}).`;
+            ? `[Photo Upload]\n${who} ${what}. View them here: ${folderUrl}`
+            : `[Photo Upload]\n${who} ${what} to their WorkDrive folder (${folderId}).`;
           await postGhlNoteByPhone(phone, noteBody);
         }
 
@@ -298,8 +361,8 @@ export default async function handler(req, res) {
         await sendHostingerMail({
           to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
-          subject: `New photos uploaded — ${who}`,
-          html: `<p><strong>${who}</strong> has uploaded their site photos.</p>
+          subject: followUp ? `Additional photos uploaded — ${who}` : `New photos uploaded — ${who}`,
+          html: `<p><strong>${who}</strong> ${what}.</p>
                  ${linkHtml}`,
         });
       } catch (mailErr) {
