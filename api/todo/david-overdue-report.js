@@ -81,8 +81,8 @@ export default async function handler(req, res) {
 
   const local = sydneyParts(new Date());
   const sample = req.query?.sample === '1';
-  if (!sample && (local.hour !== '21' || Number(local.minute) < 30)) {
-    return res.status(200).json({ ok: true, skipped: true, reason: 'outside_sydney_930pm' });
+  if (!sample && (local.hour !== '21' || Number(local.minute) < 40)) {
+    return res.status(200).json({ ok: true, skipped: true, reason: 'outside_sydney_940pm' });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
