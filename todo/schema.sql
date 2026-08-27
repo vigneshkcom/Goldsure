@@ -133,6 +133,8 @@ create table if not exists public.portal_task_digest_runs (
   digest_date date primary key,
   claimed_at timestamptz not null default now(),
   sent_at timestamptz,
+  -- -1 temporarily reserves the day for Amit's 7:30 am email. The 9:05 am
+  -- team run replaces it with the normal task count before sending.
   task_count integer not null default 0
 );
 

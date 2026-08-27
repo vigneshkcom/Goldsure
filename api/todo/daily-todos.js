@@ -14,7 +14,7 @@ function escapeHtml(value) {
   }[char]));
 }
 
-function sydneyParts(now) {
+export function sydneyParts(now) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: SYDNEY,
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -60,7 +60,7 @@ function taskRows(tasks, today) {
   }).join('')}</table></td></tr>`).join('');
 }
 
-function personalEmail({ name, tasks, today, origin }) {
+export function personalEmail({ name, tasks, today, origin }) {
   const count = tasks.length;
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:24px 28px;border-bottom:3px solid #c9a13b"><div style="font:700 21px Arial,sans-serif;color:#fff">Your To Do for today</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Hi ${escapeHtml(name)} &middot; ${dateLabel(today)}</div></td></tr>${taskRows(tasks, today)}<tr><td style="padding:18px 28px 26px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open my task board</a></td></tr></table></td></tr></table></body></html>`;
   const lines = tasks.length
@@ -73,7 +73,7 @@ function personalEmail({ name, tasks, today, origin }) {
   };
 }
 
-function supabaseHeaders(serviceKey, prefer) {
+export function supabaseHeaders(serviceKey, prefer) {
   return {
     apikey: serviceKey,
     Authorization: `Bearer ${serviceKey}`,
@@ -120,14 +120,35 @@ export default async function handler(req, res) {
     const tasks = await taskResponse.json();
 
     // Claim the Sydney calendar day once so Vercel retries cannot duplicate the
-    // five private emails.
+    // five private emails. Amit's 7:30 run reserves today's row with task_count
+    // -1; the 9:05 run atomically takes over that reservation before sending to
+    // everyone, so the early email never suppresses the normal team email.
     const claimResponse = await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs`, {
       method: 'POST',
       headers: supabaseHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
       body: JSON.stringify({ digest_date: local.date, task_count: tasks.length }),
     });
     if (!claimResponse.ok) return res.status(502).json({ error: 'Could not claim daily To Do run' });
-    if (!(await claimResponse.json()).length) {
+    let claimed = (await claimResponse.json()).length > 0;
+
+    if (!claimed) {
+      const takeoverResponse = await fetch(
+        `${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${local.date}&task_count=eq.-1`,
+        {
+          method: 'PATCH',
+          headers: supabaseHeaders(serviceKey, 'return=representation'),
+          body: JSON.stringify({
+            claimed_at: new Date().toISOString(),
+            sent_at: null,
+            task_count: tasks.length,
+          }),
+        }
+      );
+      if (!takeoverResponse.ok) return res.status(502).json({ error: 'Could not claim daily To Do run' });
+      claimed = (await takeoverResponse.json()).length > 0;
+    }
+
+    if (!claimed) {
       return res.status(200).json({ ok: true, skipped: true, reason: 'already_sent', date: local.date });
     }
 
