@@ -46,22 +46,29 @@ export function davidReportEmail({ tasks, local, origin, sample = false }) {
       ? notes.map(note => `<div style="border-left:3px solid #c9a13b;padding:7px 10px;margin-top:8px;background:#f8f6ef"><div style="font:700 11px Arial,sans-serif;color:#4b5563">${escapeHtml(note.author)} &middot; ${escapeHtml(noteDate(note.created_at))}</div><div style="font:12px/1.5 Arial,sans-serif;color:#374151;margin-top:3px">${htmlText(note.body)}</div></div>`).join('')
       : '<div style="font:700 12px Arial,sans-serif;color:#b42318;margin-top:8px">No notes &mdash; not actioned</div>';
     const due = `${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}`;
-    return `<tr><td style="padding:18px 24px;border-bottom:1px solid #e5e7eb"><div style="font:700 15px Arial,sans-serif;color:#111827">${escapeHtml(task.title)}</div><div style="font:12px Arial,sans-serif;color:#b42318;margin-top:6px"><strong>Overdue:</strong> ${escapeHtml(due)} &middot; ${task.status === 'followup' ? 'Follow Up' : 'To Do'} &middot; ${escapeHtml(task.priority)}</div>${task.description ? `<div style="font:12px/1.5 Arial,sans-serif;color:#4b5563;margin-top:8px">${htmlText(task.description)}</div>` : ''}${task.customer_name ? `<div style="font:12px Arial,sans-serif;color:#4b5563;margin-top:7px"><strong>${escapeHtml(task.customer_name)}</strong>${task.customer_phone ? ` &middot; ${escapeHtml(task.customer_phone)}` : ''}</div>` : ''}<div style="font:700 11px Arial,sans-serif;color:#6b7280;text-transform:uppercase;margin-top:12px">Notes</div>${notesHtml}</td></tr>`;
-  }).join('') : '<tr><td style="padding:26px 24px;font:700 15px Arial,sans-serif;color:#166534">David has no overdue unfinished tasks.</td></tr>';
+    const customerHeading = task.customer_name
+      ? `<div style="font:700 17px Arial,sans-serif;color:#111827">${escapeHtml(task.customer_name)}</div>${task.customer_phone ? `<div style="font:12px Arial,sans-serif;color:#4b5563;margin-top:3px">${escapeHtml(task.customer_phone)}</div>` : ''}`
+      : '';
+    const titleMargin = task.customer_name ? '10px' : '0';
+    return `<tr><td style="padding:18px 24px;border-bottom:1px solid #e5e7eb">${customerHeading}<div style="font:700 14px Arial,sans-serif;color:#111827;margin-top:${titleMargin}">${escapeHtml(task.title)}</div><div style="font:12px Arial,sans-serif;color:#b42318;margin-top:6px"><strong>Overdue:</strong> ${escapeHtml(due)} &middot; To Do &middot; ${escapeHtml(task.priority)}</div>${task.description ? `<div style="font:12px/1.5 Arial,sans-serif;color:#4b5563;margin-top:8px">${htmlText(task.description)}</div>` : ''}<div style="font:700 11px Arial,sans-serif;color:#6b7280;text-transform:uppercase;margin-top:12px">Notes</div>${notesHtml}</td></tr>`;
+  }).join('') : '<tr><td style="padding:26px 24px;font:700 15px Arial,sans-serif;color:#166534">David has no overdue To Do tasks.</td></tr>';
 
   const taskText = tasks.length ? tasks.map((task, index) => {
     const notes = [...(task.notes || [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const notesText = notes.length
       ? notes.map(note => `- ${note.author} (${noteDate(note.created_at)}): ${note.body}`).join('\n')
       : 'No notes — not actioned';
-    return `${index + 1}. ${task.title}\nDue: ${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}\nStatus: ${task.status === 'followup' ? 'Follow Up' : 'To Do'} | Priority: ${task.priority}\nNotes:\n${notesText}`;
-  }).join('\n\n') : 'David has no overdue unfinished tasks.';
+    const customerText = task.customer_name
+      ? `${task.customer_name}${task.customer_phone ? `\n${task.customer_phone}` : ''}\n`
+      : '';
+    return `${index + 1}. ${customerText}Task: ${task.title}\nDue: ${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}\nStatus: To Do | Priority: ${task.priority}\nNotes:\n${notesText}`;
+  }).join('\n\n') : 'David has no overdue To Do tasks.';
 
   const prefix = sample ? 'SAMPLE — ' : '';
   return {
-    subject: `${prefix}David overdue task report (${tasks.length})`,
-    html: `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:22px 24px;border-bottom:3px solid #c9a13b"><div style="font:700 20px Arial,sans-serif;color:#fff">${sample ? 'Sample: ' : ''}David's overdue tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Unfinished tasks due before ${escapeHtml(timeLabel(`${local.hour}:${local.minute}`))} on ${escapeHtml(dateLabel(local.date))}</div></td></tr>${taskHtml}<tr><td style="padding:18px 24px 24px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open team tasks</a></td></tr></table></td></tr></table></body></html>`,
-    text: `${sample ? 'SAMPLE: ' : ''}David's overdue tasks\n\n${taskText}\n\nOpen team tasks: ${origin}/todo/`,
+    subject: `${prefix}David overdue To Do report (${tasks.length})`,
+    html: `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:22px 24px;border-bottom:3px solid #c9a13b"><div style="font:700 20px Arial,sans-serif;color:#fff">${sample ? 'Sample: ' : ''}David's overdue To Do tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">To Do tasks due before ${escapeHtml(timeLabel(`${local.hour}:${local.minute}`))} on ${escapeHtml(dateLabel(local.date))}</div></td></tr>${taskHtml}<tr><td style="padding:18px 24px 24px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open team tasks</a></td></tr></table></td></tr></table></body></html>`,
+    text: `${sample ? 'SAMPLE: ' : ''}David's overdue To Do tasks\n\n${taskText}\n\nOpen team tasks: ${origin}/todo/`,
   };
 }
 
@@ -85,7 +92,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,due_date,due_time,status,priority,customer_name,customer_phone,notes:portal_task_notes(id,author,body,created_at)&assignee=eq.David&status=in.(todo,followup)&archived_at=is.null&order=due_date.asc,due_time.asc`,
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,due_date,due_time,status,priority,customer_name,customer_phone,notes:portal_task_notes(id,author,body,created_at)&assignee=eq.David&status=eq.todo&archived_at=is.null&order=due_date.asc,due_time.asc`,
       { headers: supabaseHeaders(serviceKey) }
     );
     if (!response.ok) return res.status(502).json({ error: 'Could not load David overdue tasks' });
