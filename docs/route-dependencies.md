@@ -41,8 +41,6 @@ This repo is live and has route-sensitive paths that should not be renamed casua
 
 ## PWA path dependencies
 
-- `/smoke-alarms/calendar/` is path-sensitive.
-- Its manifest uses `/smoke-alarms/calendar/` for both `start_url` and `scope`.
 - Treat that folder as fixed unless the manifest, service worker behavior, and inbound links are updated together.
 
 ## Safe cleanup pattern

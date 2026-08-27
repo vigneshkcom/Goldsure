@@ -495,33 +495,6 @@ These sections list the files that are most important when working in each folde
   - Likely legacy: no clear evidence of legacy
   - Risky to change: very high because `vercel.json` targets this exact path
 
-#### `/smoke-alarms/calendar/`
-
-- [index.html](/smoke-alarms/calendar/index.html)
-  - Type: `browser page`
-  - Purpose: electrician calendar PWA UI — shows scheduled jobs by electrician, supports availability toggling, CSV upload, and team management
-  - Live/active: yes
-  - Shared: no
-  - Likely legacy: no
-  - Risky to change: very high
-  - Notes: worker view is accessed via `?electrician=SLUG` query param; admin view has no query param; no ICS/calendar-feed endpoint (was removed — Google Calendar sync was unreliable due to 24h refresh delay)
-
-- [manifest.json](/smoke-alarms/calendar/manifest.json)
-  - Type: `config`
-  - Purpose: PWA manifest for electrician calendar
-  - Live/active: yes
-  - Shared: yes
-  - Likely legacy: no
-  - Risky to change: very high
-
-- [sw.js](/smoke-alarms/calendar/sw.js)
-  - Type: `config`
-  - Purpose: service worker for electrician calendar
-  - Live/active: yes
-  - Shared: yes
-  - Likely legacy: no
-  - Risky to change: very high
-
 ## Critical Flows
 
 ### Homepage / Index
@@ -565,7 +538,6 @@ These sections list the files that are most important when working in each folde
   - [smoke-alarms/smoke-alarm-troubleshooting.html](/smoke-alarms/smoke-alarm-troubleshooting.html)
   - [smoke-alarms/raptor-enquiry-workflow.html](/smoke-alarms/raptor-enquiry-workflow.html)
   - [smoke-alarms/install-summary.html](/smoke-alarms/install-summary.html)
-  - [smoke-alarms/calendar/index.html](/smoke-alarms/calendar/index.html)
 - Main APIs:
   - [api/smoke-alarms/send.js](/api/smoke-alarms/send.js)
   - [api/smoke-alarms/accept.js](/api/smoke-alarms/accept.js)
@@ -646,11 +618,6 @@ Documentation only. These are good candidates for future cleanup planning, not a
 - [smoke-alarms/Installer Pay Summary.html](/smoke-alarms/Installer Pay Summary.html)
 - [smoke-alarms/install-summary.html](/smoke-alarms/install-summary.html)
 
-### PWA/calendar-sensitive
-
-- [smoke-alarms/calendar/index.html](/smoke-alarms/calendar/index.html)
-- [smoke-alarms/calendar/manifest.json](/smoke-alarms/calendar/manifest.json)
-- [smoke-alarms/calendar/sw.js](/smoke-alarms/calendar/sw.js)
 
 ## Still Unclear
 

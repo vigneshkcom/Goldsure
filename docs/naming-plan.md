@@ -140,7 +140,6 @@ These should not be attempted until explicit approval, compatibility planning, a
   - reason: live frontend/API dependency plus cron coupling
 - `/smoke-alarms/calculatorpdf.html` rename
   - reason: explicitly targeted in `/vercel.json`
-- `/smoke-alarms/calendar/` folder rename
   - reason: PWA `scope`, `start_url`, and service-worker sensitivity
 - `/assets/icon-192x192.png` and `/assets/icon-512x512.png` rename
   - reason: PWA/app-icon contexts are easy to break silently
@@ -174,7 +173,6 @@ These are lower-risk than folder or API namespace renames because they can often
 
 - Renaming `/api/MetaAdPerformace/`
 - Renaming `/smoke-alarms/calculatorpdf.html`
-- Renaming anything under `/smoke-alarms/calendar/`
 - Renaming `/Battery/`, `/Air-Cons/`, or `/Ads reporting/` without wrappers or aliases
 - Renaming PWA icon files without verifying manifest and browser install behavior
 

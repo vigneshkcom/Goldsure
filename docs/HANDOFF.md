@@ -55,14 +55,6 @@ This file is a single-page orientation for any new contributor or assistant. It 
 - Routing is by body shape: `{ html }` → install summary relay; `{ summary }` → pay summary builder
 - These two were consolidated into one function to stay within the Vercel Hobby 12-function limit
 
-### 5) Electrician Calendar
-
-- Page: `/smoke-alarms/calendar/` (PWA)
-- Admin view: no query param — shows all electricians, CSV upload, Manage Team button
-- Worker view: `?electrician=SLUG` — shows that worker's schedule and availability toggle
-- Data lives in Supabase `electrician_calendar` table
-- No external calendar sync endpoint (removed — Google Calendar's 24h refresh delay made it useless)
-
 ### 6) Ad Performance Reporting
 
 - Page: `/Ads reporting/Meta Ad Performance.html`
@@ -102,7 +94,6 @@ Current 12 functions:
 
 - `/vercel.json`
 - Anything under `/api/`
-- `/smoke-alarms/calendar/`
 - `/smoke-alarms/calculatorpdf.html`
 - `/Ads reporting/`
 - `/Battery/`

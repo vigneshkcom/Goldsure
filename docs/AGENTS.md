@@ -41,7 +41,6 @@
   - renaming live folders or files
   - changing API route names
   - removing pages that seem unused
-  - changing PWA paths under `/smoke-alarms/calendar/`
 
 ## Special Cases
 

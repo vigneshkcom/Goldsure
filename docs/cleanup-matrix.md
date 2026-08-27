@@ -46,9 +46,6 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 - `/smoke-alarms/quote-tracker.html`
 - `/smoke-alarms/Installer Pay Summary.html`
 - `/smoke-alarms/install-summary.html`
-- `/smoke-alarms/calendar/index.html`
-- `/smoke-alarms/calendar/manifest.json`
-- `/smoke-alarms/calendar/sw.js`
 
 ### Probably Active
 
@@ -158,10 +155,6 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 | `/smoke-alarms/install-summary.html` | browser page | install summary submission/reporting page | clearly active | keep | high |
 | `/smoke-alarms/compliance.html` | browser page | public-facing compliance landing page with embedded forms | probably active | review | medium-high |
 | `/smoke-alarms/calculatorpdf.html` | browser page | quote calculator with webhook and PDF generation | probably active / confusing by name only | document better | very high |
-| `/smoke-alarms/calendar/` | folder | electrician calendar PWA path | clearly active / shared infrastructure | keep | very high |
-| `/smoke-alarms/calendar/index.html` | browser page | electrician calendar PWA UI | clearly active | keep | very high |
-| `/smoke-alarms/calendar/manifest.json` | config | PWA manifest for calendar | clearly active / shared infrastructure | keep | very high |
-| `/smoke-alarms/calendar/sw.js` | config | service worker for calendar PWA | clearly active / shared infrastructure | keep | very high |
 | `/README.md` | documentation | repo entry point | shared infrastructure | keep | low |
 | `/docs/AGENTS.md` | documentation | agent/contributor guardrails | shared infrastructure | keep | low |
 | `/docs/ARCHITECTURE.md` | documentation | structural map and flow map | shared infrastructure | keep | low |
@@ -185,11 +178,10 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 13. `/assets/goldsure-logo.jpg`
 14. `/smoke-alarms/compliance.html`
 15. `/calendar/`
-16. `/smoke-alarms/calendar/`
-17. `/smoke-alarms/install-summary.html`
-18. `/smoke-alarms/quote-tracker.html`
-19. `/docs/route-dependencies.md`
-20. `/assets/.keep`
+16. `/smoke-alarms/install-summary.html`
+17. `/smoke-alarms/quote-tracker.html`
+18. `/docs/route-dependencies.md`
+19. `/assets/.keep`
 
 ## Top 10 Lowest-Risk Cleanup Opportunities
 
@@ -218,10 +210,6 @@ Use it to reduce confusion without breaking public URLs, Vercel behavior, API ro
 - `/smoke-alarms/smoke-alarm.html`
 - `/smoke-alarms/install-summary.html`
 - `/smoke-alarms/calculatorpdf.html`
-- `/smoke-alarms/calendar/`
-- `/smoke-alarms/calendar/index.html`
-- `/smoke-alarms/calendar/manifest.json`
-- `/smoke-alarms/calendar/sw.js`
 - `/Battery/`
 - `/Air-Cons/`
 - `/Ads reporting/`

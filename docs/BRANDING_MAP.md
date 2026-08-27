@@ -76,8 +76,6 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - Apple touch icon
   - installable app/icon surfaces
 - Current known usage:
-  - [smoke-alarms/calendar/index.html](../smoke-alarms/calendar/index.html)
-  - [smoke-alarms/calendar/manifest.json](../smoke-alarms/calendar/manifest.json)
 - Should not be used:
   - as a normal page header logo
   - in email HTML
@@ -88,7 +86,6 @@ This file defines the canonical brand asset usage for the live Goldsure portal r
   - high-resolution PWA icon
   - install prompts and launcher surfaces
 - Current known usage:
-  - [smoke-alarms/calendar/manifest.json](../smoke-alarms/calendar/manifest.json)
 - Should not be used:
   - as a normal page header logo
   - in email HTML

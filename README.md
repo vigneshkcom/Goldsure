@@ -30,7 +30,6 @@ Important files there include:
 - `/smoke-alarms/compliance.html`
 - `/smoke-alarms/calculatorpdf.html`
 - `/smoke-alarms/qld-smoke-alarm-training-certificate.html`
-- `/smoke-alarms/calendar/index.html`
 
 ### Battery
 
@@ -103,10 +102,6 @@ If you are looking for the leave planner, check:
 
 - `/calendar/staff-leave-planner.html`
 
-If you are looking for the electrician calendar app, check:
-
-- `/smoke-alarms/calendar/`
-
 ### Main Portal Homepage
 
 If you want the page that links to most internal tools, check:
@@ -139,7 +134,6 @@ Do not casually rename, move, or delete:
 
 - `/vercel.json`
 - anything in `/api/`
-- anything in `/smoke-alarms/calendar/`
 - `/smoke-alarms/calculatorpdf.html`
 - `/Battery/`
 - `/Ads reporting/`
