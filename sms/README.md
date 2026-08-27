@@ -87,12 +87,38 @@ CREATE TABLE IF NOT EXISTS sms_read_state (
 ALTER TABLE sms_read_state DISABLE ROW LEVEL SECURITY;
 ```
 
-**Performance migration (run this if the portal has got slow).** Once the table
+### Diagnosing "sending is slow" or "SMS Gateway rejected the request"
+
+Open this in a browser tab, logged in as you normally are:
+
+```
+https://portal.goldsure.com.au/api/battery/request-callback?action=gateway-health
+```
+
+It sends nothing. It reports whether the gateway credentials are configured,
+whether the SMS Gate cloud accepts them, how long the cloud takes to answer,
+and the real gateway state of the last few outbound messages. Read it as:
+
+| What you see | What it means |
+| --- | --- |
+| `authProbe.status` 401/403 | `SMSGATE_USERNAME` / `SMSGATE_PASSWORD` are wrong in Vercel. |
+| `authProbe.error` timeout | The SMS Gate cloud is unreachable — upstream outage. |
+| `authProbe.status` 200, sends still fail HTTP 400/404 | Almost always a stale `SMSGATE_DEVICE_ID`. Reinstalling or re-registering the SMS Gate app issues a **new** device id; the old one is rejected. Update or clear that env var. |
+| `recentStates` mostly `Pending` | The cloud accepted the messages but the gateway phone has not collected them. That is the phone — Android battery optimisation / Doze / offline — not this API. |
+| `recentStates` reaching `Sent`/`Delivered` quickly | The gateway is healthy; look elsewhere. |
+
+The send endpoint itself now bounds the gateway call at 9 seconds and returns
+the gateway's own HTTP status and body as `detail`, plus a `hint`. The portal
+shows all three in the failure alert, so the reason is visible without opening
+Vercel logs.
+
+**Performance migration (only relevant at scale — see the note below).** Once the table
 passes a few tens of thousands of rows — which one bulk campaign can do — the
 scheduler and sidebar queries become full table scans, every poll, from every
-open tab. That starves the same connection pool that `action=send` uses, so
-sending crawls even though nothing about sending changed. These indexes are
-safe to add at any time, take seconds, and are re-runnable. Paste the whole
+open tab. Below roughly 10k rows this costs nothing measurable and is not the
+cause of any slowness you are seeing; add these as future-proofing, not as a
+fix. These indexes are safe to add at any time, take seconds, and are
+re-runnable. Paste the whole
 block into the Supabase SQL Editor:
 ```sql
 -- 1. The scheduled queue. fire-scheduled polls this constantly (every open

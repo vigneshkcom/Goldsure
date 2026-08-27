@@ -2350,7 +2350,14 @@
         document.getElementById('setupNotice').classList.add('show');
         input.value = saved;
       } else {
-        alert('Send failed: ' + (data.error || 'Unknown error'));
+        // Show what the gateway actually said. "rejected the request" alone is
+        // undiagnosable — the status code and body are the part that names the
+        // fault (bad credentials, stale device id, quota, upstream outage).
+        alert(
+          'Send failed: ' + (data.error || 'Unknown error') +
+          (data.detail ? '\n\nGateway said:\n' + String(data.detail).slice(0, 500) : '') +
+          (data.hint ? '\n\n' + data.hint : '')
+        );
         input.value = saved;
       }
     } catch {

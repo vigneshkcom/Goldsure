@@ -446,6 +446,87 @@ export default async function handler(req, res) {
 
     // Delivery status: poll SMS Gate for outbound message states and persist
     // delivered/failed back to Supabase so polling stops once final.
+    // Gateway health — answers "why is sending failing/slow?" without sending
+    // anything. Reports, in order: whether the credentials are configured, what
+    // the SMS Gate cloud says to an authenticated read, and what state the most
+    // recent outbound messages are actually in on the gateway.
+    //
+    // Reading the state of an existing message is the safest authenticated probe
+    // available: it is the same endpoint ?action=delivery already uses, so it is
+    // known to exist, and it costs nothing.
+    if (req.query.action === 'gateway-health') {
+      res.setHeader('Cache-Control', 'no-store');
+      const user = process.env.SMSGATE_USERNAME;
+      const pass = process.env.SMSGATE_PASSWORD;
+      const out = {
+        config: {
+          hasUsername: !!user,
+          hasPassword: !!pass,
+          // Never echo the value — only enough to tell whether it is set and
+          // whether it looks like a plausible device id.
+          deviceIdSet: !!process.env.SMSGATE_DEVICE_ID,
+          deviceIdLength: (process.env.SMSGATE_DEVICE_ID || '').length,
+        },
+      };
+      if (!user || !pass) {
+        out.verdict = 'SMSGATE_USERNAME / SMSGATE_PASSWORD are not set in Vercel.';
+        return res.status(200).json(out);
+      }
+      const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
+      const ah = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+      // Most recent real gateway ids we have logged (skip scheduled placeholders)
+      let recent = [];
+      try {
+        const r = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_messages?select=sms_gate_id,status,created_at&direction=eq.outbound&sms_gate_id=not.is.null&order=created_at.desc&limit=10`,
+          { headers: ah }
+        );
+        recent = (await r.json().catch(() => []))
+          .filter(m => typeof m.sms_gate_id === 'string' && !m.sms_gate_id.startsWith('sched:'));
+      } catch { /* fall through — the auth probe below still runs */ }
+
+      const timed = async (url) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const started = Date.now();
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Basic ${credentials}` }, signal: ctrl.signal });
+          const body = await r.text();
+          return { status: r.status, ms: Date.now() - started, body: body.slice(0, 400) };
+        } catch (e) {
+          return { status: null, ms: Date.now() - started, error: e.name === 'AbortError' ? 'timeout after 8s' : e.message };
+        } finally { clearTimeout(t); }
+      };
+
+      // 1. Does the cloud accept our credentials at all?
+      if (recent.length) {
+        out.authProbe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(recent[0].sms_gate_id)}`);
+      } else {
+        out.authProbe = { skipped: 'no outbound messages with a gateway id to read' };
+      }
+
+      // 2. What state are the last few sends really in? A pile of 'Pending' means
+      //    the cloud accepted them but the gateway phone has not collected them —
+      //    that is the phone (Doze / offline), not this API.
+      out.recentStates = [];
+      for (const m of recent.slice(0, 5)) {
+        const probe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(m.sms_gate_id)}`);
+        let state = null;
+        try { state = JSON.parse(probe.body || '{}').state || null; } catch {}
+        out.recentStates.push({ id: m.sms_gate_id, localStatus: m.status, at: m.created_at, gatewayState: state, httpStatus: probe.status, ms: probe.ms });
+      }
+
+      const s0 = out.authProbe && out.authProbe.status;
+      out.verdict =
+        s0 === 401 || s0 === 403 ? 'Gateway credentials are being REJECTED. Fix SMSGATE_USERNAME / SMSGATE_PASSWORD in Vercel.'
+        : s0 === null && out.authProbe.error ? `Cannot reach the SMS Gate cloud: ${out.authProbe.error}`
+        : s0 === 200 ? 'Credentials are good and the cloud is reachable — so a failing send is about the device id, a quota, or the gateway phone. Check recentStates and the `detail` on the send error.'
+        : `Unexpected response from the gateway (HTTP ${s0}). See authProbe.body.`;
+
+      return res.status(200).json(out);
+    }
+
     if (req.query.action === 'delivery') {
       const ids = String(req.query.ids || '')
         .split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
@@ -2775,23 +2856,64 @@ ${notesHtml}
 
     const credentials = Buffer.from(`${user}:${pass}`).toString('base64');
 
-    const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phoneNumbers: [phone],
-        textMessage: { text: message },
-        ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
-      }),
-    });
+    // Bound the call. Without a timeout a stalled gateway holds the request open
+    // until Vercel kills the function, which is what "sending takes ages" looks
+    // like from the composer — the SMS never left, it was just waiting.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 9000);
+    const startedAt = Date.now();
+    let smsRes;
+    try {
+      smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumbers: [phone],
+          textMessage: { text: message },
+          ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      const ms = Date.now() - startedAt;
+      console.error('[SMSGate] send unreachable', e.name, e.message, ms + 'ms');
+      return res.status(504).json({
+        error: e.name === 'AbortError'
+          ? 'SMS Gateway did not respond within 9 seconds — nothing was sent.'
+          : `Could not reach the SMS Gateway: ${e.message}`,
+        detail: e.message,
+        gatewayMs: ms,
+      });
+    }
+    clearTimeout(timer);
+    const gatewayMs = Date.now() - startedAt;
 
     if (!smsRes.ok) {
+      // Pass the gateway's own status and body back. "rejected the request" on its
+      // own says nothing actionable; the status code is what names the fault.
       const detail = await smsRes.text();
-      console.error('[SMSGate] send failed', smsRes.status, detail);
-      return res.status(502).json({ error: 'SMS Gateway rejected the request', detail });
+      console.error('[SMSGate] send failed', smsRes.status, detail, gatewayMs + 'ms');
+      const hint =
+        smsRes.status === 401 || smsRes.status === 403
+          ? 'Check SMSGATE_USERNAME / SMSGATE_PASSWORD in Vercel — the gateway account credentials look wrong or were changed.'
+        : smsRes.status === 400 || smsRes.status === 404
+          ? 'Often a stale SMSGATE_DEVICE_ID: reinstalling or re-registering the SMS Gate app issues a NEW device id, and the old one is rejected. Update or clear that Vercel env var.'
+        : smsRes.status === 402 || smsRes.status === 429
+          ? 'The gateway account has hit a quota or rate limit.'
+        : smsRes.status >= 500
+          ? 'The SMS Gate cloud is erroring — this one is upstream, not your config.'
+          : '';
+      return res.status(502).json({
+        error: `SMS Gateway rejected the request (HTTP ${smsRes.status})`,
+        status: smsRes.status,
+        detail,
+        ...(hint ? { hint } : {}),
+        gatewayMs,
+      });
     }
 
     const smsData = await smsRes.json().catch(() => ({}));
@@ -2819,7 +2941,7 @@ ${notesHtml}
       console.error('[Supabase] outbound log failed (non-fatal):', err.message);
     }
 
-    return res.status(200).json({ success: true, messageId: smsGateId });
+    return res.status(200).json({ success: true, messageId: smsGateId, gatewayMs });
   }
 
   // ── POST action=webhook: inbound SMS from SMS Gate ──────────────────────────
