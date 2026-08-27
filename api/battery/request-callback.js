@@ -577,8 +577,19 @@ export default async function handler(req, res) {
       const processed = []; // [{id, status}] so the UI can reflect the real outcome
 
       while (credentials && Date.now() < deadline) {
+        // Select by DUE time, never by created_at. Due time lives in sms_gate_id
+        // as `sched:<ISO>`, and every writer stores a full UTC toISOString(), so
+        // the strings sort lexically in exactly chronological order — a `lt`
+        // filter against `sched:<now>` is the past-due set, cheapest-first.
+        //
+        // Ordering by created_at instead used to starve the queue: a campaign
+        // scheduled far ahead creates 25+ rows *now*, so it owned the whole
+        // window, and anything scheduled afterwards but due sooner never
+        // appeared in it — the loop saw "nothing past due" and broke out, and
+        // the sooner message sat unsent until the older block drained.
+        const dueBefore = encodeURIComponent('sched:' + new Date().toISOString());
         const schedRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id,phone_number,message,sms_gate_id&order=created_at.asc&limit=25`,
+          `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&sms_gate_id=lt.${dueBefore}&select=id,phone_number,message,sms_gate_id&order=sms_gate_id.asc&limit=25`,
           { headers: ah }
         );
         const all = await schedRes.json().catch(() => []);
@@ -587,7 +598,7 @@ export default async function handler(req, res) {
           const ts = new Date(m.sms_gate_id.slice(6, 32));
           return !isNaN(ts) && ts <= new Date();
         });
-        if (!pastDue.length) break; // nothing due right now (older rows are future-dated)
+        if (!pastDue.length) break; // nothing due right now
 
         for (const m of pastDue) {
           if (Date.now() >= deadline) break;
@@ -639,15 +650,33 @@ export default async function handler(req, res) {
         }
       }
 
-      // Total remaining scheduled (so callers know whether to keep draining)
-      const remRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=id&limit=1000`,
-        { headers: ah }
-      );
-      const remRows = await remRes.json().catch(() => []);
+      // How much is left, and when the next one is actually due. Callers use
+      // `nextDueAt` to sleep until there is real work instead of re-polling every
+      // 30s for hours while a long campaign sits in the future.
+      //
+      // The count comes from PostgREST's Content-Range header (Prefer: count=exact
+      // with limit=0) rather than by downloading up to 1000 id rows every call.
+      let remaining = 0, nextDueAt = null;
+      try {
+        // One request answers both: the earliest-due row (ordered by the `sched:`
+        // timestamp) and, via Content-Range, the total still queued — instead of
+        // downloading up to 1000 id rows on every single poll.
+        const remRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/sms_messages?status=eq.scheduled&select=sms_gate_id&order=sms_gate_id.asc&limit=1`,
+          { headers: { ...ah, Prefer: 'count=exact' } }
+        );
+        const total = parseInt(String(remRes.headers.get('content-range') || '').split('/')[1], 10);
+        remaining = Number.isFinite(total) ? total : 0;
+        const rows = await remRes.json().catch(() => []);
+        const id = Array.isArray(rows) && rows[0] ? rows[0].sms_gate_id : '';
+        if (typeof id === 'string' && id.startsWith('sched:')) {
+          const ts = new Date(id.slice(6, 32));
+          if (!isNaN(ts)) nextDueAt = ts.toISOString();
+        }
+      } catch { /* remaining 0 / nextDueAt null — the cron keeps draining regardless */ }
+
       return res.status(200).json({
-        fired, failed, cancelled, processed,
-        remaining: Array.isArray(remRows) ? remRows.length : 0,
+        fired, failed, cancelled, processed, remaining, nextDueAt,
         ...(credentials ? {} : { error: 'SMS gateway credentials not configured' }),
       });
     }

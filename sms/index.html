@@ -2333,8 +2333,13 @@
         } else {
           pendingSendNote = null;
         }
+        // The thread is what the sender is looking at, so wait for that. The
+        // sidebar refresh (contacts + bulk threads + read state = three of the
+        // heaviest queries in the app) runs in the background — awaiting it here
+        // kept the Send button disabled long after the SMS had already gone out,
+        // which is what made sending "take ages".
         await reloadMessages();
-        await loadContacts();
+        loadContacts();
       } else if (res.status === 403 && data.optedOut) {
         alert(data.error);
         input.value = saved;
@@ -2549,15 +2554,32 @@
   // portal is open. Self-sustaining only while a queue exists, and survives
   // transient network errors (only a confirmed empty queue stops it), so it
   // keeps draining after a reopen without depending on the GitHub Actions cron.
+  const BGFIRE_MIN_MS = 30000;       // never poll harder than every 30s
+  const BGFIRE_MAX_MS = 5 * 60000;   // ...and never sit idle longer than 5 min
   let bgFireTimer = null;
   async function bgFireScheduled() {
-    let remaining = -1; // -1 = unknown (error) → keep polling to be safe
+    let remaining = -1;      // -1 = unknown (error) → keep polling to be safe
+    let nextDueAt = null;    // when the earliest queued message is actually due
     try {
       const r = await fetch(`${API}?action=fire-scheduled`);
       const d = await r.json();
       remaining = typeof d.remaining === 'number' ? d.remaining : -1;
+      nextDueAt = d.nextDueAt || null;
     } catch { remaining = -1; }
-    bgFireTimer = (remaining === 0) ? null : setTimeout(bgFireScheduled, 30000);
+
+    if (remaining === 0) { bgFireTimer = null; return; }
+
+    // A campaign staggered over hours leaves `remaining` non-zero all day. Polling
+    // every 30s through that is pure load — each call is a scheduled-queue scan,
+    // multiplied by every open portal tab — and it was starving the rest of the
+    // API (including Send) of Vercel/Supabase capacity. Sleep until the next
+    // message is genuinely due instead, clamped to [30s, 5min].
+    let wait = BGFIRE_MIN_MS;
+    if (nextDueAt) {
+      const until = new Date(nextDueAt).getTime() - Date.now();
+      if (!isNaN(until)) wait = Math.min(BGFIRE_MAX_MS, Math.max(BGFIRE_MIN_MS, until));
+    }
+    bgFireTimer = setTimeout(bgFireScheduled, wait);
   }
   function ensureBgFire() {
     if (!bgFireTimer) bgFireTimer = setTimeout(bgFireScheduled, 5000);

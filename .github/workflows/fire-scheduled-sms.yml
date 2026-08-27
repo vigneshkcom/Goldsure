@@ -33,6 +33,20 @@ jobs:
               echo "Queue empty — done."
               exit 0
             fi
+            # `remaining` counts everything still queued, including a campaign
+            # staggered hours into the future. Looping on that alone kept this job
+            # hammering the endpoint for ~3.5 of every 5 minutes for the whole life
+            # of a campaign. `nextDueAt` says when the earliest one is actually due
+            # — if that's still in the future there is nothing to drain right now.
+            next_due=$(echo "$resp" | jq -r '.nextDueAt // empty' 2>/dev/null || echo '')
+            if [ -n "$next_due" ]; then
+              next_ts=$(date -u -d "$next_due" +%s 2>/dev/null || echo '')
+              now_ts=$(date -u +%s)
+              if [ -n "$next_ts" ] && [ "$next_ts" -gt "$now_ts" ]; then
+                echo "Nothing due yet ($remaining queued, next at $next_due) — done."
+                exit 0
+              fi
+            fi
             sleep 20
           done
           echo "Still draining after 10 passes; the next scheduled run will continue."

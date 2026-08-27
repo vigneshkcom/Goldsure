@@ -48,6 +48,15 @@ CREATE TABLE sms_messages (
 );
 CREATE INDEX ON sms_messages (phone_number, created_at);
 CREATE INDEX ON sms_messages (is_bulk) WHERE is_bulk;
+-- The scheduler polls status='scheduled' constantly (portal + GitHub cron);
+-- without this it is a sequential scan of the whole table on every poll.
+CREATE INDEX ON sms_messages (sms_gate_id) WHERE status = 'scheduled';
+-- The sidebar's contact list orders the whole table by created_at and filters
+-- out bulk rows. `is_bulk = false` is NOT covered by the partial index above
+-- (that one only indexes true), so this is the index that query actually uses.
+CREATE INDEX ON sms_messages (created_at DESC) WHERE is_bulk IS NOT TRUE;
+-- Delivery-receipt lookups (?action=delivery) match on the gateway's message id.
+CREATE INDEX ON sms_messages (sms_gate_id);
 ALTER TABLE sms_messages DISABLE ROW LEVEL SECURITY;
 
 -- Shared read-state for the unread badge, so "read" is the same on every
@@ -76,6 +85,33 @@ CREATE TABLE IF NOT EXISTS sms_read_state (
   last_seen_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE sms_read_state DISABLE ROW LEVEL SECURITY;
+```
+
+**Performance migration (run this if the portal has got slow).** Once the table
+passes a few tens of thousands of rows — which one bulk campaign can do — the
+scheduler and sidebar queries become full table scans, every poll, from every
+open tab. That starves the same connection pool that `action=send` uses, so
+sending crawls even though nothing about sending changed. These indexes are
+safe to add at any time and take seconds:
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_sched_idx
+  ON sms_messages (sms_gate_id) WHERE status = 'scheduled';
+CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_inbox_idx
+  ON sms_messages (created_at DESC) WHERE is_bulk IS NOT TRUE;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_gate_id_idx
+  ON sms_messages (sms_gate_id);
+```
+Check what is queued while you are in there — a stalled campaign keeps every
+open portal polling:
+```sql
+SELECT status, count(*), min(sms_gate_id), max(sms_gate_id)
+FROM sms_messages GROUP BY status ORDER BY 2 DESC;
+```
+Rows stuck at `sending` are messages that were claimed but never completed (a
+function timeout mid-send); they will not retry on their own:
+```sql
+UPDATE sms_messages SET status = 'scheduled'
+WHERE status = 'sending' AND created_at < now() - interval '1 hour';
 ```
 Optionally retro-tag past blasts so they collapse too (adjust the text to
 match the message that was sent):
