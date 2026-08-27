@@ -27,6 +27,7 @@ server (`api.sms-gate.app`) only relays. Received SMS are pushed to our endpoint
 | `SMSGATE_PASSWORD` | SMS Gate app → Home → Cloud server → Password |
 | `SMSGATE_DEVICE_ID` | SMS Gate app → Home → Cloud server → Device ID |
 | `SUPABASE_SERVICE_ROLE_KEY` | *(recommended)* Supabase → Project Settings → API → `service_role` secret. Lets **Delete conversation** bypass Row Level Security and actually remove rows; without it, deletes fall back to the anon key and silently fail if RLS is on. Server-side only — never exposed to the browser. |
+| `SMSGATE_API_URL` | *(optional)* Base URL of the SMS Gate server, scheme + host only. Defaults to the public cloud `https://api.sms-gate.app`. Set this to move to a self-hosted server. |
 | `SMS_DELETE_PIN` | *(optional)* PIN guarding **Delete** and **Mark all read** (default `4321`). |
 | `HOSTINGER_MAILBOX_RESOURCE_ID` | Hostinger mailbox resource ID used to send inbound-SMS and battery-callback notification emails. |
 | `HOSTINGER_MAIL_API_TOKEN` | Hostinger Mail API bearer token authorised for the configured mailbox. If either Hostinger variable is unset, inbound-SMS notification emails are skipped. |
@@ -86,6 +87,52 @@ CREATE TABLE IF NOT EXISTS sms_read_state (
 );
 ALTER TABLE sms_read_state DISABLE ROW LEVEL SECURITY;
 ```
+
+### Pointing the portal at a self-hosted SMS Gate server
+
+Every send, delivery lookup and inbox export in this repo goes through
+`SMSGATE_API` (`lib/sms-gate.js`). It defaults to the project's free public
+cloud at `https://api.sms-gate.app`. To move to a server you run yourself, set
+one Vercel environment variable and redeploy — no code change:
+
+```
+SMSGATE_API_URL=https://sms.example.com
+```
+
+Scheme and host only; the `/3rdparty/v1` prefix is appended for you.
+`?action=gateway-health` echoes `config.apiBase` so you can confirm which
+server a report is actually about.
+
+**What has to be true of that server**
+
+1. Reachable from Vercel over public HTTPS with a valid certificate. A box on
+   the office LAN will not work — Vercel functions call *in* to the gateway.
+   A small VPS, or a LAN box exposed through Cloudflare Tunnel, both do.
+2. Serving the same `3rdparty/v1` API, with the same HTTP Basic credentials in
+   `SMSGATE_USERNAME` / `SMSGATE_PASSWORD`.
+3. Able to receive the webhook registration this repo already relies on for
+   inbound SMS (see the webhook section above) — re-register the webhook
+   against the new server, the old registration does not carry over.
+
+**Then repoint the phone.** In the SMS Gate Android app, switch the mode from
+Cloud Server to Private Server and give it the same base URL. Until the phone
+checks in to the new server, sends will be accepted and never delivered.
+
+**Cutover order that avoids a silent gap:** stand the server up → point the
+phone at it and confirm it appears as connected → register the webhook → only
+then set `SMSGATE_API_URL` in Vercel. Doing Vercel first means messages are
+accepted by a server no phone is attached to.
+
+**What this does and does not fix.** It removes the shared public cloud as a
+single point of failure. It does *not* remove the gateway phone, which is the
+other one — Android Doze, the phone going offline, or its SIM having no signal
+all still stop delivery, and are already the documented cause of delayed
+inbound. Self-hosting is worth doing if outages of the public cloud are the
+recurring problem; if the phone is, it changes nothing.
+
+The server itself is a separate open-source project — check its own docs for
+current install steps, database requirements and config, rather than trusting a
+snippet copied in here that will drift.
 
 ### Diagnosing "sending is slow" or "SMS Gateway rejected the request"
 

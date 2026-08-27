@@ -1,5 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-
+import { SMSGATE_API } from '../../lib/sms-gate.js';
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -374,7 +374,7 @@ export default async function handler(req, res) {
           `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
         const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-        const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+        const smsRes = await fetch(`${SMSGATE_API}/messages`, {
           method: 'POST',
           headers: { Authorization: `Basic ${smsCreds}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({

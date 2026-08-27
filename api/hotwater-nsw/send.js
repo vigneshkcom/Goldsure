@@ -11,7 +11,7 @@ import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
-
+import { SMSGATE_API } from '../../lib/sms-gate.js';
 // Pipeline the "GHL Stage" column on the NSW tracker reads from — GHL has a
 // dedicated "NSW HWS Pipeline" alongside the VIC "HWS Pipeline". Name hints
 // are deliberately narrow (no bare "hws"/"hot water") so this never matches
@@ -306,7 +306,7 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
           ? sms_text.trim()
           : `Hi ${custFirst}, this is ${agentFirst} from Goldsure.\n\nYour NSW hot water quote is still ready to review.\n\nView your quote online: ${quoteUrl}\n\nIf you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps.\n\nQuestions? Reply here or call 02 7251 0007. Thanks!`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-        const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+        const smsRes = await fetch(`${SMSGATE_API}/messages`, {
           method: 'POST',
           headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
@@ -495,7 +495,7 @@ export default async function handler(req, res) {
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
         const smsText = `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-        const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+        const smsRes = await fetch(`${SMSGATE_API}/messages`, {
           method: 'POST',
           headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),

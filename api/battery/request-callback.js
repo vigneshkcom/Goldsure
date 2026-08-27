@@ -9,7 +9,7 @@
 //   POST { fullName, phone, ... }       → legacy battery callback email (unchanged)
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-
+import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 // Shared card shell for the VIC Aircon Job Tracker's notification emails
 // (eco-comment-notify, job-status-notify below) — a plain, monday.com-style
 // notification card: coloured top accent, an uppercase kicker pill, a bold
@@ -460,6 +460,10 @@ export default async function handler(req, res) {
       const pass = process.env.SMSGATE_PASSWORD;
       const out = {
         config: {
+          // Which server this report is about. Once SMSGATE_API_URL points at a
+          // self-hosted server, "the gateway is down" means a different machine.
+          apiBase: SMSGATE_API,
+          usingPublicCloud: SMSGATE_IS_PUBLIC_CLOUD,
           hasUsername: !!user,
           hasPassword: !!pass,
           // Never echo the value — only enough to tell whether it is set and
@@ -522,7 +526,7 @@ export default async function handler(req, res) {
       // separates "the cloud is up and rejecting our credentials" from "the cloud
       // is not answering anyone", which is the distinction that decides whether
       // there is anything on our side left to fix.
-      out.reachability = await timed('https://api.sms-gate.app/3rdparty/v1/messages', false, 20000);
+      out.reachability = await timed(`${SMSGATE_API}/messages`, false, 20000);
 
       // If the host answered nobody, the authenticated probes can only repeat the
       // same wait. Stop here rather than burning the function's whole budget
@@ -532,13 +536,13 @@ export default async function handler(req, res) {
         out.recentStates = [];
         out.verdict =
           `The SMS Gate cloud is not answering at all (${out.reachability.error}). Nothing in this portal or its config can fix that — it is the gateway service itself. ` +
-          `Confirm from your own machine: curl -sS -o /dev/null -w '%{http_code} %{time_total}s\\n' https://api.sms-gate.app/3rdparty/v1/messages`;
+          `Confirm from your own machine: curl -sS -o /dev/null -w '%{http_code} %{time_total}s\\n' ${SMSGATE_API}/messages`;
         return res.status(200).json(out);
       }
 
       // 1. Does the cloud accept our credentials at all?
       if (recent.length) {
-        out.authProbe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(recent[0].sms_gate_id)}`, true, 8000);
+        out.authProbe = await timed(`${SMSGATE_API}/messages/${encodeURIComponent(recent[0].sms_gate_id)}`, true, 8000);
       } else {
         out.authProbe = { skipped: 'no outbound messages with a gateway id to read' };
       }
@@ -548,7 +552,7 @@ export default async function handler(req, res) {
       //    that is the phone (Doze / offline), not this API.
       out.recentStates = [];
       for (const m of recent.slice(0, 3)) {
-        const probe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(m.sms_gate_id)}`, true, 5000);
+        const probe = await timed(`${SMSGATE_API}/messages/${encodeURIComponent(m.sms_gate_id)}`, true, 5000);
         let state = null;
         try { state = JSON.parse(probe.body || '{}').state || null; } catch {}
         out.recentStates.push({ id: m.sms_gate_id, localStatus: m.status, at: m.created_at, gatewayState: state, httpStatus: probe.status, ms: probe.ms });
@@ -580,7 +584,7 @@ export default async function handler(req, res) {
       let changed = 0;
       for (const id of ids) {
         try {
-          const r = await fetch(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(id)}`, {
+          const r = await fetch(`${SMSGATE_API}/messages/${encodeURIComponent(id)}`, {
             headers: { Authorization: `Basic ${credentials}` },
           });
           if (!r.ok) continue;
@@ -740,7 +744,7 @@ export default async function handler(req, res) {
           const claimed = await claimRes.json().catch(() => []);
           if (!Array.isArray(claimed) || !claimed.length) continue; // claimed by a concurrent run
           try {
-            const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+            const smsRes = await fetch(`${SMSGATE_API}/messages`, {
               method: 'POST',
               headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1056,7 +1060,7 @@ export default async function handler(req, res) {
             }
 
             try {
-              const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+              const smsRes = await fetch(`${SMSGATE_API}/messages`, {
                 method: 'POST',
                 headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1644,7 +1648,7 @@ ${notesHtml}
             ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure.\n\nYour hot water quote is still ready to review.\n\nView your quote online: ${quoteUrl}\n\nIf you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here.\n\nYour quote for the ${tank_model || 'heat pump hot water system'} is ready.\n\nView your quote online: ${quoteUrl}\n\nWe have also emailed a copy to ${customer_email}.\n\nYour out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-          const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+          const smsRes = await fetch(`${SMSGATE_API}/messages`, {
             method: 'POST',
             headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
@@ -2114,7 +2118,7 @@ ${notesHtml}
             ? `Hi ${custFirst}, this is ${agentFirst} from Goldsure.\n\nYour air conditioning quote is still ready to review.\n\nView your quote online: ${quoteUrl}\n\nIf you are happy to proceed, click Accept on the quote and we will call you to arrange the next steps.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`
             : `Hi ${custFirst}, ${agentFirst} from Goldsure here.\n\nYour air conditioning quote is ready.\n\nView your quote online: ${quoteUrl}\n\nWe have also emailed a copy to ${customer_email}.\n\nYour out-of-pocket cost is ${money(total_out_of_pocket)}, provided you are eligible for the applicable rebates.\n\nQuestions? Reply here or call 03 7050 2846. Thanks!`;
           const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-          const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+          const smsRes = await fetch(`${SMSGATE_API}/messages`, {
             method: 'POST', headers: { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumbers: [smsPhone], textMessage: { text: smsText }, ...(process.env.SMSGATE_DEVICE_ID ? { deviceId: process.env.SMSGATE_DEVICE_ID } : {}) }),
           });
@@ -2400,7 +2404,7 @@ ${notesHtml}
     const exportBody = { since, until };
     if (process.env.SMSGATE_DEVICE_ID) exportBody.deviceId = process.env.SMSGATE_DEVICE_ID;
 
-    const exportRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages/inbox/export', {
+    const exportRes = await fetch(`${SMSGATE_API}/messages/inbox/export`, {
       method: 'POST',
       headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(exportBody),
@@ -2904,7 +2908,7 @@ ${notesHtml}
     const startedAt = Date.now();
     let smsRes;
     try {
-      smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+      smsRes = await fetch(`${SMSGATE_API}/messages`, {
         method: 'POST',
         headers: {
           Authorization: `Basic ${credentials}`,

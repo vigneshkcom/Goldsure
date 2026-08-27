@@ -1,5 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-
+import { SMSGATE_API } from '../../lib/sms-gate.js';
 function esc(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -122,7 +122,7 @@ async function sendReminderSms(data) {
         `If you have any questions, reply here or call us on 07 2145 5155. Thanks!`;
 
     const smsCreds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
-    const smsRes = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
+    const smsRes = await fetch(`${SMSGATE_API}/messages`, {
       method: 'POST',
       headers: { Authorization: `Basic ${smsCreds}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
