@@ -92,14 +92,56 @@ passes a few tens of thousands of rows — which one bulk campaign can do — th
 scheduler and sidebar queries become full table scans, every poll, from every
 open tab. That starves the same connection pool that `action=send` uses, so
 sending crawls even though nothing about sending changed. These indexes are
-safe to add at any time and take seconds:
+safe to add at any time, take seconds, and are re-runnable. Paste the whole
+block into the Supabase SQL Editor:
 ```sql
-CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_sched_idx
-  ON sms_messages (sms_gate_id) WHERE status = 'scheduled';
-CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_inbox_idx
-  ON sms_messages (created_at DESC) WHERE is_bulk IS NOT TRUE;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS sms_messages_gate_id_idx
-  ON sms_messages (sms_gate_id);
+-- 1. The scheduled queue. fire-scheduled polls this constantly (every open
+--    portal tab plus the GitHub cron); unindexed it is a full scan each time.
+CREATE INDEX IF NOT EXISTS sms_messages_sched_idx
+  ON public.sms_messages (sms_gate_id) WHERE status = 'scheduled';
+
+-- 2. Delivery receipts (?action=delivery) and inbound webhook de-duplication
+--    both look a row up by the gateway's own message id.
+CREATE INDEX IF NOT EXISTS sms_messages_gate_id_idx
+  ON public.sms_messages (sms_gate_id);
+
+-- 3. Dashboard stats, and any unfiltered newest-first scan.
+CREATE INDEX IF NOT EXISTS sms_messages_created_at_idx
+  ON public.sms_messages (created_at DESC);
+
+-- 4. STOP/START state. Tiny partial index; every send checks it first.
+CREATE INDEX IF NOT EXISTS sms_messages_optout_idx
+  ON public.sms_messages (phone_number, created_at DESC)
+  WHERE status IN ('optout', 'optin');
+
+-- 5. Sidebar conversation list and bulk-campaign list. Both need the is_bulk
+--    column, so skip them cleanly on installs that never ran that migration.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'sms_messages'
+               AND column_name = 'is_bulk') THEN
+    -- The sidebar filters is_bulk = false. The partial index further up
+    -- ("(is_bulk) WHERE is_bulk") indexes only the TRUE rows, so it can never
+    -- serve that query — this is the index it actually needs.
+    CREATE INDEX IF NOT EXISTS sms_messages_inbox_idx
+      ON public.sms_messages (created_at DESC) WHERE is_bulk IS NOT TRUE;
+    CREATE INDEX IF NOT EXISTS sms_messages_bulk_idx
+      ON public.sms_messages (created_at DESC) WHERE is_bulk;
+  ELSE
+    RAISE NOTICE 'is_bulk column absent - skipped the two sidebar indexes.';
+  END IF;
+END $$;
+
+ANALYZE public.sms_messages;
+```
+Note: no `CONCURRENTLY`. The Supabase SQL Editor runs a multi-statement script
+in one transaction, and `CREATE INDEX CONCURRENTLY` cannot run inside a
+transaction block. Plain `CREATE INDEX` takes a brief write lock — a second or
+two at this table's size. Confirm afterwards with:
+```sql
+SELECT indexname FROM pg_indexes
+WHERE schemaname = 'public' AND tablename = 'sms_messages' ORDER BY indexname;
 ```
 Check what is queued while you are in there — a stalled campaign keeps every
 open portal polling:
