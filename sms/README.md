@@ -102,7 +102,9 @@ and the real gateway state of the last few outbound messages. Read it as:
 | What you see | What it means |
 | --- | --- |
 | `authProbe.status` 401/403 | `SMSGATE_USERNAME` / `SMSGATE_PASSWORD` are wrong in Vercel. |
-| `authProbe.error` timeout | The SMS Gate cloud is unreachable — upstream outage. |
+| `reachability.status` null | The cloud is not answering **anyone** — an upstream outage. No config change here can fix it; confirm from your own machine with the curl in the verdict. |
+| `reachability.status` 5xx, `server: cloudflare` | The gateway's origin is down behind Cloudflare. Upstream. |
+| `authProbe.error` timeout | The host answers unauthenticated but authenticated reads hang. |
 | `authProbe.status` 200, sends still fail HTTP 400/404 | Almost always a stale `SMSGATE_DEVICE_ID`. Reinstalling or re-registering the SMS Gate app issues a **new** device id; the old one is rejected. Update or clear that env var. |
 | `recentStates` mostly `Pending` | The cloud accepted the messages but the gateway phone has not collected them. That is the phone — Android battery optimisation / Doze / offline — not this API. |
 | `recentStates` reaching `Sent`/`Delivered` quickly | The gateway is healthy; look elsewhere. |

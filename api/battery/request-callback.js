@@ -486,22 +486,59 @@ export default async function handler(req, res) {
           .filter(m => typeof m.sms_gate_id === 'string' && !m.sms_gate_id.startsWith('sched:'));
       } catch { /* fall through — the auth probe below still runs */ }
 
-      const timed = async (url) => {
+      // api.sms-gate.app sits behind Cloudflare. When the origin is down, Cloudflare
+      // holds the connection open and only then serves a 52x error page — so a
+      // short abort reports a bare "timeout" and hides the actual upstream error.
+      // Wait long enough to capture Cloudflare's real status and body (the error
+      // code and Ray ID in it are what prove the fault is upstream, not us).
+      const timed = async (url, auth = true, waitMs = 20000) => {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
+        const t = setTimeout(() => ctrl.abort(), waitMs);
         const started = Date.now();
         try {
-          const r = await fetch(url, { headers: { Authorization: `Basic ${credentials}` }, signal: ctrl.signal });
+          const r = await fetch(url, {
+            headers: auth ? { Authorization: `Basic ${credentials}` } : {},
+            signal: ctrl.signal,
+          });
           const body = await r.text();
-          return { status: r.status, ms: Date.now() - started, body: body.slice(0, 400) };
+          return {
+            status: r.status,
+            ms: Date.now() - started,
+            server: r.headers.get('server') || null,
+            cfRay: r.headers.get('cf-ray') || null,
+            body: body.slice(0, 600),
+          };
         } catch (e) {
-          return { status: null, ms: Date.now() - started, error: e.name === 'AbortError' ? 'timeout after 8s' : e.message };
+          return {
+            status: null,
+            ms: Date.now() - started,
+            error: e.name === 'AbortError' ? `no response within ${waitMs / 1000}s` : `${e.name}: ${e.message}`,
+            cause: e.cause ? String(e.cause.code || e.cause.message || e.cause).slice(0, 200) : null,
+          };
         } finally { clearTimeout(t); }
       };
 
+      // Unauthenticated reachability first: does the host answer AT ALL? This
+      // separates "the cloud is up and rejecting our credentials" from "the cloud
+      // is not answering anyone", which is the distinction that decides whether
+      // there is anything on our side left to fix.
+      out.reachability = await timed('https://api.sms-gate.app/3rdparty/v1/messages', false, 20000);
+
+      // If the host answered nobody, the authenticated probes can only repeat the
+      // same wait. Stop here rather than burning the function's whole budget
+      // re-proving one fact.
+      if (out.reachability.status === null) {
+        out.authProbe = { skipped: 'host did not answer an unauthenticated request' };
+        out.recentStates = [];
+        out.verdict =
+          `The SMS Gate cloud is not answering at all (${out.reachability.error}). Nothing in this portal or its config can fix that — it is the gateway service itself. ` +
+          `Confirm from your own machine: curl -sS -o /dev/null -w '%{http_code} %{time_total}s\\n' https://api.sms-gate.app/3rdparty/v1/messages`;
+        return res.status(200).json(out);
+      }
+
       // 1. Does the cloud accept our credentials at all?
       if (recent.length) {
-        out.authProbe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(recent[0].sms_gate_id)}`);
+        out.authProbe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(recent[0].sms_gate_id)}`, true, 8000);
       } else {
         out.authProbe = { skipped: 'no outbound messages with a gateway id to read' };
       }
@@ -510,17 +547,20 @@ export default async function handler(req, res) {
       //    the cloud accepted them but the gateway phone has not collected them —
       //    that is the phone (Doze / offline), not this API.
       out.recentStates = [];
-      for (const m of recent.slice(0, 5)) {
-        const probe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(m.sms_gate_id)}`);
+      for (const m of recent.slice(0, 3)) {
+        const probe = await timed(`https://api.sms-gate.app/3rdparty/v1/messages/${encodeURIComponent(m.sms_gate_id)}`, true, 5000);
         let state = null;
         try { state = JSON.parse(probe.body || '{}').state || null; } catch {}
         out.recentStates.push({ id: m.sms_gate_id, localStatus: m.status, at: m.created_at, gatewayState: state, httpStatus: probe.status, ms: probe.ms });
       }
 
       const s0 = out.authProbe && out.authProbe.status;
+      const rs = out.reachability && out.reachability.status;
       out.verdict =
-        s0 === 401 || s0 === 403 ? 'Gateway credentials are being REJECTED. Fix SMSGATE_USERNAME / SMSGATE_PASSWORD in Vercel.'
-        : s0 === null && out.authProbe.error ? `Cannot reach the SMS Gate cloud: ${out.authProbe.error}`
+        rs >= 500 && !s0
+          ? `The SMS Gate cloud is erroring upstream (HTTP ${rs}${out.reachability.server ? ' via ' + out.reachability.server : ''}). This is the gateway service, not your config.`
+        : s0 === 401 || s0 === 403 ? 'Gateway credentials are being REJECTED. Fix SMSGATE_USERNAME / SMSGATE_PASSWORD in Vercel.'
+        : s0 === null && out.authProbe.error ? `The host answers unauthenticated (HTTP ${rs}) but authenticated reads hang: ${out.authProbe.error}.`
         : s0 === 200 ? 'Credentials are good and the cloud is reachable — so a failing send is about the device id, a quota, or the gateway phone. Check recentStates and the `detail` on the send error.'
         : `Unexpected response from the gateway (HTTP ${s0}). See authProbe.body.`;
 
