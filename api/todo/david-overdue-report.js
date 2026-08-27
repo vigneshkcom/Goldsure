@@ -44,7 +44,7 @@ export function davidReportEmail({ tasks, local, origin, sample = false }) {
     const notes = [...(task.notes || [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const notesHtml = notes.length
       ? notes.map(note => `<div style="border-left:3px solid #c9a13b;padding:7px 10px;margin-top:8px;background:#f8f6ef"><div style="font:700 11px Arial,sans-serif;color:#4b5563">${escapeHtml(note.author)} &middot; ${escapeHtml(noteDate(note.created_at))}</div><div style="font:12px/1.5 Arial,sans-serif;color:#374151;margin-top:3px">${htmlText(note.body)}</div></div>`).join('')
-      : '<div style="font:700 12px Arial,sans-serif;color:#b42318;margin-top:8px">No notes &mdash; not actioned</div>';
+      : '<div style="font:700 12px Arial,sans-serif;color:#b42318;margin-top:8px">No notes - probably not actioned</div>';
     const due = `${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}`;
     const customerHeading = task.customer_name
       ? `<div style="font:700 17px Arial,sans-serif;color:#111827">${escapeHtml(task.customer_name)}</div>${task.customer_phone ? `<div style="font:12px Arial,sans-serif;color:#4b5563;margin-top:3px">${escapeHtml(task.customer_phone)}</div>` : ''}`
@@ -57,7 +57,7 @@ export function davidReportEmail({ tasks, local, origin, sample = false }) {
     const notes = [...(task.notes || [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const notesText = notes.length
       ? notes.map(note => `- ${note.author} (${noteDate(note.created_at)}): ${note.body}`).join('\n')
-      : 'No notes — not actioned';
+      : 'No notes - probably not actioned';
     const customerText = task.customer_name
       ? `${task.customer_name}${task.customer_phone ? `\n${task.customer_phone}` : ''}\n`
       : '';
