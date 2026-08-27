@@ -108,10 +108,11 @@ export default async function handler(req, res) {
   const origin = (process.env.SITE_URL || `https://${req.headers.host}`).replace(/\/$/, '');
 
   try {
-    // Personal morning email: To Do only, assigned to the recipient, and due
-    // today or overdue. Follow Up, Completed, future and archived tasks stay out.
+    // Normal morning email: To Do only for the four 9:05 recipients, assigned
+    // to that recipient, and due today or overdue. Amit has his own 7:30 run.
+    // Follow Up, Completed, future and archived tasks stay out.
     const taskResponse = await fetch(
-      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,due_time,priority,customer_name,customer_phone&status=eq.todo&archived_at=is.null&due_date=lte.${local.date}&order=due_date.asc,due_time.asc`,
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,due_time,priority,customer_name,customer_phone&status=eq.todo&archived_at=is.null&assignee=neq.Amit&due_date=lte.${local.date}&order=due_date.asc,due_time.asc`,
       { headers }
     );
     if (!taskResponse.ok) {
@@ -120,9 +121,9 @@ export default async function handler(req, res) {
     const tasks = await taskResponse.json();
 
     // Claim the Sydney calendar day once so Vercel retries cannot duplicate the
-    // five private emails. Amit's 7:30 run reserves today's row with task_count
+    // four private emails. Amit's 7:30 run reserves today's row with task_count
     // -1; the 9:05 run atomically takes over that reservation before sending to
-    // everyone, so the early email never suppresses the normal team email.
+    // the other four staff, so the early email never suppresses their run.
     const claimResponse = await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs`, {
       method: 'POST',
       headers: supabaseHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
@@ -153,7 +154,7 @@ export default async function handler(req, res) {
     }
 
     const results = [];
-    for (const [name, email] of Object.entries(AGENT_EMAILS)) {
+    for (const [name, email] of Object.entries(AGENT_EMAILS).filter(([name]) => name !== 'Amit')) {
       const assigned = tasks.filter(task => task.assignee === name);
       const message = personalEmail({ name, tasks: assigned, today: local.date, origin });
       try {
