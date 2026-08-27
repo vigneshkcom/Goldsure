@@ -133,7 +133,7 @@ create table if not exists public.portal_task_digest_runs (
   digest_date date primary key,
   claimed_at timestamptz not null default now(),
   sent_at timestamptz,
-  -- -1 reserves Amit's 7:30 am email; -2 reserves David's 8:00 am overdue
+  -- -1 reserves Amit's 7:30 am email; -2 reserves the 8:00 am overdue-tasks
   -- report. The 9:05 am team run replaces either with the normal task count.
   task_count integer not null default 0
 );

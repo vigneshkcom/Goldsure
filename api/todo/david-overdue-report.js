@@ -47,7 +47,7 @@ export function dueBeforePreviousDayCutoff(task, cutoffDate) {
   return !task.due_time || String(task.due_time).slice(0, 5) < '18:00';
 }
 
-export function davidReportEmail({ tasks, cutoffDate, origin }) {
+export function overdueReportEmail({ tasks, cutoffDate, origin }) {
   const taskHtml = tasks.length ? tasks.map(task => {
     const notes = [...(task.notes || [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const notesHtml = notes.length
@@ -58,8 +58,8 @@ export function davidReportEmail({ tasks, cutoffDate, origin }) {
       ? `<div style="font:700 17px Arial,sans-serif;color:#111827">${escapeHtml(task.customer_name)}</div>${task.customer_phone ? `<div style="font:12px Arial,sans-serif;color:#4b5563;margin-top:3px">${escapeHtml(task.customer_phone)}</div>` : ''}`
       : '';
     const titleMargin = task.customer_name ? '10px' : '0';
-    return `<tr><td style="padding:18px 24px;border-bottom:1px solid #e5e7eb">${customerHeading}<div style="font:700 14px Arial,sans-serif;color:#111827;margin-top:${titleMargin}">${escapeHtml(task.title)}</div><div style="font:12px Arial,sans-serif;color:#b42318;margin-top:6px"><strong>Overdue:</strong> ${escapeHtml(due)} &middot; To Do &middot; ${escapeHtml(task.priority)}</div>${task.description ? `<div style="font:12px/1.5 Arial,sans-serif;color:#4b5563;margin-top:8px">${htmlText(task.description)}</div>` : ''}<div style="font:700 11px Arial,sans-serif;color:#6b7280;text-transform:uppercase;margin-top:12px">Notes</div>${notesHtml}</td></tr>`;
-  }).join('') : '<tr><td style="padding:26px 24px;font:700 15px Arial,sans-serif;color:#166534">David has no overdue To Do tasks.</td></tr>';
+    return `<tr><td style="padding:18px 24px;border-bottom:1px solid #e5e7eb">${customerHeading}<div style="font:700 14px Arial,sans-serif;color:#111827;margin-top:${titleMargin}">${escapeHtml(task.title)}</div><div style="font:12px Arial,sans-serif;color:#b42318;margin-top:6px"><strong>Overdue:</strong> ${escapeHtml(due)} &middot; Assigned to ${escapeHtml(task.assignee)} &middot; To Do &middot; ${escapeHtml(task.priority)}</div>${task.description ? `<div style="font:12px/1.5 Arial,sans-serif;color:#4b5563;margin-top:8px">${htmlText(task.description)}</div>` : ''}<div style="font:700 11px Arial,sans-serif;color:#6b7280;text-transform:uppercase;margin-top:12px">Notes</div>${notesHtml}</td></tr>`;
+  }).join('') : '<tr><td style="padding:26px 24px;font:700 15px Arial,sans-serif;color:#166534">There are no overdue To Do tasks.</td></tr>';
 
   const taskText = tasks.length ? tasks.map((task, index) => {
     const notes = [...(task.notes || [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -69,13 +69,13 @@ export function davidReportEmail({ tasks, cutoffDate, origin }) {
     const customerText = task.customer_name
       ? `${task.customer_name}${task.customer_phone ? `\n${task.customer_phone}` : ''}\n`
       : '';
-    return `${index + 1}. ${customerText}Task: ${task.title}\nDue: ${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}\nStatus: To Do | Priority: ${task.priority}\nNotes:\n${notesText}`;
-  }).join('\n\n') : 'David has no overdue To Do tasks.';
+    return `${index + 1}. ${customerText}Task: ${task.title}\nAssigned to: ${task.assignee}\nDue: ${dateLabel(task.due_date)}${task.due_time ? ` at ${timeLabel(task.due_time)}` : ''}\nStatus: To Do | Priority: ${task.priority}\nNotes:\n${notesText}`;
+  }).join('\n\n') : 'There are no overdue To Do tasks.';
 
   return {
-    subject: `David overdue To Do report (${tasks.length})`,
-    html: `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:22px 24px;border-bottom:3px solid #c9a13b"><div style="font:700 20px Arial,sans-serif;color:#fff">David's overdue To Do tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Still-unfinished To Do tasks due before 6:00 pm on ${escapeHtml(dateLabel(cutoffDate))}</div></td></tr>${taskHtml}<tr><td style="padding:18px 24px 24px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open team tasks</a></td></tr></table></td></tr></table></body></html>`,
-    text: `David's overdue To Do tasks\nStill unfinished and due before 6:00 pm on ${dateLabel(cutoffDate)}\n\n${taskText}\n\nOpen team tasks: ${origin}/todo/`,
+    subject: `Overdue Tasks (${tasks.length})`,
+    html: `<!doctype html><html><body style="margin:0;background:#f3f5f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:100%;max-width:620px;background:#fff;border:1px solid #e2e5eb;border-radius:10px;overflow:hidden"><tr><td style="background:#111827;padding:22px 24px;border-bottom:3px solid #c9a13b"><div style="font:700 20px Arial,sans-serif;color:#fff">Overdue Tasks</div><div style="font:12px Arial,sans-serif;color:#c8ced9;margin-top:6px">Still-unfinished To Do tasks due before 6:00 pm on ${escapeHtml(dateLabel(cutoffDate))}</div></td></tr>${taskHtml}<tr><td style="padding:18px 24px 24px"><a href="${origin}/todo/" style="display:inline-block;background:#0073ea;color:#fff;text-decoration:none;border-radius:6px;padding:11px 18px;font:700 13px Arial,sans-serif">Open team tasks</a></td></tr></table></td></tr></table></body></html>`,
+    text: `Overdue Tasks\nStill unfinished and due before 6:00 pm on ${dateLabel(cutoffDate)}\n\n${taskText}\n\nOpen team tasks: ${origin}/todo/`,
   };
 }
 
@@ -99,20 +99,20 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,due_date,due_time,status,priority,customer_name,customer_phone,notes:portal_task_notes(id,author,body,created_at)&assignee=eq.David&status=eq.todo&archived_at=is.null&due_date=lte.${cutoffDate}&order=due_date.asc,due_time.asc`,
+      `${supabaseUrl}/rest/v1/portal_tasks?select=id,title,description,assignee,due_date,due_time,status,priority,customer_name,customer_phone,notes:portal_task_notes(id,author,body,created_at)&status=eq.todo&archived_at=is.null&due_date=lte.${cutoffDate}&order=due_date.asc,due_time.asc`,
       { headers: supabaseHeaders(serviceKey) }
     );
-    if (!response.ok) return res.status(502).json({ error: 'Could not load David overdue tasks' });
+    if (!response.ok) return res.status(502).json({ error: 'Could not load overdue tasks' });
     const tasks = (await response.json()).filter(task => dueBeforePreviousDayCutoff(task, cutoffDate));
 
     // Amit's 7:30 email reserves today's row with -1. Atomically move it to -2
-    // for this report; if the early email did not run, create the -2 row here.
+    // for the overdue report; if the early email did not run, create -2 here.
     const insertClaim = await fetch(`${supabaseUrl}/rest/v1/portal_task_digest_runs`, {
       method: 'POST',
       headers: supabaseHeaders(serviceKey, 'resolution=ignore-duplicates,return=representation'),
       body: JSON.stringify({ digest_date: local.date, task_count: -2 }),
     });
-    if (!insertClaim.ok) return res.status(502).json({ error: 'Could not claim David overdue report' });
+    if (!insertClaim.ok) return res.status(502).json({ error: 'Could not claim overdue report' });
     let claimed = (await insertClaim.json()).length > 0;
     if (!claimed) {
       const takeoverClaim = await fetch(
@@ -123,18 +123,17 @@ export default async function handler(req, res) {
           body: JSON.stringify({ task_count: -2 }),
         }
       );
-      if (!takeoverClaim.ok) return res.status(502).json({ error: 'Could not claim David overdue report' });
+      if (!takeoverClaim.ok) return res.status(502).json({ error: 'Could not claim overdue report' });
       claimed = (await takeoverClaim.json()).length > 0;
     }
     if (!claimed) {
       return res.status(200).json({ ok: true, skipped: true, reason: 'already_sent', date: local.date });
     }
 
-    const message = davidReportEmail({ tasks, cutoffDate, origin });
+    const message = overdueReportEmail({ tasks, cutoffDate, origin });
     try {
       await sendHostingerMail({
-        to: [AGENT_EMAILS.Amit, AGENT_EMAILS.Vignesh],
-        cc: [AGENT_EMAILS.David],
+        to: [AGENT_EMAILS.Vignesh],
         displayName: 'Goldsure Team Tasks',
         subject: message.subject,
         html: message.html,
@@ -157,12 +156,11 @@ export default async function handler(req, res) {
       ok: true,
       date: local.date,
       cutoff: `${cutoffDate} 18:00 Australia/Sydney`,
-      to: ['Amit', 'Vignesh'],
-      cc: ['David'],
+      to: ['Vignesh'],
       taskCount: tasks.length,
     });
   } catch (error) {
-    console.error('[David overdue report]', error);
-    return res.status(500).json({ error: 'Could not send David overdue report' });
+    console.error('[Overdue Tasks report]', error);
+    return res.status(500).json({ error: 'Could not send overdue tasks report' });
   }
 }
