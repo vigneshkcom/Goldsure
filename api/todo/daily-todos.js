@@ -134,7 +134,7 @@ export default async function handler(req, res) {
 
     if (!claimed) {
       const takeoverResponse = await fetch(
-        `${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${local.date}&task_count=eq.-1`,
+        `${supabaseUrl}/rest/v1/portal_task_digest_runs?digest_date=eq.${local.date}&task_count=in.(-1,-2)`,
         {
           method: 'PATCH',
           headers: supabaseHeaders(serviceKey, 'return=representation'),
