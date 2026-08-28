@@ -2622,8 +2622,9 @@ ${notesHtml}
           const opps = (await oRes.json()).opportunities || [];
           if (!opps.length) return;
           const inPipe = pipelineId ? opps.filter(o => o.pipelineId === pipelineId) : [];
-          // Never substitute an opportunity from another product pipeline. A
-          // missing match must remain unverified so reminder sends fail closed.
+          // Never substitute an opportunity from another product pipeline —
+          // showing another deal's stage is worse than showing none. An
+          // unverified stage no longer blocks reminders, it just shows as "—".
           if (pipelineId && !inPipe.length) return;
           const opp = (pipelineId ? inPipe : opps).sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
           map[email] = {
