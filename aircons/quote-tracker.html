@@ -419,6 +419,7 @@ let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
 let ghlStages  = [];   // [{ id, name, position }] for the Aircon pipeline
 let ghlStagesLoaded = false;
+let ghlWarning = '';   // why the stage column is empty, when it is GHL's fault
 
 // ── Mobile scoping: on a phone, a tracker opened from the builder (which passes
 //    ?agent=) shows ONLY that agent's quotes. Desktop always shows everyone. ──
@@ -572,12 +573,17 @@ async function loadGhlStages(quotes){
   const emails=[...new Set(quotes.map(q=>q.customer_email).filter(Boolean))];
   if(!emails.length){ ghlStagesLoaded=true; return; }
   let stages=[], map={};
+  ghlWarning='';
   try{
     const res=await fetch('/api/battery/request-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'quote-ghl-stages',pipeline:'aircon',emails})});
-    if(res.ok){ const d=await res.json(); stages=d.stages||[]; map=d.map||{}; }
-  }catch(e){ console.warn('GHL stage fetch failed',e); }
+    if(res.ok){ const d=await res.json(); stages=d.stages||[]; map=d.map||{}; ghlWarning=d.warning||''; }
+    else ghlWarning=`GHL stage lookup failed (HTTP ${res.status}).`;
+  }catch(e){ console.warn('GHL stage fetch failed',e); ghlWarning='GHL stage lookup failed — network error.'; }
   ghlStages=stages; ghlOppData=map; ghlStagesLoaded=true;
-  quotes.forEach(q=>{ const el=document.getElementById(`ghl-${q.id}`); if(!el)return; const data=map[(q.customer_email||'').toLowerCase().trim()]; el.textContent=data?.stage||'—'; el.className=ghlBadgeClass(data?.stage); });
+  quotes.forEach(q=>{ const el=document.getElementById(`ghl-${q.id}`); if(!el)return; const data=map[(q.customer_email||'').toLowerCase().trim()]; el.textContent=data?.stage||'—'; el.className=ghlBadgeClass(data?.stage); el.title=data?.stage?'':(ghlWarning||'No opportunity in this pipeline'); });
+  // An empty stage column used to look identical whether GHL had nothing for
+  // that customer or GHL itself was unreachable. Say which it is.
+  if(ghlWarning) showToast('GHL stages: '+ghlWarning);
 }
 function ghlBadgeClass(stageName){
   const s=(stageName||'').toLowerCase();

@@ -2574,11 +2574,11 @@ ${notesHtml}
   // Best-effort: a GHL hiccup returns empty data rather than failing the tracker.
   if (body.action === 'quote-ghl-stages') {
     const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
-    if (!apiKey || !locationId) return res.status(200).json({ stages: [], pipelineId: '', map: {} });
+    if (!apiKey || !locationId) return res.status(200).json({ stages: [], pipelineId: '', map: {}, warning: 'GHL is not configured on the server.' });
     const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
     const GHL = 'https://services.leadconnectorhq.com';
     const product = String(body.pipeline || '').toLowerCase();
-    const emails = [...new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e || '').toLowerCase().trim()).filter(Boolean))].slice(0, 400);
+    const emails = [...new Set((Array.isArray(body.emails) ? body.emails : []).map(e => String(e || '').toLowerCase().trim()).filter(Boolean))].slice(0, 1000);
     const pipeIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '')
       : product === 'hotwater-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || '')
       : (process.env.HWS_PIPELINE_ID || '');
@@ -2592,9 +2592,25 @@ ${notesHtml}
       ? ['nsw hws pipeline', 'nsw hot water', 'nsw hws']
       : ['hot water', 'hotwater', 'heat pump', 'hws', 'water'];
 
-    let stages = [], pipelineId = '';
+    // GHL throttles bursts (about 100 requests per 10 seconds per location) and
+    // Vercel cuts this function off at 60 seconds. Retry the ones it rejects
+    // rather than dropping the contact silently.
+    const ghlFetch = async (url) => {
+      let r;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        r = await fetch(url, { headers: hdrs });
+        if (r.status !== 429 && r.status < 500) return r;
+        const retryAfter = parseInt(r.headers.get('retry-after') || '', 10);
+        const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 4000) : 400 * Math.pow(2, attempt);
+        await new Promise(done => setTimeout(done, waitMs));
+      }
+      return r;
+    };
+
+    let stages = [], pipelineId = '', warning = '';
     try {
-      const pRes = await fetch(`${GHL}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers: hdrs });
+      const pRes = await ghlFetch(`${GHL}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`);
+      if (!pRes.ok) warning = `GHL pipeline lookup failed (HTTP ${pRes.status}).`;
       const pipes = pRes.ok ? ((await pRes.json()).pipelines || []) : [];
       let pipe = pipeIdEnv ? pipes.find(p => p.id === pipeIdEnv) : null;
       if (!pipe) pipe = pipes.find(p => nameHints.some(h => String(p.name || '').toLowerCase().includes(h)));
@@ -2603,21 +2619,68 @@ ${notesHtml}
         pipelineId = pipe.id;
         stages = (pipe.stages || []).map(s => ({ id: s.id, name: s.name, position: s.position ?? 0 })).sort((a, b) => a.position - b.position);
       }
-    } catch (e) { console.warn('[quote-ghl-stages] pipelines failed:', e.message); }
+    } catch (e) { console.warn('[quote-ghl-stages] pipelines failed:', e.message); warning = warning || `GHL pipeline lookup failed: ${e.message}`; }
 
     const stageNameById = Object.fromEntries(stages.map(s => [s.id, s.name]));
+    const wanted = new Set(emails);
     const map = {};
+    const entryFor = (opp) => ({
+      stage: opp.pipelineStageName || stageNameById[opp.pipelineStageId] || opp.pipelineStage?.name || null,
+      status: opp.status || null,
+      stageId: opp.pipelineStageId || null,
+      opportunityId: opp.id || null,
+      pipelineId: opp.pipelineId || null,
+      updatedAt: opp.updatedAt || opp.dateUpdated || null,
+    });
+
+    // One sweep of the pipeline, 100 opportunities a page, indexed by the
+    // contact's email. The old path asked GHL two questions per email — with a
+    // few hundred quotes on the board that was several hundred calls, which ran
+    // past both the rate limit and the 60s budget, and every throttled email
+    // silently came back with no stage. That is what emptied the column.
+    let swept = false;
+    if (pipelineId) {
+      const base = `${GHL}/opportunities/search?location_id=${encodeURIComponent(locationId)}&pipeline_id=${encodeURIComponent(pipelineId)}&limit=100`;
+      for (let page = 1; page <= 20; page++) {
+        const r = await ghlFetch(`${base}&page=${page}`);
+        if (!r.ok) { warning = warning || `GHL opportunity search failed (HTTP ${r.status}).`; break; }
+        let opps = [];
+        try { opps = (await r.json()).opportunities || []; } catch { break; }
+        swept = true;
+        for (const opp of opps) {
+          const email = String(opp.contact?.email || '').toLowerCase().trim();
+          if (!email || !wanted.has(email)) continue;
+          const prev = map[email];
+          // Several opportunities can share a contact — keep the latest.
+          if (prev && new Date(prev.updatedAt || 0) >= new Date(opp.updatedAt || opp.dateUpdated || 0)) continue;
+          map[email] = entryFor(opp);
+        }
+        if (opps.length < 100) break;
+      }
+    }
+
+    // Whatever the sweep didn't account for — an opportunity older than the
+    // pages we walked, or a sweep that failed outright — falls back to the
+    // per-email lookup, capped so it can never eat the whole time budget
+    // again. Emails arrive newest-quote-first, so the cap spends itself on the
+    // rows someone is actually looking at.
+    const missing = emails.filter(e => !map[e]);
+    const cap = swept ? 25 : 60;
+    const probe = missing.slice(0, cap);
+    if (missing.length > probe.length && !swept) {
+      warning = warning || `GHL was only checked for the ${cap} most recent quotes.`;
+    }
     const BATCH = 5;
-    for (let i = 0; i < emails.length; i += BATCH) {
-      const batch = emails.slice(i, i + BATCH);
+    for (let i = 0; i < probe.length; i += BATCH) {
+      const batch = probe.slice(i, i + BATCH);
       await Promise.all(batch.map(async (email) => {
         try {
-          const cRes = await fetch(`${GHL}/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`, { headers: hdrs });
+          const cRes = await ghlFetch(`${GHL}/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`);
           if (!cRes.ok) return;
           const contacts = (await cRes.json()).contacts || [];
           const contact = contacts.find(c => (c.email || '').toLowerCase() === email) || contacts[0];
           if (!contact?.id) return;
-          const oRes = await fetch(`${GHL}/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=20`, { headers: hdrs });
+          const oRes = await ghlFetch(`${GHL}/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=20`);
           if (!oRes.ok) return;
           const opps = (await oRes.json()).opportunities || [];
           if (!opps.length) return;
@@ -2627,17 +2690,13 @@ ${notesHtml}
           // unverified stage no longer blocks reminders, it just shows as "—".
           if (pipelineId && !inPipe.length) return;
           const opp = (pipelineId ? inPipe : opps).sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0))[0];
-          map[email] = {
-            stage: opp.pipelineStageName || stageNameById[opp.pipelineStageId] || opp.pipelineStage?.name || null,
-            status: opp.status || null,
-            stageId: opp.pipelineStageId || null,
-            opportunityId: opp.id || null,
-            pipelineId: opp.pipelineId || null,
-          };
+          map[email] = entryFor(opp);
         } catch { /* skip this email */ }
       }));
     }
-    return res.status(200).json({ stages, pipelineId, map });
+
+    if (warning) console.warn('[quote-ghl-stages]', warning);
+    return res.status(200).json({ stages, pipelineId, map, warning, swept, matched: Object.keys(map).length, requested: emails.length });
   }
 
   // ── POST action=update-stage: move a GHL opportunity to another stage ───────
