@@ -236,9 +236,6 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
 }
 .field textarea{resize:vertical;min-height:64px}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
-.check-row{display:flex;align-items:center;gap:9px;grid-column:1/-1}
-.check-row input{width:16px;height:16px;accent-color:var(--red);flex:none}
-.check-row label{text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);font-weight:600}
 .modal-foot{display:flex;align-items:center;gap:9px;padding:14px 20px;border-top:1px solid var(--border);flex:none}
 .btn{
   font-family:inherit;font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:7px;
@@ -439,10 +436,6 @@ main{padding:18px 20px 60px;max-width:1800px;margin:0 auto}
           <label for="f-eco-notes">Eco Comments</label>
           <textarea id="f-eco-notes" rows="2" placeholder="Visible and editable by anyone with this link"></textarea>
         </div>
-        <div class="check-row">
-          <input type="checkbox" id="f-cancelled">
-          <label for="f-cancelled">Cancelled / refunded</label>
-        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -475,8 +468,19 @@ const GROUPS = [
   { key:'scheduled', label:'Scheduled', color:'var(--amber)', dateLabel:'Booked' },
   { key:'installed', label:'Installed', color:'var(--green)', dateLabel:'Booked' },
 ];
+// Cancelled is a flag on the job rather than a status of its own, so a
+// cancelled job quietly keeps the stage it was at — un-cancel it and it drops
+// straight back where it was. It still gets its own section at the bottom of
+// the page, so cancelled jobs stop sitting in among the live ones.
+const CANCELLED_KEY = 'cancelled';
+const CANCELLED_GROUP = { key:CANCELLED_KEY, label:'Cancelled', color:'var(--red)', dateLabel:'Booked' };
+// Every section on the page, in the order they're drawn.
+const RENDER_GROUPS = [...GROUPS, CANCELLED_GROUP];
+const RENDER_GROUP_KEYS = RENDER_GROUPS.map(g => g.key);
 const GROUP_KEYS = GROUPS.map(g => g.key);
-function groupLabel(key){ return (GROUPS.find(g => g.key === key) || {}).label || key; }
+function groupLabel(key){ return (RENDER_GROUPS.find(g => g.key === key) || {}).label || key; }
+// Which section a job is drawn in — its status, unless it's been cancelled.
+function groupOf(j){ return j.cancelled ? CANCELLED_KEY : j.status; }
 // Free-text stages from the old spreadsheet land in the right group.
 const STATUS_ALIASES = {
   'to book':'to_book', 'tobook':'to_book', 'date pending':'to_book', 'pending':'to_book',
@@ -539,7 +543,16 @@ async function loadJobs(){
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const rows = await res.json();
-    jobs = (Array.isArray(rows) ? rows : []).map(j => ({ ...j, status: normStatus(j.status) }));
+    // A row imported with "Cancelled" as its stage belongs in the Cancelled
+    // group, not in To Book — where an unrecognised stage otherwise lands.
+    jobs = (Array.isArray(rows) ? rows : []).map(j => {
+      const raw = String(j.status || '').trim().toLowerCase();
+      return {
+        ...j,
+        cancelled: !!j.cancelled || raw === 'cancelled' || raw === 'refunded',
+        status: normStatus(j.status),
+      };
+    });
     render();
     applyDeepLinkSearch();
   }catch(e){
@@ -621,8 +634,8 @@ function byBookedDate(a, b){
 
 function render(){
   const list = visibleJobs();
-  document.getElementById('groups').innerHTML = GROUPS.map(g => {
-    const items = list.filter(j => j.status === g.key).sort(byBookedDate);
+  document.getElementById('groups').innerHTML = RENDER_GROUPS.map(g => {
+    const items = list.filter(j => groupOf(j) === g.key).sort(byBookedDate);
     const isCollapsed = collapsed.has(g.key);
     return `<section class="group${isCollapsed ? ' collapsed' : ''}" data-group="${g.key}" style="--g:${g.color}">
       <div class="group-head">
@@ -762,7 +775,7 @@ function notifyNewJob(j){
     body: JSON.stringify({
       action: 'new-job-notify',
       job_no: j.job_no || '', customer: j.customer || '', address: j.address || '',
-      group_label: groupLabel(j.status), date_label: (GROUPS.find(g => g.key === j.status) || {}).dateLabel || 'Booked',
+      group_label: groupLabel(groupOf(j)), date_label: (RENDER_GROUPS.find(g => g.key === groupOf(j)) || {}).dateLabel || 'Booked',
       booked_date: j.booked_date ? fmtDate(j.booked_date) : '',
       out_of_pocket: j.out_of_pocket ? money(j.out_of_pocket) : '',
       deposit: j.deposit ? money(j.deposit) : '',
@@ -772,10 +785,10 @@ function notifyNewJob(j){
   }).catch(() => {});
 }
 
-// Fires whenever a job's status actually changes (dragged to another group,
-// or its status dropdown changed in the modal) — not on a plain reorder
-// within the same group.
-function notifyStatusChange(j, fromStatus, toStatus){
+// Fires whenever a job actually moves between groups — dragged to another
+// one, or its Group dropdown changed in the modal — Cancelled included. Not
+// on a plain reorder within the same group.
+function notifyStatusChange(j, fromGroup, toGroup){
   fetch('/api/battery/request-callback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -787,7 +800,7 @@ function notifyStatusChange(j, fromStatus, toStatus){
     body: JSON.stringify({
       action: 'job-status-notify',
       job_no: j.job_no || '', customer: j.customer || '', address: j.address || '',
-      from_label: groupLabel(fromStatus), to_label: groupLabel(toStatus),
+      from_label: groupLabel(fromGroup), to_label: groupLabel(toGroup),
     }),
   }).catch(() => {});
 }
@@ -990,19 +1003,24 @@ function endDrag(e){
   d.placeholder.remove();
   if (!rows || !job){ render(); return; }
 
-  const newStatus = rows.dataset.status;
-  if (job.status === newStatus && job.position === newPos){ render(); return; }
+  const newGroup = rows.dataset.status;
+  // Dropping a job into Cancelled only raises the flag — it keeps the stage
+  // it was at, so dragging it back out later restores the right group.
+  const newCancelled = newGroup === CANCELLED_KEY;
+  const newStatus = newCancelled ? job.status : newGroup;
+  if (groupOf(job) === newGroup && job.position === newPos){ render(); return; }
 
-  const prev = { status: job.status, position: job.position };
-  const statusChanged = job.status !== newStatus;
+  const prev = { status: job.status, cancelled: job.cancelled, position: job.position };
+  const groupChanged = groupOf(job) !== newGroup;
   job.status = newStatus;
+  job.cancelled = newCancelled;
   job.position = newPos;
   render();
-  persist(job.id, { status:newStatus, position:newPos }, () => {
+  persist(job.id, { status:newStatus, cancelled:newCancelled, position:newPos }, () => {
     Object.assign(job, prev);           // put it back if the write failed
     render();
   });
-  if (statusChanged) notifyStatusChange(job, prev.status, newStatus);
+  if (groupChanged) notifyStatusChange(job, groupOf(prev), newGroup);
 }
 
 // Fractional midpoint between neighbours — reordering never rewrites a group.
@@ -1040,7 +1058,7 @@ function openJobModal(id, presetStatus){
   const j = id ? jobById(id) : null;
 
   document.getElementById('f-status').innerHTML =
-    GROUPS.map(g => `<option value="${g.key}">${esc(g.label)}</option>`).join('');
+    RENDER_GROUPS.map(g => `<option value="${g.key}">${esc(g.label)}</option>`).join('');
 
   document.getElementById('jobModalTitle').textContent = j ? 'Edit Job' : 'New Job';
   document.getElementById('f-job-no').value      = j?.job_no ?? '';
@@ -1051,8 +1069,7 @@ function openJobModal(id, presetStatus){
   document.getElementById('f-deposit').value     = j?.deposit ?? '';
   document.getElementById('f-eco-notes').value   = j?.eco_comments ?? '';
   document.getElementById('f-notes').value       = j?.comments ?? '';
-  document.getElementById('f-cancelled').checked = !!j?.cancelled;
-  document.getElementById('f-status').value      = j?.status || presetStatus || 'to_book';
+  document.getElementById('f-status').value      = (j ? groupOf(j) : presetStatus) || 'to_book';
   document.getElementById('deleteJobBtn').style.display = j ? '' : 'none';
 
   updatePending();
@@ -1088,10 +1105,15 @@ async function saveJob(){
 
   const oopRaw = document.getElementById('f-oop').value;
   const depRaw = document.getElementById('f-deposit').value;
-  const status = document.getElementById('f-status').value;
-  const prevEcoComment = editingId ? (jobById(editingId)?.eco_comments || '') : '';
-  const prevComment = editingId ? (jobById(editingId)?.comments || '') : '';
-  const prevStatus = editingId ? jobById(editingId)?.status : null;
+  const prevJob = editingId ? jobById(editingId) : null;
+  // Cancelled is the flag, not a stage: a job parked there keeps whichever
+  // stage it was at, so clearing the cancellation puts it back in its group.
+  const group = document.getElementById('f-status').value;
+  const isCancelled = group === CANCELLED_KEY;
+  const status = isCancelled ? (prevJob?.status || 'to_book') : group;
+  const prevEcoComment = prevJob?.eco_comments || '';
+  const prevComment = prevJob?.comments || '';
+  const prevGroup = prevJob ? groupOf(prevJob) : null;
   const payload = {
     job_no:        document.getElementById('f-job-no').value.trim() || null,
     customer,
@@ -1101,7 +1123,7 @@ async function saveJob(){
     deposit:       depRaw === '' ? null : parseFloat(depRaw),
     eco_comments:  document.getElementById('f-eco-notes').value.trim() || null,
     comments:      document.getElementById('f-notes').value.trim() || null,
-    cancelled:     document.getElementById('f-cancelled').checked,
+    cancelled:     isCancelled,
     status,
     updated_at:    new Date().toISOString(),
   };
@@ -1117,7 +1139,7 @@ async function saveJob(){
       });
     } else {
       // New rows land at the bottom of their group.
-      const bottom = jobs.filter(j => j.status === status)
+      const bottom = jobs.filter(j => groupOf(j) === group)
                          .reduce((m,j) => Math.max(m, j.position ?? 0), 0);
       res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
         method:'POST', headers:{ ...SB_HEADERS, Prefer:'return=representation' },
@@ -1143,8 +1165,8 @@ async function saveJob(){
     if (saved && editingId && payload.comments && payload.comments !== prevComment){
       notifyGoldsureComment(payload, payload.comments);
     }
-    if (saved && editingId && prevStatus && status !== prevStatus){
-      notifyStatusChange(payload, prevStatus, status);
+    if (saved && editingId && prevGroup && group !== prevGroup){
+      notifyStatusChange(payload, prevGroup, group);
     }
     if (saved && !editingId){
       notifyNewJob(payload);
@@ -1181,15 +1203,15 @@ async function deleteJob(){
 function exportCSV(){
   const head = ['Job No.','Customer','Address','Booked Date','Out of Pocket',
                 'Deposit','ECO','Group','Cancelled','Eco Comments','Goldsure Comments'];
-  const labelOf = k => (GROUPS.find(g => g.key === k) || {}).label || k;
+  const labelOf = k => (RENDER_GROUPS.find(g => g.key === k) || {}).label || k;
   const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
   const rows = visibleJobs().slice()
-    .sort((a,b) => GROUP_KEYS.indexOf(a.status) - GROUP_KEYS.indexOf(b.status)
+    .sort((a,b) => RENDER_GROUP_KEYS.indexOf(groupOf(a)) - RENDER_GROUP_KEYS.indexOf(groupOf(b))
                 || byBookedDate(a,b))
     .map(j => [
       j.job_no, j.customer, j.address, j.booked_date, j.out_of_pocket, j.deposit,
       j.out_of_pocket ? pendingOf(j).toFixed(2) : '',
-      labelOf(j.status), j.cancelled ? 'Yes' : '', j.eco_comments, j.comments
+      labelOf(groupOf(j)), j.cancelled ? 'Yes' : '', j.eco_comments, j.comments
     ].map(q).join(','));
 
   const blob = new Blob([[head.map(q).join(','), ...rows].join('\r\n')], { type:'text/csv;charset=utf-8;' });
