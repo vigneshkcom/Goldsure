@@ -2,6 +2,9 @@
 // These actions share one Vercel function to keep the Hobby-plan function count unchanged.
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
+const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
+const DATAFORCE_GRANT_TYPE = 'client_credentials';
+const DATAFORCE_FIELDWORKER_NAME = 'Core Energy Group Pty Ltd';
 
 function send(res, status, payload) {
   res.status(status).json(payload);
@@ -22,29 +25,20 @@ function requirePlannerPin(req, res) {
 }
 
 function dataforceConfig() {
-  const instance = String(process.env.DATAFORCE_INSTANCE || '').trim();
   const clientId = String(process.env.DATAFORCE_CLIENT_ID || '').trim();
   const clientSecret = String(process.env.DATAFORCE_CLIENT_SECRET || '').trim();
-  if (!instance || !clientId || !clientSecret) {
-    throw new Error('Dataforce is not connected yet. Add the instance and read-only API credentials in Vercel.');
+  if (!clientId || !clientSecret) {
+    throw new Error('Dataforce is not connected yet. Add the read-only API key and secret in Vercel.');
   }
-  return { instance, clientId, clientSecret };
+  return { instance: DATAFORCE_INSTANCE, clientId, clientSecret };
 }
 
 async function dataforceToken() {
   const { clientId, clientSecret } = dataforceConfig();
-  const grantType = process.env.DATAFORCE_GRANT_TYPE || 'client_credentials';
   const body = new URLSearchParams({
-    grant_type: grantType,
+    grant_type: DATAFORCE_GRANT_TYPE,
     scope: 'appointment customer fieldworker job'
   });
-  if (grantType === 'password') {
-    if (!process.env.DATAFORCE_USERNAME || !process.env.DATAFORCE_PASSWORD) {
-      throw new Error('Dataforce username and password are required for the configured grant type.');
-    }
-    body.set('username', process.env.DATAFORCE_USERNAME);
-    body.set('password', process.env.DATAFORCE_PASSWORD);
-  }
   const response = await fetch(`${DATAFORCE_BASE_URL}/authorization/token`, {
     method: 'POST',
     headers: {
@@ -77,15 +71,15 @@ async function dataforceFetch(token, path, init = {}) {
 async function resolveFieldworker(token, instance) {
   const configuredId = Number(process.env.DATAFORCE_FIELDWORKER_ID);
   if (Number.isInteger(configuredId) && configuredId > 0) {
-    return { id: configuredId, name: process.env.DATAFORCE_FIELDWORKER_NAME || 'Surya' };
+    return { id: configuredId, name: DATAFORCE_FIELDWORKER_NAME };
   }
-  const target = String(process.env.DATAFORCE_FIELDWORKER_NAME || 'Surya').trim().toLowerCase();
+  const target = DATAFORCE_FIELDWORKER_NAME.toLowerCase();
   const collection = await dataforceFetch(token, `/${encodeURIComponent(instance)}/fieldworkers`);
   const matches = (collection.records || []).filter(worker =>
     `${worker.firstName || ''} ${worker.surname || ''}`.trim().toLowerCase().includes(target)
   );
   if (matches.length !== 1) {
-    throw new Error(`Could not uniquely identify ${process.env.DATAFORCE_FIELDWORKER_NAME || 'Surya'} in Dataforce. Add DATAFORCE_FIELDWORKER_ID.`);
+    throw new Error(`Could not uniquely identify ${DATAFORCE_FIELDWORKER_NAME} in Dataforce. Add DATAFORCE_FIELDWORKER_ID.`);
   }
   return {
     id: matches[0].fieldworkerId,
