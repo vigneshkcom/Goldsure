@@ -4,6 +4,7 @@
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
 const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
 const DATAFORCE_GRANT_TYPE = 'client_credentials';
+const DATAFORCE_FIELDWORKER_ID = 1007;
 const DATAFORCE_FIELDWORKER_NAME = 'Core Energy Group Pty Ltd';
 
 function send(res, status, payload) {
@@ -68,23 +69,8 @@ async function dataforceFetch(token, path, init = {}) {
   return response.json();
 }
 
-async function resolveFieldworker(token, instance) {
-  const configuredId = Number(process.env.DATAFORCE_FIELDWORKER_ID);
-  if (Number.isInteger(configuredId) && configuredId > 0) {
-    return { id: configuredId, name: DATAFORCE_FIELDWORKER_NAME };
-  }
-  const target = DATAFORCE_FIELDWORKER_NAME.toLowerCase();
-  const collection = await dataforceFetch(token, `/${encodeURIComponent(instance)}/fieldworkers`);
-  const matches = (collection.records || []).filter(worker =>
-    `${worker.firstName || ''} ${worker.surname || ''}`.trim().toLowerCase().includes(target)
-  );
-  if (matches.length !== 1) {
-    throw new Error(`Could not uniquely identify ${DATAFORCE_FIELDWORKER_NAME} in Dataforce. Add DATAFORCE_FIELDWORKER_ID.`);
-  }
-  return {
-    id: matches[0].fieldworkerId,
-    name: `${matches[0].firstName || ''} ${matches[0].surname || ''}`.trim()
-  };
+function resolveFieldworker() {
+  return { id: DATAFORCE_FIELDWORKER_ID, name: DATAFORCE_FIELDWORKER_NAME };
 }
 
 function nextDate(date) {
@@ -110,7 +96,7 @@ function customerAddress(customer) {
 async function dataforceSchedule(date) {
   const { instance } = dataforceConfig();
   const token = await dataforceToken();
-  const fieldworker = await resolveFieldworker(token, instance);
+  const fieldworker = resolveFieldworker();
   const appointments = [];
   let after = 0;
 
