@@ -75,6 +75,10 @@
             ${icon('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>')}
             <span>Team Tasks</span>
           </a>
+          <a class="internal-nav-home" href="/route-planner/">
+            ${icon('<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/>')}
+            <span>Route Planner</span>
+          </a>
         </div>
         ${groupMarkup}
       </nav>
