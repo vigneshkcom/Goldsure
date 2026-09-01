@@ -79,6 +79,23 @@ function nextDate(date) {
   return value.toISOString().slice(0, 10);
 }
 
+function addDays(date, days) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function scheduleDateKey(value) {
+  const text = String(value || '').trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dataforce = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
+  if (!dataforce) return '';
+  const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(dataforce[2].toLowerCase());
+  if (month < 0) return '';
+  return `${dataforce[3]}-${String(month + 1).padStart(2, '0')}-${String(dataforce[1]).padStart(2, '0')}`;
+}
+
 function customerName(customer) {
   if (!customer) return 'Customer';
   return String(customer.companyName || '').trim()
@@ -142,6 +159,43 @@ async function dataforceSchedule(date) {
     };
   }).filter(job => job.address).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
   return { fieldworker, jobs };
+}
+
+async function dataforceUpcoming(startDate, days) {
+  const { instance } = dataforceConfig();
+  const token = await dataforceToken();
+  const fieldworker = resolveFieldworker();
+  const endDate = addDays(startDate, days);
+  const appointments = [];
+  let after = 0;
+
+  while (true) {
+    const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: 'fieldworkerId', value: String(fieldworker.id), operator: 'EQ' },
+          { propertyName: 'scheduledDate', value: `${startDate}T00:00:00`, operator: 'GTE' },
+          { propertyName: 'scheduledDate', value: `${endDate}T00:00:00`, operator: 'LT' }
+        ] }],
+        sorts: [{ propertyName: 'scheduledDate', direction: 'asc' }],
+        limit: 100,
+        after
+      })
+    });
+    const page = result.records || [];
+    appointments.push(...page);
+    after += page.length;
+    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+  }
+
+  const counts = new Map();
+  appointments.forEach(appointment => {
+    const date = scheduleDateKey(appointment.scheduledDate);
+    if (date) counts.set(date, (counts.get(date) || 0) + 1);
+  });
+  const dates = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count }));
+  return { fieldworker, startDate, endDate, dates };
 }
 
 function durationSeconds(value) {
@@ -247,6 +301,12 @@ export default async function handler(req, res) {
       const date = String(req.body.date || '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return send(res, 400, { error: 'Choose a valid schedule date.' });
       return send(res, 200, await dataforceSchedule(date));
+    }
+    if (action === 'dataforce-upcoming') {
+      const startDate = String(req.body.startDate || '');
+      const days = Math.min(60, Math.max(1, Math.trunc(Number(req.body.days) || 30)));
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return send(res, 400, { error: 'Choose a valid start date.' });
+      return send(res, 200, await dataforceUpcoming(startDate, days));
     }
     if (action === 'route-plan') return send(res, 200, await planRoute(req.body));
     return send(res, 400, { error: 'Unknown Route Planner action.' });
