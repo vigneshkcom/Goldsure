@@ -90,7 +90,7 @@
     (() => {
       const API_URL = '/api/smoke-alarms/google-key';
       const PIN_KEY = 'goldsure_route_planner_pin';
-      const state = { jobs: [], route: null, map: null, polyline: null, markers: [], mapsReady: false };
+      const state = { jobs: [], route: null, map: null, polylines: [], markers: [], mapsReady: false };
       const $ = id => document.getElementById(id);
       const elements = {
         auth: $('auth'), authForm: $('authForm'), accessPin: $('accessPin'), authError: $('authError'), unlock: $('unlock'),
@@ -177,8 +177,8 @@
         elements.openGoogle.hidden = true; elements.mapPlaceholder.classList.remove('hidden'); clearMap();
       }
       function clearMap() {
-        if (state.polyline) state.polyline.setMap(null);
-        state.markers.forEach(marker => marker.setMap(null)); state.markers = []; state.polyline = null;
+        state.polylines.forEach(polyline => polyline.setMap(null)); state.polylines = [];
+        state.markers.forEach(marker => { if ('map' in marker) marker.map = null; else if (marker.setMap) marker.setMap(null); }); state.markers = [];
       }
       async function loadMaps() {
         if (state.mapsReady || window.google && google.maps) { state.mapsReady = true; return; }
@@ -187,22 +187,64 @@
         await new Promise((resolve, reject) => {
           window.__goldsureMapsReady = () => { state.mapsReady = true; resolve(); delete window.__goldsureMapsReady; };
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(result.key)}&libraries=geometry&callback=__goldsureMapsReady`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(result.key)}&v=weekly&callback=__goldsureMapsReady`;
           script.async = true; script.defer = true; script.onerror = () => reject(new Error('Google Maps could not be loaded.')); document.head.appendChild(script);
         });
       }
       async function drawRoute(route) {
         await loadMaps(); clearMap();
-        if (!state.map) state.map = new google.maps.Map($('map'), { center: { lat: -27.47, lng: 153.03 }, zoom: 10, mapTypeControl: false, streetViewControl: false, fullscreenControl: true });
-        const path = google.maps.geometry.encoding.decodePath(route.encodedPolyline);
-        state.polyline = new google.maps.Polyline({ path, map: state.map, strokeColor: '#1769e0', strokeOpacity: .95, strokeWeight: 6 });
-        const bounds = new google.maps.LatLngBounds(); path.forEach(point => bounds.extend(point));
-        route.waypoints.forEach((waypoint, index) => {
-          const position = { lat: waypoint.latitude, lng: waypoint.longitude }; bounds.extend(position);
-          const marker = new google.maps.Marker({ map: state.map, position, label: { text: index === 0 ? 'S' : index === route.waypoints.length - 1 ? 'F' : String(index), color: '#fff', fontWeight: '700', fontSize: '11px' }, title: `${waypoint.label}\n${waypoint.address}` });
-          state.markers.push(marker);
+        if (!state.map) state.map = new google.maps.Map($('map'), { center: { lat: -27.47, lng: 153.03 }, zoom: 10, mapId: 'DEMO_MAP_ID', mapTypeControl: false, streetViewControl: false, fullscreenControl: true });
+        state.polylines = route.googleRoute.createPolylines();
+        state.polylines.forEach(polyline => { polyline.setOptions({ strokeColor: '#1769e0', strokeOpacity: .95, strokeWeight: 6 }); polyline.setMap(state.map); });
+        state.markers = await route.googleRoute.createWaypointAdvancedMarkers();
+        state.markers.forEach(marker => { marker.map = state.map; });
+        if (route.googleRoute.viewport) state.map.fitBounds(route.googleRoute.viewport, 45);
+        elements.mapPlaceholder.classList.add('hidden');
+      }
+      function googleMapsDirectionsUrl(addresses) {
+        const params = new URLSearchParams({ api: '1', origin: addresses[0], destination: addresses[addresses.length - 1], travelmode: 'driving' });
+        if (addresses.length > 2) params.set('waypoints', addresses.slice(1, -1).join('|'));
+        return `https://www.google.com/maps/dir/?${params.toString()}`;
+      }
+      async function computeBrowserRoute() {
+        await loadMaps();
+        const { Route } = await google.maps.importLibrary('routes');
+        await google.maps.importLibrary('marker');
+        const startAddress = elements.startAddress.value.trim();
+        const hasManualStart = Boolean(startAddress);
+        const returnToStart = Boolean(startAddress && elements.returnToStart.checked);
+        const origin = hasManualStart ? startAddress : state.jobs[0].address;
+        const destination = returnToStart ? startAddress : state.jobs[state.jobs.length - 1].address;
+        const intermediateJobs = hasManualStart ? (returnToStart ? state.jobs : state.jobs.slice(0, -1)) : state.jobs.slice(1, -1);
+        const lockedStart = hasManualStart ? undefined : state.jobs[0];
+        const lockedEnd = returnToStart || hasManualStart ? (returnToStart ? undefined : state.jobs[state.jobs.length - 1]) : state.jobs[state.jobs.length - 1];
+        const response = await Route.computeRoutes({
+          origin,
+          destination,
+          intermediates: intermediateJobs.map(job => ({ location: job.address })),
+          travelMode: 'DRIVING',
+          routingPreference: 'TRAFFIC_AWARE',
+          optimizeWaypointOrder: elements.routeMode.value === 'optimize' && intermediateJobs.length > 1,
+          language: 'en-AU',
+          region: 'au',
+          units: 'METRIC',
+          fields: ['path', 'viewport', 'distanceMeters', 'durationMillis', 'legs', 'optimizedIntermediateWaypointIndices']
         });
-        state.map.fitBounds(bounds, 45); elements.mapPlaceholder.classList.add('hidden');
+        const googleRoute = response.routes && response.routes[0];
+        if (!googleRoute) throw new Error('Google did not return a drivable route for these addresses.');
+        const order = googleRoute.optimizedIntermediateWaypointIndices && googleRoute.optimizedIntermediateWaypointIndices.length
+          ? googleRoute.optimizedIntermediateWaypointIndices
+          : intermediateJobs.map((_, index) => index);
+        const orderedIntermediate = order.map(index => intermediateJobs[index]);
+        const orderedJobs = [lockedStart, ...orderedIntermediate, lockedEnd].filter(Boolean);
+        const addresses = [origin, ...orderedIntermediate.map(job => job.address), destination];
+        return {
+          googleRoute,
+          distanceMeters: googleRoute.distanceMeters || 0,
+          durationSeconds: Math.round((googleRoute.durationMillis || 0) / 1000),
+          orderedStopIds: orderedJobs.map(job => job.appointmentId),
+          googleMapsUrl: googleMapsDirectionsUrl(addresses)
+        };
       }
       function applyRouteOrder(route) {
         if (!route.orderedStopIds || !route.orderedStopIds.length) return;
@@ -214,7 +256,7 @@
         if (state.jobs.length < 2) return showNotice('Load at least two jobs first.', 'error');
         clearNotice(); setBusy(elements.planRoute, true, 'Planning…');
         try {
-          const result = await api({ action: 'route-plan', jobs: state.jobs, startAddress: elements.startAddress.value.trim(), returnToStart: elements.returnToStart.checked, optimize: elements.routeMode.value === 'optimize' });
+          const result = await computeBrowserRoute();
           state.route = result; applyRouteOrder(result);
           elements.routeTitle.textContent = `Core Energy Group's driving route`;
           elements.routeSubtitle.textContent = `${state.jobs.length} jobs · ${elements.routeMode.value === 'optimize' ? 'Google-optimised stop order' : 'Scheduled stop order'}`;
