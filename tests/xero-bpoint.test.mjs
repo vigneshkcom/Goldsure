@@ -89,9 +89,14 @@ test('builds a grouped Smoke Alarm description', () => {
     Category: 'Smoke Alarm',
     Account: '166',
     Division: 'QLD Smoke Alarm',
+    'BPOINT Ref': '52746, 52749, 52751, 52755',
+    'Receipt Number': '66587975160, 66589390894, 66592569099, 66592878653',
+    'Transaction Number': '1854065160, 1854110894, 1854209099, 1854218653',
     Amount: '743',
   }), 2);
   assert.equal(makeInvoiceDescription(row), 'BPOINT smoke alarm batch - 03/09/2026');
+  assert.equal(row.invoiceReference, 'BPOINT-SMOKE-20260903');
+  assert.equal(row.transactionNumber, '1854065160, 1854110894, 1854209099, 1854218653');
 });
 
 test('rejects duplicate transaction references inside one batch', () => {
