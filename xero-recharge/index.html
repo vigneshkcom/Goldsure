@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Eco Alliance Xero Recharge | Goldsure</title>
+  <link rel="icon" type="image/png" href="/assets/gs-favicon-96px.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+  <link rel="stylesheet" href="/xero-recharge/styles.css">
+  <script src="/assets/internal-systems-sidebar.js" defer></script>
+  <script src="/xero-recharge/app.js" defer></script>
+</head>
+<body data-internal-sidebar-mode="hover">
+  <div class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <p class="eyebrow">Accounting</p>
+      <h1>Eco Alliance Xero Recharge</h1>
+      <p>Use your secure portal password to continue.</p>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required autofocus>
+      <button class="button primary" id="loginButton" type="submit">Continue</button>
+      <p class="form-message error" id="loginError" role="alert"></p>
+    </form>
+  </div>
+
+  <main class="shell" id="app" hidden>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Goldsure accounting</p>
+        <h1>Eco Alliance Xero Recharge</h1>
+        <p class="subtitle">Upload Meta receipts, confirm Eco Alliance’s 50% share, and create one draft invoice.</p>
+      </div>
+      <div class="connection waiting" id="connectionBadge">
+        <span class="dot"></span>
+        <span id="connectionText">Checking Xero</span>
+      </div>
+    </header>
+
+    <div class="notice warning" id="setupNotice" hidden>
+      <strong>Xero connection needs finishing</strong>
+      <span>The page is live, but the Xero Custom Connection credentials still need to be added in Vercel.</span>
+    </div>
+
+    <section class="summary-grid" aria-label="Invoice summary">
+      <article class="summary-card primary">
+        <span>Ready to recharge</span>
+        <strong id="shareTotal">$0.00</strong>
+        <small>50% of selected NSW campaign spend</small>
+      </article>
+      <article class="summary-card">
+        <span>Customer</span>
+        <strong>Eco Alliance</strong>
+        <small>Matched to the existing Xero contact</small>
+      </article>
+      <article class="summary-card">
+        <span>Income account</span>
+        <strong>421</strong>
+        <small>Advertising Recharge Income</small>
+      </article>
+    </section>
+
+    <section class="panel upload-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="step">Step 1</p>
+          <h2>Upload Meta receipts</h2>
+          <p>Select up to 10 PDFs. Only Heatpumps Sydney campaign totals are included.</p>
+        </div>
+        <button class="button secondary" id="chooseFilesButton" type="button">Choose PDFs</button>
+      </div>
+
+      <input id="fileInput" type="file" accept="application/pdf,.pdf" multiple hidden>
+      <button class="drop-zone" id="dropZone" type="button">
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6h14v-6"/></svg>
+        </span>
+        <strong>Drop Meta invoice PDFs here</strong>
+        <span>or click to select them</span>
+      </button>
+
+      <div class="table-wrap" id="receiptTableWrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th class="check"><input id="selectAll" type="checkbox" checked aria-label="Select all ready receipts"></th>
+              <th>Date</th>
+              <th>Meta invoice</th>
+              <th class="money">NSW spend</th>
+              <th>Status</th>
+              <th class="remove-heading">Remove</th>
+            </tr>
+          </thead>
+          <tbody id="receiptRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel send-panel">
+      <div class="panel-heading compact">
+        <div>
+          <p class="step">Step 2</p>
+          <h2>Create the Xero draft</h2>
+          <p>The invoice is always created as a draft so you can review it in Xero before sending.</p>
+        </div>
+      </div>
+
+      <div class="send-area">
+        <div class="send-options">
+          <label>
+            Tax treatment
+            <select id="amountType">
+              <option value="Inclusive" selected>GST included — total stays at 50%</option>
+              <option value="Exclusive">Add account 421 GST on top</option>
+            </select>
+          </label>
+          <label>
+            Payment due
+            <select id="dueDays">
+              <option value="7">7 days</option>
+              <option value="14" selected>14 days</option>
+              <option value="30">30 days</option>
+            </select>
+          </label>
+        </div>
+        <div class="send-action">
+          <p><strong id="selectedCount">0</strong> receipt(s) selected · PDFs attached</p>
+          <button class="button primary send-button" id="createButton" type="button" disabled>Create draft in Xero</button>
+        </div>
+      </div>
+
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <p id="progressText" role="status"></p>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <span class="result-icon" aria-hidden="true">✓</span>
+        <div>
+          <strong id="resultTitle">Draft created</strong>
+          <p id="resultText"></p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Maximum 10 PDFs per draft · Each PDF must be under 2.5 MB</span>
+      <button class="text-button" id="lockButton" type="button">Lock this page</button>
+    </footer>
+  </main>
+</body>
+</html>
+

@@ -15,6 +15,10 @@
     {
       key: 'nsw-hws', label: 'NSW Hot Water', color: '#fdab3d', icon: '<path d="M12 2s5 5.5 5 9a5 5 0 0 1-10 0c0-3.5 5-9 5-9z"/>',
       items: [['NSW HWS Quote Builder', '/hotwater-nsw/quote-builder.html'], ['Quote Tracker', '/hotwater-nsw/quote-tracker.html']]
+    },
+    {
+      key: 'accounting', label: 'Accounting', color: '#037f4c', icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h4M7 16h3M15 12v4M13 14h4"/>',
+      items: [['Eco Alliance Xero Recharge', '/xero-recharge/']]
     }
   ];
 
