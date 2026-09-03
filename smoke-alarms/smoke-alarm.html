@@ -1731,13 +1731,17 @@ const ELECTRICIANS = [
   { name: 'Blake',        org: '' },
 ];
 const AVAIL_COLORS = ['#0073ea', '#00c875', '#a25ddc', '#fdab3d', '#009eb5'];
+const AVAIL_NAME_COLORS = { 'Surya': '#a25ddc', 'Blake': '#fdab3d' };
 let availAdmin = false;
 let availRows = [];
 let calCursor = new Date();
 let calSelected = null;
 
 const availInitials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-function availColor(n){ let h=7; for(const c of String(n)) h=(h*31+c.charCodeAt(0))|0; return AVAIL_COLORS[Math.abs(h)%AVAIL_COLORS.length]; }
+function availColor(n){
+  if (AVAIL_NAME_COLORS[n]) return AVAIL_NAME_COLORS[n];
+  let h=7; for(const c of String(n)) h=(h*31+c.charCodeAt(0))|0; return AVAIL_COLORS[Math.abs(h)%AVAIL_COLORS.length];
+}
 
 function availDateLabel(d) {
   if (!d) return '';
