@@ -14,7 +14,7 @@ import {
   sha256Hex,
   signReceipt,
   verifyReceiptProof,
-} from '../lib/xero-recharge.mjs';
+} from '../lib/xero-recharge.js';
 
 function sampleText({ invoice = 'FBADS-438-100', date = '23 Aug 2026, 14:55', sydney = ['124.32', '133.62'] } = {}) {
   const campaigns = sydney.map((amount) => `Heatpumps Sydney | Leads\nFrom 18 Aug 2026, 00:00 to 23 Aug 2026, 14:55\nAU$${amount}\nAd detail AU$${amount}`).join('\n');

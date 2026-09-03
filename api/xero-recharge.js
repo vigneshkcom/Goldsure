@@ -10,7 +10,7 @@ import {
   signReceipt,
   validateReceipts,
   verifyReceiptProof,
-} from '../lib/xero-recharge.mjs';
+} from '../lib/xero-recharge.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
 
