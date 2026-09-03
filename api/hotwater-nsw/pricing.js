@@ -72,11 +72,12 @@ export function calculateQuote(input = {}) {
   const totalExtras = round2(relocationCharge + backToBackCharge + cableCharge + otherExtrasTotal);
 
   // The Home Energy Saver loan by Brighte does not charge Goldsure a vendor fee, so
-  // choosing upfront payment must not alter the price automatically. An agent
-  // can deliberately apply a discretionary Goldsure discount and choose its
-  // amount; never let that reduce the quote below zero.
+  // choosing the loan must not alter the price automatically. An agent can
+  // deliberately apply a discretionary Goldsure discount and choose its
+  // amount — whether or not the customer is financing — but it must never
+  // reduce the quote below zero.
   const financeRequested = !!input.finance_requested;
-  const applyNoFinanceDiscount = !financeRequested && input.apply_no_finance_discount === true;
+  const applyNoFinanceDiscount = input.apply_no_finance_discount === true;
   const requestedNoFinanceDiscount = round2(Math.max(0, Number(input.no_finance_discount_amount) || 0));
   const noFinanceDiscount = applyNoFinanceDiscount
     ? Math.min(requestedNoFinanceDiscount, basePrice + totalExtras)

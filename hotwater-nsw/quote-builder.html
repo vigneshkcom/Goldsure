@@ -375,18 +375,18 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
           </div>
           <div id="noFinanceFields" style="display:none;">
             <div class="readout"><span class="lbl">Vendor fee — Home Energy Saver loan by Brighte</span><span class="val">$0.00</span></div>
-            <div class="field" style="margin-top:13px;">
-              <label>Apply an upfront-payment discount?</label>
-              <div class="seg">
-                <button type="button" id="discYes" onclick="setNoFinanceDiscount(true)">Yes</button>
-                <button type="button" id="discNo" onclick="setNoFinanceDiscount(false)">No</button>
-              </div>
+          </div>
+          <div class="field" style="margin-top:13px;">
+            <label>Apply a discount?</label>
+            <div class="seg">
+              <button type="button" id="discYes" onclick="setNoFinanceDiscount(true)">Yes</button>
+              <button type="button" id="discNo" onclick="setNoFinanceDiscount(false)">No</button>
             </div>
-            <div class="field" id="discountAmountField" style="display:none;">
-              <label>Discount amount</label>
-              <input type="number" id="noFinanceDiscountAmount" min="0" step="0.01" value="0" oninput="recalc()">
-              <div class="sub">Optional Goldsure discount. This is not a Brighte fee.</div>
-            </div>
+          </div>
+          <div class="field" id="discountAmountField" style="display:none;">
+            <label>Discount amount</label>
+            <input type="number" id="noFinanceDiscountAmount" min="0" step="0.01" value="0" oninput="recalc()">
+            <div class="sub">Optional Goldsure discount. Applies whether the customer pays upfront or uses the loan.</div>
           </div>
         </div>
       </div>
@@ -399,7 +399,7 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
           <div class="tot-row"><span class="lbl">Back-to-back relocation</span><span class="val" id="sumB2b">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Additional electrical cable</span><span class="val" id="sumCable">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Other extras</span><span class="val" id="sumOther">$0.00</span></div>
-          <div class="tot-row" id="discRow" style="display:none;"><span class="lbl">Upfront payment discount</span><span class="val" id="sumDisc" style="color:var(--green);">− $0.00</span></div>
+          <div class="tot-row" id="discRow" style="display:none;"><span class="lbl">Discount</span><span class="val" id="sumDisc" style="color:var(--green);">− $0.00</span></div>
           <div class="result-row total"><span class="lbl">Total Installed Price</span><span class="val" id="sumFinal">$0.00</span></div>
           <div class="note-box">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and STC discounts are already included in the pricing above.</div>
         </div>
@@ -609,7 +609,7 @@ function recalc(){
   const otherTotal = state.other_extras.reduce((s,e)=>s+e.amount,0);
   const beforeDiscount = basePrice + relocCharge + b2bCharge + cableCharge + otherTotal;
   const requestedDiscount = Math.max(0, Number($('noFinanceDiscountAmount').value)||0);
-  const discount = !state.finance_requested && state.apply_no_finance_discount
+  const discount = state.apply_no_finance_discount
     ? Math.min(requestedDiscount, beforeDiscount)
     : 0;
   const finalPrice = beforeDiscount - discount;
