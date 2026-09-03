@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildApprovedInvoice,
+  buildContactUpdate,
   createOrFindApprovedInvoice,
   findContactPlan,
   makeInvoiceDescription,
@@ -53,6 +54,7 @@ function setupClient(overrides = {}) {
       getContacts: async () => ({ body: { contacts: [] } }),
       getInvoices: async () => ({ body: { invoices: [] } }),
       createContacts: async () => ({ body: { contacts: [{ contactID: 'contact-1', name: 'Penelope F Worrall' }] } }),
+      updateContact: async () => ({ body: { contacts: [{ contactID: 'contact-1', name: 'Penelope F Worrall' }] } }),
       createInvoices: async () => ({ body: { invoices: [{ invoiceID: 'invoice-1', invoiceNumber: 'INV-100', status: 'AUTHORISED', total: 1120 }] } }),
       ...overrides,
     },
@@ -186,7 +188,52 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
   });
   const result = await createOrFindApprovedInvoice(client, row);
   assert.equal(result.contactCreated, true);
+  assert.equal(result.contactUpdated, false);
   assert.equal(result.recoveredExisting, false);
   assert.match(contactArgs[3], /^goldsure-bpoint-contact-/);
   assert.match(invoiceArgs[4], /^goldsure-bpoint-invoice-/);
+  const contact = contactArgs[1].contacts[0];
+  assert.equal(contact.name, 'Penelope F Worrall');
+  assert.equal(contact.emailAddress, 'penelope@example.com');
+  assert.deepEqual(contact.phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
+  assert.deepEqual(contact.addresses, [{
+    addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
+  }]);
+});
+
+test('fills missing details on a matched Xero contact before creating its invoice', async () => {
+  const row = normaliseBatchRow(source(), 2);
+  let updateArgs;
+  const existing = {
+    contactID: 'contact-existing', name: row.customerName, emailAddress: row.customerEmail,
+    contactStatus: 'ACTIVE', phones: [], addresses: [],
+  };
+  const client = setupClient({
+    getContacts: async () => ({ body: { contacts: [existing] } }),
+    updateContact: async (...args) => {
+      updateArgs = args;
+      return { body: { contacts: [{ ...existing, ...args[2].contacts[0] }] } };
+    },
+  });
+  const result = await createOrFindApprovedInvoice(client, row);
+  assert.equal(result.contactCreated, false);
+  assert.equal(result.contactUpdated, true);
+  assert.equal(updateArgs[1], 'contact-existing');
+  assert.match(updateArgs[3], /^goldsure-bpoint-contact-update-/);
+  assert.deepEqual(updateArgs[2].contacts[0].phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
+  assert.deepEqual(updateArgs[2].contacts[0].addresses, [{
+    addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
+  }]);
+});
+
+test('does not overwrite populated details on a matched contact', () => {
+  const row = normaliseBatchRow(source(), 2);
+  const update = buildContactUpdate({
+    contactID: 'contact-existing',
+    name: row.customerName,
+    emailAddress: row.customerEmail,
+    phones: [{ phoneType: 'MOBILE', phoneNumber: '0499 999 999' }],
+    addresses: [{ addressType: 'STREET', addressLine1: '99 Existing Road', city: 'Carlton', postalCode: '3053', country: 'Australia' }],
+  }, row);
+  assert.deepEqual(update, {});
 });

@@ -139,6 +139,7 @@
     el('invoiceCount').textContent = state.rows.length;
     el('settlementCount').textContent = settlementGroups().length;
     el('newContactCount').textContent = new Set(state.rows.filter((row) => row.contactAction === 'create').map((row) => row.contactKey || `${row.customerName}|${row.customerEmail}`)).size;
+    el('updatedContactCount').textContent = new Set(state.rows.filter((row) => row.contactUpdateRequired).map((row) => row.contactId || `${row.customerName}|${row.customerEmail}`)).size;
     const selected = selectedRows();
     el('selectedCount').textContent = selected.length;
     const eligible = state.rows.filter((row) => !row.existingInvoiceId && !row.result);
@@ -152,7 +153,8 @@
     if (row.result?.invoice) return { kind: 'created', label: row.result.invoice.recoveredExisting ? 'Existing' : 'Created' };
     if (row.existingInvoiceId) return { kind: 'existing', label: row.existingInvoiceNumber || 'Existing' };
     if (!state.xeroReady) return { kind: 'loading', label: 'Setup required' };
-    return { kind: 'ready', label: row.contactAction === 'create' ? 'New contact' : 'Contact matched' };
+    if (row.contactAction === 'create') return { kind: 'ready', label: 'New contact' };
+    return { kind: 'ready', label: row.contactUpdateRequired ? 'Contact will update' : 'Contact matched' };
   }
 
   function renderSettlements() {
@@ -190,8 +192,10 @@
       const customerName = document.createElement('strong');
       customerName.textContent = item.customerName;
       const customerDetail = document.createElement('small');
-      customerDetail.textContent = `Job ${item.jobNo || 'grouped'} · ${item.customerEmail || item.customerMobile || 'No email or mobile'}`;
-      customer.append(customerName, customerDetail);
+      customerDetail.textContent = `Job ${item.jobNo || 'grouped'} · ${item.customerEmail || 'No email'} · ${item.customerMobile || 'No mobile'}`;
+      const addressDetail = document.createElement('small');
+      addressDetail.textContent = [item.address, item.suburb, item.postcode].filter(Boolean).join(', ') || 'No street address';
+      customer.append(customerName, customerDetail, addressDetail);
 
       const invoiceLine = document.createElement('td');
       invoiceLine.textContent = item.productDescription || item.description;
@@ -296,12 +300,13 @@
       'Invoice Reference': row.invoiceReference,
       'Xero Invoice Number': row.result?.invoice?.invoiceNumber || row.existingInvoiceNumber || '',
       'Xero Status': row.result?.invoice?.invoiceStatus || row.existingInvoiceStatus || (row.result?.error ? 'ERROR' : 'NOT CREATED'),
+      'Contact Result': row.result?.invoice?.contactCreated ? 'Created' : row.result?.invoice?.contactUpdated ? 'Updated' : row.contactAction === 'match' ? 'Matched' : 'Not created',
       Result: row.result?.error || (row.result?.invoice?.recoveredExisting || row.existingInvoiceId ? 'Existing invoice' : row.result?.invoice ? 'Created' : 'Not selected'),
     }));
   }
 
   function downloadResults() {
-    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Result'];
+    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Contact Result', 'Result'];
     const stamp = new Date().toISOString().slice(0, 10);
     downloadCsv(`xero-bpoint-results-${stamp}.csv`, headers, resultRows());
   }
