@@ -5,7 +5,7 @@
     'Job No.', 'Customer Name', 'Customer Email', 'Customer Mobile', 'Property Address',
     'Property Suburb', 'Property Postcode', 'Category', 'BPOINT Ref', 'Receipt Number',
     'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Account',
-    'Division', 'Tax Rate', 'PDF Filename',
+    'Division', 'Tax Rate', 'Product / Service Description', 'PDF Filename',
   ];
   const state = { password: '', xeroReady: false, rows: [], working: false, results: [], sourceName: '' };
   const el = (id) => document.getElementById(id);
@@ -112,6 +112,7 @@
       'Property Postcode': '3072', Category: 'HWS', 'BPOINT Ref': '874609', 'Receipt Number': '66600000001',
       'Transaction Number': '1855000001', 'Payment Date': '03/09/2026', 'Settlement Date': '03/09/2026',
       Amount: '1120.00', Account: '405', Division: 'VIC Hot Water', 'Tax Rate': 'GST on Income',
+      'Product / Service Description': 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System',
       'PDF Filename': '152713 - 874609 - $1120 - PENELOPE F WORRALL.pdf',
     };
     downloadCsv('xero-bpoint-invoice-batch-template.csv', TEMPLATE_HEADERS, [example]);
@@ -192,6 +193,16 @@
       customerDetail.textContent = `Job ${item.jobNo || 'grouped'} · ${item.customerEmail || item.customerMobile || 'No email or mobile'}`;
       customer.append(customerName, customerDetail);
 
+      const invoiceLine = document.createElement('td');
+      invoiceLine.textContent = item.productDescription || item.description;
+      if (item.productDescription) {
+        const auditDetail = document.createElement('small');
+        auditDetail.textContent = item.jobNo
+          ? `Reference: ${item.invoiceReference}`
+          : `Reference: ${item.invoiceReference} · ${displayDate(item.settlementDate)}`;
+        invoiceLine.appendChild(auditDetail);
+      }
+
       const bpoint = document.createElement('td');
       bpoint.textContent = item.bpointRef;
       const transaction = document.createElement('small');
@@ -227,7 +238,7 @@
         statusCell.appendChild(detail);
       }
 
-      row.append(checkCell, customer, bpoint, settlement, allocation, amount, statusCell);
+      row.append(checkCell, customer, invoiceLine, bpoint, settlement, allocation, amount, statusCell);
       invoiceRows.appendChild(row);
     });
     renderSettlements();
@@ -281,6 +292,7 @@
       'Payment Date': displayDate(row.paymentDate),
       'Settlement Date': displayDate(row.settlementDate),
       Amount: row.amount.toFixed(2),
+      'Invoice Description': row.description,
       'Invoice Reference': row.invoiceReference,
       'Xero Invoice Number': row.result?.invoice?.invoiceNumber || row.existingInvoiceNumber || '',
       'Xero Status': row.result?.invoice?.invoiceStatus || row.existingInvoiceStatus || (row.result?.error ? 'ERROR' : 'NOT CREATED'),
@@ -289,7 +301,7 @@
   }
 
   function downloadResults() {
-    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Result'];
+    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Result'];
     const stamp = new Date().toISOString().slice(0, 10);
     downloadCsv(`xero-bpoint-results-${stamp}.csv`, headers, resultRows());
   }

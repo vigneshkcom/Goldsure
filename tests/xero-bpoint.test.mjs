@@ -30,6 +30,7 @@ function source(overrides = {}) {
     Account: '405 - Ecoalliance Revenue',
     Division: 'VIC Hot Water',
     'Tax Rate': 'GST on Income',
+    'Product / Service Description': 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System',
     ...overrides,
   };
 }
@@ -66,13 +67,14 @@ test('normalises a reconciled HWS invoice row using BPOINT values', () => {
   assert.equal(row.settlementDate, '2026-09-03');
   assert.equal(row.accountCode, '405');
   assert.equal(row.division, 'VIC Hot Water');
-  assert.equal(row.invoiceReference, 'BPOINT-1855000001');
-  assert.equal(row.description, '152713 - Penelope F Worrall - BPOINT Ref 874609');
+  assert.equal(row.invoiceReference, 'JOB 152713 - BPOINT 1855000001');
+  assert.equal(row.description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 - BPOINT Ref 874609');
 });
 
 test('maps Aircon to account 430 and blocks an incorrect supplied account', () => {
-  const row = normaliseBatchRow(source({ Category: 'Aircon', Account: '430', Division: 'VIC Aircons' }), 2);
+  const row = normaliseBatchRow(source({ Category: 'Aircon', Account: '430', Division: 'VIC Aircons', 'Product / Service Description': '' }), 2);
   assert.equal(row.accountCode, '430');
+  assert.equal(row.description, 'Supply and installation of Air Conditioning System - Job 152713 - BPOINT Ref 874609');
   assert.throws(() => normaliseBatchRow(source({ Category: 'Aircon', Account: '405', Division: 'VIC Aircons' }), 2), /Account must be 430/);
 });
 
@@ -92,9 +94,10 @@ test('builds a grouped Smoke Alarm description', () => {
     'BPOINT Ref': '52746, 52749, 52751, 52755',
     'Receipt Number': '66587975160, 66589390894, 66592569099, 66592878653',
     'Transaction Number': '1854065160, 1854110894, 1854209099, 1854218653',
+    'Product / Service Description': 'Supply and installation of smoke alarms',
     Amount: '743',
   }), 2);
-  assert.equal(makeInvoiceDescription(row), 'BPOINT smoke alarm batch - 03/09/2026');
+  assert.equal(makeInvoiceDescription(row), 'Supply and installation of smoke alarms - batch 03/09/2026');
   assert.equal(row.invoiceReference, 'BPOINT-SMOKE-20260903');
   assert.equal(row.transactionNumber, '1854065160, 1854110894, 1854209099, 1854218653');
 });
@@ -108,6 +111,7 @@ test('signed previews cannot be edited before creation', () => {
   const proof = signBatchRow(row, 'secret');
   assert.equal(verifyBatchRow(row, proof, 'secret'), true);
   assert.equal(verifyBatchRow({ ...row, amount: 1 }, proof, 'secret'), false);
+  assert.equal(verifyBatchRow({ ...row, productDescription: 'Edited description' }, proof, 'secret'), false);
 });
 
 test('a browser preview row can be normalised again without invalidating its proof', () => {
@@ -131,6 +135,7 @@ test('creates an approved, tax-inclusive invoice without marking it sent', () =>
   assert.equal(invoice.lineItems[0].unitAmount, 1120);
   assert.equal(invoice.lineItems[0].accountCode, '405');
   assert.equal(invoice.lineItems[0].taxType, 'OUTPUT');
+  assert.equal(invoice.lineItems[0].description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 - BPOINT Ref 874609');
   assert.deepEqual(invoice.lineItems[0].tracking, [{ name: 'Division', option: 'VIC Hot Water' }]);
 });
 
