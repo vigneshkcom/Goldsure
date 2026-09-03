@@ -46,7 +46,7 @@ function setupClient(overrides = {}) {
         name: 'Division', status: 'ACTIVE', options: [
           { name: 'VIC Hot Water', status: 'ACTIVE' },
           { name: 'VIC Aircons', status: 'ACTIVE' },
-          { name: 'QLD Smoke Alarm', status: 'ACTIVE' },
+          { name: 'QLD Smoke Alarms', status: 'ACTIVE' },
         ],
       }] } }),
       getContacts: async () => ({ body: { contacts: [] } }),
@@ -88,7 +88,7 @@ test('builds a grouped Smoke Alarm description', () => {
     'Customer Mobile': '',
     Category: 'Smoke Alarm',
     Account: '166',
-    Division: 'QLD Smoke Alarm',
+    Division: 'QLD Smoke Alarms',
     'BPOINT Ref': '52746, 52749, 52751, 52755',
     'Receipt Number': '66587975160, 66589390894, 66592569099, 66592878653',
     'Transaction Number': '1854065160, 1854110894, 1854209099, 1854218653',
