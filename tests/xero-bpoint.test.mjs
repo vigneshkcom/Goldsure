@@ -113,6 +113,13 @@ test('rejects duplicate transaction references inside one batch', () => {
   assert.throws(() => validateBatchRows([source(), source({ Amount: '200' })]), /duplicate BPOINT payment/);
 });
 
+test('rejects a transaction number incorrectly supplied as the BPOINT reference', () => {
+  assert.throws(
+    () => normaliseBatchRow(source({ 'BPOINT Ref': '1855000001' }), 2),
+    /tracker column D, not the transaction number/,
+  );
+});
+
 test('groups two BPOINT instalments into one job invoice', () => {
   const [row] = validateBatchRows([
     source({ 'BPOINT Ref': '874441', 'Receipt Number': '66588092657', 'Transaction Number': '1854072657', 'Payment Date': '02/09/2026', 'Settlement Date': '02/09/2026', Amount: '200' }),
