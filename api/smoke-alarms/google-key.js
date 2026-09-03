@@ -4,25 +4,27 @@
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
 const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
 const DATAFORCE_GRANT_TYPE = 'client_credentials';
-const DATAFORCE_FIELDWORKER_ID = 1007;
-const DATAFORCE_FIELDWORKER_NAME = 'Core Energy Group Pty Ltd';
+const CORE_FIELDWORKER = { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Core Energy Group' };
+const BLAKE_FIELDWORKER = { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison' };
+const BLAKE_ACCESS_PIN = '1008';
 
 function send(res, status, payload) {
   res.status(status).json(payload);
 }
 
-function requirePlannerPin(req, res) {
-  const expected = String(process.env.ROUTE_PLANNER_ACCESS_PIN || process.env.DASHBOARD_PASSWORD || '');
+function resolvePlannerFieldworker(req, res) {
+  const corePin = String(process.env.ROUTE_PLANNER_ACCESS_PIN || process.env.DASHBOARD_PASSWORD || '');
   const supplied = String(req.headers['x-route-planner-pin'] || '');
-  if (!expected) {
+  if (supplied === BLAKE_ACCESS_PIN) return BLAKE_FIELDWORKER;
+  if (!corePin) {
     send(res, 503, { error: 'Route Planner access has not been configured yet. Add its PIN in Vercel.' });
-    return false;
+    return null;
   }
-  if (!supplied || supplied !== expected) {
+  if (!supplied || supplied !== corePin) {
     send(res, 401, { error: 'Incorrect access PIN.' });
-    return false;
+    return null;
   }
-  return true;
+  return CORE_FIELDWORKER;
 }
 
 function dataforceConfig() {
@@ -69,10 +71,6 @@ async function dataforceFetch(token, path, init = {}) {
   return response.json();
 }
 
-function resolveFieldworker() {
-  return { id: DATAFORCE_FIELDWORKER_ID, name: DATAFORCE_FIELDWORKER_NAME };
-}
-
 function nextDate(date) {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + 1);
@@ -110,10 +108,9 @@ function customerAddress(customer) {
   return [customer.buildingName, unit, street, customer.suburb, customer.state, customer.postCode, 'Australia'].filter(Boolean).join(', ');
 }
 
-async function dataforceSchedule(date) {
+async function dataforceSchedule(date, fieldworker) {
   const { instance } = dataforceConfig();
   const token = await dataforceToken();
-  const fieldworker = resolveFieldworker();
   const appointments = [];
   let after = 0;
 
@@ -161,10 +158,9 @@ async function dataforceSchedule(date) {
   return { fieldworker, jobs };
 }
 
-async function dataforceUpcoming(startDate, days) {
+async function dataforceUpcoming(startDate, days, fieldworker) {
   const { instance } = dataforceConfig();
   const token = await dataforceToken();
-  const fieldworker = resolveFieldworker();
   const endDate = addDays(startDate, days);
   const appointments = [];
   let after = 0;
@@ -292,21 +288,22 @@ export default async function handler(req, res) {
     return send(res, 200, { key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY });
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed.' });
-  if (!requirePlannerPin(req, res)) return;
+  const fieldworker = resolvePlannerFieldworker(req, res);
+  if (!fieldworker) return;
 
   try {
     const action = req.body && req.body.action;
-    if (action === 'auth-check') return send(res, 200, { ok: true });
+    if (action === 'auth-check') return send(res, 200, { ok: true, fieldworker });
     if (action === 'dataforce-schedule') {
       const date = String(req.body.date || '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return send(res, 400, { error: 'Choose a valid schedule date.' });
-      return send(res, 200, await dataforceSchedule(date));
+      return send(res, 200, await dataforceSchedule(date, fieldworker));
     }
     if (action === 'dataforce-upcoming') {
       const startDate = String(req.body.startDate || '');
       const days = Math.min(60, Math.max(1, Math.trunc(Number(req.body.days) || 30)));
       if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return send(res, 400, { error: 'Choose a valid start date.' });
-      return send(res, 200, await dataforceUpcoming(startDate, days));
+      return send(res, 200, await dataforceUpcoming(startDate, days, fieldworker));
     }
     if (action === 'route-plan') return send(res, 200, await planRoute(req.body));
     return send(res, 400, { error: 'Unknown Route Planner action.' });

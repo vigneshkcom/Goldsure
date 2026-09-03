@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Core Energy Group Route Planner | Goldsure</title>
+  <title>Contractor Route Planner | Goldsure</title>
   <link rel="icon" href="/assets/gs-favicon-96px.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
     <header class="topbar">
       <div class="brand">
         <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
-        <div class="title-block"><h1>Core Energy Group Route Planner</h1><p>Dataforce jobs &amp; Google driving routes</p></div>
+        <div class="title-block"><h1 id="plannerTitle">Contractor Route Planner</h1><p>Dataforce jobs &amp; Google driving routes</p></div>
       </div>
       <div class="status-pill">Internal tool</div>
     </header>
@@ -32,11 +32,11 @@
     <main class="shell">
       <section class="panel controls" aria-label="Route controls">
         <div class="eyebrow">Daily schedule</div>
-        <h2>Plan Core Energy Group's run</h2>
+        <h2 id="scheduleHeading">Plan today's run</h2>
         <p class="lead">Load assigned jobs directly from Dataforce, then calculate the driving route.</p>
 
         <div class="field"><label for="scheduleDate">Schedule date</label><input id="scheduleDate" type="date"></div>
-        <div class="field"><label for="fieldworker">Field worker</label><input id="fieldworker" value="Core Energy Group Pty Ltd" readonly></div>
+        <div class="field"><label for="fieldworker">Field worker</label><input id="fieldworker" value="Authorised contractor" readonly></div>
         <button class="btn btn-primary" id="loadDataforce" type="button">Load Dataforce jobs</button>
 
         <div style="height:17px"></div>
@@ -92,11 +92,11 @@
     (() => {
       const API_URL = '/api/smoke-alarms/google-key';
       const PIN_KEY = 'goldsure_route_planner_pin';
-      const state = { jobs: [], upcoming: [], route: null, map: null, polylines: [], markers: [], mapsReady: false };
+      const state = { jobs: [], upcoming: [], route: null, map: null, polylines: [], markers: [], mapsReady: false, fieldworkerName: 'Authorised contractor', fieldworkerDisplayName: 'Contractor' };
       const $ = id => document.getElementById(id);
       const elements = {
         auth: $('auth'), authForm: $('authForm'), accessPin: $('accessPin'), authError: $('authError'), unlock: $('unlock'),
-        scheduleDate: $('scheduleDate'), fieldworker: $('fieldworker'), loadDataforce: $('loadDataforce'), refreshUpcoming: $('refreshUpcoming'), upcomingToggle: $('upcomingToggle'), upcomingToggleLabel: $('upcomingToggleLabel'), upcomingList: $('upcomingList'),
+        plannerTitle: $('plannerTitle'), scheduleHeading: $('scheduleHeading'), scheduleDate: $('scheduleDate'), fieldworker: $('fieldworker'), loadDataforce: $('loadDataforce'), refreshUpcoming: $('refreshUpcoming'), upcomingToggle: $('upcomingToggle'), upcomingToggleLabel: $('upcomingToggleLabel'), upcomingList: $('upcomingList'),
         startAddress: $('startAddress'), returnToStart: $('returnToStart'), routeMode: $('routeMode'), planRoute: $('planRoute'), clearJobs: $('clearJobs'),
         notice: $('notice'), routeTitle: $('routeTitle'), routeSubtitle: $('routeSubtitle'), jobMetric: $('jobMetric'), distanceMetric: $('distanceMetric'),
         durationMetric: $('durationMetric'), openGoogle: $('openGoogle'), jobCount: $('jobCount'), jobList: $('jobList'), mapPlaceholder: $('mapPlaceholder'), workspace: $('routeWorkspace')
@@ -116,6 +116,15 @@
         elements.notice.textContent = message;
       }
       function clearNotice() { elements.notice.className = 'notice'; elements.notice.textContent = ''; }
+      function applyFieldworker(fieldworker) {
+        if (!fieldworker || !fieldworker.name) return;
+        state.fieldworkerName = fieldworker.name;
+        state.fieldworkerDisplayName = fieldworker.displayName || fieldworker.name;
+        elements.fieldworker.value = state.fieldworkerName;
+        elements.plannerTitle.textContent = `${state.fieldworkerDisplayName} Route Planner`;
+        elements.scheduleHeading.textContent = `Plan ${state.fieldworkerDisplayName}'s run`;
+        document.title = `${state.fieldworkerDisplayName} Route Planner | Goldsure`;
+      }
       function setBusy(button, busy, label) {
         if (!button.dataset.label) button.dataset.label = button.textContent;
         button.disabled = busy;
@@ -182,7 +191,7 @@
         try {
           const result = await api({ action: 'dataforce-upcoming', startDate: todayLocal(), days: 30 });
           state.upcoming = result.dates || [];
-          if (result.fieldworker && result.fieldworker.name) elements.fieldworker.value = result.fieldworker.name;
+          applyFieldworker(result.fieldworker);
           renderUpcoming();
         } catch (error) {
           state.upcoming = [];
@@ -297,7 +306,7 @@
         try {
           const result = await computeBrowserRoute();
           state.route = result; applyRouteOrder(result);
-          elements.routeTitle.textContent = `Core Energy Group's driving route`;
+          elements.routeTitle.textContent = `${state.fieldworkerDisplayName}'s driving route`;
           elements.routeSubtitle.textContent = `${state.jobs.length} jobs · ${elements.routeMode.value === 'optimize' ? 'Google-optimised stop order' : 'Scheduled stop order'}`;
           elements.distanceMetric.textContent = `${(result.distanceMeters / 1000).toFixed(1)} km`;
           elements.durationMetric.textContent = formatDuration(result.durationSeconds);
@@ -310,7 +319,7 @@
         clearNotice(); setBusy(elements.loadDataforce, true, 'Loading…');
         try {
           const result = await api({ action: 'dataforce-schedule', date: elements.scheduleDate.value });
-          if (result.fieldworker && result.fieldworker.name) elements.fieldworker.value = result.fieldworker.name;
+          applyFieldworker(result.fieldworker);
           renderUpcoming();
           setJobs(result.jobs, 'Dataforce'); if (state.jobs.length >= 2) await planRoute();
         } catch (error) { showNotice(error.message, 'error'); }
@@ -321,7 +330,7 @@
       elements.authForm.addEventListener('submit', async event => {
         event.preventDefault(); elements.authError.textContent = ''; sessionStorage.setItem(PIN_KEY, elements.accessPin.value);
         setBusy(elements.unlock, true, 'Checking…');
-        try { await api({ action: 'auth-check' }); elements.auth.classList.add('hidden'); loadUpcomingSchedule(); }
+        try { const result = await api({ action: 'auth-check' }); applyFieldworker(result.fieldworker); elements.auth.classList.add('hidden'); loadUpcomingSchedule(); }
         catch (error) { elements.authError.textContent = error.status === 503 ? error.message : 'That PIN was not accepted.'; }
         finally { setBusy(elements.unlock, false); }
       });
