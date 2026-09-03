@@ -93,7 +93,7 @@ test('requests a Custom Connection token with Xero granular scopes', async () =>
   assert.equal(request.url, 'https://identity.xero.com/connect/token');
   const form = new URLSearchParams(request.options.body);
   assert.equal(form.get('grant_type'), 'client_credentials');
-  assert.equal(form.get('scope'), 'accounting.invoices accounting.contacts.read accounting.settings.read accounting.attachments');
+  assert.equal(form.get('scope'), 'accounting.invoices accounting.contacts accounting.settings.read accounting.attachments');
   assert.equal(form.has('scopes'), false);
 });
 

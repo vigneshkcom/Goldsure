@@ -18,7 +18,7 @@
     },
     {
       key: 'accounting', label: 'Accounting', color: '#037f4c', icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h4M7 16h3M15 12v4M13 14h4"/>',
-      items: [['Eco Alliance Xero Recharge', '/xero-recharge/']]
+      items: [['BPOINT Invoice Creator', '/xero-bpoint/'], ['Eco Alliance Xero Recharge', '/xero-recharge/']]
     }
   ];
 

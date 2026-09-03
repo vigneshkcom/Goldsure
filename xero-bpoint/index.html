@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>BPOINT Invoice Creator | Goldsure</title>
+  <link rel="icon" type="image/png" href="/assets/gs-favicon-96px.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+  <link rel="stylesheet" href="/xero-recharge/styles.css">
+  <link rel="stylesheet" href="/xero-bpoint/styles.css">
+  <script src="/assets/internal-systems-sidebar.js" defer></script>
+  <script src="/xero-bpoint/app.js" defer></script>
+</head>
+<body data-internal-sidebar-mode="hover">
+  <div class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
+      <p class="eyebrow">Accounting</p>
+      <h1>BPOINT Invoice Creator</h1>
+      <p>Use your secure portal password to continue.</p>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required autofocus>
+      <button class="button primary" id="loginButton" type="submit">Continue</button>
+      <p class="form-message error" id="loginError" role="alert"></p>
+    </form>
+  </div>
+
+  <main class="shell wide" id="app" hidden>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Goldsure accounting</p>
+        <h1>BPOINT Invoice Creator</h1>
+        <p class="subtitle">Upload a locally reconciled batch, review every amount, then create approved Xero invoices without emailing customers.</p>
+      </div>
+      <div class="connection waiting" id="connectionBadge">
+        <span class="dot"></span>
+        <span id="connectionText">Checking Xero</span>
+      </div>
+    </header>
+
+    <div class="notice warning" id="setupNotice" hidden>
+      <strong>Xero setup required</strong>
+      <span>The batch can be checked now, but invoices cannot be created until the Goldsure Custom Connection is authorised.</span>
+    </div>
+
+    <section class="summary-grid four" aria-label="Batch summary">
+      <article class="summary-card primary">
+        <span>Batch total</span>
+        <strong id="batchTotal">$0.00</strong>
+        <small>Approved BPOINT payments only</small>
+      </article>
+      <article class="summary-card">
+        <span>Invoices</span>
+        <strong id="invoiceCount">0</strong>
+        <small>One invoice per BPOINT payment</small>
+      </article>
+      <article class="summary-card">
+        <span>Settlement dates</span>
+        <strong id="settlementCount">0</strong>
+        <small>For Xero Find &amp; Match</small>
+      </article>
+      <article class="summary-card">
+        <span>New contacts</span>
+        <strong id="newContactCount">0</strong>
+        <small>Existing contacts are reused</small>
+      </article>
+    </section>
+
+    <section class="panel upload-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="step">Step 1</p>
+          <h2>Upload the reconciled invoice batch</h2>
+          <p>Use the CSV produced after applying the local BPOINT workflow rules.</p>
+        </div>
+        <div class="heading-actions">
+          <button class="button secondary" id="templateButton" type="button">Download template</button>
+          <button class="button primary" id="chooseFileButton" type="button">Choose CSV</button>
+        </div>
+      </div>
+
+      <input id="fileInput" type="file" accept="text/csv,.csv" hidden>
+      <button class="drop-zone" id="dropZone" type="button">
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6h14v-6"/></svg>
+        </span>
+        <strong>Drop the Xero invoice batch CSV here</strong>
+        <span id="fileName">or click to select it</span>
+      </button>
+      <p class="form-message error" id="batchError" role="alert"></p>
+    </section>
+
+    <section class="panel" id="reviewPanel" hidden>
+      <div class="panel-heading compact">
+        <div>
+          <p class="step">Step 2</p>
+          <h2>Review invoices and settlement totals</h2>
+          <p>Existing invoices are identified and excluded from creation automatically.</p>
+        </div>
+      </div>
+
+      <div class="settlement-grid" id="settlementSummary"></div>
+
+      <div class="table-wrap">
+        <table class="review-table">
+          <thead>
+            <tr>
+              <th class="check"><input id="selectAll" type="checkbox" aria-label="Select all new invoices"></th>
+              <th>Customer / job</th>
+              <th>BPOINT</th>
+              <th>Settlement</th>
+              <th>Allocation</th>
+              <th class="money">Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="createPanel" hidden>
+      <div class="panel-heading compact">
+        <div>
+          <p class="step">Step 3</p>
+          <h2>Create approved invoices in Xero</h2>
+          <p>Invoices will be ready for Find &amp; Match and will not be emailed to customers.</p>
+        </div>
+      </div>
+
+      <label class="confirm-row">
+        <input id="confirmCheck" type="checkbox">
+        <span>I have checked the customer details, BPOINT references, settlement dates, allocations and amounts.</span>
+      </label>
+
+      <div class="batch-actions">
+        <p><strong id="selectedCount">0</strong> new invoice(s) selected</p>
+        <button class="button primary send-button" id="createButton" type="button" disabled>Create approved invoices</button>
+      </div>
+
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <p id="progressText" role="status"></p>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <span class="result-icon" aria-hidden="true">✓</span>
+        <div>
+          <strong id="resultTitle">Complete</strong>
+          <p id="resultText"></p>
+          <button class="text-button result-download" id="downloadResultsButton" type="button" hidden>Download results CSV</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Approved invoices · GST inclusive · Duplicate protection enabled · Customers are not emailed</span>
+      <button class="text-button" id="lockButton" type="button">Lock this page</button>
+    </footer>
+  </main>
+</body>
+</html>
