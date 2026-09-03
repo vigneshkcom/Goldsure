@@ -3,8 +3,8 @@ import {
   BPOINT_SCOPES,
   createOrFindApprovedInvoice,
   createXeroClient,
-  normaliseBatchRow,
   previewRowsInXero,
+  setInvoiceTotal,
   signBatchRow,
   validateBatchRows,
   verifyBatchRow,
@@ -91,11 +91,36 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'confirm-totals') {
+      if (!xeroConfigured()) throw new Error('Xero Custom Connection is not configured yet');
+      const invoices = req.body?.invoices;
+      if (!Array.isArray(invoices) || !invoices.length || invoices.length > 50) {
+        throw new Error('No invoice totals were supplied');
+      }
+      const rows = invoices.map((invoice, index) => {
+        const supplied = invoice?.row;
+        if (!supplied || !verifyBatchRow(supplied, supplied.proof, secret)) {
+          throw new Error(`Invoice ${index + 1}: upload verification expired; upload the batch again`);
+        }
+        return setInvoiceTotal(supplied, invoice.invoiceTotal);
+      });
+      const client = await createXeroClient();
+      const preview = await previewRowsInXero(client, rows);
+      return res.status(200).json({
+        ok: true,
+        configured: true,
+        setup: preview.setup,
+        rows: preview.rows.map((row) => safePreview(row, secret)),
+      });
+    }
+
     if (action === 'create') {
       if (!xeroConfigured()) throw new Error('Xero Custom Connection is not configured yet');
       const supplied = req.body?.row;
-      const row = normaliseBatchRow(supplied, Number(supplied?.rowNumber) || 2);
-      if (!verifyBatchRow(row, supplied?.proof, secret)) throw new Error(`Row ${row.rowNumber}: preview verification expired; upload the batch again`);
+      if (!supplied || !verifyBatchRow(supplied, supplied?.proof, secret)) {
+        throw new Error('Preview verification expired; check the final amounts again');
+      }
+      const row = setInvoiceTotal(supplied, supplied.invoiceTotal);
       const client = await createXeroClient();
       const invoice = await createOrFindApprovedInvoice(client, row);
       return res.status(200).json({ ok: true, invoice });

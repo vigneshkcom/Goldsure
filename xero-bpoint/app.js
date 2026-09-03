@@ -7,7 +7,7 @@
     'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Account',
     'Division', 'Tax Rate', 'Product / Service Description', 'PDF Filename',
   ];
-  const state = { password: '', xeroReady: false, rows: [], working: false, results: [], sourceName: '' };
+  const state = { password: '', xeroReady: false, rows: [], working: false, totalsVerified: false, results: [], sourceName: '' };
   const el = (id) => document.getElementById(id);
 
   const loginScreen = el('loginScreen');
@@ -24,6 +24,8 @@
   const fileName = el('fileName');
   const batchError = el('batchError');
   const reviewPanel = el('reviewPanel');
+  const reviewTotalsButton = el('reviewTotalsButton');
+  const totalsError = el('totalsError');
   const createPanel = el('createPanel');
   const invoiceRows = el('invoiceRows');
   const selectAll = el('selectAll');
@@ -125,10 +127,12 @@
   function settlementGroups() {
     const groups = new Map();
     state.rows.forEach((row) => {
-      const current = groups.get(row.settlementDate) || { count: 0, total: 0 };
-      current.count += 1;
-      current.total = Math.round((current.total + Number(row.amount) + Number.EPSILON) * 100) / 100;
-      groups.set(row.settlementDate, current);
+      (row.payments || [row]).forEach((payment) => {
+        const current = groups.get(payment.settlementDate) || { count: 0, total: 0 };
+        current.count += 1;
+        current.total = Math.round((current.total + Number(payment.amount) + Number.EPSILON) * 100) / 100;
+        groups.set(payment.settlementDate, current);
+      });
     });
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   }
@@ -145,7 +149,8 @@
     const eligible = state.rows.filter((row) => !row.existingInvoiceId && !row.result);
     selectAll.checked = eligible.length > 0 && selected.length === eligible.length;
     selectAll.indeterminate = selected.length > 0 && selected.length < eligible.length;
-    createButton.disabled = state.working || !state.xeroReady || !confirmCheck.checked || selected.length === 0;
+    reviewTotalsButton.disabled = state.working || !state.xeroReady || !state.rows.length;
+    createButton.disabled = state.working || !state.xeroReady || !state.totalsVerified || !confirmCheck.checked || selected.length === 0;
   }
 
   function statusFor(row) {
@@ -153,6 +158,8 @@
     if (row.result?.invoice) return { kind: 'created', label: row.result.invoice.recoveredExisting ? 'Existing' : 'Created' };
     if (row.existingInvoiceId) return { kind: 'existing', label: row.existingInvoiceNumber || 'Existing' };
     if (!state.xeroReady) return { kind: 'loading', label: 'Setup required' };
+    if (!row.invoiceTotal) return { kind: 'loading', label: 'Enter final amount' };
+    if (!state.totalsVerified) return { kind: 'loading', label: 'Check amount' };
     if (row.contactAction === 'create') return { kind: 'ready', label: 'New contact' };
     return { kind: 'ready', label: row.contactUpdateRequired ? 'Contact will update' : 'Contact matched' };
   }
@@ -168,7 +175,7 @@
       const total = document.createElement('strong');
       total.textContent = money(group.total);
       const count = document.createElement('small');
-      count.textContent = `${group.count} invoice${group.count === 1 ? '' : 's'}`;
+      count.textContent = `${group.count} payment${group.count === 1 ? '' : 's'}`;
       item.append(label, total, count);
       container.appendChild(item);
     });
@@ -214,9 +221,11 @@
       bpoint.appendChild(transaction);
 
       const settlement = document.createElement('td');
-      settlement.textContent = displayDate(item.settlementDate);
+      settlement.textContent = `${(item.payments || [item]).length} payment${(item.payments || [item]).length === 1 ? '' : 's'}`;
       const payment = document.createElement('small');
-      payment.textContent = `Paid ${displayDate(item.paymentDate)}`;
+      payment.textContent = (item.payments || [item])
+        .map((entry) => `${displayDate(entry.settlementDate)} ${money(entry.amount)}`)
+        .join(' · ');
       settlement.appendChild(payment);
 
       const allocation = document.createElement('td');
@@ -226,8 +235,31 @@
       allocation.appendChild(tracking);
 
       const amount = document.createElement('td');
-      amount.className = 'money';
-      amount.textContent = money(item.amount);
+      amount.className = 'invoice-amount';
+      const paidAmount = document.createElement('span');
+      paidAmount.className = 'paid-amount';
+      paidAmount.textContent = `BPOINT: ${money(item.amount)}`;
+      const totalLabel = document.createElement('label');
+      totalLabel.textContent = 'Final invoice';
+      const totalInput = document.createElement('input');
+      totalInput.type = 'number';
+      totalInput.min = String(item.amount);
+      totalInput.max = '1000000';
+      totalInput.step = '0.01';
+      totalInput.inputMode = 'decimal';
+      totalInput.placeholder = '0.00';
+      totalInput.value = item.pendingInvoiceTotal ?? item.invoiceTotal ?? '';
+      totalInput.disabled = Boolean(item.existingInvoiceId || item.category === 'Smoke Alarm' || item.result || state.working);
+      totalInput.setAttribute('aria-label', `Final invoice amount for ${item.customerName}`);
+      totalInput.addEventListener('input', () => {
+        item.pendingInvoiceTotal = totalInput.value;
+        state.totalsVerified = false;
+        confirmCheck.checked = false;
+        totalsError.textContent = '';
+        refreshSummary();
+      });
+      totalLabel.appendChild(totalInput);
+      amount.append(paidAmount, totalLabel);
 
       const statusCell = document.createElement('td');
       const status = statusFor(item);
@@ -235,6 +267,11 @@
       badge.className = `status ${status.kind}`;
       badge.textContent = status.label;
       statusCell.appendChild(badge);
+      if (item.existingInvoiceId && !item.result) {
+        const existingDetail = document.createElement('small');
+        existingDetail.textContent = 'Use Xero Find & Match for this payment';
+        statusCell.appendChild(existingDetail);
+      }
       if (item.result?.error) {
         const detail = document.createElement('small');
         detail.className = 'receipt-error';
@@ -265,8 +302,10 @@
 
   async function loadFile(file) {
     batchError.textContent = '';
+    totalsError.textContent = '';
     result.hidden = true;
     state.results = [];
+    state.totalsVerified = false;
     if (!file || !file.name.toLowerCase().endsWith('.csv')) throw new Error('Select a CSV file');
     if (file.size > MAX_FILE_BYTES) throw new Error('The CSV must be smaller than 2 MB');
     fileName.textContent = file.name;
@@ -277,13 +316,56 @@
     state.xeroReady = response.configured;
     setupNotice.hidden = response.configured;
     setConnection(response.configured ? 'ready' : 'waiting', response.configured ? 'Xero connected' : 'Xero setup required');
-    state.rows = response.rows.map((row) => ({ ...row, selected: response.configured && !row.existingInvoiceId, result: null }));
+    state.rows = response.rows.map((row) => ({
+      ...row,
+      pendingInvoiceTotal: row.invoiceTotal || '',
+      selected: false,
+      result: null,
+    }));
     confirmCheck.checked = false;
     reviewPanel.hidden = false;
     createPanel.hidden = false;
     progress.hidden = true;
     renderRows();
     reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function confirmInvoiceTotals() {
+    if (state.working || !state.rows.length) return;
+    totalsError.textContent = '';
+    const invoices = state.rows.map((row) => {
+      const invoiceTotal = row.existingInvoiceId
+        ? row.invoiceTotal
+        : row.category === 'Smoke Alarm'
+          ? row.amount
+          : Number(row.pendingInvoiceTotal);
+      if (!Number.isFinite(invoiceTotal) || invoiceTotal <= 0) {
+        throw new Error(`Enter the final invoice amount for Job ${row.jobNo}`);
+      }
+      if (invoiceTotal < Number(row.amount)) {
+        throw new Error(`Job ${row.jobNo}: final invoice amount cannot be less than BPOINT payments in this upload`);
+      }
+      return { row, invoiceTotal };
+    });
+
+    state.working = true;
+    reviewTotalsButton.textContent = 'Checking with Xero…';
+    renderRows();
+    try {
+      const response = await api('confirm-totals', { invoices });
+      state.rows = response.rows.map((row) => ({
+        ...row,
+        pendingInvoiceTotal: row.invoiceTotal,
+        selected: !row.existingInvoiceId,
+        result: null,
+      }));
+      state.totalsVerified = true;
+      confirmCheck.checked = false;
+    } finally {
+      state.working = false;
+      reviewTotalsButton.textContent = 'Check final amounts with Xero';
+      renderRows();
+    }
   }
 
   function resultRows() {
@@ -296,6 +378,7 @@
       'Payment Date': displayDate(row.paymentDate),
       'Settlement Date': displayDate(row.settlementDate),
       Amount: row.amount.toFixed(2),
+      'Final Invoice Amount': row.invoiceTotal ? row.invoiceTotal.toFixed(2) : '',
       'Invoice Description': row.description,
       'Invoice Reference': row.invoiceReference,
       'Xero Invoice Number': row.result?.invoice?.invoiceNumber || row.existingInvoiceNumber || '',
@@ -306,7 +389,7 @@
   }
 
   function downloadResults() {
-    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Contact Result', 'Result'];
+    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Final Invoice Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Contact Result', 'Result'];
     const stamp = new Date().toISOString().slice(0, 10);
     downloadCsv(`xero-bpoint-results-${stamp}.csv`, headers, resultRows());
   }
@@ -314,7 +397,7 @@
   async function createInvoices() {
     const selected = selectedRows();
     if (!selected.length || state.working) return;
-    const total = selected.reduce((sum, row) => sum + Number(row.amount), 0);
+    const total = selected.reduce((sum, row) => sum + Number(row.invoiceTotal), 0);
     if (!window.confirm(`Create ${selected.length} APPROVED Xero invoice${selected.length === 1 ? '' : 's'} totalling ${money(total)}? Customers will not be emailed.`)) return;
     state.working = true;
     result.hidden = true;
@@ -391,6 +474,9 @@
     renderRows();
   });
   confirmCheck.addEventListener('change', refreshSummary);
+  reviewTotalsButton.addEventListener('click', async () => {
+    try { await confirmInvoiceTotals(); } catch (error) { totalsError.textContent = error.message; }
+  });
   createButton.addEventListener('click', createInvoices);
   downloadResultsButton.addEventListener('click', downloadResults);
   el('lockButton').addEventListener('click', () => {
@@ -398,6 +484,7 @@
     state.rows = [];
     state.results = [];
     state.xeroReady = false;
+    state.totalsVerified = false;
     app.hidden = true;
     reviewPanel.hidden = true;
     createPanel.hidden = true;

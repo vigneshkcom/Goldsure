@@ -5,8 +5,10 @@ import {
   buildContactUpdate,
   createOrFindApprovedInvoice,
   findContactPlan,
+  findInvoiceForRow,
   makeInvoiceDescription,
   normaliseBatchRow,
+  setInvoiceTotal,
   signBatchRow,
   validateBatchRows,
   verifyBatchRow,
@@ -28,6 +30,7 @@ function source(overrides = {}) {
     'Payment Date': '03/09/2026',
     'Settlement Date': '03/09/2026',
     Amount: '$1,120.00',
+    'Final Invoice Amount': '$1,320.00',
     Account: '405 - Ecoalliance Revenue',
     Division: 'VIC Hot Water',
     'Tax Rate': 'GST on Income',
@@ -65,18 +68,19 @@ test('normalises a reconciled HWS invoice row using BPOINT values', () => {
   const row = normaliseBatchRow(source(), 2);
   assert.equal(row.jobNo, '152713');
   assert.equal(row.amount, 1120);
+  assert.equal(row.invoiceTotal, 1320);
   assert.equal(row.paymentDate, '2026-09-03');
   assert.equal(row.settlementDate, '2026-09-03');
   assert.equal(row.accountCode, '405');
   assert.equal(row.division, 'VIC Hot Water');
-  assert.equal(row.invoiceReference, 'JOB 152713 - BPOINT 1855000001');
-  assert.equal(row.description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 - BPOINT Ref 874609');
+  assert.equal(row.invoiceReference, 'JOB 152713');
+  assert.equal(row.description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
 });
 
 test('maps Aircon to account 430 and blocks an incorrect supplied account', () => {
   const row = normaliseBatchRow(source({ Category: 'Aircon', Account: '430', Division: 'VIC Aircons', 'Product / Service Description': '' }), 2);
   assert.equal(row.accountCode, '430');
-  assert.equal(row.description, 'Supply and installation of Air Conditioning System - Job 152713 - BPOINT Ref 874609');
+  assert.equal(row.description, 'Supply and installation of Air Conditioning System - Job 152713');
   assert.throws(() => normaliseBatchRow(source({ Category: 'Aircon', Account: '405', Division: 'VIC Aircons' }), 2), /Account must be 430/);
 });
 
@@ -97,6 +101,7 @@ test('builds a grouped Smoke Alarm description', () => {
     'Receipt Number': '66587975160, 66589390894, 66592569099, 66592878653',
     'Transaction Number': '1854065160, 1854110894, 1854209099, 1854218653',
     'Product / Service Description': 'Supply and installation of smoke alarms',
+    'Final Invoice Amount': '',
     Amount: '743',
   }), 2);
   assert.equal(makeInvoiceDescription(row), 'Supply and installation of smoke alarms - batch 03/09/2026');
@@ -105,7 +110,26 @@ test('builds a grouped Smoke Alarm description', () => {
 });
 
 test('rejects duplicate transaction references inside one batch', () => {
-  assert.throws(() => validateBatchRows([source(), source({ Amount: '200' })]), /duplicate invoice reference/);
+  assert.throws(() => validateBatchRows([source(), source({ Amount: '200' })]), /duplicate BPOINT payment/);
+});
+
+test('groups two BPOINT instalments into one job invoice', () => {
+  const [row] = validateBatchRows([
+    source({ 'BPOINT Ref': '874441', 'Receipt Number': '66588092657', 'Transaction Number': '1854072657', 'Payment Date': '02/09/2026', 'Settlement Date': '02/09/2026', Amount: '200' }),
+    source(),
+  ]);
+  assert.equal(row.invoiceReference, 'JOB 152713');
+  assert.equal(row.amount, 1320);
+  assert.equal(row.invoiceTotal, 1320);
+  assert.equal(row.payments.length, 2);
+  assert.equal(row.bpointRef, '874441, 874609');
+});
+
+test('accepts a manual final amount and rejects an amount below the uploaded payments', () => {
+  const [row] = validateBatchRows([source({ Amount: '200', 'Final Invoice Amount': '' })]);
+  assert.equal(row.invoiceTotal, null);
+  assert.equal(setInvoiceTotal(row, '1320').invoiceTotal, 1320);
+  assert.throws(() => setInvoiceTotal(row, '100'), /cannot be less than payments/);
 });
 
 test('signed previews cannot be edited before creation', () => {
@@ -134,10 +158,10 @@ test('creates an approved, tax-inclusive invoice without marking it sent', () =>
   assert.equal(invoice.lineAmountTypes, 'Inclusive');
   assert.equal(invoice.date, '2026-09-03');
   assert.equal(invoice.dueDate, '2026-09-03');
-  assert.equal(invoice.lineItems[0].unitAmount, 1120);
+  assert.equal(invoice.lineItems[0].unitAmount, 1320);
   assert.equal(invoice.lineItems[0].accountCode, '405');
   assert.equal(invoice.lineItems[0].taxType, 'OUTPUT');
-  assert.equal(invoice.lineItems[0].description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 - BPOINT Ref 874609');
+  assert.equal(invoice.lineItems[0].description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
   assert.deepEqual(invoice.lineItems[0].tracking, [{ name: 'Division', option: 'VIC Hot Water' }]);
 });
 
@@ -160,7 +184,7 @@ test('recovers an existing invoice and does not create a duplicate contact or in
   const client = setupClient({
     getInvoices: async () => ({ body: { invoices: [{
       invoiceID: 'invoice-existing', invoiceNumber: 'INV-099', reference: row.invoiceReference,
-      status: 'AUTHORISED', total: 1120,
+      status: 'AUTHORISED', total: 1320,
     }] } }),
     createContacts: async () => { contactCreates += 1; return { body: { contacts: [] } }; },
     createInvoices: async () => { invoiceCreates += 1; return { body: { invoices: [] } }; },
@@ -183,7 +207,7 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
     },
     createInvoices: async (...args) => {
       invoiceArgs = args;
-      return { body: { invoices: [{ invoiceID: 'invoice-new', invoiceNumber: 'INV-101', status: 'AUTHORISED', total: row.amount }] } };
+      return { body: { invoices: [{ invoiceID: 'invoice-new', invoiceNumber: 'INV-101', status: 'AUTHORISED', total: row.invoiceTotal }] } };
     },
   });
   const result = await createOrFindApprovedInvoice(client, row);
@@ -199,6 +223,17 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
   assert.deepEqual(contact.addresses, [{
     addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
   }]);
+});
+
+test('blocks a new job invoice when multiple legacy instalment invoices already exist', async () => {
+  const row = normaliseBatchRow(source(), 2);
+  const client = setupClient({
+    getInvoices: async () => ({ body: { invoices: [
+      { invoiceID: 'invoice-1', reference: 'JOB 152713 - BPOINT 1854072657', total: 200 },
+      { invoiceID: 'invoice-2', reference: 'JOB 152713 - BPOINT 1854678621', total: 1120 },
+    ] } }),
+  });
+  await assert.rejects(() => findInvoiceForRow(client, row), /multiple Xero invoices/);
 });
 
 test('fills missing details on a matched Xero contact before creating its invoice', async () => {
