@@ -73,7 +73,7 @@ test('normalises a reconciled HWS invoice row using BPOINT values', () => {
   assert.equal(row.settlementDate, '2026-09-03');
   assert.equal(row.accountCode, '405');
   assert.equal(row.division, 'VIC Hot Water');
-  assert.equal(row.invoiceReference, 'JOB 152713');
+  assert.equal(row.invoiceReference, 'JOB 152713 - BPOINT 874609');
   assert.equal(row.description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
 });
 
@@ -118,7 +118,7 @@ test('groups two BPOINT instalments into one job invoice', () => {
     source({ 'BPOINT Ref': '874441', 'Receipt Number': '66588092657', 'Transaction Number': '1854072657', 'Payment Date': '02/09/2026', 'Settlement Date': '02/09/2026', Amount: '200' }),
     source(),
   ]);
-  assert.equal(row.invoiceReference, 'JOB 152713');
+  assert.equal(row.invoiceReference, 'JOB 152713 - BPOINT 874441, 874609');
   assert.equal(row.amount, 1320);
   assert.equal(row.invoiceTotal, 1320);
   assert.equal(row.payments.length, 2);
@@ -223,6 +223,18 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
   assert.deepEqual(contact.addresses, [{
     addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
   }]);
+});
+
+test('finds the same job invoice when a later instalment has a different BPOINT reference', async () => {
+  const row = normaliseBatchRow(source(), 2);
+  const client = setupClient({
+    getInvoices: async () => ({ body: { invoices: [{
+      invoiceID: 'invoice-existing', invoiceNumber: 'INV-099',
+      reference: 'JOB 152713 - BPOINT 874441', status: 'AUTHORISED', total: 1320,
+    }] } }),
+  });
+  const invoice = await findInvoiceForRow(client, row);
+  assert.equal(invoice.invoiceID, 'invoice-existing');
 });
 
 test('blocks a new job invoice when multiple legacy instalment invoices already exist', async () => {
