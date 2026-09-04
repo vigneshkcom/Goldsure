@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildApprovedInvoice,
+  buildContact,
   buildInvoiceLineItems,
   buildContactUpdate,
   createOrFindApprovedInvoice,
@@ -317,6 +318,8 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
   assert.match(invoiceArgs[4], /^goldsure-bpoint-invoice-/);
   const contact = contactArgs[1].contacts[0];
   assert.equal(contact.name, 'Penelope F Worrall');
+  assert.equal(contact.firstName, 'Penelope F');
+  assert.equal(contact.lastName, 'Worrall');
   assert.equal(contact.emailAddress, 'penelope@example.com');
   assert.deepEqual(contact.phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
   assert.deepEqual(contact.addresses, [
@@ -366,7 +369,9 @@ test('fills missing details on a matched Xero contact before creating its invoic
   assert.equal(result.contactCreated, false);
   assert.equal(result.contactUpdated, true);
   assert.equal(updateArgs[1], 'contact-existing');
-  assert.match(updateArgs[3], /^goldsure-bpoint-contact-update-v2-/);
+  assert.match(updateArgs[3], /^goldsure-bpoint-contact-update-v3-/);
+  assert.equal(updateArgs[2].contacts[0].firstName, 'Penelope F');
+  assert.equal(updateArgs[2].contacts[0].lastName, 'Worrall');
   assert.deepEqual(updateArgs[2].contacts[0].phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
   assert.deepEqual(updateArgs[2].contacts[0].addresses, [
     { addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
@@ -389,11 +394,29 @@ test('adds a postal address when a matched contact only has a delivery address',
   ]);
 });
 
+test('does not add a primary person to the grouped smoke-alarm contact', () => {
+  const row = normaliseBatchRow(source({
+    'Job No.': '',
+    'Customer Name': 'BPOINT / CBA Credit Card MIS',
+    'Customer Email': '',
+    'Customer Mobile': '',
+    Category: 'Smoke Alarm',
+    Account: '166',
+    Division: 'QLD Smoke Alarms',
+    'Final Invoice Amount': '',
+  }), 2);
+  const contact = buildContact(row);
+  assert.equal(contact.firstName, undefined);
+  assert.equal(contact.lastName, undefined);
+});
+
 test('does not overwrite populated details on a matched contact', () => {
   const row = normaliseBatchRow(source(), 2);
   const update = buildContactUpdate({
     contactID: 'contact-existing',
     name: row.customerName,
+    firstName: 'Existing',
+    lastName: 'Person',
     emailAddress: row.customerEmail,
     phones: [{ phoneType: 'MOBILE', phoneNumber: '0499 999 999' }],
     addresses: [
