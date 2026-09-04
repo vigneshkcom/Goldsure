@@ -319,9 +319,10 @@ test('creates a missing contact and invoice with idempotency keys', async () => 
   assert.equal(contact.name, 'Penelope F Worrall');
   assert.equal(contact.emailAddress, 'penelope@example.com');
   assert.deepEqual(contact.phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
-  assert.deepEqual(contact.addresses, [{
-    addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
-  }]);
+  assert.deepEqual(contact.addresses, [
+    { addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
+    { addressType: 'POBOX', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
+  ]);
 });
 
 test('finds the same job invoice when a later instalment has a different BPOINT reference', async () => {
@@ -365,11 +366,27 @@ test('fills missing details on a matched Xero contact before creating its invoic
   assert.equal(result.contactCreated, false);
   assert.equal(result.contactUpdated, true);
   assert.equal(updateArgs[1], 'contact-existing');
-  assert.match(updateArgs[3], /^goldsure-bpoint-contact-update-/);
+  assert.match(updateArgs[3], /^goldsure-bpoint-contact-update-v2-/);
   assert.deepEqual(updateArgs[2].contacts[0].phones, [{ phoneType: 'MOBILE', phoneNumber: '0400 000 001' }]);
-  assert.deepEqual(updateArgs[2].contacts[0].addresses, [{
-    addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia',
-  }]);
+  assert.deepEqual(updateArgs[2].contacts[0].addresses, [
+    { addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
+    { addressType: 'POBOX', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
+  ]);
+});
+
+test('adds a postal address when a matched contact only has a delivery address', () => {
+  const row = normaliseBatchRow(source(), 2);
+  const update = buildContactUpdate({
+    contactID: 'contact-existing',
+    name: row.customerName,
+    emailAddress: row.customerEmail,
+    phones: [{ phoneType: 'MOBILE', phoneNumber: row.customerMobile }],
+    addresses: [{ addressType: 'STREET', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' }],
+  }, row);
+  assert.deepEqual(update.addresses, [
+    { addressType: 'STREET', addressLine1: '1 Test Street', addressLine2: undefined, addressLine3: undefined, addressLine4: undefined, city: 'Preston', region: undefined, postalCode: '3072', country: 'Australia', attentionTo: undefined },
+    { addressType: 'POBOX', addressLine1: '1 Test Street', city: 'Preston', postalCode: '3072', country: 'Australia' },
+  ]);
 });
 
 test('does not overwrite populated details on a matched contact', () => {
@@ -379,7 +396,10 @@ test('does not overwrite populated details on a matched contact', () => {
     name: row.customerName,
     emailAddress: row.customerEmail,
     phones: [{ phoneType: 'MOBILE', phoneNumber: '0499 999 999' }],
-    addresses: [{ addressType: 'STREET', addressLine1: '99 Existing Road', city: 'Carlton', postalCode: '3053', country: 'Australia' }],
+    addresses: [
+      { addressType: 'STREET', addressLine1: '99 Existing Road', city: 'Carlton', postalCode: '3053', country: 'Australia' },
+      { addressType: 'POBOX', addressLine1: '99 Existing Road', city: 'Carlton', postalCode: '3053', country: 'Australia' },
+    ],
   }, row);
   assert.deepEqual(update, {});
 });
