@@ -10,6 +10,7 @@ import {
   makeInvoiceDescription,
   normaliseBatchRow,
   setInvoiceTotal,
+  setInvoiceLineDescriptions,
   signBatchRow,
   validateBatchRows,
   verifyBatchRow,
@@ -198,6 +199,26 @@ test('signed previews cannot be edited before creation', () => {
   assert.equal(verifyBatchRow(row, proof, 'secret'), true);
   assert.equal(verifyBatchRow({ ...row, amount: 1 }, proof, 'secret'), false);
   assert.equal(verifyBatchRow({ ...row, productDescription: 'Edited description' }, proof, 'secret'), false);
+  const editedLines = { ...row, invoiceLines: row.invoiceLines.map((line) => ({ ...line, description: 'Changed' })) };
+  assert.equal(verifyBatchRow(editedLines, proof, 'secret'), false);
+});
+
+test('accepts checked manual invoice-line wording without changing amounts', () => {
+  const row = normaliseBatchRow(source(), 2);
+  const edited = setInvoiceLineDescriptions(row, [
+    'Custom deposit wording',
+    'Custom final-payment wording',
+  ]);
+  assert.deepEqual(edited.invoiceLines.map((line) => line.description), [
+    'Custom deposit wording',
+    'Custom final-payment wording',
+  ]);
+  assert.deepEqual(edited.invoiceLines.map((line) => line.unitAmount), [1120, 200]);
+  const invoice = buildApprovedInvoice(edited, 'contact-1');
+  assert.deepEqual(invoice.lineItems.map((line) => line.description), [
+    'Custom deposit wording',
+    'Custom final-payment wording',
+  ]);
 });
 
 test('a browser preview row can be normalised again without invalidating its proof', () => {

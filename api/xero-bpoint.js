@@ -4,6 +4,7 @@ import {
   createOrFindApprovedInvoice,
   createXeroClient,
   previewRowsInXero,
+  setInvoiceLineDescriptions,
   setInvoiceTotal,
   signBatchRow,
   validateBatchRows,
@@ -102,7 +103,10 @@ export default async function handler(req, res) {
         if (!supplied || !verifyBatchRow(supplied, supplied.proof, secret)) {
           throw new Error(`Invoice ${index + 1}: upload verification expired; upload the batch again`);
         }
-        return setInvoiceTotal(supplied, invoice.invoiceTotal);
+        return setInvoiceLineDescriptions(
+          setInvoiceTotal(supplied, invoice.invoiceTotal),
+          invoice.lineDescriptions,
+        );
       });
       const client = await createXeroClient();
       const preview = await previewRowsInXero(client, rows);
@@ -120,7 +124,10 @@ export default async function handler(req, res) {
       if (!supplied || !verifyBatchRow(supplied, supplied?.proof, secret)) {
         throw new Error('Preview verification expired; check the final amounts again');
       }
-      const row = setInvoiceTotal(supplied, supplied.invoiceTotal);
+      const row = setInvoiceLineDescriptions(
+        setInvoiceTotal(supplied, supplied.invoiceTotal),
+        supplied.invoiceLines?.map((line) => line.description),
+      );
       const client = await createXeroClient();
       const invoice = await createOrFindApprovedInvoice(client, row);
       return res.status(200).json({ ok: true, invoice });

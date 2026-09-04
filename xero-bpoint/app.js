@@ -187,6 +187,7 @@
       const row = document.createElement('tr');
       const checkCell = document.createElement('td');
       checkCell.className = 'check';
+      checkCell.dataset.label = 'Select';
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = item.selected;
@@ -196,6 +197,7 @@
       checkCell.appendChild(checkbox);
 
       const customer = document.createElement('td');
+      customer.dataset.label = 'Customer / job';
       const customerName = document.createElement('strong');
       customerName.textContent = item.customerName;
       const customerDetail = document.createElement('small');
@@ -205,14 +207,28 @@
       customer.append(customerName, customerDetail, addressDetail);
 
       const invoiceLine = document.createElement('td');
+      invoiceLine.dataset.label = 'Invoice lines';
       const lines = item.invoiceLines?.length
         ? item.invoiceLines
         : [{ description: item.productDescription || item.description, unitAmount: item.invoiceTotal || item.amount }];
       lines.forEach((line) => {
+        const lineIndex = item.invoiceLines?.indexOf(line) ?? 0;
         const entry = document.createElement('div');
         entry.className = 'invoice-line-entry';
-        const description = document.createElement('span');
-        description.textContent = line.description;
+        const description = document.createElement('textarea');
+        description.className = 'invoice-line-description';
+        description.rows = 3;
+        description.value = item.pendingLineDescriptions?.[lineIndex] ?? line.description;
+        description.disabled = Boolean(item.existingInvoiceId || item.result || state.working);
+        description.setAttribute('aria-label', `Invoice line ${lineIndex + 1} description for ${item.customerName}`);
+        description.addEventListener('input', () => {
+          item.pendingLineDescriptions ||= lines.map((entryLine) => entryLine.description);
+          item.pendingLineDescriptions[lineIndex] = description.value;
+          state.totalsVerified = false;
+          confirmCheck.checked = false;
+          totalsError.textContent = '';
+          refreshSummary();
+        });
         const lineAmount = document.createElement('small');
         lineAmount.textContent = money(line.unitAmount);
         entry.append(description, lineAmount);
@@ -226,12 +242,14 @@
       invoiceLine.appendChild(auditDetail);
 
       const bpoint = document.createElement('td');
+      bpoint.dataset.label = 'BPOINT';
       bpoint.textContent = item.bpointRef;
       const transaction = document.createElement('small');
       transaction.textContent = `Txn ${item.transactionNumber || '—'} · Receipt ${item.receiptNumber || '—'}`;
       bpoint.appendChild(transaction);
 
       const settlement = document.createElement('td');
+      settlement.dataset.label = 'Settlement';
       settlement.textContent = `${(item.payments || [item]).length} payment${(item.payments || [item]).length === 1 ? '' : 's'}`;
       const payment = document.createElement('small');
       payment.textContent = (item.payments || [item])
@@ -240,6 +258,7 @@
       settlement.appendChild(payment);
 
       const allocation = document.createElement('td');
+      allocation.dataset.label = 'Allocation';
       allocation.textContent = `${item.accountCode} · ${item.category}`;
       const tracking = document.createElement('small');
       tracking.textContent = `${item.division} · ${item.taxRate}`;
@@ -247,6 +266,7 @@
 
       const amount = document.createElement('td');
       amount.className = 'invoice-amount';
+      amount.dataset.label = 'Paid / final invoice';
       const paidAmount = document.createElement('span');
       paidAmount.className = 'paid-amount';
       paidAmount.textContent = `BPOINT: ${money(item.amount)}`;
@@ -273,6 +293,7 @@
       amount.append(paidAmount, totalLabel);
 
       const statusCell = document.createElement('td');
+      statusCell.dataset.label = 'Status';
       const status = statusFor(item);
       const badge = document.createElement('span');
       badge.className = `status ${status.kind}`;
@@ -330,6 +351,7 @@
     state.rows = response.rows.map((row) => ({
       ...row,
       pendingInvoiceTotal: row.invoiceTotal || '',
+      pendingLineDescriptions: row.invoiceLines?.map((line) => line.description) || [],
       selected: false,
       result: null,
     }));
@@ -356,7 +378,7 @@
       if (invoiceTotal < Number(row.amount)) {
         throw new Error(`Job ${row.jobNo}: final invoice amount cannot be less than BPOINT payments in this upload`);
       }
-      return { row, invoiceTotal };
+      return { row, invoiceTotal, lineDescriptions: row.pendingLineDescriptions };
     });
 
     state.working = true;
@@ -367,6 +389,7 @@
       state.rows = response.rows.map((row) => ({
         ...row,
         pendingInvoiceTotal: row.invoiceTotal,
+        pendingLineDescriptions: row.invoiceLines?.map((line) => line.description) || [],
         selected: !row.existingInvoiceId,
         result: null,
       }));
