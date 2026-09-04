@@ -111,6 +111,23 @@ test('builds a grouped Smoke Alarm description', () => {
   assert.equal(row.transactionNumber, '1854065160, 1854110894, 1854209099, 1854218653');
 });
 
+test('does not duplicate the date when a Smoke Alarm description already has a batch suffix', () => {
+  const row = normaliseBatchRow(source({
+    'Job No.': '',
+    'Customer Name': 'BPOINT / CBA Credit Card MIS',
+    'Customer Email': '',
+    'Customer Mobile': '',
+    Category: 'Smoke Alarm',
+    Account: '166',
+    Division: 'QLD Smoke Alarms',
+    'Product / Service Description': 'Supply and installation of smoke alarms - batch 03/09/2026 - batch 03/09/2026',
+    'Final Invoice Amount': '',
+    Amount: '295',
+  }), 2);
+  assert.equal(row.description, 'Supply and installation of smoke alarms - batch 03/09/2026');
+  assert.equal(row.invoiceLines[0].description, 'Supply and installation of smoke alarms - batch 03/09/2026');
+});
+
 test('rejects duplicate transaction references inside one batch', () => {
   assert.throws(() => validateBatchRows([source(), source({ Amount: '200' })]), /duplicate BPOINT payment/);
 });
