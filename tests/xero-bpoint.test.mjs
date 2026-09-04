@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildApprovedInvoice,
+  buildInvoiceLineItems,
   buildContactUpdate,
   createOrFindApprovedInvoice,
   findContactPlan,
@@ -132,6 +133,58 @@ test('groups two BPOINT instalments into one job invoice', () => {
   assert.equal(row.bpointRef, '874441, 874609');
 });
 
+test('numbers deposits and rewords the amount completing the invoice as final payment', () => {
+  const [row] = validateBatchRows([
+    source({
+      'Job No.': '152749', Category: 'Aircon', Account: '430', Division: 'VIC Aircons',
+      'BPOINT Ref': '152749', 'Receipt Number': '66616093709', 'Transaction Number': '1854683709',
+      Amount: '300', 'Final Invoice Amount': '1300',
+      'Product / Service Description': 'Supply and installation of Air Conditioning System - Job 152749',
+    }),
+    source({
+      'Job No.': '152749', Category: 'Aircon', Account: '430', Division: 'VIC Aircons',
+      'BPOINT Ref': '152749', 'Receipt Number': '66617658784', 'Transaction Number': '1854758784',
+      Amount: '1000', 'Final Invoice Amount': '1300',
+      'Product / Service Description': 'Supply and installation of Air Conditioning System - Job 152749',
+    }),
+  ]);
+  const lines = buildInvoiceLineItems(row);
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].unitAmount, 300);
+  assert.equal(lines[0].description, 'Deposit 1 towards supply and installation of Air Conditioning System - Job 152749');
+  assert.equal(lines[1].unitAmount, 1000);
+  assert.equal(lines[1].description, 'Final payment towards supply and installation of Air Conditioning System - Job 152749');
+});
+
+test('keeps numbering deposits and adds the remaining amount as the final payment', () => {
+  const [row] = validateBatchRows([
+    source({
+      'Job No.': '152749', Category: 'Aircon', Account: '430', Division: 'VIC Aircons',
+      'BPOINT Ref': '152749', 'Receipt Number': '66616093709', 'Transaction Number': '1854683709',
+      Amount: '300', 'Final Invoice Amount': '1600', 'Product / Service Description': '',
+    }),
+    source({
+      'Job No.': '152749', Category: 'Aircon', Account: '430', Division: 'VIC Aircons',
+      'BPOINT Ref': '152749', 'Receipt Number': '66617658784', 'Transaction Number': '1854758784',
+      Amount: '1000', 'Final Invoice Amount': '1600', 'Product / Service Description': '',
+    }),
+  ]);
+  const lines = buildInvoiceLineItems(row);
+  assert.deepEqual(lines.map((line) => line.unitAmount), [300, 1000, 300]);
+  assert.match(lines[0].description, /^Deposit 1 towards/);
+  assert.match(lines[1].description, /^Deposit 2 towards/);
+  assert.match(lines[2].description, /^Final payment towards/);
+});
+
+test('honours an explicitly numbered split-deposit job', () => {
+  const row = normaliseBatchRow(source({
+    'Job No.': '152713 (Deposit 2)', Amount: '1120', 'Final Invoice Amount': '1120',
+    'Product / Service Description': 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 (Deposit 2)',
+  }), 2);
+  const [line] = buildInvoiceLineItems(row);
+  assert.equal(line.description, 'Deposit 2 towards supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713 (Deposit 2)');
+});
+
 test('accepts a manual final amount and rejects an amount below the uploaded payments', () => {
   const [row] = validateBatchRows([source({ Amount: '200', 'Final Invoice Amount': '' })]);
   assert.equal(row.invoiceTotal, null);
@@ -165,10 +218,11 @@ test('creates an approved, tax-inclusive invoice without marking it sent', () =>
   assert.equal(invoice.lineAmountTypes, 'Inclusive');
   assert.equal(invoice.date, '2026-09-03');
   assert.equal(invoice.dueDate, '2026-09-03');
-  assert.equal(invoice.lineItems[0].unitAmount, 1320);
+  assert.deepEqual(invoice.lineItems.map((line) => line.unitAmount), [1120, 200]);
   assert.equal(invoice.lineItems[0].accountCode, '405');
   assert.equal(invoice.lineItems[0].taxType, 'OUTPUT');
-  assert.equal(invoice.lineItems[0].description, 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
+  assert.equal(invoice.lineItems[0].description, 'Deposit 1 towards supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
+  assert.equal(invoice.lineItems[1].description, 'Final payment towards supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System - Job 152713');
   assert.deepEqual(invoice.lineItems[0].tracking, [{ name: 'Division', option: 'VIC Hot Water' }]);
 });
 

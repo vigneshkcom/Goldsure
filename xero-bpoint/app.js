@@ -205,14 +205,25 @@
       customer.append(customerName, customerDetail, addressDetail);
 
       const invoiceLine = document.createElement('td');
-      invoiceLine.textContent = item.productDescription || item.description;
-      if (item.productDescription) {
-        const auditDetail = document.createElement('small');
-        auditDetail.textContent = item.jobNo
-          ? `Reference: ${item.invoiceReference}`
-          : `Reference: ${item.invoiceReference} · ${displayDate(item.settlementDate)}`;
-        invoiceLine.appendChild(auditDetail);
-      }
+      const lines = item.invoiceLines?.length
+        ? item.invoiceLines
+        : [{ description: item.productDescription || item.description, unitAmount: item.invoiceTotal || item.amount }];
+      lines.forEach((line) => {
+        const entry = document.createElement('div');
+        entry.className = 'invoice-line-entry';
+        const description = document.createElement('span');
+        description.textContent = line.description;
+        const lineAmount = document.createElement('small');
+        lineAmount.textContent = money(line.unitAmount);
+        entry.append(description, lineAmount);
+        invoiceLine.appendChild(entry);
+      });
+      const auditDetail = document.createElement('small');
+      auditDetail.className = 'invoice-reference';
+      auditDetail.textContent = item.jobNo
+        ? `Reference: ${item.invoiceReference}`
+        : `Reference: ${item.invoiceReference} · ${displayDate(item.settlementDate)}`;
+      invoiceLine.appendChild(auditDetail);
 
       const bpoint = document.createElement('td');
       bpoint.textContent = item.bpointRef;
@@ -379,7 +390,9 @@
       'Settlement Date': displayDate(row.settlementDate),
       Amount: row.amount.toFixed(2),
       'Final Invoice Amount': row.invoiceTotal ? row.invoiceTotal.toFixed(2) : '',
-      'Invoice Description': row.description,
+      'Invoice Description': (row.invoiceLines || [{ description: row.description }])
+        .map((line) => line.description)
+        .join(' | '),
       'Invoice Reference': row.invoiceReference,
       'Xero Invoice Number': row.result?.invoice?.invoiceNumber || row.existingInvoiceNumber || '',
       'Xero Status': row.result?.invoice?.invoiceStatus || row.existingInvoiceStatus || (row.result?.error ? 'ERROR' : 'NOT CREATED'),
