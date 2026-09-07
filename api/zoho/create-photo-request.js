@@ -19,7 +19,14 @@
 //    hotwater/upload-photos.html after client-side compression)
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
+import { postGhlNoteByPhone, findGhlContactIdByPhone } from '../../lib/ghl-note.js';
+import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
+
+// Pipeline this feature moves opportunities on. No literal pipeline ID is
+// committed to code (see lib/ghl-opportunity.js) — HWS_PIPELINE_ID lets an
+// exact match be configured in Vercel, with the name hint as a fallback.
+const HWS_PIPELINE_ID_ENV = process.env.HWS_PIPELINE_ID || '';
+const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'hot water'];
 
 const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
@@ -353,6 +360,27 @@ export default async function handler(req, res) {
             ? `[Photo Upload]\n${who} ${what}. View them here: ${folderUrl}`
             : `[Photo Upload]\n${who} ${what} to their WorkDrive folder (${folderId}).`;
           await postGhlNoteByPhone(phone, noteBody);
+
+          // Move the deal to "Photos Received" on the HWS pipeline too, not
+          // just a note — that's what actually shows up on the pipeline board.
+          try {
+            const apiKey = process.env.GHL_API_KEY;
+            const locationId = process.env.GHL_LOCATION_ID;
+            if (apiKey && locationId) {
+              const contactId = await findGhlContactIdByPhone(phone, { apiKey, locationId });
+              if (contactId) {
+                await ensureOpportunityInStage({
+                  contactId,
+                  opportunityName: `Hot Water — ${who}`,
+                  pipelineIdEnv: HWS_PIPELINE_ID_ENV,
+                  nameHints: HWS_PIPELINE_NAME_HINTS,
+                  stageNames: ['Photos Received'],
+                });
+              }
+            }
+          } catch (stageErr) {
+            console.error('[Zoho upload] GHL stage update failed:', stageErr.message);
+          }
         }
 
         const linkHtml = folderUrl
