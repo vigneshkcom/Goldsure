@@ -4,23 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>BPOINT Invoice Creator | Goldsure</title>
+  <title>BPOINT Xero Creator | Goldsure</title>
   <link rel="icon" type="image/png" href="/assets/gs-favicon-96px.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
   <link rel="stylesheet" href="/xero-recharge/styles.css">
-  <link rel="stylesheet" href="/xero-bpoint/styles.css?v=20260904-3">
+  <link rel="stylesheet" href="/xero-bpoint/styles.css?v=20260908-1">
   <script src="/assets/internal-systems-sidebar.js" defer></script>
-  <script src="/xero-bpoint/app.js?v=20260904-3" defer></script>
+  <script src="/xero-bpoint/app.js?v=20260908-1" defer></script>
 </head>
 <body data-internal-sidebar-mode="hover">
   <div class="login-screen" id="loginScreen">
     <form class="login-card" id="loginForm">
       <img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
       <p class="eyebrow">Accounting</p>
-      <h1>BPOINT Invoice Creator</h1>
+      <h1>BPOINT Xero Creator</h1>
       <p>Use your secure portal password to continue.</p>
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" required autofocus>
@@ -33,8 +33,8 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Goldsure accounting</p>
-        <h1>BPOINT Invoice Creator</h1>
-        <p class="subtitle">Upload a locally reconciled batch, enter each job's final invoice amount, then create one approved Xero invoice per job without emailing customers.</p>
+        <h1>BPOINT Xero Creator</h1>
+        <p class="subtitle">Create customer invoices for HWS and Aircon, plus grouped Smoke Alarm Receive Money transactions for Xero Find &amp; Match.</p>
       </div>
       <div class="connection waiting" id="connectionBadge">
         <span class="dot"></span>
@@ -54,9 +54,9 @@
         <small>Approved BPOINT payments in this upload</small>
       </article>
       <article class="summary-card">
-        <span>Invoices</span>
+        <span>Xero entries</span>
         <strong id="invoiceCount">0</strong>
-        <small>One invoice per customer job</small>
+        <small>Invoices plus Smoke Alarm Receive Money</small>
       </article>
       <article class="summary-card">
         <span>Settlement dates</span>
@@ -79,7 +79,7 @@
       <div class="panel-heading">
         <div>
           <p class="step">Step 1</p>
-          <h2>Upload the reconciled invoice batch</h2>
+          <h2>Upload the reconciled BPOINT batch</h2>
           <p>Use the CSV produced after applying the local BPOINT workflow rules.</p>
         </div>
         <div class="heading-actions">
@@ -93,7 +93,7 @@
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6h14v-6"/></svg>
         </span>
-        <strong>Drop the Xero invoice batch CSV here</strong>
+        <strong>Drop the Xero BPOINT batch CSV here</strong>
         <span id="fileName">or click to select it</span>
       </button>
       <p class="form-message error" id="batchError" role="alert"></p>
@@ -103,8 +103,8 @@
       <div class="panel-heading compact">
         <div>
           <p class="step">Step 2</p>
-          <h2>Enter the final invoice amount for each job</h2>
-          <p>Payments from the same job are grouped. Deposit and final-payment lines are generated from the checked invoice total, and their descriptions can be edited here before creation.</p>
+          <h2>Check invoice totals and Smoke Alarm revenue</h2>
+          <p>HWS and Aircon payments become customer invoices. Grouped Smoke Alarm payments become Receive Money in Business Trans Acct and can be matched to the bank feed.</p>
         </div>
       </div>
 
@@ -129,7 +129,7 @@
       </div>
 
       <div class="review-actions">
-        <p>Enter the complete amount the customer is being invoiced—not only this BPOINT instalment.</p>
+        <p>Enter complete customer invoice totals for HWS and Aircon. Smoke Alarm uses the grouped BPOINT settlement total.</p>
         <button class="button primary" id="reviewTotalsButton" type="button">Check final amounts with Xero</button>
       </div>
       <p class="form-message error" id="totalsError" role="alert"></p>
@@ -139,19 +139,19 @@
       <div class="panel-heading compact">
         <div>
           <p class="step">Step 3</p>
-          <h2>Create approved invoices in Xero</h2>
-          <p>Invoices will be ready for Find &amp; Match and will not be emailed to customers.</p>
+          <h2>Create Xero transactions</h2>
+          <p>HWS and Aircon invoices plus Smoke Alarm Receive Money will be ready for Find &amp; Match. Customers are not emailed.</p>
         </div>
       </div>
 
       <label class="confirm-row">
         <input id="confirmCheck" type="checkbox">
-        <span>I have checked the customer details, final invoice totals, BPOINT payments, settlement dates and allocations.</span>
+        <span>I have checked the customer details, final invoice totals, BPOINT payments, settlement dates, Business Trans Acct and revenue allocations.</span>
       </label>
 
       <div class="batch-actions">
-        <p><strong id="selectedCount">0</strong> new invoice(s) selected</p>
-        <button class="button primary send-button" id="createButton" type="button" disabled>Create approved invoices</button>
+        <p><strong id="selectedCount">0</strong> new Xero transaction(s) selected</p>
+        <button class="button primary send-button" id="createButton" type="button" disabled>Create in Xero</button>
       </div>
 
       <div class="progress" id="progress" hidden>
@@ -170,7 +170,7 @@
     </section>
 
     <footer>
-      <span>Approved invoices · GST inclusive · Duplicate protection enabled · Customers are not emailed</span>
+      <span>Customer invoices + Smoke Alarm Receive Money · GST inclusive · Duplicate protection enabled</span>
       <button class="text-button" id="lockButton" type="button">Lock this page</button>
     </footer>
   </main>

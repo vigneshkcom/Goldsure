@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildApprovedInvoice,
+  buildApprovedReceiveMoney,
   buildContact,
   buildInvoiceLineItems,
   buildContactUpdate,
@@ -42,6 +43,30 @@ function source(overrides = {}) {
   };
 }
 
+function smokeSource(overrides = {}) {
+  return source({
+    'Job No.': '',
+    'Customer Name': 'BPOINT / CBA Credit Card MIS',
+    'Customer Email': '',
+    'Customer Mobile': '',
+    'Property Address': '',
+    'Property Suburb': '',
+    'Property Postcode': '',
+    Category: 'Smoke Alarm',
+    'BPOINT Ref': '52783, 52782, 52776',
+    'Receipt Number': '66600000001, 66600000002, 66600000003',
+    'Transaction Number': '1855000001, 1855000002, 1855000003',
+    'Payment Date': '03/09/2026',
+    'Settlement Date': '03/09/2026',
+    Amount: '295',
+    'Final Invoice Amount': '',
+    Account: '166',
+    Division: 'QLD Smoke Alarms',
+    'Product / Service Description': 'Supply and installation of smoke alarms',
+    ...overrides,
+  });
+}
+
 function setupClient(overrides = {}) {
   return {
     accountingApi: {
@@ -49,6 +74,7 @@ function setupClient(overrides = {}) {
         { code: '405', name: 'HWS Revenue', status: 'ACTIVE', taxType: 'OUTPUT' },
         { code: '430', name: 'Air Conditioning Installation Revenue', status: 'ACTIVE', taxType: 'OUTPUT' },
         { code: '166', name: 'Smoke Alarm Revenue', status: 'ACTIVE', taxType: 'OUTPUT' },
+        { accountID: 'bank-1', code: '090', name: 'Business Trans Acct', type: 'BANK', status: 'ACTIVE' },
       ] } }),
       getTrackingCategories: async () => ({ body: { trackingCategories: [{
         name: 'Division', status: 'ACTIVE', options: [
@@ -59,9 +85,11 @@ function setupClient(overrides = {}) {
       }] } }),
       getContacts: async () => ({ body: { contacts: [] } }),
       getInvoices: async () => ({ body: { invoices: [] } }),
+      getBankTransactions: async () => ({ body: { bankTransactions: [] } }),
       createContacts: async () => ({ body: { contacts: [{ contactID: 'contact-1', name: 'Penelope F Worrall' }] } }),
       updateContact: async () => ({ body: { contacts: [{ contactID: 'contact-1', name: 'Penelope F Worrall' }] } }),
       createInvoices: async () => ({ body: { invoices: [{ invoiceID: 'invoice-1', invoiceNumber: 'INV-100', status: 'AUTHORISED', total: 1120 }] } }),
+      createBankTransactions: async () => ({ body: { bankTransactions: [{ bankTransactionID: 'receive-1', status: 'AUTHORISED', total: 295 }] } }),
       ...overrides,
     },
   };
@@ -127,6 +155,60 @@ test('does not duplicate the date when a Smoke Alarm description already has a b
   }), 2);
   assert.equal(row.description, 'Supply and installation of smoke alarms - batch 03/09/2026');
   assert.equal(row.invoiceLines[0].description, 'Supply and installation of smoke alarms - batch 03/09/2026');
+});
+
+test('builds grouped Smoke Alarm revenue as Receive Money into Business Trans Acct', () => {
+  const [row] = validateBatchRows([smokeSource()]);
+  const receiveMoney = buildApprovedReceiveMoney(row, 'contact-1', 'bank-1');
+  assert.equal(receiveMoney.type, 'RECEIVE');
+  assert.deepEqual(receiveMoney.bankAccount, { accountID: 'bank-1' });
+  assert.equal(receiveMoney.date, '2026-09-03');
+  assert.equal(receiveMoney.reference, 'BPOINT-SMOKE-20260903');
+  assert.equal(receiveMoney.lineAmountTypes, 'Inclusive');
+  assert.equal(receiveMoney.isReconciled, false);
+  assert.equal(receiveMoney.lineItems.length, 1);
+  assert.equal(receiveMoney.lineItems[0].accountCode, '166');
+  assert.equal(receiveMoney.lineItems[0].unitAmount, 295);
+  assert.equal(receiveMoney.lineItems[0].taxType, 'OUTPUT');
+  assert.deepEqual(receiveMoney.lineItems[0].tracking, [{ name: 'Division', option: 'QLD Smoke Alarms' }]);
+});
+
+test('creates Receive Money instead of an invoice for grouped Smoke Alarm revenue', async () => {
+  const [row] = validateBatchRows([smokeSource()]);
+  let bankTransactionArgs;
+  let invoiceCreates = 0;
+  const client = setupClient({
+    createContacts: async () => ({ body: { contacts: [{ contactID: 'contact-smoke', name: row.customerName }] } }),
+    createBankTransactions: async (...args) => {
+      bankTransactionArgs = args;
+      return { body: { bankTransactions: [{ bankTransactionID: 'receive-1', status: 'AUTHORISED', total: row.amount }] } };
+    },
+    createInvoices: async () => { invoiceCreates += 1; return { body: { invoices: [] } }; },
+  });
+  const result = await createOrFindApprovedInvoice(client, row);
+  assert.equal(invoiceCreates, 0);
+  assert.equal(result.transactionKind, 'receive-money');
+  assert.equal(result.transactionId, 'receive-1');
+  assert.equal(result.bankAccountName, 'Business Trans Acct');
+  assert.equal(bankTransactionArgs[1].bankTransactions[0].type, 'RECEIVE');
+  assert.match(bankTransactionArgs[4], /^goldsure-bpoint-receive-money-/);
+});
+
+test('recovers an existing grouped Smoke Alarm Receive Money transaction', async () => {
+  const [row] = validateBatchRows([smokeSource()]);
+  let bankTransactionCreates = 0;
+  const client = setupClient({
+    getBankTransactions: async () => ({ body: { bankTransactions: [{
+      bankTransactionID: 'receive-existing', type: 'RECEIVE', reference: row.invoiceReference,
+      status: 'AUTHORISED', total: row.amount,
+    }] } }),
+    createBankTransactions: async () => { bankTransactionCreates += 1; return { body: { bankTransactions: [] } }; },
+  });
+  const result = await createOrFindApprovedInvoice(client, row);
+  assert.equal(bankTransactionCreates, 0);
+  assert.equal(result.recoveredExisting, true);
+  assert.equal(result.transactionKind, 'receive-money');
+  assert.equal(result.transactionId, 'receive-existing');
 });
 
 test('rejects duplicate transaction references inside one batch', () => {

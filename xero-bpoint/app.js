@@ -124,6 +124,10 @@
     return state.rows.filter((row) => row.selected && !row.existingInvoiceId && !row.result);
   }
 
+  function xeroType(row) {
+    return row.transactionKind === 'receive-money' ? 'Receive Money' : 'Customer invoice';
+  }
+
   function settlementGroups() {
     const groups = new Map();
     state.rows.forEach((row) => {
@@ -155,8 +159,8 @@
 
   function statusFor(row) {
     if (row.result?.error) return { kind: 'failed', label: 'Failed' };
-    if (row.result?.invoice) return { kind: 'created', label: row.result.invoice.recoveredExisting ? 'Existing' : 'Created' };
-    if (row.existingInvoiceId) return { kind: 'existing', label: row.existingInvoiceNumber || 'Existing' };
+    if (row.result?.invoice) return { kind: 'created', label: row.result.invoice.recoveredExisting ? `Existing ${xeroType(row)}` : `Created ${xeroType(row)}` };
+    if (row.existingInvoiceId) return { kind: 'existing', label: `Existing ${xeroType(row)}` };
     if (!state.xeroReady) return { kind: 'loading', label: 'Setup required' };
     if (!row.invoiceTotal) return { kind: 'loading', label: 'Enter final amount' };
     if (!state.totalsVerified) return { kind: 'loading', label: 'Check amount' };
@@ -271,7 +275,7 @@
       paidAmount.className = 'paid-amount';
       paidAmount.textContent = `BPOINT: ${money(item.amount)}`;
       const totalLabel = document.createElement('label');
-      totalLabel.textContent = 'Final invoice';
+      totalLabel.textContent = item.transactionKind === 'receive-money' ? 'Receive Money' : 'Final invoice';
       const totalInput = document.createElement('input');
       totalInput.type = 'number';
       totalInput.min = String(item.amount);
@@ -301,7 +305,9 @@
       statusCell.appendChild(badge);
       if (item.existingInvoiceId && !item.result) {
         const existingDetail = document.createElement('small');
-        existingDetail.textContent = 'Use Xero Find & Match for this payment';
+        existingDetail.textContent = item.transactionKind === 'receive-money'
+          ? 'Receive Money is ready for Xero Find & Match'
+          : 'Use Xero Find & Match for this payment';
         statusCell.appendChild(existingDetail);
       }
       if (item.result?.error) {
@@ -417,15 +423,17 @@
         .map((line) => line.description)
         .join(' | '),
       'Invoice Reference': row.invoiceReference,
+      'Xero Type': xeroType(row),
+      'Xero Transaction ID': row.result?.invoice?.transactionId || row.existingInvoiceId || '',
       'Xero Invoice Number': row.result?.invoice?.invoiceNumber || row.existingInvoiceNumber || '',
       'Xero Status': row.result?.invoice?.invoiceStatus || row.existingInvoiceStatus || (row.result?.error ? 'ERROR' : 'NOT CREATED'),
       'Contact Result': row.result?.invoice?.contactCreated ? 'Created' : row.result?.invoice?.contactUpdated ? 'Updated' : row.contactAction === 'match' ? 'Matched' : 'Not created',
-      Result: row.result?.error || (row.result?.invoice?.recoveredExisting || row.existingInvoiceId ? 'Existing invoice' : row.result?.invoice ? 'Created' : 'Not selected'),
+      Result: row.result?.error || (row.result?.invoice?.recoveredExisting || row.existingInvoiceId ? `Existing ${xeroType(row)}` : row.result?.invoice ? `Created ${xeroType(row)}` : 'Not selected'),
     }));
   }
 
   function downloadResults() {
-    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Final Invoice Amount', 'Invoice Description', 'Invoice Reference', 'Xero Invoice Number', 'Xero Status', 'Contact Result', 'Result'];
+    const headers = ['Job No.', 'Customer Name', 'Category', 'BPOINT Ref', 'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Final Invoice Amount', 'Invoice Description', 'Invoice Reference', 'Xero Type', 'Xero Transaction ID', 'Xero Invoice Number', 'Xero Status', 'Contact Result', 'Result'];
     const stamp = new Date().toISOString().slice(0, 10);
     downloadCsv(`xero-bpoint-results-${stamp}.csv`, headers, resultRows());
   }
@@ -434,7 +442,9 @@
     const selected = selectedRows();
     if (!selected.length || state.working) return;
     const total = selected.reduce((sum, row) => sum + Number(row.invoiceTotal), 0);
-    if (!window.confirm(`Create ${selected.length} APPROVED Xero invoice${selected.length === 1 ? '' : 's'} totalling ${money(total)}? Customers will not be emailed.`)) return;
+    const receiveMoneyCount = selected.filter((row) => row.transactionKind === 'receive-money').length;
+    const invoiceCount = selected.length - receiveMoneyCount;
+    if (!window.confirm(`Create ${invoiceCount} customer invoice${invoiceCount === 1 ? '' : 's'} and ${receiveMoneyCount} Smoke Alarm Receive Money transaction${receiveMoneyCount === 1 ? '' : 's'} totalling ${money(total)}? Customers will not be emailed.`)) return;
     state.working = true;
     result.hidden = true;
     downloadResultsButton.hidden = true;
@@ -443,7 +453,7 @@
     let failures = 0;
     for (let index = 0; index < selected.length; index += 1) {
       const row = selected[index];
-      setProgress(Math.round((index / selected.length) * 95), `Creating ${index + 1} of ${selected.length}: ${row.customerName}`);
+      setProgress(Math.round((index / selected.length) * 95), `Creating ${index + 1} of ${selected.length}: ${xeroType(row)}`);
       try {
         const response = await api('create', { row });
         row.result = { invoice: response.invoice };
@@ -458,7 +468,7 @@
     }
     setProgress(100, failures ? 'Finished with items requiring attention' : 'Complete');
     showResult(
-      failures ? 'Batch completed with errors' : 'Invoices created in Xero',
+      failures ? 'Batch completed with errors' : 'Xero transactions created',
       `${successes} succeeded and ${failures} failed. Duplicate protection makes retrying safe.`,
       failures > 0,
     );
