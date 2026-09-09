@@ -31,6 +31,11 @@ test('VIC Aircon uses a separate WorkDrive parent and customer route', async () 
 test('aircon assessment collects the requested questions and photos', async () => {
   const upload = await read('hotwater/upload-photos.html');
   for (const marker of [
+    'id="fullName"',
+    'id="customerEmail"',
+    'id="propertyAddress"',
+    'initAirconAddressAutocomplete',
+    "state !== 'VIC'",
     'Single storey',
     'Double storey',
     'How many aircon units do you need?',
@@ -57,6 +62,9 @@ test('photo tracker displays every saved aircon answer in a modal', async () => 
   const tracker = await read('hotwater/photo-tracker.html');
   assert.match(tracker, /data-answers=/);
   assert.match(tracker, /id="answersOverlay"/);
+  assert.match(tracker, /\['Full name', a\.fullName/);
+  assert.match(tracker, /\['Email address', a\.email/);
+  assert.match(tracker, /\['Property address', a\.address/);
   assert.match(tracker, /\['Property', a\.storeys/);
   assert.match(tracker, /\['Aircon units', a\.units/);
   assert.match(tracker, /\['Rooms', a\.rooms/);
@@ -68,4 +76,21 @@ test('photo button always offers Hot Water and VIC Aircon', async () => {
   assert.match(sms, /pickPhotoProduct\('aircon'\)/);
   assert.match(sms, /pickPhotoProduct\('hws'\)/);
   assert.match(sms, /body: JSON\.stringify\(\{ name, phone: activePhone, product \}\)/);
+  assert.match(sms, /data\.reused && Number\(data\.photoCount\) > 0/);
+  assert.match(sms, /&more=1/);
+});
+
+test('aircon upload notification email includes customer details, every answer and the photo link', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  for (const marker of [
+    "['Full name', assessment?.fullName || who]",
+    "['Email address', assessment?.email || 'Not provided']",
+    "['Property address', assessment?.address || 'Not provided']",
+    "['Property', assessment?.storeys || 'Not answered']",
+    "['Aircon units', assessment?.units || 'Not answered']",
+    "['Rooms', assessment?.rooms || 'Not answered']",
+    "['Roof', assessment?.roof || 'Not answered']",
+    'Open photos in WorkDrive',
+    'airconAssessmentError(assessment)',
+  ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);
 });

@@ -31,6 +31,11 @@
     background: #fff; color: #1a202c; font: inherit;
   }
   .question select:focus, .question input:focus { outline: 2px solid #90cdf4; border-color: #3182ce; }
+  .questions-title.install-title { margin-top: 16px; padding-top: 14px; border-top: 1px solid #dbeafe; }
+  .field-hint { font-size: 11.5px; color: #718096; margin-top: 5px; line-height: 1.4; }
+  .address-badge { font-size: 11.5px; margin-top: 5px; min-height: 16px; line-height: 1.35; }
+  .address-badge.valid { color: #2f855a; }
+  .address-badge.invalid { color: #c53030; }
 
   .slot { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; transition: border-color .15s, background .15s; }
   .slot.filled { border-color: #38a169; background: #f0fff4; }
@@ -114,7 +119,25 @@
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
       <div class="questions" id="airconQuestions">
-        <div class="questions-title">A few quick questions</div>
+        <div class="questions-title">Your details</div>
+        <div class="question-grid">
+          <div class="question">
+            <label for="fullName">Full name</label>
+            <input id="fullName" type="text" autocomplete="name" placeholder="e.g. Jane Smith" required>
+            <div class="field-hint">Please enter your first and last name.</div>
+          </div>
+          <div class="question">
+            <label for="customerEmail">Email address</label>
+            <input id="customerEmail" type="email" autocomplete="email" inputmode="email" placeholder="e.g. jane@example.com" required>
+          </div>
+          <div class="question">
+            <label for="propertyAddress">Property address</label>
+            <input id="propertyAddress" type="text" autocomplete="off" placeholder="Start typing the Victorian address..." required>
+            <div class="field-hint">Choose the full address from the Google suggestions.</div>
+            <div class="address-badge" id="addressBadge" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="questions-title install-title">A few quick questions</div>
         <div class="question-grid">
           <div class="question">
             <label for="storeys">Is the property single or double storey?</label>
@@ -193,6 +216,8 @@ let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
 const product = location.pathname === '/ac' || params.get('product') === 'aircon' ? 'aircon' : 'hws';
 const isAircon = product === 'aircon';
+let addressConfirmed = false;
+let addressAutocompleteReady = false;
 
 const HWS_SLOTS = [
   { key: 'switchboard', label: 'Existing switchboard',       note: 'Your electrical panel / fuse box.',                                              required: true },
@@ -222,8 +247,63 @@ const picked = {};   // key → compressed Blob
 if (isAircon) {
   document.title = 'VIC Aircon Assessment - Goldsure';
   document.getElementById('airconQuestions').style.display = 'block';
+  document.getElementById('fullName').value = custName;
   document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
 }
+
+function setAddressBadge(message, state = '') {
+  const badge = document.getElementById('addressBadge');
+  if (!badge) return;
+  badge.textContent = message;
+  badge.className = 'address-badge' + (state ? ` ${state}` : '');
+}
+
+function loadGoogleAddressAutocomplete() {
+  if (!isAircon) return;
+  fetch('/api/smoke-alarms/google-key')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.key) throw new Error('Google address search is not configured');
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAirconAddressAutocomplete`;
+      script.async = true;
+      script.onerror = () => setAddressBadge('Address suggestions could not load. You can still enter the full address.', 'invalid');
+      document.head.appendChild(script);
+    })
+    .catch(() => setAddressBadge('Address suggestions could not load. You can still enter the full address.', 'invalid'));
+}
+
+window.initAirconAddressAutocomplete = function() {
+  const input = document.getElementById('propertyAddress');
+  if (!input || !window.google?.maps?.places) return;
+  addressAutocompleteReady = true;
+  const autocomplete = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'au' },
+    fields: ['formatted_address', 'address_components'],
+    types: ['address'],
+  });
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (!place?.address_components || !place.formatted_address) {
+      addressConfirmed = false;
+      setAddressBadge('Please choose a full address from the suggestions.', 'invalid');
+      refreshSubmit();
+      return;
+    }
+    const state = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
+    if (state !== 'VIC') {
+      input.value = '';
+      addressConfirmed = false;
+      setAddressBadge(`${state || 'That'} address is outside Victoria.`, 'invalid');
+      refreshSubmit();
+      return;
+    }
+    input.value = place.formatted_address;
+    addressConfirmed = true;
+    setAddressBadge('Victorian address confirmed', 'valid');
+    refreshSubmit();
+  });
+};
 
 const setStatus = (msg, cls) => {
   const el = document.getElementById('status');
@@ -300,6 +380,18 @@ async function loadStatus() {
     if (d.name && !custName) custName = d.name;
 
     if (isAircon && d.assessment) {
+      const folderCustomer = String(d.name || '').replace(/\s*\(\d{3,4}\)\s*$/, '').trim();
+      const savedFullName = d.assessment.fullName || folderCustomer || custName;
+      if (savedFullName) {
+        custName = savedFullName;
+        document.getElementById('fullName').value = savedFullName;
+      }
+      document.getElementById('customerEmail').value = d.assessment.email || '';
+      document.getElementById('propertyAddress').value = d.assessment.address || '';
+      if (d.assessment.address) {
+        addressConfirmed = true;
+        setAddressBadge('Saved property address', 'valid');
+      }
       document.getElementById('storeys').value = d.assessment.storeys || '';
       document.getElementById('unitCount').value = d.assessment.units || '';
       document.getElementById('roomCount').value = d.assessment.rooms || '';
@@ -499,7 +591,13 @@ function refreshSubmit() {
   const missing = required.filter(s => !picked[s.key] && !have[s.key]);
   const newCount = SLOTS.filter(s => picked[s.key]).length + extraPhotos.length;
   const btn = document.getElementById('submitBtn');
+  const fullName = document.getElementById('fullName')?.value.trim() || '';
+  const emailInput = document.getElementById('customerEmail');
+  const address = document.getElementById('propertyAddress')?.value.trim() || '';
   const questionsComplete = !isAircon || Boolean(
+    /^\S+(?:\s+\S+)+$/.test(fullName) &&
+    emailInput.value.trim() && emailInput.checkValidity() &&
+    address && (addressConfirmed || !addressAutocompleteReady) &&
     document.getElementById('storeys').value &&
     Number(document.getElementById('unitCount').value) >= 1 &&
     Number(document.getElementById('roomCount').value) >= 1 &&
@@ -517,10 +615,23 @@ renderSlots();
 loadStatus();
 
 if (isAircon) {
+  document.getElementById('fullName').addEventListener('input', refreshSubmit);
+  document.getElementById('customerEmail').addEventListener('input', refreshSubmit);
+  document.getElementById('propertyAddress').addEventListener('input', () => {
+    addressConfirmed = false;
+    setAddressBadge(
+      document.getElementById('propertyAddress').value.trim() && addressAutocompleteReady
+        ? 'Choose the full address from the Google suggestions.'
+        : '',
+      document.getElementById('propertyAddress').value.trim() && addressAutocompleteReady ? 'invalid' : '',
+    );
+    refreshSubmit();
+  });
   document.getElementById('unitCount').addEventListener('change', refreshSubmit);
   document.getElementById('roomCount').addEventListener('change', renderSlots);
   document.getElementById('storeys').addEventListener('change', refreshSubmit);
   document.getElementById('roofType').addEventListener('change', refreshSubmit);
+  loadGoogleAddressAutocomplete();
 }
 
 const blobToBase64 = blob => new Promise((resolve, reject) => {
@@ -532,13 +643,16 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
   const assessment = isAircon ? {
+    fullName: document.getElementById('fullName').value.trim(),
+    email: document.getElementById('customerEmail').value.trim(),
+    address: document.getElementById('propertyAddress').value.trim(),
     storeys: document.getElementById('storeys').value,
     units: Number(document.getElementById('unitCount').value),
     rooms: Number(document.getElementById('roomCount').value),
     roof: document.getElementById('roofType').value,
   } : null;
   const answerText = assessment
-    ? `VIC Aircon Assessment Answers\nCustomer: ${custName || 'Not provided'}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
+    ? `VIC Aircon Assessment Answers\nFull name: ${assessment.fullName}\nEmail: ${assessment.email}\nProperty address: ${assessment.address}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
     : '';
   const entries = [
     ...(assessment ? [{ key: 'aircon-assessment-answers', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
@@ -549,7 +663,8 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  const safeName = (custName || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  const submittedName = assessment?.fullName || custName;
+  const safeName = (submittedName || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
   // WorkDrive overwrites same-named files. On a first upload that's what we
   // want (a retake replaces the earlier attempt in this same session); on a
   // top-up it would quietly delete photos the customer already sent, so every
@@ -568,7 +683,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           folderId,
           filename: `${safeName}-${s.key}${s.extension ? '' : stamp}.${s.extension || 'jpg'}`,
           dataBase64,
-          customerName: custName,
+          customerName: submittedName,
           phone: custPhone,
           product,
           ...(assessment ? { assessment } : {}),

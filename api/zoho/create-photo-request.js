@@ -140,17 +140,24 @@ async function setFolderPhone(accessToken, folderId, phone) {
 // text file. The description lets a re-opened upload link restore the answers;
 // the text file keeps the details immediately visible to staff in WorkDrive.
 async function setFolderAssessment(accessToken, folderId, phone, assessment = {}) {
-  const storeys = String(assessment.storeys || '').trim();
+  const oneLine = value => String(value || '').replace(/[\r\n]+/g, ' ').trim();
+  const fullName = oneLine(assessment.fullName).slice(0, 160);
+  const email = oneLine(assessment.email).slice(0, 254);
+  const address = oneLine(assessment.address).slice(0, 500);
+  const storeys = oneLine(assessment.storeys).slice(0, 80);
   const boundedCount = value => {
     const count = Number.parseInt(String(value || ''), 10);
     return Number.isInteger(count) && count >= 1 && count <= 7 ? String(count) : '';
   };
   const units = boundedCount(assessment.units);
   const rooms = boundedCount(assessment.rooms);
-  const roof = String(assessment.roof || '').trim();
+  const roof = oneLine(assessment.roof).slice(0, 80);
   const lines = [
     phone ? `phone:${phone}` : '',
     'product:aircon',
+    fullName ? `full_name:${fullName}` : '',
+    email ? `email:${email}` : '',
+    address ? `address:${address}` : '',
     storeys ? `storeys:${storeys}` : '',
     units ? `units:${units}` : '',
     rooms ? `rooms:${rooms}` : '',
@@ -177,8 +184,100 @@ const assessmentFromDescription = d => {
   const pick = key => (new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(text) || [])[1]?.trim() || '';
   const units = Number(pick('units')) || null;
   const rooms = Number(pick('rooms')) || null;
-  return { storeys: pick('storeys'), units, rooms, roof: pick('roof') };
+  return {
+    fullName: pick('full_name'),
+    email: pick('email'),
+    address: pick('address'),
+    storeys: pick('storeys'),
+    units,
+    rooms,
+    roof: pick('roof'),
+  };
 };
+
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[char]));
+
+function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
+  const isAircon = config.product === 'aircon';
+  const answers = isAircon ? [
+    ['Full name', assessment?.fullName || who],
+    ['Email address', assessment?.email || 'Not provided'],
+    ['Property address', assessment?.address || 'Not provided'],
+    ['Property', assessment?.storeys || 'Not answered'],
+    ['Aircon units', assessment?.units || 'Not answered'],
+    ['Rooms', assessment?.rooms || 'Not answered'],
+    ['Roof', assessment?.roof || 'Not answered'],
+    ['New photos uploaded', Number(uploadCount) || 0],
+  ] : [
+    ['Customer', who],
+    ['New photos uploaded', Number(uploadCount) || 0],
+  ];
+  const rows = answers.map(([label, value], index) => `
+    <tr>
+      <td style="padding:11px 14px;border-top:${index ? '1px solid #e8edf3' : '0'};color:#64748b;font-size:13px;width:42%;">${escapeHtml(label)}</td>
+      <td style="padding:11px 14px;border-top:${index ? '1px solid #e8edf3' : '0'};color:#172033;font-size:13px;font-weight:700;">${escapeHtml(value)}</td>
+    </tr>`).join('');
+  const action = folderUrl
+    ? `<a href="${escapeHtml(folderUrl)}" style="display:inline-block;background:#1769aa;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-size:14px;font-weight:700;">Open photos in WorkDrive</a>`
+    : `<div style="font-size:12px;color:#64748b;">WorkDrive folder ID: ${escapeHtml(folderId)}</div>`;
+  const address = isAircon && assessment?.address ? escapeHtml(assessment.address) : '';
+
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f7fa" style="background:#f4f7fa;font-family:Arial,Helvetica,sans-serif;">
+  <tr><td style="padding:30px 14px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" align="center" bgcolor="#ffffff" style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe6ee;border-radius:12px;overflow:hidden;">
+      <tr><td bgcolor="#1769aa" style="height:6px;background:#1769aa;font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr><td style="padding:26px 28px 12px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#1769aa;">${escapeHtml(config.label)} photo assessment</div>
+        <div style="margin-top:8px;font-size:23px;line-height:1.25;font-weight:700;color:#172033;">Photos received from ${escapeHtml(who)}</div>
+        ${address ? `<div style="margin-top:7px;font-size:14px;line-height:1.5;color:#64748b;">${address}</div>` : ''}
+      </td></tr>
+      <tr><td style="padding:6px 28px 18px;font-size:14px;line-height:1.6;color:#3f4b5f;">${escapeHtml(who)} ${escapeHtml(what)}. Their submitted details are below.</td></tr>
+      <tr><td style="padding:0 28px 22px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;border:1px solid #e1e7ee;border-radius:8px;overflow:hidden;">${rows}</table>
+      </td></tr>
+      <tr><td style="padding:0 28px 28px;">${action}</td></tr>
+      <tr><td bgcolor="#f8fafc" style="padding:13px 28px;border-top:1px solid #e8edf3;background:#f8fafc;font-size:11px;color:#94a3b8;">Goldsure Portal photo notification</td></tr>
+    </table>
+  </td></tr>
+</table>`;
+}
+
+function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
+  const lines = [`${config.label} photo assessment`, '', `${who} ${what}.`];
+  if (config.product === 'aircon') {
+    lines.push(
+      '',
+      `Full name: ${assessment?.fullName || who}`,
+      `Email address: ${assessment?.email || 'Not provided'}`,
+      `Property address: ${assessment?.address || 'Not provided'}`,
+      `Property: ${assessment?.storeys || 'Not answered'}`,
+      `Aircon units: ${assessment?.units || 'Not answered'}`,
+      `Rooms: ${assessment?.rooms || 'Not answered'}`,
+      `Roof: ${assessment?.roof || 'Not answered'}`,
+    );
+  }
+  lines.push(`New photos uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
+  return lines.join('\n');
+}
+
+function airconAssessmentError(assessment) {
+  const fullName = String(assessment?.fullName || '').trim();
+  const email = String(assessment?.email || '').trim();
+  const address = String(assessment?.address || '').trim();
+  const units = Number(assessment?.units);
+  const rooms = Number(assessment?.rooms);
+  if (!/^\S+(?:\s+\S+)+$/.test(fullName)) return 'full name is required';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'a valid email address is required';
+  if (address.length < 6) return 'property address is required';
+  if (!['Single storey', 'Double storey'].includes(assessment?.storeys)) return 'property storeys are required';
+  if (!Number.isInteger(units) || units < 1 || units > 7) return 'aircon units must be between 1 and 7';
+  if (!Number.isInteger(rooms) || rooms < 1 || rooms > 7) return 'rooms must be between 1 and 7';
+  if (!['Tile roof', 'Tin roof'].includes(assessment?.roof)) return 'roof type is required';
+  return '';
+}
 
 // Ask Zoho for the folder's own canonical link rather than constructing one —
 // a hand-built /folder/<id> URL lands in a login redirect loop. Falls back to
@@ -404,6 +503,10 @@ export default async function handler(req, res) {
   if (req.method === 'PUT') {
     const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0, assessment } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
+    if (config.product === 'aircon') {
+      const assessmentError = airconAssessmentError(assessment);
+      if (assessmentError) return res.status(400).json({ error: assessmentError });
+    }
 
     try {
       const accessToken = await getAccessToken();
@@ -420,7 +523,7 @@ export default async function handler(req, res) {
       if (!notify) return res.status(200).json({ success: true });
 
       try {
-        const who = (customerName || '').trim() || 'A customer';
+        const who = String(customerName || '').replace(/[\r\n]+/g, ' ').trim() || 'A customer';
         const folderUrl = await getFolderLink(accessToken, folderId);
         // A top-up sent through the same link reads differently to a first
         // submission — the team needs to know these are extras added to a
@@ -435,9 +538,12 @@ export default async function handler(req, res) {
         // the customer's history lives. Also best-effort.
         if (phone) {
           const notePrefix = config.product === 'aircon' ? '[Aircon Photo Upload]' : '[Photo Upload]';
+          const addressLine = config.product === 'aircon' && assessment?.address
+            ? `\nProperty: ${String(assessment.address).replace(/[\r\n]+/g, ' ').trim()}`
+            : '';
           const noteBody = folderUrl
-            ? `${notePrefix}\n${who} ${what}. View them here: ${folderUrl}`
-            : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).`;
+            ? `${notePrefix}\n${who} ${what}.${addressLine}\nView them here: ${folderUrl}`
+            : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}`;
           await postGhlNoteByPhone(phone, noteBody);
 
           // Move the deal to "Photos Received" on the HWS pipeline too, not
@@ -462,17 +568,15 @@ export default async function handler(req, res) {
           }
         }
 
-        const linkHtml = folderUrl
-          ? `<p><a href="${folderUrl}">Open their folder in WorkDrive</a></p>`
-          : `<p style="color:#666;font-size:13px;">Folder ID: ${folderId} — open WorkDrive and search for “${who}”.</p>`;
+        const emailData = { config, who, what, folderUrl, folderId, assessment, uploadCount: n };
         await sendHostingerMail({
           to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
           subject: followUp
             ? `Additional ${config.label} photos uploaded - ${who}`
             : `New ${config.label} photos uploaded - ${who}`,
-          html: `<p><strong>${who}</strong> ${what}.</p>
-                 ${linkHtml}`,
+          text: photoUploadEmailText(emailData),
+          html: photoUploadEmailHtml(emailData),
         });
       } catch (mailErr) {
         console.error('[Zoho upload] notification email failed:', mailErr.message);

@@ -2296,12 +2296,18 @@
 
       const input = document.getElementById('msgInput');
       const firstName = name.split(/\s+/)[0];
+      const isFollowUp = Boolean(data.reused && Number(data.photoCount) > 0);
+      const uploadUrl = isFollowUp ? `${data.uploadPageUrl}&more=1` : data.uploadPageUrl;
       // Names the business and what the message is about — an unexplained link
       // from an unknown number reads as spam and doesn't get opened.
-      const blurb = product === 'aircon'
-        ? `Hi ${firstName}, Goldsure here about your aircon enquiry. For a quick install assessment and quote, please answer a few questions and upload the requested photos: ${data.uploadPageUrl}`
-        : `Hi ${firstName}, this is Goldsure regarding your hot water system enquiry. To give you a quote, please upload photos of your existing system here: ${data.uploadPageUrl}`;
-      input.value = input.value.trim() ? `${input.value.trim()} ${data.uploadPageUrl}` : blurb;
+      const blurb = isFollowUp
+        ? (product === 'aircon'
+            ? `Hi ${firstName}, Goldsure here. Thanks for the aircon photos you sent earlier. We need a few more to finish the assessment. Please use this link and only add the new photos: ${uploadUrl}`
+            : `Hi ${firstName}, Goldsure here. Thanks for the hot water photos you sent earlier. We need a few more to finish your quote. Please use this link and only add the new photos: ${uploadUrl}`)
+        : (product === 'aircon'
+            ? `Hi ${firstName}, Goldsure here about your aircon enquiry. For a quick install assessment and quote, please answer a few questions and upload the requested photos: ${uploadUrl}`
+            : `Hi ${firstName}, this is Goldsure regarding your hot water system enquiry. To give you a quote, please upload photos of your existing system here: ${uploadUrl}`);
+      input.value = input.value.trim() ? `${input.value.trim()} ${uploadUrl}` : blurb;
       autoResize(input);
       updateCharCount(input.value);
       updatePhonePreview();
