@@ -94,6 +94,9 @@ test('photo button always offers Hot Water and VIC Aircon', async () => {
   assert.match(sms, /body: JSON\.stringify\(\{ name, phone: activePhone, product \}\)/);
   assert.match(sms, /data\.reused && Number\(data\.photoCount\) > 0/);
   assert.match(sms, /&more=1/);
+  assert.match(sms, /Rebates are reducing substantially at the end of this month and installation dates are limited/);
+  assert.match(sms, /upload your photos as soon as possible/);
+  assert.match(sms, /upload the additional photos as soon as possible/);
 });
 
 test('aircon upload notification email includes customer details, every answer and the photo link', async () => {
