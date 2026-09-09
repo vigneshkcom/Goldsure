@@ -34,13 +34,24 @@ test('aircon assessment collects the requested questions and photos', async () =
     'Single storey',
     'Double storey',
     'How many aircon units do you need?',
+    'How many rooms need air conditioning?',
     'Tile roof',
     'Tin roof',
     "key: 'switchboard'",
     'Room ${i + 1} for indoor head',
     "key: 'utility-bill'",
-    "key: 'aircon-assessment'",
+    "key: 'aircon-assessment-answers'",
   ]) assert.ok(upload.includes(marker), `missing ${marker}`);
+});
+
+test('photo tracker displays every saved aircon answer in a modal', async () => {
+  const tracker = await read('hotwater/photo-tracker.html');
+  assert.match(tracker, /data-answers=/);
+  assert.match(tracker, /id="answersOverlay"/);
+  assert.match(tracker, /\['Property', a\.storeys/);
+  assert.match(tracker, /\['Aircon units', a\.units/);
+  assert.match(tracker, /\['Rooms', a\.rooms/);
+  assert.match(tracker, /\['Roof', a\.roof/);
 });
 
 test('photo button always offers Hot Water and VIC Aircon', async () => {
@@ -49,4 +60,3 @@ test('photo button always offers Hot Water and VIC Aircon', async () => {
   assert.match(sms, /pickPhotoProduct\('hws'\)/);
   assert.match(sms, /body: JSON\.stringify\(\{ name, phone: activePhone, product \}\)/);
 });
-

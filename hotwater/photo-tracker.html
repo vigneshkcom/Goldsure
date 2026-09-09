@@ -123,7 +123,7 @@
 
   .row {
     display: grid;
-    grid-template-columns: 1fr 150px 150px 108px 96px 196px;
+    grid-template-columns: 1fr 150px 150px 108px 96px 250px;
     align-items: center;
     border-bottom: 1px solid var(--line-soft);
     position: relative;
@@ -243,6 +243,11 @@
   .modal-foot .grow { flex: 1; }
   .modal-msg { font-size: 12.5px; }
   .modal-msg.err { color: var(--red); }
+  .answer-grid { display: grid; gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 6px; overflow: hidden; }
+  .answer-row { display: grid; grid-template-columns: 1fr 1.15fr; background: var(--surface); }
+  .answer-label, .answer-value { padding: 11px 12px; }
+  .answer-label { color: var(--ink-2); font-size: 13px; }
+  .answer-value { color: var(--ink); font-weight: 600; }
   a.open {
     color: var(--blue); text-decoration: none; font-size: 13px;
     display: inline-flex; align-items: center; gap: 4px;
@@ -377,6 +382,26 @@
   </div>
 </div>
 
+<!-- Aircon answers: read-only summary of the choices stored on the WorkDrive folder. -->
+<div class="overlay" id="answersOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="answersTitle">
+    <div class="modal-head">
+      <h2 id="answersTitle">Aircon assessment answers</h2>
+      <button class="modal-x" id="answersClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="to-row"><span class="to-chip" id="answersCustomer"></span></div>
+      <div class="answer-grid" id="answersGrid"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="grow"></span>
+      <button class="btn btn-primary" id="answersDone">Done</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const PRODUCT = location.pathname.startsWith('/aircons/') || new URLSearchParams(location.search).get('product') === 'aircon'
   ? 'aircon'
@@ -445,7 +470,7 @@ const photoCountOf = f => {
 };
 
 const slotCountFor = f => IS_AIRCON
-  ? 2 + Math.max(1, Math.min(12, Number(f.assessment?.units) || 1))
+  ? 2 + Math.max(1, Math.min(12, Number(f.assessment?.rooms) || 1))
   : 4;
 
 function ageDays(ms) {
@@ -501,6 +526,8 @@ function rowHtml(f, i, gcolor) {
         ${canAskMore ? `<button class="btn-mini" data-more="${esc(f.id)}" title="Text this customer for more photos — they won't have to re-send the ones we have">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3z"/><path d="M12 10v6M9 13h6"/></svg>
           Ask for more</button>` : ''}
+        ${IS_AIRCON && f.assessment?.rooms ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
+          Answers</button>` : ''}
         ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
       </div>
@@ -568,6 +595,10 @@ function render() {
 
   board.querySelectorAll('[data-more]').forEach(btn => {
     btn.onclick = () => openSmsModal(btn.dataset.more, 'more');
+  });
+
+  board.querySelectorAll('[data-answers]').forEach(btn => {
+    btn.onclick = () => openAnswersModal(btn.dataset.answers);
   });
 }
 
@@ -671,6 +702,29 @@ function closeSmsModal() {
   smsTarget = null;
 }
 
+function openAnswersModal(folderId) {
+  const f = folders.find(x => x.id === folderId);
+  if (!f) return;
+  const a = f.assessment || {};
+  $('answersTitle').textContent = 'Aircon assessment answers';
+  $('answersCustomer').innerHTML =
+    `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>${esc(f.name)}`;
+  const rows = [
+    ['Property', a.storeys || 'Not answered'],
+    ['Aircon units', a.units || 'Not answered'],
+    ['Rooms', a.rooms || 'Not answered'],
+    ['Roof', a.roof || 'Not answered'],
+  ];
+  $('answersGrid').innerHTML = rows.map(([label, value]) =>
+    `<div class="answer-row"><div class="answer-label">${esc(label)}</div><div class="answer-value">${esc(value)}</div></div>`
+  ).join('');
+  $('answersOverlay').classList.add('show');
+}
+
+function closeAnswersModal() {
+  $('answersOverlay').classList.remove('show');
+}
+
 function updateSmsCount() {
   const len = $('smsText').value.length;
   // Multipart SMS are billed at 153 characters each once past the first 160.
@@ -716,7 +770,12 @@ $('smsSend').onclick = sendSms;
 $('smsCancel').onclick = closeSmsModal;
 $('smsClose').onclick = closeSmsModal;
 $('smsOverlay').addEventListener('click', e => { if (e.target === $('smsOverlay')) closeSmsModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSmsModal(); });
+$('answersClose').onclick = closeAnswersModal;
+$('answersDone').onclick = closeAnswersModal;
+$('answersOverlay').addEventListener('click', e => { if (e.target === $('answersOverlay')) closeAnswersModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeSmsModal(); closeAnswersModal(); }
+});
 
 async function load() {
   try {

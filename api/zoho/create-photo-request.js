@@ -142,12 +142,14 @@ async function setFolderPhone(accessToken, folderId, phone) {
 async function setFolderAssessment(accessToken, folderId, phone, assessment = {}) {
   const storeys = String(assessment.storeys || '').trim();
   const units = String(assessment.units || '').replace(/\D/g, '').slice(0, 2);
+  const rooms = String(assessment.rooms || '').replace(/\D/g, '').slice(0, 2);
   const roof = String(assessment.roof || '').trim();
   const lines = [
     phone ? `phone:${phone}` : '',
     'product:aircon',
     storeys ? `storeys:${storeys}` : '',
     units ? `units:${units}` : '',
+    rooms ? `rooms:${rooms}` : '',
     roof ? `roof:${roof}` : '',
   ].filter(Boolean);
   try {
@@ -170,7 +172,8 @@ const assessmentFromDescription = d => {
   const text = String(d || '');
   const pick = key => (new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(text) || [])[1]?.trim() || '';
   const units = Number(pick('units')) || null;
-  return { storeys: pick('storeys'), units, roof: pick('roof') };
+  const rooms = Number(pick('rooms')) || null;
+  return { storeys: pick('storeys'), units, rooms, roof: pick('roof') };
 };
 
 // Ask Zoho for the folder's own canonical link rather than constructing one —

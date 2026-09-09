@@ -129,6 +129,10 @@
             <input id="unitCount" type="number" min="1" max="12" inputmode="numeric" placeholder="e.g. 3">
           </div>
           <div class="question">
+            <label for="roomCount">How many rooms need air conditioning?</label>
+            <input id="roomCount" type="number" min="1" max="12" inputmode="numeric" placeholder="e.g. 4">
+          </div>
+          <div class="question">
             <label for="roofType">Is the roof tile or tin?</label>
             <select id="roofType">
               <option value="">Choose one</option>
@@ -180,7 +184,7 @@ const HWS_SLOTS = [
 ];
 
 const airconSlots = () => {
-  const count = Math.max(0, Math.min(12, Number(document.getElementById('unitCount')?.value) || 0));
+  const count = Math.max(0, Math.min(12, Number(document.getElementById('roomCount')?.value) || 0));
   return [
     { key: 'switchboard', label: 'Switchboard', note: 'A clear photo of the whole switchboard with the cover open, if safe to do so.', required: true },
     ...Array.from({ length: count }, (_, i) => ({
@@ -280,6 +284,7 @@ async function loadStatus() {
     if (isAircon && d.assessment) {
       document.getElementById('storeys').value = d.assessment.storeys || '';
       document.getElementById('unitCount').value = d.assessment.units || '';
+      document.getElementById('roomCount').value = d.assessment.rooms || '';
       document.getElementById('roofType').value = d.assessment.roof || '';
       renderSlots();
     }
@@ -479,6 +484,7 @@ function refreshSubmit() {
   const questionsComplete = !isAircon || Boolean(
     document.getElementById('storeys').value &&
     Number(document.getElementById('unitCount').value) >= 1 &&
+    Number(document.getElementById('roomCount').value) >= 1 &&
     document.getElementById('roofType').value
   );
 
@@ -493,7 +499,8 @@ renderSlots();
 loadStatus();
 
 if (isAircon) {
-  document.getElementById('unitCount').addEventListener('input', renderSlots);
+  document.getElementById('unitCount').addEventListener('input', refreshSubmit);
+  document.getElementById('roomCount').addEventListener('input', renderSlots);
   document.getElementById('storeys').addEventListener('change', refreshSubmit);
   document.getElementById('roofType').addEventListener('change', refreshSubmit);
 }
@@ -509,13 +516,14 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const assessment = isAircon ? {
     storeys: document.getElementById('storeys').value,
     units: Number(document.getElementById('unitCount').value),
+    rooms: Number(document.getElementById('roomCount').value),
     roof: document.getElementById('roofType').value,
   } : null;
   const answerText = assessment
-    ? `VIC Aircon Assessment\nCustomer: ${custName || 'Not provided'}\nProperty: ${assessment.storeys}\nUnits: ${assessment.units}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
+    ? `VIC Aircon Assessment Answers\nCustomer: ${custName || 'Not provided'}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
     : '';
   const entries = [
-    ...(assessment ? [{ key: 'aircon-assessment', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
+    ...(assessment ? [{ key: 'aircon-assessment-answers', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
     ...SLOTS.filter(s => picked[s.key]).map(s => ({ key: s.key, blob: picked[s.key], label: s.label })),
     ...extraPhotos.map((p, i) => ({ key: p.id, blob: p.blob, label: `Additional photo ${i + 1}` })),
   ];
