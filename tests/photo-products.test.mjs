@@ -65,6 +65,11 @@ test('aircon assessment collects the requested questions and photos', async () =
     }
     assert.doesNotMatch(select, /<option value="8">/);
   }
+  assert.ok(
+    upload.indexOf('How many rooms need air conditioning?') < upload.indexOf('How many aircon units do you need?'),
+    'room count should appear before aircon unit count',
+  );
+  assert.match(upload, /Name this room, e\.g\. master bedroom, bedroom 2, living room or study/);
 });
 
 test('photo tracker displays every saved aircon answer in a modal', async () => {
@@ -78,7 +83,7 @@ test('photo tracker displays every saved aircon answer in a modal', async () => 
   assert.match(tracker, /\['Aircon units', a\.units/);
   assert.match(tracker, /\['Rooms', a\.rooms/);
   assert.match(tracker, /\['Roof', a\.roof/);
-  assert.match(tracker, /Room \$\{room\} comments/);
+  assert.match(tracker, /Room \$\{room\} name and comments/);
   assert.match(tracker, /Rates notice or utility bill comments/);
 });
 
@@ -102,7 +107,7 @@ test('aircon upload notification email includes customer details, every answer a
     "['Rooms', assessment?.rooms || 'Not answered']",
     "['Roof', assessment?.roof || 'Not answered']",
     '...photoCommentRows(assessment)',
-    'Room ${room} comments',
+    'Room ${room} name and comments',
     'Open photos in WorkDrive',
     'airconAssessmentError(assessment)',
   ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);

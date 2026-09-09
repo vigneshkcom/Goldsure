@@ -215,7 +215,7 @@ function photoCommentRows(assessment) {
   if (comments.switchboard) rows.push(['Switchboard comments', comments.switchboard]);
   for (let room = 1; room <= roomCount; room += 1) {
     const comment = comments[`room-${room}`];
-    if (comment) rows.push([`Room ${room} comments`, comment]);
+    if (comment) rows.push([`Room ${room} name and comments`, comment]);
   }
   if (comments['utility-bill']) rows.push(['Rates notice or utility bill comments', comments['utility-bill']]);
   Object.keys(comments)

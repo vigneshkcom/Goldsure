@@ -160,8 +160,8 @@
             </select>
           </div>
           <div class="question">
-            <label for="unitCount">How many aircon units do you need?</label>
-            <select id="unitCount">
+            <label for="roomCount">How many rooms need air conditioning?</label>
+            <select id="roomCount">
               <option value="">Choose one</option>
               <option value="1">1</option>
               <option value="2">2</option>
@@ -173,8 +173,8 @@
             </select>
           </div>
           <div class="question">
-            <label for="roomCount">How many rooms need air conditioning?</label>
-            <select id="roomCount">
+            <label for="unitCount">How many aircon units do you need?</label>
+            <select id="unitCount">
               <option value="">Choose one</option>
               <option value="1">1</option>
               <option value="2">2</option>
@@ -258,8 +258,11 @@ const airconSlots = () => {
 
 let SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
 const commentLabelForSlot = slot => /^room-(\d+)$/.test(slot.key)
-  ? `Room ${slot.key.split('-')[1]} comments`
+  ? `Room ${slot.key.split('-')[1]} name and comments`
   : `${slot.label} comments`;
+const commentPlaceholderForSlot = slot => /^room-\d+$/.test(slot.key)
+  ? 'Name this room, e.g. master bedroom, bedroom 2, living room or study. Add any other details here.'
+  : 'Add any details that will help us assess this photo';
 
 const picked = {};   // key → compressed Blob
 
@@ -501,7 +504,7 @@ function renderSlots() {
       </div>
       ${isAircon ? `<div class="comment-field">
         <label for="comment-${s.key}">${commentLabelForSlot(s)} <span class="optional">(optional)</span></label>
-        <textarea id="comment-${s.key}" maxlength="500" placeholder="Add any details that will help us assess this photo" oninput="savePhotoComment('${s.key}', this.value)"></textarea>
+        <textarea id="comment-${s.key}" maxlength="500" placeholder="${commentPlaceholderForSlot(s)}" oninput="savePhotoComment('${s.key}', this.value)"></textarea>
       </div>` : ''}
     </div>
   `).join('');
