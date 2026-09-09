@@ -598,7 +598,9 @@ export default async function handler(req, res) {
 
         const emailData = { config, who, what, folderUrl, folderId, assessment, uploadCount: n };
         await sendHostingerMail({
-          to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+          to: config.product === 'aircon'
+            ? ['vignesh@goldsure.com.au', 'david@goldsure.com.au', 'amit@goldsure.com.au']
+            : ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
           subject: followUp
             ? `Additional ${config.label} photos uploaded - ${who}`

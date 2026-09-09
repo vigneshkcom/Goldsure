@@ -110,5 +110,6 @@ test('aircon upload notification email includes customer details, every answer a
     'Room ${room} name and comments',
     'Open photos in WorkDrive',
     'airconAssessmentError(assessment)',
+    "['vignesh@goldsure.com.au', 'david@goldsure.com.au', 'amit@goldsure.com.au']",
   ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);
 });
