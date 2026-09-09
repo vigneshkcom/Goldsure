@@ -42,6 +42,15 @@ test('aircon assessment collects the requested questions and photos', async () =
     "key: 'utility-bill'",
     "key: 'aircon-assessment-answers'",
   ]) assert.ok(upload.includes(marker), `missing ${marker}`);
+
+  for (const id of ['unitCount', 'roomCount']) {
+    const select = upload.match(new RegExp(`<select id="${id}">([\\s\\S]*?)<\\/select>`))?.[1] || '';
+    assert.ok(select, `missing ${id} dropdown`);
+    for (let value = 1; value <= 7; value += 1) {
+      assert.ok(select.includes(`<option value="${value}">${value}</option>`), `missing ${id} option ${value}`);
+    }
+    assert.doesNotMatch(select, /<option value="8">/);
+  }
 });
 
 test('photo tracker displays every saved aircon answer in a modal', async () => {

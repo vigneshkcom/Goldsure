@@ -141,8 +141,12 @@ async function setFolderPhone(accessToken, folderId, phone) {
 // the text file keeps the details immediately visible to staff in WorkDrive.
 async function setFolderAssessment(accessToken, folderId, phone, assessment = {}) {
   const storeys = String(assessment.storeys || '').trim();
-  const units = String(assessment.units || '').replace(/\D/g, '').slice(0, 2);
-  const rooms = String(assessment.rooms || '').replace(/\D/g, '').slice(0, 2);
+  const boundedCount = value => {
+    const count = Number.parseInt(String(value || ''), 10);
+    return Number.isInteger(count) && count >= 1 && count <= 7 ? String(count) : '';
+  };
+  const units = boundedCount(assessment.units);
+  const rooms = boundedCount(assessment.rooms);
   const roof = String(assessment.roof || '').trim();
   const lines = [
     phone ? `phone:${phone}` : '',
