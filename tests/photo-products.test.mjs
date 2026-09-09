@@ -22,6 +22,10 @@ test('VIC Aircon uses a separate WorkDrive parent and customer route', async () 
   const routes = JSON.parse(await read('vercel.json')).rewrites;
   assert.match(api, /ZOHO_WORKDRIVE_AIRCON_PARENT_FOLDER_ID/);
   assert.match(api, /uploadPath: '\/ac'/);
+  assert.match(api, /function fullPhoneForFolder\(phone\)/);
+  assert.match(api, /const folderName = fullPhone \? `\$\{name\.trim\(\)\} \(\$\{fullPhone\}\)`/);
+  assert.match(api, /await renameFolder\(accessToken, existingId, folderName\)/);
+  assert.doesNotMatch(api, /const folderName = last4 \?/);
   assert.deepEqual(
     routes.find(route => route.source === '/ac'),
     { source: '/ac', destination: '/hotwater/upload-photos.html?product=aircon' },

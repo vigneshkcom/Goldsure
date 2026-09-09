@@ -136,6 +136,29 @@ async function setFolderPhone(accessToken, folderId, phone) {
   }
 }
 
+async function renameFolder(accessToken, folderId, name) {
+  const r = await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      Accept: 'application/vnd.api+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ data: { attributes: { name }, type: 'files' } }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`folder rename failed: HTTP ${r.status} - ${text.slice(0, 200)}`);
+  }
+}
+
+function fullPhoneForFolder(phone) {
+  const raw = String(phone || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  return raw.startsWith('+') ? `+${digits}` : digits;
+}
+
 // Aircon assessment answers are stored on the folder as well as in a small
 // text file. The description lets a re-opened upload link restore the answers;
 // the text file keeps the details immediately visible to staff in WorkDrive.
@@ -490,12 +513,18 @@ export default async function handler(req, res) {
       const accessToken = await getAccessToken();
       // One folder per customer, reused across requests, so asking the same
       // customer for photos twice doesn't split them up. The full name alone
-      // isn't unique — two different "John Smith" customers would otherwise
-      // share a folder and have their photos mixed together — so the last 4
-      // digits of the mobile are appended when we have one.
-      const last4 = String(phone || '').replace(/\D/g, '').slice(-4);
-      const folderName = last4 ? `${name.trim()} (${last4})` : name.trim();
-      const existingId = await findFolderByName(accessToken, folderName, parentId);
+      // isn't unique, so include the complete phone number in the visible
+      // folder name. Existing folders made with only the last four digits are
+      // found and renamed in place, keeping their original photos and link.
+      const fullPhone = fullPhoneForFolder(phone);
+      const folderName = fullPhone ? `${name.trim()} (${fullPhone})` : name.trim();
+      let existingId = await findFolderByName(accessToken, folderName, parentId);
+      if (!existingId && fullPhone) {
+        const last4 = fullPhone.replace(/\D/g, '').slice(-4);
+        const legacyFolderName = `${name.trim()} (${last4})`;
+        existingId = await findFolderByName(accessToken, legacyFolderName, parentId);
+        if (existingId) await renameFolder(accessToken, existingId, folderName);
+      }
       const folderId = existingId || await createFolder(accessToken, folderName, parentId);
       // On reuse, say how many photos are already in there. The office then
       // knows the same link is going out as a top-up request rather than a
