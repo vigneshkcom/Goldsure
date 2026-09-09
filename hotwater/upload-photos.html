@@ -83,10 +83,20 @@
     position: absolute; top: 8px; right: 8px; border: none; background: rgba(0,0,0,.6); color: #fff;
     border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
   }
+  .comment-field { margin-top: 12px; }
+  .comment-field label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 700; color: #4a5568; }
+  .comment-field textarea {
+    display: block; width: 100%; min-height: 70px; resize: vertical; padding: 9px 10px;
+    border: 1px solid #cbd5e0; border-radius: 8px; background: #fff; color: #1a202c;
+    font-family: inherit; font-size: 13px; line-height: 1.45;
+  }
+  .comment-field textarea:focus { outline: 2px solid #90cdf4; border-color: #3182ce; }
 
   .extra-sec { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
   .extra-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .extra-grid.aircon-comments { grid-template-columns: 1fr; gap: 10px; }
   .extra-grid:empty { margin-top: 0; }
+  .extra-item { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: start; }
   .extra-thumb { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #edf2f7; }
   .extra-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .extra-thumb button {
@@ -241,6 +251,9 @@ const airconSlots = () => {
 };
 
 let SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
+const commentLabelForSlot = slot => /^room-(\d+)$/.test(slot.key)
+  ? `Room ${slot.key.split('-')[1]} comments`
+  : `${slot.label} comments`;
 
 const picked = {};   // key → compressed Blob
 
@@ -248,6 +261,7 @@ if (isAircon) {
   document.title = 'VIC Aircon Assessment - Goldsure';
   document.getElementById('airconQuestions').style.display = 'block';
   document.getElementById('fullName').value = custName;
+  document.getElementById('extraGrid').classList.add('aircon-comments');
   document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
 }
 
@@ -392,6 +406,7 @@ async function loadStatus() {
         addressConfirmed = true;
         setAddressBadge('Saved property address', 'valid');
       }
+      photoComments = { ...photoComments, ...(d.assessment.comments || {}) };
       document.getElementById('storeys').value = d.assessment.storeys || '';
       document.getElementById('unitCount').value = d.assessment.units || '';
       document.getElementById('roomCount').value = d.assessment.rooms || '';
@@ -473,6 +488,10 @@ function renderSlots() {
         <img id="img-${s.key}" alt="">
         <button type="button" onclick="clearPick('${s.key}')">Remove</button>
       </div>
+      ${isAircon ? `<div class="comment-field">
+        <label for="comment-${s.key}">${commentLabelForSlot(s)} <span class="optional">(optional)</span></label>
+        <textarea id="comment-${s.key}" maxlength="500" placeholder="Add any details that will help us assess this photo" oninput="savePhotoComment('${s.key}', this.value)"></textarea>
+      </div>` : ''}
     </div>
   `).join('');
 
@@ -483,6 +502,12 @@ function renderSlots() {
     document.getElementById('slot-' + key).classList.add('filled');
     document.getElementById('num-' + key).textContent = '✓';
     document.getElementById('btn-' + key).textContent = 'Retake / choose another';
+  }
+  if (isAircon) {
+    for (const slot of SLOTS) {
+      const field = document.getElementById('comment-' + slot.key);
+      if (field) field.value = photoComments[slot.key] || '';
+    }
   }
   markReceived();
   renderRecap();
@@ -550,6 +575,11 @@ function clearPick(key) {
 // ── Additional photos: no fixed count, customer adds as many as they like ──
 let extraPhotos = [];   // [{ id, blob }]
 let extraSeq = 0;
+let photoComments = {};
+
+function savePhotoComment(key, value) {
+  photoComments[key] = String(value || '').slice(0, 500);
+}
 
 document.getElementById('extraAddBtn').onclick = () => document.getElementById('extraFile').click();
 document.getElementById('extraFile').addEventListener('change', async (e) => {
@@ -571,15 +601,32 @@ document.getElementById('extraFile').addEventListener('change', async (e) => {
 });
 
 function renderExtraGrid() {
-  document.getElementById('extraGrid').innerHTML = extraPhotos.map(p => `
+  document.getElementById('extraGrid').innerHTML = extraPhotos.map((p, i) => isAircon ? `
+    <div class="extra-item">
+      <div class="extra-thumb">
+        <img src="${URL.createObjectURL(p.blob)}" alt="Additional photo ${i + 1}">
+        <button type="button" onclick="removeExtra('${p.id}')">×</button>
+      </div>
+      <div class="comment-field" style="margin-top:0;">
+        <label for="comment-${p.id}">Additional photo ${i + 1} comments <span class="optional">(optional)</span></label>
+        <textarea id="comment-${p.id}" maxlength="500" placeholder="Add any details about this photo" oninput="savePhotoComment('${p.id}', this.value)"></textarea>
+      </div>
+    </div>` : `
     <div class="extra-thumb">
-      <img src="${URL.createObjectURL(p.blob)}" alt="">
+      <img src="${URL.createObjectURL(p.blob)}" alt="Additional photo ${i + 1}">
       <button type="button" onclick="removeExtra('${p.id}')">×</button>
     </div>`).join('');
+  if (isAircon) {
+    for (const photo of extraPhotos) {
+      const field = document.getElementById('comment-' + photo.id);
+      if (field) field.value = photoComments[photo.id] || '';
+    }
+  }
 }
 
 function removeExtra(id) {
   extraPhotos = extraPhotos.filter(p => p.id !== id);
+  delete photoComments[id];
   renderExtraGrid();
   refreshSubmit();
 }
@@ -642,6 +689,10 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
 });
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
+  const commentEntries = isAircon ? [
+    ...SLOTS.map(s => ({ key: s.key, label: commentLabelForSlot(s), comment: (photoComments[s.key] || '').trim() })),
+    ...extraPhotos.map((p, i) => ({ key: p.id, label: `Additional photo ${i + 1} comments`, comment: (photoComments[p.id] || '').trim() })),
+  ] : [];
   const assessment = isAircon ? {
     fullName: document.getElementById('fullName').value.trim(),
     email: document.getElementById('customerEmail').value.trim(),
@@ -650,9 +701,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     units: Number(document.getElementById('unitCount').value),
     rooms: Number(document.getElementById('roomCount').value),
     roof: document.getElementById('roofType').value,
+    comments: Object.fromEntries(commentEntries.filter(item => item.comment).map(item => [item.key, item.comment])),
   } : null;
+  const commentsText = assessment
+    ? `\nPhoto comments\n${commentEntries.map(item => `${item.label}: ${item.comment || 'No comment provided'}`).join('\n')}\n`
+    : '';
   const answerText = assessment
-    ? `VIC Aircon Assessment Answers\nFull name: ${assessment.fullName}\nEmail: ${assessment.email}\nProperty address: ${assessment.address}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
+    ? `VIC Aircon Assessment Answers\nFull name: ${assessment.fullName}\nEmail: ${assessment.email}\nProperty address: ${assessment.address}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\n${commentsText}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
     : '';
   const entries = [
     ...(assessment ? [{ key: 'aircon-assessment-answers', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),

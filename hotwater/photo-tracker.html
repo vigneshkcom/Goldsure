@@ -709,6 +709,17 @@ function openAnswersModal(folderId) {
   $('answersTitle').textContent = 'Aircon assessment answers';
   $('answersCustomer').innerHTML =
     `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>${esc(f.name)}`;
+  const comments = a.comments || {};
+  const commentRows = [];
+  if (comments.switchboard) commentRows.push(['Switchboard comments', comments.switchboard]);
+  for (let room = 1; room <= Math.max(0, Math.min(7, Number(a.rooms) || 0)); room += 1) {
+    if (comments[`room-${room}`]) commentRows.push([`Room ${room} comments`, comments[`room-${room}`]]);
+  }
+  if (comments['utility-bill']) commentRows.push(['Rates notice or utility bill comments', comments['utility-bill']]);
+  Object.keys(comments)
+    .filter(key => /^extra-\d+$/.test(key) && comments[key])
+    .sort((aKey, bKey) => Number(aKey.slice(6)) - Number(bKey.slice(6)))
+    .forEach(key => commentRows.push([`Additional photo ${Number(key.slice(6))} comments`, comments[key]]));
   const rows = [
     ['Full name', a.fullName || String(f.name || '').replace(/\s*\(\d{3,4}\)\s*$/, '').trim() || 'Not answered'],
     ['Email address', a.email || 'Not answered'],
@@ -717,6 +728,7 @@ function openAnswersModal(folderId) {
     ['Aircon units', a.units || 'Not answered'],
     ['Rooms', a.rooms || 'Not answered'],
     ['Roof', a.roof || 'Not answered'],
+    ...commentRows,
   ];
   $('answersGrid').innerHTML = rows.map(([label, value]) =>
     `<div class="answer-row"><div class="answer-label">${esc(label)}</div><div class="answer-value">${esc(value)}</div></div>`

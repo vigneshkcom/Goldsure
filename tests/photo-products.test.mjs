@@ -46,6 +46,10 @@ test('aircon assessment collects the requested questions and photos', async () =
     'Room ${i + 1} for indoor head',
     "key: 'utility-bill'",
     "key: 'aircon-assessment-answers'",
+    'commentLabelForSlot',
+    "label: `Room ${i + 1} for indoor head`",
+    'savePhotoComment',
+    'Photo comments',
   ]) assert.ok(upload.includes(marker), `missing ${marker}`);
 
   for (const id of ['unitCount', 'roomCount']) {
@@ -69,6 +73,8 @@ test('photo tracker displays every saved aircon answer in a modal', async () => 
   assert.match(tracker, /\['Aircon units', a\.units/);
   assert.match(tracker, /\['Rooms', a\.rooms/);
   assert.match(tracker, /\['Roof', a\.roof/);
+  assert.match(tracker, /Room \$\{room\} comments/);
+  assert.match(tracker, /Rates notice or utility bill comments/);
 });
 
 test('photo button always offers Hot Water and VIC Aircon', async () => {
@@ -90,6 +96,8 @@ test('aircon upload notification email includes customer details, every answer a
     "['Aircon units', assessment?.units || 'Not answered']",
     "['Rooms', assessment?.rooms || 'Not answered']",
     "['Roof', assessment?.roof || 'Not answered']",
+    '...photoCommentRows(assessment)',
+    'Room ${room} comments',
     'Open photos in WorkDrive',
     'airconAssessmentError(assessment)',
   ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);

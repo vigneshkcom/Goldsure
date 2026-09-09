@@ -152,6 +152,9 @@ async function setFolderAssessment(accessToken, folderId, phone, assessment = {}
   const units = boundedCount(assessment.units);
   const rooms = boundedCount(assessment.rooms);
   const roof = oneLine(assessment.roof).slice(0, 80);
+  const commentLines = Object.entries(assessment.comments || {})
+    .filter(([key, value]) => /^(switchboard|room-[1-7]|utility-bill|extra-\d+)$/.test(key) && oneLine(value))
+    .map(([key, value]) => `comment_${key.replace(/-/g, '_')}:${oneLine(value).slice(0, 300)}`);
   const lines = [
     phone ? `phone:${phone}` : '',
     'product:aircon',
@@ -162,6 +165,7 @@ async function setFolderAssessment(accessToken, folderId, phone, assessment = {}
     units ? `units:${units}` : '',
     rooms ? `rooms:${rooms}` : '',
     roof ? `roof:${roof}` : '',
+    ...commentLines,
   ].filter(Boolean);
   try {
     await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
@@ -184,6 +188,10 @@ const assessmentFromDescription = d => {
   const pick = key => (new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(text) || [])[1]?.trim() || '';
   const units = Number(pick('units')) || null;
   const rooms = Number(pick('rooms')) || null;
+  const comments = {};
+  for (const match of text.matchAll(/(?:^|\n)comment_([a-z0-9_]+):([^\n]+)/gi)) {
+    comments[match[1].toLowerCase().replace(/_/g, '-')] = match[2].trim();
+  }
   return {
     fullName: pick('full_name'),
     email: pick('email'),
@@ -192,12 +200,30 @@ const assessmentFromDescription = d => {
     units,
     rooms,
     roof: pick('roof'),
+    comments,
   };
 };
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]));
+
+function photoCommentRows(assessment) {
+  const comments = assessment?.comments && typeof assessment.comments === 'object' ? assessment.comments : {};
+  const roomCount = Math.max(0, Math.min(7, Number(assessment?.rooms) || 0));
+  const rows = [];
+  if (comments.switchboard) rows.push(['Switchboard comments', comments.switchboard]);
+  for (let room = 1; room <= roomCount; room += 1) {
+    const comment = comments[`room-${room}`];
+    if (comment) rows.push([`Room ${room} comments`, comment]);
+  }
+  if (comments['utility-bill']) rows.push(['Rates notice or utility bill comments', comments['utility-bill']]);
+  Object.keys(comments)
+    .filter(key => /^extra-\d+$/.test(key) && comments[key])
+    .sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)))
+    .forEach(key => rows.push([`Additional photo ${Number(key.slice(6))} comments`, comments[key]]));
+  return rows;
+}
 
 function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
   const isAircon = config.product === 'aircon';
@@ -209,6 +235,7 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
     ['Aircon units', assessment?.units || 'Not answered'],
     ['Rooms', assessment?.rooms || 'Not answered'],
     ['Roof', assessment?.roof || 'Not answered'],
+    ...photoCommentRows(assessment),
     ['New photos uploaded', Number(uploadCount) || 0],
   ] : [
     ['Customer', who],
@@ -258,6 +285,7 @@ function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessme
       `Rooms: ${assessment?.rooms || 'Not answered'}`,
       `Roof: ${assessment?.roof || 'Not answered'}`,
     );
+    for (const [label, value] of photoCommentRows(assessment)) lines.push(`${label}: ${value}`);
   }
   lines.push(`New photos uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
   return lines.join('\n');
