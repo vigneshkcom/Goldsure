@@ -6,7 +6,7 @@
     },
     {
       key: 'vic-aircon', label: 'VIC Aircons', color: '#a25ddc', icon: '<path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07"/>',
-      items: [['VIC Aircon Quote Builder', '/aircons/quote.html'], ['Quote Tracker', '/aircons/quote-tracker.html'], ['Job Tracker', '/aircons/job-tracker.html']]
+      items: [['VIC Aircon Quote Builder', '/aircons/quote.html'], ['Quote Tracker', '/aircons/quote-tracker.html'], ['Job Tracker', '/aircons/job-tracker.html'], ['Photo Tracker', '/aircons/photo-tracker.html']]
     },
     {
       key: 'vic-hws', label: 'VIC Hot Water Systems', color: '#00c875', icon: '<path d="M12 2s5 5.5 5 9a5 5 0 0 1-10 0c0-3.5 5-9 5-9z"/>',

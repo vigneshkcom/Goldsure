@@ -27,6 +27,34 @@ import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 // exact match be configured in Vercel, with the name hint as a fallback.
 const HWS_PIPELINE_ID_ENV = process.env.HWS_PIPELINE_ID || '';
 const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'hot water'];
+const AIRCON_PIPELINE_ID_ENV = process.env.AIRCON_PIPELINE_ID || '';
+const AIRCON_PIPELINE_NAME_HINTS = ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'];
+
+const normaliseProduct = value => String(value || '').trim().toLowerCase() === 'aircon' ? 'aircon' : 'hws';
+
+function productConfig(value) {
+  const product = normaliseProduct(value);
+  if (product === 'aircon') {
+    return {
+      product,
+      parentId: process.env.ZOHO_WORKDRIVE_AIRCON_PARENT_FOLDER_ID,
+      uploadPath: '/ac',
+      label: 'VIC Aircon',
+      opportunityName: who => `Aircon - ${who}`,
+      pipelineIdEnv: AIRCON_PIPELINE_ID_ENV,
+      pipelineNameHints: AIRCON_PIPELINE_NAME_HINTS,
+    };
+  }
+  return {
+    product,
+    parentId: process.env.ZOHO_WORKDRIVE_PARENT_FOLDER_ID,
+    uploadPath: '/u',
+    label: 'Hot Water',
+    opportunityName: who => `Hot Water — ${who}`,
+    pipelineIdEnv: HWS_PIPELINE_ID_ENV,
+    pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
+  };
+}
 
 const REGION = 'com.au';
 const ACCOUNTS_BASE = `https://accounts.zoho.${REGION}`;
@@ -108,9 +136,41 @@ async function setFolderPhone(accessToken, folderId, phone) {
   }
 }
 
+// Aircon assessment answers are stored on the folder as well as in a small
+// text file. The description lets a re-opened upload link restore the answers;
+// the text file keeps the details immediately visible to staff in WorkDrive.
+async function setFolderAssessment(accessToken, folderId, phone, assessment = {}) {
+  const storeys = String(assessment.storeys || '').trim();
+  const units = String(assessment.units || '').replace(/\D/g, '').slice(0, 2);
+  const roof = String(assessment.roof || '').trim();
+  const lines = [
+    phone ? `phone:${phone}` : '',
+    'product:aircon',
+    storeys ? `storeys:${storeys}` : '',
+    units ? `units:${units}` : '',
+    roof ? `roof:${roof}` : '',
+  ].filter(Boolean);
+  try {
+    await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { attributes: { description: lines.join('\n') }, type: 'files' } }),
+    });
+  } catch (e) {
+    console.error('[Zoho] could not store aircon assessment on folder:', e.message);
+  }
+}
+
 const phoneFromDescription = d => {
   const m = /phone:(\+?[\d\s()-]{6,})/i.exec(String(d || ''));
   return m ? m[1].trim() : '';
+};
+
+const assessmentFromDescription = d => {
+  const text = String(d || '');
+  const pick = key => (new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(text) || [])[1]?.trim() || '';
+  const units = Number(pick('units')) || null;
+  return { storeys: pick('storeys'), units, roof: pick('roof') };
 };
 
 // Ask Zoho for the folder's own canonical link rather than constructing one —
@@ -169,9 +229,11 @@ function base64ToBuffer(dataBase64) {
 }
 
 export default async function handler(req, res) {
-  const parentId = process.env.ZOHO_WORKDRIVE_PARENT_FOLDER_ID;
+  const requestedProduct = req.method === 'GET' ? req.query.product : req.body?.product;
+  const config = productConfig(requestedProduct);
+  const { parentId } = config;
   if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET || !process.env.ZOHO_REFRESH_TOKEN || !parentId) {
-    return res.status(500).json({ error: 'Zoho credentials not configured' });
+    return res.status(500).json({ error: `${config.label} WorkDrive storage is not configured` });
   }
 
   // GET ?action=list → every customer folder with its photo count, for the
@@ -189,6 +251,7 @@ export default async function handler(req, res) {
             id: f.id,
             name: a.name || '',
             phone: phoneFromDescription(a.description),
+            assessment: assessmentFromDescription(a.description),
             photoCount: a.storage_info?.files_count ?? null,
             createdAt: a.created_time_in_millisecond || null,
             modifiedAt: a.modified_time_in_millisecond || null,
@@ -258,7 +321,12 @@ export default async function handler(req, res) {
         console.error('[Zoho] status file list failed:', listErr.message);
       }
 
-      return res.status(200).json({ name, photoCount: files.length, files });
+      return res.status(200).json({
+        name,
+        photoCount: files.filter(f => /\.(jpe?g|png|webp|heic)$/i.test(f.name)).length,
+        files,
+        assessment: assessmentFromDescription(meta?.data?.attributes?.description),
+      });
     } catch (err) {
       return res.status(502).json({ error: 'lookup failed', detail: err.message });
     }
@@ -317,8 +385,8 @@ export default async function handler(req, res) {
       // suffix never leaks into the greeting.
       const firstName = name.trim().split(/\s+/)[0];
       const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
-      const uploadPageUrl = `${baseUrl}/u?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
-      return res.status(200).json({ folderId, folderName, uploadPageUrl, reused: Boolean(existingId), photoCount });
+      const uploadPageUrl = `${baseUrl}${config.uploadPath}?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
+      return res.status(200).json({ folderId, folderName, uploadPageUrl, product: config.product, reused: Boolean(existingId), photoCount });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
       return res.status(502).json({ error: 'Zoho request failed', detail: err.message });
@@ -327,13 +395,16 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0 } = req.body || {};
+    const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0, assessment } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
 
     try {
       const accessToken = await getAccessToken();
       const buffer = base64ToBuffer(dataBase64);
       await uploadFile(accessToken, folderId, filename || `photo-${Date.now()}.jpg`, buffer);
+      if (config.product === 'aircon' && assessment) {
+        await setFolderAssessment(accessToken, folderId, phone, assessment);
+      }
 
       // Notify the team so uploads don't have to be checked for manually.
       // The upload page sends a set of photos one at a time and flags only the
@@ -356,9 +427,10 @@ export default async function handler(req, res) {
         // Log it against the GHL contact too, so it shows up where the rest of
         // the customer's history lives. Also best-effort.
         if (phone) {
+          const notePrefix = config.product === 'aircon' ? '[Aircon Photo Upload]' : '[Photo Upload]';
           const noteBody = folderUrl
-            ? `[Photo Upload]\n${who} ${what}. View them here: ${folderUrl}`
-            : `[Photo Upload]\n${who} ${what} to their WorkDrive folder (${folderId}).`;
+            ? `${notePrefix}\n${who} ${what}. View them here: ${folderUrl}`
+            : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).`;
           await postGhlNoteByPhone(phone, noteBody);
 
           // Move the deal to "Photos Received" on the HWS pipeline too, not
@@ -371,9 +443,9 @@ export default async function handler(req, res) {
               if (contactId) {
                 await ensureOpportunityInStage({
                   contactId,
-                  opportunityName: `Hot Water — ${who}`,
-                  pipelineIdEnv: HWS_PIPELINE_ID_ENV,
-                  nameHints: HWS_PIPELINE_NAME_HINTS,
+                  opportunityName: config.opportunityName(who),
+                  pipelineIdEnv: config.pipelineIdEnv,
+                  nameHints: config.pipelineNameHints,
                   stageNames: ['Photos Received'],
                 });
               }
@@ -389,7 +461,9 @@ export default async function handler(req, res) {
         await sendHostingerMail({
           to: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
           displayName: 'Goldsure Portal',
-          subject: followUp ? `Additional photos uploaded — ${who}` : `New photos uploaded — ${who}`,
+          subject: followUp
+            ? `Additional ${config.label} photos uploaded - ${who}`
+            : `New ${config.label} photos uploaded - ${who}`,
           html: `<p><strong>${who}</strong> ${what}.</p>
                  ${linkHtml}`,
         });

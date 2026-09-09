@@ -22,6 +22,16 @@
   h1 { font-size: 20px; margin: 0 0 6px; text-align: center; }
   p.sub { color: #666; font-size: 14px; margin: 0 0 22px; text-align: center; line-height: 1.5; }
 
+  .questions { display: none; border: 1px solid #dbeafe; background: #f7fbff; border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+  .questions-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .question-grid { display: grid; gap: 12px; }
+  .question label { display: block; font-size: 12px; font-weight: 700; color: #4a5568; margin-bottom: 5px; }
+  .question select, .question input {
+    width: 100%; height: 42px; padding: 0 11px; border: 1px solid #cbd5e0; border-radius: 8px;
+    background: #fff; color: #1a202c; font: inherit;
+  }
+  .question select:focus, .question input:focus { outline: 2px solid #90cdf4; border-color: #3182ce; }
+
   .slot { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px; transition: border-color .15s, background .15s; }
   .slot.filled { border-color: #38a169; background: #f0fff4; }
   /* Already in the folder from an earlier upload — ticked off, but still
@@ -103,6 +113,32 @@
       <h1 id="headline">Upload your photos</h1>
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
+      <div class="questions" id="airconQuestions">
+        <div class="questions-title">A few quick questions</div>
+        <div class="question-grid">
+          <div class="question">
+            <label for="storeys">Is the property single or double storey?</label>
+            <select id="storeys">
+              <option value="">Choose one</option>
+              <option value="Single storey">Single storey</option>
+              <option value="Double storey">Double storey</option>
+            </select>
+          </div>
+          <div class="question">
+            <label for="unitCount">How many aircon units do you need?</label>
+            <input id="unitCount" type="number" min="1" max="12" inputmode="numeric" placeholder="e.g. 3">
+          </div>
+          <div class="question">
+            <label for="roofType">Is the roof tile or tin?</label>
+            <select id="roofType">
+              <option value="">Choose one</option>
+              <option value="Tile roof">Tile roof</option>
+              <option value="Tin roof">Tin roof</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="recap" id="recap"></div>
 
       <div id="slots"></div>
@@ -133,15 +169,39 @@ const params = new URLSearchParams(location.search);
 const folderId = params.get('f') || params.get('folder');
 let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
+const product = location.pathname === '/ac' || params.get('product') === 'aircon' ? 'aircon' : 'hws';
+const isAircon = product === 'aircon';
 
-const SLOTS = [
+const HWS_SLOTS = [
   { key: 'switchboard', label: 'Existing switchboard',       note: 'Your electrical panel / fuse box.',                                              required: true },
   { key: 'hot-water',   label: 'Existing hot water system',  note: 'The whole unit, from a few steps back.',                                          required: true },
   { key: 'access',      label: 'Access to the property',     note: 'The path to the unit, so we can check we can get the new one in.',                required: true },
   { key: 'compliance',  label: 'Hot water compliance plate', note: 'The sticker on the unit showing its model details. Skip this if there isn’t one.', required: false },
 ];
 
+const airconSlots = () => {
+  const count = Math.max(0, Math.min(12, Number(document.getElementById('unitCount')?.value) || 0));
+  return [
+    { key: 'switchboard', label: 'Switchboard', note: 'A clear photo of the whole switchboard with the cover open, if safe to do so.', required: true },
+    ...Array.from({ length: count }, (_, i) => ({
+      key: `room-${i + 1}`,
+      label: `Room ${i + 1} for indoor head`,
+      note: 'Take one wide photo showing the room and the wall where the indoor head could go.',
+      required: true,
+    })),
+    { key: 'utility-bill', label: 'Rates notice or utility bill', note: 'A clear photo showing the property address. You may cover account balances if you prefer.', required: true },
+  ];
+};
+
+let SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
+
 const picked = {};   // key → compressed Blob
+
+if (isAircon) {
+  document.title = 'VIC Aircon Assessment - Goldsure';
+  document.getElementById('airconQuestions').style.display = 'block';
+  document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
+}
 
 const setStatus = (msg, cls) => {
   const el = document.getElementById('status');
@@ -149,7 +209,9 @@ const setStatus = (msg, cls) => {
   el.className = 'status' + (cls ? ' ' + cls : '');
 };
 
-const BLURB = 'please take a clear photo of each item below so we can prepare your quote.';
+const BLURB = isAircon
+  ? 'please answer the questions and add the photos below so we can assess the installation and prepare your quote.'
+  : 'please take a clear photo of each item below so we can prepare your quote.';
 const TOPUP_BLURB = 'we already have the photos ticked below — just add whatever else you can, no need to send those again.';
 const MIXED_BLURB = 'the photos ticked below are already in — please add the ones still missing, and anything else that helps.';
 
@@ -179,7 +241,9 @@ function greet() {
   const topUp = held > 0 && outstanding().length === 0;
   const partial = held > 0 && !topUp;
 
-  document.getElementById('headline').textContent = topUp ? 'Send us a few more photos' : 'Upload your photos';
+  document.getElementById('headline').textContent = topUp
+    ? 'Send us a few more photos'
+    : (isAircon ? 'Quick aircon assessment' : 'Upload your photos');
   const blurb = topUp ? TOPUP_BLURB : partial ? MIXED_BLURB : BLURB;
   document.getElementById('subText').textContent = first
     ? `Hi ${first}, ${blurb}`
@@ -208,12 +272,20 @@ const shortDate = ms => {
 async function loadStatus() {
   if (!folderId) return;
   try {
-    const r = await fetch(`/api/zoho/create-photo-request?action=status&id=${encodeURIComponent(folderId)}`);
+    const r = await fetch(`/api/zoho/create-photo-request?action=status&product=${product}&id=${encodeURIComponent(folderId)}`);
     if (!r.ok) return;
     const d = await r.json();
     if (d.name && !custName) custName = d.name;
 
+    if (isAircon && d.assessment) {
+      document.getElementById('storeys').value = d.assessment.storeys || '';
+      document.getElementById('unitCount').value = d.assessment.units || '';
+      document.getElementById('roofType').value = d.assessment.roof || '';
+      renderSlots();
+    }
+
     for (const f of d.files || []) {
+      if (!/\.(jpe?g|png|webp|heic)$/i.test(String(f.name || ''))) continue;
       const key = slotKeyOf(f.name);
       if (key) {
         // Keep the most recent one, so the date shown is the latest send.
@@ -268,32 +340,40 @@ function renderRecap() {
   el.style.display = 'block';
 }
 
-loadStatus();
-
-// Build the slots
-document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
-  <div class="slot" id="slot-${s.key}">
-    <div class="slot-head">
-      <div class="slot-num" id="num-${s.key}">${i + 1}</div>
-      <div class="slot-text">
-        <div class="slot-title">${s.label} ${s.required ? '<span class="req">*</span>' : '<span class="optional">(optional)</span>'}</div>
-        <div class="slot-note">${s.note}</div>
+function renderSlots() {
+  SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
+  document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
+    <div class="slot" id="slot-${s.key}">
+      <div class="slot-head">
+        <div class="slot-num" id="num-${s.key}">${i + 1}</div>
+        <div class="slot-text">
+          <div class="slot-title">${s.label} ${s.required ? '<span class="req">*</span>' : '<span class="optional">(optional)</span>'}</div>
+          <div class="slot-note">${s.note}</div>
+        </div>
+      </div>
+      <button type="button" class="slot-btn" id="btn-${s.key}" onclick="document.getElementById('file-${s.key}').click()">Take / choose photo</button>
+      <input type="file" id="file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
+      <div class="have-note" id="note-${s.key}"></div>
+      <div class="thumb" id="thumb-${s.key}" style="display:none;">
+        <img id="img-${s.key}" alt="">
+        <button type="button" onclick="clearPick('${s.key}')">Remove</button>
       </div>
     </div>
-    <button type="button" class="slot-btn" id="btn-${s.key}" onclick="document.getElementById('file-${s.key}').click()">Take / choose photo</button>
-    <!-- No capture attribute. capture="environment" sends phones straight into
-         the camera and hides the photo library, so customers who had already
-         taken the photos could not attach them. Plain accept="image/*" makes
-         iOS and Android show their normal chooser — Photo Library, Take Photo
-         and Browse — which is what the button promises. -->
-    <input type="file" id="file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
-    <div class="have-note" id="note-${s.key}"></div>
-    <div class="thumb" id="thumb-${s.key}" style="display:none;">
-      <img id="img-${s.key}" alt="">
-      <button type="button" onclick="clearPick('${s.key}')">Remove</button>
-    </div>
-  </div>
-`).join('');
+  `).join('');
+
+  for (const [key, blob] of Object.entries(picked)) {
+    if (!document.getElementById('slot-' + key)) continue;
+    document.getElementById('img-' + key).src = URL.createObjectURL(blob);
+    document.getElementById('thumb-' + key).style.display = 'block';
+    document.getElementById('slot-' + key).classList.add('filled');
+    document.getElementById('num-' + key).textContent = '✓';
+    document.getElementById('btn-' + key).textContent = 'Retake / choose another';
+  }
+  markReceived();
+  renderRecap();
+  refreshSubmit();
+  if (!folderId) document.querySelectorAll('.slot-btn').forEach(b => { b.disabled = true; });
+}
 
 if (!folderId) {
   setStatus('This upload link is missing information. Please contact us for a new link.', 'err');
@@ -394,16 +474,29 @@ function refreshSubmit() {
   // point of a re-sent link. What's left is simply: send at least one new one.
   const required = SLOTS.filter(s => s.required);
   const missing = required.filter(s => !picked[s.key] && !have[s.key]);
-  const newCount = Object.keys(picked).length + extraPhotos.length;
+  const newCount = SLOTS.filter(s => picked[s.key]).length + extraPhotos.length;
   const btn = document.getElementById('submitBtn');
+  const questionsComplete = !isAircon || Boolean(
+    document.getElementById('storeys').value &&
+    Number(document.getElementById('unitCount').value) >= 1 &&
+    document.getElementById('roofType').value
+  );
 
-  btn.disabled = missing.length > 0 || newCount === 0 || !folderId;
+  btn.disabled = !questionsComplete || missing.length > 0 || newCount === 0 || !folderId;
   btn.textContent =
-    missing.length ? `Upload Photos (${required.length - missing.length}/${required.length} required)`
+    !questionsComplete ? 'Answer the questions above'
+    : missing.length ? `Upload Photos (${required.length - missing.length}/${required.length} required)`
     : newCount === 0 ? 'Choose a photo to send'
     : `Upload ${newCount} Photo${newCount === 1 ? '' : 's'}`;
 }
-refreshSubmit();
+renderSlots();
+loadStatus();
+
+if (isAircon) {
+  document.getElementById('unitCount').addEventListener('input', renderSlots);
+  document.getElementById('storeys').addEventListener('change', refreshSubmit);
+  document.getElementById('roofType').addEventListener('change', refreshSubmit);
+}
 
 const blobToBase64 = blob => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -413,7 +506,16 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
 });
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
+  const assessment = isAircon ? {
+    storeys: document.getElementById('storeys').value,
+    units: Number(document.getElementById('unitCount').value),
+    roof: document.getElementById('roofType').value,
+  } : null;
+  const answerText = assessment
+    ? `VIC Aircon Assessment\nCustomer: ${custName || 'Not provided'}\nProperty: ${assessment.storeys}\nUnits: ${assessment.units}\nRoof: ${assessment.roof}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
+    : '';
   const entries = [
+    ...(assessment ? [{ key: 'aircon-assessment', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
     ...SLOTS.filter(s => picked[s.key]).map(s => ({ key: s.key, blob: picked[s.key], label: s.label })),
     ...extraPhotos.map((p, i) => ({ key: p.id, blob: p.blob, label: `Additional photo ${i + 1}` })),
   ];
@@ -438,10 +540,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           folderId,
-          filename: `${safeName}-${s.key}${stamp}.jpg`,
+          filename: `${safeName}-${s.key}${s.extension ? '' : stamp}.${s.extension || 'jpg'}`,
           dataBase64,
           customerName: custName,
           phone: custPhone,
+          product,
+          ...(assessment ? { assessment } : {}),
           // Only the last upload should trigger the team email/GHL note, so a
           // multi-photo submission doesn't fire one notification per photo.
           notify: done === entries.length - 1,
@@ -449,7 +553,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           // Tells the team this is a top-up on a folder they may already have
           // looked at, rather than a first submission.
           followUp,
-          uploadCount: entries.length,
+          uploadCount: entries.length - (assessment ? 1 : 0),
         }),
       });
       const data = await res.json();
@@ -459,6 +563,10 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     if (followUp) {
       document.getElementById('doneText').textContent =
         'Your extra photos have been received and added to the ones you sent earlier. We’ll take it from here — you can close this page now.';
+    }
+    if (isAircon) {
+      document.getElementById('doneText').textContent =
+        'Your answers and photos have been received. We’ll assess the installation and contact you with the next step. You can close this page now.';
     }
     document.getElementById('formView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';

@@ -304,7 +304,7 @@
     <div class="top-row">
       <img class="logo" src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure">
       <span class="divider"></span>
-      <h1 class="board-title">Photo Upload Tracker</h1>
+      <h1 class="board-title" id="boardTitle">Photo Upload Tracker</h1>
       <div class="top-end">
         <span class="stamp" id="stamp"></span>
         <button class="btn" id="refreshBtn" aria-label="Refresh">
@@ -378,9 +378,15 @@
 </div>
 
 <script>
-/* The upload page asks for four shots — switchboard, existing unit, access,
-   and the optional compliance plate — so counts read against four. */
-const SLOTS = 4;
+const PRODUCT = location.pathname.startsWith('/aircons/') || new URLSearchParams(location.search).get('product') === 'aircon'
+  ? 'aircon'
+  : 'hws';
+const IS_AIRCON = PRODUCT === 'aircon';
+const PRODUCT_LABEL = IS_AIRCON ? 'VIC Aircon' : 'Hot Water';
+const UPLOAD_PATH = IS_AIRCON ? '/ac' : '/u';
+document.title = `${PRODUCT_LABEL} Photo Tracker - Goldsure`;
+document.getElementById('boardTitle').textContent = `${PRODUCT_LABEL} Photo Tracker`;
+
 const AVATAR_COLORS = ['#0073ea','#a25ddc','#00c875','#fdab3d','#e2445c','#009eb5','#ff642e'];
 
 let folders = [];
@@ -414,20 +420,33 @@ const avatarColor = name => AVATAR_COLORS[
 ];
 
 function statusOf(f) {
-  const n = f.photoCount;
+  const n = photoCountOf(f);
   if (n === null || n === undefined) return { cls: 'unknown', text: 'Unknown' };
   if (n === 0) return { cls: 'none', text: 'Waiting on photos' };
-  if (n < 3)   return { cls: 'part', text: 'Partly received' };
+  if (n < slotCountFor(f)) return { cls: 'part', text: 'Partly received' };
   return { cls: 'done', text: 'Photos received' };
 }
 
-function battery(count) {
-  const n = Math.max(0, Math.min(SLOTS, Number(count) || 0));
-  const cls = n >= 3 ? 'on' : 'warn';
+function battery(f) {
+  const count = photoCountOf(f);
+  const slots = slotCountFor(f);
+  const n = Math.max(0, Math.min(slots, Number(count) || 0));
+  const cls = n >= slots ? 'on' : 'warn';
   let bars = '';
-  for (let i = 0; i < SLOTS; i++) bars += `<span class="${i < n ? cls : ''}"></span>`;
-  return `<div class="battery">${bars}</div><div class="battery-label">${count === null ? '—' : n + '/' + SLOTS}</div>`;
+  for (let i = 0; i < slots; i++) bars += `<span class="${i < n ? cls : ''}"></span>`;
+  return `<div class="battery">${bars}</div><div class="battery-label">${count === null ? '—' : n + '/' + slots}</div>`;
 }
+
+// Aircon folders also contain one small assessment-answers text file. WorkDrive
+// includes it in files_count, so remove it when showing the photo total.
+const photoCountOf = f => {
+  if (f.photoCount === null || f.photoCount === undefined) return f.photoCount;
+  return Math.max(0, Number(f.photoCount) - (IS_AIRCON ? 1 : 0));
+};
+
+const slotCountFor = f => IS_AIRCON
+  ? 2 + Math.max(1, Math.min(12, Number(f.assessment?.units) || 1))
+  : 4;
 
 function ageDays(ms) {
   if (!ms) return null;
@@ -437,7 +456,7 @@ function ageDays(ms) {
 function ageHtml(f) {
   const d = ageDays(f.createdAt);
   if (d === null) return '<span class="age">—</span>';
-  const empty = (f.photoCount || 0) === 0;
+  const empty = (photoCountOf(f) || 0) === 0;
   // An empty folder sitting for a week is the one worth chasing or deleting.
   const stale = empty && d >= 7;
   const text = d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
@@ -454,7 +473,7 @@ function pipeHtml(f) {
 function rowHtml(f, i, gcolor) {
   const st = statusOf(f);
   const hasPhone = Boolean(phoneFor(f));
-  const count = f.photoCount || 0;
+  const count = photoCountOf(f) || 0;
   // Nothing in yet (or barely anything) → chase the original request. Once
   // they've sent the set, the same link goes back out as a top-up: the upload
   // page ticks off what it already holds, so they only add what's new.
@@ -471,7 +490,7 @@ function rowHtml(f, i, gcolor) {
       </div>
     </div>
     <div class="cell status-cell m-status"><span class="status ${st.cls}">${st.text}</span></div>
-    <div class="cell c m-batt">${battery(f.photoCount)}</div>
+    <div class="cell c m-batt">${battery(f)}</div>
     <div class="cell c m-sent"><div class="date"><b>${fmtDate(f.createdAt)}</b></div></div>
     <div class="cell c m-age">${ageHtml(f)}</div>
     <div class="cell c m-link">
@@ -526,9 +545,9 @@ function render() {
     return;
   }
 
-  const waiting = list.filter(f => (f.photoCount || 0) === 0);
-  const partial = list.filter(f => (f.photoCount || 0) > 0 && f.photoCount < 3);
-  const done    = list.filter(f => (f.photoCount || 0) >= 3);
+  const waiting = list.filter(f => (photoCountOf(f) || 0) === 0);
+  const partial = list.filter(f => (photoCountOf(f) || 0) > 0 && photoCountOf(f) < slotCountFor(f));
+  const done    = list.filter(f => (photoCountOf(f) || 0) >= slotCountFor(f));
 
   board.innerHTML =
       groupHtml('waiting', 'Waiting on photos', 'var(--red)', waiting)
@@ -592,7 +611,7 @@ function uploadLinkFor(f, mode) {
   const ph = phoneFor(f);
   const p = ph ? `&p=${encodeURIComponent(ph)}` : '';
   const more = mode === 'more' ? '&more=1' : '';
-  return `${location.origin}/u?f=${encodeURIComponent(f.id)}${n}${p}${more}`;
+  return `${location.origin}${UPLOAD_PATH}?f=${encodeURIComponent(f.id)}${n}${p}${more}`;
 }
 
 function reminderText(f, mode) {
@@ -607,7 +626,15 @@ function reminderText(f, mode) {
   // Asking for extras on top of a complete set: say plainly that the earlier
   // photos don't need re-sending, since it's the same link they used before.
   if (mode === 'more') {
-    return `Hi ${first}, Goldsure here. Thanks for the photos you sent through — we just need a couple more to finish your hot water quote. Same link as before, and it already has your earlier photos ticked off, so you only need to add the new ones: ${link}`;
+    return IS_AIRCON
+      ? `Hi ${first}, Goldsure here. Thanks for the aircon photos you sent through. We just need a couple more to finish the assessment. Use the same link and only add the new ones: ${link}`
+      : `Hi ${first}, Goldsure here. Thanks for the photos you sent through — we just need a couple more to finish your hot water quote. Same link as before, and it already has your earlier photos ticked off, so you only need to add the new ones: ${link}`;
+  }
+
+  if (IS_AIRCON) {
+    return (photoCountOf(f) || 0) > 0
+      ? `Hi ${first}, Goldsure here. We're still missing a couple of details for your aircon assessment. Please use the same link to add the remaining photos: ${link}`
+      : `Hi ${first}, Goldsure here. We sent you a link${on} for the quick questions and photos needed to assess your aircon installation. In case you missed it, here's the link again: ${link}`;
   }
 
   return (f.photoCount || 0) > 0
@@ -693,7 +720,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSmsModa
 
 async function load() {
   try {
-    const res = await fetch('/api/zoho/create-photo-request?action=list');
+    const res = await fetch(`/api/zoho/create-photo-request?action=list&product=${PRODUCT}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
     folders = data.folders || [];
@@ -727,7 +754,7 @@ $('reqBtn').onclick = async () => {
     const res = await fetch('/api/zoho/create-photo-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, ...(phone ? { phone } : {}) }),
+      body: JSON.stringify({ name, product: PRODUCT, ...(phone ? { phone } : {}) }),
     });
     const data = await res.json();
     if (!res.ok || !data.uploadPageUrl) throw new Error(data.detail || data.error || 'Failed');
