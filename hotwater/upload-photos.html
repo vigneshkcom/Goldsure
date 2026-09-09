@@ -71,10 +71,11 @@
   .optional { color: #718096; font-weight: 500; font-size: 12px; }
 
   .slot-btn {
-    display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 9px;
+    display: block; width: 100%; margin: 0; padding: 11px 7px; border-radius: 9px;
     border: 1px dashed #cbd5e0; background: #f7fafc; color: #2b6cb0; font-size: 14px;
     font-weight: 600; cursor: pointer; text-align: center;
   }
+  .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
   .slot.filled .slot-btn { border-style: solid; border-color: #9ae6b4; background: #fff; color: #2f855a; }
   input[type=file] { display: none; }
   .thumb { margin-top: 12px; position: relative; }
@@ -104,10 +105,11 @@
     border-radius: 6px; width: 22px; height: 22px; font-size: 14px; line-height: 1; cursor: pointer;
   }
   .extra-add-btn {
-    display: block; width: 100%; margin-top: 12px; padding: 11px; border-radius: 9px;
+    display: block; width: 100%; margin: 0; padding: 11px 7px; border-radius: 9px;
     border: 1px dashed #cbd5e0; background: #f7fafc; color: #2b6cb0; font-size: 14px;
     font-weight: 600; cursor: pointer; text-align: center;
   }
+  .extra-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 
   button.submit {
     width: 100%; margin-top: 8px; padding: 15px; border: none; border-radius: 10px;
@@ -202,7 +204,11 @@
         <div class="slot-title">Additional photos <span class="optional">(optional)</span></div>
         <div class="slot-note">Anything else that helps us see the property — extra angles, the roof, meter box, tricky access, and so on. Add as many as you like.</div>
         <div class="extra-grid" id="extraGrid"></div>
-        <button type="button" class="extra-add-btn" id="extraAddBtn">+ Add more photos</button>
+        <div class="extra-actions">
+          <button type="button" class="extra-add-btn" id="extraCameraBtn">Take photo</button>
+          <button type="button" class="extra-add-btn" id="extraAddBtn">Choose from gallery</button>
+        </div>
+        <input type="file" id="extraCameraFile" accept="image/*" capture="environment">
         <input type="file" id="extraFile" accept="image/*" multiple>
       </div>
 
@@ -452,7 +458,8 @@ function markReceived() {
       when ? `✓ Already sent on ${when}` : '✓ Already sent';
     if (!picked[sl.key]) {
       document.getElementById('num-' + sl.key).textContent = '✓';
-      document.getElementById('btn-' + sl.key).textContent = 'Replace this photo';
+      document.getElementById('camera-btn-' + sl.key).textContent = 'Retake photo';
+      document.getElementById('gallery-btn-' + sl.key).textContent = 'Replace from gallery';
     }
   }
 }
@@ -481,8 +488,12 @@ function renderSlots() {
           <div class="slot-note">${s.note}</div>
         </div>
       </div>
-      <button type="button" class="slot-btn" id="btn-${s.key}" onclick="document.getElementById('file-${s.key}').click()">Take / choose photo</button>
-      <input type="file" id="file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
+      <div class="photo-actions">
+        <button type="button" class="slot-btn" id="camera-btn-${s.key}" onclick="document.getElementById('camera-file-${s.key}').click()">Take photo</button>
+        <button type="button" class="slot-btn" id="gallery-btn-${s.key}" onclick="document.getElementById('gallery-file-${s.key}').click()">Choose from gallery</button>
+      </div>
+      <input type="file" id="camera-file-${s.key}" accept="image/*" capture="environment" onchange="onPick('${s.key}', this)">
+      <input type="file" id="gallery-file-${s.key}" accept="image/*" onchange="onPick('${s.key}', this)">
       <div class="have-note" id="note-${s.key}"></div>
       <div class="thumb" id="thumb-${s.key}" style="display:none;">
         <img id="img-${s.key}" alt="">
@@ -501,7 +512,8 @@ function renderSlots() {
     document.getElementById('thumb-' + key).style.display = 'block';
     document.getElementById('slot-' + key).classList.add('filled');
     document.getElementById('num-' + key).textContent = '✓';
-    document.getElementById('btn-' + key).textContent = 'Retake / choose another';
+    document.getElementById('camera-btn-' + key).textContent = 'Retake photo';
+    document.getElementById('gallery-btn-' + key).textContent = 'Choose another';
   }
   if (isAircon) {
     for (const slot of SLOTS) {
@@ -552,7 +564,8 @@ async function onPick(key, input) {
     document.getElementById('thumb-' + key).style.display = 'block';
     document.getElementById('slot-' + key).classList.add('filled');
     document.getElementById('num-' + key).textContent = '✓';
-    document.getElementById('btn-' + key).textContent = 'Retake / choose another';
+    document.getElementById('camera-btn-' + key).textContent = 'Retake photo';
+    document.getElementById('gallery-btn-' + key).textContent = 'Choose another';
     setStatus('');
   } catch {
     setStatus('Could not process that photo — please try another.', 'err');
@@ -563,12 +576,14 @@ async function onPick(key, input) {
 function clearPick(key) {
   delete picked[key];
   const i = SLOTS.findIndex(s => s.key === key);
-  document.getElementById('file-' + key).value = '';
+  document.getElementById('camera-file-' + key).value = '';
+  document.getElementById('gallery-file-' + key).value = '';
   document.getElementById('thumb-' + key).style.display = 'none';
   document.getElementById('slot-' + key).classList.remove('filled');
   // Dropping a replacement doesn't undo the photo we're already holding.
   document.getElementById('num-' + key).textContent = have[key] ? '✓' : String(i + 1);
-  document.getElementById('btn-' + key).textContent = have[key] ? 'Replace this photo' : 'Take / choose photo';
+  document.getElementById('camera-btn-' + key).textContent = have[key] ? 'Retake photo' : 'Take photo';
+  document.getElementById('gallery-btn-' + key).textContent = have[key] ? 'Replace from gallery' : 'Choose from gallery';
   refreshSubmit();
 }
 
@@ -581,10 +596,10 @@ function savePhotoComment(key, value) {
   photoComments[key] = String(value || '').slice(0, 500);
 }
 
+document.getElementById('extraCameraBtn').onclick = () => document.getElementById('extraCameraFile').click();
 document.getElementById('extraAddBtn').onclick = () => document.getElementById('extraFile').click();
-document.getElementById('extraFile').addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';   // lets the same file be picked again if removed and re-added
+
+async function addExtraPhotos(files) {
   if (!files.length) return;
   setStatus(files.length > 1 ? 'Processing photos…' : 'Processing photo…');
   for (const file of files) {
@@ -598,6 +613,18 @@ document.getElementById('extraFile').addEventListener('change', async (e) => {
   if (!document.getElementById('status').classList.contains('err')) setStatus('');
   renderExtraGrid();
   refreshSubmit();
+}
+
+document.getElementById('extraCameraFile').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  await addExtraPhotos(files);
+});
+
+document.getElementById('extraFile').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';   // lets the same file be picked again if removed and re-added
+  await addExtraPhotos(files);
 });
 
 function renderExtraGrid() {

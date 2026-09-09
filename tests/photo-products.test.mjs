@@ -50,6 +50,11 @@ test('aircon assessment collects the requested questions and photos', async () =
     "label: `Room ${i + 1} for indoor head`",
     'savePhotoComment',
     'Photo comments',
+    'capture="environment"',
+    '>Take photo</button>',
+    '>Choose from gallery</button>',
+    'camera-file-${s.key}',
+    'gallery-file-${s.key}',
   ]) assert.ok(upload.includes(marker), `missing ${marker}`);
 
   for (const id of ['unitCount', 'roomCount']) {
