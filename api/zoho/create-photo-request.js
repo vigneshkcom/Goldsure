@@ -65,17 +65,45 @@ const API_BASE = `https://www.zohoapis.${REGION}/workdrive/api/v1`;
 // for its own upload flow (workdrive.zoho.com.au/api/v1/checkfilename).
 const UPLOAD_BASE = `https://workdrive.zoho.${REGION}/api/v1`;
 
+// Zoho access tokens last for an hour and their official limit is only ten new
+// access tokens per refresh token in ten minutes. A photo submission sends one
+// request per file, so every warm server instance must reuse the token instead
+// of refreshing it for every photo. The shared promise also prevents two
+// simultaneous requests in one instance from refreshing at the same time.
+let cachedAccessToken = '';
+let cachedAccessTokenExpiresAt = 0;
+let accessTokenRefreshPromise = null;
+const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
+
 async function getAccessToken() {
-  const params = new URLSearchParams({
-    grant_type: 'refresh_token',
-    client_id: process.env.ZOHO_CLIENT_ID,
-    client_secret: process.env.ZOHO_CLIENT_SECRET,
-    refresh_token: process.env.ZOHO_REFRESH_TOKEN,
-  });
-  const r = await fetch(`${ACCOUNTS_BASE}/oauth/v2/token`, { method: 'POST', body: params });
-  const data = await r.json();
-  if (!data.access_token) throw new Error(`token refresh failed: ${JSON.stringify(data)}`);
-  return data.access_token;
+  if (cachedAccessToken && Date.now() < cachedAccessTokenExpiresAt - ACCESS_TOKEN_EXPIRY_BUFFER_MS) {
+    return cachedAccessToken;
+  }
+
+  if (!accessTokenRefreshPromise) {
+    accessTokenRefreshPromise = (async () => {
+      const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: process.env.ZOHO_CLIENT_ID,
+        client_secret: process.env.ZOHO_CLIENT_SECRET,
+        refresh_token: process.env.ZOHO_REFRESH_TOKEN,
+      });
+      const r = await fetch(`${ACCOUNTS_BASE}/oauth/v2/token`, { method: 'POST', body: params });
+      const data = await r.json();
+      if (!data.access_token) throw new Error(`token refresh failed: ${JSON.stringify(data)}`);
+
+      const expiresInSeconds = Number(data.expires_in_sec || data.expires_in) || 3600;
+      cachedAccessToken = data.access_token;
+      cachedAccessTokenExpiresAt = Date.now() + (expiresInSeconds * 1000);
+      return cachedAccessToken;
+    })();
+  }
+
+  try {
+    return await accessTokenRefreshPromise;
+  } finally {
+    accessTokenRefreshPromise = null;
+  }
 }
 
 // List a folder's children, paging through until exhausted. The JSON:API page
@@ -644,7 +672,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('Zoho photo upload failed:', err.message);
-      return res.status(502).json({ error: 'Zoho upload failed', detail: err.message });
+      const retryable = /too many requests continuously|access denied|http 429|fetch failed|timed?\s*out|econnreset/i.test(err.message);
+      return res.status(retryable ? 503 : 502).json({
+        error: retryable ? 'Photo storage is temporarily busy' : 'Zoho upload failed',
+        detail: err.message,
+        retryable,
+        retryAfterSeconds: retryable ? 20 : undefined,
+      });
     }
   }
 

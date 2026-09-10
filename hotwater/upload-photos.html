@@ -718,6 +718,29 @@ const blobToBase64 = blob => new Promise((resolve, reject) => {
   reader.readAsDataURL(blob);
 });
 
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const MAX_UPLOAD_ATTEMPTS = 4;
+
+async function sendPhotoEntry(payload, position, total) {
+  for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
+    const res = await fetch('/api/zoho/create-photo-request', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) return;
+
+    if (data.retryable && attempt < MAX_UPLOAD_ATTEMPTS) {
+      const seconds = Math.max(5, Number(data.retryAfterSeconds) || 20);
+      setStatus(`Photo storage is briefly busy. Your photos are safe on this page. Retrying ${position} of ${total} automatically in ${seconds} seconds…`);
+      await wait(seconds * 1000);
+      continue;
+    }
+    throw new Error(data.detail || data.error || 'Upload failed');
+  }
+}
+
 document.getElementById('submitBtn').addEventListener('click', async () => {
   const commentEntries = isAircon ? [
     ...SLOTS.map(s => ({ key: s.key, label: commentLabelForSlot(s), comment: (photoComments[s.key] || '').trim() })),
@@ -761,10 +784,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     for (const s of entries) {
       setStatus(`Uploading ${done + 1} of ${entries.length}…`);
       const dataBase64 = await blobToBase64(s.blob);
-      const res = await fetch('/api/zoho/create-photo-request', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await sendPhotoEntry({
           folderId,
           filename: `${safeName}-${s.key}${s.extension ? '' : stamp}.${s.extension || 'jpg'}`,
           dataBase64,
@@ -780,10 +800,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           // looked at, rather than a first submission.
           followUp,
           uploadCount: entries.length - (assessment ? 1 : 0),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+        }, done + 1, entries.length);
       done++;
     }
     if (followUp) {
@@ -797,7 +814,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     document.getElementById('formView').style.display = 'none';
     document.getElementById('doneView').style.display = 'block';
   } catch (e) {
-    setStatus(`Upload failed after ${done} photo(s) — please try again.`, 'err');
+    setStatus(`Upload paused after ${done} photo(s). Your selected photos are still here. Please tap Upload again.`, 'err');
     btn.disabled = false;
   }
 });

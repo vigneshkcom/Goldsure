@@ -17,6 +17,21 @@ test('customer upload and SMS scripts compile', async () => {
   }
 });
 
+test('photo uploads reuse Zoho tokens and allow unlimited additional photos', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  const upload = await read('hotwater/upload-photos.html');
+  for (const marker of [
+    "let cachedAccessToken = ''",
+    'let accessTokenRefreshPromise = null',
+    'data.expires_in_sec || data.expires_in',
+    'return await accessTokenRefreshPromise',
+  ]) assert.ok(api.includes(marker), `missing token reuse marker ${marker}`);
+  assert.match(upload, /id="extraFile" accept="image\/\*" multiple/);
+  assert.match(upload, /for \(const file of files\)/);
+  assert.match(upload, /const MAX_UPLOAD_ATTEMPTS = 4/);
+  assert.match(upload, /Your photos are safe on this page/);
+});
+
 test('VIC Aircon uses a separate WorkDrive parent and customer route', async () => {
   const api = await read('api/zoho/create-photo-request.js');
   const routes = JSON.parse(await read('vercel.json')).rewrites;
