@@ -157,6 +157,36 @@ test('does not duplicate the date when a Smoke Alarm description already has a b
   assert.equal(row.invoiceLines[0].description, 'Supply and installation of smoke alarms - batch 03/09/2026');
 });
 
+test('keeps same-day BPOINT and AMEX Smoke Alarm settlements as separate Receive Money transactions', () => {
+  const rows = validateBatchRows([
+    smokeSource({
+      'BPOINT Ref': '52934,52936,52590,52940,52944',
+      'Receipt Number': '66780138541,66780486201,66782523557,66784031928,66784368975',
+      'Transaction Number': '1857488541,1857496201,1857563557,1857601928,1857608975',
+      'Payment Date': '09/09/2026',
+      'Settlement Date': '09/09/2026',
+      Amount: '99',
+      'Bank Feed Group': 'BPOINT',
+    }),
+    smokeSource({
+      'BPOINT Ref': '52921',
+      'Receipt Number': '66752876392',
+      'Transaction Number': '1856926392',
+      'Payment Date': '09/09/2026',
+      'Settlement Date': '09/09/2026',
+      Amount: '686',
+      'Bank Feed Group': 'AMERICAN EXPRESS',
+    }),
+  ]);
+
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((row) => row.invoiceReference), [
+    'BPOINT-SMOKE-20260909',
+    'BPOINT-SMOKE-20260909-AMEX',
+  ]);
+  assert.equal(rows[1].description, 'Supply and installation of smoke alarms - AMEX batch 09/09/2026');
+});
+
 test('builds grouped Smoke Alarm revenue as Receive Money into Business Trans Acct', () => {
   const [row] = validateBatchRows([smokeSource()]);
   const receiveMoney = buildApprovedReceiveMoney(row, 'contact-1', 'bank-1');

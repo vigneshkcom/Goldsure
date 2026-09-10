@@ -4,7 +4,7 @@
   const TEMPLATE_HEADERS = [
     'Job No.', 'Customer Name', 'Customer Email', 'Customer Mobile', 'Property Address',
     'Property Suburb', 'Property Postcode', 'Category', 'BPOINT Ref', 'Receipt Number',
-    'Transaction Number', 'Payment Date', 'Settlement Date', 'Amount', 'Account',
+    'Transaction Number', 'Payment Date', 'Settlement Date', 'Bank Feed Group', 'Amount', 'Account',
     'Division', 'Tax Rate', 'Product / Service Description', 'PDF Filename',
   ];
   const state = { password: '', xeroReady: false, rows: [], working: false, totalsVerified: false, results: [], sourceName: '' };
@@ -113,7 +113,7 @@
       'Customer Mobile': '0400 000 000', 'Property Address': '1 EXAMPLE STREET', 'Property Suburb': 'PRESTON',
       'Property Postcode': '3072', Category: 'HWS', 'BPOINT Ref': '874609', 'Receipt Number': '66600000001',
       'Transaction Number': '1855000001', 'Payment Date': '03/09/2026', 'Settlement Date': '03/09/2026',
-      Amount: '1120.00', Account: '405', Division: 'VIC Hot Water', 'Tax Rate': 'GST on Income',
+      'Bank Feed Group': '', Amount: '1120.00', Account: '405', Division: 'VIC Hot Water', 'Tax Rate': 'GST on Income',
       'Product / Service Description': 'Supply and installation of ECONOVA ECON-300RVW Heat Pump Hot Water System',
       'PDF Filename': '152713 - 874609 - $1120 - PENELOPE F WORRALL.pdf',
     };
@@ -132,10 +132,11 @@
     const groups = new Map();
     state.rows.forEach((row) => {
       (row.payments || [row]).forEach((payment) => {
-        const current = groups.get(payment.settlementDate) || { count: 0, total: 0 };
+        const key = `${payment.settlementDate}|${payment.bankFeedGroup || ''}`;
+        const current = groups.get(key) || { date: payment.settlementDate, bankFeedGroup: payment.bankFeedGroup || '', count: 0, total: 0 };
         current.count += 1;
         current.total = Math.round((current.total + Number(payment.amount) + Number.EPSILON) * 100) / 100;
-        groups.set(payment.settlementDate, current);
+        groups.set(key, current);
       });
     });
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -171,11 +172,11 @@
   function renderSettlements() {
     const container = el('settlementSummary');
     container.textContent = '';
-    settlementGroups().forEach(([date, group]) => {
+    settlementGroups().forEach(([, group]) => {
       const item = document.createElement('article');
       item.className = 'settlement-item';
       const label = document.createElement('span');
-      label.textContent = displayDate(date);
+      label.textContent = `${displayDate(group.date)}${group.bankFeedGroup ? ` · ${group.bankFeedGroup}` : ''}`;
       const total = document.createElement('strong');
       total.textContent = money(group.total);
       const count = document.createElement('small');
@@ -242,7 +243,7 @@
       auditDetail.className = 'invoice-reference';
       auditDetail.textContent = item.jobNo
         ? `Reference: ${item.invoiceReference}`
-        : `Reference: ${item.invoiceReference} · ${displayDate(item.settlementDate)}`;
+        : `Reference: ${item.invoiceReference} · ${displayDate(item.settlementDate)}${item.bankFeedGroup ? ` · ${item.bankFeedGroup}` : ''}`;
       invoiceLine.appendChild(auditDetail);
 
       const bpoint = document.createElement('td');
@@ -417,6 +418,7 @@
       'Transaction Number': row.transactionNumber,
       'Payment Date': displayDate(row.paymentDate),
       'Settlement Date': displayDate(row.settlementDate),
+      'Bank Feed Group': row.bankFeedGroup || 'BPOINT',
       Amount: row.amount.toFixed(2),
       'Final Invoice Amount': row.invoiceTotal ? row.invoiceTotal.toFixed(2) : '',
       'Invoice Description': (row.invoiceLines || [{ description: row.description }])
