@@ -234,6 +234,38 @@ test('groups two BPOINT instalments into one job invoice', () => {
   assert.equal(row.bpointRef, '874441, 874609');
 });
 
+test('groups uploaded deposit-labelled descriptions as one product without doubling the labels', () => {
+  const rows = validateBatchRows([
+    source({
+      Amount: '200',
+      'Transaction Number': '1856971343',
+      'Receipt Number': '66754291343',
+      'BPOINT Ref': '875294',
+      'Payment Date': '08/09/2026',
+      'Settlement Date': '08/09/2026',
+      'Final Invoice Amount': '',
+      'Product / Service Description': 'Deposit 1 towards supply and installation of Heat Pump Hot Water System - Job 152713',
+    }),
+    source({
+      Amount: '900',
+      'Transaction Number': '1858235554',
+      'Receipt Number': '66812105554',
+      'BPOINT Ref': '875719',
+      'Payment Date': '10/09/2026',
+      'Settlement Date': '10/09/2026',
+      'Final Invoice Amount': '',
+      'Product / Service Description': 'Deposit 2 towards supply and installation of Heat Pump Hot Water System - Job 152713',
+    }),
+  ]);
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].productDescription, 'supply and installation of Heat Pump Hot Water System - Job 152713');
+  assert.deepEqual(rows[0].invoiceLines.map((line) => line.description), [
+    'Deposit 1 towards supply and installation of Heat Pump Hot Water System - Job 152713',
+    'Deposit 2 towards supply and installation of Heat Pump Hot Water System - Job 152713',
+  ]);
+});
+
 test('numbers deposits and rewords the amount completing the invoice as final payment', () => {
   const [row] = validateBatchRows([
     source({
