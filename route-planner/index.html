@@ -388,7 +388,7 @@
         const legs = route.googleRoute?.legs || [];
         if (suggestedIndex > 0 && legs[suggestedIndex - 1]) suggestedJob.previousDriveMinutes = Math.max(1, Math.round(Number(legs[suggestedIndex - 1].durationMillis || 0) / 60000));
         if (suggestedIndex < state.jobs.length - 1 && legs[suggestedIndex]) suggestedJob.nextDriveMinutes = Math.max(1, Math.round(Number(legs[suggestedIndex].durationMillis || 0) / 60000));
-        if (Number.isFinite(route.baseDurationSeconds)) suggestedJob.addedMinutes = Math.max(0, Math.round((route.durationSeconds - route.baseDurationSeconds) / 60));
+        if (Number.isFinite(route.baseDurationSeconds)) suggestedJob.addedMinutes = Math.max(0, Math.round(route.durationSeconds / 60) - Math.round(route.baseDurationSeconds / 60));
         renderJobs();
       }
       async function planRoute() {
@@ -399,7 +399,7 @@
           state.route = result; applyRouteOrder(result);
           applySuggestedRouteTimes(result);
           const bookedCount = state.jobs.filter(job => !job.isSuggested).length;
-          const routeIncreaseMinutes = Number.isFinite(result.baseDurationSeconds) ? Math.max(0, Math.round((result.durationSeconds - result.baseDurationSeconds) / 60)) : null;
+          const routeIncreaseMinutes = Number.isFinite(result.baseDurationSeconds) ? Math.max(0, Math.round(result.durationSeconds / 60) - Math.round(result.baseDurationSeconds / 60)) : null;
           elements.routeTitle.textContent = suggestedPreview ? `${state.fieldworkerDisplayName}'s route with suggested stop` : `${state.fieldworkerDisplayName}'s driving route`;
           elements.routeSubtitle.textContent = suggestedPreview
             ? `${bookedCount} Dataforce jobs + 1 suggested stop · Whole route ${Number.isFinite(result.baseDurationSeconds) ? `${formatDuration(result.baseDurationSeconds)} → ${formatDuration(result.durationSeconds)} (+${routeIncreaseMinutes} min) · ` : ''}Dataforce order preserved`

@@ -191,6 +191,7 @@ test('suggested route preview inserts and highlights the unbooked address', () =
   assert.match(html, /background: '#12b76a'/);
   assert.match(html, /applySuggestedRouteTimes/);
   assert.match(html, /baseDurationSeconds/);
+  assert.match(html, /Math\.round\(route\.durationSeconds \/ 60\) - Math\.round\(route\.baseDurationSeconds \/ 60\)/);
   assert.match(html, /Previous stop → here/);
   assert.match(html, /Dataforce order preserved/);
   assert.match(html, /This is a preview and has not been booked/);
