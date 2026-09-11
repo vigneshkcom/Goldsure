@@ -7,6 +7,15 @@ const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const CORE_FIELDWORKER = { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Core Energy Group' };
 const BLAKE_FIELDWORKER = { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison' };
 const BLAKE_ACCESS_PIN = '1008';
+const TEAM_FIELDWORKERS = [
+  { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Surya', color: '#a25ddc' },
+  { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison', color: '#0073ea' },
+  { id: 1009, name: 'Alex Symonds', displayName: 'Alex Symonds', color: '#fdab3d' },
+  { id: 1010, name: 'Liam Stuart', displayName: 'Liam Stuart', color: '#00a86b' },
+  { id: 1005, name: 'Munesh Chand', displayName: 'Munesh Chand', color: '#009eb5' }
+];
+const TEAM_ROUTE_CACHE_TTL_MS = 2 * 60 * 1000;
+const teamRouteCache = new Map();
 
 function send(res, status, payload) {
   res.status(status).json(payload);
@@ -194,6 +203,124 @@ async function dataforceUpcoming(startDate, days, fieldworker) {
   return { fieldworker, startDate, endDate, dates };
 }
 
+function appointmentIsBooked(appointment) {
+  const status = String(appointment && appointment.completionStatusDescription || '').toLowerCase();
+  return !/(cancel|abort)/.test(status);
+}
+
+async function dataforceWorkerAppointments(token, fieldworkerId, startDate, endDate) {
+  const { instance } = dataforceConfig();
+  const appointments = [];
+  let after = 0;
+
+  while (true) {
+    const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: 'fieldworkerId', value: String(fieldworkerId), operator: 'EQ' },
+          { propertyName: 'scheduledDate', value: `${startDate}T00:00:00`, operator: 'GTE' },
+          { propertyName: 'scheduledDate', value: `${endDate}T00:00:00`, operator: 'LT' }
+        ] }],
+        sorts: [{ propertyName: 'scheduledDate', direction: 'asc' }],
+        limit: 100,
+        after
+      })
+    });
+    const page = result.records || [];
+    appointments.push(...page);
+    after += page.length;
+    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+  }
+
+  return appointments.filter(appointmentIsBooked);
+}
+
+function publicTeamWorker(fieldworker) {
+  return { id: fieldworker.id, name: fieldworker.displayName, color: fieldworker.color };
+}
+
+async function cachedTeamRoute(key, load) {
+  const now = Date.now();
+  const current = teamRouteCache.get(key);
+  if (current && current.expiresAt > now) return current.value;
+  const value = load();
+  teamRouteCache.set(key, { value, expiresAt: now + TEAM_ROUTE_CACHE_TTL_MS });
+  try {
+    return await value;
+  } catch (error) {
+    if (teamRouteCache.get(key)?.value === value) teamRouteCache.delete(key);
+    throw error;
+  }
+}
+
+async function dataforceTeamSummary(startDate, days) {
+  const token = await dataforceToken();
+  const endDate = addDays(startDate, days);
+  const schedules = await Promise.all(TEAM_FIELDWORKERS.map(async fieldworker => ({
+    fieldworker,
+    appointments: await dataforceWorkerAppointments(token, fieldworker.id, startDate, endDate)
+  })));
+  const dates = new Map();
+
+  schedules.forEach(({ fieldworker, appointments }) => {
+    appointments.forEach(appointment => {
+      const date = scheduleDateKey(appointment.scheduledDate);
+      if (!date) return;
+      if (!dates.has(date)) dates.set(date, { date, totalJobs: 0, workers: [] });
+      const entry = dates.get(date);
+      let worker = entry.workers.find(item => item.id === fieldworker.id);
+      if (!worker) {
+        worker = { ...publicTeamWorker(fieldworker), jobCount: 0 };
+        entry.workers.push(worker);
+      }
+      worker.jobCount += 1;
+      entry.totalJobs += 1;
+    });
+  });
+
+  const order = new Map(TEAM_FIELDWORKERS.map((worker, index) => [worker.id, index]));
+  const resultDates = [...dates.values()].sort((a, b) => a.date.localeCompare(b.date));
+  resultDates.forEach(entry => entry.workers.sort((a, b) => order.get(a.id) - order.get(b.id)));
+  return { startDate, endDate, workers: TEAM_FIELDWORKERS.map(publicTeamWorker), dates: resultDates };
+}
+
+function customerRouteLabel(customer) {
+  if (!customer) return '';
+  const suburb = String(customer.suburb || '').trim();
+  const postCode = String(customer.postCode || '').trim();
+  return [suburb, postCode].filter(Boolean).join(' ');
+}
+
+function collapseRoute(labels) {
+  return labels.filter(Boolean).filter((label, index, all) => index === 0 || label !== all[index - 1]);
+}
+
+async function dataforceTeamDay(date) {
+  const { instance } = dataforceConfig();
+  const token = await dataforceToken();
+  const endDate = nextDate(date);
+  const schedules = await Promise.all(TEAM_FIELDWORKERS.map(async fieldworker => ({
+    fieldworker,
+    appointments: await dataforceWorkerAppointments(token, fieldworker.id, date, endDate)
+  })));
+  const customerIds = [...new Set(schedules.flatMap(item => item.appointments.map(appointment => appointment.customerId)).filter(Boolean))];
+  const entries = await Promise.all(customerIds.map(async id => {
+    try {
+      return [id, await dataforceFetch(token, `/${encodeURIComponent(instance)}/customers/id/${id}`)];
+    } catch (_) {
+      return [id, null];
+    }
+  }));
+  const customers = new Map(entries);
+  const workers = schedules.map(({ fieldworker, appointments }) => ({
+    ...publicTeamWorker(fieldworker),
+    jobCount: appointments.length,
+    route: collapseRoute(appointments.map(appointment => customerRouteLabel(customers.get(appointment.customerId))))
+  }));
+  return { date, totalJobs: workers.reduce((sum, worker) => sum + worker.jobCount, 0), workers };
+}
+
 function durationSeconds(value) {
   return value ? Math.round(Number(String(value).replace('s', ''))) : 0;
 }
@@ -288,11 +415,24 @@ export default async function handler(req, res) {
     return send(res, 200, { key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY });
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed.' });
-  const fieldworker = resolvePlannerFieldworker(req, res);
-  if (!fieldworker) return;
-
+  const action = req.body && req.body.action;
   try {
-    const action = req.body && req.body.action;
+    // The sales team view is intentionally PIN-free. It returns only job counts
+    // and suburb-level routes, never customer names, contact details or streets.
+    if (action === 'team-schedule-summary') {
+      const startDate = String(req.body.startDate || '');
+      const days = Math.min(62, Math.max(1, Math.trunc(Number(req.body.days) || 42)));
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return send(res, 400, { error: 'Choose a valid start date.' });
+      return send(res, 200, await cachedTeamRoute(`summary:${startDate}:${days}`, () => dataforceTeamSummary(startDate, days)));
+    }
+    if (action === 'team-day-routes') {
+      const date = String(req.body.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return send(res, 400, { error: 'Choose a valid route date.' });
+      return send(res, 200, await cachedTeamRoute(`day:${date}`, () => dataforceTeamDay(date)));
+    }
+
+    const fieldworker = resolvePlannerFieldworker(req, res);
+    if (!fieldworker) return;
     if (action === 'auth-check') return send(res, 200, { ok: true, fieldworker });
     if (action === 'dataforce-schedule') {
       const date = String(req.body.date || '');

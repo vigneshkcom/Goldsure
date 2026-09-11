@@ -164,7 +164,7 @@ header {
 .sub-link:hover { background: var(--blue-bg); color: var(--blue); }
 
 /* ── MAIN ── */
-main { padding: 22px 28px; max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: 280px 1fr 340px; gap: 20px; }
+main { padding: 22px 28px; max-width: 1780px; margin: 0 auto; display: grid; grid-template-columns: minmax(360px,400px) minmax(520px,1fr) 320px; gap: 20px; }
 
 .quote-summary-bar {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
@@ -474,80 +474,75 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   main { padding: 16px; }
 }
 
-/* ── Electrician availability calendar (left column) ── */
+/* ── Dataforce electrician route calendar (left column) ── */
 .avail-panel {
   grid-column: 1; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r); padding: 14px; box-shadow: var(--shadow); align-self: start;
-  display: flex; flex-direction: column; gap: 10px;
+  border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); align-self: start;
+  display: flex; flex-direction: column; gap: 12px;
 }
-.avail-head { display: flex; align-items: center; gap: 8px; }
-.avail-head h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+.avail-head { display: flex; align-items: flex-start; gap: 10px; }
+.avail-head-copy { flex: 1; min-width: 0; }
+.avail-head h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+.avail-head p { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .avail-add {
   margin-left: auto; font-family: inherit; font-size: 12.5px; font-weight: 500;
   height: 28px; padding: 0 12px; border-radius: 4px; border: none;
-  background: var(--blue); color: #fff; cursor: pointer; transition: background .12s;
+  background: var(--blue-bg); color: var(--blue); cursor: pointer; transition: background .12s;
 }
-.avail-add:hover { background: var(--blue-dark); }
+.avail-add:hover { background: #d7e9fd; }
+.avail-add:disabled { color: var(--faint); cursor: wait; }
 
 .cal-nav { display: flex; align-items: center; gap: 6px; }
-.cal-month { flex: 1; text-align: center; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.cal-month { flex: 1; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); }
 .cal-arrow {
-  width: 26px; height: 26px; border: none; border-radius: 4px; background: none;
+  width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: #fff;
   color: var(--muted); cursor: pointer; font-size: 17px; line-height: 1;
 }
 .cal-arrow:hover { background: var(--surface2); color: var(--text); }
+.cal-today { border: none; background: transparent; color: var(--blue); font: 600 11.5px/1 Figtree,sans-serif; cursor: pointer; padding: 6px; }
 
-.cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.cal-dow span { text-align: center; font-size: 10.5px; font-weight: 500; color: var(--faint); padding-bottom: 2px; }
+.cal-dow, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+.cal-dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--faint); padding-bottom: 2px; }
 
 .cal-cell {
-  position: relative; aspect-ratio: 1; border: none; background: none; cursor: pointer;
-  border-radius: 5px; font-family: inherit; font-size: 12px; color: var(--text);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  padding: 0; transition: background .12s;
+  position: relative; min-height: 48px; border: 1px solid transparent; background: #fff; cursor: pointer;
+  border-radius: 7px; font-family: inherit; font-size: 12px; color: var(--text);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 3px;
+  padding: 6px; transition: background .12s,border-color .12s;
 }
-.cal-cell:hover { background: var(--surface2); }
+.cal-cell:hover { background: var(--surface2); border-color: var(--border); }
 .cal-cell.muted { color: var(--faint); }
 .cal-cell.past { color: var(--faint); }
-/* Nobody available — struck through so unbookable days stand out */
-.cal-cell.none .n { text-decoration: line-through; text-decoration-color: var(--border2); color: var(--faint); }
-.cal-cell.sel.none .n { text-decoration-color: var(--blue); color: var(--blue); }
 .cal-cell.today { font-weight: 700; color: var(--blue); }
-.cal-cell.today::after {
-  content: ''; position: absolute; inset: 0; border: 1px solid var(--blue);
-  border-radius: 5px; pointer-events: none;
-}
-/* Selected day is tinted rather than filled — a solid block was heavy,
-   especially on today, which already carries its own outline. */
-.cal-cell.sel { background: var(--blue-bg); color: var(--blue); font-weight: 600; }
-.cal-cell.sel::before {
-  content: ''; position: absolute; inset: 0; border: 1px solid var(--blue);
-  border-radius: 5px; pointer-events: none;
-}
+.cal-cell.today { border-color: #a8cdf7; }
+.cal-cell.sel { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); font-weight: 700; }
 .cal-cell.sel.today { color: var(--blue); }
-.cal-dots { display: flex; gap: 2px; height: 4px; }
-.cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+.cal-cell .n { line-height: 1; }
+.cal-cell-meta { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 3px; }
+.cal-dots { display: flex; gap: 2px; min-width: 0; overflow: hidden; }
+.cal-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+.cal-job-count { min-width: 18px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--surface3); color: var(--muted); font-size: 9.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.cal-cell.sel .cal-job-count { background: var(--blue); color: #fff; }
 
-
-.cal-key { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 9px; }
+.cal-key { display: flex; flex-wrap: wrap; gap: 6px 10px; border-top: 1px solid var(--border); padding-top: 10px; }
 .cal-key-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
 .cal-key-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
-.cal-day { border-top: 1px solid var(--border); padding-top: 9px; }
-.cal-day-title { font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 7px; }
-.cal-row {
-  width: 100%; display: flex; align-items: center; gap: 7px; font-size: 12.5px;
-  font-family: inherit; text-align: left; border: 1px solid transparent;
-  background: var(--surface2); border-radius: 4px; padding: 8px 10px; margin-bottom: 4px;
-}
-.cal-row.on { background: var(--green-bg); }
-.cal-row:disabled { cursor: default; }
-.avail-panel.admin .cal-row { cursor: pointer; }
-.avail-panel.admin .cal-row:hover { border-color: var(--blue); }
-.cal-row .who { font-weight: 500; color: var(--text); }
-.cal-row .state { color: var(--muted); margin-left: auto; }
-.cal-row.on .state { color: #0f8a56; font-weight: 500; }
-.cal-empty { font-size: 12px; color: var(--faint); }
+.cal-day { border-top: 1px solid var(--border); padding-top: 11px; }
+.cal-day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+.cal-day-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.cal-day-total { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.route-list { display: grid; gap: 7px; }
+.route-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fff; }
+.route-card-head { display: flex; align-items: center; gap: 7px; }
+.route-card-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.route-job-count { margin-left: auto; padding: 3px 7px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 10.5px; font-weight: 700; }
+.route-path { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.route-stop { border-radius: 5px; background: var(--surface2); color: var(--muted); padding: 4px 6px; font-size: 10.5px; font-weight: 500; }
+.route-arrow { color: var(--faint); font-size: 11px; }
+.route-none { margin-top: 8px; font-size: 10.5px; color: var(--faint); }
+.cal-empty { border: 1px dashed var(--border2); border-radius: 8px; padding: 13px 10px; font-size: 12px; color: var(--faint); text-align: center; line-height: 1.45; }
+.cal-empty.error { border-color: #f3b8c2; background: var(--red-bg); color: var(--red); }
 
 @media (max-width: 1280px) {
   /* The call-source buttons are wider than the window below this, and were
@@ -555,7 +550,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   header { flex-wrap: wrap; padding: 10px 20px; min-height: auto; gap: 10px; }
   .header-left, .header-right { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 }
-@media (max-width: 1200px) {
+@media (max-width: 1380px) {
   main { grid-template-columns: 1fr 340px; }
   .avail-panel { grid-column: 1 / -1; }
   .steps { grid-column: 1; }
@@ -570,7 +565,7 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
 </head>
-<body>
+<body data-internal-sidebar-mode="hover">
 
 <!-- ═══════════════════════════════════════════════════════════
      GLOBAL LOGIN — plain script, no defer, no modules,
@@ -679,16 +674,17 @@ function doLogout() {
   </div>
 
 
-  <!-- ELECTRICIAN AVAILABILITY -->
+  <!-- DATAFORCE ELECTRICIAN ROUTES -->
   <aside class="avail-panel" id="availPanel">
     <div class="avail-head">
-      <h3>Electricians</h3>
-      <button class="avail-add" id="availAddBtn" onclick="promptAvailAdmin()">Edit</button>
+      <div class="avail-head-copy"><h3>Electrician routes</h3><p>Booked jobs and suburb routes from Dataforce</p></div>
+      <button class="avail-add" id="routeRefreshBtn" type="button" onclick="loadRouteCalendar()">Refresh</button>
     </div>
 
     <div class="cal-nav">
       <button class="cal-arrow" onclick="calShift(-1)" aria-label="Previous month">‹</button>
       <span class="cal-month" id="calMonth"></span>
+      <button class="cal-today" type="button" onclick="calToday()">Today</button>
       <button class="cal-arrow" onclick="calShift(1)" aria-label="Next month">›</button>
     </div>
 
@@ -696,7 +692,7 @@ function doLogout() {
     <div class="cal-grid" id="calGrid"></div>
 
     <div class="cal-key" id="calKey"></div>
-    <div class="cal-day" id="calDay"></div>
+    <div class="cal-day" id="calDay"><div class="cal-empty">Choose a date to view electrician routes.</div></div>
   </aside>
 
   <!-- STEPS -->
@@ -1713,6 +1709,9 @@ function showToast(m) {
 // ════════════════════════════════════════════════════════════
 // DOCS ACCORDION
 // ════════════════════════════════════════════════════════════
+{
+/* Legacy manual availability editor retained only for rollback reference.
+   It is block-scoped, disabled and no longer connected to the interface. */
 /* ════════════════════════════════════════════════════════════════
    ELECTRICIAN AVAILABILITY
    Reads and writes the `electrician_availability` table in Supabase
@@ -1725,7 +1724,7 @@ function showToast(m) {
    find it — it is a speed bump, not a security control. Move the
    write behind a server endpoint if that ever matters.
    ════════════════════════════════════════════════════════════════ */
-const AVAIL_PIN = '4321';
+const AVAIL_PIN = '';
 const ELECTRICIANS = [
   { name: 'Surya',        org: 'Core Energy Group' },
   { name: 'Alex Symonds', org: '' },
@@ -1896,10 +1895,151 @@ function promptAvailAdmin() {
   renderAvailability();
 }
 
+}
 
 
 
-document.addEventListener('DOMContentLoaded', loadAvailability);
+
+/* Read-only Dataforce team route calendar. Customer and street details are
+   deliberately kept on the server; this view receives suburbs and job counts. */
+const TEAM_ROUTE_API = '/api/smoke-alarms/google-key';
+let routeWorkers = [];
+let routeDates = [];
+let calCursor = new Date();
+let calSelected = null;
+
+const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function calendarStart() {
+  const first = new Date(calCursor.getFullYear(), calCursor.getMonth(), 1);
+  const lead = (first.getDay() + 6) % 7;
+  return new Date(first.getFullYear(), first.getMonth(), 1 - lead);
+}
+
+async function routeApi(body) {
+  const response = await fetch(TEAM_ROUTE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `Dataforce request failed (${response.status}).`);
+  return payload;
+}
+
+async function loadRouteCalendar() {
+  const grid = document.getElementById('calGrid');
+  const button = document.getElementById('routeRefreshBtn');
+  if (!grid) return;
+  if (!calSelected) calSelected = ymd(new Date());
+  const start = calendarStart();
+  button.disabled = true;
+  button.textContent = 'Loading…';
+  grid.innerHTML = '<div class="cal-empty" style="grid-column:1/-1">Loading Dataforce routes…</div>';
+  try {
+    const result = await routeApi({ action: 'team-schedule-summary', startDate: ymd(start), days: 42 });
+    routeWorkers = result.workers || [];
+    routeDates = result.dates || [];
+    renderRouteCalendar();
+    await loadSelectedDayRoutes();
+  } catch (error) {
+    grid.innerHTML = `<div class="cal-empty error" style="grid-column:1/-1">${escAvail(error.message)}</div>`;
+    document.getElementById('calDay').innerHTML = '<div class="cal-empty error">Could not load electrician routes from Dataforce.</div>';
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Refresh';
+  }
+}
+
+function calShift(n) {
+  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + n, 1);
+  calSelected = ymd(calCursor);
+  loadRouteCalendar();
+}
+
+function calToday() {
+  calCursor = new Date();
+  calSelected = ymd(calCursor);
+  loadRouteCalendar();
+}
+
+function calSelect(date) {
+  calSelected = date;
+  renderRouteCalendar();
+  loadSelectedDayRoutes();
+}
+
+function renderRouteCalendar() {
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
+  const month = calCursor.getMonth();
+  const start = calendarStart();
+  const todayStr = ymd(new Date());
+  const byDate = new Map(routeDates.map(entry => [entry.date, entry]));
+  document.getElementById('calMonth').textContent = calCursor.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+
+  let cells = '';
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = ymd(d);
+    const entry = byDate.get(key);
+    const workers = entry ? entry.workers : [];
+    const dots = workers.map(worker => `<span class="cal-dot" style="background:${escAvail(worker.color)}"></span>`).join('');
+    const count = entry && entry.totalJobs ? `<span class="cal-job-count">${entry.totalJobs}</span>` : '';
+    const title = entry && entry.totalJobs
+      ? `${entry.totalJobs} booked job${entry.totalJobs === 1 ? '' : 's'}: ${workers.map(worker => `${worker.name} (${worker.jobCount})`).join(', ')}`
+      : 'No jobs booked';
+    cells += `<button type="button" class="cal-cell${d.getMonth() !== month ? ' muted' : ''}${key < todayStr ? ' past' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
+      onclick="calSelect('${key}')" title="${escAvail(title)}" aria-label="${escAvail(`${key}, ${title}`)}">
+      <span class="n">${d.getDate()}</span><span class="cal-cell-meta"><span class="cal-dots">${dots}</span>${count}</span></button>`;
+  }
+  grid.innerHTML = cells;
+  document.getElementById('calKey').innerHTML = routeWorkers.map(worker =>
+    `<span class="cal-key-item"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span>${escAvail(worker.name)}</span>`
+  ).join('');
+}
+
+async function loadSelectedDayRoutes() {
+  const box = document.getElementById('calDay');
+  if (!box || !calSelected) return;
+  const requestedDate = calSelected;
+  const label = new Date(requestedDate + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">Loading routes…</div></div>`;
+  try {
+    const result = await routeApi({ action: 'team-day-routes', date: requestedDate });
+    if (calSelected !== requestedDate) return;
+    renderSelectedDayRoutes(result);
+  } catch (error) {
+    if (calSelected !== requestedDate) return;
+    box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div></div><div class="cal-empty error">${escAvail(error.message)}</div>`;
+  }
+}
+
+function renderSelectedDayRoutes(result) {
+  const box = document.getElementById('calDay');
+  if (!box) return;
+  const label = new Date(result.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const booked = (result.workers || []).filter(worker => worker.jobCount > 0);
+  const idle = (result.workers || []).filter(worker => worker.jobCount === 0).map(worker => worker.name);
+  const cards = booked.map(worker => {
+    const stops = (worker.route || []).map((stop, index) =>
+      `${index ? '<span class="route-arrow">›</span>' : ''}<span class="route-stop">${escAvail(stop)}</span>`
+    ).join('');
+    return `<article class="route-card">
+      <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
+      <div class="route-path">${stops || '<span class="route-stop">Route location unavailable</span>'}</div>
+    </article>`;
+  }).join('');
+  box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">${result.totalJobs} booked job${result.totalJobs === 1 ? '' : 's'}</div></div>` +
+    (cards ? `<div class="route-list">${cards}</div>` : '<div class="cal-empty">No jobs booked for this date.</div>') +
+    (idle.length ? `<div class="route-none">No bookings: ${escAvail(idle.join(', '))}</div>` : '');
+}
+
+document.addEventListener('DOMContentLoaded', loadRouteCalendar);
 
 function toggleDocs(btn) {
   const list = document.getElementById('docs-list');
