@@ -14,6 +14,7 @@
     .upcoming{border-top:1px solid var(--line);margin-top:19px;padding-top:17px}.upcoming-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}.upcoming-head h3{font-size:13px;color:var(--navy);margin:0}.upcoming-head p{font-size:10.5px;color:#98a2b3;margin:3px 0 0}.upcoming-refresh{border:0;background:transparent;color:var(--blue);font:700 11px Inter,Arial;cursor:pointer;padding:2px 0}.upcoming-refresh:disabled{color:#98a2b3;cursor:wait}.upcoming-list{display:grid;gap:6px;max-height:248px;overflow:auto;padding-right:2px}.upcoming-date{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;color:var(--navy);font:inherit;cursor:pointer}.upcoming-date:hover{border-color:#b9c1cc;background:#f8fafc}.upcoming-date.active{border-color:var(--gold);background:#fff9e8;box-shadow:0 0 0 2px rgba(201,155,46,.12)}.upcoming-date strong{display:block;font-size:12px}.upcoming-date small{display:block;color:#7a8493;font-size:10px;margin-top:2px}.upcoming-count{flex:none;border-radius:999px;background:#eef2f6;color:#344054;font-size:10px;font-weight:800;padding:5px 7px}.upcoming-date.active .upcoming-count{background:#f5df9f;color:#614600}.upcoming-empty{border:1px dashed #d8dde5;border-radius:8px;padding:14px 11px;text-align:center;color:#7a8493;font-size:11px;line-height:1.45}.upcoming-empty.error{border-color:#fecdca;background:#fef3f2;color:var(--danger)}
     .upcoming-toggle{display:none;width:100%;border:0;background:transparent;color:var(--navy);font:700 14px Inter,Arial;padding:0;align-items:center;justify-content:space-between;cursor:pointer}.upcoming-toggle svg{transition:transform .18s ease}.upcoming-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
     .shell{max-width:none;margin:0;padding:18px;grid-template-columns:310px minmax(0,1fr) 300px;gap:14px}.main-grid{grid-template-columns:minmax(0,1fr) minmax(250px,.38fr)}.upcoming{border-top:0;margin-top:0;padding:18px;align-self:start;min-height:720px}.upcoming-list{max-height:638px}
+    body.team-route-mode .auth,body.team-route-mode .upcoming{display:none}body.team-route-mode .shell{grid-template-columns:310px minmax(0,1fr)}
     @media(max-width:1320px){.shell{grid-template-columns:300px minmax(0,1fr)}.upcoming{grid-column:1/-1;min-height:0}.upcoming-list{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));max-height:none}}
     @media(max-width:1050px){.shell{grid-template-columns:320px minmax(0,1fr)}.main-grid{grid-template-columns:1fr}.jobs{border-left:0;border-top:1px solid var(--line);max-height:none;min-height:200px}.workspace{min-height:0}.map-wrap{min-height:520px}.jobs-head{position:static}}
     @media(max-width:760px){.topbar{height:auto;min-height:68px;padding:11px 16px}.brand img{width:118px}.title-block{padding-left:11px}.title-block p,.status-pill{display:none}.shell{display:flex;flex-direction:column;padding:12px}.controls{order:1;margin:0;width:100%}.upcoming{order:2;margin-top:12px;align-self:stretch;width:100%;padding:16px;min-height:0}.upcoming-head{display:none}.upcoming-toggle{display:flex}.upcoming-list{grid-template-columns:1fr;max-height:360px;margin-top:14px}.upcoming-list.mobile-collapsed{display:none}.workspace{order:3;margin-top:12px;scroll-margin-top:76px;width:100%}.route-mode-field{display:none}.summary{align-items:flex-start;flex-direction:column}.metrics{width:100%;flex-wrap:wrap}.metric{flex:1;min-width:95px}.open-map{padding-left:0}.map-wrap{min-height:430px}.action-row{grid-template-columns:1fr}}
@@ -92,6 +93,10 @@
     (() => {
       const API_URL = '/api/smoke-alarms/google-key';
       const PIN_KEY = 'goldsure_route_planner_pin';
+      const query = new URLSearchParams(window.location.search);
+      const teamMode = query.get('team') === '1';
+      const teamWorkerId = Number(query.get('worker') || 0);
+      const requestedTeamDate = /^\d{4}-\d{2}-\d{2}$/.test(query.get('date') || '') ? query.get('date') : '';
       const state = { jobs: [], upcoming: [], route: null, map: null, polylines: [], markers: [], mapsReady: false, fieldworkerName: 'Authorised contractor', fieldworkerDisplayName: 'Contractor' };
       const $ = id => document.getElementById(id);
       const elements = {
@@ -106,7 +111,7 @@
         const now = new Date();
         return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
       }
-      elements.scheduleDate.value = todayLocal();
+      elements.scheduleDate.value = requestedTeamDate || todayLocal();
 
       function escapeHtml(value) {
         return String(value == null ? '' : value).replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
@@ -136,7 +141,7 @@
         let result = {};
         try { result = await response.json(); } catch (_) {}
         if (!response.ok) {
-          if (response.status === 401) { sessionStorage.removeItem(PIN_KEY); elements.auth.classList.remove('hidden'); }
+          if (response.status === 401 && !teamMode) { sessionStorage.removeItem(PIN_KEY); elements.auth.classList.remove('hidden'); }
           const error = new Error(result.error || `Request failed (${response.status}).`); error.status = response.status; throw error;
         }
         return result;
@@ -318,9 +323,12 @@
       async function loadDataforceJobs() {
         clearNotice(); setBusy(elements.loadDataforce, true, 'Loading…');
         try {
-          const result = await api({ action: 'dataforce-schedule', date: elements.scheduleDate.value });
+          const payload = teamMode
+            ? { action: 'team-worker-schedule', date: elements.scheduleDate.value, workerId: teamWorkerId }
+            : { action: 'dataforce-schedule', date: elements.scheduleDate.value };
+          const result = await api(payload);
           applyFieldworker(result.fieldworker);
-          renderUpcoming();
+          if (!teamMode) renderUpcoming();
           setJobs(result.jobs, 'Dataforce'); if (state.jobs.length >= 2) await planRoute();
         } catch (error) { showNotice(error.message, 'error'); }
         finally { setBusy(elements.loadDataforce, false); }
@@ -348,7 +356,15 @@
       });
       elements.scheduleDate.addEventListener('change', renderUpcoming);
       elements.planRoute.addEventListener('click', planRoute); elements.clearJobs.addEventListener('click', clearJobs);
-      if (sessionStorage.getItem(PIN_KEY)) { elements.auth.classList.add('hidden'); loadUpcomingSchedule(); }
+      if (teamMode) {
+        document.body.classList.add('team-route-mode');
+        elements.auth.classList.add('hidden');
+        document.querySelector('.status-pill').textContent = 'Team route';
+        document.querySelector('.lead').textContent = 'View this electrician\'s Dataforce jobs and calculated Google driving route.';
+        elements.loadDataforce.textContent = 'Reload driving route';
+        elements.loadDataforce.dataset.label = 'Reload driving route';
+        loadDataforceJobs();
+      } else if (sessionStorage.getItem(PIN_KEY)) { elements.auth.classList.add('hidden'); loadUpcomingSchedule(); }
       renderJobs();
     })();
   </script>

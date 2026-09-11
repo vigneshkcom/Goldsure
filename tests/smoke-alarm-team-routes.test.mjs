@@ -83,3 +83,29 @@ test('selected day returns suburb routes only and no customer details', async ()
   assert.equal(JSON.stringify(res.body).includes('Private Customer'), false);
   assert.equal(JSON.stringify(res.body).includes('streetName'), false);
 });
+
+test('team driving route returns mapped addresses without customer identity or contact details', async () => {
+  const req = { method: 'POST', body: { action: 'team-worker-schedule', date: '2026-09-15', workerId: 1007 }, headers: {} };
+  const res = responseRecorder();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.fieldworker.name, 'Surya');
+  assert.equal(res.body.jobs.length, 1);
+  assert.equal(res.body.jobs[0].customerName, 'Stop 1');
+  assert.match(res.body.jobs[0].address, /Logan/);
+  assert.equal(JSON.stringify(res.body).includes('0400000000'), false);
+  assert.equal(JSON.stringify(res.body).includes('Private Customer'), false);
+  assert.equal(JSON.stringify(res.body).includes('customerId'), false);
+});
+
+test('team driving route rejects electricians outside the approved team list', async () => {
+  const req = { method: 'POST', body: { action: 'team-worker-schedule', date: '2026-09-15', workerId: 9999 }, headers: {} };
+  const res = responseRecorder();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, 'Choose a valid electrician.');
+});

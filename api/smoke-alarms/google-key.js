@@ -321,6 +321,34 @@ async function dataforceTeamDay(date) {
   return { date, totalJobs: workers.reduce((sum, worker) => sum + worker.jobCount, 0), workers };
 }
 
+async function dataforceTeamWorkerSchedule(date, fieldworker) {
+  const { instance } = dataforceConfig();
+  const token = await dataforceToken();
+  const appointments = await dataforceWorkerAppointments(token, fieldworker.id, date, nextDate(date));
+  const customerIds = [...new Set(appointments.map(appointment => appointment.customerId).filter(Boolean))];
+  const entries = await Promise.all(customerIds.map(async id => {
+    try {
+      return [id, await dataforceFetch(token, `/${encodeURIComponent(instance)}/customers/id/${id}`)];
+    } catch (_) {
+      return [id, null];
+    }
+  }));
+  const customers = new Map(entries);
+  const jobs = appointments.map((appointment, index) => ({
+    appointmentId: appointment.appointmentId || `team-${fieldworker.id}-${index + 1}`,
+    customerName: `Stop ${index + 1}`,
+    address: customerAddress(customers.get(appointment.customerId)),
+    workType: appointment.workTypeName || 'Scheduled job',
+    status: appointment.completionStatusDescription || '',
+    source: 'dataforce'
+  })).filter(job => job.address);
+  return {
+    date,
+    fieldworker: { ...publicTeamWorker(fieldworker), displayName: fieldworker.displayName },
+    jobs
+  };
+}
+
 function durationSeconds(value) {
   return value ? Math.round(Number(String(value).replace('s', ''))) : 0;
 }
@@ -429,6 +457,14 @@ export default async function handler(req, res) {
       const date = String(req.body.date || '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return send(res, 400, { error: 'Choose a valid route date.' });
       return send(res, 200, await cachedTeamRoute(`day:${date}`, () => dataforceTeamDay(date)));
+    }
+    if (action === 'team-worker-schedule') {
+      const date = String(req.body.date || '');
+      const workerId = Number(req.body.workerId);
+      const fieldworker = TEAM_FIELDWORKERS.find(worker => worker.id === workerId);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return send(res, 400, { error: 'Choose a valid route date.' });
+      if (!fieldworker) return send(res, 400, { error: 'Choose a valid electrician.' });
+      return send(res, 200, await cachedTeamRoute(`worker:${date}:${workerId}`, () => dataforceTeamWorkerSchedule(date, fieldworker)));
     }
 
     const fieldworker = resolvePlannerFieldworker(req, res);

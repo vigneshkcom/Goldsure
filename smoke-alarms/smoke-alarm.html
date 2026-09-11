@@ -536,7 +536,10 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .route-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fff; }
 .route-card-head { display: flex; align-items: center; gap: 7px; }
 .route-card-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.route-map-button { margin-left: auto; border: 1px solid #bfd1fb; border-radius: 6px; background: var(--blue-bg); color: var(--blue); padding: 4px 7px; font: 700 10.5px Inter, Arial, sans-serif; cursor: pointer; white-space: nowrap; }
+.route-map-button:hover { background: #dce9ff; border-color: #95b3f6; }
 .route-job-count { margin-left: auto; padding: 3px 7px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 10.5px; font-weight: 700; }
+.route-map-button + .route-job-count { margin-left: 0; }
 .route-path { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
 .route-stop { border-radius: 5px; background: var(--surface2); color: var(--muted); padding: 4px 6px; font-size: 10.5px; font-weight: 500; }
 .route-arrow { color: var(--faint); font-size: 11px; }
@@ -2030,13 +2033,20 @@ function renderSelectedDayRoutes(result) {
       `${index ? '<span class="route-arrow">›</span>' : ''}<span class="route-stop">${escAvail(stop)}</span>`
     ).join('');
     return `<article class="route-card">
-      <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
+      <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span><button type="button" class="route-map-button" onclick="openTeamDrivingRoute(${Number(worker.id)})">View driving route</button><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
       <div class="route-path">${stops || '<span class="route-stop">Route location unavailable</span>'}</div>
     </article>`;
   }).join('');
   box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">${result.totalJobs} booked job${result.totalJobs === 1 ? '' : 's'}</div></div>` +
     (cards ? `<div class="route-list">${cards}</div>` : '<div class="cal-empty">No jobs booked for this date.</div>') +
     (idle.length ? `<div class="route-none">No bookings: ${escAvail(idle.join(', '))}</div>` : '');
+}
+
+function openTeamDrivingRoute(workerId) {
+  if (!calSelected || !Number.isFinite(Number(workerId))) return;
+  const routeUrl = `/route-planner/?team=1&date=${encodeURIComponent(calSelected)}&worker=${encodeURIComponent(workerId)}`;
+  const routeWindow = window.open(routeUrl, '_blank', 'popup=yes,width=1440,height=900,resizable=yes,scrollbars=yes');
+  if (routeWindow) routeWindow.focus();
 }
 
 document.addEventListener('DOMContentLoaded', loadRouteCalendar);
