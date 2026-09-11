@@ -171,4 +171,22 @@ test('booking suggestion controls are rendered above the selected day routes', (
   assert.match(html, /best\.seconds > 20 \* 60/);
   assert.match(html, /optimizeWaypointOrder: false/);
   assert.match(html, /routingPreference: 'TRAFFIC_UNAWARE'/);
+  assert.match(html, /insertPosition: best\.position/);
+  assert.match(html, /Show inserted route/);
+  assert.match(html, /goldsure_team_route_preview/);
+  assert.match(html, /preview=1/);
+  assert.doesNotMatch(html, /suggestedAddress=/);
+});
+
+test('suggested route preview inserts and highlights the unbooked address', () => {
+  const html = readFileSync(new URL('../route-planner/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /withSuggestedPreview/);
+  assert.match(html, /routeJobs\.splice\(position, 0/);
+  assert.match(html, /isSuggested: true/);
+  assert.match(html, /Suggested booking, not booked/);
+  assert.match(html, /new PinElement/);
+  assert.match(html, /background: '#12b76a'/);
+  assert.match(html, /Dataforce order preserved/);
+  assert.match(html, /This is a preview and has not been booked/);
 });
