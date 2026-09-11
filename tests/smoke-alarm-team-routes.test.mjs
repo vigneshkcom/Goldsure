@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import handler from '../api/smoke-alarms/google-key.js';
 
 function jsonResponse(payload, ok = true, status = 200) {
-  return { ok, status, json: async () => payload };
+  return { ok, status, json: async () => payload, text: async () => JSON.stringify(payload) };
 }
 
 function responseRecorder() {
@@ -16,8 +16,8 @@ function responseRecorder() {
   };
 }
 
-function installDataforceMock() {
-  const records = {
+function installDataforceMock(overrides = {}, googleSeconds = 600) {
+  const records = { ...{
     1007: [
       { appointmentId: 1, customerId: 11, scheduledDate: '2026-09-15T09:00:00', completionStatusDescription: 'Booked' },
     ],
@@ -29,7 +29,7 @@ function installDataforceMock() {
     ],
     1010: [],
     1005: [],
-  };
+  }, ...overrides };
   const customers = {
     11: { suburb: 'Logan', postCode: '4114', streetNo: '1', streetName: 'Private' },
     12: { suburb: 'Ipswich', postCode: '4305', mobilePhone: '0400000000' },
@@ -38,6 +38,11 @@ function installDataforceMock() {
 
   global.fetch = async (url, init = {}) => {
     if (String(url).endsWith('/authorization/token')) return jsonResponse({ access_token: 'test-token' });
+    if (String(url).includes('routes.googleapis.com/directions/v2:computeRoutes')) {
+      const body = JSON.parse(init.body);
+      const pointCount = 2 + (body.intermediates || []).length;
+      return jsonResponse({ routes: [{ legs: Array.from({ length: pointCount - 1 }, () => ({ duration: `${googleSeconds}s` })) }] });
+    }
     if (String(url).includes('/appointments/search')) {
       const body = JSON.parse(init.body);
       const workerFilter = body.filterGroups[0].filters.find(filter => filter.propertyName === 'fieldworkerId');
@@ -51,6 +56,7 @@ function installDataforceMock() {
 test.beforeEach(() => {
   process.env.DATAFORCE_CLIENT_ID = 'test-client';
   process.env.DATAFORCE_CLIENT_SECRET = 'test-secret';
+  process.env.GOOGLE_MAPS_ROUTES_KEY = 'test-google-key';
   installDataforceMock();
 });
 
@@ -117,4 +123,61 @@ test('team route popup hides controls and preserves the Dataforce stop order', (
   assert.match(html, /body\.team-route-mode \.controls/);
   assert.match(html, /elements\.routeMode\.value = 'scheduled'/);
   assert.match(html, /Dataforce stop order/);
+});
+
+test('booking suggestions return only working electricians under capacity and within 20 minutes', async () => {
+  const req = { method: 'POST', body: { action: 'team-booking-suggestions', address: '4000', startDate: '2026-09-15', days: 1 }, headers: { 'x-forwarded-for': 'test-1' } };
+  const res = responseRecorder();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.maxExtraMinutes, 20);
+  assert.equal(res.body.addressType, 'postcode');
+  assert.equal(res.body.suggestions.length, 3);
+  assert.equal(res.body.suggestions.every(item => item.jobCount > 0 && item.jobCount < 10), true);
+  assert.equal(res.body.suggestions.every(item => item.addedMinutes <= 20), true);
+  assert.equal(res.body.suggestions.every(item => ['AM', 'PM'].includes(item.slot)), true);
+  const serialised = JSON.stringify(res.body);
+  assert.equal(serialised.includes('Private Customer'), false);
+  assert.equal(serialised.includes('0400000000'), false);
+  assert.equal(serialised.includes('streetName'), false);
+  assert.equal(serialised.includes('"address":'), false);
+});
+
+test('booking suggestions exclude an electrician who already has 10 jobs', async () => {
+  const fullDay = Array.from({ length: 10 }, (_, index) => ({
+    appointmentId: 100 + index,
+    customerId: 11,
+    scheduledDate: `2026-09-15T${String(8 + index).padStart(2, '0')}:00:00`,
+    completionStatusDescription: 'Booked'
+  }));
+  installDataforceMock({ 1007: fullDay });
+  const req = { method: 'POST', body: { action: 'team-booking-suggestions', address: 'Capacity test 4001', startDate: '2026-09-15', days: 1 }, headers: { 'x-forwarded-for': 'test-2' } };
+  const res = responseRecorder();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.suggestions.some(item => item.electrician.name === 'Surya'), false);
+});
+
+test('booking suggestions reject routes that add more than 20 minutes', async () => {
+  installDataforceMock({}, 1500);
+  const req = { method: 'POST', body: { action: 'team-booking-suggestions', address: 'Far route 4002', startDate: '2026-09-15', days: 1 }, headers: { 'x-forwarded-for': 'test-3' } };
+  const res = responseRecorder();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.suggestions, []);
+});
+
+test('booking suggestion controls are rendered above the selected day routes', () => {
+  const html = readFileSync(new URL('../smoke-alarms/smoke-alarm.html', import.meta.url), 'utf8');
+
+  assert.ok(html.indexOf('id="bookingSuggestForm"') > html.indexOf('id="calKey"'));
+  assert.ok(html.indexOf('id="bookingSuggestForm"') < html.indexOf('id="calDay"'));
+  assert.match(html, /maximum 20 minutes extra driving/);
+  assert.match(html, /team-booking-suggestions/);
 });

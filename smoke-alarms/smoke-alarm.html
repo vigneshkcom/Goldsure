@@ -528,12 +528,34 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .cal-key-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
 .cal-key-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
+.booking-suggest { border-top: 1px solid var(--border); padding-top: 11px; }
+.booking-suggest-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.booking-suggest-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; }
+.booking-suggest-input { width: 100%; min-width: 0; height: 34px; border: 1px solid var(--border2); border-radius: 6px; padding: 0 9px; color: var(--text); background: #fff; font: 500 11.5px Figtree, sans-serif; outline: none; }
+.booking-suggest-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,115,234,.11); }
+.booking-suggest-btn { height: 34px; border: 0; border-radius: 6px; padding: 0 10px; background: var(--blue); color: #fff; font: 700 11px Figtree, sans-serif; cursor: pointer; white-space: nowrap; }
+.booking-suggest-btn:disabled { opacity: .6; cursor: wait; }
+.booking-suggest-rule { margin-top: 6px; color: var(--faint); font-size: 10px; line-height: 1.35; }
+.booking-suggest-results { display: grid; gap: 6px; margin-top: 9px; }
+.booking-suggest-message { border: 1px dashed var(--border2); border-radius: 7px; padding: 9px; color: var(--muted); background: var(--surface2); font-size: 10.5px; line-height: 1.4; }
+.booking-suggest-message.error { border-color: #f3b8c2; color: var(--red); background: var(--red-bg); }
+.booking-suggest-card { border: 1px solid var(--border); border-radius: 8px; padding: 9px; background: #fff; }
+.booking-suggest-head { display: flex; align-items: center; gap: 6px; }
+.booking-suggest-date { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.booking-suggest-slot { border-radius: 999px; background: var(--blue-bg); color: var(--blue); padding: 3px 6px; font-size: 10px; font-weight: 800; }
+.booking-suggest-fit { margin-left: auto; color: var(--green); font-size: 10px; font-weight: 700; }
+.booking-suggest-detail { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: var(--muted); font-size: 10.5px; }
+.booking-suggest-worker { color: var(--text); font-weight: 700; }
+.booking-suggest-near { margin-top: 5px; color: var(--faint); font-size: 10px; line-height: 1.35; }
+.booking-suggest-use { width: 100%; margin-top: 7px; height: 27px; border: 1px solid #bfd1fb; border-radius: 5px; background: var(--blue-bg); color: var(--blue); font: 700 10.5px Figtree, sans-serif; cursor: pointer; }
+
 .cal-day { border-top: 1px solid var(--border); padding-top: 11px; }
 .cal-day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 9px; }
 .cal-day-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .cal-day-total { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .route-list { display: grid; gap: 7px; }
 .route-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fff; }
+.route-card.suggested { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,115,234,.10); }
 .route-card-head { display: flex; align-items: center; gap: 7px; }
 .route-card-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
 .route-map-button { margin-left: auto; border: 1px solid #bfd1fb; border-radius: 6px; background: var(--blue-bg); color: var(--blue); padding: 4px 7px; font: 700 10.5px Inter, Arial, sans-serif; cursor: pointer; white-space: nowrap; }
@@ -695,6 +717,15 @@ function doLogout() {
     <div class="cal-grid" id="calGrid"></div>
 
     <div class="cal-key" id="calKey"></div>
+    <form class="booking-suggest" id="bookingSuggestForm" onsubmit="checkBookingSuggestions(event)">
+      <label class="booking-suggest-label" for="bookingSuggestAddress">Find a viable booking date</label>
+      <div class="booking-suggest-row">
+        <input class="booking-suggest-input" id="bookingSuggestAddress" type="text" placeholder="Enter QLD address or postcode" autocomplete="street-address">
+        <button class="booking-suggest-btn" id="bookingSuggestBtn" type="submit">Check dates</button>
+      </div>
+      <div class="booking-suggest-rule">Suggestions only · working electrician · fewer than 10 jobs · maximum 20 minutes extra driving</div>
+      <div class="booking-suggest-results" id="bookingSuggestResults" aria-live="polite"></div>
+    </form>
     <div class="cal-day" id="calDay"><div class="cal-empty">Choose a date to view electrician routes.</div></div>
   </aside>
 
@@ -1185,6 +1216,19 @@ function initAddressAutocomplete() {
     input.value = place.formatted_address;
     setAddressState('valid', '✓ Queensland address confirmed');
   });
+
+  const bookingInput = document.getElementById('bookingSuggestAddress');
+  if (bookingInput) {
+    const bookingAutocomplete = new google.maps.places.Autocomplete(bookingInput, {
+      componentRestrictions: { country: 'au' },
+      fields: ['formatted_address', 'address_components'],
+      types: ['geocode']
+    });
+    bookingAutocomplete.addListener('place_changed', function () {
+      const place = bookingAutocomplete.getPlace();
+      if (place && place.formatted_address) bookingInput.value = place.formatted_address;
+    });
+  }
 }
 
 function onAddressInput() {
@@ -1910,6 +1954,8 @@ let routeWorkers = [];
 let routeDates = [];
 let calCursor = new Date();
 let calSelected = null;
+let routeSuggestedWorkerId = null;
+let routeSuggestedDate = null;
 
 const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -1961,17 +2007,23 @@ async function loadRouteCalendar() {
 function calShift(n) {
   calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + n, 1);
   calSelected = ymd(calCursor);
+  routeSuggestedWorkerId = null;
+  routeSuggestedDate = null;
   loadRouteCalendar();
 }
 
 function calToday() {
   calCursor = new Date();
   calSelected = ymd(calCursor);
+  routeSuggestedWorkerId = null;
+  routeSuggestedDate = null;
   loadRouteCalendar();
 }
 
 function calSelect(date) {
   calSelected = date;
+  routeSuggestedWorkerId = null;
+  routeSuggestedDate = null;
   renderRouteCalendar();
   loadSelectedDayRoutes();
 }
@@ -2006,6 +2058,77 @@ function renderRouteCalendar() {
   ).join('');
 }
 
+function suggestionSearchRange() {
+  const visibleStart = calendarStart();
+  const visibleEnd = new Date(visibleStart.getFullYear(), visibleStart.getMonth(), visibleStart.getDate() + 42);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (visibleEnd <= today) return null;
+  const start = visibleStart > today ? visibleStart : today;
+  return { startDate: ymd(start), days: Math.max(1, Math.ceil((visibleEnd - start) / 86400000)) };
+}
+
+function renderBookingSuggestions(result) {
+  const box = document.getElementById('bookingSuggestResults');
+  const suggestions = result.suggestions || [];
+  if (!suggestions.length) {
+    box.innerHTML = '<div class="booking-suggest-message">No date in this calendar meets the working-day, capacity and 20-minute driving rules.</div>';
+    return;
+  }
+  const estimateNote = result.addressType === 'postcode' ? '<div class="booking-suggest-message">Postcode result: route fit is approximate until a full address is entered.</div>' : '';
+  box.innerHTML = estimateNote + suggestions.map((suggestion, index) => {
+    const dateLabel = new Date(`${suggestion.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    const fit = suggestion.addedMinutes <= 10 ? 'Best fit' : suggestion.addedMinutes <= 15 ? 'Good fit' : 'Viable';
+    const near = (suggestion.near || []).length ? `Near ${suggestion.near.map(escAvail).join(' → ')}` : 'Route location available';
+    return `<article class="booking-suggest-card">
+      <div class="booking-suggest-head"><span class="booking-suggest-date">${index + 1}. ${escAvail(dateLabel)}</span><span class="booking-suggest-slot">${escAvail(suggestion.slot)}</span><span class="booking-suggest-fit">${fit}</span></div>
+      <div class="booking-suggest-detail"><span class="cal-key-dot" style="background:${escAvail(suggestion.electrician.color)}"></span><span class="booking-suggest-worker">${escAvail(suggestion.electrician.name)}</span><span>${suggestion.jobCount}/10 jobs</span><span>+${suggestion.addedMinutes} min</span></div>
+      <div class="booking-suggest-near">${near}</div>
+      <button class="booking-suggest-use" type="button" onclick="useBookingSuggestion('${suggestion.date}', ${Number(suggestion.electrician.id)})">View this date</button>
+    </article>`;
+  }).join('');
+}
+
+async function checkBookingSuggestions(event) {
+  if (event) event.preventDefault();
+  const input = document.getElementById('bookingSuggestAddress');
+  const button = document.getElementById('bookingSuggestBtn');
+  const box = document.getElementById('bookingSuggestResults');
+  const address = input.value.trim();
+  if (address.length < 4) {
+    box.innerHTML = '<div class="booking-suggest-message error">Enter a full address or four-digit postcode.</div>';
+    input.focus();
+    return;
+  }
+  const range = suggestionSearchRange();
+  if (!range) {
+    box.innerHTML = '<div class="booking-suggest-message error">Move the calendar to the current or a future month before checking dates.</div>';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Checking…';
+  box.innerHTML = '<div class="booking-suggest-message">Checking Dataforce routes and driving time…</div>';
+  try {
+    const result = await routeApi({ action: 'team-booking-suggestions', address, startDate: range.startDate, days: range.days });
+    renderBookingSuggestions(result);
+  } catch (error) {
+    box.innerHTML = `<div class="booking-suggest-message error">${escAvail(error.message)}</div>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Check dates';
+  }
+}
+
+async function useBookingSuggestion(date, workerId) {
+  const target = new Date(`${date}T00:00:00`);
+  calCursor = new Date(target.getFullYear(), target.getMonth(), 1);
+  calSelected = date;
+  routeSuggestedWorkerId = Number(workerId);
+  routeSuggestedDate = date;
+  await loadRouteCalendar();
+  document.getElementById('calDay')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 async function loadSelectedDayRoutes() {
   const box = document.getElementById('calDay');
   if (!box || !calSelected) return;
@@ -2032,7 +2155,8 @@ function renderSelectedDayRoutes(result) {
     const stops = (worker.route || []).map((stop, index) =>
       `${index ? '<span class="route-arrow">›</span>' : ''}<span class="route-stop">${escAvail(stop)}</span>`
     ).join('');
-    return `<article class="route-card">
+    const isSuggested = result.date === routeSuggestedDate && Number(worker.id) === routeSuggestedWorkerId;
+    return `<article class="route-card${isSuggested ? ' suggested' : ''}">
       <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span><button type="button" class="route-map-button" onclick="openTeamDrivingRoute(${Number(worker.id)})">View driving route</button><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
       <div class="route-path">${stops || '<span class="route-stop">Route location unavailable</span>'}</div>
     </article>`;
