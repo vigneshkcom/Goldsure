@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import handler from '../api/smoke-alarms/google-key.js';
 
 function jsonResponse(payload, ok = true, status = 200) {
@@ -108,4 +109,12 @@ test('team driving route rejects electricians outside the approved team list', a
 
   assert.equal(res.statusCode, 400);
   assert.equal(res.body.error, 'Choose a valid electrician.');
+});
+
+test('team route popup hides controls and preserves the Dataforce stop order', () => {
+  const html = readFileSync(new URL('../route-planner/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /body\.team-route-mode \.controls/);
+  assert.match(html, /elements\.routeMode\.value = 'scheduled'/);
+  assert.match(html, /Dataforce stop order/);
 });
