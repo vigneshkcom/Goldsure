@@ -236,7 +236,13 @@
         if (!state.jobs.length) { elements.jobList.innerHTML = '<div class="empty-jobs">No jobs loaded yet.</div>'; return; }
         elements.jobList.innerHTML = state.jobs.map((job, index) => {
           const meta = job.isSuggested
-            ? [`Suggested ${job.suggestedSlot || ''} slot`.trim(), `About +${job.addedMinutes || 0} min`, 'Not booked']
+            ? [
+                `Suggested ${job.suggestedSlot || ''} slot`.trim(),
+                `Whole route: about +${job.addedMinutes || 0} min`,
+                job.previousDriveMinutes ? `Previous stop → here: ${job.previousDriveMinutes} min` : '',
+                job.nextDriveMinutes ? `Here → next stop: ${job.nextDriveMinutes} min` : '',
+                'Not booked'
+              ].filter(Boolean)
             : [job.scheduledDate ? formatTime(job.scheduledDate) : '', job.workType || '', job.jobId ? `Job ${job.jobId}` : '', job.appointmentId ? `Appt ${job.appointmentId}` : ''].filter(Boolean);
           const phone = String(job.mobile || '').replace(/[^+\d]/g, '');
           return `<article class="job${job.isSuggested ? ' suggested-job' : ''}"><div class="stop${job.isSuggested ? ' suggested-stop' : ''}">${job.isSuggested ? '+' : index + 1}</div><div><h4>${escapeHtml(job.customerName || 'Customer')}</h4><div class="address">${escapeHtml(job.address)}</div><div class="job-meta">${meta.map(item => `<span class="tag${job.isSuggested ? ' suggested-tag' : ''}">${escapeHtml(item)}</span>`).join('')}${phone ? `<a class="phone" href="tel:${escapeHtml(phone)}">Call</a>` : ''}</div></div></article>`;
@@ -253,6 +259,8 @@
           workType: 'Suggested route insertion',
           suggestedSlot: suggestedPreview.slot === 'PM' ? 'PM' : 'AM',
           addedMinutes: Math.max(1, Number(suggestedPreview.addedMinutes) || 1),
+          previousDriveMinutes: Number(suggestedPreview.previousDriveMinutes) || 0,
+          nextDriveMinutes: Number(suggestedPreview.nextDriveMinutes) || 0,
           isSuggested: true,
           source: 'suggestion'
         });
@@ -333,6 +341,25 @@
         });
         const googleRoute = response.routes && response.routes[0];
         if (!googleRoute) throw new Error('Google did not return a drivable route for these addresses.');
+        let baseDurationSeconds = null;
+        if (suggestedPreview) {
+          const baseJobs = state.jobs.filter(job => !job.isSuggested);
+          if (baseJobs.length >= 2) {
+            const baseResponse = await Route.computeRoutes({
+              origin: baseJobs[0].address,
+              destination: baseJobs[baseJobs.length - 1].address,
+              intermediates: baseJobs.slice(1, -1).map(job => ({ location: job.address })),
+              travelMode: 'DRIVING',
+              routingPreference: 'TRAFFIC_AWARE',
+              optimizeWaypointOrder: false,
+              language: 'en-AU',
+              region: 'au',
+              fields: ['durationMillis']
+            });
+            const baseRoute = baseResponse.routes?.[0];
+            if (baseRoute) baseDurationSeconds = Math.round(Number(baseRoute.durationMillis || 0) / 1000);
+          }
+        }
         const order = googleRoute.optimizedIntermediateWaypointIndices && googleRoute.optimizedIntermediateWaypointIndices.length
           ? googleRoute.optimizedIntermediateWaypointIndices
           : intermediateJobs.map((_, index) => index);
@@ -343,6 +370,7 @@
           googleRoute,
           distanceMeters: googleRoute.distanceMeters || 0,
           durationSeconds: Math.round((googleRoute.durationMillis || 0) / 1000),
+          baseDurationSeconds,
           orderedStopIds: orderedJobs.map(job => job.appointmentId),
           googleMapsUrl: googleMapsDirectionsUrl(addresses)
         };
@@ -353,16 +381,28 @@
         const ordered = route.orderedStopIds.map(id => byId.get(String(id))).filter(Boolean);
         const seen = new Set(ordered); state.jobs = [...ordered, ...state.jobs.filter(job => !seen.has(job))]; renderJobs();
       }
+      function applySuggestedRouteTimes(route) {
+        const suggestedIndex = state.jobs.findIndex(job => job.isSuggested);
+        if (suggestedIndex < 0) return;
+        const suggestedJob = state.jobs[suggestedIndex];
+        const legs = route.googleRoute?.legs || [];
+        if (suggestedIndex > 0 && legs[suggestedIndex - 1]) suggestedJob.previousDriveMinutes = Math.max(1, Math.round(Number(legs[suggestedIndex - 1].durationMillis || 0) / 60000));
+        if (suggestedIndex < state.jobs.length - 1 && legs[suggestedIndex]) suggestedJob.nextDriveMinutes = Math.max(1, Math.round(Number(legs[suggestedIndex].durationMillis || 0) / 60000));
+        if (Number.isFinite(route.baseDurationSeconds)) suggestedJob.addedMinutes = Math.max(0, Math.round((route.durationSeconds - route.baseDurationSeconds) / 60));
+        renderJobs();
+      }
       async function planRoute() {
         if (state.jobs.length < 2) return showNotice('Load at least two jobs first.', 'error');
         clearNotice(); setBusy(elements.planRoute, true, 'Planning…');
         try {
           const result = await computeBrowserRoute();
           state.route = result; applyRouteOrder(result);
+          applySuggestedRouteTimes(result);
           const bookedCount = state.jobs.filter(job => !job.isSuggested).length;
+          const routeIncreaseMinutes = Number.isFinite(result.baseDurationSeconds) ? Math.max(0, Math.round((result.durationSeconds - result.baseDurationSeconds) / 60)) : null;
           elements.routeTitle.textContent = suggestedPreview ? `${state.fieldworkerDisplayName}'s route with suggested stop` : `${state.fieldworkerDisplayName}'s driving route`;
           elements.routeSubtitle.textContent = suggestedPreview
-            ? `${bookedCount} Dataforce jobs + 1 suggested stop · Dataforce order preserved`
+            ? `${bookedCount} Dataforce jobs + 1 suggested stop · Whole route ${Number.isFinite(result.baseDurationSeconds) ? `${formatDuration(result.baseDurationSeconds)} → ${formatDuration(result.durationSeconds)} (+${routeIncreaseMinutes} min) · ` : ''}Dataforce order preserved`
             : `${state.jobs.length} jobs · ${teamMode ? 'Dataforce stop order' : elements.routeMode.value === 'optimize' ? 'Google-optimised stop order' : 'Scheduled stop order'}`;
           elements.distanceMetric.textContent = `${(result.distanceMeters / 1000).toFixed(1)} km`;
           elements.durationMetric.textContent = formatDuration(result.durationSeconds);

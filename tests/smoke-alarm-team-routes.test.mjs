@@ -166,12 +166,14 @@ test('booking suggestion controls are rendered above the selected day routes', (
 
   assert.ok(html.indexOf('id="bookingSuggestForm"') > html.indexOf('id="calKey"'));
   assert.ok(html.indexOf('id="bookingSuggestForm"') < html.indexOf('id="calDay"'));
-  assert.match(html, /maximum 20 minutes extra driving/);
+  assert.match(html, /maximum 20 minutes added to the whole route/);
   assert.match(html, /team-booking-suggestions/);
   assert.match(html, /best\.seconds > 20 \* 60/);
   assert.match(html, /optimizeWaypointOrder: false/);
   assert.match(html, /routingPreference: 'TRAFFIC_UNAWARE'/);
   assert.match(html, /insertPosition: best\.position/);
+  assert.match(html, /previousDriveMinutes/);
+  assert.match(html, /Whole-route increase: about/);
   assert.match(html, /Show inserted route/);
   assert.match(html, /goldsure_team_route_preview/);
   assert.match(html, /preview=1/);
@@ -187,6 +189,9 @@ test('suggested route preview inserts and highlights the unbooked address', () =
   assert.match(html, /Suggested booking, not booked/);
   assert.match(html, /new PinElement/);
   assert.match(html, /background: '#12b76a'/);
+  assert.match(html, /applySuggestedRouteTimes/);
+  assert.match(html, /baseDurationSeconds/);
+  assert.match(html, /Previous stop → here/);
   assert.match(html, /Dataforce order preserved/);
   assert.match(html, /This is a preview and has not been booked/);
 });

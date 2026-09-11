@@ -547,6 +547,8 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .booking-suggest-detail { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: var(--muted); font-size: 10.5px; }
 .booking-suggest-worker { color: var(--text); font-weight: 700; }
 .booking-suggest-near { margin-top: 5px; color: var(--faint); font-size: 10px; line-height: 1.35; }
+.booking-suggest-drive { margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.booking-suggest-drive strong { color: var(--text); }
 .booking-suggest-use { width: 100%; margin-top: 7px; height: 27px; border: 1px solid #bfd1fb; border-radius: 5px; background: var(--blue-bg); color: var(--blue); font: 700 10.5px Figtree, sans-serif; cursor: pointer; }
 
 .cal-day { border-top: 1px solid var(--border); padding-top: 11px; }
@@ -722,7 +724,7 @@ function doLogout() {
         <input class="booking-suggest-input" id="bookingSuggestAddress" type="text" placeholder="Enter QLD address or postcode" autocomplete="street-address">
         <button class="booking-suggest-btn" id="bookingSuggestBtn" type="submit">Check dates</button>
       </div>
-      <div class="booking-suggest-rule">Suggestions only · working electrician · fewer than 10 jobs · maximum 20 minutes extra driving</div>
+      <div class="booking-suggest-rule">Suggestions only · working electrician · fewer than 10 jobs · maximum 20 minutes added to the whole route</div>
       <div class="booking-suggest-results" id="bookingSuggestResults" aria-live="polite"></div>
     </form>
     <div class="cal-day" id="calDay"><div class="cal-empty">Choose a date to view electrician routes.</div></div>
@@ -2184,6 +2186,11 @@ async function evaluateBookingCandidate(candidateAddress, schedule) {
       addedSeconds: best.seconds,
       addedMinutes: Math.max(1, Math.ceil(best.seconds / 60)),
       insertPosition: best.position,
+      previousDriveMinutes: best.position > 0 ? Math.max(1, Math.round(fromJob[best.position - 1] / 60)) : null,
+      nextDriveMinutes: best.position < jobCount ? Math.max(1, Math.round(toJob[best.position] / 60)) : null,
+      replacedDriveMinutes: best.position > 0 && best.position < jobCount ? Math.max(1, Math.round(baselineLegs[best.position - 1] / 60)) : null,
+      previousLabel: best.position > 0 ? jobs[best.position - 1].routeLabel : '',
+      nextLabel: best.position < jobCount ? jobs[best.position].routeLabel : '',
       near: bookingNearLabels(best.position, jobs)
     };
   }).filter(Boolean);
@@ -2237,11 +2244,16 @@ function renderBookingSuggestions(result) {
     const dateLabel = new Date(`${suggestion.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
     const fit = suggestion.addedMinutes <= 10 ? 'Best fit' : suggestion.addedMinutes <= 15 ? 'Good fit' : 'Viable';
     const near = (suggestion.near || []).length ? `Near ${suggestion.near.map(escAvail).join(' → ')}` : 'Route location available';
+    const legParts = [];
+    if (suggestion.previousDriveMinutes) legParts.push(`${escAvail(suggestion.previousLabel || 'Previous stop')} → address: ${suggestion.previousDriveMinutes} min`);
+    if (suggestion.nextDriveMinutes) legParts.push(`Address → ${escAvail(suggestion.nextLabel || 'next stop')}: ${suggestion.nextDriveMinutes} min`);
+    if (suggestion.replacedDriveMinutes) legParts.push(`Existing direct leg: ${suggestion.replacedDriveMinutes} min`);
     return `<article class="booking-suggest-card">
       <div class="booking-suggest-head"><span class="booking-suggest-date">${index + 1}. ${escAvail(dateLabel)}</span><span class="booking-suggest-slot">${escAvail(suggestion.slot)}</span><span class="booking-suggest-fit">${fit}</span></div>
-      <div class="booking-suggest-detail"><span class="cal-key-dot" style="background:${escAvail(suggestion.electrician.color)}"></span><span class="booking-suggest-worker">${escAvail(suggestion.electrician.name)}</span><span>${suggestion.jobCount}/10 jobs</span><span>+${suggestion.addedMinutes} min</span></div>
+      <div class="booking-suggest-detail"><span class="cal-key-dot" style="background:${escAvail(suggestion.electrician.color)}"></span><span class="booking-suggest-worker">${escAvail(suggestion.electrician.name)}</span><span>${suggestion.jobCount}/10 jobs</span></div>
       <div class="booking-suggest-near">${near}</div>
-      <button class="booking-suggest-use" type="button" onclick="previewBookingSuggestion('${suggestion.date}', ${Number(suggestion.electrician.id)}, ${Number(suggestion.insertPosition)}, '${suggestion.slot}', ${Number(suggestion.addedMinutes)})">Show inserted route</button>
+      <div class="booking-suggest-drive"><strong>Whole-route increase: about +${suggestion.addedMinutes} min</strong>${legParts.length ? `<br>${legParts.join(' · ')}` : ''}</div>
+      <button class="booking-suggest-use" type="button" onclick="previewBookingSuggestion('${suggestion.date}', ${Number(suggestion.electrician.id)}, ${Number(suggestion.insertPosition)}, '${suggestion.slot}', ${Number(suggestion.addedMinutes)}, ${Number(suggestion.previousDriveMinutes) || 0}, ${Number(suggestion.nextDriveMinutes) || 0}, ${Number(suggestion.replacedDriveMinutes) || 0})">Show inserted route</button>
     </article>`;
   }).join('');
 }
@@ -2278,7 +2290,7 @@ async function checkBookingSuggestions(event) {
   }
 }
 
-function previewBookingSuggestion(date, workerId, insertPosition, slot, addedMinutes) {
+function previewBookingSuggestion(date, workerId, insertPosition, slot, addedMinutes, previousDriveMinutes, nextDriveMinutes, replacedDriveMinutes) {
   const address = bookingSuggestionPreviewAddress;
   if (!address) return;
   sessionStorage.setItem('goldsure_team_route_preview', JSON.stringify({
@@ -2288,6 +2300,9 @@ function previewBookingSuggestion(date, workerId, insertPosition, slot, addedMin
     insertPosition: Number(insertPosition),
     slot,
     addedMinutes: Number(addedMinutes),
+    previousDriveMinutes: Number(previousDriveMinutes) || 0,
+    nextDriveMinutes: Number(nextDriveMinutes) || 0,
+    replacedDriveMinutes: Number(replacedDriveMinutes) || 0,
     createdAt: Date.now()
   }));
   const routeUrl = `/route-planner/?team=1&preview=1&date=${encodeURIComponent(date)}&worker=${encodeURIComponent(workerId)}`;
