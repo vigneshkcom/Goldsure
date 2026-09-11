@@ -125,7 +125,7 @@ test('team route popup hides controls and preserves the Dataforce stop order', (
   assert.match(html, /Dataforce stop order/);
 });
 
-test('booking suggestions return only working electricians under capacity and within 20 minutes', async () => {
+test('booking candidate routes return only working electricians under capacity', async () => {
   const req = { method: 'POST', body: { action: 'team-booking-suggestions', address: '4000', startDate: '2026-09-15', days: 1 }, headers: { 'x-forwarded-for': 'test-1' } };
   const res = responseRecorder();
 
@@ -134,15 +134,14 @@ test('booking suggestions return only working electricians under capacity and wi
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.maxExtraMinutes, 20);
   assert.equal(res.body.addressType, 'postcode');
-  assert.equal(res.body.suggestions.length, 3);
-  assert.equal(res.body.suggestions.every(item => item.jobCount > 0 && item.jobCount < 10), true);
-  assert.equal(res.body.suggestions.every(item => item.addedMinutes <= 20), true);
-  assert.equal(res.body.suggestions.every(item => ['AM', 'PM'].includes(item.slot)), true);
+  assert.equal(res.body.candidates.length, 2);
+  assert.equal(res.body.candidates.every(item => item.jobCount > 0 && item.jobCount < 10), true);
+  assert.equal(res.body.candidates.every(item => item.jobs.length === item.jobCount), true);
+  assert.equal(res.body.candidates.every(item => item.jobs.every(job => job.address && ['AM', 'PM', ''].includes(job.scheduledSlot))), true);
   const serialised = JSON.stringify(res.body);
   assert.equal(serialised.includes('Private Customer'), false);
   assert.equal(serialised.includes('0400000000'), false);
-  assert.equal(serialised.includes('streetName'), false);
-  assert.equal(serialised.includes('"address":'), false);
+  assert.equal(serialised.includes('customerId'), false);
 });
 
 test('booking suggestions exclude an electrician who already has 10 jobs', async () => {
@@ -159,18 +158,7 @@ test('booking suggestions exclude an electrician who already has 10 jobs', async
   await handler(req, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.suggestions.some(item => item.electrician.name === 'Surya'), false);
-});
-
-test('booking suggestions reject routes that add more than 20 minutes', async () => {
-  installDataforceMock({}, 1500);
-  const req = { method: 'POST', body: { action: 'team-booking-suggestions', address: 'Far route 4002', startDate: '2026-09-15', days: 1 }, headers: { 'x-forwarded-for': 'test-3' } };
-  const res = responseRecorder();
-
-  await handler(req, res);
-
-  assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body.suggestions, []);
+  assert.equal(res.body.candidates.some(item => item.electrician.name === 'Surya'), false);
 });
 
 test('booking suggestion controls are rendered above the selected day routes', () => {
@@ -180,4 +168,7 @@ test('booking suggestion controls are rendered above the selected day routes', (
   assert.ok(html.indexOf('id="bookingSuggestForm"') < html.indexOf('id="calDay"'));
   assert.match(html, /maximum 20 minutes extra driving/);
   assert.match(html, /team-booking-suggestions/);
+  assert.match(html, /best\.seconds > 20 \* 60/);
+  assert.match(html, /optimizeWaypointOrder: false/);
+  assert.match(html, /routingPreference: 'TRAFFIC_UNAWARE'/);
 });

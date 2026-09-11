@@ -18,7 +18,6 @@ const TEAM_ROUTE_CACHE_TTL_MS = 2 * 60 * 1000;
 const teamRouteCache = new Map();
 const TEAM_SUGGESTION_CACHE_TTL_MS = 5 * 60 * 1000;
 const TEAM_SUGGESTION_MAX_JOBS = 10;
-const TEAM_SUGGESTION_MAX_EXTRA_SECONDS = 20 * 60;
 const teamSuggestionCache = new Map();
 const teamSuggestionRateLimits = new Map();
 
@@ -418,127 +417,8 @@ function scheduleHour(value) {
   return hour;
 }
 
-function scheduleSplitIndex(appointments) {
-  const hours = appointments.map(appointment => scheduleHour(appointment.scheduledDate));
-  const hasUsefulTimes = hours.some(hour => Number.isFinite(hour) && hour > 0);
-  if (!hasUsefulTimes) return Math.ceil(appointments.length / 2);
-  const firstPm = hours.findIndex(hour => Number.isFinite(hour) && hour >= 12);
-  return firstPm < 0 ? appointments.length : firstPm;
-}
-
-function teamMapsKey() {
-  const apiKey = process.env.GOOGLE_MAPS_ROUTES_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-  if (!apiKey) throw Object.assign(new Error('Google route estimates are not configured yet.'), { status: 503 });
-  return apiKey;
-}
-
-async function googleRouteLegDurations(addresses) {
-  if (addresses.length < 2) return [];
-  const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
-    method: 'POST',
-    signal: AbortSignal.timeout(12000),
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': teamMapsKey(),
-      'X-Goog-FieldMask': 'routes.legs.duration'
-    },
-    body: JSON.stringify({
-      origin: { address: addresses[0] },
-      destination: { address: addresses[addresses.length - 1] },
-      intermediates: addresses.slice(1, -1).map(address => ({ address })),
-      travelMode: 'DRIVE',
-      routingPreference: 'TRAFFIC_UNAWARE',
-      optimizeWaypointOrder: false,
-      languageCode: 'en-AU',
-      units: 'METRIC'
-    })
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error('Google route suggestion error', response.status, detail.slice(0, 300));
-    throw Object.assign(new Error('Google could not estimate the additional driving for this address.'), { status: 422 });
-  }
-  const payload = await response.json();
-  const legs = payload.routes && payload.routes[0] && payload.routes[0].legs;
-  if (!Array.isArray(legs) || legs.length !== addresses.length - 1) {
-    throw Object.assign(new Error('Google could not map one or more route stops.'), { status: 422 });
-  }
-  return legs.map(leg => durationSeconds(leg.duration));
-}
-
-function insertionExtraSeconds(position, jobCount, baselineLegs, toJob, fromJob) {
-  if (position === 0) return toJob[0];
-  if (position === jobCount) return fromJob[jobCount - 1];
-  return Math.max(0, fromJob[position - 1] + toJob[position] - baselineLegs[position - 1]);
-}
-
-function nearestRouteLabels(position, jobs) {
-  if (!jobs.length) return [];
-  const labels = position === 0
-    ? [jobs[0].routeLabel]
-    : position === jobs.length
-      ? [jobs[jobs.length - 1].routeLabel]
-      : [jobs[position - 1].routeLabel, jobs[position].routeLabel];
-  return collapseRoute(labels).filter(Boolean);
-}
-
-async function evaluateTeamBookingRoute(candidateAddress, schedule) {
-  const jobs = schedule.jobs;
-  const jobCount = jobs.length;
-  const baselinePromise = jobCount > 1
-    ? googleRouteLegDurations(jobs.map(job => job.address))
-    : Promise.resolve([]);
-  const chunks = [];
-  for (let start = 0; start < jobCount; start += 5) {
-    chunks.push({ start, jobs: jobs.slice(start, start + 5) });
-  }
-  const probePromises = chunks.map(async chunk => {
-    const addresses = [candidateAddress];
-    chunk.jobs.forEach(job => addresses.push(job.address, candidateAddress));
-    return { start: chunk.start, count: chunk.jobs.length, legs: await googleRouteLegDurations(addresses) };
-  });
-  const [baselineLegs, ...probes] = await Promise.all([baselinePromise, ...probePromises]);
-  const toJob = new Array(jobCount);
-  const fromJob = new Array(jobCount);
-  probes.forEach(probe => {
-    for (let index = 0; index < probe.count; index += 1) {
-      toJob[probe.start + index] = probe.legs[index * 2];
-      fromJob[probe.start + index] = probe.legs[index * 2 + 1];
-    }
-  });
-  const extras = Array.from({ length: jobCount + 1 }, (_, position) => ({
-    position,
-    seconds: insertionExtraSeconds(position, jobCount, baselineLegs, toJob, fromJob)
-  }));
-  const splitIndex = scheduleSplitIndex(jobs);
-  const slots = [
-    { name: 'AM', options: extras.filter(option => option.position <= splitIndex) },
-    { name: 'PM', options: extras.filter(option => option.position >= splitIndex) }
-  ];
-  return slots.map(slot => {
-    const best = slot.options.sort((a, b) => a.seconds - b.seconds)[0];
-    if (!best) return null;
-    return {
-      date: schedule.date,
-      electrician: publicTeamWorker(schedule.fieldworker),
-      slot: slot.name,
-      jobCount: schedule.appointments.length,
-      addedSeconds: best.seconds,
-      addedMinutes: Math.max(1, Math.ceil(best.seconds / 60)),
-      near: nearestRouteLabels(best.position, jobs)
-    };
-  }).filter(suggestion => suggestion && suggestion.addedSeconds <= TEAM_SUGGESTION_MAX_EXTRA_SECONDS);
-}
-
-function normaliseQueenslandSearchAddress(value) {
-  const address = String(value || '').trim().replace(/\s+/g, ' ');
-  if (/\b(QLD|Queensland|Australia)\b/i.test(address)) return address;
-  return `${address}, Queensland, Australia`;
-}
-
 async function dataforceTeamBookingSuggestions(address, startDate, days) {
   const { instance } = dataforceConfig();
-  teamMapsKey();
   const token = await dataforceToken();
   const endDate = addDays(startDate, days);
   const workerSchedules = await Promise.all(TEAM_FIELDWORKERS.map(async fieldworker => ({
@@ -561,7 +441,7 @@ async function dataforceTeamBookingSuggestions(address, startDate, days) {
     });
   });
   if (!eligible.length) {
-    return { addressType: /^\d{4}$/.test(address) ? 'postcode' : 'address', maxExtraMinutes: 20, suggestions: [] };
+    return { addressType: /^\d{4}$/.test(address) ? 'postcode' : 'address', maxExtraMinutes: 20, candidates: [] };
   }
 
   const customerIds = [...new Set(eligible.flatMap(schedule => schedule.appointments.map(appointment => appointment.customerId)).filter(Boolean))];
@@ -573,43 +453,24 @@ async function dataforceTeamBookingSuggestions(address, startDate, days) {
     }
   });
   const customers = new Map(customerEntries);
-  const schedules = eligible.map(schedule => ({
-    ...schedule,
+  const candidates = eligible.map(schedule => ({
+    date: schedule.date,
+    electrician: publicTeamWorker(schedule.fieldworker),
+    jobCount: schedule.appointments.length,
     jobs: schedule.appointments.map(appointment => {
       const customer = customers.get(appointment.customerId);
+      const hour = scheduleHour(appointment.scheduledDate);
       return {
         address: customerAddress(customer),
         routeLabel: customerRouteLabel(customer),
-        scheduledDate: appointment.scheduledDate || ''
+        scheduledSlot: Number.isFinite(hour) && hour > 0 ? (hour >= 12 ? 'PM' : 'AM') : ''
       };
-    }).filter(job => job.address)
-  })).filter(schedule => schedule.jobs.length > 0 && schedule.jobs.length === schedule.appointments.length);
-  const candidateAddress = normaliseQueenslandSearchAddress(address);
-  let successfulRoutes = 0;
-  const evaluated = await mapWithConcurrency(schedules, 3, async schedule => {
-    try {
-      const suggestions = await evaluateTeamBookingRoute(candidateAddress, schedule);
-      successfulRoutes += 1;
-      return suggestions;
-    } catch (error) {
-      console.warn('Skipped route suggestion', schedule.date, schedule.fieldworker.id, error.message);
-      return [];
-    }
-  });
-  if (schedules.length && !successfulRoutes) {
-    throw Object.assign(new Error('That address could not be matched to the electrician routes. Check it and try again.'), { status: 422 });
-  }
-  const workerOrder = new Map(TEAM_FIELDWORKERS.map((worker, index) => [worker.id, index]));
-  const suggestions = evaluated.flat().sort((a, b) =>
-    a.addedSeconds - b.addedSeconds
-    || a.date.localeCompare(b.date)
-    || workerOrder.get(a.electrician.id) - workerOrder.get(b.electrician.id)
-    || a.slot.localeCompare(b.slot)
-  ).slice(0, 3).map(({ addedSeconds, ...suggestion }) => suggestion);
+    })
+  })).filter(schedule => schedule.jobs.length > 0 && schedule.jobs.every(job => job.address));
   return {
     addressType: /^\d{4}$/.test(address) ? 'postcode' : 'address',
     maxExtraMinutes: 20,
-    suggestions
+    candidates
   };
 }
 

@@ -2068,6 +2068,170 @@ function suggestionSearchRange() {
   return { startDate: ymd(start), days: Math.max(1, Math.ceil((visibleEnd - start) / 86400000)) };
 }
 
+function normaliseBookingAddress(value) {
+  const address = String(value || '').trim().replace(/\s+/g, ' ');
+  if (/\b(QLD|Queensland|Australia)\b/i.test(address)) return address;
+  return `${address}, Queensland, Australia`;
+}
+
+async function waitForBookingMaps() {
+  if (window.google?.maps?.importLibrary) return;
+  loadGoogleMaps();
+  await new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const check = setInterval(() => {
+      if (window.google?.maps?.importLibrary) {
+        clearInterval(check);
+        resolve();
+      } else if (Date.now() - startedAt > 15000) {
+        clearInterval(check);
+        reject(new Error('Google Maps could not load. Refresh the page and try again.'));
+      }
+    }, 100);
+  });
+}
+
+async function bookingMapWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+async function bookingRouteLegDurations(addresses) {
+  if (addresses.length < 2) return [];
+  const { Route } = await google.maps.importLibrary('routes');
+  const response = await Route.computeRoutes({
+    origin: addresses[0],
+    destination: addresses[addresses.length - 1],
+    intermediates: addresses.slice(1, -1).map(address => ({ location: address })),
+    travelMode: 'DRIVING',
+    routingPreference: 'TRAFFIC_UNAWARE',
+    optimizeWaypointOrder: false,
+    language: 'en-AU',
+    region: 'au',
+    fields: ['legs']
+  });
+  const legs = response.routes?.[0]?.legs;
+  if (!Array.isArray(legs) || legs.length !== addresses.length - 1) {
+    throw new Error('Google could not map one or more route stops.');
+  }
+  return legs.map(leg => Math.round(Number(leg.durationMillis || 0) / 1000));
+}
+
+function bookingInsertionExtraSeconds(position, jobCount, baselineLegs, toJob, fromJob) {
+  if (position === 0) return toJob[0];
+  if (position === jobCount) return fromJob[jobCount - 1];
+  return Math.max(0, fromJob[position - 1] + toJob[position] - baselineLegs[position - 1]);
+}
+
+function bookingNearLabels(position, jobs) {
+  const labels = position === 0
+    ? [jobs[0]?.routeLabel]
+    : position === jobs.length
+      ? [jobs[jobs.length - 1]?.routeLabel]
+      : [jobs[position - 1]?.routeLabel, jobs[position]?.routeLabel];
+  return [...new Set(labels.filter(Boolean))];
+}
+
+function bookingScheduleSplitIndex(jobs) {
+  const hasSlots = jobs.some(job => job.scheduledSlot === 'AM' || job.scheduledSlot === 'PM');
+  if (!hasSlots) return Math.ceil(jobs.length / 2);
+  const firstPm = jobs.findIndex(job => job.scheduledSlot === 'PM');
+  return firstPm < 0 ? jobs.length : firstPm;
+}
+
+async function evaluateBookingCandidate(candidateAddress, schedule) {
+  const jobs = schedule.jobs || [];
+  const jobCount = jobs.length;
+  if (!jobCount || jobCount >= 10) return [];
+  const baselinePromise = jobCount > 1
+    ? bookingRouteLegDurations(jobs.map(job => job.address))
+    : Promise.resolve([]);
+  const chunks = [];
+  for (let start = 0; start < jobCount; start += 5) {
+    chunks.push({ start, jobs: jobs.slice(start, start + 5) });
+  }
+  const probesPromise = Promise.all(chunks.map(async chunk => {
+    const addresses = [candidateAddress];
+    chunk.jobs.forEach(job => addresses.push(job.address, candidateAddress));
+    return { start: chunk.start, count: chunk.jobs.length, legs: await bookingRouteLegDurations(addresses) };
+  }));
+  const [baselineLegs, probes] = await Promise.all([baselinePromise, probesPromise]);
+  const toJob = new Array(jobCount);
+  const fromJob = new Array(jobCount);
+  probes.forEach(probe => {
+    for (let index = 0; index < probe.count; index += 1) {
+      toJob[probe.start + index] = probe.legs[index * 2];
+      fromJob[probe.start + index] = probe.legs[index * 2 + 1];
+    }
+  });
+  const options = Array.from({ length: jobCount + 1 }, (_, position) => ({
+    position,
+    seconds: bookingInsertionExtraSeconds(position, jobCount, baselineLegs, toJob, fromJob)
+  }));
+  const splitIndex = bookingScheduleSplitIndex(jobs);
+  return [
+    { slot: 'AM', options: options.filter(option => option.position <= splitIndex) },
+    { slot: 'PM', options: options.filter(option => option.position >= splitIndex) }
+  ].map(group => {
+    const best = group.options.sort((a, b) => a.seconds - b.seconds)[0];
+    if (!best || best.seconds > 20 * 60) return null;
+    return {
+      date: schedule.date,
+      electrician: schedule.electrician,
+      slot: group.slot,
+      jobCount: schedule.jobCount,
+      addedSeconds: best.seconds,
+      addedMinutes: Math.max(1, Math.ceil(best.seconds / 60)),
+      near: bookingNearLabels(best.position, jobs)
+    };
+  }).filter(Boolean);
+}
+
+async function calculateBookingSuggestions(address, candidates) {
+  if (!(candidates || []).length) return [];
+  await waitForBookingMaps();
+  const candidateAddress = normaliseBookingAddress(address);
+  const byDate = new Map();
+  (candidates || []).forEach(candidate => {
+    if (!byDate.has(candidate.date)) byDate.set(candidate.date, []);
+    byDate.get(candidate.date).push(candidate);
+  });
+  const suggestions = [];
+  let successfulRoutes = 0;
+  for (const [, schedules] of [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const evaluated = await bookingMapWithConcurrency(schedules, 3, async schedule => {
+      try {
+        const result = await evaluateBookingCandidate(candidateAddress, schedule);
+        successfulRoutes += 1;
+        return result;
+      } catch (error) {
+        console.warn('Skipped booking route suggestion', schedule.date, schedule.electrician?.id, error.message);
+        return [];
+      }
+    });
+    suggestions.push(...evaluated.flat());
+    if (suggestions.length >= 3) break;
+  }
+  if ((candidates || []).length && !successfulRoutes) {
+    throw new Error('That address could not be matched to the electrician routes. Check it and try again.');
+  }
+  return suggestions.sort((a, b) =>
+    a.date.localeCompare(b.date)
+    || a.addedSeconds - b.addedSeconds
+    || a.electrician.name.localeCompare(b.electrician.name)
+    || a.slot.localeCompare(b.slot)
+  ).slice(0, 3).map(({ addedSeconds, ...suggestion }) => suggestion);
+}
+
 function renderBookingSuggestions(result) {
   const box = document.getElementById('bookingSuggestResults');
   const suggestions = result.suggestions || [];
@@ -2110,6 +2274,7 @@ async function checkBookingSuggestions(event) {
   box.innerHTML = '<div class="booking-suggest-message">Checking Dataforce routes and driving time…</div>';
   try {
     const result = await routeApi({ action: 'team-booking-suggestions', address, startDate: range.startDate, days: range.days });
+    result.suggestions = await calculateBookingSuggestions(address, result.candidates || []);
     renderBookingSuggestions(result);
   } catch (error) {
     box.innerHTML = `<div class="booking-suggest-message error">${escAvail(error.message)}</div>`;
