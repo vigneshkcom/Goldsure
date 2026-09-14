@@ -47,6 +47,15 @@ test('VIC Aircon uses a separate WorkDrive parent and customer route', async () 
   );
 });
 
+test('successful photo submissions use the correct product pipeline stage', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  assert.match(api, /product,[\s\S]*?uploadPath: '\/ac',[\s\S]*?uploadedStageNames: \['Photos Uploaded'\]/);
+  assert.match(api, /uploadPath: '\/u',[\s\S]*?uploadedStageNames: \['Photos Received'\]/);
+  assert.match(api, /if \(!notify\) return res\.status\(200\)\.json\(\{ success: true \}\)/);
+  assert.match(api, /await uploadFile\([\s\S]*?stageNames: config\.uploadedStageNames/);
+  assert.doesNotMatch(api, /stageNames: \['Photos Received'\]/);
+});
+
 test('aircon assessment collects the requested questions and photos', async () => {
   const upload = await read('hotwater/upload-photos.html');
   for (const marker of [

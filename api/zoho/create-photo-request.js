@@ -43,6 +43,7 @@ function productConfig(value) {
       opportunityName: who => `Aircon - ${who}`,
       pipelineIdEnv: AIRCON_PIPELINE_ID_ENV,
       pipelineNameHints: AIRCON_PIPELINE_NAME_HINTS,
+      uploadedStageNames: ['Photos Uploaded'],
     };
   }
   return {
@@ -53,6 +54,7 @@ function productConfig(value) {
     opportunityName: who => `Hot Water — ${who}`,
     pipelineIdEnv: HWS_PIPELINE_ID_ENV,
     pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
+    uploadedStageNames: ['Photos Received'],
   };
 }
 
@@ -631,8 +633,9 @@ export default async function handler(req, res) {
             : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}`;
           await postGhlNoteByPhone(phone, noteBody);
 
-          // Move the deal to "Photos Received" on the HWS pipeline too, not
-          // just a note — that's what actually shows up on the pipeline board.
+          // Move the deal to the product's uploaded-photo stage too, not just
+          // a note. This runs only for the final successfully stored file in
+          // the submission, which is the request where notify is true.
           try {
             const apiKey = process.env.GHL_API_KEY;
             const locationId = process.env.GHL_LOCATION_ID;
@@ -644,7 +647,7 @@ export default async function handler(req, res) {
                   opportunityName: config.opportunityName(who),
                   pipelineIdEnv: config.pipelineIdEnv,
                   nameHints: config.pipelineNameHints,
-                  stageNames: ['Photos Received'],
+                  stageNames: config.uploadedStageNames,
                 });
               }
             }
