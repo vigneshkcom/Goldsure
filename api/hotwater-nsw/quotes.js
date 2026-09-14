@@ -11,6 +11,7 @@
 //   POST { action:'accept-notify', token } → internal "quote accepted" email
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { syncAcceptedQuoteStage } from '../../lib/ghl-smoke-alarm-stage.js';
 import { HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricing.js';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -125,6 +126,22 @@ export default async function handler(req, res) {
     const q = rows[0];
     if (!q) return res.status(404).json({ error: 'Quote not found.' });
 
+    let ghlStage = { moved: false, reason: 'not-attempted' };
+    try {
+      ghlStage = await syncAcceptedQuoteStage({
+        quoteToken: token,
+        quoteTable: 'nsw_hws_quotes',
+        pipelineNames: ['NSW HWS Pipeline'],
+        pipelineId: process.env.NSW_HWS_PIPELINE_ID,
+        stageId: process.env.NSW_HWS_QUOTE_ACCEPTED_STAGE_ID,
+      });
+      if (ghlStage.moved) console.log('[NSW HWS accept] GHL opportunity moved to Quote Accepted:', ghlStage.opportunityId);
+      else console.warn('[NSW HWS accept] GHL stage move skipped:', ghlStage.reason);
+    } catch (ghlErr) {
+      ghlStage = { moved: false, reason: 'unexpected-error' };
+      console.error('[NSW HWS accept] GHL stage move failed (non-fatal):', ghlErr.message);
+    }
+
     try {
       await sendHostingerMail({
         to: ['info@goldsure.com.au'],
@@ -136,7 +153,7 @@ export default async function handler(req, res) {
       console.error('[NSW HWS accept] notification failed:', e.message);
       return res.status(502).json({ error: 'Could not send the notification.' });
     }
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, ghl_stage_moved: ghlStage.moved, ghl_stage_reason: ghlStage.reason });
   }
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed.' });

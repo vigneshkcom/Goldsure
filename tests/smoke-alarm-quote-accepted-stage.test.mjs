@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { syncAcceptedSmokeAlarmStage } from '../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedQuoteStage, syncAcceptedSmokeAlarmStage } from '../lib/ghl-smoke-alarm-stage.js';
 
 const env = {
   SUPABASE_URL: 'https://example.supabase.co',
@@ -95,3 +95,51 @@ test('treats an opportunity already in Quote Accepted as synchronized without up
   assert.equal(result.reason, 'already-in-quote-accepted');
   assert.equal(calls.filter(call => call.options.method === 'PUT').length, 0);
 });
+
+for (const service of [
+  { quoteTable: 'hotwater_quotes', pipelineName: 'HWS Pipeline' },
+  { quoteTable: 'aircon_quotes', pipelineName: 'Aircons' },
+  { quoteTable: 'nsw_hws_quotes', pipelineName: 'NSW HWS Pipeline' },
+]) {
+  test(`moves an accepted ${service.quoteTable} quote in ${service.pipelineName}`, async () => {
+    const calls = [];
+    const fetchImpl = async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+      if (String(url).includes(`/rest/v1/${service.quoteTable}`)) {
+        return jsonResponse([{ customer_email: 'customer@example.com', customer_phone: '0412 345 678', status: 'accepted', accepted: true }]);
+      }
+      if (String(url).includes('/contacts/?')) {
+        return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com', phone: '+61 412 345 678' }] });
+      }
+      if (String(url).includes('/opportunities/pipelines')) {
+        return jsonResponse({ pipelines: [
+          { id: 'vic-hws', name: 'HWS Pipeline', stages: [{ id: 'vic-accepted', name: 'Quote Accepted' }] },
+          { id: 'nsw-hws', name: 'NSW HWS Pipeline', stages: [{ id: 'nsw-accepted', name: 'Quote Accepted' }] },
+          { id: 'aircons', name: 'Aircons', stages: [{ id: 'aircon-accepted', name: 'Quote Accepted' }] },
+        ] });
+      }
+      if (String(url).includes('/opportunities/search')) {
+        const pipeline = {
+          'HWS Pipeline': ['vic-hws', 'vic-accepted'],
+          'NSW HWS Pipeline': ['nsw-hws', 'nsw-accepted'],
+          Aircons: ['aircons', 'aircon-accepted'],
+        }[service.pipelineName];
+        return jsonResponse({ opportunities: [{ id: 'opportunity-1', pipelineId: pipeline[0], pipelineStageId: 'quote-sent', status: 'open' }] });
+      }
+      if (String(url).endsWith('/opportunities/opportunity-1')) return jsonResponse({ success: true });
+      throw new Error(`Unexpected request: ${url}`);
+    };
+
+    const result = await syncAcceptedQuoteStage({
+      quoteToken: 'quote-token',
+      quoteTable: service.quoteTable,
+      pipelineNames: [service.pipelineName],
+      fetchImpl,
+      env,
+    });
+
+    assert.equal(result.moved, true);
+    assert.equal(result.pipelineName, service.pipelineName);
+    assert.match(calls[0].url, new RegExp(`/rest/v1/${service.quoteTable}\\?`));
+  });
+}

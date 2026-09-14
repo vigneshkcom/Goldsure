@@ -10,6 +10,7 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
+import { syncAcceptedQuoteStage } from '../../lib/ghl-smoke-alarm-stage.js';
 // Shared card shell for the VIC Aircon Job Tracker's notification emails
 // (eco-comment-notify, job-status-notify below) — a plain, monday.com-style
 // notification card: coloured top accent, an uppercase kicker pill, a bold
@@ -1765,6 +1766,7 @@ ${notesHtml}
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'hws-accept') {
     const {
+      quote_token,
       customer_name, customer_email, customer_phone, customer_address,
       agent_name, tank_model, total_inc_gst = 0, total_after_pos_rebates = 0,
       sv_delayed_rebate = 0, total_out_of_pocket = 0, accepted_at,
@@ -1829,6 +1831,21 @@ ${notesHtml}
 </td></tr></table></body></html>`;
 
     const acceptSubject = `Hot Water Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`;
+    let ghlStage = { moved: false, reason: 'not-attempted' };
+    try {
+      ghlStage = await syncAcceptedQuoteStage({
+        quoteToken: quote_token,
+        quoteTable: 'hotwater_quotes',
+        pipelineNames: ['HWS Pipeline'],
+        pipelineId: process.env.HWS_PIPELINE_ID,
+        stageId: process.env.HWS_QUOTE_ACCEPTED_STAGE_ID,
+      });
+      if (ghlStage.moved) console.log('[HWS accept] GHL opportunity moved to Quote Accepted:', ghlStage.opportunityId);
+      else console.warn('[HWS accept] GHL stage move skipped:', ghlStage.reason);
+    } catch (ghlErr) {
+      ghlStage = { moved: false, reason: 'unexpected-error' };
+      console.error('[HWS accept] GHL stage move failed (non-fatal):', ghlErr.message);
+    }
     // Notify the team via Hostinger (from info@); fall back to Resend.
     let acceptSent = false;
     try {
@@ -1859,7 +1876,7 @@ ${notesHtml}
         return res.status(500).json({ error: 'Internal error.' });
       }
     }
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, ghl_stage_moved: ghlStage.moved, ghl_stage_reason: ghlStage.reason });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -2202,6 +2219,7 @@ ${notesHtml}
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'aircon-accept') {
     const {
+      quote_token,
       customer_name, customer_email, customer_phone, customer_address, agent_name,
       total_out_of_pocket = 0, veec_discount = 0, products_inc_gst = 0, accepted_at, line_items = [],
     } = body;
@@ -2239,6 +2257,21 @@ ${notesHtml}
 </td></tr></table></body></html>`;
 
     const acceptSubject = `Aircon Quote Accepted – ${customer_name} – ${money(total_out_of_pocket)}`;
+    let ghlStage = { moved: false, reason: 'not-attempted' };
+    try {
+      ghlStage = await syncAcceptedQuoteStage({
+        quoteToken: quote_token,
+        quoteTable: 'aircon_quotes',
+        pipelineNames: ['Aircons'],
+        pipelineId: process.env.AIRCON_PIPELINE_ID,
+        stageId: process.env.AIRCON_QUOTE_ACCEPTED_STAGE_ID,
+      });
+      if (ghlStage.moved) console.log('[Aircon accept] GHL opportunity moved to Quote Accepted:', ghlStage.opportunityId);
+      else console.warn('[Aircon accept] GHL stage move skipped:', ghlStage.reason);
+    } catch (ghlErr) {
+      ghlStage = { moved: false, reason: 'unexpected-error' };
+      console.error('[Aircon accept] GHL stage move failed (non-fatal):', ghlErr.message);
+    }
     // Notify the team via Hostinger (from info@); fall back to Resend.
     let acceptSent = false;
     try {
@@ -2256,7 +2289,7 @@ ${notesHtml}
         if (!r.ok) { const detail = await r.text(); console.error('[Aircon accept] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send notification.', detail: detail.slice(0, 200) }); }
       } catch (e) { console.error('[Aircon accept] error:', e.message); return res.status(500).json({ error: 'Internal error.' }); }
     }
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, ghl_stage_moved: ghlStage.moved, ghl_stage_reason: ghlStage.reason });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
