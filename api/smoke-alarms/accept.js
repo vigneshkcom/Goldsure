@@ -1,4 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { syncAcceptedSmokeAlarmStage } from '../../lib/ghl-smoke-alarm-stage.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,6 +7,7 @@ export default async function handler(req, res) {
   }
 
   const {
+    quote_token,
     customer_name,
     customer_email,
     customer_phone,
@@ -220,6 +222,22 @@ export default async function handler(req, res) {
 
   const subject = `Quote Accepted – ${customer_name} – ${grand_total}`;
 
+  // Only a quote token that now resolves to an accepted tracker row may move
+  // a GHL opportunity. The move is best-effort so a temporary GHL outage does
+  // not undo the customer's acceptance or suppress the team notification.
+  let ghlStage = { moved: false, reason: 'not-attempted' };
+  try {
+    ghlStage = await syncAcceptedSmokeAlarmStage({ quoteToken: quote_token });
+    if (ghlStage.moved) {
+      console.log('[Smoke accept] GHL opportunity moved to Quote Accepted:', ghlStage.opportunityId);
+    } else {
+      console.warn('[Smoke accept] GHL stage move skipped:', ghlStage.reason);
+    }
+  } catch (ghlErr) {
+    ghlStage = { moved: false, reason: 'unexpected-error' };
+    console.error('[Smoke accept] GHL stage move failed (non-fatal):', ghlErr.message);
+  }
+
   // Notify the team via Hostinger (from info@goldsure.com.au); fall back to
   // Resend so a provider hiccup never drops an accepted-quote notification.
   let sent = false;
@@ -257,5 +275,9 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ success: true });
+  return res.status(200).json({
+    success: true,
+    ghl_stage_moved: ghlStage.moved,
+    ghl_stage_reason: ghlStage.reason,
+  });
 }
