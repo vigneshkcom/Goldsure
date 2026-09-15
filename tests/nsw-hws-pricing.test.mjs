@@ -9,6 +9,7 @@ import {
 } from '../api/hotwater-nsw/pricing.js';
 
 test('uses the September 2026 D17 and D19 model pricing', () => {
+  assert.equal(getBasePrice('electric', 'EG-290FR'), 1999);
   assert.equal(getBasePrice('electric', 'EG-330FR'), 1599);
   assert.equal(getBasePrice('electric', 'ECON-300RVW'), 1999);
   assert.equal(getBasePrice('gas', 'EG-330FR'), 1999);
@@ -16,7 +17,6 @@ test('uses the September 2026 D17 and D19 model pricing', () => {
 });
 
 test('retains the previous price for models not listed on the new sheet', () => {
-  assert.equal(getBasePrice('electric', 'EG-290FR'), 2499);
   assert.equal(getBasePrice('gas', 'ECON-300RVW-2.0E'), 2899);
   assert.equal(getBasePrice('solar_boosted', 'EG-330FR'), 3339);
 });
@@ -42,7 +42,7 @@ test('finances the full installed price with zero upfront payment', () => {
 test('keeps the browser quote calculator aligned with server pricing', () => {
   const builder = readFileSync(new URL('../hotwater-nsw/quote-builder.html', import.meta.url), 'utf8');
 
-  assert.match(builder, /electric:\{ 'EG-330FR':1599, 'ECON-300RVW':1999/);
+  assert.match(builder, /electric:\{ 'EG-290FR':1999, 'EG-330FR':1599, 'ECON-300RVW':1999/);
   assert.match(builder, /gas:\{ 'EG-330FR':1999, 'ECON-300RVW':2399/);
   assert.match(builder, /const DEPOSIT_AMOUNT = 0;/);
   assert.match(builder, /getBasePrice\(state\.existing_system, state\.heat_pump_model\)/);

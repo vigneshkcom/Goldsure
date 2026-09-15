@@ -14,6 +14,7 @@
 
 export const BASE_PRICE = {
   electric: {
+    'EG-290FR': 1999,
     'EG-330FR': 1599,
     'ECON-300RVW': 1999,
     default: 2499,
