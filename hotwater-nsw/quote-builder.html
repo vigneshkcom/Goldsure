@@ -434,10 +434,11 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
 
 <script>
 const BASE_PRICE = {
-  electric:{ 'EG-290FR':1999, 'EG-330FR':1599, 'ECON-300RVW':1999, default:2499 },
+  electric:{ 'EG-330FR':1599, 'ECON-300RVW':1999, default:2499 },
   gas:{ 'EG-330FR':1999, 'ECON-300RVW':2399, default:2899 },
   solar_boosted:{ default:3339 },
 };
+const PRICE_EQUIVALENT_MODEL = { 'EG-290FR':'ECON-300RVW' };
 const MODEL_LABEL = {
   'EG-290FR':          'EG-290FR - 290L Split System',
   'EG-330FR':          'EG-330FR - 330L Split System',
@@ -518,7 +519,8 @@ function setNoFinanceDiscount(v){
 function getBasePrice(existingSystem, heatPumpModel){
   const prices = BASE_PRICE[existingSystem];
   if(!prices || !heatPumpModel) return 0;
-  return prices[heatPumpModel] ?? prices.default ?? 0;
+  const priceModel = PRICE_EQUIVALENT_MODEL[heatPumpModel] || heatPumpModel;
+  return prices[priceModel] ?? prices.default ?? 0;
 }
 
 function updateModelPrices(){

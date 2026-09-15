@@ -14,7 +14,6 @@
 
 export const BASE_PRICE = {
   electric: {
-    'EG-290FR': 1999,
     'EG-330FR': 1599,
     'ECON-300RVW': 1999,
     default: 2499,
@@ -25,6 +24,13 @@ export const BASE_PRICE = {
     default: 2899,
   },
   solar_boosted: { default: 3339 },
+};
+
+// EG-290FR is always priced the same as ECON-300RVW for every existing
+// hot-water-system type. Keep that relationship in one place so the two
+// models cannot drift apart when prices are updated later.
+const PRICE_EQUIVALENT_MODEL = {
+  'EG-290FR': 'ECON-300RVW',
 };
 
 export const EXISTING_SYSTEM_LABEL = {
@@ -59,7 +65,8 @@ const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 export function getBasePrice(existingSystem, heatPumpModel) {
   const prices = BASE_PRICE[existingSystem];
   if (!prices || !heatPumpModel) return 0;
-  return prices[heatPumpModel] ?? prices.default ?? 0;
+  const priceModel = PRICE_EQUIVALENT_MODEL[heatPumpModel] || heatPumpModel;
+  return prices[priceModel] ?? prices.default ?? 0;
 }
 
 // Recomputes every derived pricing/finance figure from raw inputs. Never
