@@ -46,4 +46,6 @@ test('keeps the browser quote calculator aligned with server pricing', () => {
   assert.match(builder, /gas:\{ 'EG-330FR':1999, 'ECON-300RVW':2399/);
   assert.match(builder, /const DEPOSIT_AMOUNT = 0;/);
   assert.match(builder, /getBasePrice\(state\.existing_system, state\.heat_pump_model\)/);
+  assert.match(builder, /function updateModelPrices\(\)/);
+  assert.match(builder, /option\.textContent = state\.existing_system \? `\$\{label\} · \$\{money\(price\)\}` : label/);
 });

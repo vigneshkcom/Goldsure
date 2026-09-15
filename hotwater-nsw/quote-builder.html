@@ -483,7 +483,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
 // ── Selections ──
 function setSeg(container, v){ document.querySelectorAll(`#${container} button`).forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
-function setExisting(v){ state.existing_system=v; setSeg('segExisting',v); recalc(); }
+function setExisting(v){
+  state.existing_system=v;
+  setSeg('segExisting',v);
+  updateModelPrices();
+  recalc();
+}
 function setModel(v){ state.heat_pump_model = v || null; recalc(); }
 function setStaying(v){
   state.tank_staying=v;
@@ -514,6 +519,17 @@ function getBasePrice(existingSystem, heatPumpModel){
   const prices = BASE_PRICE[existingSystem];
   if(!prices || !heatPumpModel) return 0;
   return prices[heatPumpModel] ?? prices.default ?? 0;
+}
+
+function updateModelPrices(){
+  const select = $('modelSelect');
+  [...select.options].forEach(option=>{
+    if(!option.value) return;
+    const label = option.dataset.label || option.textContent.trim();
+    option.dataset.label = label;
+    const price = getBasePrice(state.existing_system, option.value);
+    option.textContent = state.existing_system ? `${label} · ${money(price)}` : label;
+  });
 }
 
 // ── GHL customer search ──
