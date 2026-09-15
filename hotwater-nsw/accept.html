@@ -122,6 +122,8 @@ const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function show(id){ ['loading','success','already','expired','error'].forEach(s=>document.getElementById('state-'+s).classList.toggle('hidden', s!==id)); }
 
 function renderNextSteps(el, q){
+  const upfrontPayment = Number(q.deposit_amount ?? 220);
+  const hasUpfrontPayment = upfrontPayment > 0;
   if(q.finance_requested){
     el.innerHTML = `
       <div class="deposit-box">
@@ -142,13 +144,17 @@ function renderNextSteps(el, q){
           <li>Not social housing or short-stay accommodation</li>
         </ul>
         <div class="fine-print">Meeting this criteria doesn't guarantee approval. Brighte still runs its own credit assessment.</div>
-        <div class="txt">Once Brighte approves your application, we'll take the <strong>$220 deposit</strong> (the minimum customer contribution under the NSW scheme, already included in your total above) and lock in your installation date.</div>
+        <div class="txt">${hasUpfrontPayment
+          ? `Once Brighte approves your application, we'll take the <strong>${money(upfrontPayment)} deposit</strong>, already included in your total above, and lock in your installation date.`
+          : 'Once Brighte approves your application, the <strong>full installed price can be financed with no upfront payment</strong>. We will then lock in your installation date.'}</div>
       </div>`;
   } else {
     el.innerHTML = `
       <div class="deposit-box">
-        <div class="lbl">Next Step: $220 Deposit</div>
-        <div class="txt">We'll call you shortly to take the <strong>$220 deposit</strong> that gets your installation booked in. This is the minimum customer contribution required under the NSW scheme and comes off your total installed price; it is not an extra charge.</div>
+        <div class="lbl">${hasUpfrontPayment ? `Next Step: ${money(upfrontPayment)} Deposit` : 'Next Step: Book Your Installation'}</div>
+        <div class="txt">${hasUpfrontPayment
+          ? `We'll call you shortly to take the <strong>${money(upfrontPayment)} deposit</strong> that gets your installation booked in. It comes off your total installed price; it is not an extra charge.`
+          : 'No deposit is required up front. We will call you shortly to confirm payment arrangements and book your installation.'}</div>
       </div>`;
   }
 }

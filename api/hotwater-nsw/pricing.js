@@ -3,18 +3,27 @@
 // shared by quotes.js and send.js so the numbers a quote is saved with and
 // the numbers it's emailed/texted with can never drift apart.
 //
-// Figures confirmed for this build (2026-08):
-//   Base price is driven by the existing system only — every heat pump model
-//   shares the same base price for a given existing system.
+// Figures confirmed for this build (2026-09):
+//   D17 (electric) and D19 (gas) prices are model-specific. Models that are
+//   still available in the builder but are not on the current price sheet keep
+//   their previous system-based price until a replacement price is supplied.
 //   Back-to-back relocation ($460 flat) is charged IN ADDITION TO any
 //   standard per-metre relocation metres entered for the same job (not a
 //   replacement) — e.g. a back-to-back job that also needs some pipe run
 //   relocated pays $460 + (metres × $155).
 
 export const BASE_PRICE = {
-  electric: 2499,
-  gas: 2899,
-  solar_boosted: 3339,
+  electric: {
+    'EG-330FR': 1599,
+    'ECON-300RVW': 1999,
+    default: 2499,
+  },
+  gas: {
+    'EG-330FR': 1999,
+    'ECON-300RVW': 2399,
+    default: 2899,
+  },
+  solar_boosted: { default: 3339 },
 };
 
 export const EXISTING_SYSTEM_LABEL = {
@@ -40,19 +49,24 @@ export const CABLE_INCLUDED_METRES = 15; // included in the gas base price
 export const CABLE_PER_METRE = 20;
 export const FINANCE_TERM_YEARS = [1, 2, 3, 5, 7, 10];
 export const INCOME_THRESHOLD = 210000;
-// Minimum customer co-payment under the NSW schemes. Taken up front as the
-// deposit that starts the job — it is part of the quoted total, not an extra
-// on top of it.
-export const DEPOSIT_AMOUNT = 220;
+// The full installed price can be included in the Home Energy Saver loan, so
+// new quotes do not require an amount to be paid up front.
+export const DEPOSIT_AMOUNT = 0;
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+export function getBasePrice(existingSystem, heatPumpModel) {
+  const prices = BASE_PRICE[existingSystem];
+  if (!prices || !heatPumpModel) return 0;
+  return prices[heatPumpModel] ?? prices.default ?? 0;
+}
 
 // Recomputes every derived pricing/finance figure from raw inputs. Never
 // trusts numbers sent from the client — always the source of truth for what
 // gets saved and what gets quoted to the customer.
 export function calculateQuote(input = {}) {
   const existingSystem = input.existing_system;
-  const basePrice = BASE_PRICE[existingSystem] || 0;
+  const basePrice = getBasePrice(existingSystem, input.heat_pump_model);
 
   const tankStaying = !!input.tank_staying;
   const relocationType = tankStaying ? null : (input.relocation_type || null);
@@ -96,9 +110,8 @@ export function calculateQuote(input = {}) {
   const termYears = FINANCE_TERM_YEARS.includes(Number(input.finance_term_years))
     ? Number(input.finance_term_years)
     : 10;
-  // Brighte finances the balance after the deposit, not the whole job — the $220
-  // scheme co-payment is taken up front, so repayments are worked out on what is
-  // actually borrowed.
+  // New quotes have no up-front payment, so the full installed price is the
+  // amount financed when the customer selects the loan.
   const amountFinanced = financeRequested
     ? round2(Math.max(0, finalPrice - DEPOSIT_AMOUNT))
     : 0;

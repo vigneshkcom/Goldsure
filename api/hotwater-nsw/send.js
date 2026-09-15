@@ -99,6 +99,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
 
   const subtotalEx = exGst(calc.final_price);
   const gst = calc.final_price - subtotalEx;
+  const hasUpfrontPayment = calc.deposit_amount > 0;
 
   const financeBlock = calc.finance_requested ? `
     <tr><td style="padding:18px 32px 0;font-family:${FONT};">
@@ -120,10 +121,12 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         </tr></table>
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:14px;border-top:1px solid #eaddb4;">
           <tr><td style="padding:9px 0 0;font-size:12px;color:#8b7c56;">Total installed price</td><td style="padding:9px 0 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${money(calc.final_price)}</td></tr>
-          <tr><td style="padding:3px 0;font-size:12px;color:#8b7c56;">Less deposit paid up front</td><td style="padding:3px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">− ${money(calc.deposit_amount)}</td></tr>
+          <tr><td style="padding:3px 0;font-size:12px;color:#8b7c56;">${hasUpfrontPayment ? 'Less deposit paid up front' : 'Upfront payment'}</td><td style="padding:3px 0;font-size:12px;color:#141c2e;text-align:right;font-weight:600;">${hasUpfrontPayment ? '− ' : ''}${money(calc.deposit_amount)}</td></tr>
           <tr><td style="padding:3px 0;font-size:12.5px;color:#141c2e;font-weight:700;">Amount financed</td><td style="padding:3px 0;font-size:13.5px;color:#b08d2e;text-align:right;font-weight:700;">${money(calc.amount_financed)}</td></tr>
         </table>
-        <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit. 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
+        <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">${hasUpfrontPayment
+          ? `Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit.`
+          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -198,12 +201,16 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       <div style="font-family:${FONT};font-size:11px;color:#9aa2b1;line-height:1.55;margin-top:9px;">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and Small-scale Technology Certificate discounts have already been applied to the price above.</div>
     </td></tr>
 
-    <!-- Deposit -->
+    <!-- Upfront payment -->
     <tr><td style="padding:14px 32px 0;font-family:${FONT};">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border:1px solid #eaddb4;border-radius:8px;"><tr>
         <td style="padding:13px 16px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">Deposit to Proceed</div>
-          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. This is the minimum customer contribution required under the NSW scheme and forms part of your total installed price above; it is not an additional charge.</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">${hasUpfrontPayment ? 'Deposit to Proceed' : 'No upfront payment'}</div>
+          <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">${hasUpfrontPayment
+            ? `A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. It forms part of your total installed price above; it is not an additional charge.`
+            : calc.finance_requested
+            ? 'No upfront payment is required. The full installed price shown above can be included in the Home Energy Saver loan by Brighte, subject to approval.'
+            : 'No deposit is required up front. Our team will confirm the payment arrangements with you before installation.'}</div>
         </td>
       </tr></table>
     </td></tr>
@@ -223,7 +230,9 @@ ${financeBlock}
 
     <!-- Accept / view -->
     <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
-      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">Happy to go ahead? Accept your quote online and our team will call you shortly to take the $${DEPOSIT_AMOUNT} deposit and book your installation.</div>
+      <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">${hasUpfrontPayment
+        ? `Happy to go ahead? Accept your quote online and our team will call you shortly to take the ${money(DEPOSIT_AMOUNT)} deposit and book your installation.`
+        : 'Happy to go ahead? Accept your quote online and our team will contact you to arrange the next steps and book your installation.'}</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
       <div style="font-size:11px;color:#9aa2b1;margin-top:14px;">This quote remains valid for 21 days from ${quoteDate}.</div>
@@ -525,7 +534,7 @@ export default async function handler(req, res) {
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`
-        + (calc.finance_requested ? `\nLoan: Home Energy Saver loan by Brighte\nDeposit: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
+        + (calc.finance_requested ? `\nLoan: Home Energy Saver loan by Brighte\nUpfront payment: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
       await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },

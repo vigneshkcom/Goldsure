@@ -365,7 +365,7 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
               </div>
             </div>
             <div class="readout"><span class="lbl">Eligibility</span><span id="eligibilityOut">—</span></div>
-            <div class="readout"><span class="lbl">Deposit (up front)</span><span class="val">$220.00</span></div>
+            <div class="readout"><span class="lbl">Upfront payment</span><span class="val">$0.00</span></div>
             <div class="readout"><span class="lbl">Amount financed</span><span class="val" id="financedOut">$0.00</span></div>
             <div class="fin-figs">
               <div class="fin-fig"><div class="amt" id="fortnightlyOut">$0.00</div><div class="lbl">per fortnight</div></div>
@@ -433,7 +433,11 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
 <div class="toast" id="toast"></div>
 
 <script>
-const BASE_PRICE = { electric:2499, gas:2899, solar_boosted:3339 };
+const BASE_PRICE = {
+  electric:{ 'EG-330FR':1599, 'ECON-300RVW':1999, default:2499 },
+  gas:{ 'EG-330FR':1999, 'ECON-300RVW':2399, default:2899 },
+  solar_boosted:{ default:3339 },
+};
 const MODEL_LABEL = {
   'EG-290FR':          'EG-290FR - 290L Split System',
   'EG-330FR':          'EG-330FR - 330L Split System',
@@ -444,7 +448,7 @@ const MODEL_LABEL = {
 };
 const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
-const DEPOSIT_AMOUNT = 220;
+const DEPOSIT_AMOUNT = 0;
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price below includes the applicable NSW scheme discounts and covers the installation as quoted, based on the information provided. If anything unforeseen is identified on site that requires additional work, we\u2019ll explain it clearly and confirm any cost with you before proceeding.';
 
 let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:true, apply_no_finance_discount:false, other_extras:[] };
@@ -504,6 +508,12 @@ function setNoFinanceDiscount(v){
   $('discNo').classList.toggle('on', v===false);
   $('discountAmountField').style.display = v ? 'block' : 'none';
   recalc();
+}
+
+function getBasePrice(existingSystem, heatPumpModel){
+  const prices = BASE_PRICE[existingSystem];
+  if(!prices || !heatPumpModel) return 0;
+  return prices[heatPumpModel] ?? prices.default ?? 0;
 }
 
 // ── GHL customer search ──
@@ -587,8 +597,8 @@ function collectExtras(){
 
 // ── Pricing ──
 function recalc(){
-  const basePrice = BASE_PRICE[state.existing_system] || 0;
-  $('basePriceOut').textContent = state.existing_system ? money(basePrice) : '—';
+  const basePrice = getBasePrice(state.existing_system, state.heat_pump_model);
+  $('basePriceOut').textContent = state.existing_system && state.heat_pump_model ? money(basePrice) : '—';
 
   const isGas = state.existing_system === 'gas';
   $('cableField').style.display = isGas ? 'block' : 'none';
@@ -629,8 +639,7 @@ function recalc(){
     : income==='yes' ? '<span class="tag code">Potentially eligible</span>'
     : '<span class="tag na">Needs confirmation</span>';
   const term = Number($('financeTerm').value)||10;
-  // Brighte finances the balance after the $220 deposit, so repayments are
-  // worked out on what is actually borrowed.
+  // The full installed price can be financed with no up-front payment.
   const financed = state.finance_requested ? Math.max(0, finalPrice - DEPOSIT_AMOUNT) : 0;
   const fortnightly = financed/(term*26), monthly = financed/(term*12);
   $('financedOut').textContent = money(financed);
@@ -696,7 +705,7 @@ function openPreview(){
     </table>
     ${state.finance_requested?`<div class="pv-fin">
       <strong>Home Energy Saver loan by Brighte - 0% interest</strong><br>
-      ${money(DEPOSIT_AMOUNT)} deposit up front · ${money(calc.financed)} financed<br>
+      ${money(DEPOSIT_AMOUNT)} upfront · ${money(calc.financed)} financed<br>
       ${money(calc.fortnightly)} per fortnight · ${money(calc.monthly)} per month · ${calc.term} year term
     </div>`:''}
     <label class="pv-lbl" for="emailBody">Email message</label>

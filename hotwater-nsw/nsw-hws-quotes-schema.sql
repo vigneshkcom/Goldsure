@@ -55,7 +55,7 @@ CREATE TABLE nsw_hws_quotes (
   income_eligible text,          -- yes | no | needs_confirmation
   finance_eligibility text,      -- not_eligible | potentially_eligible | n_a
   finance_term_years integer DEFAULT 10,
-  -- $220 NSW scheme co-payment, taken up front; Brighte finances the balance
+  -- upfront payment (zero for new quotes); Brighte can finance the full total
   deposit_amount numeric DEFAULT 0,
   amount_financed numeric DEFAULT 0,
   fortnightly_repayment numeric DEFAULT 0,
