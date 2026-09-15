@@ -16,6 +16,7 @@ import {
   SEPTEMBER_OFFER_EMAIL_BODY,
   SEPTEMBER_OFFER_SUBJECT,
   SEPTEMBER_OFFER_TOKEN_PREFIX,
+  buildSeptemberOfferEmailBody,
   buildSeptemberOfferInput,
   buildSeptemberOfferToken,
   isSeptemberOfferEligibleQuote,
@@ -456,7 +457,11 @@ export default async function handler(req, res) {
     if (resolved.existingOffer) {
       return res.status(409).json({ error: 'The September offer has already been sent.', quote_url: existingQuoteUrl });
     }
-    body = { ...offerInput, send_sms: requestBody.send_sms !== false };
+    body = {
+      ...offerInput,
+      email_body: buildSeptemberOfferEmailBody(resolved.source.final_price, offerCalc.final_price),
+      send_sms: requestBody.send_sms !== false,
+    };
   }
 
   const { customer_name, customer_email, customer_phone, email_body = '', send_sms = true, is_reminder = false } = body;
@@ -573,7 +578,9 @@ export default async function handler(req, res) {
         calc,
         quoteUrl,
         acceptUrl,
-        body.campaign === SEPTEMBER_OFFER_CAMPAIGN ? SEPTEMBER_OFFER_EMAIL_BODY : email_body,
+        body.campaign === SEPTEMBER_OFFER_CAMPAIGN
+          ? (email_body || SEPTEMBER_OFFER_EMAIL_BODY)
+          : email_body,
       ),
       ...(attachments.length ? { attachments } : {}),
     });

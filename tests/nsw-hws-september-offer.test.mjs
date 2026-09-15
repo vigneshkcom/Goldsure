@@ -9,6 +9,7 @@ import {
   SEPTEMBER_OFFER_CUTOFF,
   SEPTEMBER_OFFER_EMAIL_BODY,
   SEPTEMBER_OFFER_SUBJECT,
+  buildSeptemberOfferEmailBody,
   buildSeptemberOfferInput,
   buildSeptemberOfferToken,
   isSeptemberOfferEligibleQuote,
@@ -49,6 +50,8 @@ test('builds a fresh September offer with current pricing and zero upfront', () 
   assert.equal(calculated.deposit_amount, 0);
   assert.equal(calculated.amount_financed, 1999);
   assert.equal(buildSeptemberOfferToken(hongQuote.id, 'new-token'), `sep26-${hongQuote.id}-new-token`);
+  assert.match(buildSeptemberOfferEmailBody(2499, 1999), /previous quoted price was \$2,499\.00/);
+  assert.match(buildSeptemberOfferEmailBody(2499, 1999), /saving you \$500\.00/);
 });
 
 test('previews an eligible offer without sending or inserting anything', async () => {

@@ -7,6 +7,20 @@ export const SEPTEMBER_OFFER_EMAIL_BODY = 'Thank you for speaking with us previo
   + 'The full installed price can also be included in the Home Energy Saver loan by Brighte with $0 upfront payment, subject to approval and eligibility. '
   + 'This September offer is valid for 21 days from the date of this quote.';
 
+const money = (value) => '$' + (Number(value) || 0).toLocaleString('en-AU', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function buildSeptemberOfferEmailBody(oldPrice, newPrice) {
+  const saving = Math.max(0, (Number(oldPrice) || 0) - (Number(newPrice) || 0));
+  return 'Thank you for speaking with us previously about upgrading your hot water system. '
+    + `For September, Goldsure has new reduced pricing. Your previous quoted price was ${money(oldPrice)}. `
+    + `Your updated offer is ${money(newPrice)}, saving you ${money(saving)}. `
+    + 'The full installed price can also be included in the Home Energy Saver loan by Brighte with $0 upfront payment, subject to approval and eligibility. '
+    + 'This September offer is valid for 21 days from the date of this quote.';
+}
+
 export function isSeptemberOfferToken(token) {
   return String(token || '').startsWith(`${SEPTEMBER_OFFER_TOKEN_PREFIX}-`);
 }
