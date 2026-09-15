@@ -11,6 +11,15 @@ import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
+import {
+  SEPTEMBER_OFFER_CAMPAIGN,
+  SEPTEMBER_OFFER_EMAIL_BODY,
+  SEPTEMBER_OFFER_SUBJECT,
+  SEPTEMBER_OFFER_TOKEN_PREFIX,
+  buildSeptemberOfferInput,
+  buildSeptemberOfferToken,
+  isSeptemberOfferEligibleQuote,
+} from './september-offer.js';
 import { SMSGATE_API } from '../../lib/sms-gate.js';
 // Pipeline the "GHL Stage" column on the NSW tracker reads from — GHL has a
 // dedicated "NSW HWS Pipeline" alongside the VIC "HWS Pipeline". Name hints
@@ -65,6 +74,7 @@ async function isOptedOut(phone, SUPABASE_URL, SUPABASE_KEY) {
 // water quote layout and Goldsure's black/gold branding, with Ecogenica named
 // as the installer.
 function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
+  const isSeptemberOffer = q.campaign === SEPTEMBER_OFFER_CAMPAIGN;
   const modelLabel = HEAT_PUMP_LABEL[q.heat_pump_model] || q.heat_pump_model || '';
   const systemLabel = (EXISTING_SYSTEM_LABEL[q.existing_system] || '').toLowerCase();
   const bodyHtml = esc(String(emailBody || '').trim() || DEFAULT_EMAIL_BODY).replace(/\r?\n/g, '<br>');
@@ -152,6 +162,13 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       </tr></table>
     </td></tr>
     <tr><td style="height:3px;background:#b08d2e;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+    ${isSeptemberOffer ? `<tr><td style="padding:16px 32px 0;">
+      <div style="background:#fdf3d5;border:1px solid #e3c66f;border-radius:8px;padding:12px 16px;text-align:center;font-family:${FONT};">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#8b6a12;">September Offer</div>
+        <div style="font-size:13px;color:#3d4658;margin-top:4px;line-height:1.5;">Updated pricing for previous Goldsure customers</div>
+      </div>
+    </td></tr>` : ''}
 
     <!-- Parties -->
     <tr><td style="padding:26px 32px 8px;">
@@ -371,6 +388,29 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
   return res.status(200).json({ success: true, sms_sent: smsSent, reminder_count: newCount, last_reminder_sent_at: nowIso });
 }
 
+async function resolveSeptemberOfferSource(sourceQuoteToken, SUPABASE_URL, HEADERS) {
+  if (!sourceQuoteToken) return { status: 400, error: 'Select an eligible old quote.' };
+
+  const sourceRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=eq.${encodeURIComponent(sourceQuoteToken)}&select=*&limit=1`,
+    { headers: HEADERS }
+  );
+  const sourceRows = sourceRes.ok ? await sourceRes.json().catch(() => []) : [];
+  const source = sourceRows[0];
+  if (!source) return { status: 404, error: 'The original quote could not be found.' };
+  if (!isSeptemberOfferEligibleQuote(source)) {
+    return { status: 403, error: 'This quote is not part of the September old-customer offer.' };
+  }
+
+  const offerPrefix = `${SEPTEMBER_OFFER_TOKEN_PREFIX}-${source.id}-`;
+  const existingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=like.${encodeURIComponent(`${offerPrefix}*`)}&select=id,quote_token,sent_at&order=sent_at.desc&limit=1`,
+    { headers: HEADERS }
+  );
+  const existingRows = existingRes.ok ? await existingRes.json().catch(() => []) : [];
+  return { source, existingOffer: existingRows[0] || null };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
@@ -379,7 +419,46 @@ export default async function handler(req, res) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return res.status(503).json({ error: 'Supabase is not configured.' });
   const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
 
-  const body = req.body || {};
+  const requestBody = req.body || {};
+  let body = requestBody;
+
+  if (requestBody.action === 'preview-september-offer' || requestBody.action === 'send-september-offer') {
+    let resolved;
+    try {
+      resolved = await resolveSeptemberOfferSource(requestBody.source_quote_token, SUPABASE_URL, HEADERS);
+    } catch (e) {
+      console.error('[NSW HWS] September offer lookup failed:', e.message);
+      return res.status(502).json({ error: 'Could not load the original quote.' });
+    }
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+
+    const offerInput = buildSeptemberOfferInput(resolved.source, requestBody.agent_name);
+    const offerCalc = calculateQuote(offerInput);
+    const existingQuoteUrl = resolved.existingOffer
+      ? `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(resolved.existingOffer.quote_token)}`
+      : null;
+
+    if (requestBody.action === 'preview-september-offer') {
+      return res.status(200).json({
+        eligible: true,
+        customer_name: offerInput.customer_name,
+        customer_email: offerInput.customer_email,
+        customer_phone: offerInput.customer_phone,
+        old_price: Number(resolved.source.final_price) || 0,
+        new_price: offerCalc.final_price,
+        savings: Math.max(0, (Number(resolved.source.final_price) || 0) - offerCalc.final_price),
+        sms_available: Boolean(offerInput.customer_phone),
+        already_sent: Boolean(resolved.existingOffer),
+        quote_url: existingQuoteUrl,
+      });
+    }
+
+    if (resolved.existingOffer) {
+      return res.status(409).json({ error: 'The September offer has already been sent.', quote_url: existingQuoteUrl });
+    }
+    body = { ...offerInput, send_sms: requestBody.send_sms !== false };
+  }
+
   const { customer_name, customer_email, customer_phone, email_body = '', send_sms = true, is_reminder = false } = body;
 
   if (!customer_name) return res.status(400).json({ error: 'Customer name is required.' });
@@ -393,7 +472,10 @@ export default async function handler(req, res) {
   if (!body.heat_pump_model) return res.status(400).json({ error: 'Select the heat pump being quoted.' });
 
   const calc = calculateQuote(body);
-  const token = globalThis.crypto?.randomUUID?.() || String(Date.now());
+  const uniqueTokenPart = globalThis.crypto?.randomUUID?.() || String(Date.now());
+  const token = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
+    ? buildSeptemberOfferToken(body.source_quote_id, uniqueTokenPart)
+    : uniqueTokenPart;
   const quoteUrl = `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(token)}`;
   const acceptUrl = `${SITE}/hotwater-nsw/accept.html?token=${encodeURIComponent(token)}`;
   const sentAt = new Date().toISOString();
@@ -483,8 +565,16 @@ export default async function handler(req, res) {
       to: [customer_email],
       bcc: ['info@goldsure.com.au'],
       displayName: 'Goldsure Pty Ltd',
-      subject: 'Your Heat Pump Hot Water Quotation – Goldsure',
-      html: buildEmailHtml(body, calc, quoteUrl, acceptUrl, email_body),
+      subject: body.campaign === SEPTEMBER_OFFER_CAMPAIGN
+        ? SEPTEMBER_OFFER_SUBJECT
+        : 'Your Heat Pump Hot Water Quotation - Goldsure',
+      html: buildEmailHtml(
+        body,
+        calc,
+        quoteUrl,
+        acceptUrl,
+        body.campaign === SEPTEMBER_OFFER_CAMPAIGN ? SEPTEMBER_OFFER_EMAIL_BODY : email_body,
+      ),
       ...(attachments.length ? { attachments } : {}),
     });
   } catch (e) {
@@ -502,7 +592,9 @@ export default async function handler(req, res) {
       if (smsUser && smsPass && !(await isOptedOut(smsPhone, SUPABASE_URL, SUPABASE_KEY))) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
-        const smsText = `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
+        const smsText = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
+          ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with $0 upfront available through the Home Energy Saver loan by Brighte, subject to approval. View your offer: ${quoteUrl}`
+          : `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch(`${SMSGATE_API}/messages`, {
           method: 'POST',
@@ -530,7 +622,7 @@ export default async function handler(req, res) {
       address: body.property_address,
     });
     if (found?.contactId) {
-      const noteBody = `NSW Hot Water quote sent by ${body.agent_name || 'Goldsure'}\n`
+      const noteBody = `${body.campaign === SEPTEMBER_OFFER_CAMPAIGN ? 'NSW Hot Water September offer' : 'NSW Hot Water quote'} sent by ${body.agent_name || 'Goldsure'}\n`
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`
@@ -559,5 +651,6 @@ export default async function handler(req, res) {
     sms_sent: smsSent,
     brochure_attached: attachments.length > 0,
     quote_url: quoteUrl,
+    campaign: body.campaign || null,
   });
 }

@@ -221,6 +221,10 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 }
 .reminder-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: var(--surface); box-shadow: none; }
 .reminder-btn:disabled { opacity: .45; cursor: not-allowed; background: var(--surface2); color: #9699a6; border-color: var(--border); }
+.offer-btn{border:1px solid #d8b552;background:#fff8df;color:#7b5a08;border-radius:7px;padding:7px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.offer-btn:hover:not(:disabled){background:#f7e8ad;border-color:#b08d2e}
+.offer-link{color:#8b6a12;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
+.offer-link:hover{text-decoration:underline}
 .count-badge { display: inline; background: none; border: none; padding: 0; min-width: 0; height: auto; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .view-stat { min-width: 82px; }
 .view-stat strong { display: block; font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -381,13 +385,14 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
             <th>GHL Stage</th>
             <th>Loan</th>
             <th>Quote</th>
+            <th>September Offer</th>
             <th>Send Reminder</th>
             <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
             <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders<i class="sort-caret"></i></th>
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
+          <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -408,6 +413,7 @@ const MODEL_LABEL = {
   'EG-330FRE-WR':     'EG-330FRE-WR — 330L Split System',
 };
 const STATUSES = ['sent','accepted','rejected','expired','installed'];
+const SEPTEMBER_OFFER_CUTOFF = new Date('2026-09-15T02:07:16.360Z').getTime();
 
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
@@ -448,6 +454,24 @@ function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date)
 function renderDaysPill(days,stale=4){ if(days===null)return '<span class="days-pill" style="opacity:.35;">—</span>'; return `<span class="days-pill ${days>=stale?'is-stale':''}">${days===0?'Today':days+'d'}</span>`; }
 function getReminderCount(q){ const c=parseInt(q.reminder_count,10); return Number.isFinite(c)?c:0; }
 function getViewCount(q){ const c=parseInt(q.view_count,10); return Number.isFinite(c)?c:0; }
+function findSeptemberOffer(q){
+  const prefix=`sep26-${q.id}-`;
+  return allQuotes.find(candidate=>String(candidate.quote_token||'').startsWith(prefix))||null;
+}
+function canSendSeptemberOffer(q){
+  const sentAt=new Date(q.sent_at||q.created_at||0).getTime();
+  return (q.status||'').toLowerCase()==='sent'
+    && !String(q.quote_token||'').startsWith('sep26-')
+    && Number.isFinite(sentAt)
+    && sentAt<=SEPTEMBER_OFFER_CUTOFF
+    && !findSeptemberOffer(q);
+}
+function renderSeptemberOfferAction(q){
+  const existing=findSeptemberOffer(q);
+  if(existing) return `<a class="offer-link" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(existing.quote_token)}&source=tracker" target="_blank">View Offer</a>`;
+  if(!canSendSeptemberOffer(q)) return '<span class="td-date">—</span>';
+  return `<button class="offer-btn" onclick="openSeptemberOffer('${q.id}')">Prepare Offer</button>`;
+}
 function renderViewStat(q){
   const count=getViewCount(q);
   const last=q.last_viewed_at?new Date(q.last_viewed_at):null;
@@ -610,7 +634,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="16"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first NSW quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -634,6 +658,7 @@ function renderTable(){
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td>${q.finance_requested?'<span class="fin-badge fin-yes">Yes</span>':'<span class="fin-badge fin-no">No</span>'}</td>
       <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a></td>
+      <td>${renderSeptemberOfferAction(q)}</td>
       <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
       <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
       <td><span class="count-badge">${getReminderCount(q)}</span></td>
@@ -711,7 +736,7 @@ function exportCSV(){
   showToast(`Exported ${filtered.length} quotes`);
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="16"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${esc(msg)}</p></div></td></tr>`; }
 
 async function doSendReminder(id, sendSms, smsText){
   const q=allQuotes.find(x=>String(x.id)===String(id)); if(!q){ showToast('Quote not found.'); return; }
@@ -755,6 +780,14 @@ async function doSendReminder(id, sendSms, smsText){
 .rm-btn-cancel{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;}
 .rm-btn-send{padding:9px 18px;border-radius:8px;border:none;background:var(--gold);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}
 .rm-btn-send:disabled{opacity:.5;cursor:not-allowed;}
+.offer-price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 18px}
+.offer-price-box{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:11px;text-align:center}
+.offer-price-box span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.offer-price-box strong{font-size:16px;color:var(--text)}
+.offer-price-box.saving{background:#eef9f3;border-color:#bfe4cf}.offer-price-box.saving strong{color:#167249}
+.offer-copy{background:#fffaf0;border:1px solid #ead7a3;border-radius:9px;padding:12px 14px;font-size:12px;color:#5d5334;line-height:1.55;margin-bottom:14px}
+.offer-result{background:#eef9f3;border:1px solid #bfe4cf;border-radius:9px;padding:14px;font-size:13px;color:#167249;line-height:1.55}
+.offer-result a{color:#8b6a12;font-weight:700}
 </style>
 <div id="reminderModal" class="rm-overlay" onclick="if(event.target===this)closeReminderModal()">
   <div class="rm-card">
@@ -766,6 +799,26 @@ async function doSendReminder(id, sendSms, smsText){
       <div class="rm-count"><span id="rmCount"></span></div>
     </div>
     <div class="rm-foot"><button class="rm-btn-cancel" onclick="closeReminderModal()">Cancel</button><button class="rm-btn-send" id="rmSendBtn" onclick="confirmReminder()">Send Reminder</button></div>
+  </div>
+</div>
+
+<div id="septemberOfferModal" class="rm-overlay" onclick="if(event.target===this)closeSeptemberOffer()">
+  <div class="rm-card">
+    <div class="rm-head"><h3>September Offer</h3><button class="rm-close" onclick="closeSeptemberOffer()">×</button></div>
+    <div class="rm-body" id="sepOfferBody">
+      <p class="rm-line" id="sepOfferIntro">Loading the updated price...</p>
+      <div id="sepOfferDetails" class="hidden">
+        <div class="offer-price-grid">
+          <div class="offer-price-box"><span>Old quote</span><strong id="sepOldPrice"></strong></div>
+          <div class="offer-price-box"><span>New offer</span><strong id="sepNewPrice"></strong></div>
+          <div class="offer-price-box saving"><span>Customer saves</span><strong id="sepSavings"></strong></div>
+        </div>
+        <div class="offer-copy"><strong>Email:</strong> September Offer: Your Updated Goldsure Hot Water Quote<br><br>The customer receives a fresh personal quote link, the new price, and $0 upfront through the Home Energy Saver loan by Brighte, subject to approval and eligibility.</div>
+        <label class="rm-check"><input type="checkbox" id="sepSmsToggle"> Also send the September offer by SMS</label>
+      </div>
+      <div id="sepOfferResult" class="offer-result hidden"></div>
+    </div>
+    <div class="rm-foot"><button class="rm-btn-cancel" onclick="closeSeptemberOffer()">Close</button><button class="rm-btn-send" id="sepSendBtn" onclick="confirmSeptemberOffer()" disabled>Send New Offer</button></div>
   </div>
 </div>
 <script>
@@ -807,6 +860,57 @@ async function confirmReminder(){
   const btn=document.getElementById('rmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
   try{ await doSendReminder(id, sendSms, smsText); }
   finally{ btn.disabled=false; btn.textContent='Send Reminder'; closeReminderModal(); }
+}
+
+let _sepQuoteId=null;
+let _sepSourceToken='';
+function closeSeptemberOffer(){
+  document.getElementById('septemberOfferModal').classList.remove('open');
+  _sepQuoteId=null; _sepSourceToken='';
+}
+async function openSeptemberOffer(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id));
+  if(!q||!canSendSeptemberOffer(q)){ showToast('This quote is not eligible for the September offer.'); return; }
+  _sepQuoteId=id; _sepSourceToken=q.quote_token;
+  document.getElementById('sepOfferIntro').textContent=`Preparing ${q.customer_name || 'customer'}'s updated September price...`;
+  document.getElementById('sepOfferDetails').classList.add('hidden');
+  document.getElementById('sepOfferResult').classList.add('hidden');
+  const sendBtn=document.getElementById('sepSendBtn'); sendBtn.classList.remove('hidden'); sendBtn.disabled=true; sendBtn.textContent='Send New Offer';
+  document.getElementById('septemberOfferModal').classList.add('open');
+  try{
+    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preview-september-offer',source_quote_token:q.quote_token,agent_name:SCOPE_AGENT||q.agent_name})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ document.getElementById('sepOfferIntro').textContent=data.error||'Could not prepare the offer.'; return; }
+    if(data.already_sent&&data.quote_url){
+      document.getElementById('sepOfferIntro').textContent='The September offer has already been sent.';
+      const result=document.getElementById('sepOfferResult'); result.innerHTML=`<a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the sent offer</a>`; result.classList.remove('hidden');
+      return;
+    }
+    document.getElementById('sepOfferIntro').innerHTML=`A new quote will be emailed to <strong>${esc(data.customer_name)}</strong> at <strong>${esc(data.customer_email)}</strong>.`;
+    document.getElementById('sepOldPrice').textContent=money(data.old_price);
+    document.getElementById('sepNewPrice').textContent=money(data.new_price);
+    document.getElementById('sepSavings').textContent=money(data.savings);
+    const smsToggle=document.getElementById('sepSmsToggle'); smsToggle.checked=!!data.sms_available; smsToggle.disabled=!data.sms_available;
+    document.getElementById('sepOfferDetails').classList.remove('hidden');
+    sendBtn.disabled=false;
+  }catch(e){ console.error(e); document.getElementById('sepOfferIntro').textContent='Network error preparing the offer.'; }
+}
+async function confirmSeptemberOffer(){
+  if(!_sepSourceToken)return;
+  const btn=document.getElementById('sepSendBtn'); btn.disabled=true; btn.textContent='Sending...';
+  try{
+    const q=allQuotes.find(x=>String(x.id)===String(_sepQuoteId));
+    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send-september-offer',source_quote_token:_sepSourceToken,agent_name:SCOPE_AGENT||(q&&q.agent_name),send_sms:document.getElementById('sepSmsToggle').checked})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error||'Could not send the September offer.'); btn.disabled=false; btn.textContent='Send New Offer'; return; }
+    document.getElementById('sepOfferDetails').classList.add('hidden');
+    document.getElementById('sepOfferIntro').textContent='September offer sent successfully.';
+    const result=document.getElementById('sepOfferResult');
+    result.innerHTML=`The customer received the updated email${data.sms_sent?' and SMS':''}.<br><a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the new personal quote</a>`;
+    result.classList.remove('hidden');
+    btn.classList.add('hidden');
+    await loadQuotes();
+  }catch(e){ console.error(e); showToast('Network error sending the September offer.'); btn.disabled=false; btn.textContent='Send New Offer'; }
 }
 </script>
 </body>

@@ -29,6 +29,8 @@ body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);
 .head .tag{font-size:15px;font-weight:700;letter-spacing:5.5px;color:var(--gold-2);white-space:nowrap}
 .head .ref{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#9199a6;margin-top:6px;white-space:nowrap}
 .gold-rule{height:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2))}
+.campaign-banner{margin:20px var(--pad) 0;background:#fdf3d5;border:1px solid #e3c66f;border-radius:12px;padding:13px 18px;text-align:center;color:#3d4658;font-size:12px;line-height:1.55}
+.campaign-banner strong{display:block;color:#8b6a12;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:3px}
 
 /* ── Parties ── */
 .parties{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px;padding:26px var(--pad) 4px}
@@ -226,6 +228,11 @@ table.q tfoot tr.grand td.r{font-size:15px;text-transform:none;letter-spacing:0}
   </div>
   <div class="gold-rule"></div>
 
+  <div class="campaign-banner hidden" id="campaignBanner">
+    <strong>September Offer</strong>
+    Updated pricing exclusively for previous Goldsure customers
+  </div>
+
   <div class="parties">
     <div>
       <div class="lbl">Prepared For</div>
@@ -347,6 +354,8 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
     const rows = res.ok ? await res.json() : [];
     const q = rows[0];
     if(!q){ show('error'); return; }
+    const isSeptemberOffer = String(q.quote_token || '').startsWith('sep26-');
+    document.getElementById('campaignBanner').classList.toggle('hidden', !isSeptemberOffer);
 
     // Count genuine customer opens once per browser tab/session. Tracker opens
     // carry source=tracker so staff checking a quote do not inflate the total.
@@ -372,11 +381,14 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
     document.getElementById('agentName').textContent = q.agent_name || 'The Goldsure Team';
 
     const first = String(q.customer_name||'').trim().split(/\s+/)[0] || 'there';
-    document.getElementById('intro').textContent =
-      `Hi ${first}, thank you for the opportunity to quote your heat pump hot water upgrade. `
-      + `The price below includes the applicable NSW scheme discounts and covers the installation as `
-      + `quoted, based on the information provided. If anything unforeseen is identified on site that `
-      + `requires additional work, we’ll explain it clearly and confirm any cost with you before proceeding.`;
+    document.getElementById('intro').textContent = isSeptemberOffer
+      ? `Hi ${first}, thank you for speaking with us previously about your hot water upgrade. `
+        + `Goldsure now has new reduced September pricing, so we have prepared this updated offer for you. `
+        + `The full installed price can be included in the Home Energy Saver loan by Brighte with $0 upfront payment, subject to approval and eligibility.`
+      : `Hi ${first}, thank you for the opportunity to quote your heat pump hot water upgrade. `
+        + `The price below includes the applicable NSW scheme discounts and covers the installation as `
+        + `quoted, based on the information provided. If anything unforeseen is identified on site that `
+        + `requires additional work, we’ll explain it clearly and confirm any cost with you before proceeding.`;
 
     const exGst = inc => (Number(inc)||0)/1.1;
     const lines = [
