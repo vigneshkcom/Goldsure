@@ -47,6 +47,23 @@ test('VIC Aircon uses a separate WorkDrive parent and customer route', async () 
   );
 });
 
+test('QLD smoke alarm promo uses its own WorkDrive destination and safe browser upload contract', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  for (const marker of [
+    "return 'smoke-promo'",
+    'ZOHO_WORKDRIVE_QLD_PHOTOS_PARENT_FOLDER_ID',
+    "label: 'QLD Smoke Alarm Promo'",
+    "const PROMO_ORIGIN = 'https://smokealarmpromo.goldsure.com.au'",
+    "if (req.method === 'OPTIONS') return res.status(204).end()",
+    "req.query.action === 'health'",
+    'folderUrl, uploadPageUrl',
+    "config.product === 'smoke-promo'",
+    'buffer.length > 4 * 1024 * 1024',
+    "'[Smoke Alarm Promo Quote]'",
+    'config.uploadedStageNames.length',
+  ]) assert.ok(api.includes(marker), `missing smoke promo upload marker ${marker}`);
+});
+
 test('successful photo submissions use the correct product pipeline stage', async () => {
   const api = await read('api/zoho/create-photo-request.js');
   assert.match(api, /product,[\s\S]*?uploadPath: '\/ac',[\s\S]*?uploadedStageNames: \['Photos Uploaded'\]/);

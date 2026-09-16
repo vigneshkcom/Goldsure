@@ -30,7 +30,12 @@ const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'hot water'];
 const AIRCON_PIPELINE_ID_ENV = process.env.AIRCON_PIPELINE_ID || '';
 const AIRCON_PIPELINE_NAME_HINTS = ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'];
 
-const normaliseProduct = value => String(value || '').trim().toLowerCase() === 'aircon' ? 'aircon' : 'hws';
+const normaliseProduct = value => {
+  const product = String(value || '').trim().toLowerCase();
+  if (product === 'aircon') return 'aircon';
+  if (['smoke-promo', 'smoke_promo', 'smoke'].includes(product)) return 'smoke-promo';
+  return 'hws';
+};
 
 function productConfig(value) {
   const product = normaliseProduct(value);
@@ -44,6 +49,20 @@ function productConfig(value) {
       pipelineIdEnv: AIRCON_PIPELINE_ID_ENV,
       pipelineNameHints: AIRCON_PIPELINE_NAME_HINTS,
       uploadedStageNames: ['Photos Uploaded'],
+      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au', 'amit@goldsure.com.au'],
+    };
+  }
+  if (product === 'smoke-promo') {
+    return {
+      product,
+      parentId: process.env.ZOHO_WORKDRIVE_QLD_PHOTOS_PARENT_FOLDER_ID,
+      uploadPath: '',
+      label: 'QLD Smoke Alarm Promo',
+      opportunityName: who => `Smoke Alarm Promo - ${who}`,
+      pipelineIdEnv: '',
+      pipelineNameHints: [],
+      uploadedStageNames: [],
+      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
     };
   }
   return {
@@ -55,7 +74,19 @@ function productConfig(value) {
     pipelineIdEnv: HWS_PIPELINE_ID_ENV,
     pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
     uploadedStageNames: ['Photos Received'],
+    notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
   };
+}
+
+const PROMO_ORIGIN = 'https://smokealarmpromo.goldsure.com.au';
+
+function setCorsHeaders(req, res) {
+  if (req.headers?.origin === PROMO_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', PROMO_ORIGIN);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 const REGION = 'com.au';
@@ -280,6 +311,7 @@ function photoCommentRows(assessment) {
 
 function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
   const isAircon = config.product === 'aircon';
+  const isPromo = config.product === 'smoke-promo';
   const answers = isAircon ? [
     ['Full name', assessment?.fullName || who],
     ['Email address', assessment?.email || 'Not provided'],
@@ -290,6 +322,9 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
     ['Roof', assessment?.roof || 'Not answered'],
     ...photoCommentRows(assessment),
     ['New photos uploaded', Number(uploadCount) || 0],
+  ] : isPromo ? [
+    ['Customer', who],
+    ['Quote files uploaded', Number(uploadCount) || 0],
   ] : [
     ['Customer', who],
     ['New photos uploaded', Number(uploadCount) || 0],
@@ -300,7 +335,7 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
       <td style="padding:11px 14px;border-top:${index ? '1px solid #e8edf3' : '0'};color:#172033;font-size:13px;font-weight:700;">${escapeHtml(value)}</td>
     </tr>`).join('');
   const action = folderUrl
-    ? `<a href="${escapeHtml(folderUrl)}" style="display:inline-block;background:#1769aa;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-size:14px;font-weight:700;">Open photos in WorkDrive</a>`
+    ? `<a href="${escapeHtml(folderUrl)}" style="display:inline-block;background:#1769aa;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-size:14px;font-weight:700;">${isPromo ? 'Open quote in WorkDrive' : 'Open photos in WorkDrive'}</a>`
     : `<div style="font-size:12px;color:#64748b;">WorkDrive folder ID: ${escapeHtml(folderId)}</div>`;
   const address = isAircon && assessment?.address ? escapeHtml(assessment.address) : '';
 
@@ -310,8 +345,8 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" align="center" bgcolor="#ffffff" style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #dfe6ee;border-radius:12px;overflow:hidden;">
       <tr><td bgcolor="#1769aa" style="height:6px;background:#1769aa;font-size:0;line-height:0;">&nbsp;</td></tr>
       <tr><td style="padding:26px 28px 12px;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#1769aa;">${escapeHtml(config.label)} photo assessment</div>
-        <div style="margin-top:8px;font-size:23px;line-height:1.25;font-weight:700;color:#172033;">Photos received from ${escapeHtml(who)}</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#1769aa;">${escapeHtml(config.label)} ${isPromo ? 'quote submission' : 'photo assessment'}</div>
+        <div style="margin-top:8px;font-size:23px;line-height:1.25;font-weight:700;color:#172033;">${isPromo ? 'Competitor quote received from' : 'Photos received from'} ${escapeHtml(who)}</div>
         ${address ? `<div style="margin-top:7px;font-size:14px;line-height:1.5;color:#64748b;">${address}</div>` : ''}
       </td></tr>
       <tr><td style="padding:6px 28px 18px;font-size:14px;line-height:1.6;color:#3f4b5f;">${escapeHtml(who)} ${escapeHtml(what)}. Their submitted details are below.</td></tr>
@@ -326,7 +361,8 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
 }
 
 function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
-  const lines = [`${config.label} photo assessment`, '', `${who} ${what}.`];
+  const isPromo = config.product === 'smoke-promo';
+  const lines = [`${config.label} ${isPromo ? 'quote submission' : 'photo assessment'}`, '', `${who} ${what}.`];
   if (config.product === 'aircon') {
     lines.push(
       '',
@@ -340,7 +376,7 @@ function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessme
     );
     for (const [label, value] of photoCommentRows(assessment)) lines.push(`${label}: ${value}`);
   }
-  lines.push(`New photos uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
+  lines.push(`${isPromo ? 'Quote files' : 'New photos'} uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
   return lines.join('\n');
 }
 
@@ -416,11 +452,31 @@ function base64ToBuffer(dataBase64) {
 }
 
 export default async function handler(req, res) {
+  setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
   const requestedProduct = req.method === 'GET' ? req.query.product : req.body?.product;
   const config = productConfig(requestedProduct);
   const { parentId } = config;
   if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET || !process.env.ZOHO_REFRESH_TOKEN || !parentId) {
     return res.status(500).json({ error: `${config.label} WorkDrive storage is not configured` });
+  }
+
+  // Read-only production check used after deployment. It verifies that this
+  // product's configured WorkDrive destination exists without creating a
+  // customer folder or test upload.
+  if (req.method === 'GET' && req.query.action === 'health') {
+    try {
+      const accessToken = await getAccessToken();
+      const r = await fetch(`${API_BASE}/files/${encodeURIComponent(parentId)}`, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+      });
+      if (!r.ok) return res.status(502).json({ ok: false, product: config.product, error: 'WorkDrive destination is not reachable' });
+      const data = await r.json();
+      return res.status(200).json({ ok: true, product: config.product, destination: data?.data?.attributes?.name || config.label });
+    } catch (err) {
+      return res.status(502).json({ ok: false, product: config.product, error: 'WorkDrive health check failed' });
+    }
   }
 
   // GET ?action=list → every customer folder with its photo count, for the
@@ -579,7 +635,8 @@ export default async function handler(req, res) {
       const firstName = name.trim().split(/\s+/)[0];
       const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
       const uploadPageUrl = `${baseUrl}${config.uploadPath}?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
-      return res.status(200).json({ folderId, folderName, uploadPageUrl, product: config.product, reused: Boolean(existingId), photoCount });
+      const folderUrl = await getFolderLink(accessToken, folderId);
+      return res.status(200).json({ folderId, folderName, folderUrl, uploadPageUrl, product: config.product, reused: Boolean(existingId), photoCount });
     } catch (err) {
       console.error('Zoho folder create failed:', err.message);
       return res.status(502).json({ error: 'Zoho request failed', detail: err.message });
@@ -598,6 +655,14 @@ export default async function handler(req, res) {
     try {
       const accessToken = await getAccessToken();
       const buffer = base64ToBuffer(dataBase64);
+      if (config.product === 'smoke-promo') {
+        if (!/\.(pdf|jpe?g|png|webp|heic|heif)$/i.test(String(filename || ''))) {
+          return res.status(400).json({ error: 'The quote must be a PDF or image' });
+        }
+        if (buffer.length > 4 * 1024 * 1024) {
+          return res.status(413).json({ error: 'The quote file must be 4 MB or smaller' });
+        }
+      }
       await uploadFile(accessToken, folderId, filename || `photo-${Date.now()}.jpg`, buffer);
       if (config.product === 'aircon' && assessment) {
         await setFolderAssessment(accessToken, folderId, phone, assessment);
@@ -619,12 +684,18 @@ export default async function handler(req, res) {
         const many = n === 1 ? '1 photo' : `${n} photos`;
         const what = followUp
           ? `has sent through ${n ? many + ' more' : 'more photos'}`
-          : 'has uploaded their site photos';
+          : config.product === 'smoke-promo'
+            ? 'has uploaded their competitor quote'
+            : 'has uploaded their site photos';
 
         // Log it against the GHL contact too, so it shows up where the rest of
         // the customer's history lives. Also best-effort.
         if (phone) {
-          const notePrefix = config.product === 'aircon' ? '[Aircon Photo Upload]' : '[Photo Upload]';
+          const notePrefix = config.product === 'aircon'
+            ? '[Aircon Photo Upload]'
+            : config.product === 'smoke-promo'
+              ? '[Smoke Alarm Promo Quote]'
+              : '[Photo Upload]';
           const addressLine = config.product === 'aircon' && assessment?.address
             ? `\nProperty: ${String(assessment.address).replace(/[\r\n]+/g, ' ').trim()}`
             : '';
@@ -639,7 +710,7 @@ export default async function handler(req, res) {
           try {
             const apiKey = process.env.GHL_API_KEY;
             const locationId = process.env.GHL_LOCATION_ID;
-            if (apiKey && locationId) {
+            if (apiKey && locationId && config.uploadedStageNames.length) {
               const contactId = await findGhlContactIdByPhone(phone, { apiKey, locationId });
               if (contactId) {
                 await ensureOpportunityInStage({
@@ -658,13 +729,13 @@ export default async function handler(req, res) {
 
         const emailData = { config, who, what, folderUrl, folderId, assessment, uploadCount: n };
         await sendHostingerMail({
-          to: config.product === 'aircon'
-            ? ['vignesh@goldsure.com.au', 'david@goldsure.com.au', 'amit@goldsure.com.au']
-            : ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+          to: config.notifyRecipients,
           displayName: 'Goldsure Portal',
-          subject: followUp
-            ? `Additional ${config.label} photos uploaded - ${who}`
-            : `New ${config.label} photos uploaded - ${who}`,
+          subject: config.product === 'smoke-promo'
+            ? `New Smoke Alarm Promo quote uploaded - ${who}`
+            : followUp
+              ? `Additional ${config.label} photos uploaded - ${who}`
+              : `New ${config.label} photos uploaded - ${who}`,
           text: photoUploadEmailText(emailData),
           html: photoUploadEmailHtml(emailData),
         });
