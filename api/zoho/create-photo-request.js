@@ -276,6 +276,24 @@ async function setFolderAssessment(accessToken, folderId, phone, assessment = {}
   }
 }
 
+async function setFolderHwsAddress(accessToken, folderId, phone, assessment = {}) {
+  const address = String(assessment.address || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 500);
+  const lines = [
+    phone ? `phone:${phone}` : '',
+    'product:hws',
+    address ? `address:${address}` : '',
+  ].filter(Boolean);
+  try {
+    await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { attributes: { description: lines.join('\n') }, type: 'files' } }),
+    });
+  } catch (e) {
+    console.error('[Zoho] could not store hot water property address on folder:', e.message);
+  }
+}
+
 const phoneFromDescription = d => {
   const m = /phone:(\+?[\d\s()-]{6,})/i.exec(String(d || ''));
   return m ? m[1].trim() : '';
@@ -325,6 +343,7 @@ function photoCommentRows(assessment) {
 
 function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
   const isAircon = config.product === 'aircon';
+  const isHws = config.product === 'hws';
   const isPromo = config.product === 'smoke-promo';
   const answers = isAircon ? [
     ['Full name', assessment?.fullName || who],
@@ -339,6 +358,10 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
   ] : isPromo ? [
     ['Customer', who],
     ['Quote files uploaded', Number(uploadCount) || 0],
+  ] : isHws ? [
+    ['Customer', who],
+    ['Property address', assessment?.address || 'Not provided'],
+    ['New photos uploaded', Number(uploadCount) || 0],
   ] : [
     ['Customer', who],
     ['New photos uploaded', Number(uploadCount) || 0],
@@ -351,7 +374,7 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
   const action = folderUrl
     ? `<a href="${escapeHtml(folderUrl)}" style="display:inline-block;background:#1769aa;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:7px;font-size:14px;font-weight:700;">${isPromo ? 'Open quote in WorkDrive' : 'Open photos in WorkDrive'}</a>`
     : `<div style="font-size:12px;color:#64748b;">WorkDrive folder ID: ${escapeHtml(folderId)}</div>`;
-  const address = isAircon && assessment?.address ? escapeHtml(assessment.address) : '';
+  const address = (isAircon || isHws) && assessment?.address ? escapeHtml(assessment.address) : '';
 
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f7fa" style="background:#f4f7fa;font-family:Arial,Helvetica,sans-serif;">
@@ -390,6 +413,9 @@ function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessme
     );
     for (const [label, value] of photoCommentRows(assessment)) lines.push(`${label}: ${value}`);
   }
+  if (config.product === 'hws') {
+    lines.push('', `Property address: ${assessment?.address || 'Not provided'}`);
+  }
   lines.push(`${isPromo ? 'Quote files' : 'New photos'} uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
   return lines.join('\n');
 }
@@ -408,6 +434,11 @@ function airconAssessmentError(assessment) {
   if (!Number.isInteger(rooms) || rooms < 1 || rooms > 7) return 'rooms must be between 1 and 7';
   if (!['Tile roof', 'Tin roof'].includes(assessment?.roof)) return 'roof type is required';
   return '';
+}
+
+function hwsAssessmentError(assessment) {
+  const address = String(assessment?.address || '').trim();
+  return address.length >= 6 ? '' : 'property address is required';
 }
 
 // Ask Zoho for the folder's own canonical link rather than constructing one —
@@ -665,6 +696,13 @@ export default async function handler(req, res) {
       const assessmentError = airconAssessmentError(assessment);
       if (assessmentError) return res.status(400).json({ error: assessmentError });
     }
+    // Old links that were already open before this field launched may not
+    // carry assessment at all. Keep those uploads working, while validating
+    // every submission from the current page that includes the address block.
+    if (config.product === 'hws' && assessment) {
+      const assessmentError = hwsAssessmentError(assessment);
+      if (assessmentError) return res.status(400).json({ error: assessmentError });
+    }
 
     try {
       const accessToken = await getAccessToken();
@@ -680,6 +718,9 @@ export default async function handler(req, res) {
       await uploadFile(accessToken, folderId, filename || `photo-${Date.now()}.jpg`, buffer);
       if (config.product === 'aircon' && assessment) {
         await setFolderAssessment(accessToken, folderId, phone, assessment);
+      }
+      if (config.product === 'hws' && assessment?.address) {
+        await setFolderHwsAddress(accessToken, folderId, phone, assessment);
       }
 
       // Notify the team so uploads don't have to be checked for manually.
@@ -712,7 +753,7 @@ export default async function handler(req, res) {
             : config.product === 'smoke-promo'
               ? '[Smoke Alarm Promo Quote]'
               : '[Photo Upload]';
-          const addressLine = config.product === 'aircon' && assessment?.address
+          const addressLine = ['aircon', 'hws'].includes(config.product) && assessment?.address
             ? `\nProperty: ${String(assessment.address).replace(/[\r\n]+/g, ' ').trim()}`
             : '';
           const noteBody = folderUrl

@@ -47,6 +47,26 @@ test('VIC Aircon uses a separate WorkDrive parent and customer route', async () 
   );
 });
 
+test('Hot Water photo links collect and surface the property address', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  const upload = await read('hotwater/upload-photos.html');
+  for (const marker of [
+    'id="hwsQuestions"',
+    'id="hwsPropertyAddress"',
+    "const addressInputId = isAircon ? 'propertyAddress' : 'hwsPropertyAddress'",
+    "document.getElementById('hwsQuestions').style.display = 'block'",
+    "address: document.getElementById('hwsPropertyAddress').value.trim()",
+    'assessment,',
+  ]) assert.ok(upload.includes(marker), `missing HWS address marker ${marker}`);
+  for (const marker of [
+    'setFolderHwsAddress(accessToken, folderId, phone, assessment)',
+    "['Property address', assessment?.address || 'Not provided']",
+    "config.product === 'hws'",
+    "['aircon', 'hws'].includes(config.product)",
+    'hwsAssessmentError(assessment)',
+  ]) assert.ok(api.includes(marker), `missing HWS address API marker ${marker}`);
+});
+
 test('QLD smoke alarm promo uses its own WorkDrive destination and safe browser upload contract', async () => {
   const api = await read('api/zoho/create-photo-request.js');
   for (const marker of [
@@ -83,7 +103,7 @@ test('aircon assessment collects the requested questions and photos', async () =
     'id="fullName"',
     'id="customerEmail"',
     'id="propertyAddress"',
-    'initAirconAddressAutocomplete',
+    'initCustomerAddressAutocomplete',
     "state !== 'VIC'",
     'Single storey',
     'Double storey',

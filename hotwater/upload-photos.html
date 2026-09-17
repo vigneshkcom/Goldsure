@@ -130,6 +130,18 @@
       <h1 id="headline">Upload your photos</h1>
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
+      <div class="questions" id="hwsQuestions">
+        <div class="questions-title">Property details</div>
+        <div class="question-grid">
+          <div class="question">
+            <label for="hwsPropertyAddress">Property address</label>
+            <input id="hwsPropertyAddress" type="text" autocomplete="off" placeholder="Start typing the property address..." required>
+            <div class="field-hint">Choose the full address from the Google suggestions.</div>
+            <div class="address-badge" id="hwsAddressBadge" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="questions" id="airconQuestions">
         <div class="questions-title">Your details</div>
         <div class="question-grid">
@@ -232,6 +244,8 @@ let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
 const product = location.pathname === '/ac' || params.get('product') === 'aircon' ? 'aircon' : 'hws';
 const isAircon = product === 'aircon';
+const addressInputId = isAircon ? 'propertyAddress' : 'hwsPropertyAddress';
+const addressBadgeId = isAircon ? 'addressBadge' : 'hwsAddressBadge';
 let addressConfirmed = false;
 let addressAutocompleteReady = false;
 
@@ -272,23 +286,24 @@ if (isAircon) {
   document.getElementById('fullName').value = custName;
   document.getElementById('extraGrid').classList.add('aircon-comments');
   document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
+} else {
+  document.getElementById('hwsQuestions').style.display = 'block';
 }
 
 function setAddressBadge(message, state = '') {
-  const badge = document.getElementById('addressBadge');
+  const badge = document.getElementById(addressBadgeId);
   if (!badge) return;
   badge.textContent = message;
   badge.className = 'address-badge' + (state ? ` ${state}` : '');
 }
 
 function loadGoogleAddressAutocomplete() {
-  if (!isAircon) return;
   fetch('/api/smoke-alarms/google-key')
     .then(r => r.json())
     .then(data => {
       if (!data.key) throw new Error('Google address search is not configured');
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initAirconAddressAutocomplete`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&callback=initCustomerAddressAutocomplete`;
       script.async = true;
       script.onerror = () => setAddressBadge('Address suggestions could not load. You can still enter the full address.', 'invalid');
       document.head.appendChild(script);
@@ -296,8 +311,8 @@ function loadGoogleAddressAutocomplete() {
     .catch(() => setAddressBadge('Address suggestions could not load. You can still enter the full address.', 'invalid'));
 }
 
-window.initAirconAddressAutocomplete = function() {
-  const input = document.getElementById('propertyAddress');
+window.initCustomerAddressAutocomplete = function() {
+  const input = document.getElementById(addressInputId);
   if (!input || !window.google?.maps?.places) return;
   addressAutocompleteReady = true;
   const autocomplete = new google.maps.places.Autocomplete(input, {
@@ -314,7 +329,7 @@ window.initAirconAddressAutocomplete = function() {
       return;
     }
     const state = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '';
-    if (state !== 'VIC') {
+    if (isAircon && state !== 'VIC') {
       input.value = '';
       addressConfirmed = false;
       setAddressBadge(`${state || 'That'} address is outside Victoria.`, 'invalid');
@@ -323,7 +338,7 @@ window.initAirconAddressAutocomplete = function() {
     }
     input.value = place.formatted_address;
     addressConfirmed = true;
-    setAddressBadge('Victorian address confirmed', 'valid');
+    setAddressBadge(isAircon ? 'Victorian address confirmed' : `${state || 'Australian'} address confirmed`, 'valid');
     refreshSubmit();
   });
 };
@@ -336,7 +351,7 @@ const setStatus = (msg, cls) => {
 
 const BLURB = isAircon
   ? 'please answer the questions and add the photos below so we can assess the installation and prepare your quote.'
-  : 'please take a clear photo of each item below so we can prepare your quote.';
+  : 'please confirm the property address and take a clear photo of each item below so we can prepare your quote.';
 const TOPUP_BLURB = 'we already have the photos ticked below — just add whatever else you can, no need to send those again.';
 const MIXED_BLURB = 'the photos ticked below are already in — please add the ones still missing, and anything else that helps.';
 
@@ -421,6 +436,11 @@ async function loadStatus() {
       document.getElementById('roomCount').value = d.assessment.rooms || '';
       document.getElementById('roofType').value = d.assessment.roof || '';
       renderSlots();
+    }
+    if (!isAircon && d.assessment?.address) {
+      document.getElementById('hwsPropertyAddress').value = d.assessment.address;
+      addressConfirmed = true;
+      setAddressBadge('Saved property address', 'valid');
     }
 
     for (const f of d.files || []) {
@@ -670,16 +690,19 @@ function refreshSubmit() {
   const btn = document.getElementById('submitBtn');
   const fullName = document.getElementById('fullName')?.value.trim() || '';
   const emailInput = document.getElementById('customerEmail');
-  const address = document.getElementById('propertyAddress')?.value.trim() || '';
-  const questionsComplete = !isAircon || Boolean(
-    /^\S+(?:\s+\S+)+$/.test(fullName) &&
-    emailInput.value.trim() && emailInput.checkValidity() &&
-    address && (addressConfirmed || !addressAutocompleteReady) &&
-    document.getElementById('storeys').value &&
-    Number(document.getElementById('unitCount').value) >= 1 &&
-    Number(document.getElementById('roomCount').value) >= 1 &&
-    document.getElementById('roofType').value
-  );
+  const address = document.getElementById(addressInputId)?.value.trim() || '';
+  const addressComplete = address.length >= 6 && (addressConfirmed || !addressAutocompleteReady);
+  const questionsComplete = isAircon
+    ? Boolean(
+      /^\S+(?:\s+\S+)+$/.test(fullName) &&
+      emailInput.value.trim() && emailInput.checkValidity() &&
+      addressComplete &&
+      document.getElementById('storeys').value &&
+      Number(document.getElementById('unitCount').value) >= 1 &&
+      Number(document.getElementById('roomCount').value) >= 1 &&
+      document.getElementById('roofType').value
+    )
+    : addressComplete;
 
   btn.disabled = !questionsComplete || missing.length > 0 || newCount === 0 || !folderId;
   btn.textContent =
@@ -691,24 +714,26 @@ function refreshSubmit() {
 renderSlots();
 loadStatus();
 
+function handleAddressInput() {
+  addressConfirmed = false;
+  const hasAddress = document.getElementById(addressInputId).value.trim();
+  setAddressBadge(
+    hasAddress && addressAutocompleteReady ? 'Choose the full address from the Google suggestions.' : '',
+    hasAddress && addressAutocompleteReady ? 'invalid' : '',
+  );
+  refreshSubmit();
+}
+
+document.getElementById(addressInputId).addEventListener('input', handleAddressInput);
+loadGoogleAddressAutocomplete();
+
 if (isAircon) {
   document.getElementById('fullName').addEventListener('input', refreshSubmit);
   document.getElementById('customerEmail').addEventListener('input', refreshSubmit);
-  document.getElementById('propertyAddress').addEventListener('input', () => {
-    addressConfirmed = false;
-    setAddressBadge(
-      document.getElementById('propertyAddress').value.trim() && addressAutocompleteReady
-        ? 'Choose the full address from the Google suggestions.'
-        : '',
-      document.getElementById('propertyAddress').value.trim() && addressAutocompleteReady ? 'invalid' : '',
-    );
-    refreshSubmit();
-  });
   document.getElementById('unitCount').addEventListener('change', refreshSubmit);
   document.getElementById('roomCount').addEventListener('change', renderSlots);
   document.getElementById('storeys').addEventListener('change', refreshSubmit);
   document.getElementById('roofType').addEventListener('change', refreshSubmit);
-  loadGoogleAddressAutocomplete();
 }
 
 const blobToBase64 = blob => new Promise((resolve, reject) => {
@@ -755,15 +780,17 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     rooms: Number(document.getElementById('roomCount').value),
     roof: document.getElementById('roofType').value,
     comments: Object.fromEntries(commentEntries.filter(item => item.comment).map(item => [item.key, item.comment])),
-  } : null;
-  const commentsText = assessment
+  } : {
+    address: document.getElementById('hwsPropertyAddress').value.trim(),
+  };
+  const commentsText = isAircon
     ? `\nPhoto comments\n${commentEntries.map(item => `${item.label}: ${item.comment || 'No comment provided'}`).join('\n')}\n`
     : '';
-  const answerText = assessment
+  const answerText = isAircon
     ? `VIC Aircon Assessment Answers\nFull name: ${assessment.fullName}\nEmail: ${assessment.email}\nProperty address: ${assessment.address}\nProperty: ${assessment.storeys}\nAircon units: ${assessment.units}\nRooms: ${assessment.rooms}\nRoof: ${assessment.roof}\n${commentsText}\nSubmitted: ${new Date().toLocaleString('en-AU')}\n`
     : '';
   const entries = [
-    ...(assessment ? [{ key: 'aircon-assessment-answers', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
+    ...(isAircon ? [{ key: 'aircon-assessment-answers', blob: new Blob([answerText], { type: 'text/plain' }), label: 'Assessment answers', extension: 'txt' }] : []),
     ...SLOTS.filter(s => picked[s.key]).map(s => ({ key: s.key, blob: picked[s.key], label: s.label })),
     ...extraPhotos.map((p, i) => ({ key: p.id, blob: p.blob, label: `Additional photo ${i + 1}` })),
   ];
@@ -791,7 +818,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           customerName: submittedName,
           phone: custPhone,
           product,
-          ...(assessment ? { assessment } : {}),
+          assessment,
           // Only the last upload should trigger the team email/GHL note, so a
           // multi-photo submission doesn't fire one notification per photo.
           notify: done === entries.length - 1,
@@ -799,7 +826,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           // Tells the team this is a top-up on a folder they may already have
           // looked at, rather than a first submission.
           followUp,
-          uploadCount: entries.length - (assessment ? 1 : 0),
+          uploadCount: entries.length - (isAircon ? 1 : 0),
         }, done + 1, entries.length);
       done++;
     }
