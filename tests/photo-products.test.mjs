@@ -61,6 +61,8 @@ test('QLD smoke alarm promo uses its own WorkDrive destination and safe browser 
     'buffer.length > 4 * 1024 * 1024',
     "'[Smoke Alarm Promo Quote]'",
     'config.uploadedStageNames.length',
+    'postGhlNoteWithRetry(phone, noteBody)',
+    'success: true, noteAdded',
     "'shanira@goldsure.com.au'",
     "'alda@goldsure.com.au'",
   ]) assert.ok(api.includes(marker), `missing smoke promo upload marker ${marker}`);

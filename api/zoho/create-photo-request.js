@@ -112,6 +112,15 @@ let cachedAccessToken = '';
 let cachedAccessTokenExpiresAt = 0;
 let accessTokenRefreshPromise = null;
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function postGhlNoteWithRetry(phone, noteBody, attempts = 5) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (await postGhlNoteByPhone(phone, noteBody)) return true;
+    if (attempt < attempts) await wait(attempt * 750);
+  }
+  return false;
+}
 
 async function getAccessToken() {
   if (cachedAccessToken && Date.now() < cachedAccessTokenExpiresAt - ACCESS_TOKEN_EXPIRY_BUFFER_MS) {
@@ -679,6 +688,8 @@ export default async function handler(req, res) {
       // Best-effort: a mail failure must never fail the customer's upload.
       if (!notify) return res.status(200).json({ success: true });
 
+      let noteAdded = false;
+
       try {
         const who = String(customerName || '').replace(/[\r\n]+/g, ' ').trim() || 'A customer';
         const folderUrl = await getFolderLink(accessToken, folderId);
@@ -707,7 +718,12 @@ export default async function handler(req, res) {
           const noteBody = folderUrl
             ? `${notePrefix}\n${who} ${what}.${addressLine}\nView them here: ${folderUrl}`
             : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}`;
-          await postGhlNoteByPhone(phone, noteBody);
+          noteAdded = config.product === 'smoke-promo'
+            ? await postGhlNoteWithRetry(phone, noteBody)
+            : await postGhlNoteByPhone(phone, noteBody);
+          if (config.product === 'smoke-promo' && !noteAdded) {
+            console.error('[Zoho upload] Smoke Alarm Promo quote note was not added after retries');
+          }
 
           // Move the deal to the product's uploaded-photo stage too, not just
           // a note. This runs only for the final successfully stored file in
@@ -748,7 +764,7 @@ export default async function handler(req, res) {
         console.error('[Zoho upload] notification email failed:', mailErr.message);
       }
 
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, noteAdded });
     } catch (err) {
       console.error('Zoho photo upload failed:', err.message);
       const retryable = /too many requests continuously|access denied|http 429|fetch failed|timed?\s*out|econnreset/i.test(err.message);
