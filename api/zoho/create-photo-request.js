@@ -62,7 +62,12 @@ function productConfig(value) {
       pipelineIdEnv: '',
       pipelineNameHints: [],
       uploadedStageNames: [],
-      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+      notifyRecipients: [
+        'shanira@goldsure.com.au',
+        'vignesh@goldsure.com.au',
+        'alda@goldsure.com.au',
+        'david@goldsure.com.au',
+      ],
     };
   }
   return {
