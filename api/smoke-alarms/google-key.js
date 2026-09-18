@@ -7,13 +7,19 @@ const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const CORE_FIELDWORKER = { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Core Energy Group' };
 const BLAKE_FIELDWORKER = { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison' };
 const BLAKE_ACCESS_PIN = '1008';
+// `active` is the current crew. Everyone else stays on the roster so their
+// existing bookings keep showing on the calendar, but they are not offered as
+// booking candidates and they share one muted colour.
+const INACTIVE_COLOR = '#9699a6';
 const TEAM_FIELDWORKERS = [
-  { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Surya', color: '#a25ddc' },
-  { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison', color: '#0073ea' },
-  { id: 1009, name: 'Alex Symonds', displayName: 'Alex Symonds', color: '#fdab3d' },
-  { id: 1010, name: 'Liam Stuart', displayName: 'Liam Stuart', color: '#00a86b' },
-  { id: 1005, name: 'Munesh Chand', displayName: 'Munesh Chand', color: '#009eb5' }
+  { id: 1009, name: 'Alex Symonds', displayName: 'Alex Symonds', color: '#fdab3d', active: true },
+  { id: 1011, name: 'Gurdip Singh', displayName: 'Gurdip Singh', color: '#0073ea', active: true },
+  { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Surya', color: INACTIVE_COLOR, active: false },
+  { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison', color: INACTIVE_COLOR, active: false },
+  { id: 1010, name: 'Liam Stuart', displayName: 'Liam Stuart', color: INACTIVE_COLOR, active: false },
+  { id: 1005, name: 'Munesh Chand', displayName: 'Munesh Chand', color: INACTIVE_COLOR, active: false }
 ];
+const TEAM_BOOKABLE = TEAM_FIELDWORKERS.filter(worker => worker.active);
 const TEAM_ROUTE_CACHE_TTL_MS = 2 * 60 * 1000;
 const teamRouteCache = new Map();
 const TEAM_SUGGESTION_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -241,7 +247,7 @@ async function dataforceWorkerAppointments(token, fieldworkerId, startDate, endD
 }
 
 function publicTeamWorker(fieldworker) {
-  return { id: fieldworker.id, name: fieldworker.displayName, color: fieldworker.color };
+  return { id: fieldworker.id, name: fieldworker.displayName, color: fieldworker.color, active: Boolean(fieldworker.active) };
 }
 
 async function cachedTeamRoute(key, load) {
@@ -421,7 +427,7 @@ async function dataforceTeamBookingSuggestions(address, startDate, days) {
   const { instance } = dataforceConfig();
   const token = await dataforceToken();
   const endDate = addDays(startDate, days);
-  const workerSchedules = await Promise.all(TEAM_FIELDWORKERS.map(async fieldworker => ({
+  const workerSchedules = await Promise.all(TEAM_BOOKABLE.map(async fieldworker => ({
     fieldworker,
     appointments: await dataforceWorkerAppointments(token, fieldworker.id, startDate, endDate)
   })));

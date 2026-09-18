@@ -484,13 +484,36 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .avail-head-copy { flex: 1; min-width: 0; }
 .avail-head h3 { font-size: 16px; font-weight: 700; color: var(--text); }
 .avail-head p { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.avail-head-actions { display: flex; gap: 6px; flex: none; }
 .avail-add {
-  margin-left: auto; font-family: inherit; font-size: 12.5px; font-weight: 500;
+  font-family: inherit; font-size: 12.5px; font-weight: 500;
   height: 28px; padding: 0 12px; border-radius: 4px; border: none;
   background: var(--blue-bg); color: var(--blue); cursor: pointer; transition: background .12s;
 }
 .avail-add:hover { background: #d7e9fd; }
 .avail-add:disabled { color: var(--faint); cursor: wait; }
+.avail-add.on { background: var(--blue); color: #fff; }
+
+/* Availability editor — only visible once the PIN is accepted */
+.avail-edit { display: none; background: var(--blue-bg); border: 1px solid #cfe3fb; border-radius: 8px; padding: 10px; }
+.avail-panel.admin .avail-edit { display: block; }
+.avail-edit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.avail-edit-label { font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .4px; }
+.avail-edit-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.avail-edit-chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  border-radius: 999px; border: 1px solid var(--border2); background: #fff;
+  font: 600 11.5px Figtree, sans-serif; color: var(--muted); cursor: pointer;
+}
+.avail-edit-chip.on { border-color: currentColor; background: #fff; color: var(--text); box-shadow: inset 0 0 0 1px currentColor; }
+.avail-edit-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.avail-edit-bulk {
+  height: 26px; padding: 0 9px; border-radius: 5px; border: 1px solid #bfd1fb;
+  background: #fff; color: var(--blue); font: 700 10.5px Figtree, sans-serif; cursor: pointer;
+}
+.avail-edit-bulk:hover { background: #eaf3ff; }
+.avail-edit-bulk:disabled { opacity: .55; cursor: wait; }
+.avail-edit-hint { margin-top: 7px; font-size: 10.5px; color: var(--muted); line-height: 1.4; }
 
 .cal-nav { display: flex; align-items: center; gap: 6px; }
 .cal-month { flex: 1; text-align: center; font-size: 14px; font-weight: 700; color: var(--text); }
@@ -505,28 +528,45 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .cal-dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--faint); padding-bottom: 2px; }
 
 .cal-cell {
-  position: relative; min-height: 48px; border: 1px solid transparent; background: #fff; cursor: pointer;
+  position: relative; min-height: 56px; border: 1px solid transparent; background: #fff; cursor: pointer;
   border-radius: 7px; font-family: inherit; font-size: 12px; color: var(--text);
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 3px;
-  padding: 6px; transition: background .12s,border-color .12s;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 5px; transition: background .12s,border-color .12s;
 }
 .cal-cell:hover { background: var(--surface2); border-color: var(--border); }
 .cal-cell.muted { color: var(--faint); }
 .cal-cell.past { color: var(--faint); }
+/* Nobody on the current crew is working — recede so bookable days stand out */
+.cal-cell.quiet { background: var(--surface2); }
+.cal-cell.quiet .n { color: var(--faint); font-weight: 400; }
 .cal-cell.today { font-weight: 700; color: var(--blue); }
 .cal-cell.today { border-color: #a8cdf7; }
 .cal-cell.sel { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); font-weight: 700; }
 .cal-cell.sel.today { color: var(--blue); }
-.cal-cell .n { line-height: 1; }
-.cal-cell-meta { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 3px; }
-.cal-dots { display: flex; gap: 2px; min-width: 0; overflow: hidden; }
-.cal-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
-.cal-job-count { min-width: 18px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--surface3); color: var(--muted); font-size: 9.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-.cal-cell.sel .cal-job-count { background: var(--blue); color: #fff; }
+.cal-cell .n { line-height: 1; text-align: left; }
+
+/* One bar per electrician: initial + job count, so a glance says who and how full */
+.cal-marks { display: flex; flex-direction: column; gap: 2px; margin-top: auto; }
+.cal-mark {
+  display: flex; align-items: center; gap: 2px; height: 14px; padding: 0 3px;
+  border: 1px solid transparent; border-radius: 4px;
+  font-size: 9.5px; font-weight: 700; line-height: 1; overflow: hidden;
+}
+.cal-mark .mk-who { flex: none; }
+.cal-mark .mk-num { margin-left: auto; font-variant-numeric: tabular-nums; }
+.cal-mark.jobs { color: #fff; }                                  /* fill and ink set inline per electrician */
+.cal-mark.free { background: #fff; border-color: currentColor; border-style: dashed; }
+.cal-mark.free .mk-num { font-size: 8px; letter-spacing: .2px; text-transform: uppercase; opacity: .8; }
+.cal-mark.full { background: var(--red-bg) !important; border-color: #f3b8c2; color: var(--red) !important; }
+.cal-mark.other { background: var(--surface3); color: var(--muted); }
 
 .cal-key { display: flex; flex-wrap: wrap; gap: 6px 10px; border-top: 1px solid var(--border); padding-top: 10px; }
 .cal-key-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
+.cal-key-item.is-other { color: var(--faint); }
 .cal-key-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.cal-key-dot.hollow { background: #fff !important; border: 1px dashed var(--border2); }
+.cal-note { font-size: 10.5px; color: var(--red); line-height: 1.4; }
+.cal-note:empty { display: none; }
 
 .booking-suggest { border-top: 1px solid var(--border); padding-top: 11px; }
 .booking-suggest-label { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
@@ -555,10 +595,23 @@ details.step-card .step-body-inner { padding: 12px 18px 16px; border-top: 1px so
 .cal-day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 9px; }
 .cal-day-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .cal-day-total { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.avail-strip { display: grid; gap: 5px; margin-bottom: 9px; }
+.avail-row {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px;
+  background: var(--surface2); font: 500 12px Figtree, sans-serif; color: var(--text); text-align: left;
+}
+.avail-row.on { background: var(--green-bg); border-color: #b6e8d3; }
+.avail-row .state { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 500; }
+.avail-row.on .state { color: #0f8a56; font-weight: 600; }
+.avail-panel.admin .avail-row { cursor: pointer; }
+.avail-panel.admin .avail-row:hover { border-color: var(--blue); }
+.avail-row:disabled { cursor: default; }
 .route-list { display: grid; gap: 7px; }
 .route-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fff; }
 .route-card-head { display: flex; align-items: center; gap: 7px; }
 .route-card-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.route-off { border-radius: 4px; background: var(--surface3); color: var(--muted); padding: 2px 5px; font-size: 9.5px; font-weight: 700; }
 .route-map-button { margin-left: auto; border: 1px solid #bfd1fb; border-radius: 6px; background: var(--blue-bg); color: var(--blue); padding: 4px 7px; font: 700 10.5px Inter, Arial, sans-serif; cursor: pointer; white-space: nowrap; }
 .route-map-button:hover { background: #dce9ff; border-color: #95b3f6; }
 .route-job-count { margin-left: auto; padding: 3px 7px; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 10.5px; font-weight: 700; }
@@ -703,8 +756,23 @@ function doLogout() {
   <!-- DATAFORCE ELECTRICIAN ROUTES -->
   <aside class="avail-panel" id="availPanel">
     <div class="avail-head">
-      <div class="avail-head-copy"><h3>Electrician routes</h3><p>Booked jobs and suburb routes from Dataforce</p></div>
-      <button class="avail-add" id="routeRefreshBtn" type="button" onclick="loadRouteCalendar()">Refresh</button>
+      <div class="avail-head-copy"><h3>Electricians</h3><p>Booked jobs from Dataforce and the days you mark as available</p></div>
+      <div class="avail-head-actions">
+        <button class="avail-add" id="availEditBtn" type="button" onclick="toggleAvailAdmin()">Set availability</button>
+        <button class="avail-add" id="routeRefreshBtn" type="button" onclick="loadRouteCalendar()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="avail-edit" id="availEdit">
+      <div class="avail-edit-row">
+        <span class="avail-edit-label">Marking</span>
+        <div class="avail-edit-chips" id="availEditChips"></div>
+      </div>
+      <div class="avail-edit-actions">
+        <button type="button" class="avail-edit-bulk" onclick="bulkAvailability('weekdays')">Mark Mon–Fri this month</button>
+        <button type="button" class="avail-edit-bulk" onclick="bulkAvailability('clear')">Clear this month</button>
+      </div>
+      <p class="avail-edit-hint" id="availEditHint">Click any day to turn that electrician’s availability on or off.</p>
     </div>
 
     <div class="cal-nav">
@@ -718,13 +786,14 @@ function doLogout() {
     <div class="cal-grid" id="calGrid"></div>
 
     <div class="cal-key" id="calKey"></div>
+    <div class="cal-note" id="availNote"></div>
     <form class="booking-suggest" id="bookingSuggestForm" onsubmit="checkBookingSuggestions(event)">
       <label class="booking-suggest-label" for="bookingSuggestAddress">Find a viable booking date</label>
       <div class="booking-suggest-row">
         <input class="booking-suggest-input" id="bookingSuggestAddress" type="text" placeholder="Enter QLD address or postcode" autocomplete="street-address">
         <button class="booking-suggest-btn" id="bookingSuggestBtn" type="submit">Check dates</button>
       </div>
-      <div class="booking-suggest-rule">Suggestions only · working electrician · fewer than 10 jobs · maximum 20 minutes added to the whole route</div>
+      <div class="booking-suggest-rule">Suggestions only · current crew · days they already have jobs · fewer than 10 jobs · maximum 20 minutes added to the whole route</div>
       <div class="booking-suggest-results" id="bookingSuggestResults" aria-live="polite"></div>
     </form>
     <div class="cal-day" id="calDay"><div class="cal-empty">Choose a date to view electrician routes.</div></div>
@@ -1751,211 +1820,38 @@ function showToast(m) {
   setTimeout(()=>t.classList.remove('show'), 2800);
 }
 
-// ════════════════════════════════════════════════════════════
-// DOCS ACCORDION
-// ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
-// DOCS ACCORDION
-// ════════════════════════════════════════════════════════════
-{
-/* Legacy manual availability editor retained only for rollback reference.
-   It is block-scoped, disabled and no longer connected to the interface. */
-/* ════════════════════════════════════════════════════════════════
-   ELECTRICIAN AVAILABILITY
-   Reads and writes the `electrician_availability` table in Supabase
-   directly, the same way the quote trackers read `quote_emails`, so
-   this needs no new serverless function (the project is at Vercel's
-   12-function limit).
-
-   The admin PIN is checked in the browser. That keeps a casual user
-   from editing the roster, but anyone who reads the page source can
-   find it — it is a speed bump, not a security control. Move the
-   write behind a server endpoint if that ever matters.
-   ════════════════════════════════════════════════════════════════ */
-const AVAIL_PIN = '';
-const ELECTRICIANS = [
-  { name: 'Surya',        org: 'Core Energy Group' },
-  { name: 'Alex Symonds', org: '' },
-];
-const AVAIL_COLORS = ['#0073ea', '#00c875', '#a25ddc', '#fdab3d', '#009eb5'];
-const AVAIL_NAME_COLORS = { 'Surya': '#a25ddc', 'Alex Symonds': '#fdab3d' };
-let availAdmin = false;
-let availRows = [];
-let calCursor = new Date();
-let calSelected = null;
-
-const availInitials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-function availColor(n){
-  if (AVAIL_NAME_COLORS[n]) return AVAIL_NAME_COLORS[n];
-  let h=7; for(const c of String(n)) h=(h*31+c.charCodeAt(0))|0; return AVAIL_COLORS[Math.abs(h)%AVAIL_COLORS.length];
-}
-
-function availDateLabel(d) {
-  if (!d) return '';
-  const dt = new Date(d + 'T00:00:00');
-  if (isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
-async function loadAvailability() {
-  if (!document.getElementById('calGrid')) return;
-  if (!calSelected) calSelected = ymd(new Date());
-  try {
-    // A window either side of the month in view, so paging back a month
-    // doesn't come up empty
-    const from = legacyYmd(new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1));
-    const to   = legacyYmd(new Date(calCursor.getFullYear(), calCursor.getMonth() + 2, 0));
-    const res = await fetch(
-      `${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?select=*&slot_date=gte.${from}&slot_date=lte.${to}&order=slot_date.asc&limit=500`,
-      { headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` } }
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    availRows = await res.json();
-    renderAvailability();
-  } catch (e) {
-    document.getElementById('calDay').innerHTML =
-      `<div class="cal-empty">Couldn't load availability${/404|PGRST/i.test(e.message) ? ' — the electrician_availability table may not exist yet.' : ''}</div>`;
-  }
-}
-
-function legacyYmd(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function legacyCalShift(n) {
-  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + n, 1);
-  renderAvailability();
-}
-
-function legacyCalSelect(date) {
-  calSelected = date;
-  renderAvailability();
-}
-
-function renderAvailability() {
-  const grid = document.getElementById('calGrid');
-  if (!grid) return;
-
-  const year = calCursor.getFullYear(), month = calCursor.getMonth();
-  document.getElementById('calMonth').textContent =
-    calCursor.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
-
-  // Monday-first grid
-  const first = new Date(year, month, 1);
-  const lead = (first.getDay() + 6) % 7;
-  const start = new Date(year, month, 1 - lead);
-  const todayStr = legacyYmd(new Date());
-
-  // date → the electricians with something on that day
-  const byDate = {};
-  availRows.forEach(r => { (byDate[r.slot_date] = byDate[r.slot_date] || []).push(r); });
-
-  let cells = '';
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const key = legacyYmd(d);
-    const outside = d.getMonth() !== month;
-    const names = [...new Set((byDate[key] || []).map(r => r.electrician))];
-    const dots = names.map(n => `<span class="cal-dot" style="background:${availColor(n)}"></span>`).join('');
-    const past = key < todayStr;
-    const none = !names.length && !past;
-    cells += `<button type="button" class="cal-cell${outside ? ' muted' : ''}${past ? ' past' : ''}${none ? ' none' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
-      onclick="legacyCalSelect('${key}')" title="${names.length ? escAvail(names.join(', ')) : (past ? '' : 'No one available')}">
-      <span class="n">${d.getDate()}</span><span class="cal-dots">${dots}</span></button>`;
-  }
-  grid.innerHTML = cells;
-
-  document.getElementById('calKey').innerHTML = ELECTRICIANS.map(e =>
-    `<span class="cal-key-item"><span class="cal-key-dot" style="background:${availColor(e.name)}"></span>${escAvail(e.name)}</span>`
-  ).join('');
-
-  renderCalDay(byDate[calSelected] || []);
-}
-
-function renderCalDay(rows) {
-  const box = document.getElementById('calDay');
-  if (!box) return;
-  const label = calSelected
-    ? new Date(calSelected + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
-    : '';
-
-  const lines = ELECTRICIANS.map(el => {
-    const row = rows.find(r => (r.electrician || '').toLowerCase() === el.name.toLowerCase());
-    const on = Boolean(row);
-    return `<button type="button" class="cal-row ${on ? 'on' : 'off'}"
-      ${availAdmin ? `onclick="toggleAvailability('${escAvail(el.name)}', ${row ? `'${row.id}'` : 'null'})"` : 'disabled'}>
-      <span class="cal-key-dot" style="background:${on ? availColor(el.name) : 'var(--border2)'}"></span>
-      <span class="who">${escAvail(el.name)}</span>
-      <span class="state">${on ? 'Available' : 'Not available'}</span>
-    </button>`;
-  }).join('');
-
-  box.innerHTML = `<div class="cal-day-title">${escAvail(label)}</div>${lines}` +
-    (availAdmin ? '' : `<div class="cal-empty">Enter the admin PIN to change these.</div>`);
-}
-
-/* One click marks an electrician available for the selected day, or clears it. */
-async function toggleAvailability(name, id) {
-  if (!availAdmin || !calSelected) return;
-  try {
-    if (id) {
-      const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability?id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } else {
-      const res = await fetch(`${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability`, {
-        method: 'POST',
-        headers: {
-          apikey: QUOTE_TRACKER_SUPABASE_KEY,
-          Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({ electrician: name, slot_date: calSelected, status: 'free' }),
-      });
-      if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
-    }
-    loadAvailability();
-  } catch (e) {
-    alert('Could not update: ' + e.message);
-  }
-}
-
-const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function promptAvailAdmin() {
-  const btn = document.getElementById('availAddBtn');
-  if (availAdmin) {                       // already unlocked — lock it again
-    availAdmin = false;
-    document.getElementById('availPanel').classList.remove('admin');
-    btn.textContent = 'Edit';
-    renderAvailability();
-    return;
-  }
-  const pin = prompt('Admin PIN to edit availability:');
-  if (pin === null) return;
-  if (pin !== AVAIL_PIN) { alert('Incorrect PIN.'); return; }
-  availAdmin = true;
-  document.getElementById('availPanel').classList.add('admin');
-  btn.textContent = 'Done';
-  renderAvailability();
-}
-
-}
-
-
-
-
 /* Read-only Dataforce team route calendar. Customer and street details are
-   deliberately kept on the server; this view receives suburbs and job counts. */
+   deliberately kept on the server; this view receives suburbs and job counts.
+
+   Availability is the one writable layer: which days each working electrician
+   is free is kept in the `electrician_availability` table in Supabase, read
+   and written straight from the browser the same way the quote trackers read
+   `quote_emails`, so it needs no new serverless function (the project is at
+   Vercel's function limit).
+
+   The admin PIN is checked in the browser. That stops a sales agent editing
+   the roster by accident, but anyone who reads the page source can find it —
+   it is a speed bump, not a security control. Move the write behind a server
+   endpoint if that ever matters. */
 const TEAM_ROUTE_API = '/api/smoke-alarms/google-key';
+const AVAIL_PIN = '4321';
+const AVAIL_TABLE = `${QUOTE_TRACKER_SUPABASE_URL}/rest/v1/electrician_availability`;
+const AVAIL_HEADERS = { apikey: QUOTE_TRACKER_SUPABASE_KEY, Authorization: `Bearer ${QUOTE_TRACKER_SUPABASE_KEY}` };
 let routeWorkers = [];
 let routeDates = [];
+let availRows = [];
+let availAdmin = false;
+let availEditing = '';
+let availBusy = false;
+let selectedDayRoutes = null;
+let selectedDayError = '';
 let calCursor = new Date();
 let calSelected = null;
 let bookingSuggestionPreviewAddress = '';
+
+const activeWorkers = () => routeWorkers.filter(worker => worker.active);
+const availKey = (name, date) => `${String(name).toLowerCase()}|${date}`;
+const availIndex = () => new Map(availRows.map(row => [availKey(row.electrician, row.slot_date), row]));
 
 const escAvail = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -1980,6 +1876,125 @@ async function routeApi(body) {
   return payload;
 }
 
+/* ── Availability (Supabase) ────────────────────────────────── */
+
+async function loadAvailability() {
+  const start = calendarStart();
+  const from = ymd(start);
+  const to = ymd(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41));
+  const note = document.getElementById('availNote');
+  try {
+    const res = await fetch(`${AVAIL_TABLE}?select=id,electrician,slot_date&slot_date=gte.${from}&slot_date=lte.${to}&limit=1000`, { headers: AVAIL_HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    availRows = await res.json();
+    if (note) note.textContent = '';
+  } catch (error) {
+    availRows = [];
+    if (note) note.textContent = `Availability could not be loaded (${error.message}). Booked jobs are still correct.`;
+  }
+}
+
+async function availWrite(request) {
+  if (availBusy) return;
+  availBusy = true;
+  document.querySelectorAll('.avail-edit-bulk').forEach(button => { button.disabled = true; });
+  try {
+    const res = await request();
+    if (!res.ok) throw new Error((await res.text()).slice(0, 120) || `HTTP ${res.status}`);
+    await loadAvailability();
+    renderRouteCalendar();
+    renderSelectedDayRoutes();
+  } catch (error) {
+    alert(`Could not save availability: ${error.message}`);
+  } finally {
+    availBusy = false;
+    document.querySelectorAll('.avail-edit-bulk').forEach(button => { button.disabled = false; });
+  }
+}
+
+function toggleAvailability(name, date) {
+  if (!availAdmin || !name || !date) return;
+  const existing = availIndex().get(availKey(name, date));
+  return availWrite(() => existing
+    ? fetch(`${AVAIL_TABLE}?id=eq.${encodeURIComponent(existing.id)}`, { method: 'DELETE', headers: AVAIL_HEADERS })
+    : fetch(AVAIL_TABLE, {
+      method: 'POST',
+      headers: { ...AVAIL_HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ electrician: name, slot_date: date, status: 'free' })
+    }));
+}
+
+/* Filling a month one day at a time is the slow part of rostering, so the
+   two bulk actions work on whichever month is on screen. */
+function bulkAvailability(mode) {
+  if (!availAdmin || !availEditing) return;
+  const year = calCursor.getFullYear();
+  const month = calCursor.getMonth();
+  const monthStart = ymd(new Date(year, month, 1));
+  const monthEnd = ymd(new Date(year, month + 1, 0));
+  if (mode === 'clear') {
+    if (!confirm(`Clear every availability day for ${availEditing} in ${calCursor.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}?`)) return;
+    return availWrite(() => fetch(
+      `${AVAIL_TABLE}?electrician=eq.${encodeURIComponent(availEditing)}&slot_date=gte.${monthStart}&slot_date=lte.${monthEnd}`,
+      { method: 'DELETE', headers: AVAIL_HEADERS }
+    ));
+  }
+  const taken = availIndex();
+  const todayStr = ymd(new Date());
+  const rows = [];
+  for (let day = new Date(year, month, 1); day.getMonth() === month; day.setDate(day.getDate() + 1)) {
+    const key = ymd(day);
+    const weekday = day.getDay() >= 1 && day.getDay() <= 5;
+    if (!weekday || key < todayStr || taken.has(availKey(availEditing, key))) continue;
+    rows.push({ electrician: availEditing, slot_date: key, status: 'free' });
+  }
+  if (!rows.length) { alert('Every upcoming weekday this month is already marked.'); return; }
+  return availWrite(() => fetch(AVAIL_TABLE, {
+    method: 'POST',
+    headers: { ...AVAIL_HEADERS, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(rows)
+  }));
+}
+
+function toggleAvailAdmin() {
+  const button = document.getElementById('availEditBtn');
+  if (availAdmin) {
+    availAdmin = false;
+    availEditing = '';
+    document.getElementById('availPanel').classList.remove('admin');
+    button.textContent = 'Set availability';
+    button.classList.remove('on');
+  } else {
+    const pin = prompt('Admin PIN to set availability:');
+    if (pin === null) return;
+    if (pin !== AVAIL_PIN) { alert('Incorrect PIN.'); return; }
+    availAdmin = true;
+    availEditing = (activeWorkers()[0] || {}).name || '';
+    document.getElementById('availPanel').classList.add('admin');
+    button.textContent = 'Done';
+    button.classList.add('on');
+  }
+  renderAvailEditor();
+  renderRouteCalendar();
+  renderSelectedDayRoutes();
+}
+
+function setAvailEditing(name) {
+  availEditing = name;
+  renderAvailEditor();
+}
+
+function renderAvailEditor() {
+  const chips = document.getElementById('availEditChips');
+  if (!chips) return;
+  chips.innerHTML = activeWorkers().map(worker => `
+    <button type="button" class="avail-edit-chip${worker.name === availEditing ? ' on' : ''}" style="color:${escAvail(worker.color)}" onclick="setAvailEditing('${escAvail(worker.name)}')">
+      <span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span>${escAvail(worker.name)}
+    </button>`).join('');
+}
+
+/* ── Calendar ───────────────────────────────────────────────── */
+
 async function loadRouteCalendar() {
   const grid = document.getElementById('calGrid');
   const button = document.getElementById('routeRefreshBtn');
@@ -1990,9 +2005,14 @@ async function loadRouteCalendar() {
   button.textContent = 'Loading…';
   grid.innerHTML = '<div class="cal-empty" style="grid-column:1/-1">Loading Dataforce routes…</div>';
   try {
-    const result = await routeApi({ action: 'team-schedule-summary', startDate: ymd(start), days: 42 });
+    const [result] = await Promise.all([
+      routeApi({ action: 'team-schedule-summary', startDate: ymd(start), days: 42 }),
+      loadAvailability()
+    ]);
     routeWorkers = result.workers || [];
     routeDates = result.dates || [];
+    if (availAdmin && !availEditing) availEditing = (activeWorkers()[0] || {}).name || '';
+    renderAvailEditor();
     renderRouteCalendar();
     await loadSelectedDayRoutes();
   } catch (error) {
@@ -2017,9 +2037,58 @@ function calToday() {
 }
 
 function calSelect(date) {
+  const changed = date !== calSelected;
   calSelected = date;
   renderRouteCalendar();
-  loadSelectedDayRoutes();
+  if (changed) loadSelectedDayRoutes();
+  if (availAdmin && availEditing) toggleAvailability(availEditing, date);
+}
+
+/* A light brand colour needs dark text on it, and needs shading down before it
+   is legible as text on white. Amber in particular fails both ways untreated. */
+function markInk(hex) {
+  const value = String(hex || '').replace('#', '');
+  const full = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+  const num = Number.parseInt(full, 16);
+  if (full.length !== 6 || !Number.isFinite(num)) return { on: '#ffffff', text: hex };
+  const rgb = [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  const channel = c => (c / 255 <= 0.03928 ? c / 255 / 12.92 : (((c / 255) + 0.055) / 1.055) ** 2.4);
+  const luminance = 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
+  if (luminance <= 0.4) return { on: '#ffffff', text: hex };
+  return {
+    on: '#26292f',
+    text: `#${rgb.map(c => Math.round(c * 0.56).toString(16).padStart(2, '0')).join('')}`
+  };
+}
+
+/* Each day carries at most three marks: one per working electrician, plus a
+   single grey tally for anyone off the crew who still has jobs booked. */
+function calendarDayMarks(key, workers, free, crew) {
+  const marks = [];
+  const title = [];
+  crew.forEach(worker => {
+    const booked = workers.find(item => item.id === worker.id);
+    const jobs = booked ? booked.jobCount : 0;
+    const available = free.has(availKey(worker.name, key));
+    if (!jobs && !available) return;
+    const initial = escAvail(worker.name.trim().charAt(0).toUpperCase());
+    const ink = worker.ink || markInk(worker.color);
+    if (jobs) {
+      const full = jobs >= 10;
+      marks.push(`<span class="cal-mark jobs${full ? ' full' : ''}" style="background:${escAvail(worker.color)};color:${escAvail(ink.on)}"><span class="mk-who">${initial}</span><span class="mk-num">${jobs}</span></span>`);
+      title.push(`${worker.name}: ${jobs} job${jobs === 1 ? '' : 's'}${full ? ' — day full' : ''}`);
+    } else {
+      marks.push(`<span class="cal-mark free" style="color:${escAvail(ink.text)}"><span class="mk-who">${initial}</span><span class="mk-num">free</span></span>`);
+      title.push(`${worker.name}: available, nothing booked`);
+    }
+  });
+  const others = workers.filter(worker => !worker.active && worker.jobCount);
+  const otherJobs = others.reduce((sum, worker) => sum + worker.jobCount, 0);
+  if (otherJobs) {
+    marks.push(`<span class="cal-mark other"><span class="mk-who">+</span><span class="mk-num">${otherJobs}</span></span>`);
+    title.push(`Other electricians — ${others.map(worker => `${worker.name} (${worker.jobCount})`).join(', ')}`);
+  }
+  return { marks, hasOthers: Boolean(otherJobs), title: title.join(' · ') || 'Nobody working' };
 }
 
 function renderRouteCalendar() {
@@ -2029,27 +2098,29 @@ function renderRouteCalendar() {
   const start = calendarStart();
   const todayStr = ymd(new Date());
   const byDate = new Map(routeDates.map(entry => [entry.date, entry]));
+  const free = availIndex();
+  const crew = activeWorkers().map(worker => ({ ...worker, ink: markInk(worker.color) }));
   document.getElementById('calMonth').textContent = calCursor.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
 
+  let anyOthers = false;
   let cells = '';
   for (let i = 0; i < 42; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     const key = ymd(d);
     const entry = byDate.get(key);
-    const workers = entry ? entry.workers : [];
-    const dots = workers.map(worker => `<span class="cal-dot" style="background:${escAvail(worker.color)}"></span>`).join('');
-    const count = entry && entry.totalJobs ? `<span class="cal-job-count">${entry.totalJobs}</span>` : '';
-    const title = entry && entry.totalJobs
-      ? `${entry.totalJobs} booked job${entry.totalJobs === 1 ? '' : 's'}: ${workers.map(worker => `${worker.name} (${worker.jobCount})`).join(', ')}`
-      : 'No jobs booked';
-    cells += `<button type="button" class="cal-cell${d.getMonth() !== month ? ' muted' : ''}${key < todayStr ? ' past' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
+    const { marks, hasOthers, title } = calendarDayMarks(key, entry ? entry.workers : [], free, crew);
+    if (hasOthers) anyOthers = true;
+    const past = key < todayStr;
+    cells += `<button type="button" class="cal-cell${d.getMonth() !== month ? ' muted' : ''}${past ? ' past' : ''}${!marks.length && !past ? ' quiet' : ''}${key === todayStr ? ' today' : ''}${key === calSelected ? ' sel' : ''}"
       onclick="calSelect('${key}')" title="${escAvail(title)}" aria-label="${escAvail(`${key}, ${title}`)}">
-      <span class="n">${d.getDate()}</span><span class="cal-cell-meta"><span class="cal-dots">${dots}</span>${count}</span></button>`;
+      <span class="n">${d.getDate()}</span><span class="cal-marks">${marks.join('')}</span></button>`;
   }
   grid.innerHTML = cells;
-  document.getElementById('calKey').innerHTML = routeWorkers.map(worker =>
+  document.getElementById('calKey').innerHTML = crew.map(worker =>
     `<span class="cal-key-item"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span>${escAvail(worker.name)}</span>`
-  ).join('');
+  ).join('')
+    + '<span class="cal-key-item"><span class="cal-key-dot hollow"></span>Available, nothing booked</span>'
+    + (anyOthers ? '<span class="cal-key-item is-other"><span class="cal-key-dot" style="background:#9699a6"></span>Other electricians</span>' : '');
 }
 
 function suggestionSearchRange() {
@@ -2314,36 +2385,67 @@ async function loadSelectedDayRoutes() {
   const box = document.getElementById('calDay');
   if (!box || !calSelected) return;
   const requestedDate = calSelected;
-  const label = new Date(requestedDate + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-  box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">Loading routes…</div></div>`;
+  selectedDayRoutes = null;
+  selectedDayError = '';
+  renderSelectedDayRoutes();
   try {
     const result = await routeApi({ action: 'team-day-routes', date: requestedDate });
     if (calSelected !== requestedDate) return;
-    renderSelectedDayRoutes(result);
+    selectedDayRoutes = result;
   } catch (error) {
     if (calSelected !== requestedDate) return;
-    box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div></div><div class="cal-empty error">${escAvail(error.message)}</div>`;
+    selectedDayError = error.message;
   }
+  renderSelectedDayRoutes();
 }
 
-function renderSelectedDayRoutes(result) {
+function renderSelectedDayRoutes() {
   const box = document.getElementById('calDay');
-  if (!box) return;
-  const label = new Date(result.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-  const booked = (result.workers || []).filter(worker => worker.jobCount > 0);
-  const idle = (result.workers || []).filter(worker => worker.jobCount === 0).map(worker => worker.name);
-  const cards = booked.map(worker => {
+  if (!box || !calSelected) return;
+  const label = new Date(`${calSelected}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const result = selectedDayRoutes && selectedDayRoutes.date === calSelected ? selectedDayRoutes : null;
+  const free = availIndex();
+  const crew = activeWorkers();
+
+  const strip = crew.map(worker => {
+    const on = free.has(availKey(worker.name, calSelected));
+    const booked = result ? (result.workers || []).find(item => item.id === worker.id) : null;
+    const jobs = booked ? booked.jobCount : 0;
+    const state = [on ? 'Available' : 'Not marked', jobs ? `${jobs} job${jobs === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    return `<button type="button" class="avail-row${on ? ' on' : ''}" ${availAdmin ? `onclick="toggleAvailability('${escAvail(worker.name)}', '${calSelected}')"` : 'disabled'}>
+      <span class="cal-key-dot" style="background:${on ? escAvail(worker.color) : 'var(--border2)'}"></span>
+      <span class="who">${escAvail(worker.name)}</span>
+      <span class="state">${escAvail(state)}</span>
+    </button>`;
+  }).join('');
+
+  const total = result ? result.totalJobs : 0;
+  const status = selectedDayError ? '' : result ? `${total} booked job${total === 1 ? '' : 's'}` : 'Loading routes…';
+  const head = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">${escAvail(status)}</div></div>`;
+
+  if (selectedDayError) {
+    box.innerHTML = `${head}<div class="avail-strip">${strip}</div><div class="cal-empty error">${escAvail(selectedDayError)}</div>`;
+    return;
+  }
+  if (!result) {
+    box.innerHTML = `${head}<div class="avail-strip">${strip}</div>`;
+    return;
+  }
+
+  const cards = (result.workers || []).filter(worker => worker.jobCount > 0).map(worker => {
     const stops = (worker.route || []).map((stop, index) =>
       `${index ? '<span class="route-arrow">›</span>' : ''}<span class="route-stop">${escAvail(stop)}</span>`
     ).join('');
     return `<article class="route-card">
-      <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span><button type="button" class="route-map-button" onclick="openTeamDrivingRoute(${Number(worker.id)})">View driving route</button><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
+      <div class="route-card-head"><span class="cal-key-dot" style="background:${escAvail(worker.color)}"></span><span class="route-card-name">${escAvail(worker.name)}</span>${worker.active ? '' : '<span class="route-off">Not on crew</span>'}<button type="button" class="route-map-button" onclick="openTeamDrivingRoute(${Number(worker.id)})">View driving route</button><span class="route-job-count">${worker.jobCount} job${worker.jobCount === 1 ? '' : 's'}</span></div>
       <div class="route-path">${stops || '<span class="route-stop">Route location unavailable</span>'}</div>
     </article>`;
   }).join('');
-  box.innerHTML = `<div class="cal-day-head"><div class="cal-day-title">${escAvail(label)}</div><div class="cal-day-total">${result.totalJobs} booked job${result.totalJobs === 1 ? '' : 's'}</div></div>` +
+  const idle = crew.filter(worker => !(result.workers || []).some(item => item.id === worker.id && item.jobCount > 0)).map(worker => worker.name);
+
+  box.innerHTML = head + `<div class="avail-strip">${strip}</div>` +
     (cards ? `<div class="route-list">${cards}</div>` : '<div class="cal-empty">No jobs booked for this date.</div>') +
-    (idle.length ? `<div class="route-none">No bookings: ${escAvail(idle.join(', '))}</div>` : '');
+    (idle.length ? `<div class="route-none">Nothing booked: ${escAvail(idle.join(', '))}</div>` : '');
 }
 
 function openTeamDrivingRoute(workerId) {
