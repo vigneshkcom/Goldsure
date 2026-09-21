@@ -85,9 +85,14 @@ test('NSW and VIC Hot Water uploads use separate WorkDrive destinations', async 
     "label: 'NSW Hot Water'",
   ]) assert.ok(api.includes(marker), `missing state split marker ${marker}`);
 
+  assert.match(upload, /location\.pathname === '\/nsw-hws-photos'[\s\S]*?'hws-nsw'/);
+  assert.match(upload, /location\.pathname === '\/vic-hws-photos'[\s\S]*?'hws-vic'/);
   assert.match(upload, /\['hws-vic', 'hws-nsw'\]\.includes\(requestedProduct\)/);
   assert.match(tracker, /PRODUCT === 'hws-nsw' \? 'NSW Hot Water' : 'VIC Hot Water'/);
   assert.match(sidebar, /hotwater-nsw\/photo-tracker\.html/);
+  const nswTracker = await read('hotwater-nsw/quote-tracker.html');
+  assert.match(nswTracker, /href="\/hotwater-nsw\/photo-tracker\.html"/);
+  assert.doesNotMatch(nswTracker, /href="\/hotwater\/photo-tracker\.html"/);
   assert.match(sms, /pickPhotoProduct\('hws-vic'\)/);
   assert.match(sms, /pickPhotoProduct\('hws-nsw'\)/);
   assert.deepEqual(

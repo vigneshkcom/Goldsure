@@ -26,7 +26,7 @@ import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 // committed to code (see lib/ghl-opportunity.js) — HWS_PIPELINE_ID lets an
 // exact match be configured in Vercel, with the name hint as a fallback.
 const HWS_PIPELINE_ID_ENV = process.env.HWS_PIPELINE_ID || '';
-const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'hot water'];
+const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'vic hws pipeline', 'vic hot water'];
 const NSW_HWS_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || '';
 const NSW_HWS_PIPELINE_NAME_HINTS = ['nsw hws pipeline', 'nsw hot water', 'nsw hws'];
 const AIRCON_PIPELINE_ID_ENV = process.env.AIRCON_PIPELINE_ID || '';
