@@ -27,15 +27,21 @@ import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 // exact match be configured in Vercel, with the name hint as a fallback.
 const HWS_PIPELINE_ID_ENV = process.env.HWS_PIPELINE_ID || '';
 const HWS_PIPELINE_NAME_HINTS = ['hws pipeline', 'hot water'];
+const NSW_HWS_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || '';
+const NSW_HWS_PIPELINE_NAME_HINTS = ['nsw hws pipeline', 'nsw hot water', 'nsw hws'];
 const AIRCON_PIPELINE_ID_ENV = process.env.AIRCON_PIPELINE_ID || '';
 const AIRCON_PIPELINE_NAME_HINTS = ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'];
 
 const normaliseProduct = value => {
   const product = String(value || '').trim().toLowerCase();
   if (product === 'aircon') return 'aircon';
+  if (['hws-vic', 'vic-hws', 'hotwater-vic'].includes(product)) return 'hws-vic';
+  if (['hws-nsw', 'nsw-hws', 'hotwater-nsw'].includes(product)) return 'hws-nsw';
   if (['smoke-promo', 'smoke_promo', 'smoke'].includes(product)) return 'smoke-promo';
   return 'hws';
 };
+
+const isHwsProduct = product => ['hws', 'hws-vic', 'hws-nsw'].includes(product);
 
 function productConfig(value) {
   const product = normaliseProduct(value);
@@ -68,6 +74,32 @@ function productConfig(value) {
         'alda@goldsure.com.au',
         'david@goldsure.com.au',
       ],
+    };
+  }
+  if (product === 'hws-vic') {
+    return {
+      product,
+      parentId: process.env.ZOHO_WORKDRIVE_VIC_HWS_PARENT_FOLDER_ID,
+      uploadPath: '/vic-hws-photos',
+      label: 'VIC Hot Water',
+      opportunityName: who => `Hot Water - ${who}`,
+      pipelineIdEnv: HWS_PIPELINE_ID_ENV,
+      pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
+      uploadedStageNames: ['Photos Received'],
+      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+    };
+  }
+  if (product === 'hws-nsw') {
+    return {
+      product,
+      parentId: process.env.ZOHO_WORKDRIVE_PARENT_FOLDER_ID,
+      uploadPath: '/nsw-hws-photos',
+      label: 'NSW Hot Water',
+      opportunityName: who => `NSW Hot Water - ${who}`,
+      pipelineIdEnv: NSW_HWS_PIPELINE_ID_ENV,
+      pipelineNameHints: NSW_HWS_PIPELINE_NAME_HINTS,
+      uploadedStageNames: ['Photos Received'],
+      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
     };
   }
   return {
@@ -343,7 +375,7 @@ function photoCommentRows(assessment) {
 
 function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
   const isAircon = config.product === 'aircon';
-  const isHws = config.product === 'hws';
+  const isHws = isHwsProduct(config.product);
   const isPromo = config.product === 'smoke-promo';
   const answers = isAircon ? [
     ['Full name', assessment?.fullName || who],
@@ -413,7 +445,7 @@ function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessme
     );
     for (const [label, value] of photoCommentRows(assessment)) lines.push(`${label}: ${value}`);
   }
-  if (config.product === 'hws') {
+  if (isHwsProduct(config.product)) {
     lines.push('', `Property address: ${assessment?.address || 'Not provided'}`);
   }
   lines.push(`${isPromo ? 'Quote files' : 'New photos'} uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
@@ -699,7 +731,7 @@ export default async function handler(req, res) {
     // Old links that were already open before this field launched may not
     // carry assessment at all. Keep those uploads working, while validating
     // every submission from the current page that includes the address block.
-    if (config.product === 'hws' && assessment) {
+    if (isHwsProduct(config.product) && assessment) {
       const assessmentError = hwsAssessmentError(assessment);
       if (assessmentError) return res.status(400).json({ error: assessmentError });
     }
@@ -719,7 +751,7 @@ export default async function handler(req, res) {
       if (config.product === 'aircon' && assessment) {
         await setFolderAssessment(accessToken, folderId, phone, assessment);
       }
-      if (config.product === 'hws' && assessment?.address) {
+      if (isHwsProduct(config.product) && assessment?.address) {
         await setFolderHwsAddress(accessToken, folderId, phone, assessment);
       }
 
@@ -753,7 +785,7 @@ export default async function handler(req, res) {
             : config.product === 'smoke-promo'
               ? '[Smoke Alarm Promo Quote]'
               : '[Photo Upload]';
-          const addressLine = ['aircon', 'hws'].includes(config.product) && assessment?.address
+          const addressLine = (config.product === 'aircon' || isHwsProduct(config.product)) && assessment?.address
             ? `\nProperty: ${String(assessment.address).replace(/[\r\n]+/g, ' ').trim()}`
             : '';
           const noteBody = folderUrl

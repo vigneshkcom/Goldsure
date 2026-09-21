@@ -242,7 +242,12 @@ const params = new URLSearchParams(location.search);
 const folderId = params.get('f') || params.get('folder');
 let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
-const product = location.pathname === '/ac' || params.get('product') === 'aircon' ? 'aircon' : 'hws';
+const requestedProduct = params.get('product');
+const product = location.pathname === '/ac' || requestedProduct === 'aircon'
+  ? 'aircon'
+  : ['hws-vic', 'hws-nsw'].includes(requestedProduct)
+    ? requestedProduct
+    : 'hws';
 const isAircon = product === 'aircon';
 const addressInputId = isAircon ? 'propertyAddress' : 'hwsPropertyAddress';
 const addressBadgeId = isAircon ? 'addressBadge' : 'hwsAddressBadge';

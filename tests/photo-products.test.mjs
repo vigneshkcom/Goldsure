@@ -61,10 +61,47 @@ test('Hot Water photo links collect and surface the property address', async () 
   for (const marker of [
     'setFolderHwsAddress(accessToken, folderId, phone, assessment)',
     "['Property address', assessment?.address || 'Not provided']",
-    "config.product === 'hws'",
-    "['aircon', 'hws'].includes(config.product)",
+    'isHwsProduct(config.product)',
+    "const isHwsProduct = product => ['hws', 'hws-vic', 'hws-nsw'].includes(product)",
     'hwsAssessmentError(assessment)',
   ]) assert.ok(api.includes(marker), `missing HWS address API marker ${marker}`);
+});
+
+test('NSW and VIC Hot Water uploads use separate WorkDrive destinations', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  const upload = await read('hotwater/upload-photos.html');
+  const tracker = await read('hotwater/photo-tracker.html');
+  const sms = await read('sms/index.html');
+  const sidebar = await read('assets/internal-systems-sidebar.js');
+  const routes = JSON.parse(await read('vercel.json')).rewrites;
+
+  for (const marker of [
+    "return 'hws-vic'",
+    "return 'hws-nsw'",
+    'ZOHO_WORKDRIVE_VIC_HWS_PARENT_FOLDER_ID',
+    "uploadPath: '/vic-hws-photos'",
+    "uploadPath: '/nsw-hws-photos'",
+    "label: 'VIC Hot Water'",
+    "label: 'NSW Hot Water'",
+  ]) assert.ok(api.includes(marker), `missing state split marker ${marker}`);
+
+  assert.match(upload, /\['hws-vic', 'hws-nsw'\]\.includes\(requestedProduct\)/);
+  assert.match(tracker, /PRODUCT === 'hws-nsw' \? 'NSW Hot Water' : 'VIC Hot Water'/);
+  assert.match(sidebar, /hotwater-nsw\/photo-tracker\.html/);
+  assert.match(sms, /pickPhotoProduct\('hws-vic'\)/);
+  assert.match(sms, /pickPhotoProduct\('hws-nsw'\)/);
+  assert.deepEqual(
+    routes.find(route => route.source === '/vic-hws-photos'),
+    { source: '/vic-hws-photos', destination: '/hotwater/upload-photos.html?product=hws-vic' },
+  );
+  assert.deepEqual(
+    routes.find(route => route.source === '/nsw-hws-photos'),
+    { source: '/nsw-hws-photos', destination: '/hotwater/upload-photos.html?product=hws-nsw' },
+  );
+  assert.deepEqual(
+    routes.find(route => route.source === '/hotwater-nsw/photo-tracker.html'),
+    { source: '/hotwater-nsw/photo-tracker.html', destination: '/hotwater/photo-tracker.html?product=hws-nsw' },
+  );
 });
 
 test('QLD smoke alarm promo uses its own WorkDrive destination and safe browser upload contract', async () => {
@@ -156,10 +193,11 @@ test('photo tracker displays every saved aircon answer in a modal', async () => 
   assert.match(tracker, /Rates notice or utility bill comments/);
 });
 
-test('photo button always offers Hot Water and VIC Aircon', async () => {
+test('photo button always offers NSW Hot Water, VIC Hot Water and VIC Aircon', async () => {
   const sms = await read('sms/index.html');
   assert.match(sms, /pickPhotoProduct\('aircon'\)/);
-  assert.match(sms, /pickPhotoProduct\('hws'\)/);
+  assert.match(sms, /pickPhotoProduct\('hws-vic'\)/);
+  assert.match(sms, /pickPhotoProduct\('hws-nsw'\)/);
   assert.match(sms, /body: JSON\.stringify\(\{ name, phone: activePhone, product \}\)/);
   assert.match(sms, /data\.reused && Number\(data\.photoCount\) > 0/);
   assert.match(sms, /&more=1/);

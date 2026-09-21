@@ -941,7 +941,7 @@
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               Note
             </button>
-            <button class="tpl-toggle-btn" id="photoLinkBtn" onclick="insertPhotoUploadLink()" title="Choose Hot Water or VIC Aircon, then create a private upload link">
+            <button class="tpl-toggle-btn" id="photoLinkBtn" onclick="insertPhotoUploadLink()" title="Choose NSW Hot Water, VIC Hot Water or VIC Aircon, then create a private upload link">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               Photo Link
             </button>
@@ -1044,13 +1044,14 @@
 </div>
 
 <!-- Staff picker — asked every time templates open so the right name is used -->
-<!-- Photo type picker keeps Hot Water and VIC Aircon uploads in separate
-     WorkDrive folders and gives each customer the right questions/photos. -->
+<!-- Photo type picker keeps NSW Hot Water, VIC Hot Water and VIC Aircon
+     uploads in separate WorkDrive folders. -->
 <div class="name-modal" id="photoProductModal" onclick="closePhotoProductModal()">
   <div class="name-modal-box" onclick="event.stopPropagation()" style="width:320px;">
     <div class="name-modal-title">What photos do you need?</div>
     <button class="name-opt" onclick="pickPhotoProduct('aircon')">VIC Aircon assessment</button>
-    <button class="name-opt" onclick="pickPhotoProduct('hws')">Hot Water photos</button>
+    <button class="name-opt" onclick="pickPhotoProduct('hws-vic')">VIC Hot Water photos</button>
+    <button class="name-opt" onclick="pickPhotoProduct('hws-nsw')">NSW Hot Water photos</button>
   </div>
 </div>
 
@@ -2228,7 +2229,7 @@
   // ── Photo upload link ───────────────────────────────────────────────────
   // The upload folder is named after the customer, so a name is required. When
   // the contact doesn't have one yet, ask for it inline rather than refusing.
-  let pendingPhotoProduct = 'hws';
+  let pendingPhotoProduct = 'hws-vic';
 
   function insertPhotoUploadLink() {
     if (!activePhone) return alert('Open a conversation first.');
@@ -2241,7 +2242,7 @@
   }
 
   function pickPhotoProduct(product) {
-    pendingPhotoProduct = product === 'aircon' ? 'aircon' : 'hws';
+    pendingPhotoProduct = ['aircon', 'hws-vic', 'hws-nsw'].includes(product) ? product : 'hws-vic';
     closePhotoProductModal();
 
     const name = (ghlNames[activePhone] || '').trim();
@@ -2279,7 +2280,7 @@
 
   // Creates a private WorkDrive folder for this customer and drops the link
   // to our upload page into the composer, ready to send.
-  async function createPhotoLink(name, product = 'hws') {
+  async function createPhotoLink(name, product = 'hws-vic') {
     const btn = document.getElementById('photoLinkBtn');
     const original = btn.innerHTML;
     btn.disabled = true;

@@ -403,12 +403,15 @@
 </div>
 
 <script>
-const PRODUCT = location.pathname.startsWith('/aircons/') || new URLSearchParams(location.search).get('product') === 'aircon'
+const requestedProduct = new URLSearchParams(location.search).get('product');
+const PRODUCT = location.pathname.startsWith('/aircons/') || requestedProduct === 'aircon'
   ? 'aircon'
-  : 'hws';
+  : location.pathname.startsWith('/hotwater-nsw/') || requestedProduct === 'hws-nsw'
+    ? 'hws-nsw'
+    : 'hws-vic';
 const IS_AIRCON = PRODUCT === 'aircon';
-const PRODUCT_LABEL = IS_AIRCON ? 'VIC Aircon' : 'Hot Water';
-const UPLOAD_PATH = IS_AIRCON ? '/ac' : '/u';
+const PRODUCT_LABEL = IS_AIRCON ? 'VIC Aircon' : PRODUCT === 'hws-nsw' ? 'NSW Hot Water' : 'VIC Hot Water';
+const UPLOAD_PATH = IS_AIRCON ? '/ac' : PRODUCT === 'hws-nsw' ? '/nsw-hws-photos' : '/vic-hws-photos';
 document.title = `${PRODUCT_LABEL} Photo Tracker - Goldsure`;
 document.getElementById('boardTitle').textContent = `${PRODUCT_LABEL} Photo Tracker`;
 
