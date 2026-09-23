@@ -43,6 +43,15 @@ const normaliseProduct = value => {
 
 const isHwsProduct = product => ['hws', 'hws-vic', 'hws-nsw'].includes(product);
 
+export function inferLegacyHwsProduct(value, address) {
+  const product = normaliseProduct(value);
+  if (product !== 'hws') return product;
+  const location = String(address || '').trim().toLowerCase();
+  if (/\bnsw\b|\bnew south wales\b/.test(location)) return 'hws-nsw';
+  if (/\bvic\b|\bvictoria\b/.test(location)) return 'hws-vic';
+  return product;
+}
+
 function productConfig(value) {
   const product = normaliseProduct(value);
   if (product === 'aircon') {
@@ -533,7 +542,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const requestedProduct = req.method === 'GET' ? req.query.product : req.body?.product;
-  const config = productConfig(requestedProduct);
+  const effectiveProduct = req.method === 'PUT'
+    ? inferLegacyHwsProduct(requestedProduct, req.body?.assessment?.address)
+    : requestedProduct;
+  const config = productConfig(effectiveProduct);
   const { parentId } = config;
   if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET || !process.env.ZOHO_REFRESH_TOKEN || !parentId) {
     return res.status(500).json({ error: `${config.label} WorkDrive storage is not configured` });
@@ -813,6 +825,11 @@ export default async function handler(req, res) {
                   pipelineIdEnv: config.pipelineIdEnv,
                   nameHints: config.pipelineNameHints,
                   stageNames: config.uploadedStageNames,
+                  pipelineCandidates: config.product === 'hws' ? [
+                    { pipelineIdEnv: HWS_PIPELINE_ID_ENV, nameHints: HWS_PIPELINE_NAME_HINTS },
+                    { pipelineIdEnv: NSW_HWS_PIPELINE_ID_ENV, nameHints: NSW_HWS_PIPELINE_NAME_HINTS },
+                  ] : [],
+                  createIfMissing: false,
                 });
               }
             }

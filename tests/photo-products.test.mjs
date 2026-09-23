@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { inferLegacyHwsProduct } from '../api/zoho/create-photo-request.js';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -9,6 +10,13 @@ function inlineScripts(html) {
     .map(match => match[1])
     .filter(source => source.trim());
 }
+
+test('legacy hot-water links infer the state from the submitted property address', () => {
+  assert.equal(inferLegacyHwsProduct('hws', '156 Moreton St, Lakemba NSW 2195, Australia'), 'hws-nsw');
+  assert.equal(inferLegacyHwsProduct('', '12 Example Road, Richmond VIC 3121, Australia'), 'hws-vic');
+  assert.equal(inferLegacyHwsProduct('hws-nsw', '12 Example Road, Richmond VIC 3121, Australia'), 'hws-nsw');
+  assert.equal(inferLegacyHwsProduct('hws', 'Address unavailable'), 'hws');
+});
 
 test('customer upload and SMS scripts compile', async () => {
   for (const path of ['hotwater/upload-photos.html', 'hotwater/photo-tracker.html', 'sms/index.html']) {
@@ -136,6 +144,9 @@ test('successful photo submissions use the correct product pipeline stage', asyn
   assert.match(api, /uploadPath: '\/u',[\s\S]*?uploadedStageNames: \['Photos Received'\]/);
   assert.match(api, /if \(!notify\) return res\.status\(200\)\.json\(\{ success: true \}\)/);
   assert.match(api, /await uploadFile\([\s\S]*?stageNames: config\.uploadedStageNames/);
+  assert.match(api, /inferLegacyHwsProduct\(requestedProduct, req\.body\?\.assessment\?\.address\)/);
+  assert.match(api, /createIfMissing: false/);
+  assert.match(api, /pipelineCandidates: config\.product === 'hws'/);
   assert.doesNotMatch(api, /stageNames: \['Photos Received'\]/);
 });
 

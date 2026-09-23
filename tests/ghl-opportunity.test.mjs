@@ -100,3 +100,73 @@ test('uses an exact pipeline name before substring fallback', async () => {
   assert.equal(body.pipelineStageId, 'vic-photos');
   assert.equal(body.source, 'Direct Phone Call');
 });
+
+test('moves an existing opportunity from a fallback pipeline without creating a duplicate', async () => {
+  process.env.GHL_API_KEY = 'test-key';
+  process.env.GHL_LOCATION_ID = 'location-1';
+  const calls = [];
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('/opportunities/pipelines')) {
+      return jsonResponse({ pipelines: [
+        { id: 'vic-pipe', name: 'HWS Pipeline', stages: [{ id: 'vic-photos', name: 'Photos Received', position: 1 }] },
+        { id: 'nsw-pipe', name: 'NSW HWS Pipeline', stages: [
+          { id: 'nsw-follow-up', name: 'Follow-Up', position: 1 },
+          { id: 'nsw-photos', name: 'Photos Received', position: 2 },
+        ] },
+      ] });
+    }
+    if (String(url).includes('/opportunities/search')) {
+      return jsonResponse({ opportunities: [{
+        id: 'existing-nsw-opportunity',
+        pipelineId: 'nsw-pipe',
+        pipelineStageId: 'nsw-follow-up',
+        status: 'open',
+      }] });
+    }
+    if (String(url).endsWith('/opportunities/existing-nsw-opportunity')) return jsonResponse({ succeeded: true });
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  const result = await ensureOpportunityInStage({
+    contactId: 'contact-1',
+    opportunityName: 'Hot Water - Customer',
+    pipelineCandidates: [
+      { nameHints: ['hws pipeline'] },
+      { nameHints: ['nsw hws pipeline'] },
+    ],
+    stageNames: ['Photos Received'],
+    createIfMissing: false,
+  });
+
+  assert.equal(result.opportunityId, 'existing-nsw-opportunity');
+  assert.equal(result.pipelineId, 'nsw-pipe');
+  assert.equal(result.created, false);
+  assert.equal(calls.some(call => call.options.method === 'POST'), false);
+});
+
+test('does not create an opportunity when photo-stage movement finds no open match', async () => {
+  process.env.GHL_API_KEY = 'test-key';
+  process.env.GHL_LOCATION_ID = 'location-1';
+  const calls = [];
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('/opportunities/pipelines')) {
+      return jsonResponse({ pipelines: [
+        { id: 'nsw-pipe', name: 'NSW HWS Pipeline', stages: [{ id: 'nsw-photos', name: 'Photos Received', position: 1 }] },
+      ] });
+    }
+    if (String(url).includes('/opportunities/search')) return jsonResponse({ opportunities: [] });
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  const result = await ensureOpportunityInStage({
+    contactId: 'contact-1',
+    nameHints: ['nsw hws pipeline'],
+    stageNames: ['Photos Received'],
+    createIfMissing: false,
+  });
+
+  assert.equal(result, null);
+  assert.equal(calls.some(call => call.options.method === 'POST'), false);
+});
