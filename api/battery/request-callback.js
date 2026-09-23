@@ -1435,6 +1435,7 @@ export default async function handler(req, res) {
       </tr>`;
     }).join('');
 
+    const quoteUrl = `${SITE}/hotwater/view.html?token=${encodeURIComponent(token)}`;
     const acceptUrl = `${SITE}/hotwater/accept.html?token=${encodeURIComponent(token)}`;
     const rejectUrl = `${SITE}/hotwater/reject.html?token=${encodeURIComponent(token)}`;
     const quoteDate = new Date(sent_at || Date.now()).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -1642,7 +1643,6 @@ ${notesHtml}
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
           const customSms = (typeof body.sms_text === 'string' && body.sms_text.trim()) ? body.sms_text.trim() : null;
-          const quoteUrl = `${SITE}/hotwater/view.html?token=${encodeURIComponent(token)}`;
           const smsText = customSms
             ? customSms
             : is_reminder
@@ -1682,10 +1682,10 @@ ${notesHtml}
             if (is_reminder) {
               const reminderNo = (Number(reminder_count) || 0) + 1;
               const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', day: '2-digit', month: 'short', year: 'numeric' });
-              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}`;
+              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}\nView quote: ${quoteUrl}`;
             } else {
               const modelLabel = (Array.isArray(line_items) && line_items[0] && line_items[0].name) ? String(line_items[0].name) : '';
-              noteBody = `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}`;
+              noteBody = `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}\nView quote: ${quoteUrl}`;
             }
             await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
               method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },

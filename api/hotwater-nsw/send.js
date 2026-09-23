@@ -633,7 +633,8 @@ export default async function handler(req, res) {
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`
-        + (calc.finance_requested ? `\nLoan: Home Energy Saver loan by Brighte\nUpfront payment: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '');
+        + (calc.finance_requested ? `\nLoan: Home Energy Saver loan by Brighte\nUpfront payment: ${money(calc.deposit_amount)}\nFinanced: ${money(calc.amount_financed)} — ${money(calc.fortnightly_repayment)}/fortnight over ${calc.finance_term_years}yrs` : '')
+        + `\nView quote: ${quoteUrl}`;
       await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
