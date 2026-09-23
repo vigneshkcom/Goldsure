@@ -369,7 +369,7 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
       // tracker's GHL Stage column has something to show and change.
       await ensureOpportunityInStage({
         contactId: found.contactId,
-        opportunityName: `NSW Hot Water — ${customer_name || 'Quote'}`,
+        opportunityName: `${customer_name || 'Customer'} - Direct Call`,
         pipelineIdEnv: NSW_PIPELINE_ID_ENV,
         nameHints: NSW_PIPELINE_NAME_HINTS,
         stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
@@ -647,7 +647,7 @@ export default async function handler(req, res) {
       // column has something to show — a contact alone carries no stage.
       await ensureOpportunityInStage({
         contactId: found.contactId,
-        opportunityName: `NSW Hot Water — ${customer_name}`,
+        opportunityName: `${customer_name || 'Customer'} - Direct Call`,
         pipelineIdEnv: NSW_PIPELINE_ID_ENV,
         nameHints: NSW_PIPELINE_NAME_HINTS,
         stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],

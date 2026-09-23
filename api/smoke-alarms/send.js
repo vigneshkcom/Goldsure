@@ -484,7 +484,7 @@ export default async function handler(req, res) {
           // Reuse the open Smoke Alarms deal or create one directly in Quote Sent.
           const synced = await ensureOpportunityInStage({
             contactId: found.contactId,
-            opportunityName: `Smoke Alarms — ${customer_name}`,
+            opportunityName: `${customer_name || 'Customer'} - Direct Call`,
             pipelineIdEnv: process.env.SMOKE_ALARMS_PIPELINE_ID || '',
             nameHints: ['smoke alarms', 'smoke alarm'],
             stageNames: [process.env.SMOKE_ALARMS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],

@@ -116,7 +116,7 @@ function productConfig(value) {
     parentId: process.env.ZOHO_WORKDRIVE_PARENT_FOLDER_ID,
     uploadPath: '/u',
     label: 'Hot Water',
-    opportunityName: who => `Hot Water — ${who}`,
+    opportunityName: who => `${who} - Direct Call`,
     pipelineIdEnv: HWS_PIPELINE_ID_ENV,
     pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
     uploadedStageNames: ['Photos Received'],

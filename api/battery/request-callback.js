@@ -1654,7 +1654,7 @@ ${notesHtml}
             if (!is_reminder) {
               const synced = await ensureOpportunityInStage({
                 contactId: found.contactId,
-                opportunityName: `Hot Water — ${customer_name}`,
+                opportunityName: `${customer_name || 'Customer'} - Direct Call`,
                 pipelineIdEnv: process.env.HWS_PIPELINE_ID || '',
                 nameHints: ['hws pipeline', 'vic hws pipeline', 'vic hot water'],
                 stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
@@ -2140,7 +2140,7 @@ ${notesHtml}
             if (!is_reminder) {
               const synced = await ensureOpportunityInStage({
                 contactId: found.contactId,
-                opportunityName: `Aircon — ${customer_name}`,
+                opportunityName: `${customer_name || 'Customer'} - Direct Call`,
                 pipelineIdEnv: process.env.AIRCON_PIPELINE_ID || '',
                 nameHints: ['aircons', 'aircon', 'air conditioning'],
                 stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
