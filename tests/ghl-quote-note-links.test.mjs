@@ -18,3 +18,11 @@ test('VIC Hot Water GHL quote and reminder notes include the personal view-only 
   assert.match(source, /Reminder sent[\s\S]*?View quote: \$\{quoteUrl\}/);
   assert.match(source, /Hot Water quote sent by[\s\S]*?View quote: \$\{quoteUrl\}/);
 });
+
+test('Aircon and Smoke Alarm GHL quote notes include the personal quote link', async () => {
+  const shared = await read('api/battery/request-callback.js');
+  const smoke = await read('api/smoke-alarms/send.js');
+
+  assert.match(shared, /Aircon quote sent by[\s\S]*?View quote: \$\{quoteUrl\}/);
+  assert.match(smoke, /Smoke alarm quote sent[\s\S]*?`View quote: \$\{quoteUrl\}`/);
+});

@@ -8,7 +8,7 @@
 // POST { ...quote fields, email_body, send_sms }
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-import { findOrCreateGhlContactByPhone } from '../../lib/ghl-contact.js';
+import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
 import {
@@ -352,7 +352,8 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
 
   // ── GHL note (best-effort) ──
   try {
-    const found = await findOrCreateGhlContactByPhone(customer_phone, {
+    const found = await findOrCreateGhlContact({
+      phone: customer_phone,
       firstName: String(customer_name || '').trim().split(/\s+/)[0],
       lastName: String(customer_name || '').trim().split(/\s+/).slice(1).join(' '),
       email: customer_email,
@@ -372,6 +373,7 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
         pipelineIdEnv: NSW_PIPELINE_ID_ENV,
         nameHints: NSW_PIPELINE_NAME_HINTS,
         stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+        source: 'Direct Call',
       });
     }
   } catch (e) { console.warn('[NSW HWS] reminder GHL note failed (non-fatal):', e.message); }
@@ -622,7 +624,8 @@ export default async function handler(req, res) {
 
   // ── GHL note, creating the contact if we don't already have one (best-effort) ──
   try {
-    const found = await findOrCreateGhlContactByPhone(customer_phone, {
+    const found = await findOrCreateGhlContact({
+      phone: customer_phone,
       firstName: String(customer_name).trim().split(/\s+/)[0],
       lastName: String(customer_name).trim().split(/\s+/).slice(1).join(' '),
       email: customer_email,
@@ -648,6 +651,7 @@ export default async function handler(req, res) {
         pipelineIdEnv: NSW_PIPELINE_ID_ENV,
         nameHints: NSW_PIPELINE_NAME_HINTS,
         stageNames: [process.env.NSW_HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+        source: 'Direct Call',
       });
     }
   } catch (e) { console.warn('[NSW HWS] GHL note failed (non-fatal):', e.message); }

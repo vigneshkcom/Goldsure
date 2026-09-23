@@ -98,7 +98,7 @@ test('uses an exact pipeline name before substring fallback', async () => {
   const body = JSON.parse(create.options.body);
   assert.equal(body.pipelineId, 'vic-pipe');
   assert.equal(body.pipelineStageId, 'vic-photos');
-  assert.equal(body.source, 'Direct Phone Call');
+  assert.equal(body.source, 'Direct Call');
 });
 
 test('moves an existing opportunity from a fallback pipeline without creating a duplicate', async () => {

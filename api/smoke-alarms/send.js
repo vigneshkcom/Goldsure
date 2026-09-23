@@ -1,5 +1,7 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { SMSGATE_API } from '../../lib/sms-gate.js';
+import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
+import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -438,35 +440,18 @@ export default async function handler(req, res) {
         console.log('[QuoteNote] skipped — GHL credentials not configured');
       } else {
         const ghlHeaders = { Authorization: `Bearer ${ghlKey}`, Version: '2021-07-28', Accept: 'application/json' };
+        const nameParts = String(customer_name || '').trim().split(/\s+/).filter(Boolean);
+        const found = ghl_contact_id
+          ? { contactId: ghl_contact_id, created: false }
+          : await findOrCreateGhlContact({
+              phone: customer_phone,
+              email: to_email,
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' '),
+              address: customer_address,
+            });
 
-        let contact = null;
-        if (ghl_contact_id) {
-          const directRes = await fetch(
-            `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(ghl_contact_id)}`,
-            { headers: ghlHeaders }
-          );
-          const directData = await directRes.json().catch(() => ({}));
-          contact = directData.contact || (directData.id ? directData : null);
-        }
-
-        // Manual entry fallback: find the contact by exact email, then phone.
-        if (!contact) {
-          for (const query of [to_email, customer_phone].filter(Boolean)) {
-            const cRes = await fetch(
-              `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(ghlLoc)}&query=${encodeURIComponent(query)}&limit=10`,
-              { headers: ghlHeaders }
-            );
-            const cData = await cRes.json().catch(() => ({}));
-            const contacts = cData.contacts || [];
-            contact = contacts.find(c =>
-              (c.email || '').toLowerCase() === String(to_email).toLowerCase() ||
-              String(c.phone || '').replace(/\D/g, '').slice(-9) === String(customer_phone || '').replace(/\D/g, '').slice(-9)
-            ) || null;
-            if (contact) break;
-          }
-        }
-
-        if (!contact || !contact.id) {
+        if (!found?.contactId) {
           console.log('[QuoteNote] no GHL contact found for', to_email, customer_phone);
         } else {
           const noteBody = [
@@ -476,10 +461,11 @@ export default async function handler(req, res) {
             `Sent by: ${agent_name || 'Goldsure'}`,
             `Discount: ${offerApplied ? `${offerLabel} (−${money(discountNumeric)} incl. GST)` : 'None'}`,
             `Confirmation SMS: ${send_sms === false ? 'Not requested' : (smsSent ? 'Sent' : 'Requested but not sent')}`,
+            `View quote: ${quoteUrl}`,
           ].join('\n');
 
           const nRes = await fetch(
-            `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`,
+            `https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`,
             {
               method: 'POST',
               headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
@@ -489,50 +475,26 @@ export default async function handler(req, res) {
 
           if (nRes.ok) {
             ghlNoteAdded = true;
-            console.log('[QuoteNote] GHL note added for contact', contact.id);
+            console.log('[QuoteNote] GHL note added for contact', found.contactId);
           } else {
             const detail = await nRes.text().catch(() => '');
             console.error('[QuoteNote] GHL note failed:', nRes.status, detail.slice(0, 200));
           }
 
-          // Move this contact's Smoke Alarms opportunity to Quote Sent.
-          const pipelineRes = await fetch(
-            `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(ghlLoc)}`,
-            { headers: ghlHeaders }
-          );
-          const pipelineData = await pipelineRes.json().catch(() => ({}));
-          const smokePipeline = (pipelineData.pipelines || []).find(p => /smoke/i.test(p.name || ''));
-          const quoteSentStage = (smokePipeline?.stages || []).find(s => /quote\s*sent/i.test(s.name || ''));
-
-          if (smokePipeline && quoteSentStage) {
-            const oppRes = await fetch(
-              `https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(ghlLoc)}&contact_id=${encodeURIComponent(contact.id)}&limit=100`,
-              { headers: ghlHeaders }
-            );
-            const oppData = await oppRes.json().catch(() => ({}));
-            const smokeOpportunities = (oppData.opportunities || []).filter(o => o.pipelineId === smokePipeline.id);
-            const opportunity = smokeOpportunities.find(o => String(o.status || '').toLowerCase() === 'open') || smokeOpportunities[0];
-            if (opportunity?.id) {
-              const moveRes = await fetch(
-                `https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opportunity.id)}`,
-                {
-                  method: 'PUT',
-                  headers: { ...ghlHeaders, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ pipelineStageId: quoteSentStage.id }),
-                }
-              );
-              if (moveRes.ok) {
-                ghlStageMoved = true;
-                console.log('[QuoteStage] opportunity moved to Quote Sent:', opportunity.id);
-              } else {
-                const detail = await moveRes.text().catch(() => '');
-                console.error('[QuoteStage] GHL stage move failed:', moveRes.status, detail.slice(0, 200));
-              }
-            } else {
-              console.log('[QuoteStage] no Smoke Alarms opportunity found for contact', contact.id);
-            }
+          // Reuse the open Smoke Alarms deal or create one directly in Quote Sent.
+          const synced = await ensureOpportunityInStage({
+            contactId: found.contactId,
+            opportunityName: `Smoke Alarms — ${customer_name}`,
+            pipelineIdEnv: process.env.SMOKE_ALARMS_PIPELINE_ID || '',
+            nameHints: ['smoke alarms', 'smoke alarm'],
+            stageNames: [process.env.SMOKE_ALARMS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+            source: 'Direct Call',
+          });
+          if (synced) {
+            ghlStageMoved = true;
+            console.log('[QuoteStage] Smoke Alarms opportunity synchronized:', synced.opportunityId);
           } else {
-            console.log('[QuoteStage] Smoke Alarms pipeline or Quote Sent stage not found');
+            console.log('[QuoteStage] Smoke Alarms opportunity could not be synchronized');
           }
         }
       }

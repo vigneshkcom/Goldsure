@@ -11,6 +11,8 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 import { syncAcceptedQuoteStage } from '../../lib/ghl-smoke-alarm-stage.js';
+import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
+import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 // Shared card shell for the VIC Aircon Job Tracker's notification emails
 // (eco-comment-notify, job-status-notify below) — a plain, monday.com-style
 // notification card: coloured top accent, an uppercase kicker pill, a bold
@@ -131,54 +133,6 @@ export default async function handler(req, res) {
       clearTimeout(timer);
     }
     return '';
-  };
-
-  // Move a contact's opportunity into a "Quote Sent"-type stage (best-effort,
-  // non-fatal). Used after an aircon / HWS quote email goes out. No GHL id config
-  // is required: it reads the contact's existing opportunity and finds the stage
-  // in that opportunity's own pipeline whose name matches one of `stageNames`.
-  // Optional env overrides can force a specific pipeline id and/or stage id.
-  // Won-/lost- (closed) opportunities are left untouched so a finished deal is
-  // never dragged back to "Quote Sent". Returns { moved, reason } for logging.
-  const moveContactToStage = async ({ contactId, stageNames = [], pipelineIdEnv = '', stageIdEnv = '' }) => {
-    const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
-    if (!apiKey || !locationId || !contactId) return { moved: false, reason: 'not-configured' };
-    const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
-    try {
-      const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contactId)}`, { headers: hdrs });
-      if (!oRes.ok) return { moved: false, reason: `opp-search ${oRes.status}` };
-      let opps = (await oRes.json()).opportunities || [];
-      // Never touch a closed deal.
-      opps = opps.filter(o => !['won', 'lost', 'abandoned'].includes(String(o.status || '').toLowerCase()));
-      if (!opps.length) return { moved: false, reason: 'no-open-opportunity' };
-      // Prefer an opp in the configured pipeline; else the most recently updated one.
-      if (pipelineIdEnv) {
-        const inPipe = opps.filter(o => o.pipelineId === pipelineIdEnv);
-        if (inPipe.length) opps = inPipe;
-      }
-      opps.sort((a, b) => new Date(b.updatedAt || b.dateUpdated || 0) - new Date(a.updatedAt || a.dateUpdated || 0));
-      const opp = opps[0];
-      const pipelineId = opp.pipelineId;
-      let stageId = stageIdEnv || '';
-      if (!stageId) {
-        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers: hdrs });
-        const pipes = pRes.ok ? ((await pRes.json()).pipelines || []) : [];
-        const pipe = pipes.find(p => p.id === pipelineId);
-        const stages = pipe ? (pipe.stages || []) : [];
-        const wanted = stageNames.map(s => String(s || '').trim().toLowerCase()).filter(Boolean);
-        const match = stages.find(s => wanted.includes(String(s.name || '').trim().toLowerCase()))
-          || stages.find(s => wanted.some(w => String(s.name || '').toLowerCase().includes(w)));
-        stageId = match ? match.id : '';
-      }
-      if (!stageId) return { moved: false, reason: 'stage-not-found' };
-      if (opp.pipelineStageId === stageId) return { moved: false, reason: 'already-there' };
-      const uRes = await fetch(`https://services.leadconnectorhq.com/opportunities/${encodeURIComponent(opp.id)}`, {
-        method: 'PUT', headers: { ...hdrs, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pipelineId, pipelineStageId: stageId }),
-      });
-      if (!uRes.ok) return { moved: false, reason: `update ${uRes.status}` };
-      return { moved: true };
-    } catch (e) { return { moved: false, reason: e.message }; }
   };
 
   // ── GET: history or contacts ────────────────────────────────────────────────
@@ -1673,11 +1627,15 @@ ${notesHtml}
         const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
         if (apiKey && locationId) {
           const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
-          const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(customer_email)}&limit=5`, { headers: hdrs });
-          const cData = await cRes.json().catch(() => ({}));
-          const contacts = cData.contacts || [];
-          const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
-          if (contact?.id) {
+          const nameParts = String(customer_name || '').trim().split(/\s+/).filter(Boolean);
+          const found = await findOrCreateGhlContact({
+            phone: customer_phone,
+            email: customer_email,
+            firstName: nameParts[0] || '',
+            lastName: nameParts.slice(1).join(' '),
+            address: customer_address,
+          });
+          if (found?.contactId) {
             let noteBody;
             if (is_reminder) {
               const reminderNo = (Number(reminder_count) || 0) + 1;
@@ -1687,20 +1645,22 @@ ${notesHtml}
               const modelLabel = (Array.isArray(line_items) && line_items[0] && line_items[0].name) ? String(line_items[0].name) : '';
               noteBody = `Hot Water quote sent by ${agent_name || 'Goldsure'}\nTank model: ${tank_model || '—'}${modelLabel ? ` (${modelLabel})` : ''}\nCustomer type: ${Number(sv_delayed_rebate) > 0 ? 'Solar Victoria (SV) customer' : 'Non-SV customer'}\nOut-of-pocket: ${money(total_out_of_pocket)}\nView quote: ${quoteUrl}`;
             }
-            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, {
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, {
               method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' },
               body: JSON.stringify({ body: noteBody }),
             });
-            // Move their opportunity to "Quote Sent" — first send only, never on a
-            // reminder (a reminder must not drag a progressed deal backwards).
+            // Reuse the open HWS deal or create one in Quote Sent for a customer
+            // who was not yet in GHL. Reminders never drag a progressed deal back.
             if (!is_reminder) {
-              const mv = await moveContactToStage({
-                contactId: contact.id,
-                stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+              const synced = await ensureOpportunityInStage({
+                contactId: found.contactId,
+                opportunityName: `Hot Water — ${customer_name}`,
                 pipelineIdEnv: process.env.HWS_PIPELINE_ID || '',
-                stageIdEnv: process.env.HWS_QUOTE_SENT_STAGE_ID || '',
+                nameHints: ['hws pipeline', 'vic hws pipeline', 'vic hot water'],
+                stageNames: [process.env.HWS_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+                source: 'Direct Call',
               });
-              if (!mv.moved) console.warn('[HWS] stage move skipped:', mv.reason);
+              if (!synced) console.warn('[HWS] opportunity sync skipped');
             }
           }
         }
@@ -2154,33 +2114,39 @@ ${notesHtml}
         const apiKey = process.env.GHL_API_KEY, locationId = process.env.GHL_LOCATION_ID;
         if (apiKey && locationId) {
           const hdrs = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
-          const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(customer_email)}&limit=5`, { headers: hdrs });
-          const cData = await cRes.json().catch(() => ({}));
-          const contacts = cData.contacts || [];
-          const contact = contacts.find(c => (c.email || '').toLowerCase() === String(customer_email).toLowerCase()) || contacts[0];
-          if (contact?.id) {
+          const nameParts = String(customer_name || '').trim().split(/\s+/).filter(Boolean);
+          const found = await findOrCreateGhlContact({
+            phone: customer_phone,
+            email: customer_email,
+            firstName: nameParts[0] || '',
+            lastName: nameParts.slice(1).join(' '),
+            address: customer_address,
+          });
+          if (found?.contactId) {
             let noteBody;
             if (is_reminder) {
               const reminderNo = (Number(reminder_count) || 0) + 1;
               const dateStr = new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Melbourne', day: '2-digit', month: 'short', year: 'numeric' });
-              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}`;
+              noteBody = `Reminder sent\nReminder no: ${reminderNo}\nDate: ${dateStr}\nView quote: ${quoteUrl}`;
             } else {
               const items = Array.isArray(line_items) ? line_items : [];
               const unitCount = items.reduce((s, l) => s + (Number(l.qty) || 0), 0);
               const breakdown = items.map(l => `  • ${Number(l.qty) || 0} × ${l.name}`).join('\n') || '  • (no line items)';
-              noteBody = `Aircon quote sent by ${agent_name || 'Goldsure'}\nSystem (${unitCount} unit${unitCount === 1 ? '' : 's'}):\n${breakdown}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}`;
+              noteBody = `Aircon quote sent by ${agent_name || 'Goldsure'}\nSystem (${unitCount} unit${unitCount === 1 ? '' : 's'}):\n${breakdown}\nVEEC discount: ${money(veec_discount)}\nOut-of-pocket: ${money(total_out_of_pocket)}\nView quote: ${quoteUrl}`;
             }
-            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.id)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: noteBody }) });
-            // Move their opportunity to "Quote Sent" — first send only, never on a
-            // reminder (a reminder must not drag a progressed deal backwards).
+            await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(found.contactId)}/notes`, { method: 'POST', headers: { ...hdrs, 'Content-Type': 'application/json' }, body: JSON.stringify({ body: noteBody }) });
+            // Reuse the open Aircons deal or create one in Quote Sent for a
+            // customer who was not yet in GHL. Reminders never move it backwards.
             if (!is_reminder) {
-              const mv = await moveContactToStage({
-                contactId: contact.id,
-                stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+              const synced = await ensureOpportunityInStage({
+                contactId: found.contactId,
+                opportunityName: `Aircon — ${customer_name}`,
                 pipelineIdEnv: process.env.AIRCON_PIPELINE_ID || '',
-                stageIdEnv: process.env.AIRCON_QUOTE_SENT_STAGE_ID || '',
+                nameHints: ['aircons', 'aircon', 'air conditioning'],
+                stageNames: [process.env.AIRCON_QUOTE_SENT_STAGE_NAME || 'Quote Sent', 'Quote Sent', 'Quoted', 'Quote'],
+                source: 'Direct Call',
               });
-              if (!mv.moved) console.warn('[Aircon] stage move skipped:', mv.reason);
+              if (!synced) console.warn('[Aircon] opportunity sync skipped');
             }
           }
         }
