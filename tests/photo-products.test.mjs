@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { inferLegacyHwsProduct } from '../api/zoho/create-photo-request.js';
+import { customerNameFromFolder, inferLegacyHwsProduct } from '../api/zoho/create-photo-request.js';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -16,6 +16,12 @@ test('legacy hot-water links infer the state from the submitted property address
   assert.equal(inferLegacyHwsProduct('', '12 Example Road, Richmond VIC 3121, Australia'), 'hws-vic');
   assert.equal(inferLegacyHwsProduct('hws-nsw', '12 Example Road, Richmond VIC 3121, Australia'), 'hws-nsw');
   assert.equal(inferLegacyHwsProduct('hws', 'Address unavailable'), 'hws');
+});
+
+test('photo notifications recover the full customer name from the WorkDrive folder', () => {
+  assert.equal(customerNameFromFolder('Jash Patel (+61400111222)'), 'Jash Patel');
+  assert.equal(customerNameFromFolder('Jane Smith (0412 345 678)'), 'Jane Smith');
+  assert.equal(customerNameFromFolder('Customer Without Phone'), 'Customer Without Phone');
 });
 
 test('customer upload and SMS scripts compile', async () => {
@@ -72,7 +78,16 @@ test('Hot Water photo links collect and surface the property address', async () 
     'isHwsProduct(config.product)',
     "const isHwsProduct = product => ['hws', 'hws-vic', 'hws-nsw'].includes(product)",
     'hwsAssessmentError(assessment)',
+    "['Customer name', who]",
+    "['Phone number', phone || 'Not provided']",
+    "['Service', config.label]",
+    "['Submission type', followUp ? 'Additional photos' : 'First photo upload']",
+    "['Photos submitted', labels.length ? labels.join(', ') : 'Not provided']",
+    "answers.push(['Received', receivedAt || receivedAtSydney()])",
+    'const storedCustomerName = customerNameFromFolder(folderDetails.name)',
   ]) assert.ok(api.includes(marker), `missing HWS address API marker ${marker}`);
+  assert.match(upload, /const folderCustomer = customerNameFromFolder\(d\.name\)/);
+  assert.match(upload, /photoLabels: uploadedPhotoLabels/);
 });
 
 test('NSW and VIC Hot Water uploads use separate WorkDrive destinations', async () => {
@@ -131,7 +146,7 @@ test('QLD smoke alarm promo uses its own WorkDrive destination and safe browser 
     'buffer.length > 4 * 1024 * 1024',
     "'[Smoke Alarm Promo Quote]'",
     'config.uploadedStageNames.length',
-    'postGhlNoteWithRetry(phone, noteBody)',
+    'postGhlNoteWithRetry(knownPhone, noteBody)',
     'success: true, noteAdded',
     "'shanira@goldsure.com.au'",
     "'alda@goldsure.com.au'",

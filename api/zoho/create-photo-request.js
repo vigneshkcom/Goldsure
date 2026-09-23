@@ -340,6 +340,10 @@ const phoneFromDescription = d => {
   return m ? m[1].trim() : '';
 };
 
+export const customerNameFromFolder = value => String(value || '')
+  .replace(/\s*\((?:\+?[\d\s-]{6,})\)\s*$/, '')
+  .trim();
+
 const assessmentFromDescription = d => {
   const text = String(d || '');
   const pick = key => (new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(text) || [])[1]?.trim() || '';
@@ -382,31 +386,64 @@ function photoCommentRows(assessment) {
   return rows;
 }
 
-function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
+function cleanPhotoLabels(photoLabels) {
+  return [...new Set((Array.isArray(photoLabels) ? photoLabels : [])
+    .map(label => String(label || '').replace(/[\r\n]+/g, ' ').trim())
+    .filter(Boolean))].slice(0, 30);
+}
+
+function receivedAtSydney() {
+  return new Date().toLocaleString('en-AU', {
+    timeZone: 'Australia/Sydney',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+}
+
+function photoUploadEmailHtml({ config, who, what, phone, folderUrl, folderId, assessment, uploadCount, followUp, photoLabels, receivedAt }) {
   const isAircon = config.product === 'aircon';
   const isHws = isHwsProduct(config.product);
   const isPromo = config.product === 'smoke-promo';
+  const labels = cleanPhotoLabels(photoLabels);
+  const commonAnswers = [
+    ['Phone number', phone || 'Not provided'],
+    ['Service', config.label],
+    ['Submission type', followUp ? 'Additional photos' : 'First photo upload'],
+  ];
   const answers = isAircon ? [
     ['Full name', assessment?.fullName || who],
     ['Email address', assessment?.email || 'Not provided'],
+    ...commonAnswers,
     ['Property address', assessment?.address || 'Not provided'],
     ['Property', assessment?.storeys || 'Not answered'],
     ['Aircon units', assessment?.units || 'Not answered'],
     ['Rooms', assessment?.rooms || 'Not answered'],
     ['Roof', assessment?.roof || 'Not answered'],
     ...photoCommentRows(assessment),
+    ['Photos submitted', labels.length ? labels.join(', ') : 'Not provided'],
     ['New photos uploaded', Number(uploadCount) || 0],
   ] : isPromo ? [
-    ['Customer', who],
+    ['Customer name', who],
+    ...commonAnswers,
+    ['Files submitted', labels.length ? labels.join(', ') : 'Not provided'],
     ['Quote files uploaded', Number(uploadCount) || 0],
   ] : isHws ? [
-    ['Customer', who],
+    ['Customer name', who],
+    ...commonAnswers,
     ['Property address', assessment?.address || 'Not provided'],
+    ['Photos submitted', labels.length ? labels.join(', ') : 'Not provided'],
     ['New photos uploaded', Number(uploadCount) || 0],
   ] : [
-    ['Customer', who],
+    ['Customer name', who],
+    ...commonAnswers,
+    ['Photos submitted', labels.length ? labels.join(', ') : 'Not provided'],
     ['New photos uploaded', Number(uploadCount) || 0],
   ];
+  answers.push(['Received', receivedAt || receivedAtSydney()]);
   const rows = answers.map(([label, value], index) => `
     <tr>
       <td style="padding:11px 14px;border-top:${index ? '1px solid #e8edf3' : '0'};color:#64748b;font-size:13px;width:42%;">${escapeHtml(label)}</td>
@@ -438,12 +475,21 @@ function photoUploadEmailHtml({ config, who, what, folderUrl, folderId, assessme
 </table>`;
 }
 
-function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessment, uploadCount }) {
+function photoUploadEmailText({ config, who, what, phone, folderUrl, folderId, assessment, uploadCount, followUp, photoLabels, receivedAt }) {
   const isPromo = config.product === 'smoke-promo';
-  const lines = [`${config.label} ${isPromo ? 'quote submission' : 'photo assessment'}`, '', `${who} ${what}.`];
+  const labels = cleanPhotoLabels(photoLabels);
+  const lines = [
+    `${config.label} ${isPromo ? 'quote submission' : 'photo assessment'}`,
+    '',
+    `${who} ${what}.`,
+    '',
+    `Customer name: ${who}`,
+    `Phone number: ${phone || 'Not provided'}`,
+    `Service: ${config.label}`,
+    `Submission type: ${followUp ? 'Additional photos' : 'First photo upload'}`,
+  ];
   if (config.product === 'aircon') {
     lines.push(
-      '',
       `Full name: ${assessment?.fullName || who}`,
       `Email address: ${assessment?.email || 'Not provided'}`,
       `Property address: ${assessment?.address || 'Not provided'}`,
@@ -455,9 +501,15 @@ function photoUploadEmailText({ config, who, what, folderUrl, folderId, assessme
     for (const [label, value] of photoCommentRows(assessment)) lines.push(`${label}: ${value}`);
   }
   if (isHwsProduct(config.product)) {
-    lines.push('', `Property address: ${assessment?.address || 'Not provided'}`);
+    lines.push(`Property address: ${assessment?.address || 'Not provided'}`);
   }
-  lines.push(`${isPromo ? 'Quote files' : 'New photos'} uploaded: ${Number(uploadCount) || 0}`, '', folderUrl || `WorkDrive folder ID: ${folderId}`);
+  lines.push(
+    `${isPromo ? 'Files' : 'Photos'} submitted: ${labels.length ? labels.join(', ') : 'Not provided'}`,
+    `${isPromo ? 'Quote files' : 'New photos'} uploaded: ${Number(uploadCount) || 0}`,
+    `Received: ${receivedAt || receivedAtSydney()}`,
+    '',
+    folderUrl || `WorkDrive folder ID: ${folderId}`,
+  );
   return lines.join('\n');
 }
 
@@ -496,6 +548,24 @@ async function getFolderLink(accessToken, folderId) {
     return a.permalink || a.perma_link || a.resource_url || data?.data?.links?.self || null;
   } catch {
     return null;
+  }
+}
+
+async function getFolderNotificationDetails(accessToken, folderId) {
+  try {
+    const r = await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+    });
+    if (!r.ok) return { name: '', description: '', link: null };
+    const data = await r.json();
+    const a = data?.data?.attributes || {};
+    return {
+      name: a.name || '',
+      description: a.description || '',
+      link: a.permalink || a.perma_link || a.resource_url || data?.data?.links?.self || null,
+    };
+  } catch {
+    return { name: '', description: '', link: null };
   }
 }
 
@@ -734,7 +804,7 @@ export default async function handler(req, res) {
 
   // PUT → receive a photo (base64) and push it into the given folder
   if (req.method === 'PUT') {
-    const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0, assessment } = req.body || {};
+    const { folderId, filename, dataBase64, customerName, phone, notify = true, followUp = false, uploadCount = 0, photoLabels, assessment } = req.body || {};
     if (!folderId || !dataBase64) return res.status(400).json({ error: 'folderId and dataBase64 are required' });
     if (config.product === 'aircon') {
       const assessmentError = airconAssessmentError(assessment);
@@ -776,8 +846,12 @@ export default async function handler(req, res) {
       let noteAdded = false;
 
       try {
-        const who = String(customerName || '').replace(/[\r\n]+/g, ' ').trim() || 'A customer';
-        const folderUrl = await getFolderLink(accessToken, folderId);
+        const folderDetails = await getFolderNotificationDetails(accessToken, folderId);
+        const storedCustomerName = customerNameFromFolder(folderDetails.name);
+        const who = String(storedCustomerName || customerName || '').replace(/[\r\n]+/g, ' ').trim() || 'A customer';
+        const knownPhone = phone || phoneFromDescription(folderDetails.description);
+        const knownAssessment = { ...assessmentFromDescription(folderDetails.description), ...(assessment || {}) };
+        const folderUrl = folderDetails.link;
         // A top-up sent through the same link reads differently to a first
         // submission — the team needs to know these are extras added to a
         // folder they may have already looked at.
@@ -791,21 +865,21 @@ export default async function handler(req, res) {
 
         // Log it against the GHL contact too, so it shows up where the rest of
         // the customer's history lives. Also best-effort.
-        if (phone) {
+        if (knownPhone) {
           const notePrefix = config.product === 'aircon'
             ? '[Aircon Photo Upload]'
             : config.product === 'smoke-promo'
               ? '[Smoke Alarm Promo Quote]'
               : '[Photo Upload]';
-          const addressLine = (config.product === 'aircon' || isHwsProduct(config.product)) && assessment?.address
-            ? `\nProperty: ${String(assessment.address).replace(/[\r\n]+/g, ' ').trim()}`
+          const addressLine = (config.product === 'aircon' || isHwsProduct(config.product)) && knownAssessment?.address
+            ? `\nProperty: ${String(knownAssessment.address).replace(/[\r\n]+/g, ' ').trim()}`
             : '';
           const noteBody = folderUrl
             ? `${notePrefix}\n${who} ${what}.${addressLine}\nView them here: ${folderUrl}`
             : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}`;
           noteAdded = config.product === 'smoke-promo'
-            ? await postGhlNoteWithRetry(phone, noteBody)
-            : await postGhlNoteByPhone(phone, noteBody);
+            ? await postGhlNoteWithRetry(knownPhone, noteBody)
+            : await postGhlNoteByPhone(knownPhone, noteBody);
           if (config.product === 'smoke-promo' && !noteAdded) {
             console.error('[Zoho upload] Smoke Alarm Promo quote note was not added after retries');
           }
@@ -817,7 +891,7 @@ export default async function handler(req, res) {
             const apiKey = process.env.GHL_API_KEY;
             const locationId = process.env.GHL_LOCATION_ID;
             if (apiKey && locationId && config.uploadedStageNames.length) {
-              const contactId = await findGhlContactIdByPhone(phone, { apiKey, locationId });
+              const contactId = await findGhlContactIdByPhone(knownPhone, { apiKey, locationId });
               if (contactId) {
                 await ensureOpportunityInStage({
                   contactId,
@@ -838,7 +912,19 @@ export default async function handler(req, res) {
           }
         }
 
-        const emailData = { config, who, what, folderUrl, folderId, assessment, uploadCount: n };
+        const emailData = {
+          config,
+          who,
+          what,
+          phone: knownPhone,
+          folderUrl,
+          folderId,
+          assessment: knownAssessment,
+          uploadCount: n,
+          followUp,
+          photoLabels,
+          receivedAt: receivedAtSydney(),
+        };
         await sendHostingerMail({
           to: config.notifyRecipients,
           displayName: 'Goldsure Portal',

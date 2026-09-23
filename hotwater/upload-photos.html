@@ -242,6 +242,9 @@ const params = new URLSearchParams(location.search);
 const folderId = params.get('f') || params.get('folder');
 let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
+const customerNameFromFolder = value => String(value || '')
+  .replace(/\s*\((?:\+?[\d\s-]{6,})\)\s*$/, '')
+  .trim();
 const requestedProduct = params.get('product');
 const product = location.pathname === '/ac' || requestedProduct === 'aircon'
   ? 'aircon'
@@ -424,10 +427,13 @@ async function loadStatus() {
     const r = await fetch(`/api/zoho/create-photo-request?action=status&product=${product}&id=${encodeURIComponent(folderId)}`);
     if (!r.ok) return;
     const d = await r.json();
-    if (d.name && !custName) custName = d.name;
+    // SMS links only carry the first name to keep them short. The WorkDrive
+    // folder has the full customer name, so restore it before the upload is
+    // submitted and used in staff notifications.
+    const folderCustomer = customerNameFromFolder(d.name);
+    if (folderCustomer) custName = folderCustomer;
 
     if (isAircon && d.assessment) {
-      const folderCustomer = String(d.name || '').replace(/\s*\(\d{3,4}\)\s*$/, '').trim();
       const savedFullName = d.assessment.fullName || folderCustomer || custName;
       if (savedFullName) {
         custName = savedFullName;
@@ -814,6 +820,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   // top-up it would quietly delete photos the customer already sent, so every
   // file from a return visit carries the time it was sent.
   const stamp = (followUp || !statusKnown) ? `-${Date.now()}` : '';
+  const uploadedPhotoLabels = entries
+    .filter(entry => entry.key !== 'aircon-assessment-answers')
+    .map(entry => entry.label);
   let done = 0;
 
   try {
@@ -836,6 +845,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
           // looked at, rather than a first submission.
           followUp,
           uploadCount: entries.length - (isAircon ? 1 : 0),
+          photoLabels: uploadedPhotoLabels,
         }, done + 1, entries.length);
       done++;
     }
