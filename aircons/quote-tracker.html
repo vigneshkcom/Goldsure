@@ -137,6 +137,10 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
 .table-header-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
 .table-title { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); }
+.table-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 8px; border-radius: 11px; background: var(--surface3); color: var(--muted); font-size: 12px; font-weight: 600; }
+.completed-table-wrap { margin-top: 24px; }
+.completed-table-wrap .table-header-bar { background: #f1fbf6; }
+.completed-table { min-width: 860px; }
 .del-btn {
   font-family: inherit; font-size: 13px; font-weight: 400; padding: 0 12px; height: 32px;
   border-radius: 4px; border: 1px solid var(--red); background: #fff; color: var(--red);
@@ -376,7 +380,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
   </div>
 
   <div class="table-wrap">
-    <div class="table-header-bar"><span class="table-title">Aircon Quotes</span><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
+    <div class="table-header-bar"><span class="table-title">Active Aircon Quotes</span><span class="table-count" id="active-count">0</span><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -391,8 +395,8 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
             <th>Goldsure Revenue</th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Days Since Quote</th>
             <th onclick="sortBy('view_count')" data-col="view_count">Online Views<i class="sort-caret"></i></th>
-            <th>Status</th>
-            <th>GHL Stage</th>
+            <th>Quote Status</th>
+            <th>GHL Pipeline Stage</th>
             <th>Send Reminder</th>
             <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
             <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders<i class="sort-caret"></i></th>
@@ -401,6 +405,15 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
         <tbody id="table-body">
           <tr><td><span class="skeleton w-60"></span></td><td><span class="skeleton w-80"></span></td><td><span class="skeleton w-40"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-30"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td><td><span class="skeleton w-20"></span></td></tr>
         </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="table-wrap completed-table-wrap" id="completed-table-wrap">
+    <div class="table-header-bar"><span class="table-title">Completed</span><span class="table-count" id="completed-count">0</span></div>
+    <div class="table-scroll">
+      <table class="completed-table">
+        <thead><tr><th>Date</th><th>Customer</th><th>Agent</th><th>Quote Status</th><th>GHL Pipeline Stage</th><th>Out-of-Pocket</th></tr></thead>
+        <tbody id="completed-table-body"><tr><td colspan="6"><div class="empty-state"><p>Loading completed customers…</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -471,6 +484,7 @@ function renderViewStat(q){const count=getViewCount(q);const last=q.last_viewed_
 // Only a stage that says the deal is already dead or already won holds it
 // back, so we never chase someone who has bought or told us no.
 function reminderGhlBlockReason(q){const info=ghlOppData[String(q.customer_email||'').toLowerCase().trim()];if(!info?.stage)return '';const stage=String(info.stage||'').toLowerCase(),status=String(info.status||'').toLowerCase();if(['lost','won','closed','abandoned'].includes(status)||['not interested','spam','quote not accepted','unserviceable','out of area','lost','won','installed','completed'].some(x=>stage.includes(x)))return `No reminder sent: GHL stage is ${info.stage}.`;return '';}
+function isCompletedQuote(q){const info=ghlOppData[String(q.customer_email||'').toLowerCase().trim()]||{};const local=String(q.status||'').toLowerCase(),stage=String(info.stage||'').toLowerCase(),oppStatus=String(info.status||'').toLowerCase();return local==='installed'||local==='won'||oppStatus==='won'||['won','installed','completed'].some(x=>stage.includes(x));}
 // The outdoor compressor is a line item like any other, but it isn't a head —
 // counting it made a 4-head quote read as 5 units. New quotes tag their lines
 // with `kind`; older ones are identified by the ACV9 model in the name.
@@ -580,7 +594,7 @@ async function loadGhlStages(quotes){
     else ghlWarning=`GHL stage lookup failed (HTTP ${res.status}).`;
   }catch(e){ console.warn('GHL stage fetch failed',e); ghlWarning='GHL stage lookup failed — network error.'; }
   ghlStages=stages; ghlOppData=map; ghlStagesLoaded=true;
-  quotes.forEach(q=>{ const el=document.getElementById(`ghl-${q.id}`); if(!el)return; const data=map[(q.customer_email||'').toLowerCase().trim()]; el.textContent=data?.stage||'—'; el.className=ghlBadgeClass(data?.stage); el.title=data?.stage?'':(ghlWarning||'No opportunity in this pipeline'); });
+  renderTable();
   // An empty stage column used to look identical whether GHL had nothing for
   // that customer or GHL itself was unreachable. Say which it is.
   if(ghlWarning) showToast('GHL stages: '+ghlWarning);
@@ -624,16 +638,20 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
     const res=await fetch('/api/battery/request-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update-stage',opportunityId:oppData.opportunityId,pipelineId:oppData.pipelineId,stageId})});
     if(!res.ok){ const err=await res.json().catch(()=>({})); showToast('GHL update failed: '+(err.error||res.status)); if(el){ el.textContent=prevText; el.className=ghlBadgeClass(prevText); } return; }
     oppData.stageId=stageId; oppData.stage=stageName;
-    if(el){ el.textContent=stageName; el.className=ghlBadgeClass(stageName); }
-    const menu=document.getElementById(`ghl-menu-${quoteId}`); if(menu) menu.innerHTML='';
+    renderTable();
     showToast(`GHL stage → ${stageName}`);
   }catch(err){ console.error(err); showToast('Network error updating GHL stage.'); if(el){ el.textContent=prevText; el.className=ghlBadgeClass(prevText); } }
 }
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
-  tbody.innerHTML=filtered.map(q=>{
+  const completedBody=document.getElementById('completed-table-body');
+  const activeQuotes=filtered.filter(q=>!isCompletedQuote(q));
+  const completedQuotes=filtered.filter(isCompletedQuote);
+  document.getElementById('active-count').textContent=activeQuotes.length;
+  document.getElementById('completed-count').textContent=completedQuotes.length;
+  if(!activeQuotes.length) tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No active quotes found</h3><p>Completed customers are listed below.</p></div></td></tr>`;
+  else tbody.innerHTML=activeQuotes.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
     const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',expired:'badge-expired',installed:'badge-installed'}[st]||'badge-sent';
@@ -661,6 +679,13 @@ function renderTable(){
       <td><span class="count-badge">${getReminderCount(q)}</span></td>
     </tr>`;
   }).join('');
+  completedBody.innerHTML=completedQuotes.length?completedQuotes.map(q=>{
+    const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const st=(q.status||'sent').toLowerCase();
+    const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',expired:'badge-expired',installed:'badge-installed'}[st]||'badge-sent';
+    const ghlD=ghlOppData[String(q.customer_email||'').toLowerCase().trim()];
+    return `<tr><td class="td-date">${date}</td><td><div class="td-name">${esc(q.customer_name||'—')}<button class="view-quote-btn" onclick="openQuoteView('${q.id}')" title="View what was sent">View quote</button></div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}</td><td>${agentChip(q.agent_name)}</td><td><span class="badge ${statusClass}">${esc(st)}</span></td><td><span class="${ghlBadgeClass(ghlD?.stage)}">${esc(ghlD?.stage||'—')}</span></td><td class="td-oop">${money(q.total_out_of_pocket)}</td></tr>`;
+  }).join(''):`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">✓</div><h3>No completed customers yet</h3><p>Won and installed customers will appear here.</p></div></td></tr>`;
   updateDeleteBtn();
 }
 
@@ -694,7 +719,7 @@ async function deleteSelected(){
   }catch(err){ console.error(err); showToast('Network error deleting.'); }
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('active-count').textContent='0'; document.getElementById('completed-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; document.getElementById('completed-table-body').innerHTML='<tr><td colspan="6"><div class="empty-state"><p>No completed customers loaded.</p></div></td></tr>'; }
 
 function toggleMenu(e,btn){ e.stopPropagation(); const menu=btn.querySelector('.status-menu'); const open=menu.classList.contains('open'); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')); if(!open)menu.classList.add('open'); }
 document.addEventListener('click',()=>document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')));
