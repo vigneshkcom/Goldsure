@@ -3,6 +3,7 @@
 // Routes on body shape: { html } → install summary relay; { summary } → pay summary builder.
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
+import { purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
 
 function esc(value) {
   return String(value ?? '')
@@ -15,6 +16,65 @@ function esc(value) {
 
 function money(value) {
   return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function purchaseOrderAccessAllowed(req) {
+  const expected = String(
+    process.env.PURCHASE_ORDER_PIN
+    || process.env.DATAFORCE_GHL_SYNC_PIN
+    || process.env.DASHBOARD_PASSWORD
+    || '',
+  ).trim();
+  const supplied = String(req.headers['x-purchase-order-pin'] || '').trim();
+  return Boolean(expected && supplied && supplied === expected);
+}
+
+function validatedPurchaseOrder(po) {
+  if (!po || !po.poNumber || !po.electrician || !Array.isArray(po.jobs) || !po.jobs.length) return null;
+  const rateByKey = new Map(purchaseOrderRateCard().map(rate => [rate.key, rate]));
+  const gstRegistered = po.electrician.gstRegistered === true;
+  const jobs = po.jobs.map(job => {
+    const items = (Array.isArray(job.items) ? job.items : []).map(item => {
+      const rate = rateByKey.get(String(item.key || ''));
+      const quantity = Number(item.quantity);
+      if (!rate || !Number.isFinite(quantity) || quantity <= 0 || quantity > 100) return null;
+      const subtotalExGst = Math.round(quantity * rate.rateExGst * 100) / 100;
+      const gst = gstRegistered ? Math.round(subtotalExGst * 10) / 100 : 0;
+      return {
+        key: rate.key,
+        name: rate.label,
+        quantity,
+        rateExGst: rate.rateExGst,
+        subtotalExGst,
+        gst,
+        totalIncGst: Math.round((subtotalExGst + gst) * 100) / 100,
+      };
+    }).filter(Boolean);
+    return { jobId: String(job.jobId || '').trim(), installedDate: String(job.installedDate || '').trim(), items };
+  }).filter(job => job.jobId && job.items.length);
+  if (!jobs.length) return null;
+  const items = jobs.flatMap(job => job.items);
+  const subtotalExGst = Math.round(items.reduce((sum, item) => sum + item.subtotalExGst, 0) * 100) / 100;
+  const gst = Math.round(items.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+  return {
+    ...po,
+    electrician: {
+      ...po.electrician,
+      name: String(po.electrician.name || '').trim(),
+      companyName: String(po.electrician.companyName || '').trim(),
+      email: String(po.electrician.email || '').trim().toLowerCase(),
+      taxId: String(po.electrician.taxId || '').trim(),
+      gstRegistered,
+    },
+    jobs,
+    totals: {
+      jobs: jobs.length,
+      units: items.reduce((sum, item) => sum + item.quantity, 0),
+      subtotalExGst,
+      gst,
+      totalIncGst: Math.round((subtotalExGst + gst) * 100) / 100,
+    },
+  };
 }
 
 function buildPaySummaryHtml(summary) {
@@ -218,6 +278,48 @@ function buildPaySummaryHtml(summary) {
 </html>`;
 }
 
+function buildPurchaseOrderHtml(po) {
+  const electrician = po.electrician || {};
+  const jobs = Array.isArray(po.jobs) ? po.jobs : [];
+  const rows = jobs.flatMap(job => (job.items || []).map(item => `
+    <tr>
+      <td style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(job.installedDate)}</td>
+      <td style="padding:9px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td>
+      <td style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(item.name)}</td>
+      <td align="center" style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(item.quantity)}</td>
+      <td align="right" style="padding:9px;border-bottom:1px solid #e7e7e7;">${money(item.rateExGst)}</td>
+      <td align="right" style="padding:9px;border-bottom:1px solid #e7e7e7;">${money(item.subtotalExGst)}</td>
+    </tr>`)).join('');
+  const totals = po.totals || {};
+  return `<!doctype html>
+<html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 10px;"><tr><td align="center">
+    <table width="720" cellpadding="0" cellspacing="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #e0e0e0;">
+      <tr><td style="background:#111;padding:22px 28px;color:#fff;">
+        <table width="100%"><tr><td><div style="font-size:22px;font-weight:bold;">PURCHASE ORDER</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">Goldsure Pty Ltd</div></td><td align="right"><div style="font-size:15px;font-weight:bold;">${esc(po.poNumber)}</div><div style="font-size:11px;color:#bbb;margin-top:5px;">Issued ${esc(po.issueDate)}</div></td></tr></table>
+      </td></tr>
+      <tr><td style="padding:24px 28px;">
+        <table width="100%"><tr><td valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Purchase order to</div><div style="font-size:17px;font-weight:bold;margin-top:5px;">${esc(electrician.companyName || electrician.name)}</div><div style="font-size:12px;color:#666;line-height:1.6;">${esc(electrician.name)}<br>${esc(electrician.email)}${electrician.taxId ? `<br>ABN ${esc(electrician.taxId)}` : ''}</div></td><td align="right" valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Installation period</div><div style="font-size:14px;font-weight:bold;margin-top:5px;">${esc(po.period)}</div></td></tr></table>
+      </td></tr>
+      <tr><td style="padding:0 28px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:12px;">
+          <thead><tr style="background:#111;color:#fff;"><th align="left" style="padding:10px 9px;">Installed</th><th align="left" style="padding:10px 9px;">Job</th><th align="left" style="padding:10px 9px;">Product</th><th style="padding:10px 9px;">Qty</th><th align="right" style="padding:10px 9px;">Rate ex GST</th><th align="right" style="padding:10px 9px;">Line total</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:13px;">
+          <tr><td style="padding:5px;">Subtotal ex GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.subtotalExGst)}</td></tr>
+          <tr><td style="padding:5px;">GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.gst)}</td></tr>
+          <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Total</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
+        </table>
+        <div style="clear:both;"></div>
+        <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records and quote <strong>${esc(po.poNumber)}</strong> on your invoice. Contact Vignesh if any job or quantity needs correction.</p>
+      </td></tr>
+      <tr><td style="background:#111;padding:15px 28px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd &nbsp; | &nbsp; vignesh@goldsure.com.au &nbsp; | &nbsp; ABN 66 683 305 106</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -242,6 +344,39 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
+
+  if (body.purchaseOrder !== undefined) {
+    if (!purchaseOrderAccessAllowed(req)) {
+      return res.status(401).json({ error: 'Enter the Portal access PIN.' });
+    }
+    const { to, subject } = body;
+    const po = validatedPurchaseOrder(body.purchaseOrder);
+    const recipient = String(to || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return res.status(400).json({ error: 'The electrician email address is missing or invalid.' });
+    }
+    if (!po) {
+      return res.status(400).json({ error: 'The purchase order is incomplete.' });
+    }
+    if (recipient !== String(po.electrician.email || '').trim().toLowerCase()) {
+      return res.status(400).json({ error: 'The recipient does not match the selected electrician.' });
+    }
+    const itemCount = po.jobs.reduce((count, job) => count + (Array.isArray(job.items) ? job.items.length : 0), 0);
+    if (!itemCount) return res.status(400).json({ error: 'The purchase order has no payable items.' });
+    try {
+      await sendHostingerMail({
+        displayName: 'Goldsure Pty Ltd',
+        to: [recipient],
+        cc: ['vignesh@goldsure.com.au'],
+        subject: subject || `Purchase Order ${po.poNumber}`,
+        html: buildPurchaseOrderHtml(po),
+      });
+      return res.status(200).json({ success: true, to: recipient, cc: ['vignesh@goldsure.com.au'] });
+    } catch (err) {
+      console.error('[Hostinger] Purchase order send failed:', err.message);
+      return res.status(500).json({ error: 'Failed to send the purchase order.', detail: err.message });
+    }
+  }
 
   // ── Route: time tracker (clock in / out, Supabase CRUD + PIN access control) ──
   // Powers /time/ — the agent clock in/out timesheet. Routed on body.time, shaped

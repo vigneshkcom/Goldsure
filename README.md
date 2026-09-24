@@ -26,7 +26,7 @@ Important files there include:
 - `/smoke-alarms/smoke-alarm-troubleshooting.html`
 - `/smoke-alarms/raptor-enquiry-workflow.html`
 - `/smoke-alarms/install-summary.html`
-- `/smoke-alarms/Installer Pay Summary.html`
+- `/smoke-alarms/purchase-orders.html`
 - `/smoke-alarms/compliance.html`
 - `/smoke-alarms/calculatorpdf.html`
 - `/smoke-alarms/qld-smoke-alarm-training-certificate.html`

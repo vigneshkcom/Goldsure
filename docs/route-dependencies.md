@@ -35,7 +35,7 @@ This repo is live and has route-sensitive paths that should not be renamed casua
 ## Report email dependencies
 
 - `/smoke-alarms/install-summary.html` calls `/api/smoke-alarms/reports` (POST `{ html, to, subject, from }`).
-- `/smoke-alarms/Installer Pay Summary.html` calls `/api/smoke-alarms/reports` (POST `{ summary, to, subject }`).
+- `/smoke-alarms/purchase-orders.html` reads completed Dataforce jobs through `/api/smoke-alarms/google-key` and sends confirmed purchase orders through `/api/smoke-alarms/reports`.
 - Both routes are handled by the single `api/smoke-alarms/reports/index.js` function.
 - Do not split this back into separate files without freeing a Vercel function slot first.
 

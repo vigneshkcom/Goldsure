@@ -463,7 +463,7 @@ These sections list the files that are most important when working in each folde
   - Likely legacy: no clear evidence of legacy, but not linked from repo navigation
   - Risky to change: medium
 
-- [Installer Pay Summary.html](/smoke-alarms/Installer Pay Summary.html)
+- [purchase-orders.html](/smoke-alarms/purchase-orders.html)
   - Type: `browser page`
   - Purpose: installer pay summary dashboard and printable payment report page
   - Live/active: yes
@@ -573,7 +573,7 @@ Documentation only. These are good candidates for future cleanup planning, not a
 - Standardize documentation language around "live", "legacy", and "shared" so future audits stay comparable.
 - Review mixed branding/report pages individually:
   - [Ads reporting/Meta Ad Performance.html](/Ads reporting/Meta Ad Performance.html)
-  - [smoke-alarms/Installer Pay Summary.html](/smoke-alarms/Installer Pay Summary.html)
+  - [smoke-alarms/purchase-orders.html](/smoke-alarms/purchase-orders.html)
 - Consider documenting public-vs-internal status of unclear smoke-alarm pages before any restructure:
   - [smoke-alarms/compliance.html](/smoke-alarms/compliance.html)
   - confirm whether it is linked externally from ads, emails, or landing-page campaigns
@@ -615,7 +615,7 @@ Documentation only. These are good candidates for future cleanup planning, not a
 - [api/battery/request-callback.js](/api/battery/request-callback.js)
 - [api/smoke-alarms/send.js](/api/smoke-alarms/send.js)
 - [api/smoke-alarms/accept.js](/api/smoke-alarms/accept.js)
-- [smoke-alarms/Installer Pay Summary.html](/smoke-alarms/Installer Pay Summary.html)
+- [smoke-alarms/purchase-orders.html](/smoke-alarms/purchase-orders.html)
 - [smoke-alarms/install-summary.html](/smoke-alarms/install-summary.html)
 
 

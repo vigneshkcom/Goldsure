@@ -4,6 +4,7 @@
 import {
   normalizeEmail,
   normalizePhone,
+  isCompletedAppointment,
   classifyDataforceProduct,
   pipelineMatchesProduct,
   findInstalledStage,
@@ -13,6 +14,11 @@ import {
   calculateDataforceRevenue,
   groupAppointmentsByJob,
 } from '../../lib/dataforce-ghl-sync.js';
+import {
+  normaliseFieldworker,
+  normalisePurchaseOrderLine,
+  purchaseOrderRateCard,
+} from '../../lib/dataforce-purchase-orders.js';
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
 const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
@@ -604,6 +610,117 @@ function resolveDataforceGhlSyncAccess(req, res) {
   return true;
 }
 
+function resolvePurchaseOrderAccess(req, res) {
+  const expected = String(
+    process.env.PURCHASE_ORDER_PIN
+    || process.env.DATAFORCE_GHL_SYNC_PIN
+    || process.env.DASHBOARD_PASSWORD
+    || '',
+  ).trim();
+  const supplied = String(req.headers['x-purchase-order-pin'] || '').trim();
+  if (!expected) {
+    send(res, 503, { error: 'Purchase Order access has not been configured.' });
+    return false;
+  }
+  if (!supplied || supplied !== expected) {
+    send(res, 401, { error: 'Enter the Portal access PIN.' });
+    return false;
+  }
+  return true;
+}
+
+function listFromPayload(payload, keys = []) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['records', ...keys]) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+}
+
+async function dataforceCompletedAppointments(token, startDate, endDate) {
+  const { instance } = dataforceConfig();
+  const appointments = [];
+  let after = 0;
+  while (appointments.length < 1000) {
+    const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: 'actualCompletedDate', value: `${startDate}T00:00:00`, operator: 'GTE' },
+          { propertyName: 'actualCompletedDate', value: `${nextDate(endDate)}T00:00:00`, operator: 'LT' },
+        ] }],
+        sorts: [{ propertyName: 'appointmentId', direction: 'asc' }],
+        limit: 100,
+        after,
+      }),
+    });
+    const page = result.records || [];
+    appointments.push(...page);
+    after += page.length;
+    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+  }
+  return appointments.filter(isCompletedAppointment);
+}
+
+async function dataforcePurchaseOrderDocument(token, instance, appointment) {
+  if (appointment?.appointmentId) {
+    const invoice = await dataforceOptionalFetch(
+      token,
+      `/${encodeURIComponent(instance)}/appointments/${encodeURIComponent(appointment.appointmentId)}/invoice`,
+    );
+    if (Array.isArray(invoice?.productLines) && invoice.productLines.length) return invoice;
+  }
+  if (!appointment?.jobId) return null;
+  return dataforceOptionalFetch(
+    token,
+    `/${encodeURIComponent(instance)}/jobs/${encodeURIComponent(appointment.jobId)}/quote`,
+  );
+}
+
+async function dataforcePurchaseOrderPreview(startDate, endDate) {
+  const token = await dataforceToken();
+  const { instance } = dataforceConfig();
+  const [appointments, fieldworkerPayload] = await Promise.all([
+    dataforceCompletedAppointments(token, startDate, endDate),
+    dataforceOptionalFetch(token, `/${encodeURIComponent(instance)}/fieldworkers`),
+  ]);
+  const dataforceWorkers = listFromPayload(fieldworkerPayload, ['fieldworkers', 'workers'])
+    .map(normaliseFieldworker)
+    .filter(worker => worker.id !== null);
+  const fallbackWorkers = TEAM_FIELDWORKERS.map(normaliseFieldworker);
+  const workersById = new Map(fallbackWorkers.map(worker => [worker.id, worker]));
+  dataforceWorkers.forEach(worker => workersById.set(worker.id, worker));
+  const groupedJobs = groupAppointmentsByJob(appointments).filter(job => job.completed);
+  const rows = await mapWithConcurrency(groupedJobs, 5, async job => {
+    const appointment = job.representative || {};
+    const workerId = Number(appointment.fieldworkerId);
+    const worker = workersById.get(workerId) || normaliseFieldworker({
+      fieldworkerId: workerId,
+      name: appointment.fieldworkerName,
+    });
+    const document = await dataforcePurchaseOrderDocument(token, instance, appointment);
+    const productLines = Array.isArray(document?.productLines) ? document.productLines : [];
+    const items = productLines.map(line => normalisePurchaseOrderLine(line, worker.gstRegistered));
+    return {
+      jobId: String(job.jobId),
+      appointmentId: appointment.appointmentId || null,
+      installedDate: dateOnly(appointment.actualCompletedDate || appointment.completedDate),
+      status: String(appointment.completionStatusDescription || '').trim(),
+      worker,
+      items,
+      issue: !document
+        ? 'No appointment invoice or job quote was returned by Dataforce.'
+        : (!productLines.length ? 'No product lines were returned by Dataforce.' : ''),
+    };
+  });
+  rows.sort((a, b) => a.installedDate.localeCompare(b.installedDate) || Number(a.jobId) - Number(b.jobId));
+  const visibleWorkerIds = new Set(rows.map(row => row.worker.id));
+  const workers = [...workersById.values()]
+    .filter(worker => visibleWorkerIds.has(worker.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { startDate, endDate, rates: purchaseOrderRateCard(), workers, rows };
+}
+
 async function dataforceAppointmentsBetween(token, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
@@ -968,6 +1085,22 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed.' });
   const action = req.body && req.body.action;
   try {
+    if (action === 'purchase-order-preview') {
+      if (!resolvePurchaseOrderAccess(req, res)) return;
+      const startDate = String(req.body.startDate || '');
+      const endDate = String(req.body.endDate || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+        return send(res, 400, { error: 'Choose a valid start and end date.' });
+      }
+      const start = new Date(`${startDate}T00:00:00Z`);
+      const end = new Date(`${endDate}T00:00:00Z`);
+      const days = Math.round((end - start) / 86400000) + 1;
+      if (!Number.isFinite(days) || days < 1 || days > 31) {
+        return send(res, 400, { error: 'Choose a date range between 1 and 31 days.' });
+      }
+      return send(res, 200, await dataforcePurchaseOrderPreview(startDate, endDate));
+    }
+
     if (action === 'dataforce-ghl-preview') {
       if (!resolveDataforceGhlSyncAccess(req, res)) return;
       const startDate = String(req.body.startDate || '');

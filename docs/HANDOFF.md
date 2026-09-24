@@ -50,7 +50,7 @@ This file is a single-page orientation for any new contributor or assistant. It 
 ### 4) Install Reports (Emails)
 
 - Install Summary page: `/smoke-alarms/install-summary.html`
-- Installer Pay Summary page: `/smoke-alarms/Installer Pay Summary.html`
+- Electrician Purchase Orders page: `/smoke-alarms/purchase-orders.html`
 - **Both** call the same API: `/api/smoke-alarms/reports` (→ `api/smoke-alarms/reports/index.js`)
 - Routing is by body shape: `{ html }` → install summary relay; `{ summary }` → pay summary builder
 - These two were consolidated into one function to stay within the Vercel Hobby 12-function limit
