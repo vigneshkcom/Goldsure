@@ -80,7 +80,10 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   const html = readFileSync(new URL('../smoke-alarms/purchase-orders.html', import.meta.url), 'utf8');
   assert.match(html, /Cash tagged/);
   assert.match(html, /Bank transfer, review/);
-  assert.match(html, /Customer balance \/ offset/);
+  assert.match(html, /class="jobs-table"/);
+  assert.match(html, /Installation breakdown/);
+  assert.match(html, /Job \/ installed/);
+  assert.match(html, /Customer balance/);
   assert.match(html, /> Offset<\/label>/);
   assert.doesNotMatch(html, /Cash collected \/ offset|class="money-input cash-input"/);
   assert.match(html, /const cashOffset=row\._cashCollected\?pendingBalance:0/);
