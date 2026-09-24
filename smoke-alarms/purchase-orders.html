@@ -106,6 +106,7 @@
     const deductionMoney = value => Number(value||0)>0?`−${money(value)}`:money(0);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const friendly = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}) : '';
+    const dmyDate = value => {const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return match ? `${match[3]}-${match[2]}-${match[1]}` : String(value||'')};
     const roundMoney = value => Math.round(Number(value||0)*100)/100;
 
     function previousWeek(){const today=new Date();const day=today.getDay()||7;const thisMonday=new Date(today);thisMonday.setDate(today.getDate()-day+1);const start=new Date(thisMonday);start.setDate(thisMonday.getDate()-7);const end=new Date(start);end.setDate(start.getDate()+6);$('from').value=localDate(start);$('to').value=localDate(end)}
@@ -222,11 +223,11 @@
       const button=$('exportExcel');const originalText=button.textContent;button.disabled=true;button.textContent='Preparing...';
       try{
         await loadSheetJs();
-        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Payment tag','Customer balance','Cash offset','PO payable'];
-        const rows=po.jobs.map(job=>{const hardwired=job.items.filter(i=>i.key==='hardwired').reduce((s,i)=>s+Number(i.quantity||0),0);const battery=job.items.filter(i=>i.key==='battery').reduce((s,i)=>s+Number(i.quantity||0),0);const remote=job.items.filter(i=>i.key==='remote').reduce((s,i)=>s+Number(i.quantity||0),0);const booking=job.items.filter(i=>i.key==='booking').reduce((s,i)=>s+Number(i.quantity||0),0);const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[job.installedDate||'',job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.paymentFlag?.label||'',Number(job.pendingBalance||0),Number(job.cashOffset||0),Number(job.payableIncGst||0)]});
-        po.additionalLines.forEach(line=>rows.push(['','','','','','','','', Number(line.amountIncGst||0),'Additional: '+line.description,'','',Number(line.amountIncGst||0)]));
+        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Cash offset','PO payable'];
+        const rows=po.jobs.map(job=>{const hardwired=job.items.filter(i=>i.key==='hardwired').reduce((s,i)=>s+Number(i.quantity||0),0);const battery=job.items.filter(i=>i.key==='battery').reduce((s,i)=>s+Number(i.quantity||0),0);const remote=job.items.filter(i=>i.key==='remote').reduce((s,i)=>s+Number(i.quantity||0),0);const booking=job.items.filter(i=>i.key==='booking').reduce((s,i)=>s+Number(i.quantity||0),0);const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[dmyDate(job.installedDate),job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.cashOffset?Number(job.cashOffset):'',Number(job.payableIncGst||0)]});
+        po.additionalLines.forEach(line=>rows.push(['','Additional: '+line.description,'','','','','','', Number(line.amountIncGst||0),'',Number(line.amountIncGst||0)]));
         const totals=po.totals||{};
-        rows.push(['','Grand total','','','','','',Number(totals.subtotalExGst||0),Number(totals.grossIncGst||0),'','',Number(totals.cashOffset||0),Number(totals.totalIncGst||0)]);
+        rows.push(['','Grand total','','','','','',Number(totals.subtotalExGst||0),Number(totals.grossIncGst||0),totals.cashOffset?Number(totals.cashOffset):'',Number(totals.totalIncGst||0)]);
         const sheet=window.XLSX.utils.aoa_to_sheet([header,...rows]);
         sheet['!cols']=header.map(()=>({wch:16}));
         const workbook=window.XLSX.utils.book_new();
