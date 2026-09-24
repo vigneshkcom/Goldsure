@@ -411,6 +411,14 @@ function poRecipientBlock(label, electrician, po) {
       </tr></table></td></tr>`;
 }
 
+function purchaseOrderPdfFilename(po, isSummary) {
+  return `${[
+    isSummary ? 'Installation summary' : 'Purchase order',
+    po.electrician.name,
+    isSummary || !po.weekEnding ? po.period : `Week ending ${dmyDate(po.weekEnding)}`,
+  ].map(part => String(part || '').replace(/[\\/:*?"<>|]+/g, '-').trim()).filter(Boolean).join(' - ')}.pdf`;
+}
+
 function additionalLinesHtml(po) {
   const lines = Array.isArray(po.additionalLines) ? po.additionalLines : [];
   if (!lines.length) return '';
@@ -545,6 +553,19 @@ export default async function handler(req, res) {
     }
     const { to, cc, subject } = body;
     const po = validatedPurchaseOrder(body.purchaseOrder);
+    const isSummary = body.emailMode === 'summary';
+    if (body.download === true) {
+      if (!po) return res.status(400).json({ error: 'The purchase order is incomplete.' });
+      try {
+        const pdf = await (isSummary ? buildInstallSummaryPdf(po) : buildPurchaseOrderPdf(po));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${purchaseOrderPdfFilename(po, isSummary).replace(/[^\x20-\x7e]|"/g, '')}"`);
+        return res.status(200).send(pdf);
+      } catch (err) {
+        console.error('[Purchase order] PDF generation failed:', err.message);
+        return res.status(500).json({ error: 'Could not generate the PDF.' });
+      }
+    }
     const recipients = emailRecipients(to);
     const ccRecipients = emailRecipients(cc);
     if (!recipients.length || recipients.length !== new Set(emailEntries(to)).size) {
@@ -558,16 +579,11 @@ export default async function handler(req, res) {
     }
     const itemCount = po.jobs.reduce((count, job) => count + (Array.isArray(job.items) ? job.items.length : 0), 0);
     if (!itemCount) return res.status(400).json({ error: 'The purchase order has no payable items.' });
-    const isSummary = body.emailMode === 'summary';
     let pdfAttachment;
     try {
       const pdfBuffer = await (isSummary ? buildInstallSummaryPdf(po) : buildPurchaseOrderPdf(po));
       pdfAttachment = {
-        filename: `${[
-          isSummary ? 'Installation summary' : 'Purchase order',
-          po.electrician.name,
-          isSummary || !po.weekEnding ? po.period : `Week ending ${dmyDate(po.weekEnding)}`,
-        ].map(part => String(part || '').replace(/[\\/:*?"<>|]+/g, '-').trim()).filter(Boolean).join(' - ')}.pdf`,
+        filename: purchaseOrderPdfFilename(po, isSummary),
         content: pdfBuffer.toString('base64'),
         contentType: 'application/pdf',
       };
