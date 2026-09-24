@@ -37,7 +37,7 @@ const purchaseOrder = {
 
 const setup = {
   accountCode: '101',
-  accountName: 'Contractor Expenses - Non Salary',
+  accountName: 'Contractor Expenses – Non Salary',
   accountTaxType: 'INPUT',
   serviceTaxType: 'INPUT',
   serviceTaxName: 'GST on Expenses',
@@ -51,7 +51,7 @@ function xeroClient({ existingBill = null, existingContact = null } = {}) {
     calls,
     accountingApi: {
       async getAccounts() {
-        return { body: { accounts: [{ code: '101', name: 'Contractor Expenses - Non Salary', status: 'ACTIVE', taxType: 'INPUT' }] } };
+        return { body: { accounts: [{ code: '101', name: 'Contractor Expenses – Non Salary', status: 'ACTIVE', taxType: 'INPUT' }] } };
       },
       async getTrackingCategories() {
         return { body: { trackingCategories: [{ name: 'Division', status: 'ACTIVE', options: [{ name: 'QLD Smoke Alarms', status: 'ACTIVE' }] }] } };
