@@ -7,6 +7,8 @@ import {
   classifyDataforceProduct,
   pipelineMatchesProduct,
   findInstalledStage,
+  isOpportunityAlreadyWon,
+  directCallOpportunityName,
   chooseOpportunity,
   calculateDataforceRevenue,
   groupAppointmentsByJob,
@@ -53,6 +55,18 @@ test('finds Installed and prefers the latest open opportunity', () => {
     { id: 'other', pipelineId: 'p2', status: 'open', updatedAt: '2026-09-24T10:00:00Z' },
   ], ['p1']);
   assert.equal(selected.id, 'open');
+});
+
+test('treats Won or Installed stages as already completed even when GHL status is open', () => {
+  assert.equal(isOpportunityAlreadyWon({ status: 'open' }, 'Won/Installed'), true);
+  assert.equal(isOpportunityAlreadyWon({ status: 'open' }, 'Installed'), true);
+  assert.equal(isOpportunityAlreadyWon({ status: 'won' }, 'Quote Sent'), true);
+  assert.equal(isOpportunityAlreadyWon({ status: 'open' }, 'Quote Sent'), false);
+});
+
+test('uses the required Direct Call opportunity naming format', () => {
+  assert.equal(directCallOpportunityName('JANICE MARRIOTT'), 'JANICE MARRIOTT - Direct Call');
+  assert.equal(directCallOpportunityName(''), 'Customer - Direct Call');
 });
 
 test('calculates the full contract value and reports rebate separately', () => {
@@ -102,5 +116,68 @@ test('protects the live preview and rejects oversized date ranges before any API
   } finally {
     if (previous === undefined) delete process.env.DATAFORCE_GHL_SYNC_PIN;
     else process.env.DATAFORCE_GHL_SYNC_PIN = previous;
+  }
+});
+
+test('preview skips Won for an installed opportunity and proposes Direct Call creation when unmatched', async () => {
+  const originalFetch = global.fetch;
+  const previousEnv = {
+    DATAFORCE_GHL_SYNC_PIN: process.env.DATAFORCE_GHL_SYNC_PIN,
+    DATAFORCE_CLIENT_ID: process.env.DATAFORCE_CLIENT_ID,
+    DATAFORCE_CLIENT_SECRET: process.env.DATAFORCE_CLIENT_SECRET,
+    GHL_API_KEY: process.env.GHL_API_KEY,
+    GHL_LOCATION_ID: process.env.GHL_LOCATION_ID,
+    SMOKE_ALARMS_PIPELINE_ID: process.env.SMOKE_ALARMS_PIPELINE_ID,
+  };
+  Object.assign(process.env, {
+    DATAFORCE_GHL_SYNC_PIN: '4321',
+    DATAFORCE_CLIENT_ID: 'client',
+    DATAFORCE_CLIENT_SECRET: 'secret',
+    GHL_API_KEY: 'ghl-key',
+    GHL_LOCATION_ID: 'location-1',
+    SMOKE_ALARMS_PIPELINE_ID: 'smoke-pipeline',
+  });
+  global.fetch = async url => {
+    const value = String(url);
+    if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
+    if (value.includes('/appointments/search')) return new Response(JSON.stringify({ totalCount: 2, records: [
+      { appointmentId: 38445, jobId: 36679, customerId: 1, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', scheduledDate: '2026-09-23T09:00:00' },
+      { appointmentId: 38366, jobId: 36601, customerId: 2, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', scheduledDate: '2026-09-22T09:00:00' },
+    ] }), { status: 200 });
+    if (value.includes('/customers/id/1')) return new Response(JSON.stringify({ firstname: 'RON', surname: 'ROBERT', email: 'driverron63@gmail.com', mobilePhone: '0416254285', state: 'QLD', streetNo: '1', streetName: 'Test', streetType: 'STREET', suburb: 'Brisbane', postCode: 4000 }), { status: 200 });
+    if (value.includes('/customers/id/2')) return new Response(JSON.stringify({ firstname: 'JANICE', surname: 'MARRIOTT', email: 'janmarriott@ymail.com', mobilePhone: '0438051948', state: 'QLD', streetNo: '2', streetName: 'Sample', streetType: 'STREET', suburb: 'Brisbane', postCode: 4000 }), { status: 200 });
+    if (value.includes('/appointments/38445/invoice')) return new Response(JSON.stringify({ productLines: [{ lineQty: 1, lineRateIncTax: 523 }] }), { status: 200 });
+    if (value.includes('/appointments/38366/invoice')) return new Response(JSON.stringify({ productLines: [{ lineQty: 1, lineRateIncTax: 610 }] }), { status: 200 });
+    if (value.includes('/opportunities/pipelines')) return new Response(JSON.stringify({ pipelines: [{ id: 'smoke-pipeline', name: 'Smoke Alarms', stages: [{ id: 'quote', name: 'Quote Sent' }, { id: 'installed', name: 'Won/Installed' }] }] }), { status: 200 });
+    if (value.includes('/customFields?model=opportunity')) return new Response(JSON.stringify({ customFields: [] }), { status: 200 });
+    if (value.includes('/contacts/?') && (value.includes('driverron63%40gmail.com') || value.includes('0416254285'))) return new Response(JSON.stringify({ contacts: [{ id: 'ron-contact', name: 'RON ROBERT', email: 'driverron63@gmail.com', phone: '+61416254285' }] }), { status: 200 });
+    if (value.includes('/contacts/?')) return new Response(JSON.stringify({ contacts: [] }), { status: 200 });
+    if (value.includes('/opportunities/search')) return new Response(JSON.stringify({ opportunities: [{ id: 'ron-opportunity', pipelineId: 'smoke-pipeline', pipelineStageId: 'installed', status: 'open', monetaryValue: 0 }] }), { status: 200 });
+    throw new Error(`Unexpected request: ${value}`);
+  };
+  try {
+    const response = responseRecorder();
+    await handler({
+      method: 'POST',
+      headers: { 'x-dataforce-ghl-pin': '4321' },
+      body: { action: 'dataforce-ghl-preview', startDate: '2026-09-22', endDate: '2026-09-23' },
+    }, response);
+    assert.equal(response.statusCode, 200);
+    const ron = response.body.rows.find(row => row.jobId === '36679');
+    const janice = response.body.rows.find(row => row.jobId === '36601');
+    assert.equal(ron.proposedChanges.includes('Mark opportunity Won'), false);
+    assert.equal(ron.proposedChanges.includes('Update revenue to $523.00'), true);
+    assert.equal(janice.createContact, true);
+    assert.equal(janice.createOpportunity, true);
+    assert.equal(janice.opportunityName, 'JANICE MARRIOTT - Direct Call');
+    assert.equal(janice.opportunitySource, 'Direct Call');
+    assert.equal(janice.targetStatus, 'won');
+    assert.equal(janice.proposedRevenue, 610);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });

@@ -7,6 +7,8 @@ import {
   classifyDataforceProduct,
   pipelineMatchesProduct,
   findInstalledStage,
+  isOpportunityAlreadyWon,
+  directCallOpportunityName,
   chooseOpportunity,
   calculateDataforceRevenue,
   groupAppointmentsByJob,
@@ -778,6 +780,7 @@ async function dataforceGhlPreview(startDate, endDate) {
       customerName: customerDisplayName(customer),
       email: String(customer?.email || '').trim(),
       phone: String(customer?.mobilePhone || customer?.homePhone || '').trim(),
+      address: customerAddress(customer),
       state: String(customer?.state || '').trim(),
       workType: String(appointment.workTypeName || '').trim(),
       scheduledDate: appointment.scheduledDate || '',
@@ -789,15 +792,59 @@ async function dataforceGhlPreview(startDate, endDate) {
       proposedChanges: [],
     };
     if (!customer) return { ...base, issue: 'Dataforce customer could not be loaded.' };
+    const pipelineIds = configuredPipelineIds(pipelines, product);
+    const targetPipeline = pipelines.find(item => pipelineIds.includes(item.id));
+    const installedStage = findInstalledStage(targetPipeline);
     const match = await findExactGhlContact(apiKey, locationId, customer);
-    if (match.status !== 'matched') {
+    if (match.status === 'conflict') {
       return {
         ...base,
         matchStatus: match.status,
-        issue: match.status === 'conflict'
-          ? 'Email and phone matched more than one GHL contact.'
-          : 'No exact GHL email or phone match.',
+        issue: 'Email and phone matched more than one GHL contact. Creation is blocked to prevent a duplicate.',
         candidates: match.candidates || [],
+      };
+    }
+
+    if (product === 'unknown') {
+      return { ...base, matchStatus: match.status, issue: 'Work type could not be mapped to a GHL pipeline.' };
+    }
+    if (!targetPipeline) {
+      return { ...base, matchStatus: match.status, issue: 'The matching GHL pipeline could not be found.' };
+    }
+
+    let revenue = { confident: false, source: '', revenue: null };
+    if (job.completed) revenue = await dataforceRevenueForJob(token, instance, appointment, job.jobId);
+    const jobFieldChange = jobIdField
+      ? `Set Dataforce Job ID to ${job.jobId}`
+      : `Set Dataforce Job ID to ${job.jobId} (GHL field needs setup)`;
+
+    if (match.status === 'unmatched') {
+      const opportunityName = directCallOpportunityName(base.customerName);
+      const detailNames = [base.customerName && 'name', base.email && 'email', base.phone && 'phone', base.address && 'property address'].filter(Boolean);
+      const proposedChanges = [
+        `Create GHL contact with ${detailNames.join(', ')}`,
+        `Create ${targetPipeline.name} opportunity: ${opportunityName}`,
+        'Set source to Direct Call',
+        jobFieldChange,
+      ];
+      if (job.completed && installedStage) proposedChanges.push(`Create in ${installedStage.name}`);
+      if (job.completed) proposedChanges.push('Create opportunity as Won');
+      if (job.completed && revenue.confident) proposedChanges.push(`Set revenue to $${revenue.revenue.toFixed(2)}`);
+      return {
+        ...base,
+        matchStatus: 'unmatched',
+        createContact: true,
+        createOpportunity: true,
+        opportunityName,
+        opportunitySource: 'Direct Call',
+        pipeline: targetPipeline.name,
+        currentRevenue: null,
+        targetStage: job.completed ? (installedStage?.name || '') : '',
+        targetStatus: job.completed ? 'won' : 'open',
+        proposedRevenue: revenue.confident ? revenue.revenue : null,
+        revenue,
+        proposedChanges,
+        issue: job.completed && !installedStage ? 'The matching pipeline has no Installed stage.' : '',
       };
     }
 
@@ -806,7 +853,6 @@ async function dataforceGhlPreview(startDate, endDate) {
       apiKey,
       `/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=100`,
     );
-    const pipelineIds = configuredPipelineIds(pipelines, product);
     const opportunity = chooseOpportunity(opportunityPayload.opportunities || [], pipelineIds);
     const matchedBase = {
       ...base,
@@ -816,29 +862,44 @@ async function dataforceGhlPreview(startDate, endDate) {
       ghlContactName: contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' '),
       ghlLink: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contact.id}`,
     };
-    if (product === 'unknown') return { ...matchedBase, issue: 'Work type could not be mapped to a GHL pipeline.' };
-    if (!pipelineIds.length) return { ...matchedBase, issue: 'The matching GHL pipeline could not be found.' };
-    if (!opportunity) return { ...matchedBase, issue: 'No opportunity exists in the matching product pipeline.' };
+    if (!opportunity) {
+      const opportunityName = directCallOpportunityName(base.customerName);
+      const proposedChanges = [
+        `Create ${targetPipeline.name} opportunity: ${opportunityName}`,
+        'Set source to Direct Call',
+        jobFieldChange,
+      ];
+      if (job.completed && installedStage) proposedChanges.push(`Create in ${installedStage.name}`);
+      if (job.completed) proposedChanges.push('Create opportunity as Won');
+      if (job.completed && revenue.confident) proposedChanges.push(`Set revenue to $${revenue.revenue.toFixed(2)}`);
+      return {
+        ...matchedBase,
+        createOpportunity: true,
+        opportunityName,
+        opportunitySource: 'Direct Call',
+        pipeline: targetPipeline.name,
+        currentRevenue: null,
+        targetStage: job.completed ? (installedStage?.name || '') : '',
+        targetStatus: job.completed ? 'won' : 'open',
+        proposedRevenue: revenue.confident ? revenue.revenue : null,
+        revenue,
+        proposedChanges,
+        issue: job.completed && !installedStage ? 'The matching pipeline has no Installed stage.' : '',
+      };
+    }
 
     const pipeline = pipelines.find(item => item.id === opportunity.pipelineId);
     const currentStage = pipeline?.stages?.find(stage => stage.id === opportunity.pipelineStageId);
-    const installedStage = findInstalledStage(pipeline);
-    const proposedChanges = [];
-    proposedChanges.push(jobIdField
-      ? `Set Dataforce Job ID to ${job.jobId}`
-      : `Set Dataforce Job ID to ${job.jobId} (GHL field needs setup)`);
-    if (job.completed && installedStage && opportunity.pipelineStageId !== installedStage.id) {
-      proposedChanges.push(`Move stage to ${installedStage.name}`);
+    const opportunityInstalledStage = findInstalledStage(pipeline);
+    const proposedChanges = [jobFieldChange];
+    if (job.completed && opportunityInstalledStage && opportunity.pipelineStageId !== opportunityInstalledStage.id) {
+      proposedChanges.push(`Move stage to ${opportunityInstalledStage.name}`);
     }
-    if (job.completed && String(opportunity.status || '').toLowerCase() !== 'won') {
+    if (job.completed && !isOpportunityAlreadyWon(opportunity, currentStage?.name)) {
       proposedChanges.push('Mark opportunity Won');
     }
-    let revenue = { confident: false, source: '', revenue: null };
-    if (job.completed) {
-      revenue = await dataforceRevenueForJob(token, instance, appointment, job.jobId);
-      if (revenue.confident && Number(opportunity.monetaryValue || 0) !== revenue.revenue) {
-        proposedChanges.push(`Update revenue to $${revenue.revenue.toFixed(2)}`);
-      }
+    if (job.completed && revenue.confident && Number(opportunity.monetaryValue || 0) !== revenue.revenue) {
+      proposedChanges.push(`Update revenue to $${revenue.revenue.toFixed(2)}`);
     }
     return {
       ...matchedBase,
@@ -847,12 +908,12 @@ async function dataforceGhlPreview(startDate, endDate) {
       currentStatus: opportunity.status || '',
       currentRevenue: Number(opportunity.monetaryValue || 0),
       opportunityId: opportunity.id,
-      targetStage: job.completed ? (installedStage?.name || '') : '',
-      targetStatus: job.completed ? 'won' : '',
+      targetStage: job.completed ? (opportunityInstalledStage?.name || '') : '',
+      targetStatus: job.completed && !isOpportunityAlreadyWon(opportunity, currentStage?.name) ? 'won' : '',
       proposedRevenue: revenue.confident ? revenue.revenue : null,
       revenue,
       proposedChanges,
-      issue: job.completed && !installedStage ? 'The matching pipeline has no Installed stage.' : '',
+      issue: job.completed && !opportunityInstalledStage ? 'The matching pipeline has no Installed stage.' : '',
     };
   });
 
@@ -871,6 +932,7 @@ async function dataforceGhlPreview(startDate, endDate) {
       matched: rows.filter(row => row.matchStatus === 'matched').length,
       conflicts: rows.filter(row => row.matchStatus === 'conflict').length,
       unmatched: rows.filter(row => row.matchStatus === 'unmatched').length,
+      proposedCreates: rows.filter(row => row.createContact || row.createOpportunity).length,
       proposedUpdates: rows.filter(row => row.proposedChanges.length).length,
     },
     rows,
