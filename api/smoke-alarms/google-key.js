@@ -715,11 +715,19 @@ function configuredPipelineIds(pipelines, product) {
   ])];
 }
 
-function dataforceJobIdField(customFields) {
+function opportunityFieldByName(customFields, names, fieldKeys = []) {
   const normal = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
-  return (customFields || []).find(field => field.model === 'opportunity' && [
-    'dataforce job id', 'dataforce jobid',
-  ].includes(normal(field.name))) || (customFields || []).find(field => String(field.fieldKey || '').toLowerCase().endsWith('.dataforce_job_id')) || null;
+  const wantedNames = names.map(normal);
+  const wantedKeys = fieldKeys.map(value => String(value || '').trim().toLowerCase());
+  const eligible = (customFields || []).filter(field => !field.model || field.model === 'opportunity');
+  return eligible.find(field => wantedNames.includes(normal(field.name)))
+    || eligible.find(field => wantedKeys.some(key => String(field.fieldKey || '').toLowerCase().endsWith(key)))
+    || null;
+}
+
+function dateOnly(value) {
+  const match = String(value || '').trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
 }
 
 async function dataforceRevenueForJob(token, instance, representative, jobId) {
@@ -767,7 +775,8 @@ async function dataforceGhlPreview(startDate, endDate) {
   } catch (error) {
     console.warn('Could not inspect GHL opportunity custom fields:', error.message);
   }
-  const jobIdField = dataforceJobIdField(customFields);
+  const jobIdField = opportunityFieldByName(customFields, ['Job ID'], ['.job_id']);
+  const installationDateField = opportunityFieldByName(customFields, ['Installation Date'], ['.installation_date']);
 
   const rows = await mapWithConcurrency(jobs, 4, async job => {
     const appointment = job.representative || {};
@@ -785,6 +794,7 @@ async function dataforceGhlPreview(startDate, endDate) {
       workType: String(appointment.workTypeName || '').trim(),
       scheduledDate: appointment.scheduledDate || '',
       dataforceStatus: appointment.completionStatusDescription || '',
+      installationDate: dateOnly(appointment.actualCompletedDate || appointment.completedDate),
       completed: job.completed,
       product,
       matchStatus: 'unmatched',
@@ -815,8 +825,13 @@ async function dataforceGhlPreview(startDate, endDate) {
     let revenue = { confident: false, source: '', revenue: null };
     if (job.completed) revenue = await dataforceRevenueForJob(token, instance, appointment, job.jobId);
     const jobFieldChange = jobIdField
-      ? `Set Dataforce Job ID to ${job.jobId}`
-      : `Set Dataforce Job ID to ${job.jobId} (GHL field needs setup)`;
+      ? `Set Job ID to ${job.jobId}`
+      : `Set Job ID to ${job.jobId} (existing GHL field was not returned by the API)`;
+    const installationDateChange = base.installationDate
+      ? (installationDateField
+        ? `Set Installation Date to ${base.installationDate}`
+        : `Set Installation Date to ${base.installationDate} (existing GHL field was not returned by the API)`)
+      : '';
 
     if (match.status === 'unmatched') {
       const opportunityName = directCallOpportunityName(base.customerName);
@@ -827,6 +842,7 @@ async function dataforceGhlPreview(startDate, endDate) {
         'Set source to Direct Call',
         jobFieldChange,
       ];
+      if (installationDateChange) proposedChanges.push(installationDateChange);
       if (job.completed && installedStage) proposedChanges.push(`Create in ${installedStage.name}`);
       if (job.completed) proposedChanges.push('Create opportunity as Won');
       if (job.completed && revenue.confident) proposedChanges.push(`Set revenue to $${revenue.revenue.toFixed(2)}`);
@@ -869,6 +885,7 @@ async function dataforceGhlPreview(startDate, endDate) {
         'Set source to Direct Call',
         jobFieldChange,
       ];
+      if (installationDateChange) proposedChanges.push(installationDateChange);
       if (job.completed && installedStage) proposedChanges.push(`Create in ${installedStage.name}`);
       if (job.completed) proposedChanges.push('Create opportunity as Won');
       if (job.completed && revenue.confident) proposedChanges.push(`Set revenue to $${revenue.revenue.toFixed(2)}`);
@@ -892,6 +909,7 @@ async function dataforceGhlPreview(startDate, endDate) {
     const currentStage = pipeline?.stages?.find(stage => stage.id === opportunity.pipelineStageId);
     const opportunityInstalledStage = findInstalledStage(pipeline);
     const proposedChanges = [jobFieldChange];
+    if (installationDateChange) proposedChanges.push(installationDateChange);
     if (job.completed && opportunityInstalledStage && opportunity.pipelineStageId !== opportunityInstalledStage.id) {
       proposedChanges.push(`Move stage to ${opportunityInstalledStage.name}`);
     }
@@ -924,7 +942,10 @@ async function dataforceGhlPreview(startDate, endDate) {
     startDate,
     endDate,
     generatedAt: new Date().toISOString(),
-    jobIdField: jobIdField ? { id: jobIdField.id, name: jobIdField.name } : null,
+    fields: {
+      jobId: jobIdField ? { id: jobIdField.id, name: jobIdField.name } : null,
+      installationDate: installationDateField ? { id: installationDateField.id, name: installationDateField.name } : null,
+    },
     summary: {
       appointments: appointments.length,
       jobs: rows.length,

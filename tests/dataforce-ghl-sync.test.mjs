@@ -141,15 +141,18 @@ test('preview skips Won for an installed opportunity and proposes Direct Call cr
     const value = String(url);
     if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
     if (value.includes('/appointments/search')) return new Response(JSON.stringify({ totalCount: 2, records: [
-      { appointmentId: 38445, jobId: 36679, customerId: 1, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', scheduledDate: '2026-09-23T09:00:00' },
-      { appointmentId: 38366, jobId: 36601, customerId: 2, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', scheduledDate: '2026-09-22T09:00:00' },
+      { appointmentId: 38445, jobId: 36679, customerId: 1, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', completedDate: '2026-09-23T16:15:00', scheduledDate: '2026-09-23T09:00:00' },
+      { appointmentId: 38366, jobId: 36601, customerId: 2, workTypeName: 'Smoke Alarm Installation', completionStatusDescription: 'Completed', actualCompletedDate: '2026-09-22T15:30:00', scheduledDate: '2026-09-22T09:00:00' },
     ] }), { status: 200 });
     if (value.includes('/customers/id/1')) return new Response(JSON.stringify({ firstname: 'RON', surname: 'ROBERT', email: 'driverron63@gmail.com', mobilePhone: '0416254285', state: 'QLD', streetNo: '1', streetName: 'Test', streetType: 'STREET', suburb: 'Brisbane', postCode: 4000 }), { status: 200 });
     if (value.includes('/customers/id/2')) return new Response(JSON.stringify({ firstname: 'JANICE', surname: 'MARRIOTT', email: 'janmarriott@ymail.com', mobilePhone: '0438051948', state: 'QLD', streetNo: '2', streetName: 'Sample', streetType: 'STREET', suburb: 'Brisbane', postCode: 4000 }), { status: 200 });
     if (value.includes('/appointments/38445/invoice')) return new Response(JSON.stringify({ productLines: [{ lineQty: 1, lineRateIncTax: 523 }] }), { status: 200 });
     if (value.includes('/appointments/38366/invoice')) return new Response(JSON.stringify({ productLines: [{ lineQty: 1, lineRateIncTax: 610 }] }), { status: 200 });
     if (value.includes('/opportunities/pipelines')) return new Response(JSON.stringify({ pipelines: [{ id: 'smoke-pipeline', name: 'Smoke Alarms', stages: [{ id: 'quote', name: 'Quote Sent' }, { id: 'installed', name: 'Won/Installed' }] }] }), { status: 200 });
-    if (value.includes('/customFields?model=opportunity')) return new Response(JSON.stringify({ customFields: [] }), { status: 200 });
+    if (value.includes('/customFields?model=opportunity')) return new Response(JSON.stringify({ customFields: [
+      { id: 'job-field', name: 'Job ID', fieldKey: 'opportunity.job_id', model: 'opportunity' },
+      { id: 'install-field', name: 'Installation Date', fieldKey: 'opportunity.installation_date', model: 'opportunity' },
+    ] }), { status: 200 });
     if (value.includes('/contacts/?') && (value.includes('driverron63%40gmail.com') || value.includes('0416254285'))) return new Response(JSON.stringify({ contacts: [{ id: 'ron-contact', name: 'RON ROBERT', email: 'driverron63@gmail.com', phone: '+61416254285' }] }), { status: 200 });
     if (value.includes('/contacts/?')) return new Response(JSON.stringify({ contacts: [] }), { status: 200 });
     if (value.includes('/opportunities/search')) return new Response(JSON.stringify({ opportunities: [{ id: 'ron-opportunity', pipelineId: 'smoke-pipeline', pipelineStageId: 'installed', status: 'open', monetaryValue: 0 }] }), { status: 200 });
@@ -167,12 +170,16 @@ test('preview skips Won for an installed opportunity and proposes Direct Call cr
     const janice = response.body.rows.find(row => row.jobId === '36601');
     assert.equal(ron.proposedChanges.includes('Mark opportunity Won'), false);
     assert.equal(ron.proposedChanges.includes('Update revenue to $523.00'), true);
+    assert.equal(ron.proposedChanges.includes('Set Job ID to 36679'), true);
+    assert.equal(ron.proposedChanges.includes('Set Installation Date to 2026-09-23'), true);
     assert.equal(janice.createContact, true);
     assert.equal(janice.createOpportunity, true);
     assert.equal(janice.opportunityName, 'JANICE MARRIOTT - Direct Call');
     assert.equal(janice.opportunitySource, 'Direct Call');
     assert.equal(janice.targetStatus, 'won');
     assert.equal(janice.proposedRevenue, 610);
+    assert.equal(janice.proposedChanges.includes('Set Job ID to 36601'), true);
+    assert.equal(janice.proposedChanges.includes('Set Installation Date to 2026-09-22'), true);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {
