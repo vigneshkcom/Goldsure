@@ -667,18 +667,52 @@ const ghlKey = f => {
 };
 
 async function loadPipelines() {
-  const keys = [...new Set(folders.map(ghlKey).filter(k => k && !k.startsWith('~')))];
-  if (!keys.length) return;
+  const fullPhoneFor = f => {
+    const stored = String(f.phone || '').trim();
+    if (stored.replace(/\D/g, '').length >= 6) return stored;
+    const suffix = (/\((\+?[\d\s-]{6,})\)\s*$/.exec(String(f.name || '')) || [])[1] || '';
+    return suffix.trim();
+  };
+  const phoneToKeys = new Map();
+  folders.forEach(f => {
+    const phone = fullPhoneFor(f);
+    if (!phone) return;
+    if (!phoneToKeys.has(phone)) phoneToKeys.set(phone, []);
+    phoneToKeys.get(phone).push(ghlKey(f));
+  });
+  const phones = [...phoneToKeys.keys()];
 
-  for (let i = 0; i < keys.length; i += 20) {
-    const batch = keys.slice(i, i + 20);
+  for (let i = 0; i < phones.length; i += 15) {
+    const batch = phones.slice(i, i + 15);
+    try {
+      const res = await fetch('/api/battery/request-callback?action=ghl-opps&phones=' + encodeURIComponent(batch.join(',')));
+      if (!res.ok) throw new Error('lookup failed');
+      const found = await res.json();
+      batch.forEach(phone => {
+        const info = found[phone];
+        const value = info && !info.none ? { ...info, status: info.oppStatus || info.status || '' } : null;
+        (phoneToKeys.get(phone) || []).forEach(key => { ghl[key] = value; });
+      });
+    } catch {
+      batch.forEach(phone => {
+        (phoneToKeys.get(phone) || []).forEach(key => { if (ghl[key] === undefined) ghl[key] = null; });
+      });
+    }
+    render();
+  }
+
+  // Very old folders may have only a last-four suffix and no stored phone.
+  // Keep the legacy name lookup for that small remainder.
+  const legacyKeys = [...new Set(folders.filter(f => !fullPhoneFor(f)).map(ghlKey).filter(k => k && !k.startsWith('~')))];
+  for (let i = 0; i < legacyKeys.length; i += 20) {
+    const batch = legacyKeys.slice(i, i + 20);
     try {
       const res = await fetch('/api/battery/request-callback?action=ghl-find&product=' + encodeURIComponent(PRODUCT) + '&items=' + encodeURIComponent(batch.join(',')));
       if (!res.ok) throw new Error('lookup failed');
       const found = await res.json();
-      batch.forEach(k => { ghl[k] = found[k] || null; });
+      batch.forEach(key => { ghl[key] = found[key] || null; });
     } catch {
-      batch.forEach(k => { if (ghl[k] === undefined) ghl[k] = null; });
+      batch.forEach(key => { if (ghl[key] === undefined) ghl[key] = null; });
     }
     render();
   }

@@ -33,7 +33,9 @@ test('folder deletion is password protected and constrained to the selected prod
 
 test('photo lookup returns GHL opportunity status and tracker script compiles', async () => {
   const [html, ghlApi] = await Promise.all([readFile(trackerUrl, 'utf8'), readFile(ghlUrl, 'utf8')]);
-  assert.match(html, /action=ghl-find&product=' \+ encodeURIComponent\(PRODUCT\)/);
+  assert.match(html, /action=ghl-opps&phones=' \+ encodeURIComponent\(batch\.join\(','\)\)/);
+  assert.match(html, /status: info\.oppStatus \|\| info\.status \|\| ''/);
+  assert.match(html, /const legacyKeys =/);
   assert.match(ghlApi, /if \(product === 'hws-nsw'\) return name\.includes\('nsw'\)/);
   assert.match(ghlApi, /const productPipelineIds = new Set/);
   assert.match(ghlApi, /const relevantOpps = productPipelineIds\.size \? opps\.filter\(o => productPipelineIds\.has\(o\.pipelineId\)\) : opps/);
