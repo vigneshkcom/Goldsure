@@ -37,6 +37,9 @@ test('photo lookup returns GHL opportunity status and tracker script compiles', 
   assert.match(ghlApi, /if \(product === 'hws-nsw'\) return name\.includes\('nsw'\)/);
   assert.match(ghlApi, /const productPipelineIds = new Set/);
   assert.match(ghlApi, /const relevantOpps = productPipelineIds\.size \? opps\.filter\(o => productPipelineIds\.has\(o\.pipelineId\)\) : opps/);
+  assert.match(ghlApi, /const candidates = relevantOpps\.length \? relevantOpps : opps/);
+  assert.match(ghlApi, /for \(let offset = 0; offset < items\.length; offset \+= 5\)/);
+  assert.match(ghlApi, /response\.status !== 429/);
   assert.match(ghlApi, /info\.status\s*=\s*opp\.status \|\| ''/);
   const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
     .filter(match => !/\bsrc\s*=/.test(match[1]))

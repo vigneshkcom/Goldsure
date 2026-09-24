@@ -358,10 +358,21 @@ export default async function handler(req, res) {
       const locationId = process.env.GHL_LOCATION_ID;
       if (!apiKey || !locationId) return res.status(200).json({});
       const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+      const ghlFetch = async url => {
+        let response;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          response = await fetch(url, { headers });
+          if (response.status !== 429 && response.status < 500) return response;
+          const retryAfter = Number.parseInt(response.headers.get('retry-after') || '', 10);
+          const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 4000) : 400 * (2 ** attempt);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        return response;
+      };
 
       let pipes = [];
       try {
-        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers });
+        const pRes = await ghlFetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`);
         if (pRes.ok) pipes = (await pRes.json()).pipelines || [];
       } catch {}
       const pipeName  = pid => (pipes.find(p => p.id === pid) || {}).name || '';
@@ -371,14 +382,15 @@ export default async function handler(req, res) {
       };
 
       const out = {};
-      await Promise.all(items.map(async (item) => {
+      for (let offset = 0; offset < items.length; offset += 5) {
+        const batch = items.slice(offset, offset + 5);
+        await Promise.all(batch.map(async (item) => {
         const [rawName, last4] = item.split('~');
         const name = (rawName || '').trim();
         if (!name) return;
         try {
-          const r = await fetch(
+          const r = await ghlFetch(
             `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(name)}&limit=20`,
-            { headers }
           );
           if (!r.ok) return;
           const contacts = (await r.json()).contacts || [];
@@ -397,12 +409,13 @@ export default async function handler(req, res) {
             link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${match.id}`,
           };
           try {
-            const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(match.id)}`, { headers });
+            const oRes = await ghlFetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(match.id)}`);
             if (oRes.ok) {
               const opps = (await oRes.json()).opportunities || [];
               const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
               const relevantOpps = productPipelineIds.size ? opps.filter(o => productPipelineIds.has(o.pipelineId)) : opps;
-              const opp = relevantOpps.filter(o => o.status === 'open').sort(byUpdated)[0] || relevantOpps.sort(byUpdated)[0];
+              const candidates = relevantOpps.length ? relevantOpps : opps;
+              const opp = candidates.filter(o => o.status === 'open').sort(byUpdated)[0] || candidates.sort(byUpdated)[0];
               if (opp) {
                 info.pipeline = pipeName(opp.pipelineId);
                 info.stage    = stageName(opp.pipelineId, opp.pipelineStageId);
@@ -413,7 +426,8 @@ export default async function handler(req, res) {
           } catch {}
           out[item] = info;
         } catch {}
-      }));
+        }));
+      }
 
       return res.status(200).json(out);
     }
