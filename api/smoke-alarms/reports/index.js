@@ -3,7 +3,7 @@
 // Routes on body shape: { html } → install summary relay; { summary } → pay summary builder.
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
-import { purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
+import { purchaseOrderPayableDate, purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
 
 function esc(value) {
   return String(value ?? '')
@@ -33,6 +33,16 @@ function purchaseOrderAccessAllowed(req) {
   ).trim();
   const supplied = String(req.headers['x-purchase-order-pin'] || '').trim();
   return Boolean(expected && supplied && supplied === expected);
+}
+
+function emailEntries(value) {
+  return (Array.isArray(value) ? value : String(value || '').split(/[;,]/))
+    .map(address => String(address || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function emailRecipients(value) {
+  return [...new Set(emailEntries(value))].filter(address => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)).slice(0, 10);
 }
 
 function validatedPurchaseOrder(po) {
@@ -65,6 +75,7 @@ function validatedPurchaseOrder(po) {
     const cashOffset = job.cashCollected === true && Number.isFinite(requestedOffset)
       ? Math.min(pendingBalance, Math.max(0, Math.round(requestedOffset * 100) / 100))
       : 0;
+    const paymentType = ['cash', 'bank-transfer'].includes(job.paymentFlag?.type) ? job.paymentFlag.type : '';
     return {
       jobId: String(job.jobId || '').trim(),
       installedDate: String(job.installedDate || '').trim(),
@@ -76,14 +87,34 @@ function validatedPurchaseOrder(po) {
       gst,
       grossIncGst,
       payableIncGst: Math.round((grossIncGst - cashOffset) * 100) / 100,
+      paymentFlag: {
+        type: paymentType,
+        label: paymentType === 'cash' ? 'Cash tagged' : paymentType === 'bank-transfer' ? 'Bank transfer - review' : '',
+      },
     };
   }).filter(job => job.jobId && job.items.length);
   if (!jobs.length) return null;
   const items = jobs.flatMap(job => job.items);
-  const subtotalExGst = Math.round(items.reduce((sum, item) => sum + item.subtotalExGst, 0) * 100) / 100;
-  const gst = Math.round(items.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+  const additionalLines = (Array.isArray(po.additionalLines) ? po.additionalLines : []).map(line => {
+    const description = String(line?.description || '').trim().slice(0, 160);
+    const amountValue = Number(line?.amountIncGst);
+    if (!description || !Number.isFinite(amountValue) || amountValue <= 0 || amountValue > 50000) return null;
+    const amountIncGst = Math.round(amountValue * 100) / 100;
+    const subtotalExGst = gstRegistered ? Math.round((amountIncGst / 1.1) * 100) / 100 : amountIncGst;
+    return {
+      description,
+      amountIncGst,
+      subtotalExGst,
+      gst: Math.round((amountIncGst - subtotalExGst) * 100) / 100,
+    };
+  }).filter(Boolean).slice(0, 30);
+  const jobSubtotalExGst = items.reduce((sum, item) => sum + item.subtotalExGst, 0);
+  const jobGst = items.reduce((sum, item) => sum + item.gst, 0);
+  const subtotalExGst = Math.round((jobSubtotalExGst + additionalLines.reduce((sum, line) => sum + line.subtotalExGst, 0)) * 100) / 100;
+  const gst = Math.round((jobGst + additionalLines.reduce((sum, line) => sum + line.gst, 0)) * 100) / 100;
   const grossIncGst = Math.round((subtotalExGst + gst) * 100) / 100;
   const cashOffset = Math.round(jobs.reduce((sum, job) => sum + job.cashOffset, 0) * 100) / 100;
+  const weekEnding = String(po.weekEnding || '').trim();
   return {
     ...po,
     electrician: {
@@ -95,6 +126,9 @@ function validatedPurchaseOrder(po) {
       gstRegistered,
     },
     jobs,
+    additionalLines,
+    weekEnding,
+    payableDate: purchaseOrderPayableDate(weekEnding),
     totals: {
       jobs: jobs.length,
       units: items.reduce((sum, item) => sum + item.quantity, 0),
@@ -102,6 +136,8 @@ function validatedPurchaseOrder(po) {
       hardwired: items.filter(item => item.key === 'hardwired').reduce((sum, item) => sum + item.quantity, 0),
       battery: items.filter(item => item.key === 'battery').reduce((sum, item) => sum + item.quantity, 0),
       remote: items.filter(item => item.key === 'remote').reduce((sum, item) => sum + item.quantity, 0),
+      alarmTotal: items.filter(item => ['hardwired', 'battery', 'remote'].includes(item.key)).reduce((sum, item) => sum + item.quantity, 0),
+      additionalIncGst: Math.round(additionalLines.reduce((sum, line) => sum + line.amountIncGst, 0) * 100) / 100,
       subtotalExGst,
       gst,
       grossIncGst,
@@ -312,61 +348,78 @@ function buildPaySummaryHtml(summary) {
 </html>`;
 }
 
+function jobQuantity(job, key) {
+  return (job.items || []).filter(item => item.key === key)
+    .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
+function paymentReviewLabel(job) {
+  if (job.paymentFlag?.type === 'cash') return '<strong style="color:#b42318;">Cash tagged</strong>';
+  if (job.paymentFlag?.type === 'bank-transfer') return '<span style="color:#5d6672;">Bank transfer, review</span>';
+  return '&mdash;';
+}
+
+function additionalLinesHtml(po) {
+  const lines = Array.isArray(po.additionalLines) ? po.additionalLines : [];
+  if (!lines.length) return '';
+  const rows = lines.map(line => `<tr><td style="padding:8px;border-bottom:1px solid #e7e7e7;">${esc(line.description)}</td><td align="right" style="padding:8px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(line.amountIncGst)}</td></tr>`).join('');
+  return `<div style="font-size:12px;font-weight:bold;margin:18px 0 7px;">Additional payments</div><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;"><thead><tr style="background:#f1f3f5;"><th align="left" style="padding:8px;">Description</th><th align="right" style="padding:8px;">Amount inc GST</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 function buildPurchaseOrderHtml(po) {
   const electrician = po.electrician || {};
   const jobs = Array.isArray(po.jobs) ? po.jobs : [];
-  const quantity = (job, key) => (job.items || [])
-    .filter(item => item.key === key)
-    .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const rows = jobs.map(job => {
-    const hardwired = quantity(job, 'hardwired');
-    const battery = quantity(job, 'battery');
-    const remote = quantity(job, 'remote');
-    return `
-    <tr>
+    const hardwired = jobQuantity(job, 'hardwired');
+    const battery = jobQuantity(job, 'battery');
+    const remote = jobQuantity(job, 'remote');
+    return `<tr>
       <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-size:10px;white-space:nowrap;">${esc(job.installedDate)}</td>
       <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${quantity(job, 'booking') || '&mdash;'}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${jobQuantity(job, 'booking') || '&mdash;'}</td>
       <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${hardwired || '&mdash;'}</td>
       <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${battery || '&mdash;'}</td>
       <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${remote || '&mdash;'}</td>
       <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${hardwired + battery + remote}</td>
-      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(job.subtotalExGst)}</td>
       <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(job.grossIncGst)}</td>
+      <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-size:10px;">${paymentReviewLabel(job)}</td>
       <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;color:#b42318;white-space:nowrap;">${job.cashOffset ? deductionMoney(job.cashOffset) : '&mdash;'}</td>
       <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;white-space:nowrap;color:${job.payableIncGst < 0 ? '#b42318' : '#111111'};">${money(job.payableIncGst)}</td>
     </tr>`;
   }).join('');
   const totals = po.totals || {};
-  return `<!doctype html>
-<html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;">
+  return `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 10px;"><tr><td align="center">
-    <table width="860" cellpadding="0" cellspacing="0" style="max-width:860px;width:100%;background:#fff;border:1px solid #e0e0e0;">
-      <tr><td style="background:#111;padding:22px 28px;color:#fff;">
-        <table width="100%"><tr><td><div style="font-size:22px;font-weight:bold;">PURCHASE ORDER</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">Goldsure Pty Ltd</div></td><td align="right"><div style="font-size:15px;font-weight:bold;">${esc(po.poNumber)}</div><div style="font-size:11px;color:#bbb;margin-top:5px;">Issued ${esc(po.issueDate)}</div></td></tr></table>
-      </td></tr>
-      <tr><td style="padding:24px 28px;">
-        <table width="100%"><tr><td valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Purchase order to</div><div style="font-size:17px;font-weight:bold;margin-top:5px;">${esc(electrician.companyName || electrician.name)}</div><div style="font-size:12px;color:#666;line-height:1.6;">${esc(electrician.name)}<br>${esc(electrician.email)}${electrician.taxId ? `<br>ABN ${esc(electrician.taxId)}` : ''}</div></td><td align="right" valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Installation period</div><div style="font-size:14px;font-weight:bold;margin-top:5px;">${esc(po.period)}</div></td></tr></table>
-      </td></tr>
+    <table width="900" cellpadding="0" cellspacing="0" style="max-width:900px;width:100%;background:#fff;border:1px solid #e0e0e0;">
+      <tr><td style="background:#111;padding:22px 28px;color:#fff;"><table width="100%"><tr><td><div style="font-size:22px;font-weight:bold;">PURCHASE ORDER</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">Goldsure Pty Ltd</div></td><td align="right"><div style="font-size:14px;font-weight:bold;">${esc(po.poNumber)}</div><div style="font-size:11px;color:#bbb;margin-top:5px;">Issued ${esc(po.issueDate)}</div></td></tr></table></td></tr>
+      <tr><td style="padding:24px 28px;"><table width="100%"><tr><td valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Purchase order to</div><div style="font-size:17px;font-weight:bold;margin-top:5px;">${esc(electrician.companyName || electrician.name)}</div><div style="font-size:12px;color:#666;line-height:1.6;">${esc(electrician.name)}${electrician.taxId ? `<br>ABN ${esc(electrician.taxId)}` : ''}</div></td><td align="right" valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Installation period</div><div style="font-size:14px;font-weight:bold;margin-top:5px;">${esc(po.period)}</div><div style="margin-top:10px;padding:8px 12px;background:#fff8e7;border:1px solid #e5d29d;"><span style="font-size:10px;color:#765407;text-transform:uppercase;">Payable date</span><br><strong style="font-size:16px;color:#4c3808;">${esc(po.payableDate)}</strong></div></td></tr></table></td></tr>
       <tr><td style="padding:0 28px 24px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;">
-          <thead><tr style="background:#d7eef7;color:#27323a;"><th align="left" style="padding:9px 5px;">Installed</th><th align="left" style="padding:9px 5px;">Job</th><th style="padding:9px 4px;">Booking</th><th style="padding:9px 4px;">Hardwired</th><th style="padding:9px 4px;">Battery</th><th style="padding:9px 4px;">Remote</th><th style="padding:9px 4px;">Alarms</th><th align="right" style="padding:9px 5px;">Pay ex GST</th><th align="right" style="padding:9px 5px;">Pay inc GST</th><th align="right" style="padding:9px 5px;">Cash offset</th><th align="right" style="padding:9px 5px;">PO payable</th></tr></thead>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:10px;">
+          <thead><tr style="background:#d7eef7;color:#27323a;"><th align="left" style="padding:9px 5px;">Installed</th><th align="left" style="padding:9px 5px;">Job</th><th>Booking</th><th>Hardwired</th><th>Battery</th><th>Remote</th><th>Alarms</th><th align="right">Pay inc GST</th><th align="left" style="padding:9px 5px;">Payment review</th><th align="right">Cash offset</th><th align="right" style="padding:9px 5px;">PO payable</th></tr></thead>
           <tbody>${rows}</tbody>
-          <tfoot><tr style="background:#d7eef7;font-weight:bold;"><td colspan="2" style="padding:9px 5px;">Grand total</td><td align="center">${esc(totals.booking || 0)}</td><td align="center">${esc(totals.hardwired || 0)}</td><td align="center">${esc(totals.battery || 0)}</td><td align="center">${esc(totals.remote || 0)}</td><td align="center">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right">${money(totals.subtotalExGst)}</td><td align="right">${money(totals.grossIncGst)}</td><td align="right" style="color:#b42318;">${deductionMoney(totals.cashOffset)}</td><td align="right">${money(totals.totalIncGst)}</td></tr></tfoot>
+          <tfoot><tr style="background:#d7eef7;font-weight:bold;"><td colspan="2" style="padding:9px 5px;">Job totals</td><td align="center">${esc(totals.booking || 0)}</td><td align="center">${esc(totals.hardwired || 0)}</td><td align="center">${esc(totals.battery || 0)}</td><td align="center">${esc(totals.remote || 0)}</td><td align="center">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right">${money((totals.grossIncGst || 0) - (totals.additionalIncGst || 0))}</td><td></td><td align="right" style="color:#b42318;">${deductionMoney(totals.cashOffset)}</td><td></td></tr></tfoot>
         </table>
-        <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:13px;">
+        ${additionalLinesHtml(po)}
+        <table width="330" align="right" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:13px;">
           <tr><td style="padding:5px;">Subtotal ex GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.subtotalExGst)}</td></tr>
           <tr><td style="padding:5px;">GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.gst)}</td></tr>
+          <tr><td style="padding:5px;">Additional payments inc GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.additionalIncGst)}</td></tr>
           <tr><td style="padding:5px;color:#b42318;">Less cash collected</td><td align="right" style="padding:5px;font-weight:bold;color:#b42318;">${deductionMoney(totals.cashOffset)}</td></tr>
           <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Final PO</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
-        </table>
-        <div style="clear:both;"></div>
-        <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records and quote <strong>${esc(po.poNumber)}</strong> on your invoice. Contact Vignesh if any job or quantity needs correction.</p>
+          <tr><td style="padding:5px;font-weight:bold;">Payable date</td><td align="right" style="padding:5px;font-weight:bold;">${esc(po.payableDate)}</td></tr>
+        </table><div style="clear:both;"></div>
+        <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records. Contact Vignesh if any job, quantity or adjustment needs correction.</p>
       </td></tr>
       <tr><td style="background:#111;padding:15px 28px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd &nbsp; | &nbsp; vignesh@goldsure.com.au &nbsp; | &nbsp; ABN 66 683 305 106</td></tr>
     </table>
-  </td></tr></table>
-</body></html>`;
+  </td></tr></table></body></html>`;
+}
+
+function buildInstallSummaryHtml(po) {
+  const electrician = po.electrician || {};
+  const totals = po.totals || {};
+  const jobRows = (po.jobs || []).map(job => `<tr><td style="padding:8px;border-bottom:1px solid #e7e7e7;">${esc(job.installedDate)}</td><td style="padding:8px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td><td align="center" style="padding:8px;border-bottom:1px solid #e7e7e7;">${jobQuantity(job, 'hardwired') + jobQuantity(job, 'battery') + jobQuantity(job, 'remote')}</td><td align="right" style="padding:8px;border-bottom:1px solid #e7e7e7;">${money(job.grossIncGst)}</td><td style="padding:8px;border-bottom:1px solid #e7e7e7;font-size:10px;">${paymentReviewLabel(job)}</td></tr>`).join('');
+  return `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 10px;background:#f3f4f6;"><tr><td align="center"><table width="720" cellpadding="0" cellspacing="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #ddd;"><tr><td style="background:#111;color:#fff;padding:22px 28px;"><div style="font-size:22px;font-weight:bold;">INSTALLATION SUMMARY</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">${esc(po.period)}</div></td></tr><tr><td style="padding:24px 28px;"><p style="margin:0 0 18px;font-size:14px;">Hi ${esc(electrician.name)},</p><p style="font-size:13px;line-height:1.6;color:#555;">Here is your installation and earnings summary for the selected period.</p><table width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;background:#fff8e7;border:1px solid #e5d29d;"><tr><td style="padding:12px;"><strong>${esc(totals.jobs || 0)}</strong><br><span style="font-size:10px;color:#765407;">JOBS</span></td><td style="padding:12px;"><strong>${esc(totals.alarmTotal || 0)}</strong><br><span style="font-size:10px;color:#765407;">ALARMS</span></td><td style="padding:12px;"><strong>${money(totals.grossIncGst)}</strong><br><span style="font-size:10px;color:#765407;">GROSS EARNINGS</span></td><td style="padding:12px;"><strong>${money(totals.totalIncGst)}</strong><br><span style="font-size:10px;color:#765407;">FINAL PAYMENT</span></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;"><thead><tr style="background:#d7eef7;"><th align="left" style="padding:8px;">Installed</th><th align="left" style="padding:8px;">Job</th><th style="padding:8px;">Alarms</th><th align="right" style="padding:8px;">Earnings inc GST</th><th align="left" style="padding:8px;">Payment review</th></tr></thead><tbody>${jobRows}</tbody></table>${additionalLinesHtml(po)}<table width="330" align="right" style="margin-top:16px;font-size:13px;"><tr><td>Cash offsets</td><td align="right" style="color:#b42318;font-weight:bold;">${deductionMoney(totals.cashOffset)}</td></tr><tr><td style="padding-top:9px;border-top:2px solid #111;font-weight:bold;">Final payment</td><td align="right" style="padding-top:9px;border-top:2px solid #111;font-weight:bold;">${money(totals.totalIncGst)}</td></tr><tr><td style="padding-top:6px;font-weight:bold;">Payable date</td><td align="right" style="padding-top:6px;font-weight:bold;">${esc(po.payableDate)}</td></tr></table><div style="clear:both;"></div></td></tr><tr><td style="background:#111;padding:15px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd | vignesh@goldsure.com.au</td></tr></table></td></tr></table></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -398,29 +451,30 @@ export default async function handler(req, res) {
     if (!purchaseOrderAccessAllowed(req)) {
       return res.status(401).json({ error: 'Enter the Portal access PIN.' });
     }
-    const { to, subject } = body;
+    const { to, cc, subject } = body;
     const po = validatedPurchaseOrder(body.purchaseOrder);
-    const recipient = String(to || '').trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
-      return res.status(400).json({ error: 'The electrician email address is missing or invalid.' });
+    const recipients = emailRecipients(to);
+    const ccRecipients = emailRecipients(cc);
+    if (!recipients.length || recipients.length !== new Set(emailEntries(to)).size) {
+      return res.status(400).json({ error: 'Check every address in the To field.' });
+    }
+    if (ccRecipients.length !== new Set(emailEntries(cc)).size) {
+      return res.status(400).json({ error: 'Check every address in the CC field.' });
     }
     if (!po) {
       return res.status(400).json({ error: 'The purchase order is incomplete.' });
-    }
-    if (recipient !== String(po.electrician.email || '').trim().toLowerCase()) {
-      return res.status(400).json({ error: 'The recipient does not match the selected electrician.' });
     }
     const itemCount = po.jobs.reduce((count, job) => count + (Array.isArray(job.items) ? job.items.length : 0), 0);
     if (!itemCount) return res.status(400).json({ error: 'The purchase order has no payable items.' });
     try {
       await sendHostingerMail({
         displayName: 'Goldsure Pty Ltd',
-        to: [recipient],
-        cc: ['vignesh@goldsure.com.au'],
-        subject: subject || `Purchase Order ${po.poNumber}`,
-        html: buildPurchaseOrderHtml(po),
+        to: recipients,
+        cc: ccRecipients,
+        subject: subject || (body.emailMode === 'summary' ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
+        html: body.emailMode === 'summary' ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
       });
-      return res.status(200).json({ success: true, to: recipient, cc: ['vignesh@goldsure.com.au'] });
+      return res.status(200).json({ success: true, to: recipients, cc: ccRecipients, emailMode: body.emailMode === 'summary' ? 'summary' : 'purchase-order' });
     } catch (err) {
       console.error('[Hostinger] Purchase order send failed:', err.message);
       return res.status(500).json({ error: 'Failed to send the purchase order.', detail: err.message });

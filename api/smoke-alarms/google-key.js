@@ -17,6 +17,7 @@ import {
 import {
   normaliseFieldworker,
   normalisePurchaseOrderLine,
+  dataforcePaymentFlag,
   dataforceTransactionBalance,
   purchaseOrderRateCard,
 } from '../../lib/dataforce-purchase-orders.js';
@@ -702,10 +703,21 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       fieldworkerId: workerId,
       name: appointment.fieldworkerName,
     });
-    const documentResult = await dataforcePurchaseOrderDocument(token, instance, appointment);
+    const [documentResult, tagPayload] = await Promise.all([
+      dataforcePurchaseOrderDocument(token, instance, appointment),
+      appointment.appointmentId
+        ? dataforceOptionalFetch(token, `/${encodeURIComponent(instance)}/appointments/${encodeURIComponent(appointment.appointmentId)}/tags`)
+        : null,
+    ]);
     const document = documentResult?.document || null;
     const productLines = Array.isArray(document?.productLines) ? document.productLines : [];
     const items = productLines.map(line => normalisePurchaseOrderLine(line, worker.gstRegistered));
+    const tags = listFromPayload(tagPayload, ['tags']).map(tag => ({
+      id: tag.tagId ?? tag.id ?? null,
+      name: String(tag.tagName || tag.name || '').trim(),
+      scope: String(tag.scope || '').trim(),
+    })).filter(tag => tag.name);
+    const paymentFlag = dataforcePaymentFlag(tags);
     return {
       jobId: String(job.jobId),
       appointmentId: appointment.appointmentId || null,
@@ -713,6 +725,8 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       status: String(appointment.completionStatusDescription || '').trim(),
       worker,
       items,
+      tags,
+      paymentFlag,
       transactionBalance: dataforceTransactionBalance(document),
       balanceSource: documentResult?.source || '',
       issue: !document
