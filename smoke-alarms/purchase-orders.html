@@ -78,7 +78,7 @@
       </div>
       <div class="footer-actions">
         <p>Each job is one row. Enter or review the pending customer balance. Tick “Cash” only when the electrician collected it, then confirm the amount to offset from their PO.</p>
-        <div class="footer-buttons"><button class="btn" id="print" type="button" disabled>Print / Save PDF</button><button class="btn" id="summaryEmail" type="button" disabled>Email install summary</button><button class="btn btn-dark" id="review" type="button" disabled>Review PO email</button></div>
+        <div class="footer-buttons"><button class="btn" id="print" type="button" disabled>Print / Save PDF</button><button class="btn" id="exportExcel" type="button" disabled>Export to Excel</button><button class="btn" id="summaryEmail" type="button" disabled>Email install summary</button><button class="btn btn-dark" id="review" type="button" disabled>Review PO email</button></div>
       </div>
     </section>
   </main>
@@ -187,7 +187,7 @@
       const from=$('from').value,to=$('to').value,poNumber=`PO for ${worker.name} - Week ending ${friendly(to)}`,payDate=payableDate(to);
       $('poNumber').textContent=poNumber;$('period').textContent=`${friendly(from)} to ${friendly(to)}`;$('payableDate').textContent=payDate;$('payableDateTotal').textContent=payDate;$('poTitle').textContent=`Purchase order for ${worker.companyName||worker.name}`;
       $('workerDetails').textContent=[worker.name,worker.email,worker.taxId?`ABN ${worker.taxId}`:'',worker.gstRegistered?'GST registered':'Not recorded as GST registered'].filter(Boolean).join(' | ');
-      if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;renderAdditionalLines();return}
+      if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;$('exportExcel').disabled=true;renderAdditionalLines();return}
       $('tableWrap').innerHTML=`<table><thead><tr><th class="center">Include</th><th>Installed</th><th>Job</th><th class="center">Booking</th><th class="center">Hardwired</th><th class="center">Battery</th><th class="center">Remote</th><th class="center">Total alarms</th><th class="num">Pay ex GST</th><th class="num">Pay inc GST</th><th>Payment tag</th><th class="num">Pending customer balance</th><th class="num">Cash collected / offset</th><th class="num">PO payable</th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody><tfoot id="tableTotals"></tfoot></table>`;
       bindRows(rows);renderAdditionalLines();finishRender(rows,worker,poNumber);
     }
@@ -211,17 +211,46 @@
       const selectedJobs=rows.filter(row=>row._included).map(row=>{const figure=jobFigures(row);return{jobId:row.jobId,installedDate:row.installedDate,items:payableItems(row),paymentFlag:row.paymentFlag||{},pendingBalance:figure.pendingBalance,cashCollected:row._cashCollected,cashOffset:figure.cashOffset,grossIncGst:figure.grossIncGst,payableIncGst:figure.payableIncGst}});
       state.po={poNumber,issueDate:new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}),period:`${friendly($('from').value)} to ${friendly($('to').value)}`,weekEnding:$('to').value,payableDate:payableDate($('to').value),electrician:worker,totals,jobs:selectedJobs,additionalLines:validAdditionalLines()};
       const selectedRows=rows.filter(row=>row._included);const hasDataIssues=selectedRows.some(row=>row.issue||(row.items||[]).some(item=>!item.payable));const manualComplete=state.additionalLines.every(line=>String(line.description||'').trim()&&Number(line.amountIncGst)>0);const ready=selectedJobs.length>0&&!hasDataIssues&&manualComplete;
-      $('print').disabled=!selectedJobs.length;$('review').disabled=!ready;$('summaryEmail').disabled=!ready;$('review').title=$('summaryEmail').title=hasDataIssues?'Resolve missing or unmapped Dataforce products before sending.':!manualComplete?'Complete or remove every additional PO line.':'';
+      $('print').disabled=!selectedJobs.length;$('exportExcel').disabled=!selectedJobs.length;$('review').disabled=!ready;$('summaryEmail').disabled=!ready;$('review').title=$('summaryEmail').title=hasDataIssues?'Resolve missing or unmapped Dataforce products before sending.':!manualComplete?'Complete or remove every additional PO line.':'';
       if(hasDataIssues)showNotice('One or more included jobs have missing or unmapped product lines. Review Dataforce before sending.','error');else if(!manualComplete)showNotice('Complete the description and GST-inclusive amount for every additional PO line, or remove the blank line.','error');
     }
 
     function updateTotals(totals={}){const values={jobsTotal:totals.jobs||0,hardwiredTotal:totals.hardwired||0,batteryTotal:totals.battery||0,remoteTotal:totals.remote||0,cashTotal:money(totals.cashOffset),grandTotal:money(totals.totalIncGst),payableDateTotal:payableDate($('to').value)||'Pending',footerSubtotal:money(totals.subtotalExGst),footerGst:money(totals.gst),footerGross:money(totals.grossIncGst),footerCash:deductionMoney(totals.cashOffset),footerTotal:money(totals.totalIncGst)};Object.entries(values).forEach(([id,value])=>$(id).textContent=value)}
 
+    let sheetJsPromise=null;
+    function loadSheetJs(){if(window.XLSX)return Promise.resolve();if(!sheetJsPromise){sheetJsPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load the Excel export library.'));document.head.appendChild(script)})}return sheetJsPromise}
+
+    async function exportExcel(){
+      const po=state.po;if(!po||!po.jobs.length)return;
+      const button=$('exportExcel');const originalText=button.textContent;button.disabled=true;button.textContent='Preparing...';
+      try{
+        await loadSheetJs();
+        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Payment tag','Pending customer balance','Cash collected / offset','PO payable'];
+        const rows=po.jobs.map(job=>{const hardwired=job.items.filter(i=>i.key==='hardwired').reduce((s,i)=>s+Number(i.quantity||0),0);const battery=job.items.filter(i=>i.key==='battery').reduce((s,i)=>s+Number(i.quantity||0),0);const remote=job.items.filter(i=>i.key==='remote').reduce((s,i)=>s+Number(i.quantity||0),0);const booking=job.items.filter(i=>i.key==='booking').reduce((s,i)=>s+Number(i.quantity||0),0);const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[job.installedDate||'',job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.paymentFlag?.label||'',Number(job.pendingBalance||0),Number(job.cashOffset||0),Number(job.payableIncGst||0)]});
+        po.additionalLines.forEach(line=>rows.push(['','','','','','','','', Number(line.amountIncGst||0),'Additional: '+line.description,'','',Number(line.amountIncGst||0)]));
+        const totals=po.totals||{};
+        rows.push(['','Grand total','','','','','',Number(totals.subtotalExGst||0),Number(totals.grossIncGst||0),'','',Number(totals.cashOffset||0),Number(totals.totalIncGst||0)]);
+        const sheet=window.XLSX.utils.aoa_to_sheet([header,...rows]);
+        sheet['!cols']=header.map(()=>({wch:16}));
+        const workbook=window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook,sheet,'Purchase order');
+        const meta=window.XLSX.utils.aoa_to_sheet([
+          ['PO number',po.poNumber],['Electrician',po.electrician.name],['Company',po.electrician.companyName||''],
+          ['Period',po.period],['Payable date',po.payableDate],['Subtotal ex GST',Number(totals.subtotalExGst||0)],
+          ['GST',Number(totals.gst||0)],['Cash collected',Number(totals.cashOffset||0)],['Final PO',Number(totals.totalIncGst||0)],
+        ]);
+        window.XLSX.utils.book_append_sheet(workbook,meta,'Summary');
+        const filename=`${po.poNumber||'Purchase order'}`.replace(/[\\/:*?"<>|]+/g,'-')+'.xlsx';
+        window.XLSX.writeFile(workbook,filename);
+      }catch(error){showNotice(error.message||'Could not export to Excel.','error')}
+      finally{button.disabled=!po.jobs.length;button.textContent=originalText}
+    }
+
     function emailSubject(mode,po){return mode==='summary'?`Installation summary - ${po.electrician.name} - ${po.period}`:`Purchase order - ${po.electrician.name} - Week ending ${friendly(po.weekEnding)}`}
     function openReview(mode='purchase-order'){const po=state.po;if(!po||!po.jobs.length)return;state.emailMode=mode;$('reviewTitle').textContent=mode==='summary'?'Review installation summary email':'Review purchase order email';$('reviewIntro').textContent=mode==='summary'?'This sends the selected installation and earnings summary.':'This sends the final purchase order and payment date.';$('reviewTo').value=po.electrician.email||'';$('reviewCc').value='vignesh@goldsure.com.au';$('reviewSubject').textContent=emailSubject(mode,po);$('reviewJobs').textContent=`${po.totals.jobs} completed job${po.totals.jobs===1?'':'s'} and ${po.totals.alarmTotal} alarm unit${po.totals.alarmTotal===1?'':'s'}`;$('reviewGross').textContent=money(po.totals.grossIncGst);$('reviewCash').textContent=deductionMoney(po.totals.cashOffset);$('reviewTotal').textContent=money(po.totals.totalIncGst);$('reviewPayable').textContent=po.payableDate;$('confirmed').checked=false;$('send').disabled=true;$('send').textContent=mode==='summary'?'Send install summary':'Send purchase order';$('modal').classList.add('open')}
     async function sendEmail(){const po=state.po;if(!po)return;const to=$('reviewTo').value.trim(),cc=$('reviewCc').value.trim();if(!to){showNotice('Enter at least one To email address.','error');return}const button=$('send');button.disabled=true;button.textContent='Sending...';try{const response=await fetch('/api/smoke-alarms/reports',{method:'POST',headers:{'Content-Type':'application/json','x-purchase-order-pin':$('pin').value},body:JSON.stringify({to,cc,subject:emailSubject(state.emailMode,po),emailMode:state.emailMode,purchaseOrder:po})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not send the email.');$('modal').classList.remove('open');showNotice(`${state.emailMode==='summary'?'Installation summary':'Purchase order'} sent to ${to}${cc?`, CC ${cc}`:''}.`,'success')}catch(error){showNotice(error.message||'Could not send the email.','error')}finally{button.textContent=state.emailMode==='summary'?'Send install summary':'Send purchase order';button.disabled=!$('confirmed').checked}}
 
-    $('lastWeek').addEventListener('click',previousWeek);$('load').addEventListener('click',loadJobs);$('worker').addEventListener('change',event=>{state.selectedWorkerId=event.target.value;state.additionalLines=[];hideNotice();render()});$('addLine').addEventListener('click',()=>{if(!selectedWorker()){showNotice('Load completed jobs before adding a PO line.','error');return}state.additionalLines.push({description:'',amountIncGst:''});renderAdditionalLines();finishRender(visibleRows(),selectedWorker(),$('poNumber').textContent)});$('print').addEventListener('click',()=>window.print());$('summaryEmail').addEventListener('click',()=>openReview('summary'));$('review').addEventListener('click',()=>openReview('purchase-order'));$('cancelSend').addEventListener('click',()=>$('modal').classList.remove('open'));$('confirmed').addEventListener('change',event=>$('send').disabled=!event.target.checked);$('send').addEventListener('click',sendEmail);$('modal').addEventListener('click',event=>{if(event.target===$('modal'))$('modal').classList.remove('open')});previousWeek();updateTotals({});
+    $('lastWeek').addEventListener('click',previousWeek);$('load').addEventListener('click',loadJobs);$('worker').addEventListener('change',event=>{state.selectedWorkerId=event.target.value;state.additionalLines=[];hideNotice();render()});$('addLine').addEventListener('click',()=>{if(!selectedWorker()){showNotice('Load completed jobs before adding a PO line.','error');return}state.additionalLines.push({description:'',amountIncGst:''});renderAdditionalLines();finishRender(visibleRows(),selectedWorker(),$('poNumber').textContent)});$('print').addEventListener('click',()=>window.print());$('exportExcel').addEventListener('click',exportExcel);$('summaryEmail').addEventListener('click',()=>openReview('summary'));$('review').addEventListener('click',()=>openReview('purchase-order'));$('cancelSend').addEventListener('click',()=>$('modal').classList.remove('open'));$('confirmed').addEventListener('change',event=>$('send').disabled=!event.target.checked);$('send').addEventListener('click',sendEmail);$('modal').addEventListener('click',event=>{if(event.target===$('modal'))$('modal').classList.remove('open')});previousWeek();updateTotals({});
   </script>
 </body>
 </html>

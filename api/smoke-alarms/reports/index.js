@@ -4,6 +4,7 @@
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
+import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 
 function esc(value) {
   return String(value ?? '')
@@ -459,13 +460,26 @@ export default async function handler(req, res) {
     }
     const itemCount = po.jobs.reduce((count, job) => count + (Array.isArray(job.items) ? job.items.length : 0), 0);
     if (!itemCount) return res.status(400).json({ error: 'The purchase order has no payable items.' });
+    const isSummary = body.emailMode === 'summary';
+    let pdfAttachment;
+    try {
+      const pdfBuffer = await (isSummary ? buildInstallSummaryPdf(po) : buildPurchaseOrderPdf(po));
+      pdfAttachment = {
+        filename: `${isSummary ? 'Installation summary' : 'Purchase order'} - ${po.electrician.name} - ${po.poNumber || po.period}.pdf`,
+        content: pdfBuffer.toString('base64'),
+        contentType: 'application/pdf',
+      };
+    } catch (err) {
+      console.error('[Purchase order] PDF generation failed:', err.message);
+    }
     try {
       await sendHostingerMail({
         displayName: 'Goldsure Pty Ltd',
         to: recipients,
         cc: ccRecipients,
-        subject: subject || (body.emailMode === 'summary' ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
-        html: body.emailMode === 'summary' ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
+        subject: subject || (isSummary ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
+        html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
+        ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
       });
       return res.status(200).json({ success: true, to: recipients, cc: ccRecipients, emailMode: body.emailMode === 'summary' ? 'summary' : 'purchase-order' });
     } catch (err) {
