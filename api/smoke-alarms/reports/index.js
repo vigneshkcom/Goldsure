@@ -20,11 +20,6 @@ function money(value) {
   return amount < 0 ? `-$${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`;
 }
 
-function deductionMoney(value) {
-  const amount = Number(value || 0);
-  return amount > 0 ? `-${money(amount)}` : money(0);
-}
-
 function dmyDate(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match ? `${match[3]}-${match[2]}-${match[1]}` : String(value || '');
@@ -359,74 +354,164 @@ function jobQuantity(job, key) {
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 }
 
+const PO_EMAIL_LOGO = 'https://portal.goldsure.com.au/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg';
+const PO_AUD = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+const PO_FONT = 'font-family:Arial,Helvetica,sans-serif;';
+const PO_LABEL = `${PO_FONT}font-size:10px;font-weight:bold;color:#6b7280;text-transform:uppercase;letter-spacing:1px;`;
+const PO_TH = `${PO_FONT}background:#f3f4f6;border-bottom:1px solid #d1d5db;padding:10px 8px;font-size:11px;font-weight:bold;color:#111111;white-space:nowrap;`;
+const PO_TD = `${PO_FONT}border-bottom:1px solid #eeeeee;padding:9px 8px;font-size:12px;color:#111111;`;
+const PO_TOTAL_TD = `${PO_FONT}background:#f3f4f6;border-top:2px solid #111111;padding:10px 8px;font-size:12px;font-weight:bold;color:#111111;white-space:nowrap;`;
+
+function poMoney(value) {
+  return PO_AUD.format(Math.round(Number(value || 0) * 100) / 100);
+}
+
+function poDeduction(value) {
+  const amount = Math.round(Number(value || 0) * 100) / 100;
+  return amount > 0 ? `-${PO_AUD.format(amount)}` : PO_AUD.format(0);
+}
+
+function poQuantity(value) {
+  return value ? String(value) : '<span style="color:#9ca3af;">&ndash;</span>';
+}
+
+// The logo JPEG carries ~18px of white padding at this width, so the header cell's
+// left padding is reduced by the same amount to line the artwork up with the body.
+function poEmailHeader(title, subLines) {
+  const subs = subLines.filter(([text]) => text).map(([text, color, size]) => `<div style="${PO_FONT}font-size:${size}px;color:${color};margin-top:5px;">${esc(text)}</div>`).join('');
+  return `<tr><td style="padding:28px 32px 20px 14px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td valign="middle"><img src="${PO_EMAIL_LOGO}" alt="Goldsure" width="190" style="display:block;width:190px;height:auto;border:0;"></td>
+        <td align="right" valign="middle"><div style="${PO_FONT}font-size:22px;font-weight:bold;color:#111111;letter-spacing:0.5px;">${esc(title)}</div>${subs}</td>
+      </tr></table></td></tr>
+      <tr><td style="padding:0 32px;"><div style="height:2px;line-height:2px;font-size:2px;background:#b08d2e;">&nbsp;</div></td></tr>`;
+}
+
+function poEmailFooter() {
+  return `<tr><td style="${PO_FONT}padding:16px 32px;border-top:1px solid #e5e7eb;background:#fafafa;color:#6b7280;font-size:11px;text-align:center;">Goldsure Pty Ltd &nbsp;&middot;&nbsp; ABN 66 683 305 106 &nbsp;&middot;&nbsp; vignesh@goldsure.com.au</td></tr>`;
+}
+
+function poEmailPage(width, rows) {
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 10px;">
+    <table width="${width}" cellpadding="0" cellspacing="0" style="max-width:${width}px;width:100%;background:#ffffff;border:1px solid #e5e7eb;">
+      ${rows}
+    </table>
+  </td></tr></table></body></html>`;
+}
+
+function poRecipientBlock(label, electrician, po) {
+  const displayName = electrician.companyName || electrician.name || '';
+  const details = [
+    electrician.name && electrician.name !== displayName ? esc(electrician.name) : '',
+    electrician.taxId ? `ABN ${esc(electrician.taxId)}` : '',
+  ].filter(Boolean).join('<br>');
+  return `<tr><td style="padding:22px 32px 4px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td valign="top"><div style="${PO_LABEL}">${esc(label)}</div><div style="${PO_FONT}font-size:17px;font-weight:bold;color:#111111;margin-top:6px;">${esc(displayName)}</div>${details ? `<div style="${PO_FONT}font-size:12px;color:#374151;line-height:1.6;margin-top:3px;">${details}</div>` : ''}</td>
+        <td align="right" valign="top"><div style="${PO_LABEL}">Installation period</div><div style="${PO_FONT}font-size:14px;font-weight:bold;color:#111111;margin-top:6px;">${esc(po.period)}</div><div style="${PO_LABEL}margin-top:14px;">Payable date</div><div style="${PO_FONT}font-size:17px;font-weight:bold;color:#b08d2e;margin-top:6px;">${esc(po.payableDate)}</div></td>
+      </tr></table></td></tr>`;
+}
+
 function additionalLinesHtml(po) {
   const lines = Array.isArray(po.additionalLines) ? po.additionalLines : [];
   if (!lines.length) return '';
-  const rows = lines.map(line => `<tr><td style="padding:8px;border-bottom:1px solid #e7e7e7;">${esc(line.description)}</td><td align="right" style="padding:8px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(line.amountIncGst)}</td></tr>`).join('');
-  return `<div style="font-size:12px;font-weight:bold;margin:18px 0 7px;">Additional payments</div><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;"><thead><tr style="background:#f1f3f5;"><th align="left" style="padding:8px;">Description</th><th align="right" style="padding:8px;">Amount inc GST</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const rows = lines.map(line => `<tr><td style="${PO_TD}">${esc(line.description)}</td><td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(line.amountIncGst)}</td></tr>`).join('');
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:22px;"><thead><tr><th align="left" style="${PO_TH}">Additional payments</th><th align="right" style="${PO_TH}">Amount inc GST</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function poSummaryRows(rows) {
+  return rows.map(([label, value, { color = '#111111', strong = false, final = false } = {}]) => {
+    const size = final ? 16 : 13;
+    const weight = final || strong ? 'bold' : 'normal';
+    const border = final ? 'border-top:2px solid #111111;' : '';
+    const pad = final ? '12px 0 8px' : '5px 0';
+    const valuePad = final ? '12px 8px 8px 0' : '5px 8px 5px 0';
+    return `<tr><td style="${PO_FONT}${border}padding:${pad};font-size:${size}px;font-weight:${weight};color:${final || strong ? '#111111' : '#374151'};">${label}</td><td align="right" style="${PO_FONT}${border}padding:${valuePad};font-size:${size}px;font-weight:${weight};color:${color};white-space:nowrap;">${value}</td></tr>`;
+  }).join('');
 }
 
 function buildPurchaseOrderHtml(po) {
   const electrician = po.electrician || {};
   const jobs = Array.isArray(po.jobs) ? po.jobs : [];
+  const totals = po.totals || {};
+  const round = value => Math.round(Number(value || 0) * 100) / 100;
   const rows = jobs.map(job => {
     const hardwired = jobQuantity(job, 'hardwired');
     const battery = jobQuantity(job, 'battery');
     const remote = jobQuantity(job, 'remote');
+    const offset = round(job.cashOffset);
+    const payable = round(job.payableIncGst);
     return `<tr>
-      <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-size:10px;white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td>
-      <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${jobQuantity(job, 'booking') || ''}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${hardwired || ''}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${battery || ''}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${remote || ''}</td>
-      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${hardwired + battery + remote}</td>
-      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(job.grossIncGst)}</td>
-      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;color:#b42318;white-space:nowrap;">${job.cashOffset ? deductionMoney(job.cashOffset) : ''}</td>
-      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;white-space:nowrap;color:${job.payableIncGst < 0 ? '#b42318' : '#111111'};">${money(job.payableIncGst)}</td>
-    </tr>`;
+          <td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td>
+          <td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td>
+          <td align="center" style="${PO_TD}">${poQuantity(jobQuantity(job, 'booking'))}</td>
+          <td align="center" style="${PO_TD}">${poQuantity(hardwired)}</td>
+          <td align="center" style="${PO_TD}">${poQuantity(battery)}</td>
+          <td align="center" style="${PO_TD}">${poQuantity(remote)}</td>
+          <td align="center" style="${PO_TD}">${hardwired + battery + remote}</td>
+          <td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td>
+          <td align="right" style="${PO_TD}white-space:nowrap;color:#b42318;">${offset > 0 ? poDeduction(offset) : '<span style="color:#9ca3af;">&ndash;</span>'}</td>
+          <td align="right" style="${PO_TD}white-space:nowrap;font-weight:bold;color:${payable < 0 ? '#b42318' : '#111111'};">${poMoney(payable)}</td>
+        </tr>`;
   }).join('');
-  const totals = po.totals || {};
-  return `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 10px;"><tr><td align="center">
-    <table width="900" cellpadding="0" cellspacing="0" style="max-width:900px;width:100%;background:#fff;border:1px solid #e0e0e0;">
-      <tr><td style="background:#111;text-align:center;padding:18px 28px 6px;"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;margin:0 auto;"></td></tr>
-      <tr><td style="background:#111;padding:6px 28px 22px;color:#fff;"><table width="100%"><tr><td valign="middle"><div style="font-size:22px;font-weight:bold;">PURCHASE ORDER</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">Goldsure Pty Ltd</div></td><td align="right" valign="middle"><div style="font-size:14px;font-weight:bold;">${esc(po.poNumber)}</div><div style="font-size:11px;color:#bbb;margin-top:5px;">Issued ${esc(po.issueDate)}</div></td></tr></table></td></tr>
-      <tr><td style="padding:24px 28px;"><table width="100%"><tr><td valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Purchase order to</div><div style="font-size:17px;font-weight:bold;margin-top:5px;">${esc(electrician.companyName || electrician.name)}</div><div style="font-size:12px;color:#666;line-height:1.6;">${esc(electrician.name)}${electrician.taxId ? `<br>ABN ${esc(electrician.taxId)}` : ''}</div></td><td align="right" valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Installation period</div><div style="font-size:14px;font-weight:bold;margin-top:5px;">${esc(po.period)}</div><table cellpadding="0" cellspacing="0" align="right" style="margin-top:10px;background:#fff8e7;border:1px solid #e5d29d;"><tr><td style="padding:7px 12px;text-align:right;white-space:nowrap;"><span style="font-size:10px;color:#765407;text-transform:uppercase;">Payable date</span><br><strong style="font-size:16px;color:#4c3808;">${esc(po.payableDate)}</strong></td></tr></table></td></tr></table></td></tr>
-      <tr><td style="padding:0 28px 24px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:10px;">
-          <thead><tr style="background:#d7eef7;color:#27323a;"><th align="left" style="padding:9px 5px;">Installed</th><th align="left" style="padding:9px 5px;">Job</th><th>Booking</th><th>Hardwired</th><th>Battery</th><th>Remote</th><th>Alarms</th><th align="right">Pay inc GST</th><th align="right">Cash offset</th><th align="right" style="padding:9px 5px;">PO payable</th></tr></thead>
-          <tbody>${rows}</tbody>
-          <tfoot><tr style="background:#d7eef7;font-weight:bold;"><td colspan="2" style="padding:9px 5px;">Job totals</td><td align="center">${esc(totals.booking || 0)}</td><td align="center">${esc(totals.hardwired || 0)}</td><td align="center">${esc(totals.battery || 0)}</td><td align="center">${esc(totals.remote || 0)}</td><td align="center">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right">${money((totals.grossIncGst || 0) - (totals.additionalIncGst || 0))}</td><td align="right" style="color:#b42318;">${deductionMoney(totals.cashOffset)}</td><td></td></tr></tfoot>
-        </table>
-        ${additionalLinesHtml(po)}
-        <table width="330" align="right" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:13px;">
-          <tr><td style="padding:5px;">Subtotal ex GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.subtotalExGst)}</td></tr>
-          <tr><td style="padding:5px;">GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.gst)}</td></tr>
-          <tr><td style="padding:5px;">Additional payments inc GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.additionalIncGst)}</td></tr>
-          <tr><td style="padding:5px;color:#b42318;">Less cash collected</td><td align="right" style="padding:5px;font-weight:bold;color:#b42318;">${deductionMoney(totals.cashOffset)}</td></tr>
-          <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Final PO</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
-          <tr><td style="padding:5px;font-weight:bold;">Payable date</td><td align="right" style="padding:5px;font-weight:bold;">${esc(po.payableDate)}</td></tr>
-        </table><div style="clear:both;"></div>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#f7f8fa;border:1px solid #e0e0e0;"><tr><td style="padding:14px 16px;font-size:12px;line-height:1.7;color:#333;">
-          <strong>Please kindly issue an invoice to:</strong><br>
-          Goldsure Pty Ltd<br>
-          ABN 66 683 305 106<br>
-          Suite 4, Level 1, 293 High Street, Preston, Victoria, 3072<br>
-          Email: vignesh@goldsure.com.au
-        </td></tr></table>
-        <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records. Contact Vignesh if any job, quantity or adjustment needs correction.</p>
-      </td></tr>
-      <tr><td style="background:#111;padding:15px 28px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd &nbsp; | &nbsp; vignesh@goldsure.com.au &nbsp; | &nbsp; ABN 66 683 305 106</td></tr>
-    </table>
-  </td></tr></table></body></html>`;
+  const jobGross = round(jobs.reduce((sum, job) => sum + Number(job.grossIncGst || 0), 0));
+  const jobOffset = round(jobs.reduce((sum, job) => sum + Number(job.cashOffset || 0), 0));
+  const jobPayable = round(jobs.reduce((sum, job) => sum + Number(job.payableIncGst || 0), 0));
+  const cash = round(totals.cashOffset);
+  const table = `<tr><td style="padding:18px 32px 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="center" style="${PO_TH}">Booking</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Pay inc GST</th><th align="right" style="${PO_TH}">Cash offset</th><th align="right" style="${PO_TH}">Payable</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="2" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.booking || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right" style="${PO_TOTAL_TD}">${poMoney(jobGross)}</td><td align="right" style="${PO_TOTAL_TD}color:#b42318;">${jobOffset > 0 ? poDeduction(jobOffset) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="right" style="${PO_TOTAL_TD}color:${jobPayable < 0 ? '#b42318' : '#111111'};">${poMoney(jobPayable)}</td></tr></tfoot>
+      </table>
+      ${additionalLinesHtml(po)}
+    </td></tr>`;
+  const summary = poSummaryRows([
+    ['Subtotal ex GST', poMoney(totals.subtotalExGst)],
+    ['GST', poMoney(totals.gst)],
+    ['Total inc GST', poMoney(totals.grossIncGst)],
+    ['Less cash collected', poDeduction(cash), { color: cash > 0 ? '#b42318' : '#111111' }],
+    ['Final PO', poMoney(totals.totalIncGst), { color: '#b08d2e', final: true }],
+    ['Payable date', esc(po.payableDate), { strong: true }],
+  ]);
+  const bottom = `<tr><td style="padding:26px 32px 8px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td valign="top" style="padding-right:28px;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border:1px solid #e5e7eb;border-left:3px solid #b08d2e;"><tr><td style="${PO_FONT}padding:14px 18px;font-size:12px;line-height:1.7;color:#374151;"><strong style="color:#111111;">Please kindly issue an invoice to:</strong><br>Goldsure Pty Ltd<br>ABN 66 683 305 106<br>Suite 4, Level 1, 293 High Street, Preston, Victoria, 3072<br>Email: <a href="mailto:vignesh@goldsure.com.au" style="color:#111111;">vignesh@goldsure.com.au</a></td></tr></table></td>
+        <td valign="top" width="320"><table width="100%" cellpadding="0" cellspacing="0">${summary}</table></td>
+      </tr></table></td></tr>
+      <tr><td style="${PO_FONT}padding:14px 32px 26px;font-size:12px;line-height:1.6;color:#6b7280;">Please check this purchase order against your records. Contact Vignesh if any job, quantity or adjustment needs correction.</td></tr>`;
+  return poEmailPage(900, [
+    poEmailHeader('PURCHASE ORDER', [[po.poNumber, '#374151', 12], [`Issued ${po.issueDate || ''}`, '#6b7280', 11]]),
+    poRecipientBlock('Purchase order to', electrician, po),
+    table,
+    bottom,
+    poEmailFooter(),
+  ].join('\n      '));
 }
 
 function buildInstallSummaryHtml(po) {
   const electrician = po.electrician || {};
   const totals = po.totals || {};
-  const jobRows = (po.jobs || []).map(job => `<tr><td style="padding:8px;border-bottom:1px solid #e7e7e7;">${esc(dmyDate(job.installedDate))}</td><td style="padding:8px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td><td align="center" style="padding:8px;border-bottom:1px solid #e7e7e7;">${jobQuantity(job, 'hardwired') + jobQuantity(job, 'battery') + jobQuantity(job, 'remote')}</td><td align="right" style="padding:8px;border-bottom:1px solid #e7e7e7;">${money(job.grossIncGst)}</td></tr>`).join('');
-  return `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 10px;background:#f3f4f6;"><tr><td align="center"><table width="720" cellpadding="0" cellspacing="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #ddd;"><tr><td style="background:#111;text-align:center;padding:18px 28px 6px;"><img src="https://portal.goldsure.com.au/assets/goldsure-inverted-logo.jpg" alt="Goldsure" width="110" style="display:block;width:110px;height:auto;margin:0 auto;"></td></tr><tr><td style="background:#111;color:#fff;padding:6px 28px 22px;"><div style="font-size:22px;font-weight:bold;">INSTALLATION SUMMARY</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">${esc(po.period)}</div></td></tr><tr><td style="padding:24px 28px;"><p style="margin:0 0 18px;font-size:14px;">Hi ${esc(electrician.name)},</p><p style="font-size:13px;line-height:1.6;color:#555;">Here is your installation and earnings summary for the selected period.</p><table width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;background:#fff8e7;border:1px solid #e5d29d;"><tr><td style="padding:12px;"><strong>${esc(totals.jobs || 0)}</strong><br><span style="font-size:10px;color:#765407;">JOBS</span></td><td style="padding:12px;"><strong>${esc(totals.alarmTotal || 0)}</strong><br><span style="font-size:10px;color:#765407;">ALARMS</span></td><td style="padding:12px;"><strong>${money(totals.grossIncGst)}</strong><br><span style="font-size:10px;color:#765407;">GROSS EARNINGS</span></td><td style="padding:12px;"><strong>${money(totals.totalIncGst)}</strong><br><span style="font-size:10px;color:#765407;">FINAL PAYMENT</span></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;"><thead><tr style="background:#d7eef7;"><th align="left" style="padding:8px;">Installed</th><th align="left" style="padding:8px;">Job</th><th style="padding:8px;">Alarms</th><th align="right" style="padding:8px;">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody></table>${additionalLinesHtml(po)}<table width="330" align="right" style="margin-top:16px;font-size:13px;"><tr><td>Cash offsets</td><td align="right" style="color:#b42318;font-weight:bold;">${deductionMoney(totals.cashOffset)}</td></tr><tr><td style="padding-top:9px;border-top:2px solid #111;font-weight:bold;">Final payment</td><td align="right" style="padding-top:9px;border-top:2px solid #111;font-weight:bold;">${money(totals.totalIncGst)}</td></tr><tr><td style="padding-top:6px;font-weight:bold;">Payable date</td><td align="right" style="padding-top:6px;font-weight:bold;">${esc(po.payableDate)}</td></tr></table><div style="clear:both;"></div></td></tr><tr><td style="background:#111;padding:15px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd | vignesh@goldsure.com.au</td></tr></table></td></tr></table></body></html>`;
+  const cash = Math.round(Number(totals.cashOffset || 0) * 100) / 100;
+  const jobRows = (po.jobs || []).map(job => `<tr><td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td><td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td><td align="center" style="${PO_TD}">${jobQuantity(job, 'hardwired') + jobQuantity(job, 'battery') + jobQuantity(job, 'remote')}</td><td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td></tr>`).join('');
+  const stat = (value, label) => `<td width="25%" style="padding:14px 16px;"><div style="${PO_FONT}font-size:18px;font-weight:bold;color:#111111;">${value}</div><div style="${PO_LABEL}margin-top:4px;">${label}</div></td>`;
+  const summary = poSummaryRows([
+    ['Total inc GST', poMoney(totals.grossIncGst)],
+    ['Less cash collected', poDeduction(cash), { color: cash > 0 ? '#b42318' : '#111111' }],
+    ['Final payment', poMoney(totals.totalIncGst), { color: '#b08d2e', final: true }],
+    ['Payable date', esc(po.payableDate), { strong: true }],
+  ]);
+  const body = `<tr><td style="padding:24px 32px 26px;">
+      <p style="${PO_FONT}margin:0 0 10px;font-size:14px;color:#111111;">Hi ${esc(electrician.name)},</p>
+      <p style="${PO_FONT}margin:0;font-size:13px;line-height:1.6;color:#374151;">Here is your installation and earnings summary for ${esc(po.period)}.</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:#fafafa;border:1px solid #e5e7eb;"><tr>${stat(esc(totals.jobs || 0), 'JOBS')}${stat(esc(totals.alarmTotal || 0), 'ALARMS')}${stat(poMoney(totals.grossIncGst), 'GROSS EARNINGS')}${stat(poMoney(totals.totalIncGst), 'FINAL PAYMENT')}</tr></table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody></table>
+      ${additionalLinesHtml(po)}
+      <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:20px;">${summary}</table><div style="clear:both;"></div>
+    </td></tr>`;
+  return poEmailPage(720, [
+    poEmailHeader('INSTALLATION SUMMARY', [[po.period, '#374151', 12], [`Issued ${po.issueDate || ''}`, '#6b7280', 11]]),
+    body,
+    poEmailFooter(),
+  ].join('\n      '));
 }
 
 export default async function handler(req, res) {
@@ -478,7 +563,11 @@ export default async function handler(req, res) {
     try {
       const pdfBuffer = await (isSummary ? buildInstallSummaryPdf(po) : buildPurchaseOrderPdf(po));
       pdfAttachment = {
-        filename: `${isSummary ? 'Installation summary' : 'Purchase order'} - ${po.electrician.name} - ${po.poNumber || po.period}.pdf`,
+        filename: `${[
+          isSummary ? 'Installation summary' : 'Purchase order',
+          po.electrician.name,
+          isSummary || !po.weekEnding ? po.period : `Week ending ${dmyDate(po.weekEnding)}`,
+        ].map(part => String(part || '').replace(/[\\/:*?"<>|]+/g, '-').trim()).filter(Boolean).join(' - ')}.pdf`,
         content: pdfBuffer.toString('base64'),
         contentType: 'application/pdf',
       };
