@@ -40,6 +40,8 @@
       gap: 16px;
       padding: 16px;
       height: 100vh;
+      height: 100dvh;
+      min-width: 0;
     }
 
     /* ── Cards ───────────────────────────────────────────────── */
@@ -52,7 +54,7 @@
       overflow: hidden;
     }
     .sidebar-card { width: 340px; min-width: 340px; }
-    .chat-card { flex: 1; }
+    .chat-card { flex: 1; min-width: 0; }
 
     /* ── Sidebar top ─────────────────────────────────────────── */
     .sidebar-top { padding: 18px 18px 12px; border-bottom: 1px solid var(--border); }
@@ -292,7 +294,9 @@
     .chat-header .avatar { width: 44px; height: 44px; }
     .chat-header-info { flex: 1; min-width: 0; }
     .chat-name-lg { font-weight: 700; font-size: 16px; }
-    .chat-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.2px; }
+    .chat-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.2px; }
+    .chat-phone-line, .chat-channel { white-space: nowrap; }
+    #chatChips { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
     .header-actions { display: flex; gap: 8px; }
     .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
     .create-task-btn:hover { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 4px 12px rgba(115,103,240,.22); }
@@ -772,7 +776,8 @@
     }
 
     @media (max-width: 820px) {
-      .page { padding: 60px 10px 10px; gap: 10px; }
+      body { height: 100dvh; }
+      .page { width: 100%; max-width: 100vw; height: 100dvh; min-height: 0; padding: 60px 10px 10px; gap: 10px; }
       .sidebar-card { width: 100%; min-width: 0; }
       .chat-card { display: none; }
       .preview-card { display: none; }
@@ -782,11 +787,67 @@
       .msg-group { max-width: 85%; }
     }
     @media (max-width: 560px) {
-      .chat-header { gap: 8px; padding: 12px 13px; }
+      .page { padding: 60px 0 0; gap: 0; }
+      .sidebar-card, .chat-card {
+        height: 100%;
+        min-height: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .sidebar-top { padding: 14px 12px 10px; }
+      .brand-row { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
+      .brand-mark { grid-column: 1; }
+      .brand-text { grid-column: 2 / 5; align-self: center; min-width: 0; }
+      .brand-row .dash-btn { margin-left: 0 !important; justify-content: center; min-height: 40px; }
+      .brand-row .dash-btn:first-of-type { grid-column: 1 / 3; }
+      .brand-row .dash-btn:last-of-type { grid-column: 3 / 5; }
+      .search, .new-panel input { font-size: 16px; }
+      .contacts { padding: 6px; }
+      .contact { padding: 11px 9px; gap: 10px; }
+      .chat-active { min-height: 0; }
+      .chat-header {
+        display: grid;
+        grid-template-columns: 32px 38px minmax(0,1fr);
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+      }
+      .back-btn { grid-column: 1; width: 32px; height: 38px; align-items: center; justify-content: center; }
       .chat-header .avatar { width: 38px; height: 38px; }
-      .create-task-btn { width: 40px; padding: 0; justify-content: center; }
-      .create-task-btn span { display: none; }
-      .header-actions { gap: 5px; }
+      .chat-header-info { grid-column: 3; }
+      .chat-name-lg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chat-sub { gap: 3px 6px; line-height: 1.35; }
+      #chatChips { width: 100%; margin-top: 3px; }
+      #chatChips .stage-select { width: 100%; max-width: 100%; min-height: 30px; font-size: 11.5px; }
+      #chatChips .chat-chip { max-width: 100%; }
+      .header-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) 44px 44px; gap: 8px; width: 100%; }
+      .create-task-btn { width: 100%; height: 42px; padding: 0 12px; justify-content: center; }
+      .create-task-btn span { display: inline; }
+      .header-actions .icon-btn { width: 44px; height: 42px; }
+      .optout-banner { padding: 8px 12px; font-size: 11.5px; line-height: 1.4; }
+      .messages { min-height: 0; padding: 14px 12px; }
+      .msg-group { max-width: 92%; margin-bottom: 11px; }
+      .bubble { padding: 10px 13px; font-size: 14px; line-height: 1.48; }
+      .msg-note { max-width: 94%; }
+      .tpl-panel { max-height: 44dvh; }
+      .tpl-name-row, .tpl-folder-hd, .tpl-item { padding-left: 12px; padding-right: 12px; }
+      .tpl-item { gap: 8px; }
+      .composer { flex-shrink: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+      .composer-label { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 8px; }
+      .composer-label > span:last-child { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px !important; width: 100%; }
+      .tpl-toggle-btn { width: 100%; min-width: 0; justify-content: center; padding: 8px 5px; font-size: 11px; }
+      .msg-input { min-height: 76px; max-height: 23dvh; padding: 12px 13px; font-size: 16px; }
+      .note-opts { flex-wrap: wrap; padding: 8px 12px 0; }
+      .composer-footer { gap: 8px; padding: 9px 10px; }
+      .char-info { min-width: 0; font-size: 10.5px; }
+      .char-info .parts { margin-left: 4px; padding: 2px 6px; }
+      .send-btn { padding: 9px 14px; }
+      .schedule-bar { padding: 10px 12px; }
+      .schedule-bar input { width: 100%; min-height: 40px; font-size: 16px; }
+      .schedule-bar .sched-confirm { flex: 1; min-height: 38px; }
+      .schedule-bar .sched-cancel { min-height: 38px; padding: 0 10px; }
+      .dash-overlay { padding: 0; }
+      .dash-card { min-height: 100dvh; max-height: none; border-radius: 0; padding: 16px 12px; }
       .task-create-dialog { width: calc(100vw - 16px); max-height: 94dvh; border-radius: 15px; }
       .task-create-form { max-height: 94dvh; }
       .task-modal-head { padding: 18px 16px 16px; }
@@ -797,6 +858,14 @@
       .task-modal-actions { padding: 12px 14px; }
       .task-modal-btn { min-width: 0; }
       .task-created-toast { left: 14px; right: 14px; bottom: 14px; text-align: center; }
+    }
+    @media (max-width: 380px) {
+      .chat-channel { display: none; }
+      .composer-label > span:last-child { grid-template-columns: 1fr 1fr; }
+      .composer-label > span:last-child .tpl-toggle-btn:last-child { grid-column: 1 / -1; }
+      .composer-footer { flex-wrap: wrap; }
+      .char-info { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+      .composer-footer > div { width: 100%; justify-content: flex-end; }
     }
   </style>
   <!-- Purple tile + white chat bubble favicon so the SMS portal's tab is easy to spot -->
@@ -904,7 +973,7 @@
         <div class="avatar" id="chatAvatar"></div>
         <div class="chat-header-info">
           <div class="chat-name-lg" id="chatPhone"></div>
-          <div class="chat-sub"><span id="chatSubPhone"></span>SMS · via SMS Gate <span id="chatChips"></span></div>
+          <div class="chat-sub"><span class="chat-phone-line" id="chatSubPhone"></span><span class="chat-channel">SMS · via SMS Gate</span><span id="chatChips"></span></div>
         </div>
         <div class="header-actions">
           <button class="create-task-btn" onclick="openCreateTask()" title="Create a task for this customer">
