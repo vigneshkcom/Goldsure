@@ -402,6 +402,13 @@ function buildPurchaseOrderHtml(po) {
           <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Final PO</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
           <tr><td style="padding:5px;font-weight:bold;">Payable date</td><td align="right" style="padding:5px;font-weight:bold;">${esc(po.payableDate)}</td></tr>
         </table><div style="clear:both;"></div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#f7f8fa;border:1px solid #e0e0e0;"><tr><td style="padding:14px 16px;font-size:12px;line-height:1.7;color:#333;">
+          <strong>Please kindly issue an invoice to:</strong><br>
+          Goldsure Pty Ltd<br>
+          ABN 66 683 305 106<br>
+          Suite 4, Level 1, 293 High Street, Preston, Victoria, 3072<br>
+          Email: vignesh@goldsure.com.au
+        </td></tr></table>
         <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records. Contact Vignesh if any job, quantity or adjustment needs correction.</p>
       </td></tr>
       <tr><td style="background:#111;padding:15px 28px;color:#aaa;font-size:10px;text-align:center;">Goldsure Pty Ltd &nbsp; | &nbsp; vignesh@goldsure.com.au &nbsp; | &nbsp; ABN 66 683 305 106</td></tr>
