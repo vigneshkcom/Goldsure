@@ -11,6 +11,8 @@ test('HWS and Aircon quote sends create or reuse the correct Quote Sent opportun
   assert.match(vic, /findOrCreateGhlContact\(\{[\s\S]*?phone: customer_phone,[\s\S]*?email: customer_email/);
   assert.match(vic, /opportunityName: `\$\{customer_name \|\| 'Customer'\} - Direct Call`[\s\S]*?nameHints: \['hws pipeline', 'vic hws pipeline', 'vic hot water'\][\s\S]*?source: 'Direct Call'/);
   assert.match(vic, /opportunityName: `\$\{customer_name \|\| 'Customer'\} - Direct Call`[\s\S]*?nameHints: \['aircons', 'aircon', 'air conditioning'\][\s\S]*?source: 'Direct Call'/);
+  assert.match(vic, /const quoteUrl = `\$\{SITE\}\/aircons\/view\.html\?token=\$\{encodeURIComponent\(token\)\}`;[\s\S]*?\/\/ Confirmation SMS[\s\S]*?\/\/ GHL note/);
+  assert.equal((vic.match(/const quoteUrl = `\$\{SITE\}\/aircons\/view\.html/g) || []).length, 1);
   assert.match(nsw, /opportunityName: `\$\{customer_name \|\| 'Customer'\} - Direct Call`[\s\S]*?source: 'Direct Call'/);
   assert.doesNotMatch(vic, /opportunityName:[^\n]*—/);
   assert.doesNotMatch(nsw, /opportunityName:[^\n]*—/);

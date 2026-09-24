@@ -1951,6 +1951,7 @@ ${notesHtml}
     };
     const acceptUrl = `${SITE}/aircons/accept.html?token=${encodeURIComponent(token)}`;
     const rejectUrl = `${SITE}/aircons/reject.html?token=${encodeURIComponent(token)}`;
+    const quoteUrl = `${SITE}/aircons/view.html?token=${encodeURIComponent(token)}`;
     const quoteDate = new Date(sent_at || Date.now()).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
     const quoteNo = 'AC-' + String(token).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -2088,7 +2089,6 @@ ${notesHtml}
           const agentFirst = String(agent_name || 'Goldsure').trim().split(/\s+/)[0] || 'Goldsure';
           const custFirst = String(customer_name || 'there').trim().split(/\s+/)[0] || 'there';
           const customSms = (typeof body.sms_text === 'string' && body.sms_text.trim()) ? body.sms_text.trim() : null;
-          const quoteUrl = `${SITE}/aircons/view.html?token=${encodeURIComponent(token)}`;
           const smsText = customSms
             ? customSms
             : is_reminder
