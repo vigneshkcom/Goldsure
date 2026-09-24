@@ -191,12 +191,12 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.match(mailPayload.html, /PO for Alex Symonds - Week ending 20 Sep 2026/);
     assert.match(mailPayload.html, />Booking</);
     assert.match(mailPayload.html, /Cash offset/);
-    assert.match(mailPayload.html, /Cash tagged/);
     assert.match(mailPayload.html, /Warranty job 36341/);
     assert.match(mailPayload.html, /02\/10\/2026/);
     assert.match(mailPayload.html, /-\$300\.00/);
     assert.match(mailPayload.html, /-\$157\.00/);
     assert.doesNotMatch(mailPayload.html, /\$999\.00/);
+    assert.doesNotMatch(mailPayload.html, /Payment review|Cash tagged|Bank transfer, review|&mdash;/);
 
     const summaryResponse = responseRecorder();
     await reportsHandler({
@@ -214,6 +214,7 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.match(mailPayload.html, /INSTALLATION SUMMARY/);
     assert.match(mailPayload.html, /GROSS EARNINGS/);
     assert.match(mailPayload.html, /02\/10\/2026/);
+    assert.doesNotMatch(mailPayload.html, /Payment review|Cash tagged|Bank transfer, review|&mdash;/);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {
