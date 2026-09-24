@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   dataforceProductCode,
+  dataforceTransactionBalance,
   normaliseFieldworker,
   normalisePurchaseOrderLine,
 } from '../lib/dataforce-purchase-orders.js';
@@ -45,6 +46,8 @@ test('maps the agreed electrician product rates', () => {
   const batteryWithGst = normalisePurchaseOrderLine({ productCode: '3431', qty: 1 }, true);
   assert.equal(batteryWithGst.rateExGst, 10);
   assert.equal(batteryWithGst.totalIncGst, 11);
+  assert.equal(dataforceTransactionBalance({ transactionSummary: { amountOutstanding: '$300.00' } }), 300);
+  assert.equal(dataforceTransactionBalance({ productLines: [] }), null);
 });
 
 test('normalises Dataforce fieldworker contact and GST details', () => {
@@ -88,7 +91,7 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
       searchPayload = JSON.parse(init.body);
       return new Response(JSON.stringify({ totalCount: 1, records: [{ appointmentId: 9001, jobId: 7001, fieldworkerId: 1009, completionStatusDescription: 'Completed', actualCompletedDate: '2026-09-20T15:30:00' }] }), { status: 200 });
     }
-    if (value.includes('/appointments/9001/invoice')) return new Response(JSON.stringify({ productLines: [{ productId: 3429, productName: '[3429] Booking Fee', lineQty: 1 }, { productId: 3430, productName: '[3430] Hard Wired', lineQty: 4 }] }), { status: 200 });
+    if (value.includes('/appointments/9001/invoice')) return new Response(JSON.stringify({ transactionBalance: 300, productLines: [{ productId: 3429, productName: '[3429] Booking Fee', lineQty: 1 }, { productId: 3430, productName: '[3430] Hard Wired', lineQty: 4 }] }), { status: 200 });
     throw new Error(`Unexpected request: ${value}`);
   };
   try {
@@ -103,6 +106,8 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
     assert.equal(response.body.workers[0].email, 'alex@example.com');
     assert.equal(response.body.rows[0].items[0].totalIncGst, 33);
     assert.equal(response.body.rows[0].items[1].rateExGst, 13);
+    assert.equal(response.body.rows[0].transactionBalance, 300);
+    assert.equal(response.body.rows[0].balanceSource, 'appointment invoice');
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {
@@ -142,9 +147,16 @@ test('sends a confirmed purchase order to the electrician and CCs Vignesh', asyn
           poNumber: 'GS-PO-20260920-1009',
           issueDate: '24 Sep 2026',
           period: '14 Sep 2026 to 20 Sep 2026',
-          electrician: { name: 'Alex Symonds', companyName: 'Alex Electrical', email: 'alex@example.com', taxId: '12345678901' },
+          electrician: { name: 'Alex Symonds', companyName: 'Alex Electrical', email: 'alex@example.com', taxId: '12345678901', gstRegistered: true },
           totals: { subtotalExGst: 30, gst: 3, totalIncGst: 33 },
-          jobs: [{ jobId: '7001', installedDate: '20 Sep 2026', items: [{ key: 'booking', name: 'Changed in browser', quantity: 1, rateExGst: 999, subtotalExGst: 999 }] }],
+          jobs: [{
+            jobId: '7001',
+            installedDate: '20 Sep 2026',
+            pendingBalance: 300,
+            cashCollected: true,
+            cashOffset: 300,
+            items: [{ key: 'booking', name: 'Changed in browser', quantity: 1, rateExGst: 999, subtotalExGst: 999 }],
+          }],
         },
       },
     }, response);
@@ -152,7 +164,10 @@ test('sends a confirmed purchase order to the electrician and CCs Vignesh', asyn
     assert.deepEqual(mailPayload.to, ['alex@example.com']);
     assert.deepEqual(mailPayload.cc, ['vignesh@goldsure.com.au']);
     assert.match(mailPayload.html, /GS-PO-20260920-1009/);
-    assert.match(mailPayload.html, /Booking fee/);
+    assert.match(mailPayload.html, />Booking</);
+    assert.match(mailPayload.html, /Cash offset/);
+    assert.match(mailPayload.html, /-\$300\.00/);
+    assert.match(mailPayload.html, /-\$267\.00/);
     assert.doesNotMatch(mailPayload.html, /\$999\.00/);
   } finally {
     global.fetch = originalFetch;

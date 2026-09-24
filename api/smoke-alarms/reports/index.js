@@ -15,7 +15,13 @@ function esc(value) {
 }
 
 function money(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  const amount = Number(value || 0);
+  return amount < 0 ? `-$${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`;
+}
+
+function deductionMoney(value) {
+  const amount = Number(value || 0);
+  return amount > 0 ? `-${money(amount)}` : money(0);
 }
 
 function purchaseOrderAccessAllowed(req) {
@@ -50,12 +56,34 @@ function validatedPurchaseOrder(po) {
         totalIncGst: Math.round((subtotalExGst + gst) * 100) / 100,
       };
     }).filter(Boolean);
-    return { jobId: String(job.jobId || '').trim(), installedDate: String(job.installedDate || '').trim(), items };
+    const subtotalExGst = Math.round(items.reduce((sum, item) => sum + item.subtotalExGst, 0) * 100) / 100;
+    const gst = Math.round(items.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+    const grossIncGst = Math.round((subtotalExGst + gst) * 100) / 100;
+    const pendingValue = Number(job.pendingBalance);
+    const pendingBalance = Number.isFinite(pendingValue) ? Math.max(0, Math.round(pendingValue * 100) / 100) : 0;
+    const requestedOffset = Number(job.cashOffset);
+    const cashOffset = job.cashCollected === true && Number.isFinite(requestedOffset)
+      ? Math.min(pendingBalance, Math.max(0, Math.round(requestedOffset * 100) / 100))
+      : 0;
+    return {
+      jobId: String(job.jobId || '').trim(),
+      installedDate: String(job.installedDate || '').trim(),
+      items,
+      pendingBalance,
+      cashCollected: cashOffset > 0,
+      cashOffset,
+      subtotalExGst,
+      gst,
+      grossIncGst,
+      payableIncGst: Math.round((grossIncGst - cashOffset) * 100) / 100,
+    };
   }).filter(job => job.jobId && job.items.length);
   if (!jobs.length) return null;
   const items = jobs.flatMap(job => job.items);
   const subtotalExGst = Math.round(items.reduce((sum, item) => sum + item.subtotalExGst, 0) * 100) / 100;
   const gst = Math.round(items.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+  const grossIncGst = Math.round((subtotalExGst + gst) * 100) / 100;
+  const cashOffset = Math.round(jobs.reduce((sum, job) => sum + job.cashOffset, 0) * 100) / 100;
   return {
     ...po,
     electrician: {
@@ -70,9 +98,15 @@ function validatedPurchaseOrder(po) {
     totals: {
       jobs: jobs.length,
       units: items.reduce((sum, item) => sum + item.quantity, 0),
+      booking: items.filter(item => item.key === 'booking').reduce((sum, item) => sum + item.quantity, 0),
+      hardwired: items.filter(item => item.key === 'hardwired').reduce((sum, item) => sum + item.quantity, 0),
+      battery: items.filter(item => item.key === 'battery').reduce((sum, item) => sum + item.quantity, 0),
+      remote: items.filter(item => item.key === 'remote').reduce((sum, item) => sum + item.quantity, 0),
       subtotalExGst,
       gst,
-      totalIncGst: Math.round((subtotalExGst + gst) * 100) / 100,
+      grossIncGst,
+      cashOffset,
+      totalIncGst: Math.round((grossIncGst - cashOffset) * 100) / 100,
     },
   };
 }
@@ -281,20 +315,33 @@ function buildPaySummaryHtml(summary) {
 function buildPurchaseOrderHtml(po) {
   const electrician = po.electrician || {};
   const jobs = Array.isArray(po.jobs) ? po.jobs : [];
-  const rows = jobs.flatMap(job => (job.items || []).map(item => `
+  const quantity = (job, key) => (job.items || [])
+    .filter(item => item.key === key)
+    .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const rows = jobs.map(job => {
+    const hardwired = quantity(job, 'hardwired');
+    const battery = quantity(job, 'battery');
+    const remote = quantity(job, 'remote');
+    return `
     <tr>
-      <td style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(job.installedDate)}</td>
-      <td style="padding:9px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td>
-      <td style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(item.name)}</td>
-      <td align="center" style="padding:9px;border-bottom:1px solid #e7e7e7;">${esc(item.quantity)}</td>
-      <td align="right" style="padding:9px;border-bottom:1px solid #e7e7e7;">${money(item.rateExGst)}</td>
-      <td align="right" style="padding:9px;border-bottom:1px solid #e7e7e7;">${money(item.subtotalExGst)}</td>
-    </tr>`)).join('');
+      <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-size:10px;white-space:nowrap;">${esc(job.installedDate)}</td>
+      <td style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${esc(job.jobId)}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${quantity(job, 'booking') || '&mdash;'}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${hardwired || '&mdash;'}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${battery || '&mdash;'}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;">${remote || '&mdash;'}</td>
+      <td align="center" style="padding:8px 4px;border-bottom:1px solid #e7e7e7;font-weight:bold;">${hardwired + battery + remote}</td>
+      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(job.subtotalExGst)}</td>
+      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;white-space:nowrap;">${money(job.grossIncGst)}</td>
+      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;color:#b42318;white-space:nowrap;">${job.cashOffset ? deductionMoney(job.cashOffset) : '&mdash;'}</td>
+      <td align="right" style="padding:8px 5px;border-bottom:1px solid #e7e7e7;font-weight:bold;white-space:nowrap;color:${job.payableIncGst < 0 ? '#b42318' : '#111111'};">${money(job.payableIncGst)}</td>
+    </tr>`;
+  }).join('');
   const totals = po.totals || {};
   return `<!doctype html>
 <html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202020;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 10px;"><tr><td align="center">
-    <table width="720" cellpadding="0" cellspacing="0" style="max-width:720px;width:100%;background:#fff;border:1px solid #e0e0e0;">
+    <table width="860" cellpadding="0" cellspacing="0" style="max-width:860px;width:100%;background:#fff;border:1px solid #e0e0e0;">
       <tr><td style="background:#111;padding:22px 28px;color:#fff;">
         <table width="100%"><tr><td><div style="font-size:22px;font-weight:bold;">PURCHASE ORDER</div><div style="font-size:12px;color:#c8aa66;margin-top:5px;">Goldsure Pty Ltd</div></td><td align="right"><div style="font-size:15px;font-weight:bold;">${esc(po.poNumber)}</div><div style="font-size:11px;color:#bbb;margin-top:5px;">Issued ${esc(po.issueDate)}</div></td></tr></table>
       </td></tr>
@@ -302,14 +349,16 @@ function buildPurchaseOrderHtml(po) {
         <table width="100%"><tr><td valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Purchase order to</div><div style="font-size:17px;font-weight:bold;margin-top:5px;">${esc(electrician.companyName || electrician.name)}</div><div style="font-size:12px;color:#666;line-height:1.6;">${esc(electrician.name)}<br>${esc(electrician.email)}${electrician.taxId ? `<br>ABN ${esc(electrician.taxId)}` : ''}</div></td><td align="right" valign="top"><div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1px;">Installation period</div><div style="font-size:14px;font-weight:bold;margin-top:5px;">${esc(po.period)}</div></td></tr></table>
       </td></tr>
       <tr><td style="padding:0 28px 24px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:12px;">
-          <thead><tr style="background:#111;color:#fff;"><th align="left" style="padding:10px 9px;">Installed</th><th align="left" style="padding:10px 9px;">Job</th><th align="left" style="padding:10px 9px;">Product</th><th style="padding:10px 9px;">Qty</th><th align="right" style="padding:10px 9px;">Rate ex GST</th><th align="right" style="padding:10px 9px;">Line total</th></tr></thead>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #ddd;font-size:11px;">
+          <thead><tr style="background:#d7eef7;color:#27323a;"><th align="left" style="padding:9px 5px;">Installed</th><th align="left" style="padding:9px 5px;">Job</th><th style="padding:9px 4px;">Booking</th><th style="padding:9px 4px;">Hardwired</th><th style="padding:9px 4px;">Battery</th><th style="padding:9px 4px;">Remote</th><th style="padding:9px 4px;">Alarms</th><th align="right" style="padding:9px 5px;">Pay ex GST</th><th align="right" style="padding:9px 5px;">Pay inc GST</th><th align="right" style="padding:9px 5px;">Cash offset</th><th align="right" style="padding:9px 5px;">PO payable</th></tr></thead>
           <tbody>${rows}</tbody>
+          <tfoot><tr style="background:#d7eef7;font-weight:bold;"><td colspan="2" style="padding:9px 5px;">Grand total</td><td align="center">${esc(totals.booking || 0)}</td><td align="center">${esc(totals.hardwired || 0)}</td><td align="center">${esc(totals.battery || 0)}</td><td align="center">${esc(totals.remote || 0)}</td><td align="center">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right">${money(totals.subtotalExGst)}</td><td align="right">${money(totals.grossIncGst)}</td><td align="right" style="color:#b42318;">${deductionMoney(totals.cashOffset)}</td><td align="right">${money(totals.totalIncGst)}</td></tr></tfoot>
         </table>
         <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:13px;">
           <tr><td style="padding:5px;">Subtotal ex GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.subtotalExGst)}</td></tr>
           <tr><td style="padding:5px;">GST</td><td align="right" style="padding:5px;font-weight:bold;">${money(totals.gst)}</td></tr>
-          <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Total</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
+          <tr><td style="padding:5px;color:#b42318;">Less cash collected</td><td align="right" style="padding:5px;font-weight:bold;color:#b42318;">${deductionMoney(totals.cashOffset)}</td></tr>
+          <tr><td style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;">Final PO</td><td align="right" style="padding:10px 5px;border-top:2px solid #111;font-size:16px;font-weight:bold;color:#9a741c;">${money(totals.totalIncGst)}</td></tr>
         </table>
         <div style="clear:both;"></div>
         <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#555;">Please check this purchase order against your records and quote <strong>${esc(po.poNumber)}</strong> on your invoice. Contact Vignesh if any job or quantity needs correction.</p>

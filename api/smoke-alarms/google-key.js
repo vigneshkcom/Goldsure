@@ -17,6 +17,7 @@ import {
 import {
   normaliseFieldworker,
   normalisePurchaseOrderLine,
+  dataforceTransactionBalance,
   purchaseOrderRateCard,
 } from '../../lib/dataforce-purchase-orders.js';
 
@@ -668,13 +669,16 @@ async function dataforcePurchaseOrderDocument(token, instance, appointment) {
       token,
       `/${encodeURIComponent(instance)}/appointments/${encodeURIComponent(appointment.appointmentId)}/invoice`,
     );
-    if (Array.isArray(invoice?.productLines) && invoice.productLines.length) return invoice;
+    if (Array.isArray(invoice?.productLines) && invoice.productLines.length) {
+      return { document: invoice, source: 'appointment invoice' };
+    }
   }
   if (!appointment?.jobId) return null;
-  return dataforceOptionalFetch(
+  const quote = await dataforceOptionalFetch(
     token,
     `/${encodeURIComponent(instance)}/jobs/${encodeURIComponent(appointment.jobId)}/quote`,
   );
+  return quote ? { document: quote, source: 'job quote' } : null;
 }
 
 async function dataforcePurchaseOrderPreview(startDate, endDate) {
@@ -698,7 +702,8 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       fieldworkerId: workerId,
       name: appointment.fieldworkerName,
     });
-    const document = await dataforcePurchaseOrderDocument(token, instance, appointment);
+    const documentResult = await dataforcePurchaseOrderDocument(token, instance, appointment);
+    const document = documentResult?.document || null;
     const productLines = Array.isArray(document?.productLines) ? document.productLines : [];
     const items = productLines.map(line => normalisePurchaseOrderLine(line, worker.gstRegistered));
     return {
@@ -708,6 +713,8 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       status: String(appointment.completionStatusDescription || '').trim(),
       worker,
       items,
+      transactionBalance: dataforceTransactionBalance(document),
+      balanceSource: documentResult?.source || '',
       issue: !document
         ? 'No appointment invoice or job quote was returned by Dataforce.'
         : (!productLines.length ? 'No product lines were returned by Dataforce.' : ''),
