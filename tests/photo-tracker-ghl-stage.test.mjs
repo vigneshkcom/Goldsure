@@ -35,8 +35,8 @@ test('photo lookup returns GHL opportunity status and tracker script compiles', 
   const [html, ghlApi] = await Promise.all([readFile(trackerUrl, 'utf8'), readFile(ghlUrl, 'utf8')]);
   assert.match(html, /action=ghl-find&product=' \+ encodeURIComponent\(PRODUCT\)/);
   assert.match(ghlApi, /if \(product === 'hws-nsw'\) return name\.includes\('nsw'\)/);
-  assert.match(ghlApi, /return !name\.includes\('nsw'\)/);
-  assert.match(ghlApi, /const relevantOpps = productPipeline \? opps\.filter\(o => o\.pipelineId === productPipeline\.id\) : opps/);
+  assert.match(ghlApi, /const productPipelineIds = new Set/);
+  assert.match(ghlApi, /const relevantOpps = productPipelineIds\.size \? opps\.filter\(o => productPipelineIds\.has\(o\.pipelineId\)\) : opps/);
   assert.match(ghlApi, /info\.status\s*=\s*opp\.status \|\| ''/);
   const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
     .filter(match => !/\bsrc\s*=/.test(match[1]))

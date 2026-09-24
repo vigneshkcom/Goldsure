@@ -275,15 +275,19 @@ export default async function handler(req, res) {
       const pipelineIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '')
         : product === 'hws-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || '')
         : (process.env.HWS_PIPELINE_ID || '');
-      let productPipeline = pipelineIdEnv ? pipes.find(p => p.id === pipelineIdEnv) : null;
-      if (!productPipeline) {
-        productPipeline = pipes.find(p => {
-          const name = String(p.name || '').toLowerCase();
-          if (product === 'aircon') return ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'].some(h => name.includes(h));
-          if (product === 'hws-nsw') return name.includes('nsw') && (name.includes('hws') || name.includes('hot water'));
-          return !name.includes('nsw') && (name.includes('hws') || name.includes('hot water') || name.includes('heat pump'));
-        }) || null;
-      }
+      const isProductPipeline = p => {
+        const name = String(p.name || '').toLowerCase();
+        if (product === 'aircon') return ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'].some(h => name.includes(h));
+        if (product === 'hws-nsw') return name.includes('nsw') && (name.includes('hws') || name.includes('hot water'));
+        if (product === 'hws-vic' || product === 'hws') return !name.includes('nsw') && (name.includes('hws') || name.includes('hot water') || name.includes('heat pump'));
+        return false;
+      };
+      // Keep both the configured ID and exact product-name matches. This
+      // tolerates a stale environment ID without hiding a valid opportunity.
+      const productPipelineIds = new Set([
+        ...(pipelineIdEnv && pipes.some(p => p.id === pipelineIdEnv) ? [pipelineIdEnv] : []),
+        ...pipes.filter(isProductPipeline).map(p => p.id),
+      ]);
 
       const out = {};
       await Promise.all(phones.map(async (phone) => {
@@ -397,7 +401,7 @@ export default async function handler(req, res) {
             if (oRes.ok) {
               const opps = (await oRes.json()).opportunities || [];
               const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
-              const relevantOpps = productPipeline ? opps.filter(o => o.pipelineId === productPipeline.id) : opps;
+              const relevantOpps = productPipelineIds.size ? opps.filter(o => productPipelineIds.has(o.pipelineId)) : opps;
               const opp = relevantOpps.filter(o => o.status === 'open').sort(byUpdated)[0] || relevantOpps.sort(byUpdated)[0];
               if (opp) {
                 info.pipeline = pipeName(opp.pipelineId);
