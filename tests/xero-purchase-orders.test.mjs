@@ -29,6 +29,7 @@ const purchaseOrder = {
       { key: 'booking', quantity: 1 },
       { key: 'hardwired', quantity: 2 },
       { key: 'battery', quantity: 3 },
+      { key: 'remote', quantity: 1 },
     ],
   }],
   additionalLines: [{ description: 'Warranty job 36341', amountIncGst: 110 }],
@@ -88,7 +89,7 @@ test('builds a GST-inclusive draft supplier bill with the cash offset and due da
   assert.equal(bill.date, '2026-09-20');
   assert.equal(bill.dueDate, '2026-10-02');
   assert.equal(bill.lineItems.length, 3);
-  assert.equal(bill.lineItems[0].description, '20/09 | 7001');
+  assert.equal(bill.lineItems[0].description, '20/09 | 7001 | Booking 1 | Hardwired 2 | Battery 3 | Controller 1');
   assert.equal(bill.lineItems[1].unitAmount, -30);
   assert.equal(bill.lineItems[1].description, '20/09 | 7001 | Cash offset');
   assert.equal(bill.lineItems[1].taxType, 'NONE');
