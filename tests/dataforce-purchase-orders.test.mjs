@@ -92,6 +92,11 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   assert.match(html, /id="reviewTo"/);
   assert.match(html, /id="reviewCc"/);
   assert.match(html, /Email install summary/);
+  assert.match(html, /Create Xero bill/);
+  assert.match(html, /id="xeroModal"/);
+  assert.match(html, /creates a draft supplier bill only/i);
+  assert.match(html, /action:'preview'/);
+  assert.match(html, /action:'create',confirm:true/);
   assert.match(html, /two weeks in arrears/);
   assert.match(html, /PO for \$\{worker\.name\} - Week ending/);
 });

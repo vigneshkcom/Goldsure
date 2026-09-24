@@ -5,6 +5,13 @@
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
+import {
+  createOrFindDraftPurchaseOrderBill,
+  createXeroClient,
+  preparePurchaseOrderBill,
+  signPurchaseOrderPlan,
+  verifyPurchaseOrderPlan,
+} from '../../../lib/xero-purchase-orders.js';
 
 function esc(value) {
   return String(value ?? '')
@@ -46,7 +53,7 @@ function emailRecipients(value) {
   return [...new Set(emailEntries(value))].filter(address => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)).slice(0, 10);
 }
 
-function validatedPurchaseOrder(po) {
+export function validatedPurchaseOrder(po) {
   if (!po || !po.poNumber || !po.electrician || !Array.isArray(po.jobs) || !po.jobs.length) return null;
   const rateByKey = new Map(purchaseOrderRateCard().map(rate => [rate.key, rate]));
   const gstRegistered = po.electrician.gstRegistered === true;
@@ -546,6 +553,46 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
+
+  if (body.xeroBill !== undefined) {
+    if (!purchaseOrderAccessAllowed(req)) {
+      return res.status(401).json({ error: 'Enter the Portal access PIN.' });
+    }
+    const request = body.xeroBill || {};
+    const po = validatedPurchaseOrder(request.purchaseOrder);
+    if (!po) return res.status(400).json({ error: 'The purchase order is incomplete.' });
+    if (!(Number(po.totals.totalIncGst) > 0)) {
+      return res.status(400).json({ error: 'The final purchase order amount must be greater than zero before a Xero bill can be created.' });
+    }
+    if (!['preview', 'create'].includes(request.action)) return res.status(400).json({ error: 'Choose a valid Xero bill action.' });
+    if (request.action === 'create' && request.confirm !== true) {
+      return res.status(400).json({ error: 'Confirm the reviewed Xero bill before creating it.' });
+    }
+    const signingSecret = process.env.XERO_PO_SIGNING_SECRET
+      || process.env.XERO_CLIENT_SECRET
+      || process.env.PURCHASE_ORDER_PIN
+      || process.env.DATAFORCE_GHL_SYNC_PIN
+      || process.env.DASHBOARD_PASSWORD;
+    try {
+      const client = await createXeroClient();
+      const prepared = await preparePurchaseOrderBill(client, po);
+      if (request.action === 'preview') {
+        return res.status(200).json({
+          success: true,
+          plan: prepared.plan,
+          proof: signPurchaseOrderPlan(prepared.plan, signingSecret),
+        });
+      }
+      if (!verifyPurchaseOrderPlan(prepared.plan, request.proof, signingSecret)) {
+        return res.status(409).json({ error: 'The purchase order or Xero details changed. Review the Xero bill again before creating it.' });
+      }
+      const result = await createOrFindDraftPurchaseOrderBill(client, po, prepared);
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.error('[Xero purchase order bill] Failed:', err.message);
+      return res.status(500).json({ error: err.message || 'Could not create the Xero bill.' });
+    }
+  }
 
   if (body.purchaseOrder !== undefined) {
     if (!purchaseOrderAccessAllowed(req)) {
