@@ -131,7 +131,7 @@ function setCorsHeaders(req, res) {
     res.setHeader('Access-Control-Allow-Origin', PROMO_ORIGIN);
     res.setHeader('Vary', 'Origin');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -665,6 +665,44 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('Zoho list failed:', err.message);
       return res.status(502).json({ error: 'Zoho list failed', detail: err.message });
+    }
+  }
+
+  // DELETE moves a customer folder to WorkDrive trash. Confirm that the ID is
+  // a direct child of this product's configured parent before touching it, so
+  // a valid PIN cannot be used to remove an unrelated WorkDrive resource.
+  if (req.method === 'DELETE') {
+    const { folderId, pin } = req.body || {};
+    const expectedPin = process.env.SMS_DELETE_PIN || '4321';
+    if (String(pin || '') !== expectedPin) return res.status(403).json({ error: 'Incorrect password' });
+    if (!folderId) return res.status(400).json({ error: 'folderId is required' });
+    try {
+      const accessToken = await getAccessToken();
+      const children = await listChildren(accessToken, parentId);
+      const folder = children.find(item =>
+        String(item?.id || '') === String(folderId) && item?.attributes?.is_folder !== false
+      );
+      if (!folder) return res.status(404).json({ error: 'Folder was not found in this photo tracker' });
+
+      const r = await fetch(`${API_BASE}/files`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          Accept: 'application/vnd.api+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: [{ id: String(folderId), type: 'files', attributes: { status: '51' } }],
+        }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        throw new Error(`WorkDrive trash failed: HTTP ${r.status} - ${detail.slice(0, 200)}`);
+      }
+      return res.status(200).json({ success: true, folderId: String(folderId), trashed: true });
+    } catch (err) {
+      console.error('Zoho folder delete failed:', err.message);
+      return res.status(502).json({ error: 'Could not delete the WorkDrive folder', detail: err.message });
     }
   }
 

@@ -123,7 +123,7 @@
 
   .row {
     display: grid;
-    grid-template-columns: 1fr 150px 150px 108px 96px 250px;
+    grid-template-columns: minmax(210px, 1fr) 180px 150px 150px 108px 96px 270px;
     align-items: center;
     border-bottom: 1px solid var(--line-soft);
     position: relative;
@@ -174,13 +174,10 @@
   .date { font-size: 13px; color: var(--ink-2); }
   .date b { color: var(--ink); font-weight: 400; }
 
-  /* GHL pipeline, shown read-only beside the name */
-  .pipe { font-size: 11.5px; color: var(--ink-2); margin-top: 1px; display: flex; align-items: center; gap: 5px; }
-  .pipe .stage {
-    background: var(--line-soft); color: var(--ink-2); border-radius: 3px;
-    padding: 0 5px; font-size: 11px; white-space: nowrap;
-  }
-  .pipe.loading { color: var(--ink-3); font-style: italic; }
+  .ghl-stage { font-size: 12.5px; color: var(--ink); line-height: 1.25; }
+  .ghl-stage .pipeline { display: block; margin-top: 3px; color: var(--ink-3); font-size: 11px; }
+  .ghl-stage.loading { color: var(--ink-3); font-style: italic; }
+  .ghl-stage.missing { color: var(--ink-3); }
 
   /* Age — how long a request has sat. Empty and old is the delete candidate. */
   .age { font-size: 13px; color: var(--ink-2); }
@@ -192,6 +189,8 @@
     cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px;
   }
   .btn-mini:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-mini.danger { border-color: #f3b7bb; color: var(--red); }
+  .btn-mini.danger:hover { border-color: var(--red); background: #fff4f5; }
   .btn-mini:disabled { opacity: .55; cursor: not-allowed; border-color: var(--line); color: var(--ink-3); }
   .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
@@ -289,10 +288,14 @@
     .cell.c { text-align: left; }
     .m-name   { grid-column: 1; grid-row: 1; }
     .m-status { grid-column: 2; grid-row: 1; }
-    .m-batt   { grid-column: 1 / -1; grid-row: 2; margin: 6px 0 2px; }
-    .m-sent   { grid-column: 1; grid-row: 3; }
-    .m-age    { grid-column: 2; grid-row: 3; text-align: right; }
-    .m-link   { grid-column: 1 / -1; grid-row: 4; margin-top: 8px; }
+    .m-ghl    { grid-column: 1 / -1; grid-row: 2; margin-top: 5px; }
+    .m-ghl::before { content: 'GHL: '; color: var(--ink-3); font-size: 11px; }
+    .m-ghl .ghl-stage { display: inline; }
+    .m-ghl .pipeline { display: inline; margin-left: 5px; }
+    .m-batt   { grid-column: 1 / -1; grid-row: 3; margin: 6px 0 2px; }
+    .m-sent   { grid-column: 1; grid-row: 4; }
+    .m-age    { grid-column: 2; grid-row: 4; text-align: right; }
+    .m-link   { grid-column: 1 / -1; grid-row: 5; margin-top: 8px; }
     .m-link .actions { justify-content: space-between; }
     .status { min-height: 24px; border-radius: 4px; padding: 0 12px; }
   }
@@ -491,11 +494,19 @@ function ageHtml(f) {
   return `<span class="age${stale ? ' stale' : ''}" title="Created ${fmtDate(f.createdAt)}">${text}</span>`;
 }
 
-function pipeHtml(f) {
+function ghlStageHtml(f) {
   const info = ghl[ghlKey(f)];
-  if (info === undefined) return '<div class="pipe loading">checking GHL…</div>';
-  if (!info || !info.pipeline) return '';
-  return `<div class="pipe">${esc(info.pipeline)}${info.stage ? `<span class="stage">${esc(info.stage)}</span>` : ''}</div>`;
+  if (info === undefined) return '<span class="ghl-stage loading">Checking GHL...</span>';
+  if (!info || (!info.pipeline && !info.stage)) return '<span class="ghl-stage missing">No GHL opportunity</span>';
+  return `<span class="ghl-stage">${esc(info.stage || 'Stage not set')}${info.pipeline ? `<span class="pipeline">${esc(info.pipeline)}</span>` : ''}</span>`;
+}
+
+function isCompletedFolder(f) {
+  const info = ghl[ghlKey(f)];
+  if (!info) return false;
+  const status = String(info.status || '').toLowerCase();
+  const stage = String(info.stage || '').toLowerCase();
+  return status === 'won' || /(^|\b)won(\b|$)|installed|completed|install complete/.test(stage);
 }
 
 function rowHtml(f, i, gcolor) {
@@ -513,10 +524,10 @@ function rowHtml(f, i, gcolor) {
         <div class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</div>
         <div style="min-width:0">
           <div class="item-name" title="${esc(f.name)}">${esc(f.name)}</div>
-          ${pipeHtml(f)}
         </div>
       </div>
     </div>
+    <div class="cell c m-ghl">${ghlStageHtml(f)}</div>
     <div class="cell status-cell m-status"><span class="status ${st.cls}">${st.text}</span></div>
     <div class="cell c m-batt">${battery(f)}</div>
     <div class="cell c m-sent"><div class="date"><b>${fmtDate(f.createdAt)}</b></div></div>
@@ -533,6 +544,9 @@ function rowHtml(f, i, gcolor) {
           Answers</button>` : ''}
         ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
+        <button class="btn-mini danger" data-delete="${esc(f.id)}" title="Move this folder and its photos to WorkDrive trash">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          Delete</button>
       </div>
     </div>
   </div>`;
@@ -552,6 +566,7 @@ function groupHtml(key, name, color, items) {
     <div class="grid">
       <div class="row head">
         <div class="cell">Customer</div>
+        <div class="cell c">GHL Pipeline Stage</div>
         <div class="cell c">Status</div>
         <div class="cell c">Photos</div>
         <div class="cell c">Link sent</div>
@@ -575,14 +590,17 @@ function render() {
     return;
   }
 
-  const waiting = list.filter(f => (photoCountOf(f) || 0) === 0);
-  const partial = list.filter(f => (photoCountOf(f) || 0) > 0 && photoCountOf(f) < slotCountFor(f));
-  const done    = list.filter(f => (photoCountOf(f) || 0) >= slotCountFor(f));
+  const completed = list.filter(isCompletedFolder);
+  const active = list.filter(f => !isCompletedFolder(f));
+  const waiting = active.filter(f => (photoCountOf(f) || 0) === 0);
+  const partial = active.filter(f => (photoCountOf(f) || 0) > 0 && photoCountOf(f) < slotCountFor(f));
+  const done    = active.filter(f => (photoCountOf(f) || 0) >= slotCountFor(f));
 
   board.innerHTML =
       groupHtml('waiting', 'Waiting on photos', 'var(--red)', waiting)
     + groupHtml('partial', 'Partly received',   'var(--orange)', partial)
-    + groupHtml('done',    'Photos received',   'var(--green)', done);
+    + groupHtml('done',    'Photos received',   'var(--green)', done)
+    + groupHtml('completed', 'Completed',       'var(--blue)', completed);
 
   board.querySelectorAll('[data-toggle]').forEach(btn => {
     btn.onclick = () => {
@@ -603,15 +621,50 @@ function render() {
   board.querySelectorAll('[data-answers]').forEach(btn => {
     btn.onclick = () => openAnswersModal(btn.dataset.answers);
   });
+
+  board.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.onclick = () => deleteFolder(btn.dataset.delete, btn);
+  });
+}
+
+async function deleteFolder(folderId, btn) {
+  const folder = folders.find(f => String(f.id) === String(folderId));
+  if (!folder) return;
+  const pin = prompt(`Enter the deletion password for ${folder.name}:`);
+  if (pin === null) return;
+  if (!confirm(`Move ${folder.name} and all photos in it to WorkDrive trash?`)) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  try {
+    const res = await fetch('/api/zoho/create-photo-request', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderId, product: PRODUCT, pin }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.detail || `HTTP ${res.status}`);
+    folders = folders.filter(f => String(f.id) !== String(folderId));
+    delete ghl[ghlKey(folder)];
+    render();
+  } catch (e) {
+    alert(`Could not delete the folder: ${e.message}`);
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
 }
 
 /* ── GHL lookup ──
-   Folders are named "John Smith (8761)", so the name plus those last four
-   digits identify the contact — no phone number needs storing anywhere, and
-   folders created before any of this existed resolve too. GHL then supplies
-   the full number, which is what makes the reminder button possible.
-   Batched; any failure just leaves the row without a pipeline or reminder. */
-const ghlKey = f => `${String(f.name || '').replace(/\s*\(\d{3,4}\)\s*$/, '').trim()}~${(/\((\d{3,4})\)\s*$/.exec(f.name || '') || [])[1] || ''}`;
+   New folders carry the full phone number and older ones carry only the last
+   four digits. Normalise both formats to customer name plus last four so the
+   GHL lookup works for every generation of photo request. */
+const ghlKey = f => {
+  const raw = String(f.name || '');
+  const suffix = (/\((\+?[\d\s-]{3,})\)\s*$/.exec(raw) || [])[1] || '';
+  const last4 = suffix.replace(/\D/g, '').slice(-4);
+  const name = raw.replace(/\s*\(\+?[\d\s-]{3,}\)\s*$/, '').trim();
+  return `${name}~${last4}`;
+};
 
 async function loadPipelines() {
   const keys = [...new Set(folders.map(ghlKey).filter(k => k && !k.startsWith('~')))];
@@ -620,7 +673,7 @@ async function loadPipelines() {
   for (let i = 0; i < keys.length; i += 20) {
     const batch = keys.slice(i, i + 20);
     try {
-      const res = await fetch('/api/battery/request-callback?action=ghl-find&items=' + encodeURIComponent(batch.join(',')));
+      const res = await fetch('/api/battery/request-callback?action=ghl-find&product=' + encodeURIComponent(PRODUCT) + '&items=' + encodeURIComponent(batch.join(',')));
       if (!res.ok) throw new Error('lookup failed');
       const found = await res.json();
       batch.forEach(k => { ghl[k] = found[k] || null; });
