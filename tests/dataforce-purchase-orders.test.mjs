@@ -68,6 +68,7 @@ test('normalises Dataforce fieldworker contact and GST details', () => {
   }), {
     id: 1009,
     name: 'Alex Symonds',
+    firstName: 'Alex',
     companyName: 'Alex Electrical',
     email: 'alex@example.com',
     phone: '',

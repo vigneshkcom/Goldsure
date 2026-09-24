@@ -703,10 +703,13 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       fieldworkerId: workerId,
       name: appointment.fieldworkerName,
     });
-    const [documentResult, tagPayload] = await Promise.all([
+    const [documentResult, tagPayload, customer] = await Promise.all([
       dataforcePurchaseOrderDocument(token, instance, appointment),
       appointment.appointmentId
         ? dataforceOptionalFetch(token, `/${encodeURIComponent(instance)}/appointments/${encodeURIComponent(appointment.appointmentId)}/tags`)
+        : null,
+      appointment.customerId
+        ? dataforceOptionalFetch(token, `/${encodeURIComponent(instance)}/customers/id/${encodeURIComponent(appointment.customerId)}`).catch(() => null)
         : null,
     ]);
     const document = documentResult?.document || null;
@@ -722,6 +725,7 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       jobId: String(job.jobId),
       appointmentId: appointment.appointmentId || null,
       installedDate: dateOnly(appointment.actualCompletedDate || appointment.completedDate),
+      address: customerAddress(customer).replace(/, Australia$/, ''),
       status: String(appointment.completionStatusDescription || '').trim(),
       worker,
       items,

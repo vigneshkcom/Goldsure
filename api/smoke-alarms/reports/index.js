@@ -87,6 +87,7 @@ export function validatedPurchaseOrder(po) {
     return {
       jobId: String(job.jobId || '').trim(),
       installedDate: String(job.installedDate || '').trim(),
+      address: String(job.address || '').replace(/\s+/g, ' ').trim().slice(0, 200),
       items,
       pendingBalance,
       cashCollected: cashOffset > 0,
@@ -128,6 +129,7 @@ export function validatedPurchaseOrder(po) {
     electrician: {
       ...po.electrician,
       name: String(po.electrician.name || '').trim(),
+      firstName: String(po.electrician.firstName || '').trim(),
       companyName: String(po.electrician.companyName || '').trim(),
       email: String(po.electrician.email || '').trim().toLowerCase(),
       taxId: String(po.electrician.taxId || '').trim(),
@@ -506,7 +508,15 @@ function buildInstallSummaryHtml(po) {
   const electrician = po.electrician || {};
   const totals = po.totals || {};
   const cash = Math.round(Number(totals.cashOffset || 0) * 100) / 100;
-  const jobRows = (po.jobs || []).map(job => `<tr><td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td><td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td><td align="center" style="${PO_TD}">${jobQuantity(job, 'hardwired') + jobQuantity(job, 'battery') + jobQuantity(job, 'remote')}</td><td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td></tr>`).join('');
+  const jobs = po.jobs || [];
+  const firstName = electrician.firstName || String(electrician.name || '').trim().split(/\s+/)[0] || 'there';
+  const jobRows = jobs.map(job => {
+    const hardwired = jobQuantity(job, 'hardwired');
+    const battery = jobQuantity(job, 'battery');
+    const remote = jobQuantity(job, 'remote');
+    return `<tr><td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td><td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td><td style="${PO_TD}color:#374151;">${job.address ? esc(job.address) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="center" style="${PO_TD}">${poQuantity(hardwired)}</td><td align="center" style="${PO_TD}">${poQuantity(battery)}</td><td align="center" style="${PO_TD}">${poQuantity(remote)}</td><td align="center" style="${PO_TD}font-weight:bold;">${hardwired + battery + remote}</td><td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td></tr>`;
+  }).join('');
+  const jobEarnings = jobs.reduce((sum, job) => sum + Number(job.grossIncGst || 0), 0);
   const stat = (value, label) => `<td width="25%" style="padding:14px 16px;"><div style="${PO_FONT}font-size:18px;font-weight:bold;color:#111111;">${value}</div><div style="${PO_LABEL}margin-top:4px;">${label}</div></td>`;
   const summary = poSummaryRows([
     ['Total inc GST', poMoney(totals.grossIncGst)],
@@ -515,14 +525,14 @@ function buildInstallSummaryHtml(po) {
     ['Payable date', esc(po.payableDate), { strong: true }],
   ]);
   const body = `<tr><td style="padding:24px 32px 26px;">
-      <p style="${PO_FONT}margin:0 0 10px;font-size:14px;color:#111111;">Hi ${esc(electrician.name)},</p>
+      <p style="${PO_FONT}margin:0 0 10px;font-size:14px;color:#111111;">Hi ${esc(firstName)},</p>
       <p style="${PO_FONT}margin:0;font-size:13px;line-height:1.6;color:#374151;">Here is your installation and earnings summary for ${esc(po.period)}.</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:#fafafa;border:1px solid #e5e7eb;"><tr>${stat(esc(totals.jobs || 0), 'JOBS')}${stat(esc(totals.alarmTotal || 0), 'ALARMS')}${stat(poMoney(totals.grossIncGst), 'GROSS EARNINGS')}${stat(poMoney(totals.totalIncGst), 'FINAL PAYMENT')}</tr></table>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody></table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="left" style="${PO_TH}">Address</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody><tfoot><tr><td colspan="3" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.alarmTotal || 0)}</td><td align="right" style="${PO_TOTAL_TD}">${poMoney(jobEarnings)}</td></tr></tfoot></table>
       ${additionalLinesHtml(po)}
       <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:20px;">${summary}</table><div style="clear:both;"></div>
     </td></tr>`;
-  return poEmailPage(720, [
+  return poEmailPage(900, [
     poEmailHeader('INSTALLATION SUMMARY', [[po.period, '#374151', 12], [`Issued ${po.issueDate || ''}`, '#6b7280', 11]]),
     body,
     poEmailFooter(),
