@@ -1,6 +1,17 @@
 // Existing browser-safe Maps key bootstrap plus the protected Route Planner API.
 // These actions share one Vercel function to keep the Hobby-plan function count unchanged.
 
+import {
+  normalizeEmail,
+  normalizePhone,
+  classifyDataforceProduct,
+  pipelineMatchesProduct,
+  findInstalledStage,
+  chooseOpportunity,
+  calculateDataforceRevenue,
+  groupAppointmentsByJob,
+} from '../../lib/dataforce-ghl-sync.js';
+
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
 const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
 const DATAFORCE_GRANT_TYPE = 'client_credentials';
@@ -86,6 +97,15 @@ async function dataforceFetch(token, path, init = {}) {
       ...(init.headers || {})
     }
   });
+  if (!response.ok) throw new Error(`Dataforce request failed (${response.status}).`);
+  return response.json();
+}
+
+async function dataforceOptionalFetch(token, path) {
+  const response = await fetch(`${DATAFORCE_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Dataforce request failed (${response.status}).`);
   return response.json();
 }
@@ -568,6 +588,295 @@ async function planRoute(body) {
   };
 }
 
+function resolveDataforceGhlSyncAccess(req, res) {
+  const expected = String(process.env.DATAFORCE_GHL_SYNC_PIN || process.env.DASHBOARD_PASSWORD || '').trim();
+  const supplied = String(req.headers['x-dataforce-ghl-pin'] || '').trim();
+  if (!expected) {
+    send(res, 503, { error: 'Dataforce to GHL preview access has not been configured.' });
+    return false;
+  }
+  if (!supplied || supplied !== expected) {
+    send(res, 401, { error: 'Incorrect access PIN.' });
+    return false;
+  }
+  return true;
+}
+
+async function dataforceAppointmentsBetween(token, startDate, endDate) {
+  const { instance } = dataforceConfig();
+  const appointments = [];
+  let after = 0;
+  while (appointments.length < 1000) {
+    const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: 'scheduledDate', value: `${startDate}T00:00:00`, operator: 'GTE' },
+          { propertyName: 'scheduledDate', value: `${nextDate(endDate)}T00:00:00`, operator: 'LT' },
+       ] }],
+        sorts: [{ propertyName: 'scheduledDate', direction: 'desc' }],
+        limit: 100,
+        after,
+      }),
+    });
+    const page = result.records || [];
+    appointments.push(...page);
+    after += page.length;
+    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+  }
+  return appointments;
+}
+
+function ghlSyncConfig() {
+  const apiKey = String(process.env.GHL_API_KEY || '').trim();
+  const locationId = String(process.env.GHL_LOCATION_ID || '').trim();
+  if (!apiKey || !locationId) throw new Error('GHL is not configured for the Dataforce preview.');
+  return { apiKey, locationId };
+}
+
+async function ghlSyncFetch(apiKey, path, version = '2021-07-28') {
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await fetch(`https://services.leadconnectorhq.com${path}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Version: version, Accept: 'application/json' },
+    });
+    if (response.status !== 429 && response.status < 500) break;
+    const retryAfter = Number.parseInt(response.headers.get('retry-after') || '', 10);
+    const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 4000) : 400 * (2 ** attempt);
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+  }
+  if (!response?.ok) throw new Error(`GHL request failed (${response?.status || 'network error'}).`);
+  return response.json();
+}
+
+function customerDisplayName(customer) {
+  return String(customer?.companyName || '').trim()
+    || `${customer?.firstname || ''} ${customer?.surname || ''}`.trim()
+    || 'Customer';
+}
+
+function customerPhoneValues(customer) {
+  return [...new Set([
+    customer?.mobilePhone,
+    [customer?.areaCode, customer?.homePhone].filter(Boolean).join(''),
+    customer?.homePhone,
+  ].map(value => String(value || '').trim()).filter(Boolean))];
+}
+
+async function findExactGhlContact(apiKey, locationId, customer) {
+  const email = normalizeEmail(customer?.email);
+  const phones = customerPhoneValues(customer).map(normalizePhone).filter(Boolean);
+  const queries = [...new Set([
+    ...(email ? [email] : []),
+    ...customerPhoneValues(customer),
+  ])];
+  const matches = new Map();
+  const matchedBy = new Map();
+  const payloads = await Promise.all(queries.map(async query => ghlSyncFetch(
+    apiKey,
+    `/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(query)}&limit=20`,
+  )));
+  for (const payload of payloads) {
+    for (const contact of payload.contacts || []) {
+      const emailMatch = email && normalizeEmail(contact.email) === email;
+      const phoneMatch = phones.length && phones.includes(normalizePhone(contact.phone));
+      if (!emailMatch && !phoneMatch) continue;
+      matches.set(contact.id, contact);
+      const reasons = matchedBy.get(contact.id) || new Set();
+      if (emailMatch) reasons.add('email');
+      if (phoneMatch) reasons.add('phone');
+      matchedBy.set(contact.id, reasons);
+    }
+  }
+  if (!matches.size) return { status: 'unmatched', contact: null, matchedBy: [] };
+  if (matches.size > 1) {
+    return {
+      status: 'conflict',
+      contact: null,
+      matchedBy: [],
+      candidates: [...matches.values()].map(contact => ({ id: contact.id, name: contact.name || '' })),
+    };
+  }
+  const contact = [...matches.values()][0];
+  return { status: 'matched', contact, matchedBy: [...(matchedBy.get(contact.id) || [])] };
+}
+
+function configuredPipelineIds(pipelines, product) {
+  const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
+    : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
+      : (product === 'hws-vic' || product === 'hws') ? process.env.HWS_PIPELINE_ID
+        : product === 'smoke' ? process.env.SMOKE_ALARMS_PIPELINE_ID
+          : '';
+  return [...new Set([
+    ...(configured && pipelines.some(pipeline => pipeline.id === configured) ? [configured] : []),
+    ...pipelines.filter(pipeline => pipelineMatchesProduct(pipeline.name, product)).map(pipeline => pipeline.id),
+  ])];
+}
+
+function dataforceJobIdField(customFields) {
+  const normal = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  return (customFields || []).find(field => field.model === 'opportunity' && [
+    'dataforce job id', 'dataforce jobid',
+  ].includes(normal(field.name))) || (customFields || []).find(field => String(field.fieldKey || '').toLowerCase().endsWith('.dataforce_job_id')) || null;
+}
+
+async function dataforceRevenueForJob(token, instance, representative, jobId) {
+  const appointmentId = representative?.appointmentId;
+  if (appointmentId) {
+    const invoice = await dataforceOptionalFetch(
+      token,
+      `/${encodeURIComponent(instance)}/appointments/${encodeURIComponent(appointmentId)}/invoice`,
+    );
+    const calculated = calculateDataforceRevenue(invoice, 'appointment invoice');
+    if (calculated.confident) return calculated;
+  }
+  const quote = await dataforceOptionalFetch(
+    token,
+    `/${encodeURIComponent(instance)}/jobs/${encodeURIComponent(jobId)}/quote`,
+  );
+  return calculateDataforceRevenue(quote, quote ? 'job quote' : '');
+}
+
+async function dataforceGhlPreview(startDate, endDate) {
+  const token = await dataforceToken();
+  const { instance } = dataforceConfig();
+  const { apiKey, locationId } = ghlSyncConfig();
+  const appointments = await dataforceAppointmentsBetween(token, startDate, endDate);
+  const jobs = groupAppointmentsByJob(appointments);
+  const customerIds = [...new Set(jobs.map(job => job.representative?.customerId).filter(Boolean))];
+  const customerEntries = await mapWithConcurrency(customerIds, 8, async customerId => [
+    String(customerId),
+    await dataforceFetch(token, `/${encodeURIComponent(instance)}/customers/id/${encodeURIComponent(customerId)}`),
+  ]);
+  const customers = new Map(customerEntries);
+  const pipelinePayload = await ghlSyncFetch(
+    apiKey,
+    `/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
+  );
+  const pipelines = pipelinePayload.pipelines || [];
+  let customFields = [];
+  try {
+    const fieldsPayload = await ghlSyncFetch(
+      apiKey,
+      `/locations/${encodeURIComponent(locationId)}/customFields?model=opportunity`,
+      '2021-07-28',
+    );
+    customFields = fieldsPayload.customFields || [];
+  } catch (error) {
+    console.warn('Could not inspect GHL opportunity custom fields:', error.message);
+  }
+  const jobIdField = dataforceJobIdField(customFields);
+
+  const rows = await mapWithConcurrency(jobs, 4, async job => {
+    const appointment = job.representative || {};
+    const customer = customers.get(String(appointment.customerId));
+    const product = classifyDataforceProduct({ workType: appointment.workTypeName, state: customer?.state });
+    const base = {
+      jobId: job.jobId,
+      appointmentId: appointment.appointmentId || null,
+      customerId: appointment.customerId || null,
+      customerName: customerDisplayName(customer),
+      email: String(customer?.email || '').trim(),
+      phone: String(customer?.mobilePhone || customer?.homePhone || '').trim(),
+      state: String(customer?.state || '').trim(),
+      workType: String(appointment.workTypeName || '').trim(),
+      scheduledDate: appointment.scheduledDate || '',
+      dataforceStatus: appointment.completionStatusDescription || '',
+      completed: job.completed,
+      product,
+      matchStatus: 'unmatched',
+      matchedBy: [],
+      proposedChanges: [],
+    };
+    if (!customer) return { ...base, issue: 'Dataforce customer could not be loaded.' };
+    const match = await findExactGhlContact(apiKey, locationId, customer);
+    if (match.status !== 'matched') {
+      return {
+        ...base,
+        matchStatus: match.status,
+        issue: match.status === 'conflict'
+          ? 'Email and phone matched more than one GHL contact.'
+          : 'No exact GHL email or phone match.',
+        candidates: match.candidates || [],
+      };
+    }
+
+    const contact = match.contact;
+    const opportunityPayload = await ghlSyncFetch(
+      apiKey,
+      `/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=100`,
+    );
+    const pipelineIds = configuredPipelineIds(pipelines, product);
+    const opportunity = chooseOpportunity(opportunityPayload.opportunities || [], pipelineIds);
+    const matchedBase = {
+      ...base,
+      matchStatus: 'matched',
+      matchedBy: match.matchedBy,
+      ghlContactId: contact.id,
+      ghlContactName: contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' '),
+      ghlLink: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contact.id}`,
+    };
+    if (product === 'unknown') return { ...matchedBase, issue: 'Work type could not be mapped to a GHL pipeline.' };
+    if (!pipelineIds.length) return { ...matchedBase, issue: 'The matching GHL pipeline could not be found.' };
+    if (!opportunity) return { ...matchedBase, issue: 'No opportunity exists in the matching product pipeline.' };
+
+    const pipeline = pipelines.find(item => item.id === opportunity.pipelineId);
+    const currentStage = pipeline?.stages?.find(stage => stage.id === opportunity.pipelineStageId);
+    const installedStage = findInstalledStage(pipeline);
+    const proposedChanges = [];
+    proposedChanges.push(jobIdField
+      ? `Set Dataforce Job ID to ${job.jobId}`
+      : `Set Dataforce Job ID to ${job.jobId} (GHL field needs setup)`);
+    if (job.completed && installedStage && opportunity.pipelineStageId !== installedStage.id) {
+      proposedChanges.push(`Move stage to ${installedStage.name}`);
+    }
+    if (job.completed && String(opportunity.status || '').toLowerCase() !== 'won') {
+      proposedChanges.push('Mark opportunity Won');
+    }
+    let revenue = { confident: false, source: '', revenue: null };
+    if (job.completed) {
+      revenue = await dataforceRevenueForJob(token, instance, appointment, job.jobId);
+      if (revenue.confident && Number(opportunity.monetaryValue || 0) !== revenue.revenue) {
+        proposedChanges.push(`Update revenue to $${revenue.revenue.toFixed(2)}`);
+      }
+    }
+    return {
+      ...matchedBase,
+      pipeline: pipeline?.name || '',
+      currentStage: currentStage?.name || '',
+      currentStatus: opportunity.status || '',
+      currentRevenue: Number(opportunity.monetaryValue || 0),
+      opportunityId: opportunity.id,
+      targetStage: job.completed ? (installedStage?.name || '') : '',
+      targetStatus: job.completed ? 'won' : '',
+      proposedRevenue: revenue.confident ? revenue.revenue : null,
+      revenue,
+      proposedChanges,
+      issue: job.completed && !installedStage ? 'The matching pipeline has no Installed stage.' : '',
+    };
+  });
+
+  rows.sort((a, b) => String(b.scheduledDate || '').localeCompare(String(a.scheduledDate || '')));
+  return {
+    mode: 'preview',
+    readOnly: true,
+    startDate,
+    endDate,
+    generatedAt: new Date().toISOString(),
+    jobIdField: jobIdField ? { id: jobIdField.id, name: jobIdField.name } : null,
+    summary: {
+      appointments: appointments.length,
+      jobs: rows.length,
+      completedJobs: rows.filter(row => row.completed).length,
+      matched: rows.filter(row => row.matchStatus === 'matched').length,
+      conflicts: rows.filter(row => row.matchStatus === 'conflict').length,
+      unmatched: rows.filter(row => row.matchStatus === 'unmatched').length,
+      proposedUpdates: rows.filter(row => row.proposedChanges.length).length,
+    },
+    rows,
+  };
+}
+
 export default async function handler(req, res) {
   // Preserve the existing endpoint contract used by quote/address pages.
   if (req.method === 'GET') {
@@ -576,6 +885,22 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed.' });
   const action = req.body && req.body.action;
   try {
+    if (action === 'dataforce-ghl-preview') {
+      if (!resolveDataforceGhlSyncAccess(req, res)) return;
+      const startDate = String(req.body.startDate || '');
+      const endDate = String(req.body.endDate || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+        return send(res, 400, { error: 'Choose a valid start and end date.' });
+      }
+      const start = new Date(`${startDate}T00:00:00Z`);
+      const end = new Date(`${endDate}T00:00:00Z`);
+      const days = Math.round((end - start) / 86400000) + 1;
+      if (!Number.isFinite(days) || days < 1 || days > 14) {
+        return send(res, 400, { error: 'Choose a date range between 1 and 14 days.' });
+      }
+      return send(res, 200, await dataforceGhlPreview(startDate, endDate));
+    }
+
     // The sales team view is intentionally PIN-free. Calendar and suggestion
     // actions never return customer names, contact details or customer IDs.
     if (action === 'team-schedule-summary') {
