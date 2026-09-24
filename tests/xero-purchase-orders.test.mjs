@@ -88,8 +88,9 @@ test('builds a GST-inclusive draft supplier bill with the cash offset and due da
   assert.equal(bill.date, '2026-09-20');
   assert.equal(bill.dueDate, '2026-10-02');
   assert.equal(bill.lineItems.length, 3);
-  assert.match(bill.lineItems[0].description, /Job 7001.*Booking 1.*Hardwired 2.*Battery 3/);
+  assert.equal(bill.lineItems[0].description, '20/09 | 7001');
   assert.equal(bill.lineItems[1].unitAmount, -30);
+  assert.equal(bill.lineItems[1].description, '20/09 | 7001 | Cash offset');
   assert.equal(bill.lineItems[1].taxType, 'NONE');
   assert.deepEqual(bill.lineItems[2].tracking, [{ name: 'Division', option: 'QLD Smoke Alarms' }]);
   assert.equal(bill.lineItems.reduce((sum, line) => sum + line.unitAmount, 0), 174.6);
