@@ -16,6 +16,7 @@ export default async function handler(req, res) {
     service_type,
     alarm_qty,
     alarm_total,
+    alarm_unit_price,
     ctrl_qty,
     ctrl_total,
     fee_label,
@@ -29,6 +30,10 @@ export default async function handler(req, res) {
   }
 
   const hasControllers = parseInt(ctrl_qty) > 0;
+  const alarmQtyNumeric = parseInt(alarm_qty, 10) || 0;
+  const hasConcreteCeiling = Number(alarm_unit_price) > 98.005;
+  const baseAlarmTotal = hasConcreteCeiling ? `$${(alarmQtyNumeric * 98).toFixed(2)}` : alarm_total;
+  const concreteCeilingTotal = `$${(alarmQtyNumeric * 11).toFixed(2)}`;
 
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -147,9 +152,19 @@ export default async function handler(req, res) {
                   <p style="margin:2px 0 0;font-size:11px;color:#6b7899;">${alarm_qty} × $98.00</p>
                 </td>
                 <td align="right" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
-                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${alarm_total}</p>
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${baseAlarmTotal}</p>
                 </td>
               </tr>
+
+              ${hasConcreteCeiling ? `<tr>
+                <td style="padding:12px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;color:#141c2e;">Concrete Ceiling Installation</p>
+                  <p style="margin:2px 0 0;font-size:11px;color:#6b7899;">${alarmQtyNumeric} × $11.00</p>
+                </td>
+                <td align="right" style="padding:12px 14px;border-bottom:1px solid #e3e7ef;white-space:nowrap;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${concreteCeilingTotal}</p>
+                </td>
+              </tr>` : ''}
 
               ${hasControllers ? `
               <!-- Controllers -->

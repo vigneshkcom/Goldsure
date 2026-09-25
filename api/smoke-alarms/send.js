@@ -17,6 +17,7 @@ export default async function handler(req, res) {
     customer_address,
     agent_name,
     service_type,
+    ceiling_type,
     alarm_qty,
     alarm_total,
     ctrl_qty,
@@ -58,16 +59,38 @@ export default async function handler(req, res) {
   // as a line item on the quote when the agent actually selected it.
   // When no controller is selected on an installation quote, we instead
   // upsell it as a low-cost add-on the customer can request on the day.
-  const hasController = (parseInt(ctrl_qty, 10) || 0) > 0;
+  const alarmQtyNumeric = Math.max(0, parseInt(alarm_qty, 10) || 0);
+  const controllerQtyNumeric = Math.max(0, parseInt(ctrl_qty, 10) || 0);
+  const hasController = controllerQtyNumeric > 0;
+  if (!['Installation Quote', 'Inspection Quote'].includes(service_type)) {
+    return res.status(400).json({ error: 'Select a valid smoke alarm service type.' });
+  }
   const isInstall     = service_type === 'Installation Quote';
+  const normalizedCeilingType = String(ceiling_type || '').trim().toLowerCase();
+  if (isInstall && !['normal', 'concrete'].includes(normalizedCeilingType)) {
+    return res.status(400).json({ error: 'Select whether the property has a normal or concrete ceiling.' });
+  }
+  if (isInstall && alarmQtyNumeric < 1) {
+    return res.status(400).json({ error: 'Enter at least one smoke alarm before sending the quote.' });
+  }
+  const hasConcreteCeiling = isInstall && normalizedCeilingType === 'concrete';
+  const alarmBaseNumeric = alarmQtyNumeric * 98;
+  const ceilingTotalNumeric = hasConcreteCeiling ? alarmQtyNumeric * 11 : 0;
+  const controllerTotalNumeric = controllerQtyNumeric * 49;
   const calculatedPreDiscount = isInstall
-    ? ((parseInt(alarm_qty, 10) || 0) * 98) + ((parseInt(ctrl_qty, 10) || 0) * 49) + 33
+    ? alarmBaseNumeric + ceilingTotalNumeric + controllerTotalNumeric + 33
     : (service_type === 'Inspection Quote' ? 131 : parseMoney(pre_discount_total || grand_total));
   const preDiscountNumeric = calculatedPreDiscount;
   const offerApplied = offer_applied === true && offerDiscountNumeric > 0;
   const discountNumeric = offerApplied ? Math.min(offerDiscountNumeric, preDiscountNumeric) : 0;
   const finalTotalNumeric = Math.max(0, preDiscountNumeric - discountNumeric);
   const quotedGrandTotal = money(finalTotalNumeric);
+  const quotedAlarmTotal = money(alarmBaseNumeric);
+  const quotedCeilingTotal = money(ceilingTotalNumeric);
+  const quotedControllerTotal = money(controllerTotalNumeric);
+  const quotedPaymentNote = isInstall
+    ? `$33.00 booking fee is payable today to secure your electrician. The remaining balance of ${money(Math.max(0, finalTotalNumeric - 33))} is payable on the day of installation.`
+    : `The ${quotedGrandTotal} inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the inspection fee is fully waived — you only pay the $33 booking fee plus required alarms.`;
 
   // ── Build Accept Quote URL using token ──
   const baseUrl   = (process.env.SITE_URL || 'https://portal.goldsure.com.au').replace(/\/$/, '');
@@ -111,15 +134,21 @@ export default async function handler(req, res) {
           </tr>
           <tr bgcolor="#ffffff">
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Raptor Smoke Alarms</span><br><span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; 10-Yr Warranty</span></td>
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarm_qty}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQtyNumeric}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$98.00</td>
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarm_total}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${quotedAlarmTotal}</td>
           </tr>
+          ${hasConcreteCeiling ? `<tr bgcolor="#f9f9f9">
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Concrete Ceiling Installation</span><br><span style="font-size:11px;color:#888888;">Additional installation work per smoke alarm</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQtyNumeric}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$11.00</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${quotedCeilingTotal}</td>
+          </tr>` : ''}
           ${hasController ? `<tr bgcolor="#f9f9f9">
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Smoke Alarm Controller</span><br><span style="font-size:11px;color:#888888;">Remote control &amp; status display</span></td>
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${ctrl_qty}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${controllerQtyNumeric}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$49.00</td>
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ctrl_total}</td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${quotedControllerTotal}</td>
           </tr>` : ''}
           <tr bgcolor="#ffffff">
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">${fee_label}</span><br><span style="font-size:11px;color:#888888;">${fee_amount} payable upfront to secure your booking</span></td>
@@ -145,7 +174,7 @@ export default async function handler(req, res) {
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#faf6ec;border-left:3px solid #b08d2e;">
           <tr><td style="padding:10px 14px;">
             <p style="margin:0 0 3px;font-family:Arial,Helvetica,sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;">Payment Structure</p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;">${payment_note}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;line-height:1.5;">${quotedPaymentNote}</p>
           </td></tr>
         </table>
         <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#111111;border-radius:10px;">
@@ -364,7 +393,7 @@ export default async function handler(req, res) {
         const customerFirst = (customer_name || 'there').trim().split(/\s+/)[0] || 'there';
         // Mention the alarm count on installation quotes (an inspection quote
         // has no alarm line items, so quoting a count there would mislead).
-        const alarmCount = parseInt(alarm_qty, 10) || 0;
+        const alarmCount = alarmQtyNumeric;
         const quoteSummary = (isInstall && alarmCount > 0)
           ? `Your quote for ${alarmCount} interconnected smoke alarm${alarmCount === 1 ? '' : 's'} (${quotedGrandTotal} total)`
           : `Your smoke alarm quote (${quotedGrandTotal} total)`;
@@ -457,6 +486,7 @@ export default async function handler(req, res) {
           const noteBody = [
             'Smoke alarm quote sent',
             `Quote type: ${service_type || 'Smoke Alarm Quote'}`,
+            `Ceiling type: ${isInstall ? (hasConcreteCeiling ? 'Concrete (+$11 inc GST per alarm)' : 'Normal') : 'Not applicable'}`,
             `Quote total (incl. GST): ${quotedGrandTotal}`,
             `Sent by: ${agent_name || 'Goldsure'}`,
             `Discount: ${offerApplied ? `${offerLabel} (−${money(discountNumeric)} incl. GST)` : 'None'}`,
@@ -545,11 +575,11 @@ export default async function handler(req, res) {
             customer_type:       normalizedCustomerType,
             agent_name:          agent_name       || null,
             service_type:        service_type     || null,
-            alarm_qty:           parseInt(alarm_qty, 10) || 0,
-            alarm_total:         parseFloat((alarm_total  || '0').replace(/[^0-9.]/g, '')) || null,
-            alarm_unit_price:    98,
-            ctrl_qty:            parseInt(ctrl_qty, 10) || 0,
-            ctrl_total:          parseFloat((ctrl_total  || '0').replace(/[^0-9.]/g, '')) || null,
+            alarm_qty:           alarmQtyNumeric,
+            alarm_total:         isInstall ? alarmBaseNumeric + ceilingTotalNumeric : null,
+            alarm_unit_price:    hasConcreteCeiling ? 109 : 98,
+            ctrl_qty:            controllerQtyNumeric,
+            ctrl_total:          controllerTotalNumeric || null,
             fee_label:           fee_label        || null,
             fee_amount:          parseFloat((fee_amount  || '0').replace(/[^0-9.]/g, '')) || null,
             grand_total:         finalTotalNumeric,
@@ -592,6 +622,8 @@ export default async function handler(req, res) {
       sms_sent: smsSent,
       offer_applied: offerApplied,
       grand_total: quotedGrandTotal,
+      ceiling_type: isInstall ? normalizedCeilingType : null,
+      ceiling_total: ceilingTotalNumeric,
       ghl_note_added: ghlNoteAdded,
       ghl_stage_moved: ghlStageMoved,
     });

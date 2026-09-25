@@ -231,6 +231,13 @@ main { padding: 22px 28px; max-width: 1780px; margin: 0 auto; display: grid; gri
 .storey-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
 .storey-radio label:has(input:checked) { color: var(--text); }
 
+.ceiling-box { background: #fff8e8; border: 1px solid #efd28a; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.ceiling-box p { font-size: 14px; font-weight: 600; color: #7a5a08; margin-bottom: 8px; }
+.ceiling-radio { display: flex; gap: 16px; flex-wrap: wrap; }
+.ceiling-radio label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.ceiling-radio label:has(input:checked) { color: var(--text); }
+.ceiling-required-hint { font-size: 11px; color: var(--red); margin-top: 8px; }
+
 .controller-box { background: var(--blue-bg); border: 1px solid #cfe3fb; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
 .controller-box p { font-size: 14px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
 .ctrl-radio { display: flex; gap: 16px; margin-bottom: 8px; }
@@ -822,6 +829,14 @@ function doLogout() {
             <label><input type="radio" name="allLevelsHaveBedrooms" value="no" onchange="calculate()"> No</label>
           </div>
         </div>
+        <div class="ceiling-box" id="ceilingTypeBox">
+          <p>What type of ceiling does the property have? <span style="color:var(--red);">*</span></p>
+          <div class="ceiling-radio">
+            <label><input type="radio" name="ceilingType" value="normal" onchange="onCeilingTypeChange()"> Normal ceiling</label>
+            <label><input type="radio" name="ceilingType" value="concrete" onchange="onCeilingTypeChange()"> Concrete ceiling (+$11 inc GST per smoke alarm)</label>
+          </div>
+          <div class="ceiling-required-hint" id="ceilingTypeHint">Ceiling type is required before sending the quote.</div>
+        </div>
         <div class="controller-box">
           <p>Add Smoke Alarm Controller? ($49)</p>
           <div class="ctrl-radio">
@@ -855,6 +870,7 @@ function doLogout() {
         <p class="script-text">"Based on your information you have provided, you will need <strong id="script-qty">0</strong> smoke alarms, and the electrician will confirm exactly how many you need and where in each room they are to be located, to make your house compliant."</p>
         <br>
         <p class="script-text">"The cost is $98 per smoke alarm payable on the day of installation and a $33 electrician fee which I need to take upfront to secure your booking."</p>
+        <p class="script-text" id="concreteCeilingScript" style="display:none;margin-top:12px;">"Because the property has concrete ceilings, installation is an additional $11 per smoke alarm including GST."</p>
       </div>
     </div>
 
@@ -893,6 +909,10 @@ function doLogout() {
       <div class="price-line ctrl-summary-row" id="summary-controller-row">
         <span class="price-line-label">Controllers (<span id="res_ctrlQty">0</span> × $49.00)</span>
         <span class="price-line-val" id="res_ctrlTotal">$0.00</span>
+      </div>
+      <div class="price-line" id="summary-ceiling-row" style="display:none;">
+        <span class="price-line-label">Concrete ceiling (<span id="res_ceilingQty">0</span> × $11.00)</span>
+        <span class="price-line-val" id="res_ceilingTotal">$0.00</span>
       </div>
       <div class="price-line">
         <span class="price-line-label" id="lbl-upfront">Booking Fee</span>
@@ -1411,6 +1431,15 @@ function toggleCtrlQty(show) {
   document.getElementById('controllerInput').classList.toggle('visible', show);
   document.getElementById('summary-controller-row').classList.toggle('visible', show);
 }
+function getCeilingType() {
+  return document.querySelector('input[name="ceilingType"]:checked')?.value || '';
+}
+function onCeilingTypeChange() {
+  const hint = document.getElementById('ceilingTypeHint');
+  if (hint) hint.style.display = getCeilingType() ? 'none' : 'block';
+  calculate();
+  validateEmailModal();
+}
 function calculate() {
   const bedrooms    = parseInt(document.getElementById('bedrooms').value)||0;
   const hallways    = parseInt(document.getElementById('hallways').value)||0;
@@ -1418,23 +1447,30 @@ function calculate() {
   const allHaveBeds = document.querySelector('input[name="allLevelsHaveBedrooms"]:checked')?.value==='yes';
   const wantCtrl    = document.querySelector('input[name="wantController"]:checked')?.value==='yes';
   const ctrlQty     = wantCtrl ? (parseInt(document.getElementById('controllerQty').value)||1) : 0;
+  const ceilingType = getCeilingType();
 
   let alarms = bedrooms + hallways;
   if (storeys>1 && !allHaveBeds) alarms += (storeys-1);
 
-  const ALARM=98, CTRL=49, FEE = serviceMode==='install' ? 33 : 131;
-  const alarmT=alarms*ALARM, ctrlT=ctrlQty*CTRL, grand=alarmT+ctrlT+FEE;
+  const ALARM=98, CTRL=49, CONCRETE=11, FEE = serviceMode==='install' ? 33 : 131;
+  const alarmT=alarms*ALARM, ctrlT=ctrlQty*CTRL;
+  const ceilingT=serviceMode==='install'&&ceilingType==='concrete'?alarms*CONCRETE:0;
+  const grand=alarmT+ctrlT+ceilingT+FEE;
 
   document.getElementById('script-qty').innerText   = alarms;
   document.getElementById('res_alarmQty').innerText = alarms;
   document.getElementById('res_alarmTotal').innerText = fmt.format(alarmT);
   document.getElementById('res_ctrlQty').innerText  = ctrlQty;
   document.getElementById('res_ctrlTotal').innerText = fmt.format(ctrlT);
+  document.getElementById('res_ceilingQty').innerText = alarms;
+  document.getElementById('res_ceilingTotal').innerText = fmt.format(ceilingT);
+  document.getElementById('summary-ceiling-row').style.display = ceilingT > 0 ? 'flex' : 'none';
+  document.getElementById('concreteCeilingScript').style.display = ceilingT > 0 ? 'block' : 'none';
 
   if (serviceMode==='install') {
     document.getElementById('lbl-upfront').innerText  = 'Booking Fee';
     document.getElementById('res-upfront').innerText  = '$33.00';
-    document.getElementById('res-balance').innerText  = fmt.format(alarmT+ctrlT);
+    document.getElementById('res-balance').innerText  = fmt.format(alarmT+ctrlT+ceilingT);
   } else {
     document.getElementById('lbl-upfront').innerText  = 'Inspection Fee';
     document.getElementById('res-upfront').innerText  = '$131.00';
@@ -1460,9 +1496,12 @@ function buildQuoteSMS() {
   const cQty  = document.getElementById('res_ctrlQty').innerText;
   const cT    = document.getElementById('res_ctrlTotal').innerText;
   const hasC  = parseInt(cQty)>0;
+  const ceilingType = getCeilingType();
+  const ceilingTotal = document.getElementById('res_ceilingTotal').innerText;
   let bd = '';
   if (serviceMode==='install') {
     bd = `\n\nLine Item Breakdown:\n- Smoke Alarms (${qty} x $98.00): ${aT}`;
+    if (ceilingType === 'concrete') bd += `\n- Concrete Ceiling Installation (${qty} x $11.00): ${ceilingTotal}`;
     if (hasC) bd += `\n- Controllers (${cQty} x $49.00): ${cT}`;
     bd += `\n- Booking Fee: $33.00\n- Total: ${grand}`;
   } else {
@@ -1487,6 +1526,11 @@ function buildFollowupSMS(index) {
 // SMS MODAL
 // ════════════════════════════════════════════════════════════
 function openCopyModal() {
+  if (serviceMode === 'install' && !getCeilingType()) {
+    showToast('Please select the ceiling type before preparing the quote.');
+    document.getElementById('ceilingTypeBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   document.querySelectorAll('#copy-type-tabs .sms-type-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   document.getElementById('copy-preview').value = buildQuoteSMS();
   document.getElementById('copyModal').classList.add('open');
@@ -1516,13 +1560,16 @@ function validateEmailModal() {
   const phone = document.getElementById('emailCustomerPhone').value.trim();
   const hasPhone = phone.length >= 8;
   const hasCustType = !!document.querySelector('input[name="custType"]:checked');
+  const hasCeilingType = serviceMode !== 'install' || !!getCeilingType();
   const btn = document.getElementById('sendEmailBtn');
   const phoneHint = document.getElementById('phoneHint');
   const custTypeHint = document.getElementById('custTypeHint');
 
   if (phoneHint) phoneHint.style.display = hasPhone ? 'none' : 'block';
   if (custTypeHint) custTypeHint.style.display = hasCustType ? 'none' : 'block';
-  if (btn) btn.disabled = !(hasPhone && hasCustType);
+  const ceilingHint = document.getElementById('ceilingTypeHint');
+  if (ceilingHint) ceilingHint.style.display = hasCeilingType ? 'none' : 'block';
+  if (btn) btn.disabled = !(hasPhone && hasCustType && hasCeilingType);
 }
 
 function escHtml(value) {
@@ -1619,10 +1666,13 @@ function updateEmailQuotePreview() {
   const ctrlQty = document.getElementById('res_ctrlQty').innerText;
   const ctrlT = document.getElementById('res_ctrlTotal').innerText;
   const hasCtrl = parseInt(ctrlQty) > 0;
+  const ceilingType = getCeilingType();
+  const ceilingT = document.getElementById('res_ceilingTotal').innerText;
   const totals = getEmailQuoteTotals();
   let previewHTML = '';
   if (serviceMode === 'install') {
     previewHTML += `<div class="email-preview-row"><span>Raptor Smoke Alarms (${alarmQty} × $98.00)</span><span>${alarmT}</span></div>`;
+    if (ceilingType === 'concrete') previewHTML += `<div class="email-preview-row"><span>Concrete Ceiling Installation (${alarmQty} × $11.00)</span><span>${ceilingT}</span></div>`;
     if (hasCtrl) previewHTML += `<div class="email-preview-row"><span>Controllers (${ctrlQty} × $49.00)</span><span>${ctrlT}</span></div>`;
     previewHTML += '<div class="email-preview-row"><span>Electrician Booking Fee</span><span>$33.00</span></div>';
   } else {
@@ -1671,6 +1721,11 @@ function clearDiscount() {
 // EMAIL MODAL
 // ════════════════════════════════════════════════════════════
 function openEmailModal() {
+  if (serviceMode === 'install' && !getCeilingType()) {
+    showToast('Please select the ceiling type before sending the quote.');
+    document.getElementById('ceilingTypeBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   // Reset address state every time modal opens
   selectedQLDAddress = false;
   currentQuoteToken  = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -1722,10 +1777,12 @@ async function sendQuoteEmail() {
   const custAddress = document.getElementById('emailCustomerAddress').value.trim();
   const custType    = document.querySelector('input[name="custType"]:checked')?.value || '';
   const sendSms     = document.getElementById('sendQuoteSms').checked;
+  const ceilingType = getCeilingType();
 
   if (!custName)  { showToast('Please enter the customer name.'); return; }
   if (!custPhone || custPhone.length < 8) { showToast('Please enter the customer phone number.'); return; }
   if (!custType) { showToast('Please select the customer type.'); return; }
+  if (serviceMode === 'install' && !ceilingType) { showToast('Please select the ceiling type.'); return; }
   if (!custEmail || !custEmail.includes('@')) { showToast('Please enter a valid email address.'); return; }
 
   // ── Address validation: must be QLD or left blank ──
@@ -1775,6 +1832,7 @@ async function sendQuoteEmail() {
         ghl_contact_id:   selectedGhlContactId || null,
         agent_name:       agent,
         service_type:     serviceMode === 'install' ? 'Installation Quote' : 'Inspection Quote',
+        ceiling_type:     serviceMode === 'install' ? ceilingType : null,
         alarm_qty:        alarmQty,
         alarm_total:      alarmTotal,
         ctrl_qty:         ctrlQty,

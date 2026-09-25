@@ -219,7 +219,10 @@ export function buildReminderEmail(data) {
   const rejectUrl = `${baseUrl.replace(/\/$/, '')}/reject-quote.html?token=${encodeURIComponent(data.quote_token)}`;
   const alarmQty = qty(data.alarm_qty);
   const controllerQty = qty(data.ctrl_qty);
-  const alarmAmount = money(data.alarm_total ?? alarmQty * 98);
+  const alarmUnitPrice = Number(data.alarm_unit_price) || 98;
+  const concreteCeiling = data.service_type === 'Installation Quote' && alarmUnitPrice > 98.005;
+  const alarmAmount = money(concreteCeiling ? alarmQty * 98 : (data.alarm_total ?? alarmQty * 98));
+  const ceilingAmount = money(concreteCeiling ? alarmQty * 11 : 0);
   const controllerAmount = money(data.ctrl_total ?? controllerQty * 49);
   const feeLabel = esc(data.fee_label || 'Booking Fee');
   const feeAmount = money(data.fee_amount);
@@ -276,6 +279,11 @@ export function buildReminderEmail(data) {
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQty}</td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${alarmAmount}</td>
                 </tr>
+                ${concreteCeiling ? `<tr bgcolor="#f9f9f9">
+                  <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><strong>Concrete Ceiling Installation</strong><br><span style="font-size:11px;color:#888888;">Additional installation work per smoke alarm</span></td>
+                  <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQty}</td>
+                  <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${ceilingAmount}</td>
+                </tr>` : ''}
                 ${controllerQty > 0 ? `<tr bgcolor="#f9f9f9">
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><strong>Smoke Alarm Controller</strong><br><span style="font-size:11px;color:#888888;">Remote control and status display</span></td>
                   <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${controllerQty}</td>
@@ -356,6 +364,7 @@ export default async function handler(req, res) {
     service_type,
     alarm_qty,
     alarm_total,
+    alarm_unit_price,
     ctrl_qty,
     ctrl_total,
     fee_label,
@@ -385,6 +394,7 @@ export default async function handler(req, res) {
     service_type,
     alarm_qty,
     alarm_total,
+    alarm_unit_price,
     ctrl_qty,
     ctrl_total,
     fee_label,
