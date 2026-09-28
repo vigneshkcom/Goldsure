@@ -54,6 +54,9 @@ test('maps the agreed electrician product rates', () => {
   assert.deepEqual(dataforcePaymentFlag([{ tagName: 'Cash' }]), { type: 'cash', label: 'Cash' });
   assert.deepEqual(dataforcePaymentFlag([{ tagName: 'Bank Transfer' }]), { type: 'bank-transfer', label: 'Bank Transfer' });
   assert.equal(purchaseOrderPayableDate('2026-09-20'), '02/10/2026');
+  assert.equal(purchaseOrderPayableDate('2026-09-28'), '16/10/2026');
+  assert.equal(purchaseOrderPayableDate('2026-10-04'), '16/10/2026');
+  assert.equal(purchaseOrderPayableDate('2026-12-28'), '15/01/2027');
 });
 
 test('normalises Dataforce fieldworker contact and GST details', () => {

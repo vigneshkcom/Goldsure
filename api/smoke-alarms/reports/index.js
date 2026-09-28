@@ -3,7 +3,7 @@
 // Routes on body shape: { html } → install summary relay; { summary } → pay summary builder.
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
-import { purchaseOrderPayableDate, purchaseOrderRateCard } from '../../../lib/dataforce-purchase-orders.js';
+import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import {
   createOrFindDraftPurchaseOrderBill,
@@ -123,7 +123,7 @@ export function validatedPurchaseOrder(po) {
   const gst = Math.round((jobGst + additionalLines.reduce((sum, line) => sum + line.gst, 0)) * 100) / 100;
   const grossIncGst = Math.round((subtotalExGst + gst) * 100) / 100;
   const cashOffset = Math.round(jobs.reduce((sum, job) => sum + job.cashOffset, 0) * 100) / 100;
-  const weekEnding = String(po.weekEnding || '').trim();
+  const weekEnding = purchaseOrderWeekEnding(String(po.weekEnding || '').trim());
   return {
     ...po,
     electrician: {
