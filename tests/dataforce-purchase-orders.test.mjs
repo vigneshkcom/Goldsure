@@ -158,19 +158,18 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
   const originalFetch = global.fetch;
   const previousEnv = {
     PURCHASE_ORDER_PIN: process.env.PURCHASE_ORDER_PIN,
-    HOSTINGER_MAILBOX_RESOURCE_ID: process.env.HOSTINGER_MAILBOX_RESOURCE_ID,
-    HOSTINGER_MAIL_API_TOKEN: process.env.HOSTINGER_MAIL_API_TOKEN,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
   };
   Object.assign(process.env, {
     PURCHASE_ORDER_PIN: '4321',
-    HOSTINGER_MAILBOX_RESOURCE_ID: 'mailbox',
-    HOSTINGER_MAIL_API_TOKEN: 'token',
+    RESEND_API_KEY: 're_test',
   });
   let mailPayload;
   global.fetch = async (url, init = {}) => {
-    assert.match(String(url), /mailboxes\/mailbox\/send$/);
+    assert.equal(String(url), 'https://api.resend.com/emails');
+    assert.equal(init.headers.Authorization, 'Bearer re_test');
     mailPayload = JSON.parse(init.body);
-    return new Response('', { status: 202 });
+    return new Response(JSON.stringify({ id: 'email_123' }), { status: 200 });
   };
   try {
     const purchaseOrder = {
@@ -204,6 +203,10 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.equal(response.statusCode, 200);
     assert.deepEqual(mailPayload.to, ['accounts@example.com', 'alex@example.com']);
     assert.deepEqual(mailPayload.cc, ['vignesh@goldsure.com.au', 'manager@example.com']);
+    assert.equal(mailPayload.from, 'Vignesh - Goldsure <vignesh@goldsure.com.au>');
+    assert.equal(mailPayload.reply_to, 'vignesh@goldsure.com.au');
+    assert.equal(mailPayload.attachments.length, 1);
+    assert.match(mailPayload.attachments[0].filename, /\.pdf$/);
     assert.match(mailPayload.html, /PO for Alex Symonds - Week ending 20 Sep 2026/);
     assert.match(mailPayload.html, />Booking</);
     assert.match(mailPayload.html, /Cash offset/);

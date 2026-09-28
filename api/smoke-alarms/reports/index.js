@@ -3,6 +3,7 @@
 // Routes on body shape: { html } → install summary relay; { summary } → pay summary builder.
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
+import { sendResendMail } from '../../../lib/resend-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import {
@@ -648,18 +649,19 @@ export default async function handler(req, res) {
       console.error('[Purchase order] PDF generation failed:', err.message);
     }
     try {
-      await sendHostingerMail({
-        displayName: 'Goldsure Pty Ltd',
+      const result = await sendResendMail({
+        from: 'Vignesh - Goldsure <vignesh@goldsure.com.au>',
+        replyTo: 'vignesh@goldsure.com.au',
         to: recipients,
         cc: ccRecipients,
         subject: subject || (isSummary ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
         ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
       });
-      return res.status(200).json({ success: true, to: recipients, cc: ccRecipients, emailMode: body.emailMode === 'summary' ? 'summary' : 'purchase-order' });
+      return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
-      console.error('[Hostinger] Purchase order send failed:', err.message);
-      return res.status(500).json({ error: 'Failed to send the purchase order.', detail: err.message });
+      console.error('[Resend] Purchase order send failed:', err.message);
+      return res.status(500).json({ error: 'Failed to send the email from vignesh@goldsure.com.au.', detail: err.message });
     }
   }
 
