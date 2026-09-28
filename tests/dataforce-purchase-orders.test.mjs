@@ -203,7 +203,7 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.equal(response.statusCode, 200);
     assert.deepEqual(mailPayload.to, ['accounts@example.com', 'alex@example.com']);
     assert.deepEqual(mailPayload.cc, ['vignesh@goldsure.com.au', 'manager@example.com']);
-    assert.equal(mailPayload.from, 'Vignesh - Goldsure <vignesh@goldsure.com.au>');
+    assert.equal(mailPayload.from, 'Goldsure Pty Ltd <vignesh@goldsure.com.au>');
     assert.equal(mailPayload.reply_to, 'vignesh@goldsure.com.au');
     assert.equal(mailPayload.attachments.length, 1);
     assert.match(mailPayload.attachments[0].filename, /\.pdf$/);

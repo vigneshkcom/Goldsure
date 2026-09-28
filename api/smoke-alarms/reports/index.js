@@ -650,7 +650,7 @@ export default async function handler(req, res) {
     }
     try {
       const result = await sendResendMail({
-        from: 'Vignesh - Goldsure <vignesh@goldsure.com.au>',
+        from: 'Goldsure Pty Ltd <vignesh@goldsure.com.au>',
         replyTo: 'vignesh@goldsure.com.au',
         to: recipients,
         cc: ccRecipients,
