@@ -19,6 +19,7 @@ import {
   normalisePurchaseOrderLine,
   dataforcePaymentFlag,
   dataforceTransactionBalance,
+  dataforceEstimatedBalance,
   purchaseOrderRateCard,
 } from '../../lib/dataforce-purchase-orders.js';
 
@@ -721,6 +722,17 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       scope: String(tag.scope || '').trim(),
     })).filter(tag => tag.name);
     const paymentFlag = dataforcePaymentFlag(tags);
+    let transactionBalance = dataforceTransactionBalance(document);
+    let balanceSource = documentResult?.source || '';
+    let balanceEstimated = false;
+    if (transactionBalance === null && paymentFlag.type === 'cash') {
+      const estimate = dataforceEstimatedBalance(document);
+      if (estimate !== null) {
+        transactionBalance = estimate;
+        balanceSource = `${balanceSource || 'Dataforce'} total`;
+        balanceEstimated = true;
+      }
+    }
     return {
       jobId: String(job.jobId),
       appointmentId: appointment.appointmentId || null,
@@ -731,8 +743,9 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
       items,
       tags,
       paymentFlag,
-      transactionBalance: dataforceTransactionBalance(document),
-      balanceSource: documentResult?.source || '',
+      transactionBalance,
+      balanceSource,
+      balanceEstimated,
       issue: !document
         ? 'No appointment invoice or job quote was returned by Dataforce.'
         : (!productLines.length ? 'No product lines were returned by Dataforce.' : ''),

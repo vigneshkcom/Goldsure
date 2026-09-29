@@ -5,6 +5,7 @@ import {
   dataforcePaymentFlag,
   dataforceProductCode,
   dataforceTransactionBalance,
+  dataforceEstimatedBalance,
   normaliseFieldworker,
   normalisePurchaseOrderLine,
   purchaseOrderPayableDate,
@@ -37,6 +38,20 @@ test('pays products outside the rate card as invoiced', () => {
   const unpriced = normalisePurchaseOrderLine({ productId: 3999, lineQty: 1, productName: '[3999] Mystery' }, true);
   assert.equal(unpriced.invoicePay, false);
   assert.notEqual(unpriced.issue, '');
+});
+
+test('estimates a cash job balance from the invoice total when Dataforce returns none', () => {
+  const invoice = {
+    productLines: [
+      { productId: 3429, lineQty: 1, lineRateIncTax: 33 },
+      { productId: 3430, lineQty: 4, lineRateIncTax: 55 },
+    ],
+    discountLines: [{ lineQty: 1, lineRateIncTax: 20 }],
+  };
+  assert.equal(dataforceTransactionBalance(invoice), null);
+  assert.equal(dataforceEstimatedBalance(invoice), 233);
+  assert.equal(dataforceEstimatedBalance({ productLines: [] }), null);
+  assert.equal(dataforceEstimatedBalance(null), null);
 });
 
 test('maps the agreed electrician product rates', () => {
@@ -160,6 +175,51 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
     assert.equal(response.body.rows[0].transactionBalance, 300);
     assert.equal(response.body.rows[0].balanceSource, 'appointment invoice');
     assert.deepEqual(response.body.rows[0].paymentFlag, { type: 'cash', label: 'Cash' });
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('fills the customer balance for a cash-tagged job when Dataforce returns no balance', async () => {
+  const originalFetch = global.fetch;
+  const previousEnv = {
+    PURCHASE_ORDER_PIN: process.env.PURCHASE_ORDER_PIN,
+    DATAFORCE_CLIENT_ID: process.env.DATAFORCE_CLIENT_ID,
+    DATAFORCE_CLIENT_SECRET: process.env.DATAFORCE_CLIENT_SECRET,
+  };
+  Object.assign(process.env, { PURCHASE_ORDER_PIN: '4321', DATAFORCE_CLIENT_ID: 'client', DATAFORCE_CLIENT_SECRET: 'secret' });
+  const invoice = { productLines: [{ productId: 3430, productName: '[3430] Hard Wired', lineQty: 2, lineRateIncTax: 110 }] };
+  const tagsByAppointment = { 9001: 'Cash', 9002: 'Bank Transfer' };
+  global.fetch = async (url) => {
+    const value = String(url);
+    if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
+    if (value.endsWith('/GOLDSURE_ASAP/fieldworkers')) return new Response(JSON.stringify({ records: [{ fieldworkerId: 1009, name: 'Alex Symonds', gstRegistered: true }] }), { status: 200 });
+    if (value.includes('/appointments/search')) {
+      return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
+    }
+    const id = (value.match(/appointments\/(\d+)\//) || [])[1];
+    if (id && value.endsWith('/invoice')) return new Response(JSON.stringify(invoice), { status: 200 });
+    if (id && value.endsWith('/tags')) return new Response(JSON.stringify({ records: [{ tagId: 7, tagName: tagsByAppointment[id], scope: 'Job' }] }), { status: 200 });
+    throw new Error(`Unexpected request: ${value}`);
+  };
+  try {
+    const response = responseRecorder();
+    await handler({
+      method: 'POST',
+      headers: { 'x-purchase-order-pin': '4321' },
+      body: { action: 'purchase-order-preview', startDate: '2026-09-14', endDate: '2026-09-20' },
+    }, response);
+    assert.equal(response.statusCode, 200);
+    const cash = response.body.rows.find(row => row.appointmentId === 9001);
+    const bank = response.body.rows.find(row => row.appointmentId === 9002);
+    assert.equal(cash.transactionBalance, 220);
+    assert.equal(cash.balanceEstimated, true);
+    assert.equal(bank.transactionBalance, null);
+    assert.equal(bank.balanceEstimated, false);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {

@@ -211,7 +211,7 @@
     function qtyCell(key,value){return `<td class="center qty-cell${value?'':' qty-zero'}" data-label="${QTY_LABELS[key]}">${value||0}</td>`}
 
     function rowHtml(row){
-      const f=jobFigures(row);const unknown=unpricedItems(row);const invoiced=invoiceItems(row);const sourceNote=row.transactionBalance===null?'Balance not returned, review manually':`From ${row.balanceSource||'Dataforce'}`;const flag=row.paymentFlag?.type==='cash'?'<span class="flag flag-cash">Cash tagged</span>':row.paymentFlag?.type==='bank-transfer'?'<span class="flag flag-bank">Bank transfer, review</span>':'<span class="flag flag-none">No tag</span>';
+      const f=jobFigures(row);const unknown=unpricedItems(row);const invoiced=invoiceItems(row);const sourceNote=row.transactionBalance===null?'Balance not returned, review manually':row.balanceEstimated?`Estimated from the ${row.balanceSource||'Dataforce'}, edit if a deposit was paid`:`From ${row.balanceSource||'Dataforce'}`;const flag=row.paymentFlag?.type==='cash'?'<span class="flag flag-cash">Cash tagged</span>':row.paymentFlag?.type==='bank-transfer'?'<span class="flag flag-bank">Bank transfer, review</span>':'<span class="flag flag-none">No tag</span>';
       return `<tr class="${row._included?'':'excluded'}" data-row="${esc(row.jobId)}">
         <td class="center include-cell" data-label="Include"><input class="include-job" type="checkbox" ${row._included?'checked':''} aria-label="Include job ${esc(row.jobId)}"></td>
         <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Installed ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
