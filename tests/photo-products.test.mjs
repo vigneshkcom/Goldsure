@@ -232,10 +232,12 @@ test('photo button always offers NSW Hot Water, VIC Hot Water and VIC Aircon', a
   assert.match(sms, /body: JSON\.stringify\(\{ name, phone: activePhone, product \}\)/);
   assert.match(sms, /data\.reused && Number\(data\.photoCount\) > 0/);
   assert.match(sms, /&more=1/);
-  assert.match(sms, /From 30 September 2026, VEU rules increase the minimum customer co-payment to \$3,000 for affected multi-split and ducted systems/);
+  assert.doesNotMatch(sms, /30 September 2026/);
+  assert.doesNotMatch(sms, /minimum customer co-payment/);
   assert.doesNotMatch(sms, /Rebates are reducing substantially/);
-  assert.match(sms, /upload your photos as soon as possible/);
-  assert.match(sms, /upload the additional photos as soon as possible/);
+  assert.doesNotMatch(sms, /as soon as possible/);
+  assert.match(sms, /To provide your quote, please complete the short assessment and upload photos of your property here/);
+  assert.match(sms, /Thanks for your earlier aircon photos\. We need a few more to finish your quote/);
 });
 
 test('aircon upload notification email includes customer details, every answer and the photo link', async () => {
