@@ -24,6 +24,21 @@ function responseRecorder() {
   };
 }
 
+test('pays products outside the rate card as invoiced', () => {
+  const registered = normalisePurchaseOrderLine({ productId: 3999, lineQty: 2, productName: '[3999] High ceiling fee', lineRateIncTax: 55 }, true);
+  assert.equal(registered.payable, false);
+  assert.equal(registered.invoicePay, true);
+  assert.equal(registered.issue, '');
+  assert.equal(registered.name, '[3999] High ceiling fee');
+  assert.equal(registered.invoiceTotalIncGst, 110);
+  assert.equal(registered.payIncGst, 110);
+  const unregistered = normalisePurchaseOrderLine({ productId: 3999, lineQty: 2, productName: '[3999] High ceiling fee', lineRateIncTax: 55 }, false);
+  assert.equal(unregistered.payIncGst, 100);
+  const unpriced = normalisePurchaseOrderLine({ productId: 3999, lineQty: 1, productName: '[3999] Mystery' }, true);
+  assert.equal(unpriced.invoicePay, false);
+  assert.notEqual(unpriced.issue, '');
+});
+
 test('maps the agreed electrician product rates', () => {
   const hardwired = normalisePurchaseOrderLine({ productId: 3430, lineQty: 2, productName: '[3430] Hard Wired' }, true);
   assert.equal(dataforceProductCode({ productName: '[3429] Booking Fee' }), '3429');

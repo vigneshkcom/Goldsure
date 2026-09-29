@@ -117,7 +117,7 @@ export function validatedPurchaseOrder(po) {
       subtotalExGst,
       gst: Math.round((amountIncGst - subtotalExGst) * 100) / 100,
     };
-  }).filter(Boolean).slice(0, 30);
+  }).filter(Boolean).slice(0, 200);
   const jobSubtotalExGst = items.reduce((sum, item) => sum + item.subtotalExGst, 0);
   const jobGst = items.reduce((sum, item) => sum + item.gst, 0);
   const subtotalExGst = Math.round((jobSubtotalExGst + additionalLines.reduce((sum, line) => sum + line.subtotalExGst, 0)) * 100) / 100;
