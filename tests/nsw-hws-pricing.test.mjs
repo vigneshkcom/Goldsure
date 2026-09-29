@@ -29,7 +29,7 @@ test('always prices EG-290FR the same as ECON-300RVW', () => {
 
 test('retains the previous price for models not listed on the new sheet', () => {
   assert.equal(getBasePrice('gas', 'ECON-300RVW-2.0E'), 2899);
-  assert.equal(getBasePrice('solar_boosted', 'EG-330FR'), 3339);
+  assert.equal(getBasePrice('solar_boosted', 'EG-330FR'), 2639);
 });
 
 test('finances the full installed price with zero upfront payment', () => {

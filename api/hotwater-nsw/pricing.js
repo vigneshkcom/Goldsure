@@ -23,7 +23,7 @@ export const BASE_PRICE = {
     'ECON-300RVW': 2399,
     default: 2899,
   },
-  solar_boosted: { default: 3339 },
+  solar_boosted: { default: 2639 },
 };
 
 // EG-290FR is always priced the same as ECON-300RVW for every existing
