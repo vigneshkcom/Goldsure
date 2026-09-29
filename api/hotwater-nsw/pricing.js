@@ -74,7 +74,8 @@ export function getBasePrice(existingSystem, heatPumpModel) {
 // gets saved and what gets quoted to the customer.
 export function calculateQuote(input = {}) {
   const existingSystem = input.existing_system;
-  const basePrice = getBasePrice(existingSystem, input.heat_pump_model);
+  const listBasePrice = getBasePrice(existingSystem, input.heat_pump_model);
+  let basePrice = listBasePrice;
 
   const tankStaying = !!input.tank_staying;
   const relocationType = tankStaying ? null : (input.relocation_type || null);
@@ -101,9 +102,28 @@ export function calculateQuote(input = {}) {
   const financeRequested = !!input.finance_requested;
   const applyNoFinanceDiscount = input.apply_no_finance_discount === true;
   const requestedNoFinanceDiscount = round2(Math.max(0, Number(input.no_finance_discount_amount) || 0));
-  const noFinanceDiscount = applyNoFinanceDiscount
+  let noFinanceDiscount = applyNoFinanceDiscount
     ? Math.min(requestedNoFinanceDiscount, basePrice + totalExtras)
     : 0;
+
+  // An agent can type in the exact total installed price. It replaces the
+  // calculated total, and the gap is folded into figures the quote already
+  // displays so the itemised lines still add up: a lower price becomes a
+  // discount (which the customer-facing quote spreads across the line items),
+  // and a higher price is added to the installed-system line.
+  const overrideValue = input.final_price_override;
+  const priceOverride = overrideValue !== null && overrideValue !== undefined && overrideValue !== ''
+    ? round2(Number(overrideValue))
+    : NaN;
+  if (Number.isFinite(priceOverride) && priceOverride > 0) {
+    const beforeDiscount = round2(basePrice + totalExtras);
+    if (priceOverride <= beforeDiscount) {
+      noFinanceDiscount = round2(beforeDiscount - priceOverride);
+    } else {
+      noFinanceDiscount = 0;
+      basePrice = round2(basePrice + priceOverride - beforeDiscount);
+    }
+  }
   const finalPrice = round2(basePrice + totalExtras - noFinanceDiscount);
 
   const incomeEligible = input.income_eligible || null; // 'yes' | 'no' | 'needs_confirmation'

@@ -401,6 +401,11 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
           <div class="tot-row"><span class="lbl">Other extras</span><span class="val" id="sumOther">$0.00</span></div>
           <div class="tot-row" id="discRow" style="display:none;"><span class="lbl">Discount</span><span class="val" id="sumDisc" style="color:var(--green);">− $0.00</span></div>
           <div class="result-row total"><span class="lbl">Total Installed Price</span><span class="val" id="sumFinal">$0.00</span></div>
+          <div class="field" style="margin-top:14px;">
+            <label for="finalOverride">Override final price (optional)</label>
+            <input type="number" id="finalOverride" min="0" step="0.01" placeholder="Leave blank to use the calculated total" oninput="recalc()">
+            <div class="sub" id="overrideHint">Enter the exact total installed price (inc GST) to quote instead of the calculated one.</div>
+          </div>
           <div class="note-box">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and STC discounts are already included in the pricing above.</div>
         </div>
       </div>
@@ -640,15 +645,30 @@ function recalc(){
   const discount = state.apply_no_finance_discount
     ? Math.min(requestedDiscount, beforeDiscount)
     : 0;
-  const finalPrice = beforeDiscount - discount;
+  const calcTotal = beforeDiscount - discount;
 
-  $('sumBase').textContent  = money(basePrice);
+  // Manual override of the final price. A lower price is shown as a discount,
+  // a higher one is added to the system line, matching the server.
+  const overrideRaw = $('finalOverride').value;
+  const override = overrideRaw==='' ? NaN : Number(overrideRaw);
+  const hasOverride = Number.isFinite(override) && override > 0;
+  let shownBase = basePrice, shownDiscount = discount;
+  if(hasOverride){
+    if(override <= beforeDiscount){ shownDiscount = beforeDiscount - override; }
+    else { shownDiscount = 0; shownBase = basePrice + override - beforeDiscount; }
+  }
+  const finalPrice = hasOverride ? override : calcTotal;
+  $('overrideHint').textContent = hasOverride
+    ? 'Calculated total: ' + money(calcTotal) + ' · overriding to ' + money(finalPrice) + ' (' + (finalPrice<calcTotal?'−':'+') + ' ' + money(Math.abs(finalPrice-calcTotal)).replace('− ','') + ').'
+    : 'Enter the exact total installed price (inc GST) to quote instead of the calculated one.';
+
+  $('sumBase').textContent  = money(shownBase);
   $('sumReloc').textContent = money(relocCharge);
   $('sumB2b').textContent   = money(b2bCharge);
   $('sumCable').textContent = money(cableCharge);
   $('sumOther').textContent = money(otherTotal);
-  $('discRow').style.display = discount > 0 ? 'flex' : 'none';
-  $('sumDisc').textContent = '− ' + money(discount);
+  $('discRow').style.display = shownDiscount > 0 ? 'flex' : 'none';
+  $('sumDisc').textContent = '− ' + money(shownDiscount);
   $('sumFinal').textContent = money(finalPrice);
 
   const income = $('incomeEligible').value;
@@ -664,7 +684,7 @@ function recalc(){
   $('fortnightlyOut').textContent = money(fortnightly);
   $('monthlyOut').textContent = money(monthly);
 
-  calc = { basePrice, discount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
+  calc = { basePrice: shownBase, discount: shownDiscount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
            cableCharge, otherTotal, finalPrice, term, financed, fortnightly, monthly };
 }
 
@@ -762,6 +782,7 @@ async function doSend(){
         finance_requested: state.finance_requested,
         apply_no_finance_discount: state.apply_no_finance_discount,
         no_finance_discount_amount: Number($('noFinanceDiscountAmount').value)||0,
+        final_price_override: $('finalOverride').value===''?null:Number($('finalOverride').value),
         income_eligible: $('incomeEligible').value,
         finance_term_years: Number($('financeTerm').value)||10,
         email_body: emailBody, send_sms: sendSms,

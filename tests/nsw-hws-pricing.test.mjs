@@ -62,3 +62,44 @@ test('keeps the browser quote calculator aligned with server pricing', () => {
   assert.match(builder, /function updateModelPrices\(\)/);
   assert.match(builder, /option\.textContent = state\.existing_system \? `\$\{label\} · \$\{money\(price\)\}` : label/);
 });
+
+test('lets an agent override the final price below the calculated total as a discount', () => {
+  const quote = calculateQuote({
+    existing_system: 'solar_boosted',
+    heat_pump_model: 'EG-330FR',
+    tank_staying: true,
+    final_price_override: 2400,
+    finance_requested: true,
+    finance_term_years: 10,
+  });
+
+  assert.equal(quote.final_price, 2400);
+  assert.equal(quote.no_finance_discount, 239);
+  assert.equal(quote.base_price + quote.total_extras - quote.no_finance_discount, 2400);
+  assert.equal(quote.amount_financed, 2400);
+});
+
+test('lets an agent override the final price above the calculated total', () => {
+  const quote = calculateQuote({
+    existing_system: 'solar_boosted',
+    heat_pump_model: 'EG-330FR',
+    tank_staying: true,
+    final_price_override: 3000,
+  });
+
+  assert.equal(quote.final_price, 3000);
+  assert.equal(quote.no_finance_discount, 0);
+  assert.equal(quote.base_price + quote.total_extras, 3000);
+});
+
+test('ignores a blank or invalid final price override', () => {
+  for (const final_price_override of [null, '', undefined, 0, -50, 'abc']) {
+    const quote = calculateQuote({
+      existing_system: 'solar_boosted',
+      heat_pump_model: 'EG-330FR',
+      tank_staying: true,
+      final_price_override,
+    });
+    assert.equal(quote.final_price, 2639);
+  }
+});
