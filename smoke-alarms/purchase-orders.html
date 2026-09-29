@@ -70,6 +70,7 @@
       <span class="tag">Hardwired $13.00 ex GST</span>
       <span class="tag">Battery $10.00 ex GST</span>
       <span class="tag">Remote / controller $10.00 ex GST</span>
+      <span class="tag">Asbestos ceiling $20.00 inc GST</span>
     </section>
 
     <section class="card" id="purchaseOrder">
@@ -135,7 +136,7 @@
 
   <script>
     const $ = id => document.getElementById(id);
-    const state = { rows: [], workers: [], selectedWorkerId: '', po: null, additionalLines: [], emailMode: 'purchase-order', xeroPreview: null };
+    const state = { rows: [], workers: [], selectedWorkerId: '', po: null, additionalLines: [], emailMode: 'purchase-order', xeroPreview: null, showAsbestos: false };
     const money = value => new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'}).format(Number(value||0));
     const deductionMoney = value => Number(value||0)>0?`−${money(value)}`:money(0);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -173,14 +174,14 @@
       const pendingBalance=Math.max(0,roundMoney(row._pendingBalance));
       const cashOffset=row._cashCollected?pendingBalance:0;
       return {
-        booking:quantityFor(row,'booking'),hardwired:quantityFor(row,'hardwired'),battery:quantityFor(row,'battery'),remote:quantityFor(row,'remote'),
+        booking:quantityFor(row,'booking'),hardwired:quantityFor(row,'hardwired'),battery:quantityFor(row,'battery'),remote:quantityFor(row,'remote'),asbestos:quantityFor(row,'asbestos'),
         alarmTotal:quantityFor(row,'hardwired')+quantityFor(row,'battery')+quantityFor(row,'remote'),
         subtotalExGst,gst,grossIncGst,pendingBalance,cashOffset,payableIncGst:roundMoney(grossIncGst-cashOffset)
       };
     }
 
     function calculate(rows,worker){
-      const totals={jobs:0,booking:0,hardwired:0,battery:0,remote:0,alarmTotal:0,subtotalExGst:0,gst:0,grossIncGst:0,pendingBalance:0,cashOffset:0,totalIncGst:0,additionalIncGst:0};
+      const totals={jobs:0,booking:0,hardwired:0,battery:0,remote:0,asbestos:0,alarmTotal:0,subtotalExGst:0,gst:0,grossIncGst:0,pendingBalance:0,cashOffset:0,totalIncGst:0,additionalIncGst:0};
       rows.filter(row=>initialiseRow(row)._included).forEach(row=>{const figure=jobFigures(row);totals.jobs+=1;Object.keys(figure).forEach(key=>{if(key in totals)totals[key]+=Number(figure[key]||0)});totals.totalIncGst+=figure.payableIncGst});
       const additional=additionalFigures(worker);totals.subtotalExGst+=additional.subtotalExGst;totals.gst+=additional.gst;totals.grossIncGst+=additional.grossIncGst;totals.totalIncGst+=additional.grossIncGst;totals.additionalIncGst=additional.grossIncGst;
       Object.keys(totals).forEach(key=>{if(typeof totals[key]==='number')totals[key]=roundMoney(totals[key])});
@@ -203,7 +204,7 @@
 
     function populateWorkers(){const select=$('worker');select.innerHTML=state.workers.length?state.workers.map(worker=>`<option value="${esc(worker.id)}">${esc(worker.name)}</option>`).join(''):'<option value="">No electricians found</option>';select.disabled=!state.workers.length;state.selectedWorkerId=state.workers[0]?String(state.workers[0].id):'';select.value=state.selectedWorkerId}
 
-    const QTY_LABELS={booking:'Booking',hardwired:'Hardwired',battery:'Battery',remote:'Remote'};
+    const QTY_LABELS={booking:'Booking',hardwired:'Hardwired',battery:'Battery',remote:'Remote',asbestos:'Asbestos ceiling'};
     function qtyCell(key,value){return `<td class="center qty-cell${value?'':' qty-zero'}" data-label="${QTY_LABELS[key]}">${value||0}</td>`}
 
     function rowHtml(row){
@@ -213,6 +214,7 @@
         <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Installed ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
         ${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,f[key])).join('')}
         <td class="center total-cell" data-label="Total alarms"><span class="alarm-total">${f.alarmTotal}</span></td>
+        ${state.showAsbestos?qtyCell('asbestos',f.asbestos):''}
         <td class="num pay-cell" data-label="Pay"><div class="pay-stack"><strong>${money(f.grossIncGst)}</strong><small>${money(f.subtotalExGst)} ex GST</small>${unknown.length?`<small class="unmapped">${unknown.length} unmapped product${unknown.length===1?'':'s'}</small>`:''}</div></td>
         <td class="payment-cell" data-label="Payment status">${flag}</td>
         <td class="num balance-cell" data-label="Customer balance"><div class="balance-control"><input class="money-input pending-input ${f.pendingBalance>0?'balance-known':''}" type="number" min="0" step="0.01" value="${f.pendingBalance.toFixed(2)}" aria-label="Customer balance for job ${esc(row.jobId)}"><label><input class="cash-check" type="checkbox" ${row._cashCollected?'checked':''}> Offset</label></div><span class="balance-note">${esc(sourceNote)}</span></td>
@@ -221,19 +223,20 @@
     }
 
     function render(){
-      const worker=selectedWorker(),rows=visibleRows();if(!worker){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs found</strong>Try another installation date range.</div>';updateTotals({});renderAdditionalLines();return}
+      const worker=selectedWorker(),rows=visibleRows();state.showAsbestos=rows.some(row=>quantityFor(row,'asbestos')>0);if(!worker){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs found</strong>Try another installation date range.</div>';updateTotals({});renderAdditionalLines();return}
       const from=$('from').value,to=$('to').value,poNumber=`PO for ${worker.name} - Week ending ${friendly(weekEndingSunday(to))}`,payDate=payableDate(to);
       $('poNumber').textContent=poNumber;$('period').textContent=from===to?friendly(to):`${friendly(from)} to ${friendly(to)}`;$('payableDate').textContent=payDate;$('payableDateTotal').textContent=payDate;$('poTitle').textContent=`Purchase order for ${worker.companyName||worker.name}`;
       $('workerDetails').textContent=[worker.name,worker.email,worker.taxId?`ABN ${worker.taxId}`:'',worker.gstRegistered?'GST registered':'Not recorded as GST registered'].filter(Boolean).join(' | ');
       if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;$('exportExcel').disabled=true;$('xeroBill').disabled=true;renderAdditionalLines();return}
-      $('tableWrap').innerHTML=`<table class="jobs-table">${colgroupHtml()}<thead><tr><th class="center" rowspan="2">Include</th><th rowspan="2">Job / installed</th><th class="center group-head" colspan="4">Installation breakdown</th><th class="center" rowspan="2">Total alarms</th><th class="num" rowspan="2">Pay</th><th rowspan="2">Payment status</th><th class="num" rowspan="2">Customer balance</th><th class="num" rowspan="2">PO payable</th></tr><tr><th class="center sub-head">Booking</th><th class="center sub-head">Hardwired</th><th class="center sub-head">Battery</th><th class="center sub-head">Remote</th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody><tfoot id="tableTotals"></tfoot></table>`;
+      $('tableWrap').innerHTML=`<table class="jobs-table">${colgroupHtml()}<thead><tr><th class="center" rowspan="2">Include</th><th rowspan="2">Job / installed</th><th class="center group-head" colspan="4">Installation breakdown</th><th class="center" rowspan="2">Total alarms</th>${state.showAsbestos?'<th class="center" rowspan="2">Asbestos ceiling</th>':''}<th class="num" rowspan="2">Pay</th><th rowspan="2">Payment status</th><th class="num" rowspan="2">Customer balance</th><th class="num" rowspan="2">PO payable</th></tr><tr><th class="center sub-head">Booking</th><th class="center sub-head">Hardwired</th><th class="center sub-head">Battery</th><th class="center sub-head">Remote</th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody><tfoot id="tableTotals"></tfoot></table>`;
       bindRows(rows);renderAdditionalLines();finishRender(rows,worker,poNumber);
     }
 
-    const COL_WIDTHS=[62,150,78,82,78,78,86,130,150,215,120];
-    function colgroupHtml(){const total=COL_WIDTHS.reduce((a,b)=>a+b,0);return `<colgroup>${COL_WIDTHS.map(w=>`<col style="width:${(w/total*100).toFixed(3)}%">`).join('')}</colgroup>`}
+    const COL_WIDTHS=[62,150,78,82,78,78,86,130,150,215,120],ASBESTOS_COL_WIDTH=90;
+    function colWidths(){return state.showAsbestos?[...COL_WIDTHS.slice(0,7),ASBESTOS_COL_WIDTH,...COL_WIDTHS.slice(7)]:COL_WIDTHS}
+    function colgroupHtml(){const widths=colWidths(),total=widths.reduce((a,b)=>a+b,0);return `<colgroup>${widths.map(w=>`<col style="width:${(w/total*100).toFixed(3)}%">`).join('')}</colgroup>`}
 
-    function renderAdditionalLines(){const wrap=$('additionalLines');if(!state.additionalLines.length){wrap.className='additional-empty';wrap.innerHTML='No additional lines.';return}wrap.className='';wrap.innerHTML=`<table class="additional-table">${colgroupHtml()}<thead><tr><th colspan="8">Description</th><th colspan="2"></th><th class="num">Amount inc GST</th></tr></thead><tbody>${state.additionalLines.map((line,index)=>`<tr data-index="${index}"><td colspan="8"><input class="line-description" value="${esc(line.description||'')}" placeholder="Example: Warranty job 36341"></td><td class="num" colspan="2"><button class="remove-line" type="button">Remove</button></td><td class="num"><input class="line-amount amount" type="number" min="0" step="0.01" value="${line.amountIncGst||''}" placeholder="0.00"></td></tr>`).join('')}</tbody></table>`;wrap.querySelectorAll('tbody tr').forEach(tr=>{const line=state.additionalLines[Number(tr.dataset.index)];tr.querySelector('.line-description').addEventListener('change',event=>{line.description=event.target.value;refreshWithoutRebuild(visibleRows())});tr.querySelector('.line-amount').addEventListener('change',event=>{line.amountIncGst=Math.max(0,roundMoney(event.target.value));refreshWithoutRebuild(visibleRows())});tr.querySelector('.remove-line').addEventListener('click',()=>{state.additionalLines.splice(Number(tr.dataset.index),1);render()})})}
+    function renderAdditionalLines(){const wrap=$('additionalLines');if(!state.additionalLines.length){wrap.className='additional-empty';wrap.innerHTML='No additional lines.';return}wrap.className='';wrap.innerHTML=`<table class="additional-table">${colgroupHtml()}<thead><tr><th colspan="${state.showAsbestos?9:8}">Description</th><th colspan="2"></th><th class="num">Amount inc GST</th></tr></thead><tbody>${state.additionalLines.map((line,index)=>`<tr data-index="${index}"><td colspan="${state.showAsbestos?9:8}"><input class="line-description" value="${esc(line.description||'')}" placeholder="Example: Warranty job 36341"></td><td class="num" colspan="2"><button class="remove-line" type="button">Remove</button></td><td class="num"><input class="line-amount amount" type="number" min="0" step="0.01" value="${line.amountIncGst||''}" placeholder="0.00"></td></tr>`).join('')}</tbody></table>`;wrap.querySelectorAll('tbody tr').forEach(tr=>{const line=state.additionalLines[Number(tr.dataset.index)];tr.querySelector('.line-description').addEventListener('change',event=>{line.description=event.target.value;refreshWithoutRebuild(visibleRows())});tr.querySelector('.line-amount').addEventListener('change',event=>{line.amountIncGst=Math.max(0,roundMoney(event.target.value));refreshWithoutRebuild(visibleRows())});tr.querySelector('.remove-line').addEventListener('click',()=>{state.additionalLines.splice(Number(tr.dataset.index),1);render()})})}
 
     function bindRows(rows){
       $('tableWrap').querySelectorAll('tbody tr').forEach(tr=>{
@@ -247,7 +250,7 @@
     function refreshWithoutRebuild(rows){const worker=selectedWorker(),poNumber=$('poNumber').textContent;finishRender(rows,worker,poNumber)}
 
     function finishRender(rows,worker,poNumber){
-      const totals=calculate(rows,worker);updateTotals(totals);$('tableTotals').innerHTML=`<tr><td colspan="2" class="footer-total-label">Grand total<small>${totals.jobs} included job${totals.jobs===1?'':'s'}</small></td>${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,totals[key])).join('')}<td class="center" data-label="Total alarms"><span class="alarm-total">${totals.alarmTotal}</span></td><td class="num" data-label="Pay"><div class="pay-stack"><strong>${money(totals.grossIncGst)}</strong><small>${money(totals.subtotalExGst)} ex GST</small></div></td><td data-label="Payment status"></td><td class="num balance-total" data-label="Customer balance">${money(totals.pendingBalance)}<small>Offset ${deductionMoney(totals.cashOffset)}</small></td><td class="num ${totals.totalIncGst<0?'negative':''}" data-label="PO payable"><strong>${money(totals.totalIncGst)}</strong></td></tr>`;
+      const totals=calculate(rows,worker);updateTotals(totals);$('tableTotals').innerHTML=`<tr><td colspan="2" class="footer-total-label">Grand total<small>${totals.jobs} included job${totals.jobs===1?'':'s'}</small></td>${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,totals[key])).join('')}<td class="center" data-label="Total alarms"><span class="alarm-total">${totals.alarmTotal}</span></td>${state.showAsbestos?qtyCell('asbestos',totals.asbestos):''}<td class="num" data-label="Pay"><div class="pay-stack"><strong>${money(totals.grossIncGst)}</strong><small>${money(totals.subtotalExGst)} ex GST</small></div></td><td data-label="Payment status"></td><td class="num balance-total" data-label="Customer balance">${money(totals.pendingBalance)}<small>Offset ${deductionMoney(totals.cashOffset)}</small></td><td class="num ${totals.totalIncGst<0?'negative':''}" data-label="PO payable"><strong>${money(totals.totalIncGst)}</strong></td></tr>`;
       const selectedJobs=rows.filter(row=>row._included).map(row=>{const figure=jobFigures(row);return{jobId:row.jobId,installedDate:row.installedDate,address:row.address||'',items:payableItems(row),paymentFlag:row.paymentFlag||{},pendingBalance:figure.pendingBalance,cashCollected:row._cashCollected,cashOffset:figure.cashOffset,grossIncGst:figure.grossIncGst,payableIncGst:figure.payableIncGst}});
       const fromValue=$('from').value,toValue=$('to').value,period=fromValue===toValue?friendly(toValue):`${friendly(fromValue)} to ${friendly(toValue)}`;
       state.po={poNumber,issueDate:new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}),period,weekEnding:weekEndingSunday(toValue),payableDate:payableDate(toValue),electrician:worker,totals,jobs:selectedJobs,additionalLines:validAdditionalLines()};
@@ -266,11 +269,13 @@
       const button=$('exportExcel');const originalText=button.textContent;button.disabled=true;button.textContent='Preparing...';
       try{
         await loadSheetJs();
-        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Cash offset','PO payable'];
-        const rows=po.jobs.map(job=>{const hardwired=job.items.filter(i=>i.key==='hardwired').reduce((s,i)=>s+Number(i.quantity||0),0);const battery=job.items.filter(i=>i.key==='battery').reduce((s,i)=>s+Number(i.quantity||0),0);const remote=job.items.filter(i=>i.key==='remote').reduce((s,i)=>s+Number(i.quantity||0),0);const booking=job.items.filter(i=>i.key==='booking').reduce((s,i)=>s+Number(i.quantity||0),0);const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[dmyDate(job.installedDate),job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.cashOffset?Number(job.cashOffset):'',Number(job.payableIncGst||0)]});
-        po.additionalLines.forEach(line=>rows.push(['','Additional: '+line.description,'','','','','','', Number(line.amountIncGst||0),'',Number(line.amountIncGst||0)]));
+        const jobQty=(job,key)=>job.items.filter(i=>i.key===key).reduce((s,i)=>s+Number(i.quantity||0),0);
+        const showAsbestos=po.jobs.some(job=>jobQty(job,'asbestos')>0),asbestosCol=value=>showAsbestos?[value]:[];
+        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms',...asbestosCol('Asbestos ceiling'),'Pay ex GST','Pay inc GST','Cash offset','PO payable'];
+        const rows=po.jobs.map(job=>{const hardwired=jobQty(job,'hardwired');const battery=jobQty(job,'battery');const remote=jobQty(job,'remote');const booking=jobQty(job,'booking');const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[dmyDate(job.installedDate),job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,...asbestosCol(jobQty(job,'asbestos')),roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.cashOffset?Number(job.cashOffset):'',Number(job.payableIncGst||0)]});
+        po.additionalLines.forEach(line=>rows.push(['','Additional: '+line.description,'','','','','',...asbestosCol(''),'', Number(line.amountIncGst||0),'',Number(line.amountIncGst||0)]));
         const totals=po.totals||{};
-        rows.push(['','Grand total','','','','','',Number(totals.subtotalExGst||0),Number(totals.grossIncGst||0),totals.cashOffset?Number(totals.cashOffset):'',Number(totals.totalIncGst||0)]);
+        rows.push(['','Grand total','','','','','',...asbestosCol(Number(totals.asbestos||0)),Number(totals.subtotalExGst||0),Number(totals.grossIncGst||0),totals.cashOffset?Number(totals.cashOffset):'',Number(totals.totalIncGst||0)]);
         const sheet=window.XLSX.utils.aoa_to_sheet([header,...rows]);
         sheet['!cols']=header.map(()=>({wch:16}));
         const workbook=window.XLSX.utils.book_new();

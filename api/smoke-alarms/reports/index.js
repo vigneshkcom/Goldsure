@@ -4,7 +4,7 @@
 
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
 import { sendResendMail } from '../../../lib/resend-mail.js';
-import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
+import { purchaseOrderLineAmounts, purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import {
   createOrFindDraftPurchaseOrderBill,
@@ -63,16 +63,12 @@ export function validatedPurchaseOrder(po) {
       const rate = rateByKey.get(String(item.key || ''));
       const quantity = Number(item.quantity);
       if (!rate || !Number.isFinite(quantity) || quantity <= 0 || quantity > 100) return null;
-      const subtotalExGst = Math.round(quantity * rate.rateExGst * 100) / 100;
-      const gst = gstRegistered ? Math.round(subtotalExGst * 10) / 100 : 0;
       return {
         key: rate.key,
         name: rate.label,
         quantity,
         rateExGst: rate.rateExGst,
-        subtotalExGst,
-        gst,
-        totalIncGst: Math.round((subtotalExGst + gst) * 100) / 100,
+        ...purchaseOrderLineAmounts(rate, quantity, gstRegistered),
       };
     }).filter(Boolean);
     const subtotalExGst = Math.round(items.reduce((sum, item) => sum + item.subtotalExGst, 0) * 100) / 100;
@@ -147,6 +143,7 @@ export function validatedPurchaseOrder(po) {
       hardwired: items.filter(item => item.key === 'hardwired').reduce((sum, item) => sum + item.quantity, 0),
       battery: items.filter(item => item.key === 'battery').reduce((sum, item) => sum + item.quantity, 0),
       remote: items.filter(item => item.key === 'remote').reduce((sum, item) => sum + item.quantity, 0),
+      asbestos: items.filter(item => item.key === 'asbestos').reduce((sum, item) => sum + item.quantity, 0),
       alarmTotal: items.filter(item => ['hardwired', 'battery', 'remote'].includes(item.key)).reduce((sum, item) => sum + item.quantity, 0),
       additionalIncGst: Math.round(additionalLines.reduce((sum, line) => sum + line.amountIncGst, 0) * 100) / 100,
       subtotalExGst,
@@ -385,6 +382,11 @@ function poQuantity(value) {
   return value ? String(value) : '<span style="color:#9ca3af;">&ndash;</span>';
 }
 
+// The asbestos ceiling fee only earns a column when at least one job carries it.
+function hasAsbestosJobs(jobs) {
+  return jobs.some(job => jobQuantity(job, 'asbestos') > 0);
+}
+
 // The logo JPEG carries ~18px of white padding at this width, so the header cell's
 // left padding is reduced by the same amount to line the artwork up with the body.
 function poEmailHeader(title, subLines) {
@@ -452,6 +454,7 @@ function buildPurchaseOrderHtml(po) {
   const jobs = Array.isArray(po.jobs) ? po.jobs : [];
   const totals = po.totals || {};
   const round = value => Math.round(Number(value || 0) * 100) / 100;
+  const showAsbestos = hasAsbestosJobs(jobs);
   const rows = jobs.map(job => {
     const hardwired = jobQuantity(job, 'hardwired');
     const battery = jobQuantity(job, 'battery');
@@ -466,6 +469,7 @@ function buildPurchaseOrderHtml(po) {
           <td align="center" style="${PO_TD}">${poQuantity(battery)}</td>
           <td align="center" style="${PO_TD}">${poQuantity(remote)}</td>
           <td align="center" style="${PO_TD}">${hardwired + battery + remote}</td>
+          ${showAsbestos ? `<td align="center" style="${PO_TD}">${poQuantity(jobQuantity(job, 'asbestos'))}</td>` : ''}
           <td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td>
           <td align="right" style="${PO_TD}white-space:nowrap;color:#b42318;">${offset > 0 ? poDeduction(offset) : '<span style="color:#9ca3af;">&ndash;</span>'}</td>
           <td align="right" style="${PO_TD}white-space:nowrap;font-weight:bold;color:${payable < 0 ? '#b42318' : '#111111'};">${poMoney(payable)}</td>
@@ -477,9 +481,9 @@ function buildPurchaseOrderHtml(po) {
   const cash = round(totals.cashOffset);
   const table = `<tr><td style="padding:18px 32px 0;">
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        <thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="center" style="${PO_TH}">Booking</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Pay inc GST</th><th align="right" style="${PO_TH}">Cash offset</th><th align="right" style="${PO_TH}">Payable</th></tr></thead>
+        <thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="center" style="${PO_TH}">Booking</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th>${showAsbestos ? `<th align="center" style="${PO_TH}">Asbestos</th>` : ''}<th align="right" style="${PO_TH}">Pay inc GST</th><th align="right" style="${PO_TH}">Cash offset</th><th align="right" style="${PO_TH}">Payable</th></tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="2" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.booking || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td><td align="right" style="${PO_TOTAL_TD}">${poMoney(jobGross)}</td><td align="right" style="${PO_TOTAL_TD}color:#b42318;">${jobOffset > 0 ? poDeduction(jobOffset) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="right" style="${PO_TOTAL_TD}color:${jobPayable < 0 ? '#b42318' : '#111111'};">${poMoney(jobPayable)}</td></tr></tfoot>
+        <tfoot><tr><td colspan="2" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.booking || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc((totals.hardwired || 0) + (totals.battery || 0) + (totals.remote || 0))}</td>${showAsbestos ? `<td align="center" style="${PO_TOTAL_TD}">${esc(totals.asbestos || 0)}</td>` : ''}<td align="right" style="${PO_TOTAL_TD}">${poMoney(jobGross)}</td><td align="right" style="${PO_TOTAL_TD}color:#b42318;">${jobOffset > 0 ? poDeduction(jobOffset) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="right" style="${PO_TOTAL_TD}color:${jobPayable < 0 ? '#b42318' : '#111111'};">${poMoney(jobPayable)}</td></tr></tfoot>
       </table>
       ${additionalLinesHtml(po)}
     </td></tr>`;
@@ -511,11 +515,12 @@ function buildInstallSummaryHtml(po) {
   const cash = Math.round(Number(totals.cashOffset || 0) * 100) / 100;
   const jobs = po.jobs || [];
   const firstName = electrician.firstName || String(electrician.name || '').trim().split(/\s+/)[0] || 'there';
+  const showAsbestos = hasAsbestosJobs(jobs);
   const jobRows = jobs.map(job => {
     const hardwired = jobQuantity(job, 'hardwired');
     const battery = jobQuantity(job, 'battery');
     const remote = jobQuantity(job, 'remote');
-    return `<tr><td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td><td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td><td style="${PO_TD}color:#374151;">${job.address ? esc(job.address.length > 42 ? job.address.replace(/,\s*(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)\s*,?\s*\d{4}\s*$/i, '') : job.address) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="center" style="${PO_TD}">${poQuantity(hardwired)}</td><td align="center" style="${PO_TD}">${poQuantity(battery)}</td><td align="center" style="${PO_TD}">${poQuantity(remote)}</td><td align="center" style="${PO_TD}font-weight:bold;">${hardwired + battery + remote}</td><td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td></tr>`;
+    return `<tr><td style="${PO_TD}white-space:nowrap;">${esc(dmyDate(job.installedDate))}</td><td style="${PO_TD}font-weight:bold;">${esc(job.jobId)}</td><td style="${PO_TD}color:#374151;">${job.address ? esc(job.address.length > 42 ? job.address.replace(/,\s*(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)\s*,?\s*\d{4}\s*$/i, '') : job.address) : '<span style="color:#9ca3af;">&ndash;</span>'}</td><td align="center" style="${PO_TD}">${poQuantity(hardwired)}</td><td align="center" style="${PO_TD}">${poQuantity(battery)}</td><td align="center" style="${PO_TD}">${poQuantity(remote)}</td><td align="center" style="${PO_TD}font-weight:bold;">${hardwired + battery + remote}</td>${showAsbestos ? `<td align="center" style="${PO_TD}">${poQuantity(jobQuantity(job, 'asbestos'))}</td>` : ''}<td align="right" style="${PO_TD}white-space:nowrap;">${poMoney(job.grossIncGst)}</td></tr>`;
   }).join('');
   const jobEarnings = jobs.reduce((sum, job) => sum + Number(job.grossIncGst || 0), 0);
   const stat = (value, label) => `<td width="25%" style="padding:14px 16px;"><div style="${PO_FONT}font-size:18px;font-weight:bold;color:#111111;">${value}</div><div style="${PO_LABEL}margin-top:4px;">${label}</div></td>`;
@@ -529,7 +534,7 @@ function buildInstallSummaryHtml(po) {
       <p style="${PO_FONT}margin:0 0 10px;font-size:14px;color:#111111;">Hi ${esc(firstName)},</p>
       <p style="${PO_FONT}margin:0;font-size:13px;line-height:1.6;color:#374151;">Here is your installation and earnings summary for ${esc(po.period)}.</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;background:#fafafa;border:1px solid #e5e7eb;"><tr>${stat(esc(totals.jobs || 0), 'JOBS')}${stat(esc(totals.alarmTotal || 0), 'ALARMS')}${stat(poMoney(totals.grossIncGst), 'GROSS EARNINGS')}${stat(poMoney(totals.totalIncGst), 'FINAL PAYMENT')}</tr></table>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="left" style="${PO_TH}">Address</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th><th align="right" style="${PO_TH}">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody><tfoot><tr><td colspan="3" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.alarmTotal || 0)}</td><td align="right" style="${PO_TOTAL_TD}">${poMoney(jobEarnings)}</td></tr></tfoot></table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><thead><tr><th align="left" style="${PO_TH}">Installed</th><th align="left" style="${PO_TH}">Job</th><th align="left" style="${PO_TH}">Address</th><th align="center" style="${PO_TH}">Hardwired</th><th align="center" style="${PO_TH}">Battery</th><th align="center" style="${PO_TH}">Remote</th><th align="center" style="${PO_TH}">Alarms</th>${showAsbestos ? `<th align="center" style="${PO_TH}">Asbestos</th>` : ''}<th align="right" style="${PO_TH}">Earnings inc GST</th></tr></thead><tbody>${jobRows}</tbody><tfoot><tr><td colspan="3" style="${PO_TOTAL_TD}">Total</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.hardwired || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.battery || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.remote || 0)}</td><td align="center" style="${PO_TOTAL_TD}">${esc(totals.alarmTotal || 0)}</td>${showAsbestos ? `<td align="center" style="${PO_TOTAL_TD}">${esc(totals.asbestos || 0)}</td>` : ''}<td align="right" style="${PO_TOTAL_TD}">${poMoney(jobEarnings)}</td></tr></tfoot></table>
       ${additionalLinesHtml(po)}
       <table width="300" align="right" cellpadding="0" cellspacing="0" style="margin-top:20px;">${summary}</table><div style="clear:both;"></div>
     </td></tr>`;

@@ -59,6 +59,20 @@ test('maps the agreed electrician product rates', () => {
   assert.equal(purchaseOrderPayableDate('2026-12-28'), '15/01/2027');
 });
 
+test('pays the asbestos ceiling fee at $20 inc GST', () => {
+  const asbestos = normalisePurchaseOrderLine({ productId: 3445, lineQty: 1, productName: '[3445] Asbestos Ceiling' }, true);
+  assert.equal(asbestos.key, 'asbestos');
+  assert.equal(asbestos.payable, true);
+  assert.equal(asbestos.subtotalExGst, 18.18);
+  assert.equal(asbestos.gst, 1.82);
+  assert.equal(asbestos.totalIncGst, 20);
+  assert.equal(normalisePurchaseOrderLine({ productCode: '3445', qty: 3 }, true).totalIncGst, 60);
+  const noGst = normalisePurchaseOrderLine({ productCode: '3445', qty: 1 }, false);
+  assert.equal(noGst.subtotalExGst, 18.18);
+  assert.equal(noGst.gst, 0);
+  assert.equal(noGst.totalIncGst, 18.18);
+});
+
 test('normalises Dataforce fieldworker contact and GST details', () => {
   assert.deepEqual(normaliseFieldworker({
     fieldworkerId: 1009,
@@ -103,6 +117,9 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   assert.match(html, /action:'create',confirm:true/);
   assert.match(html, /two weeks in arrears/);
   assert.match(html, /PO for \$\{worker\.name\} - Week ending/);
+  assert.match(html, /Asbestos ceiling \$20\.00 inc GST/);
+  assert.match(html, /state\.showAsbestos=rows\.some\(row=>quantityFor\(row,'asbestos'\)>0\)/);
+  assert.match(html, /\$\{state\.showAsbestos\?'<th class="center" rowspan="2">Asbestos ceiling<\/th>':''\}/);
 });
 
 test('builds a protected purchase-order preview from completed Dataforce jobs', async () => {
@@ -216,6 +233,7 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.match(mailPayload.html, /-\$157\.00/);
     assert.doesNotMatch(mailPayload.html, /\$999\.00/);
     assert.doesNotMatch(mailPayload.html, /Payment review|Cash tagged|Bank transfer, review|&mdash;/);
+    assert.doesNotMatch(mailPayload.html, /Asbestos/);
 
     const summaryResponse = responseRecorder();
     await reportsHandler({
@@ -234,6 +252,29 @@ test('sends reviewed purchase-order and install-summary emails with editable rec
     assert.match(mailPayload.html, /GROSS EARNINGS/);
     assert.match(mailPayload.html, /02\/10\/2026/);
     assert.doesNotMatch(mailPayload.html, /Payment review|Cash tagged|Bank transfer, review|&mdash;/);
+    assert.doesNotMatch(mailPayload.html, /Asbestos/);
+
+    const asbestosOrder = {
+      ...purchaseOrder,
+      additionalLines: [],
+      jobs: [
+        { ...purchaseOrder.jobs[0], cashCollected: false, cashOffset: 0, items: [{ key: 'booking', quantity: 1 }, { key: 'asbestos', quantity: 1, subtotalExGst: 999 }] },
+        { ...purchaseOrder.jobs[0], jobId: '7002', cashCollected: false, cashOffset: 0, items: [{ key: 'hardwired', quantity: 2 }] },
+      ],
+    };
+    for (const emailMode of ['purchase-order', 'summary']) {
+      const asbestosResponse = responseRecorder();
+      await reportsHandler({
+        method: 'POST',
+        headers: { 'x-purchase-order-pin': '4321' },
+        body: { to: 'alex@example.com', subject: 'Asbestos PO', emailMode, purchaseOrder: asbestosOrder },
+      }, asbestosResponse);
+      assert.equal(asbestosResponse.statusCode, 200);
+      assert.match(mailPayload.html, />Asbestos</);
+      // $33 booking + $20 asbestos + $28.60 hardwired, all GST registered.
+      assert.match(mailPayload.html, /\$81\.60/);
+      assert.equal(mailPayload.attachments.length, 1);
+    }
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {

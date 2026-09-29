@@ -97,6 +97,16 @@ test('builds a GST-inclusive draft supplier bill with the cash offset and due da
   assert.equal(bill.lineItems.reduce((sum, line) => sum + line.unitAmount, 0), 174.6);
 });
 
+test('names the asbestos ceiling fee on the job bill line only when the job has it', () => {
+  const po = {
+    ...purchaseOrder,
+    jobs: [{ ...purchaseOrder.jobs[0], items: [{ key: 'booking', quantity: 1 }, { key: 'asbestos', quantity: 1 }] }],
+  };
+  const bill = buildDraftBill(po, 'contact-id', setup);
+  assert.equal(bill.lineItems[0].description, '20/09 | 7001 | Booking 1 | Asbestos ceiling 1');
+  assert.doesNotMatch(buildDraftBill(purchaseOrder, 'contact-id', setup).lineItems[0].description, /Asbestos/);
+});
+
 test('previews the live Xero setup and requires an untampered signed review', async () => {
   const client = xeroClient({ existingContact: { contactID: 'contact-id', name: 'Alex Symonds', emailAddress: 'alex@example.com', contactStatus: 'ACTIVE' } });
   const prepared = await preparePurchaseOrderBill(client, purchaseOrder);
