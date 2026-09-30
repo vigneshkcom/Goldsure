@@ -48,6 +48,8 @@ test('contact-quotes finds quotes across all four products by phone, newest firs
   assert.equal(smoke.status, 'sent');
   assert.equal(smoke.total, 549);
   assert.equal(smoke.viewCount, 2);
+  assert.equal(smoke.tracker, '/smoke-alarms/quote-tracker.html');
+  assert.deepEqual(res.body.quotes.map(q => q.tracker).sort(), ['/aircons/quote-tracker.html', '/hotwater-nsw/quote-tracker.html', '/hotwater/quote-tracker.html', '/smoke-alarms/quote-tracker.html']);
   assert.match(smoke.url, /\/smoke-alarms\/quote\.html\?token=tok-smoke&source=tracker$/);
   assert.match(res.body.quotes.find(q => q.product === 'hws').url, /\/hotwater\/view\.html\?token=tok-hws&source=tracker$/);
   assert.match(res.body.quotes.find(q => q.product === 'aircon').url, /\/aircons\/view\.html\?token=tok-ac&source=tracker$/);

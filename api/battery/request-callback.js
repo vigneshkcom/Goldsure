@@ -274,10 +274,10 @@ export default async function handler(req, res) {
       const hdrs = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
       const SITE = 'https://portal.goldsure.com.au';
       const PRODUCTS = [
-        { table: 'quote_emails',    product: 'smoke',        label: 'Smoke Alarms', total: 'grand_total',         view: (t) => `${SITE}/smoke-alarms/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
-        { table: 'hotwater_quotes', product: 'hws',          label: 'VIC Hot Water', total: 'total_out_of_pocket', view: (t) => `${SITE}/hotwater/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
-        { table: 'aircon_quotes',   product: 'aircon',       label: 'Aircon',       total: 'total_out_of_pocket', view: (t) => `${SITE}/aircons/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
-        { table: 'nsw_hws_quotes',  product: 'hotwater-nsw', label: 'NSW Hot Water', total: 'final_price',         view: (t) => `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'quote_emails',    product: 'smoke', tracker: '/smoke-alarms/quote-tracker.html',        label: 'Smoke Alarms', total: 'grand_total',         view: (t) => `${SITE}/smoke-alarms/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'hotwater_quotes', product: 'hws', tracker: '/hotwater/quote-tracker.html',          label: 'VIC Hot Water', total: 'total_out_of_pocket', view: (t) => `${SITE}/hotwater/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'aircon_quotes',   product: 'aircon', tracker: '/aircons/quote-tracker.html',       label: 'Aircon',       total: 'total_out_of_pocket', view: (t) => `${SITE}/aircons/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'nsw_hws_quotes',  product: 'hotwater-nsw', tracker: '/hotwater-nsw/quote-tracker.html', label: 'NSW Hot Water', total: 'final_price',         view: (t) => `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
       ];
       const results = await Promise.all(PRODUCTS.map(async (p) => {
         try {
@@ -301,6 +301,7 @@ export default async function handler(req, res) {
             lastViewedAt: q.last_viewed_at || null,
             customerName: q.customer_name || '',
             url: p.view(q.quote_token),
+            tracker: p.tracker,
           }));
         } catch (e) {
           console.error('[contact-quotes]', p.table, e.message);
