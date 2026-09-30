@@ -247,6 +247,55 @@ export default async function handler(req, res) {
       return res.status(200).json(debug ? { results: out, diag } : out);
     }
 
+    // Quotes sent to this phone number, across all four products (smoke alarm,
+    // VIC hot water, aircon, NSW hot water). Powers the "Quotes" row in the SMS
+    // chat header. Phones are stored in whatever format the agent typed
+    // ("0421 914 691", "+61421914691"), so match on the last nine digits with a
+    // wildcard between each group of three, which tolerates spaces and dashes.
+    if (req.query.action === 'contact-quotes') {
+      const digits = String(req.query.phone || '').replace(/\D/g, '').slice(-9);
+      if (digits.length < 9 || !SUPABASE_URL) return res.status(200).json({ quotes: [] });
+      const like = `*${digits.slice(0, 3)}*${digits.slice(3, 6)}*${digits.slice(6)}*`;
+      const hdrs = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+      const SITE = 'https://portal.goldsure.com.au';
+      const PRODUCTS = [
+        { table: 'quote_emails',    product: 'smoke',        label: 'Smoke Alarms', total: 'grand_total',         view: (t) => `${SITE}/smoke-alarms/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'hotwater_quotes', product: 'hws',          label: 'VIC Hot Water', total: 'total_out_of_pocket', view: (t) => `${SITE}/hotwater/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'aircon_quotes',   product: 'aircon',       label: 'Aircon',       total: 'total_out_of_pocket', view: (t) => `${SITE}/aircons/view.html?token=${encodeURIComponent(t)}&source=tracker`,       statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+        { table: 'nsw_hws_quotes',  product: 'hotwater-nsw', label: 'NSW Hot Water', total: 'final_price',         view: (t) => `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(t)}&source=tracker`, statuses: ['sent', 'accepted', 'rejected', 'expired', 'installed'] },
+      ];
+      const results = await Promise.all(PRODUCTS.map(async (p) => {
+        try {
+          const r = await fetch(
+            `${SUPABASE_URL}/rest/v1/${p.table}?customer_phone=ilike.${encodeURIComponent(like)}&select=*&order=sent_at.desc&limit=10`,
+            { headers: hdrs }
+          );
+          if (!r.ok) return [];
+          const rows = await r.json();
+          return (Array.isArray(rows) ? rows : []).filter(q => q.quote_token).map(q => ({
+            table: p.table,
+            product: p.product,
+            label: p.label,
+            id: q.id,
+            token: q.quote_token,
+            status: String(q.status || 'sent').toLowerCase(),
+            statuses: p.statuses,
+            total: q[p.total] != null ? Number(q[p.total]) : null,
+            sentAt: q.sent_at || q.created_at || null,
+            viewCount: q.view_count != null ? Number(q.view_count) : null,
+            lastViewedAt: q.last_viewed_at || null,
+            customerName: q.customer_name || '',
+            url: p.view(q.quote_token),
+          }));
+        } catch (e) {
+          console.error('[contact-quotes]', p.table, e.message);
+          return [];
+        }
+      }));
+      const quotes = results.flat().sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
+      return res.status(200).json({ quotes });
+    }
+
     // GHL opportunities: phones → { name, contactId, pipeline, stage, value, link }
     // Powers the stage pill in the sidebar and the pipeline chips in the chat header.
     if (req.query.action === 'ghl-opps') {
@@ -2809,6 +2858,39 @@ ${notesHtml}
     } catch (e) { console.error('[update-stage auto-reject]', e.message); }
 
     return res.status(200).json({ success: true, rejected });
+  }
+
+  // ── POST action=update-quote-status: change a quote's status from the SMS chat ─
+  // Body: { table, id, status }. Same PATCH the quote trackers make from the
+  // browser (status, plus the accepted flag on tables that have one), done here
+  // so the SMS page needs no direct Supabase access. quote_emails (smoke alarm)
+  // has no `accepted` column, and the NSW table also stamps updated_at.
+  if (body.action === 'update-quote-status') {
+    const { table, id, status } = body;
+    const TABLES = { quote_emails: { accepted: false }, hotwater_quotes: { accepted: true }, aircon_quotes: { accepted: true }, nsw_hws_quotes: { accepted: true, updatedAt: true } };
+    const STATUSES = ['sent', 'accepted', 'rejected', 'expired', 'installed'];
+    const cfg = TABLES[table];
+    if (!cfg) return res.status(400).json({ error: 'Invalid table.' });
+    if (!id) return res.status(400).json({ error: 'Quote id required.' });
+    if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status.' });
+    if (!SUPABASE_URL) return res.status(503).json({ error: 'Supabase not configured.' });
+    const patch = { status };
+    if (cfg.accepted) patch.accepted = status === 'accepted' || status === 'installed';
+    if (cfg.updatedAt) patch.updated_at = new Date().toISOString();
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify(patch),
+      });
+      const rows = await r.json().catch(() => []);
+      if (!r.ok) { console.error('[update-quote-status]', table, r.status, rows); return res.status(502).json({ error: 'Could not update the quote.', detail: rows }); }
+      if (!Array.isArray(rows) || !rows.length) return res.status(404).json({ error: 'Quote not found.' });
+      return res.status(200).json({ success: true, status, quote: rows[0] });
+    } catch (e) {
+      console.error('[update-quote-status] error:', e.message);
+      return res.status(500).json({ error: 'Internal error.' });
+    }
   }
 
   // ── POST action=delete-quotes: password-gated hard delete of quote rows ──────

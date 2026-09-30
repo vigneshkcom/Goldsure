@@ -296,6 +296,22 @@
     .chat-name-lg { font-weight: 700; font-size: 16px; }
     .chat-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.2px; }
     .chat-phone-line, .chat-channel { white-space: nowrap; }
+    /* Quotes sent to this customer (all products): link + status dropdown */
+    #chatQuotes { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+    #chatQuotes:empty { display: none; }
+    .quote-chip { display: inline-flex; align-items: center; gap: 6px; background: #f5f6f8; border: 1px solid #e6e9ef; border-radius: 9px; padding: 2px 4px 2px 9px; font-size: 10.5px; color: var(--muted); max-width: 100%; }
+    .quote-chip .q-prod { font-weight: 700; color: var(--text); white-space: nowrap; }
+    .quote-chip .q-meta { white-space: nowrap; }
+    .quote-chip a.q-view { color: var(--purple); font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .quote-chip a.q-view:hover { text-decoration: underline; }
+    .quote-status { appearance: none; -webkit-appearance: none; border: 1px solid transparent; border-radius: 8px; font: 700 10px 'Inter',sans-serif; padding: 2px 8px; cursor: pointer; text-transform: capitalize; }
+    .quote-status:disabled { opacity: .5; cursor: wait; }
+    .quote-status.st-sent { background: #e8f0fe; color: #2f5fd0; }
+    .quote-status.st-accepted { background: #e8f9f0; color: #1f9d57; }
+    .quote-status.st-installed { background: #dcf5ea; color: #16794a; }
+    .quote-status.st-rejected { background: #fdeaea; color: #b42318; }
+    .quote-status.st-expired { background: #eee; color: #666; }
+    .quote-chip.stale { opacity: .7; }
     #chatChips { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
     .header-actions { display: flex; gap: 8px; }
     .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -818,6 +834,7 @@
       .chat-name-lg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .chat-sub { gap: 3px 6px; line-height: 1.35; }
       #chatChips { width: 100%; margin-top: 3px; }
+      #chatQuotes .quote-chip { width: 100%; flex-wrap: wrap; }
       #chatChips .stage-select { width: 100%; max-width: 100%; min-height: 30px; font-size: 11.5px; }
       #chatChips .chat-chip { max-width: 100%; }
       .header-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) 44px 44px; gap: 8px; width: 100%; }
@@ -974,6 +991,7 @@
         <div class="chat-header-info">
           <div class="chat-name-lg" id="chatPhone"></div>
           <div class="chat-sub"><span class="chat-phone-line" id="chatSubPhone"></span><span class="chat-channel">SMS · via SMS Gate</span><span id="chatChips"></span></div>
+          <div id="chatQuotes"></div>
         </div>
         <div class="header-actions">
           <button class="create-task-btn" onclick="openCreateTask()" title="Create a task for this customer">
@@ -1436,6 +1454,82 @@
     if (notInGhl && noteMode) toggleNoteMode();
   }
 
+  // ── Quotes sent to this customer (smoke alarm / VIC HWS / aircon / NSW HWS) ──
+  // Looked up by phone number, shown under the chat header with a link to the
+  // customer-facing quote and a status dropdown (same statuses as the trackers).
+  let quotesByPhone = {};
+  async function loadContactQuotes(phone) {
+    const el = document.getElementById('chatQuotes');
+    if (el && phone === activePhone) el.innerHTML = '';
+    try {
+      const res = await fetch(`${API}?action=contact-quotes&phone=${encodeURIComponent(phone)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      quotesByPhone[phone] = Array.isArray(data.quotes) ? data.quotes : [];
+    } catch (e) { console.error('[contact-quotes]', e); return; }
+    if (phone === activePhone) renderContactQuotes(phone);
+  }
+
+  function renderContactQuotes(phone) {
+    const el = document.getElementById('chatQuotes');
+    if (!el) return;
+    const quotes = quotesByPhone[phone] || [];
+    el.innerHTML = quotes.map((q, i) => {
+      const sent = q.sentAt ? new Date(q.sentAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '';
+      const total = q.total != null && !isNaN(q.total) ? '$' + Math.round(q.total).toLocaleString('en-AU') : '';
+      const views = q.viewCount != null ? `${q.viewCount} view${q.viewCount === 1 ? '' : 's'}` : '';
+      const meta = [total, sent && 'sent ' + sent, views].filter(Boolean).join(' · ');
+      const statuses = q.statuses.includes(q.status) ? q.statuses : [q.status, ...q.statuses];
+      return `<span class="quote-chip">
+        <span class="q-prod">${esc(q.label)}</span>
+        <span class="q-meta">${esc(meta)}</span>
+        <a class="q-view" href="${esc(q.url)}" target="_blank" rel="noopener" title="Open the quote the customer received">View quote ↗</a>
+        <select class="quote-status st-${esc(q.status)}" data-i="${i}" onchange="changeQuoteStatus(this)" title="Change quote status">
+          ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+        </select>
+      </span>`;
+    }).join('');
+  }
+
+  async function changeQuoteStatus(sel) {
+    const phone = activePhone;
+    const q = (quotesByPhone[phone] || [])[Number(sel.dataset.i)];
+    if (!q) return;
+    const prev = q.status, next = sel.value;
+    if (next === prev) return;
+    if (next === 'rejected' && !confirm(`Mark this ${q.label} quote as Rejected?`)) { sel.value = prev; return; }
+    sel.disabled = true;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-quote-status', table: q.table, id: q.id, status: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      q.status = next;
+      // Same internal "quote accepted" email the smoke alarm tracker sends.
+      if (q.table === 'quote_emails' && next === 'accepted' && data.quote) {
+        const r = data.quote;
+        fetch('/api/smoke-alarms/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quote_token: r.quote_token, customer_name: r.customer_name, customer_email: r.customer_email,
+            customer_phone: r.customer_phone, customer_address: r.customer_address, agent_name: r.agent_name,
+            service_type: r.service_type, alarm_qty: r.alarm_qty, alarm_total: r.alarm_total,
+            alarm_unit_price: r.alarm_unit_price, ctrl_qty: r.ctrl_qty, ctrl_total: r.ctrl_total,
+            fee_label: r.fee_label, fee_amount: r.fee_amount, grand_total: r.grand_total,
+            accepted_at: new Date().toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          }),
+        }).catch(err => console.warn('Accept notification failed:', err));
+      }
+    } catch (e) {
+      alert('Could not update quote status: ' + e.message);
+    }
+    if (phone === activePhone) renderContactQuotes(phone);
+  }
+
   // Move the contact's opportunity to another stage straight from the portal
   async function changeStage(sel) {
     const phone = activePhone;
@@ -1831,6 +1925,7 @@
     optedOut = false;
     applyComposerLock();
     refreshActiveInfo(phone);
+    loadContactQuotes(phone);
 
     clearInterval(pollTimer);
     await reloadMessages();
