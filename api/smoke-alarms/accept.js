@@ -1,5 +1,6 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { syncAcceptedSmokeAlarmStage } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
 
 const escapeHtml = value => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -19,6 +20,10 @@ export default async function handler(req, res) {
     customer_email,
     customer_phone,
     customer_address,
+    property_street,
+    property_suburb,
+    property_state,
+    property_postcode,
     agent_name,
     service_type,
     alarm_qty,
@@ -32,8 +37,21 @@ export default async function handler(req, res) {
     accepted_at,
   } = req.body;
 
-  const propertyAddress = String(customer_address || '').trim().replace(/\s+/g, ' ');
-  if (!quote_token || !customer_name || !customer_email || propertyAddress.length < 5 || propertyAddress.length > 180) {
+  const clean = value => String(value || '').trim().replace(/\s+/g, ' ');
+  const legacyAddress = clean(customer_address).replace(/,\s*Australia$/i, '')
+    .match(/^(.+),\s*([^,]+?)\s+(QLD|Queensland)\s+(\d{4})$/i);
+  const propertyStreet = clean(property_street || legacyAddress?.[1]);
+  const propertySuburb = clean(property_suburb || legacyAddress?.[2]);
+  const propertyState = clean(property_state || legacyAddress?.[3]).toUpperCase().replace('QUEENSLAND', 'QLD');
+  const propertyPostcode = clean(property_postcode || legacyAddress?.[4]);
+  const propertyAddress = `${propertyStreet}, ${propertySuburb} QLD ${propertyPostcode}`;
+  if (
+    !quote_token || !customer_name || !customer_email ||
+    propertyStreet.length < 3 || propertyStreet.length > 140 ||
+    propertySuburb.length < 2 || propertySuburb.length > 100 ||
+    propertyState !== 'QLD' || !/^\d{4}$/.test(propertyPostcode) ||
+    clean(customer_address).replace(/,\s*Australia$/i, '') !== propertyAddress
+  ) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
@@ -42,6 +60,23 @@ export default async function handler(req, res) {
   const hasConcreteCeiling = Number(alarm_unit_price) > 98.005;
   const baseAlarmTotal = hasConcreteCeiling ? `$${(alarmQtyNumeric * 98).toFixed(2)}` : alarm_total;
   const concreteCeilingTotal = `$${(alarmQtyNumeric * 11).toFixed(2)}`;
+
+  // Create or recover the Dataforce job before updating GHL so the same Job ID
+  // can be recorded in the accepted-quote note. The Dataforce operation is
+  // idempotent by quote token and intentionally creates an unassigned,
+  // unscheduled Smoke Alarm Installation appointment (Waiting status).
+  let dataforceJob = { synced: false, reason: 'not-attempted' };
+  try {
+    dataforceJob = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: quote_token });
+    if (dataforceJob.synced) {
+      console.log('[Smoke accept] Dataforce waiting-list job synchronized:', dataforceJob.jobId);
+    } else {
+      console.warn('[Smoke accept] Dataforce job skipped:', dataforceJob.reason);
+    }
+  } catch (dataforceErr) {
+    dataforceJob = { synced: false, reason: dataforceErr.message || 'unexpected-error' };
+    console.error('[Smoke accept] Dataforce job failed (non-fatal):', dataforceErr.message);
+  }
 
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -126,6 +161,16 @@ export default async function handler(req, res) {
                 </td>
                 <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
                   <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${escapeHtml(propertyAddress)}</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;background:#f0f2f5;">
+                  <p style="margin:0;font-size:11px;color:#6b7899;">Dataforce Job</p>
+                </td>
+                <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${dataforceJob.jobId
+                    ? `${escapeHtml(dataforceJob.jobId)} · Waiting list`
+                    : `Not created automatically (${escapeHtml(dataforceJob.reason || 'unknown error')})`}</p>
                 </td>
               </tr>
               <tr>
@@ -250,7 +295,10 @@ export default async function handler(req, res) {
   // not undo the customer's acceptance or suppress the team notification.
   let ghlStage = { moved: false, reason: 'not-attempted' };
   try {
-    ghlStage = await syncAcceptedSmokeAlarmStage({ quoteToken: quote_token });
+    ghlStage = await syncAcceptedSmokeAlarmStage({
+      quoteToken: quote_token,
+      dataforceJobId: dataforceJob.jobId || null,
+    });
     if (ghlStage.noteAdded) {
       console.log('[Smoke accept] GHL accepted-quote note added:', ghlStage.contactId);
     } else {
@@ -309,5 +357,11 @@ export default async function handler(req, res) {
     ghl_stage_reason: ghlStage.reason,
     ghl_note_added: ghlStage.noteAdded === true,
     ghl_note_reason: ghlStage.noteReason || 'not-attempted',
+    ghl_job_id_field_updated: ghlStage.jobIdFieldUpdated === true,
+    dataforce_synced: dataforceJob.synced === true,
+    dataforce_reason: dataforceJob.reason,
+    dataforce_job_id: dataforceJob.jobId || null,
+    dataforce_appointment_id: dataforceJob.appointmentId || null,
+    dataforce_waiting: dataforceJob.waiting === true,
   });
 }

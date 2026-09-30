@@ -26,6 +26,9 @@ test('moves the matching Smoke Alarms opportunity to the exact Quote Accepted st
       return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com', phone: '+61 412 345 678' }] });
     }
     if (String(url).includes('/contacts/contact-1/notes')) return jsonResponse({ note: { id: 'note-1' } });
+    if (String(url).includes('/locations/location-1/customFields')) {
+      return jsonResponse({ customFields: [{ id: 'job-id-field', name: 'Job ID', fieldKey: 'opportunity.job_id' }] });
+    }
     if (String(url).includes('/opportunities/pipelines')) {
       return jsonResponse({ pipelines: [{
         id: 'smoke-pipeline',
@@ -48,20 +51,27 @@ test('moves the matching Smoke Alarms opportunity to the exact Quote Accepted st
     throw new Error(`Unexpected request: ${url}`);
   };
 
-  const result = await syncAcceptedSmokeAlarmStage({ quoteToken: 'quote-token', fetchImpl, env });
+  const result = await syncAcceptedSmokeAlarmStage({ quoteToken: 'quote-token', dataforceJobId: 601, fetchImpl, env });
 
   assert.equal(result.moved, true);
   assert.equal(result.stageId, 'accepted-stage');
-  const update = calls.find(call => call.url.endsWith('/opportunities/opportunity-1'));
+  const update = calls.find(call => call.url.endsWith('/opportunities/opportunity-1') && JSON.parse(call.options.body).pipelineStageId);
   assert.equal(update.options.method, 'PUT');
   assert.deepEqual(JSON.parse(update.options.body), { pipelineStageId: 'accepted-stage' });
   const note = calls.find(call => call.url.endsWith('/contacts/contact-1/notes'));
   assert.equal(note.options.method, 'POST');
   assert.equal(
     JSON.parse(note.options.body).body,
-    'Smoke alarm quote accepted\nCustomer: Test Customer\nProperty address: 12 Example Street, Brisbane QLD 4000'
+    'Smoke alarm quote accepted\nCustomer: Test Customer\nProperty address: 12 Example Street, Brisbane QLD 4000\nDataforce job: 601 (Waiting list)'
   );
   assert.equal(result.noteAdded, true);
+  const jobFieldUpdate = calls.find(call =>
+    call.url.endsWith('/opportunities/opportunity-1') && JSON.parse(call.options.body).customFields
+  );
+  assert.deepEqual(JSON.parse(jobFieldUpdate.options.body), {
+    customFields: [{ id: 'job-id-field', fieldValue: '601' }],
+  });
+  assert.equal(result.jobIdFieldUpdated, true);
 });
 
 test('does not call GHL unless the quote token resolves to an accepted quote', async () => {

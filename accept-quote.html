@@ -79,6 +79,9 @@ main {
   font: 14px 'Sora', sans-serif; color: var(--text); background: #fff; outline: none;
 }
 .address-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(176,141,46,0.12); }
+.address-grid { display: grid; grid-template-columns: minmax(0, 1fr) 110px 80px; gap: 12px; margin-top: 14px; }
+.field-group { min-width: 0; }
+.state-pill { display: flex; align-items: center; height: 47px; padding: 0 15px; border: 1px solid var(--border); border-radius: 10px; background: #f7f8fa; font-size: 14px; font-weight: 700; color: var(--text); }
 .field-help { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
 .field-error { min-height: 18px; font-size: 11px; color: var(--red); margin-top: 7px; }
 .accept-button {
@@ -161,6 +164,7 @@ footer a { color: var(--gold); text-decoration: none; }
 @media (max-width: 600px) {
   .card { padding: 32px 22px; }
   .contact-strip { flex-direction: column; gap: 12px; }
+  .address-grid { grid-template-columns: 1fr; }
 }
 </style>
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -191,11 +195,27 @@ footer a { color: var(--gold); text-decoration: none; }
       <h2>Confirm your property address</h2>
       <p class="subtitle">Please enter the address where the smoke alarm service will be completed, then confirm your quote acceptance.</p>
       <form id="acceptanceForm" novalidate>
-        <label class="field-label" for="propertyAddress">Property address <span>*</span></label>
+        <label class="field-label" for="propertyAddress">Street address <span>*</span></label>
         <input class="address-input" id="propertyAddress" name="propertyAddress" type="text"
-               autocomplete="street-address" maxlength="180" required
-               placeholder="e.g. 12 Example Street, Brisbane QLD 4000">
-        <p class="field-help">Include the street number, street name, suburb, state and postcode.</p>
+               autocomplete="address-line1" maxlength="140" required
+               placeholder="e.g. Unit 3/12 Example Street">
+        <div class="address-grid">
+          <div class="field-group">
+            <label class="field-label" for="propertySuburb">Suburb <span>*</span></label>
+            <input class="address-input" id="propertySuburb" name="propertySuburb" type="text"
+                   autocomplete="address-level2" maxlength="100" required placeholder="e.g. Brisbane">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="propertyPostcode">Postcode <span>*</span></label>
+            <input class="address-input" id="propertyPostcode" name="propertyPostcode" type="text"
+                   autocomplete="postal-code" inputmode="numeric" maxlength="4" required placeholder="4000">
+          </div>
+          <div class="field-group">
+            <span class="field-label">State</span>
+            <div class="state-pill">QLD</div>
+          </div>
+        </div>
+        <p class="field-help">Smoke alarm services are available for Queensland properties.</p>
         <p class="field-error" id="addressError" role="alert"></p>
         <button class="accept-button" id="acceptButton" type="submit">Accept quote</button>
       </form>
@@ -365,6 +385,12 @@ function normaliseAddress(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
+function parseStoredAddress(value) {
+  const match = normaliseAddress(value).replace(/,\s*Australia$/i, '')
+    .match(/^(.+),\s*([^,]+?)\s+(?:QLD|Queensland)\s+(\d{4})$/i);
+  return match ? { street: match[1], suburb: match[2], postcode: match[3] } : null;
+}
+
 function showAddressError(message) {
   document.getElementById('addressError').innerText = message || '';
 }
@@ -425,7 +451,10 @@ async function processAcceptance() {
 
     currentQuoteRow = row;
     currentQuoteToken = token;
-    document.getElementById('propertyAddress').value = row.customer_address || '';
+    const storedAddress = parseStoredAddress(row.customer_address);
+    document.getElementById('propertyAddress').value = storedAddress?.street || row.customer_address || '';
+    document.getElementById('propertySuburb').value = storedAddress?.suburb || '';
+    document.getElementById('propertyPostcode').value = storedAddress?.postcode || '';
     showState('stateConfirm');
 
   } catch (err) {
@@ -440,12 +469,15 @@ async function submitAcceptance(event) {
   event.preventDefault();
   if (!currentQuoteRow || !currentQuoteToken) return;
 
-  const propertyAddress = normaliseAddress(document.getElementById('propertyAddress').value);
-  if (propertyAddress.length < 5) {
-    showAddressError('Please enter the full property address.');
+  const propertyStreet = normaliseAddress(document.getElementById('propertyAddress').value);
+  const propertySuburb = normaliseAddress(document.getElementById('propertySuburb').value);
+  const propertyPostcode = normaliseAddress(document.getElementById('propertyPostcode').value);
+  if (propertyStreet.length < 3 || propertySuburb.length < 2 || !/^\d{4}$/.test(propertyPostcode)) {
+    showAddressError('Please enter the street address, suburb and four-digit postcode.');
     document.getElementById('propertyAddress').focus();
     return;
   }
+  const propertyAddress = `${propertyStreet}, ${propertySuburb} QLD ${propertyPostcode}`;
 
   showAddressError('');
   const acceptButton = document.getElementById('acceptButton');
@@ -498,6 +530,10 @@ async function submitAcceptance(event) {
           customer_email:   updatedRow.customer_email   || row.customer_email   || '',
           customer_phone:   updatedRow.customer_phone   || row.customer_phone   || '',
           customer_address: propertyAddress,
+          property_street:  propertyStreet,
+          property_suburb:  propertySuburb,
+          property_state:   'QLD',
+          property_postcode: propertyPostcode,
           agent_name:       updatedRow.agent_name       || row.agent_name       || '',
           service_type:     updatedRow.service_type     || row.service_type     || '',
           alarm_qty:        updatedRow.alarm_qty        || row.alarm_qty        || 0,

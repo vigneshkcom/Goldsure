@@ -8,7 +8,11 @@ test('smoke alarm acceptance page requires and saves the customer property addre
   const source = await readFile(new URL('../accept-quote.html', import.meta.url), 'utf8');
 
   assert.match(source, /id="propertyAddress"[\s\S]*?required/);
+  assert.match(source, /id="propertySuburb"[\s\S]*?required/);
+  assert.match(source, /id="propertyPostcode"[\s\S]*?required/);
   assert.match(source, /customer_address:\s*propertyAddress/);
+  assert.match(source, /property_street:\s*propertyStreet/);
+  assert.match(source, /property_state:\s*'QLD'/);
   assert.match(source, /\['Property Address',\s*row\.customer_address/);
 
   const scripts = [...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
