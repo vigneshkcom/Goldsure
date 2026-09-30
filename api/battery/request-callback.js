@@ -10,9 +10,24 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
-import { syncAcceptedQuoteStage } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
+// A quote was rejected -> move the customer's GHL opportunity to "Not Interested".
+// Best-effort: never throws, so it can't break the reject notification or the
+// status change that triggered it.
+async function moveRejectedQuoteToNotInterested(quoteTable, quoteToken, label) {
+  try {
+    const result = await syncRejectedQuoteStageForTable({ quoteToken, quoteTable });
+    if (result.moved) console.log(`[${label} reject] GHL opportunity moved to Not Interested:`, result.opportunityId);
+    else console.warn(`[${label} reject] GHL stage move skipped:`, result.reason);
+    return result;
+  } catch (e) {
+    console.error(`[${label} reject] GHL stage move failed (non-fatal):`, e.message);
+    return { moved: false, reason: 'unexpected-error' };
+  }
+}
+
 // Shared card shell for the VIC Aircon Job Tracker's notification emails
 // (eco-comment-notify, job-status-notify below) — a plain, monday.com-style
 // notification card: coloured top accent, an uppercase kicker pill, a bold
@@ -1926,6 +1941,7 @@ ${notesHtml}
   // Fired by /hotwater/reject.html when a customer declines their quote.
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'hws-reject') {
+    await moveRejectedQuoteToNotInterested('hotwater_quotes', body.quote_token, 'HWS');
     const {
       customer_name, customer_email, customer_phone, customer_address,
       agent_name, tank_model, total_out_of_pocket = 0, rejected_at,
@@ -2345,6 +2361,7 @@ ${notesHtml}
   // Fired by /aircons/reject.html when a customer declines their quote.
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'aircon-reject') {
+    await moveRejectedQuoteToNotInterested('aircon_quotes', body.quote_token, 'Aircon');
     const {
       customer_name, customer_email, customer_phone, customer_address, agent_name,
       total_out_of_pocket = 0, rejected_at, line_items = [],
@@ -2403,6 +2420,7 @@ ${notesHtml}
   // Vercel Hobby 12-function limit — mirrors hws-reject / aircon-reject.
   // ════════════════════════════════════════════════════════════════════════════
   if (body.action === 'sa-reject') {
+    await moveRejectedQuoteToNotInterested('quote_emails', body.quote_token, 'Smoke Alarm');
     const {
       customer_name, customer_email, customer_phone, customer_address,
       agent_name, service_type, grand_total, rejected_at,
@@ -2886,7 +2904,11 @@ ${notesHtml}
       const rows = await r.json().catch(() => []);
       if (!r.ok) { console.error('[update-quote-status]', table, r.status, rows); return res.status(502).json({ error: 'Could not update the quote.', detail: rows }); }
       if (!Array.isArray(rows) || !rows.length) return res.status(404).json({ error: 'Quote not found.' });
-      return res.status(200).json({ success: true, status, quote: rows[0] });
+      // Rejected from the SMS chat (customer said no by text/phone) -> GHL Not Interested.
+      const ghl = status === 'rejected'
+        ? await moveRejectedQuoteToNotInterested(table, rows[0].quote_token, 'Portal')
+        : null;
+      return res.status(200).json({ success: true, status, quote: rows[0], ghl });
     } catch (e) {
       console.error('[update-quote-status] error:', e.message);
       return res.status(500).json({ error: 'Internal error.' });

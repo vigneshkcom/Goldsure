@@ -75,6 +75,9 @@ test('contact-quotes returns nothing for a non-phone thread and survives a faili
 test('update-quote-status patches status (+accepted flag) and rejects bad input', () => withEnv(async () => {
   const patches = [];
   globalThis.fetch = async (url, options = {}) => {
+    // Only the Supabase PATCH matters here; a rejection also makes read-only
+    // lookups for the GHL sync, which are skipped (GHL isn't configured).
+    if (options.method !== 'PATCH') return jsonResponse([]);
     patches.push({ url: String(url), options });
     return jsonResponse([{ id: 'x', quote_token: 't', status: JSON.parse(options.body).status }]);
   };

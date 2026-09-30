@@ -296,22 +296,30 @@
     .chat-name-lg { font-weight: 700; font-size: 16px; }
     .chat-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; font-size: 11.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.2px; }
     .chat-phone-line, .chat-channel { white-space: nowrap; }
-    /* Quotes sent to this customer (all products): link + status dropdown */
-    #chatQuotes { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
-    #chatQuotes:empty { display: none; }
-    .quote-chip { display: inline-flex; align-items: center; gap: 6px; background: #f5f6f8; border: 1px solid #e6e9ef; border-radius: 9px; padding: 2px 4px 2px 9px; font-size: 10.5px; color: var(--muted); max-width: 100%; }
-    .quote-chip .q-prod { font-weight: 700; color: var(--text); white-space: nowrap; }
-    .quote-chip .q-meta { white-space: nowrap; }
-    .quote-chip a.q-view { color: var(--purple); font-weight: 700; text-decoration: none; white-space: nowrap; }
-    .quote-chip a.q-view:hover { text-decoration: underline; }
-    .quote-status { appearance: none; -webkit-appearance: none; border: 1px solid transparent; border-radius: 8px; font: 700 10px 'Inter',sans-serif; padding: 2px 8px; cursor: pointer; text-transform: capitalize; }
-    .quote-status:disabled { opacity: .5; cursor: wait; }
-    .quote-status.st-sent { background: #e8f0fe; color: #2f5fd0; }
-    .quote-status.st-accepted { background: #e8f9f0; color: #1f9d57; }
-    .quote-status.st-installed { background: #dcf5ea; color: #16794a; }
-    .quote-status.st-rejected { background: #fdeaea; color: #b42318; }
-    .quote-status.st-expired { background: #eee; color: #666; }
-    .quote-chip.stale { opacity: .7; }
+    /* Quotes strip under the chat header: one card per quote sent to this customer */
+    .quotes-bar { display: flex; align-items: flex-start; gap: 14px; padding: 10px 22px; background: #faf9fd; border-bottom: 1px solid var(--border); }
+    .quotes-bar:empty { display: none; }
+    .quotes-title { flex: none; padding-top: 9px; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; color: var(--faint, #a5a3ae); }
+    .quotes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; min-width: 0; flex: 1; max-height: 148px; overflow-y: auto; padding: 1px; }
+    .quote-card { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 7px 8px 7px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 2px rgba(47,43,61,.04); }
+    .quote-card .q-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+    .quote-card .q-prod { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+    .quote-card .q-total { font-weight: 600; color: var(--text); }
+    .quote-card .q-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .quote-card .q-meta i { font-style: normal; margin: 0 5px; color: #d0cfd8; }
+    .quote-card .q-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+    .quote-card a.q-view { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 11.5px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: all .15s; }
+    .quote-card a.q-view:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-soft); }
+    .q-status { position: relative; display: inline-flex; align-items: center; height: 28px; border-radius: 8px; --c: #2f5fd0; --bg: #e8f0fe; background: var(--bg); color: var(--c); }
+    .q-status::before { content: ''; position: absolute; left: 10px; width: 7px; height: 7px; border-radius: 50%; background: var(--c); pointer-events: none; }
+    .q-status::after { content: ''; position: absolute; right: 9px; width: 5px; height: 5px; border-right: 1.6px solid var(--c); border-bottom: 1.6px solid var(--c); transform: translateY(-1px) rotate(45deg); pointer-events: none; }
+    .q-status select { appearance: none; -webkit-appearance: none; height: 100%; border: 0; background: transparent; color: inherit; font: 600 11.5px 'Inter',sans-serif; padding: 0 26px 0 24px; cursor: pointer; text-transform: capitalize; outline: none; }
+    .q-status:focus-within { box-shadow: 0 0 0 2px rgba(115,103,240,.25); }
+    .q-status select:disabled { opacity: .5; cursor: wait; }
+    .q-status.st-accepted { --c: #1a8f4f; --bg: #e6f7ee; }
+    .q-status.st-installed { --c: #0f6b41; --bg: #d6f1e3; }
+    .q-status.st-rejected { --c: #b42318; --bg: #fdeaea; }
+    .q-status.st-expired { --c: #6b6976; --bg: #eeedf2; }
     #chatChips { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
     .header-actions { display: flex; gap: 8px; }
     .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -834,7 +842,14 @@
       .chat-name-lg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .chat-sub { gap: 3px 6px; line-height: 1.35; }
       #chatChips { width: 100%; margin-top: 3px; }
-      #chatQuotes .quote-chip { width: 100%; flex-wrap: wrap; }
+      .quotes-bar { flex-direction: column; gap: 6px; padding: 8px 12px; }
+      .quotes-title { padding-top: 0; }
+      .quotes-list { width: 100%; }
+      .quote-card { flex-wrap: wrap; gap: 8px; }
+      .quotes-list { grid-template-columns: 1fr; max-height: 240px; }
+      .quote-card .q-actions { width: 100%; }
+      .quote-card a.q-view { flex: 1; justify-content: center; }
+      .q-status { flex: 1; }
       #chatChips .stage-select { width: 100%; max-width: 100%; min-height: 30px; font-size: 11.5px; }
       #chatChips .chat-chip { max-width: 100%; }
       .header-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) 44px 44px; gap: 8px; width: 100%; }
@@ -991,7 +1006,6 @@
         <div class="chat-header-info">
           <div class="chat-name-lg" id="chatPhone"></div>
           <div class="chat-sub"><span class="chat-phone-line" id="chatSubPhone"></span><span class="chat-channel">SMS · via SMS Gate</span><span id="chatChips"></span></div>
-          <div id="chatQuotes"></div>
         </div>
         <div class="header-actions">
           <button class="create-task-btn" onclick="openCreateTask()" title="Create a task for this customer">
@@ -1006,6 +1020,7 @@
           </button>
         </div>
       </header>
+      <div class="quotes-bar" id="chatQuotes"></div>
 
       <div class="optout-banner" id="optoutBanner">
         ⛔ This customer opted out (replied STOP). Sending is disabled — they can text START to re-subscribe. Internal notes still work.
@@ -1474,21 +1489,29 @@
     const el = document.getElementById('chatQuotes');
     if (!el) return;
     const quotes = quotesByPhone[phone] || [];
-    el.innerHTML = quotes.map((q, i) => {
+    if (!quotes.length) { el.innerHTML = ''; return; }
+    const cards = quotes.map((q, i) => {
       const sent = q.sentAt ? new Date(q.sentAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '';
       const total = q.total != null && !isNaN(q.total) ? '$' + Math.round(q.total).toLocaleString('en-AU') : '';
       const views = q.viewCount != null ? `${q.viewCount} view${q.viewCount === 1 ? '' : 's'}` : '';
-      const meta = [total, sent && 'sent ' + sent, views].filter(Boolean).join(' · ');
+      const parts = [total && `<span class="q-total">${esc(total)}</span>`, sent && `Sent ${esc(sent)}`, views && esc(views)].filter(Boolean);
       const statuses = q.statuses.includes(q.status) ? q.statuses : [q.status, ...q.statuses];
-      return `<span class="quote-chip">
-        <span class="q-prod">${esc(q.label)}</span>
-        <span class="q-meta">${esc(meta)}</span>
-        <a class="q-view" href="${esc(q.url)}" target="_blank" rel="noopener" title="Open the quote the customer received">View quote ↗</a>
-        <select class="quote-status st-${esc(q.status)}" data-i="${i}" onchange="changeQuoteStatus(this)" title="Change quote status">
-          ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}
-        </select>
-      </span>`;
+      return `<div class="quote-card">
+        <div class="q-info">
+          <span class="q-prod">${esc(q.label)}</span>
+          <span class="q-meta">${parts.join('<i>•</i>')}</span>
+        </div>
+        <div class="q-actions">
+          <a class="q-view" href="${esc(q.url)}" target="_blank" rel="noopener" title="Open the quote the customer received">View <span aria-hidden="true">↗</span></a>
+          <label class="q-status st-${esc(q.status)}" title="Change quote status">
+            <select data-i="${i}" onchange="changeQuoteStatus(this)" aria-label="Quote status">
+              ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+      </div>`;
     }).join('');
+    el.innerHTML = `<div class="quotes-title">Quotes</div><div class="quotes-list">${cards}</div>`;
   }
 
   async function changeQuoteStatus(sel) {
@@ -1497,7 +1520,7 @@
     if (!q) return;
     const prev = q.status, next = sel.value;
     if (next === prev) return;
-    if (next === 'rejected' && !confirm(`Mark this ${q.label} quote as Rejected?`)) { sel.value = prev; return; }
+    if (next === 'rejected' && !confirm(`Mark this ${q.label} quote as Rejected?\n\nThe customer's GHL opportunity will also be moved to Not Interested.`)) { sel.value = prev; return; }
     sel.disabled = true;
     try {
       const res = await fetch(API, {
@@ -1508,6 +1531,11 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
       q.status = next;
+      // Server moved the GHL opportunity to Not Interested: refresh the stage chip.
+      if (next === 'rejected' && data.ghl && data.ghl.moved && ghlInfo[phone]) {
+        ghlInfo[phone].t = 0;
+        refreshActiveInfo(phone);
+      }
       // Same internal "quote accepted" email the smoke alarm tracker sends.
       if (q.table === 'quote_emails' && next === 'accepted' && data.quote) {
         const r = data.quote;
