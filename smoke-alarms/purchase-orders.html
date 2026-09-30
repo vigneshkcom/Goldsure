@@ -155,7 +155,7 @@
     // Products outside the rate card are paid as invoiced. They are listed as additional payments on the PO.
     function invoiceItems(row){return (row.items||[]).filter(item=>item.invoicePay&&Number(item.payIncGst)>0)}
     function unpricedItems(row){return (row.items||[]).filter(item=>!item.payable&&!item.invoicePay)}
-    function invoiceLines(rows){const lines=[];rows.filter(row=>row._included).forEach(row=>invoiceItems(row).forEach(item=>{const qty=Number(item.quantity)||1;lines.push({description:`Job ${row.jobId} | ${item.name}${qty!==1?` x${qty}`:''} (as invoiced)`,amountIncGst:roundMoney(item.payIncGst)})}));return lines}
+    function invoiceLines(rows){const lines=[];rows.filter(row=>row._included).forEach(row=>invoiceItems(row).forEach(item=>{const qty=Number(item.quantity)||1;lines.push({description:`Job ${row.jobId} | ${item.name}${qty!==1?` x${qty}`:''} ${item.fixedRate?'(fixed rate)':'(as invoiced)'}`,amountIncGst:roundMoney(item.payIncGst)})}));return lines}
     function quantityFor(row,key){return payableItems(row).filter(item=>item.key===key).reduce((sum,item)=>sum+Number(item.quantity||0),0)}
 
     function initialiseRow(row){
@@ -217,7 +217,7 @@
         <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Installed ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
         ${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,f[key])).join('')}
         <td class="center total-cell" data-label="Total alarms"><span class="alarm-total">${f.alarmTotal}</span></td>
-        <td class="num pay-cell" data-label="Pay"><div class="pay-stack"><strong>${money(f.grossIncGst)}</strong><small>${money(f.subtotalExGst)} ex GST</small>${unknown.length?`<small class="unmapped">${unknown.length} product${unknown.length===1?'':'s'} with no price</small>`:''}${invoiced.length?`<small class="invoiced">+ ${money(invoiced.reduce((sum,item)=>sum+Number(item.payIncGst||0),0))} as invoiced: ${invoiced.map(item=>esc(item.name)).join(', ')}</small>`:''}</div></td>
+        <td class="num pay-cell" data-label="Pay"><div class="pay-stack"><strong>${money(f.grossIncGst)}</strong><small>${money(f.subtotalExGst)} ex GST</small>${unknown.length?`<small class="unmapped">${unknown.length} product${unknown.length===1?'':'s'} with no price</small>`:''}${invoiced.length?`<small class="invoiced">+ ${money(invoiced.reduce((sum,item)=>sum+Number(item.payIncGst||0),0))} ${invoiced.every(item=>item.fixedRate)?'fixed rate':'as invoiced'}: ${invoiced.map(item=>esc(item.name)).join(', ')}</small>`:''}</div></td>
         <td class="payment-cell" data-label="Payment status">${flag}</td>
         <td class="num balance-cell" data-label="Customer balance"><div class="balance-control"><input class="money-input pending-input ${f.pendingBalance>0?'balance-known':''}" type="number" min="0" step="0.01" value="${f.pendingBalance.toFixed(2)}" aria-label="Customer balance for job ${esc(row.jobId)}"><label><input class="cash-check" type="checkbox" ${row._cashCollected?'checked':''}> Offset</label></div><span class="balance-note">${esc(sourceNote)}</span></td>
         <td class="num payable-cell ${f.payableIncGst<0?'negative':''}" data-label="PO payable"><strong class="po-payable">${money(f.payableIncGst)}</strong></td>
