@@ -20,11 +20,12 @@ test('moves the matching Smoke Alarms opportunity to the exact Quote Accepted st
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url: String(url), options });
     if (String(url).includes('/rest/v1/quote_emails')) {
-      return jsonResponse([{ customer_email: 'customer@example.com', customer_phone: '0412 345 678', status: 'accepted', accepted: true }]);
+      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '0412 345 678', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true }]);
     }
     if (String(url).includes('/contacts/?')) {
       return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com', phone: '+61 412 345 678' }] });
     }
+    if (String(url).includes('/contacts/contact-1/notes')) return jsonResponse({ note: { id: 'note-1' } });
     if (String(url).includes('/opportunities/pipelines')) {
       return jsonResponse({ pipelines: [{
         id: 'smoke-pipeline',
@@ -54,6 +55,13 @@ test('moves the matching Smoke Alarms opportunity to the exact Quote Accepted st
   const update = calls.find(call => call.url.endsWith('/opportunities/opportunity-1'));
   assert.equal(update.options.method, 'PUT');
   assert.deepEqual(JSON.parse(update.options.body), { pipelineStageId: 'accepted-stage' });
+  const note = calls.find(call => call.url.endsWith('/contacts/contact-1/notes'));
+  assert.equal(note.options.method, 'POST');
+  assert.equal(
+    JSON.parse(note.options.body).body,
+    'Smoke alarm quote accepted\nCustomer: Test Customer\nProperty address: 12 Example Street, Brisbane QLD 4000'
+  );
+  assert.equal(result.noteAdded, true);
 });
 
 test('does not call GHL unless the quote token resolves to an accepted quote', async () => {
@@ -75,11 +83,12 @@ test('treats an opportunity already in Quote Accepted as synchronized without up
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url: String(url), options });
     if (String(url).includes('/rest/v1/quote_emails')) {
-      return jsonResponse([{ customer_email: 'customer@example.com', customer_phone: '', status: 'accepted', accepted: true }]);
+      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true }]);
     }
     if (String(url).includes('/contacts/?')) {
       return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com' }] });
     }
+    if (String(url).includes('/contacts/contact-1/notes')) return jsonResponse({ note: { id: 'note-1' } });
     if (String(url).includes('/opportunities/pipelines')) {
       return jsonResponse({ pipelines: [{ id: 'smoke-pipeline', name: 'Smoke Alarms', stages: [{ id: 'accepted-stage', name: 'Quote Accepted' }] }] });
     }

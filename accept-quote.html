@@ -68,6 +68,26 @@ main {
 .state-loading h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .state-loading p  { font-size: 13px; color: var(--muted); }
 
+/* Address confirmation state */
+.state-confirm { display: none; text-align: left; }
+.state-confirm h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 10px; text-align: center; }
+.state-confirm .subtitle { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 26px; text-align: center; }
+.field-label { display: block; font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.field-label span { color: var(--red); }
+.address-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 14px 15px;
+  font: 14px 'Sora', sans-serif; color: var(--text); background: #fff; outline: none;
+}
+.address-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(176,141,46,0.12); }
+.field-help { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.field-error { min-height: 18px; font-size: 11px; color: var(--red); margin-top: 7px; }
+.accept-button {
+  width: 100%; border: 0; border-radius: 10px; background: var(--gold); color: #111;
+  padding: 14px 18px; margin-top: 12px; font: 700 12px 'Sora', sans-serif;
+  text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
+}
+.accept-button:disabled { opacity: 0.6; cursor: wait; }
+
 /* Success state */
 .state-success { display: none; }
 .state-success .icon-wrap {
@@ -162,8 +182,23 @@ footer a { color: var(--gold); text-decoration: none; }
     <!-- LOADING -->
     <div class="state-loading" id="stateLoading">
       <div class="icon">⏳</div>
-      <h2>Confirming your quote…</h2>
-      <p>Please wait while we process your acceptance.</p>
+      <h2>Loading your quote…</h2>
+      <p>Please wait while we prepare your acceptance.</p>
+    </div>
+
+    <!-- ADDRESS CONFIRMATION -->
+    <div class="state-confirm" id="stateConfirm">
+      <h2>Confirm your property address</h2>
+      <p class="subtitle">Please enter the address where the smoke alarm service will be completed, then confirm your quote acceptance.</p>
+      <form id="acceptanceForm" novalidate>
+        <label class="field-label" for="propertyAddress">Property address <span>*</span></label>
+        <input class="address-input" id="propertyAddress" name="propertyAddress" type="text"
+               autocomplete="street-address" maxlength="180" required
+               placeholder="e.g. 12 Example Street, Brisbane QLD 4000">
+        <p class="field-help">Include the street number, street name, suburb, state and postcode.</p>
+        <p class="field-error" id="addressError" role="alert"></p>
+        <button class="accept-button" id="acceptButton" type="submit">Accept quote</button>
+      </form>
     </div>
 
     <!-- SUCCESS -->
@@ -272,7 +307,7 @@ const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 // Helpers
 // ══════════════════════════════════════════════════════
 function showState(id) {
-  ['stateLoading','stateSuccess','stateAlready','stateExpired','stateError'].forEach(s => {
+  ['stateLoading','stateConfirm','stateSuccess','stateAlready','stateExpired','stateError'].forEach(s => {
     document.getElementById(s).style.display = s === id ? 'block' : 'none';
   });
 }
@@ -293,10 +328,20 @@ function fmtCurrency(val) {
   return isNaN(n) ? String(val) : '$' + n.toFixed(2);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildQuoteInfo(row, acceptedAt) {
   const el = document.getElementById('quoteInfoBlock');
   const infoRows = [
     ['Customer',    row.customer_name || '—'],
+    ['Property Address', row.customer_address || '—'],
     ['Service',     row.service_type  || '—'],
     ['Alarms',      row.alarm_qty     || 0],
     ['Quote Total', fmtCurrency(row.grand_total)],   // FIX: format numeric as $xxx.xx
@@ -307,10 +352,21 @@ function buildQuoteInfo(row, acceptedAt) {
     '<div class="info-block-title">Your Quote Summary</div>' +
     infoRows.map(([l, v]) =>
       `<div class="info-row">` +
-        `<span class="info-row-label">${l}</span>` +
-        `<span class="info-row-val">${v}</span>` +
+        `<span class="info-row-label">${escapeHtml(l)}</span>` +
+        `<span class="info-row-val">${escapeHtml(v)}</span>` +
       `</div>`
     ).join('');
+}
+
+let currentQuoteRow = null;
+let currentQuoteToken = '';
+
+function normaliseAddress(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function showAddressError(message) {
+  document.getElementById('addressError').innerText = message || '';
 }
 
 // ══════════════════════════════════════════════════════
@@ -367,12 +423,41 @@ async function processAcceptance() {
       return;
     }
 
-    // ── 2. Mark the quote as accepted in Supabase ──
-    // We set accepted_at here so we know the exact timestamp to display
-    // and pass to the notification email — don't rely on the PATCH response
-    // returning it (depends on RLS SELECT policy).
-    const acceptedAt = new Date().toISOString();
+    currentQuoteRow = row;
+    currentQuoteToken = token;
+    document.getElementById('propertyAddress').value = row.customer_address || '';
+    showState('stateConfirm');
 
+  } catch (err) {
+    console.error('[accept-quote] Error:', err);
+    showState('stateError');
+    document.getElementById('errorMsg').innerText =
+      'An error occurred while loading your quote. Please call us on (07) 2145 5155 and we will sort it out right away.';
+  }
+}
+
+async function submitAcceptance(event) {
+  event.preventDefault();
+  if (!currentQuoteRow || !currentQuoteToken) return;
+
+  const propertyAddress = normaliseAddress(document.getElementById('propertyAddress').value);
+  if (propertyAddress.length < 5) {
+    showAddressError('Please enter the full property address.');
+    document.getElementById('propertyAddress').focus();
+    return;
+  }
+
+  showAddressError('');
+  const acceptButton = document.getElementById('acceptButton');
+  acceptButton.disabled = true;
+  acceptButton.textContent = 'Accepting quote…';
+
+  try {
+    const row = currentQuoteRow;
+    const token = currentQuoteToken;
+    // Save the customer-confirmed property address in the same update that
+    // accepts the quote so staff notifications never receive a blank address.
+    const acceptedAt = new Date().toISOString();
     const updateResp = await fetch(
       `${SUPABASE_URL}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}`,
       {
@@ -384,9 +469,10 @@ async function processAcceptance() {
           'Prefer':        'return=representation',
         },
         body: JSON.stringify({
-          accepted:    true,
-          status:      'accepted',
+          accepted: true,
+          status: 'accepted',
           accepted_at: acceptedAt,
+          customer_address: propertyAddress,
         }),
       }
     );
@@ -396,16 +482,14 @@ async function processAcceptance() {
       throw new Error(`Supabase PATCH failed: ${updateResp.status} — ${errBody}`);
     }
 
-    // Use the returned row if available, otherwise fall back to the original row
     const updatedRows = await updateResp.json();
-    const updatedRow  = (updatedRows && updatedRows[0]) ? updatedRows[0] : row;
+    const updatedRow = (updatedRows && updatedRows[0])
+      ? updatedRows[0]
+      : { ...row, customer_address: propertyAddress, accepted: true, status: 'accepted', accepted_at: acceptedAt };
 
-    // ── 3. Send internal notification email to vignesh@goldsure.com.au ──
-    // This is the call that was previously MISSING — without it no email was sent.
-    // Non-blocking: if the email fails, the page still shows success because
-    // the Supabase update already succeeded.
+    // Email and GHL updates are best-effort after the accepted quote is saved.
     try {
-      await fetch('/api/smoke-alarms/accept', {
+      const notifyResp = await fetch('/api/smoke-alarms/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -413,11 +497,10 @@ async function processAcceptance() {
           customer_name:    updatedRow.customer_name    || row.customer_name    || '',
           customer_email:   updatedRow.customer_email   || row.customer_email   || '',
           customer_phone:   updatedRow.customer_phone   || row.customer_phone   || '',
-          customer_address: updatedRow.customer_address || row.customer_address || '',
+          customer_address: propertyAddress,
           agent_name:       updatedRow.agent_name       || row.agent_name       || '',
           service_type:     updatedRow.service_type     || row.service_type     || '',
           alarm_qty:        updatedRow.alarm_qty        || row.alarm_qty        || 0,
-          // These are numeric in Supabase — reformat as "$x.xx" for the email template
           alarm_total:      fmtCurrency(updatedRow.alarm_total  ?? row.alarm_total),
           alarm_unit_price: updatedRow.alarm_unit_price ?? row.alarm_unit_price ?? 98,
           ctrl_qty:         updatedRow.ctrl_qty         || row.ctrl_qty         || 0,
@@ -425,27 +508,26 @@ async function processAcceptance() {
           fee_label:        updatedRow.fee_label        || row.fee_label        || '',
           fee_amount:       fmtCurrency(updatedRow.fee_amount   ?? row.fee_amount),
           grand_total:      fmtCurrency(updatedRow.grand_total  ?? row.grand_total),
-          accepted_at:      acceptedAt,   // use the timestamp we set above — always reliable
+          accepted_at:      acceptedAt,
         }),
       });
+      if (!notifyResp.ok) console.error('[accept-quote] Notification request failed:', notifyResp.status);
     } catch (emailErr) {
-      // Non-fatal — Supabase update already succeeded
       console.error('[accept-quote] Notification email error (non-fatal):', emailErr);
     }
 
-    // ── 4. Show success UI ──
-    buildQuoteInfo(updatedRow.id ? updatedRow : row, acceptedAt);
+    buildQuoteInfo({ ...row, ...updatedRow, customer_address: propertyAddress }, acceptedAt);
     showState('stateSuccess');
-
   } catch (err) {
     console.error('[accept-quote] Error:', err);
-    showState('stateError');
-    document.getElementById('errorMsg').innerText =
-      'An error occurred while confirming your quote. Please call us on (07) 2145 5155 and we will sort it out right away.';
+    showAddressError('We could not confirm your quote. Please try again or call us on (07) 2145 5155.');
+    acceptButton.disabled = false;
+    acceptButton.textContent = 'Accept quote';
   }
 }
 
 // Run on load
+document.getElementById('acceptanceForm').addEventListener('submit', submitAcceptance);
 processAcceptance();
 </script>
 

@@ -1,6 +1,13 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { syncAcceptedSmokeAlarmStage } from '../../lib/ghl-smoke-alarm-stage.js';
 
+const escapeHtml = value => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -25,7 +32,8 @@ export default async function handler(req, res) {
     accepted_at,
   } = req.body;
 
-  if (!customer_name || !customer_email) {
+  const propertyAddress = String(customer_address || '').trim().replace(/\s+/g, ' ');
+  if (!quote_token || !customer_name || !customer_email || propertyAddress.length < 5 || propertyAddress.length > 180) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
@@ -117,7 +125,7 @@ export default async function handler(req, res) {
                   <p style="margin:0;font-size:11px;color:#6b7899;">Address</p>
                 </td>
                 <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
-                  <p style="margin:0;font-size:13px;color:#141c2e;">${customer_address || '—'}</p>
+                  <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${escapeHtml(propertyAddress)}</p>
                 </td>
               </tr>
               <tr>
@@ -243,6 +251,11 @@ export default async function handler(req, res) {
   let ghlStage = { moved: false, reason: 'not-attempted' };
   try {
     ghlStage = await syncAcceptedSmokeAlarmStage({ quoteToken: quote_token });
+    if (ghlStage.noteAdded) {
+      console.log('[Smoke accept] GHL accepted-quote note added:', ghlStage.contactId);
+    } else {
+      console.warn('[Smoke accept] GHL accepted-quote note skipped:', ghlStage.noteReason);
+    }
     if (ghlStage.moved) {
       console.log('[Smoke accept] GHL opportunity moved to Quote Accepted:', ghlStage.opportunityId);
     } else {
@@ -294,5 +307,7 @@ export default async function handler(req, res) {
     success: true,
     ghl_stage_moved: ghlStage.moved,
     ghl_stage_reason: ghlStage.reason,
+    ghl_note_added: ghlStage.noteAdded === true,
+    ghl_note_reason: ghlStage.noteReason || 'not-attempted',
   });
 }
