@@ -40,18 +40,17 @@ test('pays products outside the rate card as invoiced', () => {
   assert.notEqual(unpriced.issue, '');
 });
 
-test('pays inspection fees (3437) a fixed $60 ex GST, not the $131 invoiced', () => {
+test('pays inspection fees (3437) $60 ex GST as a normal job line, not the $131 invoiced', () => {
   const line = { productId: 3437, lineQty: 1, productName: '[3437] Inspection Fees', lineRateIncTax: 131 };
   const registered = normalisePurchaseOrderLine(line, true);
-  assert.equal(registered.payable, false);
-  assert.equal(registered.invoicePay, true);
-  assert.equal(registered.fixedRate, true);
-  assert.equal(registered.name, 'Inspection fee');
+  assert.equal(registered.payable, true);
+  assert.equal(registered.key, 'inspection');
+  assert.equal(registered.name, 'Inspection fees');
   assert.equal(registered.subtotalExGst, 60);
   assert.equal(registered.gst, 6);
-  assert.equal(registered.payIncGst, 66);
+  assert.equal(registered.totalIncGst, 66);
   const unregistered = normalisePurchaseOrderLine(line, false);
-  assert.equal(unregistered.payIncGst, 60);
+  assert.equal(unregistered.totalIncGst, 60);
   assert.equal(unregistered.gst, 0);
 });
 
