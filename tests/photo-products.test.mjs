@@ -86,7 +86,10 @@ test('SMS and quote trackers show the matching photo request status and a staff 
     assert.match(tracker, /<th>Photos<\/th>/);
     assert.match(tracker, /class="photo-button view"/);
     assert.match(tracker, />View photos<\/button>/);
-    assert.match(tracker, /class="photo-button awaiting" disabled>Awaiting photos<\/button>/);
+    assert.match(tracker, /class="photo-button awaiting" onclick="openPhotoReminder\(/);
+    assert.match(tracker, />Awaiting photos<\/button>/);
+    assert.match(tracker, /id="photoReminderModal"/);
+    assert.match(tracker, /action:'send',phone:photoSmsTarget\.phone,message/);
     assert.match(tracker, /data-photo-url="\$\{esc\(request\.link\)\}"/);
     assert.match(tracker, /<td>\$\{renderPhotoRequest\(q\)\}<\/td>/);
     assert.doesNotMatch(tracker, />Photos\$\{esc\(count\)\}<\/button>/);

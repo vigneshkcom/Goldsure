@@ -483,7 +483,7 @@ function renderPhotoRequest(q){
   if((Number(request.actualPhotoCount)||0)>0 && request.link){
     return `<button type="button" class="photo-button view" data-photo-url="${esc(request.link)}" onclick="window.open(this.dataset.photoUrl,'_blank','noopener')" title="Open this customer's uploaded photos in WorkDrive">View photos</button>`;
   }
-  return '<button type="button" class="photo-button awaiting" disabled>Awaiting photos</button>';
+  return `<button type="button" class="photo-button awaiting" onclick="openPhotoReminder('${photoPhoneKey(q.customer_phone)}')" title="Text this customer a reminder to send photos">Awaiting photos</button>`;
 }
 async function loadPhotoRequests(product){
   try{
@@ -494,6 +494,50 @@ async function loadPhotoRequests(product){
     (data.folders||[]).forEach(request=>{ const key=photoPhoneKey(request.phone); if(key&&!photoRequestsByPhone[key])photoRequestsByPhone[key]=request; });
     applyFilters();
   }catch(e){ console.error('[photo-requests]',e); }
+}
+// ── Photo reminder: "Awaiting photos" opens an editable SMS, same as the Photo Tracker ──
+let photoSmsTarget=null;
+function photoReminderText(first,request){
+  const link=request.uploadPageUrl||'';
+  const sent=request.createdAt?new Date(Number(request.createdAt)).toLocaleDateString('en-AU',{day:'numeric',month:'long'}):'';
+  const on=sent?` on ${sent}`:'';
+  return `Hi ${first}, Goldsure here. We sent you a link${on} for the quick questions and photos needed to assess your aircon installation. In case you missed it, here's the link again: ${link}`;
+}
+function openPhotoReminder(key){
+  const request=photoRequestsByPhone[key];
+  const q=allQuotes.find(x=>photoPhoneKey(x.customer_phone)===key);
+  const phone=(q&&q.customer_phone)||(request&&request.phone)||'';
+  if(!request||!phone){ showToast('No phone number for this customer.'); return; }
+  const name=(q&&q.customer_name)||request.customerName||request.name||'';
+  const first=String(name).replace(/\(.*?\)/g,'').trim().split(/\s+/)[0]||'there';
+  photoSmsTarget={phone};
+  document.getElementById('prTo').innerHTML=`${esc(name||'Customer')} <span class="pr-phone">${esc(phone)}</span>`;
+  document.getElementById('prText').value=photoReminderText(first,request);
+  const msg=document.getElementById('prMsg'); msg.textContent='';
+  const btn=document.getElementById('prSend'); btn.disabled=false; btn.textContent='Send SMS';
+  updatePhotoSmsCount();
+  document.getElementById('photoReminderModal').classList.add('open');
+  setTimeout(()=>document.getElementById('prText').focus(),60);
+}
+function closePhotoReminder(){ document.getElementById('photoReminderModal').classList.remove('open'); photoSmsTarget=null; }
+function updatePhotoSmsCount(){
+  const len=document.getElementById('prText').value.length;
+  const parts=len<=160?1:Math.ceil(len/153);
+  document.getElementById('prCount').textContent=`${len} characters · ${parts} SMS ${parts===1?'part':'parts'}`;
+}
+async function sendPhotoReminder(){
+  if(!photoSmsTarget)return;
+  const message=document.getElementById('prText').value.trim();
+  const msg=document.getElementById('prMsg');
+  if(!message){ msg.textContent='The message is empty.'; return; }
+  const btn=document.getElementById('prSend'); btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+  try{
+    const res=await fetch('/api/battery/request-callback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send',phone:photoSmsTarget.phone,message})});
+    const data=await res.json();
+    // The gateway refuses numbers that replied STOP — show that rather than a send that never happened.
+    if(!res.ok||!data.success)throw new Error(data.error||'Send failed');
+    closePhotoReminder(); showToast('Photo reminder SMS sent.');
+  }catch(e){ msg.textContent=e.message; btn.disabled=false; btn.textContent='Send SMS'; }
 }
 function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 function daysSince(d){ if(!d)return null; const date=new Date(d); if(isNaN(date))return null; const a=new Date(); const s0=new Date(a.getFullYear(),a.getMonth(),a.getDate()); const s1=new Date(date.getFullYear(),date.getMonth(),date.getDate()); return Math.max(0,Math.round((s0-s1)/86400000)); }
@@ -941,5 +985,23 @@ function openQuoteView(id){
 }
 function closeQuoteView(){ document.getElementById('quoteViewModal').classList.remove('open'); }
 </script>
+<style>
+.photo-button.awaiting{cursor:pointer;}
+.photo-button.awaiting:hover{background:#ffe9b0;border-color:#e3bd5f;}
+.pr-to{font-size:13px;color:var(--text);margin:0 0 14px;}
+.pr-phone{color:var(--muted);font-size:12px;margin-left:4px;}
+.pr-msg{font-size:12.5px;color:#c62828;margin-right:auto;align-self:center;}
+</style>
+<div id="photoReminderModal" class="rm-overlay" onclick="if(event.target===this)closePhotoReminder()">
+  <div class="rm-card">
+    <div class="rm-head"><h3>Send photo reminder</h3><button class="rm-close" onclick="closePhotoReminder()">×</button></div>
+    <div class="rm-body">
+      <p class="pr-to">To <strong id="prTo"></strong></p>
+      <textarea id="prText" class="rm-textarea" rows="8" oninput="updatePhotoSmsCount()"></textarea>
+      <div class="rm-count"><span id="prCount"></span></div>
+    </div>
+    <div class="rm-foot"><span class="pr-msg" id="prMsg"></span><button class="rm-btn-cancel" onclick="closePhotoReminder()">Cancel</button><button class="rm-btn-send" id="prSend" onclick="sendPhotoReminder()">Send SMS</button></div>
+  </div>
+</div>
 </body>
 </html>
