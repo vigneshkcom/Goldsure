@@ -125,6 +125,9 @@ export default async function handler(req, res) {
     const rows = r.ok ? await r.json() : [];
     const q = rows[0];
     if (!q) return res.status(404).json({ error: 'Quote not found.' });
+    if (!q.accepted_at || (q.accepted !== true && String(q.status || '').toLowerCase() !== 'accepted')) {
+      return res.status(409).json({ error: 'Customer acceptance has not been verified.' });
+    }
 
     let ghlStage = { moved: false, reason: 'not-attempted' };
     try {

@@ -1496,6 +1496,9 @@
       const views = q.viewCount != null ? `${q.viewCount} view${q.viewCount === 1 ? '' : 's'}` : '';
       const parts = [total && `<span class="q-total">${esc(total)}</span>`, sent && `Sent ${esc(sent)}`, views && esc(views)].filter(Boolean);
       const statuses = q.statuses.includes(q.status) ? q.statuses : [q.status, ...q.statuses];
+      const statusLabel = s => s === 'accepted'
+        ? (q.acceptedAt ? 'Customer accepted' : 'Accepted internally')
+        : s;
       return `<div class="quote-card">
         <div class="q-info">
           <span class="q-prod">${esc(q.label)}</span>
@@ -1506,7 +1509,7 @@
           <a class="q-view" href="${esc(q.tracker)}?search=${encodeURIComponent(q.customerName || phone)}" target="_blank" rel="noopener" title="Open the ${esc(q.label)} quote tracker, filtered to this customer">Tracker <span aria-hidden="true">↗</span></a>
           <label class="q-status st-${esc(q.status)}" title="Change quote status">
             <select data-i="${i}" onchange="changeQuoteStatus(this)" aria-label="Quote status">
-              ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+              ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(statusLabel(s))}</option>`).join('')}
             </select>
           </label>
         </div>
@@ -1521,6 +1524,7 @@
     if (!q) return;
     const prev = q.status, next = sel.value;
     if (next === prev) return;
+    if (next === 'accepted' && !confirm(`Mark this ${q.label} quote as Accepted internally?\n\nThis will not send an acceptance email, move GHL, add a GHL comment, or create a Dataforce job.`)) { sel.value = prev; return; }
     if (next === 'rejected' && !confirm(`Mark this ${q.label} quote as Rejected?\n\nThe customer's GHL opportunity will also be moved to Not Interested.`)) { sel.value = prev; return; }
     sel.disabled = true;
     try {
@@ -1536,22 +1540,6 @@
       if (next === 'rejected' && data.ghl && data.ghl.moved && ghlInfo[phone]) {
         ghlInfo[phone].t = 0;
         refreshActiveInfo(phone);
-      }
-      // Same internal "quote accepted" email the smoke alarm tracker sends.
-      if (q.table === 'quote_emails' && next === 'accepted' && data.quote) {
-        const r = data.quote;
-        fetch('/api/smoke-alarms/accept', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            quote_token: r.quote_token, customer_name: r.customer_name, customer_email: r.customer_email,
-            customer_phone: r.customer_phone, customer_address: r.customer_address, agent_name: r.agent_name,
-            service_type: r.service_type, alarm_qty: r.alarm_qty, alarm_total: r.alarm_total,
-            alarm_unit_price: r.alarm_unit_price, ctrl_qty: r.ctrl_qty, ctrl_total: r.ctrl_total,
-            fee_label: r.fee_label, fee_amount: r.fee_amount, grand_total: r.grand_total,
-            accepted_at: new Date().toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          }),
-        }).catch(err => console.warn('Accept notification failed:', err));
       }
     } catch (e) {
       alert('Could not update quote status: ' + e.message);

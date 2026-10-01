@@ -1,5 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-import { syncAcceptedSmokeAlarmStage } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedSmokeAlarmStage, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { syncAcceptedSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
 
 const escapeHtml = value => String(value ?? '')
@@ -53,6 +53,14 @@ export default async function handler(req, res) {
     clean(customer_address).replace(/,\s*Australia$/i, '') !== propertyAddress
   ) {
     return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  const acceptance = await verifyCustomerAcceptedQuote({
+    quoteToken: quote_token,
+    quoteTable: 'quote_emails',
+  });
+  if (!acceptance.verified) {
+    return res.status(409).json({ error: 'Customer acceptance has not been verified.', reason: acceptance.reason });
   }
 
   const hasControllers = parseInt(ctrl_qty) > 0;

@@ -112,7 +112,7 @@ function show(id){ ['loading','success','already','accepted','expired','error'].
     const row = Array.isArray(rows) && rows[0];
     if(!row){ show('error'); document.getElementById('errorMsg').textContent='We could not find this quote. Please contact us directly.'; return; }
 
-    if(row.accepted === true || row.status === 'accepted' || row.status === 'installed'){ show('accepted'); return; }
+    if(row.accepted_at){ show('accepted'); return; }
     if(row.status === 'rejected'){ show('already'); return; }
     const issuedAt = new Date(row.sent_at || row.created_at);
     if(String(row.status || '').toLowerCase() === 'expired' || (!Number.isNaN(issuedAt.getTime()) && Date.now() >= issuedAt.getTime() + 21 * 86400000)){ show('expired'); return; }

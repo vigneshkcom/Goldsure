@@ -32,6 +32,7 @@ const acceptedQuote = {
   grand_total: 621,
   status: 'accepted',
   accepted: true,
+  accepted_at: '2026-10-01T00:00:00.000Z',
 };
 
 test('parses the accepted QLD address into Dataforce fields', () => {
@@ -171,5 +172,18 @@ test('does not call Dataforce for an unaccepted quote', async () => {
   const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
 
   assert.deepEqual(result, { synced: false, reason: 'quote-not-accepted' });
+  assert.equal(calls.length, 1);
+});
+
+test('does not call Dataforce for a quote marked accepted internally', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return json([{ ...acceptedQuote, accepted_at: null }]);
+  };
+
+  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+
+  assert.deepEqual(result, { synced: false, reason: 'quote-not-customer-accepted' });
   assert.equal(calls.length, 1);
 });

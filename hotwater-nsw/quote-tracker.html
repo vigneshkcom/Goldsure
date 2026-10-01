@@ -639,8 +639,9 @@ function renderTable(){
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
     const statusClass={sent:'badge-sent',accepted:'badge-accepted',rejected:'badge-rejected',expired:'badge-expired',installed:'badge-installed'}[st]||'badge-sent';
+    const statusLabel=st==='accepted'?(q.accepted_at?'Customer accepted':'Accepted internally'):st;
     const canRemind=st==='sent'&&!!q.customer_email&&!!q.quote_token;
-    const menuItems=STATUSES.map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
+    const menuItems=STATUSES.map(s=>`<div class="status-menu-item${s===st?' active':''}" onclick="updateStatus(event,'${q.id}','${s}')"><span class="dot dot-${s}"></span>${s==='accepted'?'Accepted internally':s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join('');
     const ghlEmail=(q.customer_email||'').toLowerCase().trim();
     const ghlD=ghlOppData[ghlEmail];
     const ghlBadgeText=ghlStagesLoaded?(ghlD?.stage||'—'):'…';
@@ -654,7 +655,7 @@ function renderTable(){
       <td class="td-oop">${money(q.final_price)}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td>${renderViewStat(q)}</td>
-      <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${st}</span><div class="status-menu">${menuItems}</div></button></td>
+      <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${statusLabel}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
       <td>${q.finance_requested?'<span class="fin-badge fin-yes">Yes</span>':'<span class="fin-badge fin-no">No</span>'}</td>
       <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a></td>
@@ -683,12 +684,13 @@ async function updateStatus(e,id,newStatus){
     const res=await fetch(`${SUPABASE_URL}/rest/v1/nsw_hws_quotes?id=eq.${id}`,{
       method:'PATCH',
       headers:{...HEADERS,'Content-Type':'application/json',Prefer:'return=minimal'},
-      body:JSON.stringify({status:newStatus,accepted:(newStatus==='accepted'||newStatus==='installed'),updated_at:new Date().toISOString()})
+      body:JSON.stringify({status:newStatus,updated_at:new Date().toISOString()})
     });
     if(!res.ok){ showToast('Update failed: '+(await res.text()).slice(0,80)); return; }
     const q=allQuotes.find(x=>String(x.id)===String(id));
-    if(q){ q.status=newStatus; q.accepted=(newStatus==='accepted'||newStatus==='installed'); }
-    renderKPIs(); applyFilters(); showToast(`Status → ${newStatus.charAt(0).toUpperCase()+newStatus.slice(1)}`);
+    if(q)q.status=newStatus;
+    const label=newStatus==='accepted'?'Accepted internally':newStatus.charAt(0).toUpperCase()+newStatus.slice(1);
+    renderKPIs(); applyFilters(); showToast(`Status → ${label}`);
   }catch(err){ console.error(err); showToast('Network error updating status.'); }
 }
 

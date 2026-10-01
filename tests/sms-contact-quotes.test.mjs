@@ -74,7 +74,7 @@ test('contact-quotes returns nothing for a non-phone thread and survives a faili
   assert.deepEqual(res.body.quotes, []);
 }));
 
-test('update-quote-status patches status (+accepted flag) and rejects bad input', () => withEnv(async () => {
+test('update-quote-status changes only the internal status and rejects bad input', () => withEnv(async () => {
   const patches = [];
   globalThis.fetch = async (url, options = {}) => {
     // Only the Supabase PATCH matters here; a rejection also makes read-only
@@ -94,7 +94,7 @@ test('update-quote-status patches status (+accepted flag) and rejects bad input'
   assert.equal(ok.body.status, 'accepted');
   assert.match(patches[0].url, /\/aircon_quotes\?id=eq\.x$/);
   assert.equal(patches[0].options.method, 'PATCH');
-  assert.deepEqual(JSON.parse(patches[0].options.body), { status: 'accepted', accepted: true });
+  assert.deepEqual(JSON.parse(patches[0].options.body), { status: 'accepted' });
 
   // Smoke alarm table has no `accepted` column.
   await post({ action: 'update-quote-status', table: 'quote_emails', id: 'x', status: 'rejected' });
@@ -103,7 +103,7 @@ test('update-quote-status patches status (+accepted flag) and rejects bad input'
   // NSW also stamps updated_at.
   await post({ action: 'update-quote-status', table: 'nsw_hws_quotes', id: 'x', status: 'sent' });
   const nsw = JSON.parse(patches[2].options.body);
-  assert.equal(nsw.status, 'sent'); assert.equal(nsw.accepted, false); assert.ok(nsw.updated_at);
+  assert.equal(nsw.status, 'sent'); assert.equal('accepted' in nsw, false); assert.ok(nsw.updated_at);
 
   const before = patches.length;
   assert.equal((await post({ action: 'update-quote-status', table: 'sms_messages', id: 'x', status: 'sent' })).statusCode, 400);

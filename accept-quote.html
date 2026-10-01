@@ -437,8 +437,9 @@ async function processAcceptance() {
 
     const row = rows[0];
 
-    // Already accepted — show info state
-    if (row.accepted === true || row.status === 'accepted') {
+    // Only the customer-facing acceptance flow stamps accepted_at. An internal
+    // tracker status of "accepted" must not tell the customer they accepted it.
+    if (row.accepted_at) {
       showState('stateAlready');
       return;
     }

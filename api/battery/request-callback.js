@@ -10,7 +10,7 @@
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
-import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 // A quote was rejected -> move the customer's GHL opportunity to "Not Interested".
@@ -297,6 +297,7 @@ export default async function handler(req, res) {
             statuses: p.statuses,
             total: q[p.total] != null ? Number(q[p.total]) : null,
             sentAt: q.sent_at || q.created_at || null,
+            acceptedAt: q.accepted_at || null,
             viewCount: q.view_count != null ? Number(q.view_count) : null,
             lastViewedAt: q.last_viewed_at || null,
             customerName: q.customer_name || '',
@@ -1832,6 +1833,10 @@ ${notesHtml}
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
+    const acceptance = await verifyCustomerAcceptedQuote({ quoteToken: quote_token, quoteTable: 'hotwater_quotes' });
+    if (!acceptance.verified) {
+      return res.status(409).json({ error: 'Customer acceptance has not been verified.', reason: acceptance.reason });
+    }
     const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100)
       .toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => String(s == null ? '' : s)
@@ -2289,6 +2294,10 @@ ${notesHtml}
       total_out_of_pocket = 0, veec_discount = 0, products_inc_gst = 0, accepted_at, line_items = [],
     } = body;
     if (!customer_name || !customer_email) return res.status(400).json({ error: 'Missing required fields.' });
+    const acceptance = await verifyCustomerAcceptedQuote({ quoteToken: quote_token, quoteTable: 'aircon_quotes' });
+    if (!acceptance.verified) {
+      return res.status(409).json({ error: 'Customer acceptance has not been verified.', reason: acceptance.reason });
+    }
     const money = (n) => '$' + (Math.round((Number(n) + Number.EPSILON) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
@@ -2880,21 +2889,21 @@ ${notesHtml}
   }
 
   // ── POST action=update-quote-status: change a quote's status from the SMS chat ─
-  // Body: { table, id, status }. Same PATCH the quote trackers make from the
-  // browser (status, plus the accepted flag on tables that have one), done here
-  // so the SMS page needs no direct Supabase access. quote_emails (smoke alarm)
-  // has no `accepted` column, and the NSW table also stamps updated_at.
+  // Body: { table, id, status }. This is an administrative tracker status only;
+  // customer acceptance evidence is written exclusively by the public accept
+  // pages. NSW also stamps updated_at.
   if (body.action === 'update-quote-status') {
     const { table, id, status } = body;
-    const TABLES = { quote_emails: { accepted: false }, hotwater_quotes: { accepted: true }, aircon_quotes: { accepted: true }, nsw_hws_quotes: { accepted: true, updatedAt: true } };
+    const TABLES = { quote_emails: {}, hotwater_quotes: {}, aircon_quotes: {}, nsw_hws_quotes: { updatedAt: true } };
     const STATUSES = ['sent', 'accepted', 'rejected', 'expired', 'installed'];
     const cfg = TABLES[table];
     if (!cfg) return res.status(400).json({ error: 'Invalid table.' });
     if (!id) return res.status(400).json({ error: 'Quote id required.' });
     if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status.' });
     if (!SUPABASE_URL) return res.status(503).json({ error: 'Supabase not configured.' });
+    // This route is staff-only administration. Never write the customer
+    // acceptance flag or timestamp, even when staff select "accepted".
     const patch = { status };
-    if (cfg.accepted) patch.accepted = status === 'accepted' || status === 'installed';
     if (cfg.updatedAt) patch.updated_at = new Date().toISOString();
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {

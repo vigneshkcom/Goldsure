@@ -20,7 +20,7 @@ test('moves the matching Smoke Alarms opportunity to the exact Quote Accepted st
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url: String(url), options });
     if (String(url).includes('/rest/v1/quote_emails')) {
-      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '0412 345 678', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true }]);
+      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '0412 345 678', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true, accepted_at: '2026-10-01T00:00:00.000Z' }]);
     }
     if (String(url).includes('/contacts/?')) {
       return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com', phone: '+61 412 345 678' }] });
@@ -83,7 +83,7 @@ test('does not call GHL unless the quote token resolves to an accepted quote', a
 
   const result = await syncAcceptedSmokeAlarmStage({ quoteToken: 'quote-token', fetchImpl, env });
 
-  assert.deepEqual(result, { moved: false, reason: 'quote-not-accepted' });
+  assert.deepEqual(result, { moved: false, reason: 'quote-not-customer-accepted' });
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/rest\/v1\/quote_emails/);
 });
@@ -93,7 +93,7 @@ test('treats an opportunity already in Quote Accepted as synchronized without up
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url: String(url), options });
     if (String(url).includes('/rest/v1/quote_emails')) {
-      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true }]);
+      return jsonResponse([{ customer_name: 'Test Customer', customer_email: 'customer@example.com', customer_phone: '', customer_address: '12 Example Street, Brisbane QLD 4000', status: 'accepted', accepted: true, accepted_at: '2026-10-01T00:00:00.000Z' }]);
     }
     if (String(url).includes('/contacts/?')) {
       return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com' }] });
@@ -125,7 +125,7 @@ for (const service of [
     const fetchImpl = async (url, options = {}) => {
       calls.push({ url: String(url), options });
       if (String(url).includes(`/rest/v1/${service.quoteTable}`)) {
-        return jsonResponse([{ customer_email: 'customer@example.com', customer_phone: '0412 345 678', status: 'accepted', accepted: true }]);
+        return jsonResponse([{ customer_email: 'customer@example.com', customer_phone: '0412 345 678', status: 'accepted', accepted: true, accepted_at: '2026-10-01T00:00:00.000Z' }]);
       }
       if (String(url).includes('/contacts/?')) {
         return jsonResponse({ contacts: [{ id: 'contact-1', email: 'customer@example.com', phone: '+61 412 345 678' }] });
