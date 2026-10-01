@@ -72,7 +72,7 @@ test('SMS and quote trackers show the matching photo request status and a staff 
   assert.match(sms, /Quotes &amp; photos/);
   assert.match(sms, /View photos/);
   assert.doesNotMatch(sms, />Photo link/);
-  assert.match(sms, /href="\$\{esc\(request\.link\)\}"/);
+  assert.match(sms, /<button type="button" class="q-view" data-photo-url="\$\{esc\(request\.link\)\}"/);
   assert.match(sms, /trackerSearch\(request\.phone \|\| phone\)/);
   assert.match(sms, /\['aircon', 'hws-vic', 'hws-nsw'\]/);
   for (const [path, product] of [
@@ -83,8 +83,8 @@ test('SMS and quote trackers show the matching photo request status and a staff 
     const tracker = await read(path);
     assert.match(tracker, new RegExp(`loadPhotoRequests\\('${product}'\\)`));
     assert.match(tracker, /renderPhotoRequest\(q\)/);
-    assert.match(tracker, /View photos ↗/);
-    assert.match(tracker, /href="\$\{esc\(request\.link\)\}"/);
+    assert.match(tracker, /<button type="button" class="photo-button"/);
+    assert.match(tracker, /data-photo-url="\$\{esc\(request\.link\)\}"/);
   }
 });
 
@@ -93,7 +93,8 @@ test('photo tracker reads the customer filter from its URL and searches by phone
   assert.match(tracker, /const requestedSearch = new URLSearchParams\(location\.search\)\.get\('search'\) \|\| ''/);
   assert.match(tracker, /\$\('search'\)\.value = requestedSearch/);
   assert.match(tracker, /phone\.endsWith\(digits\.slice\(-9\)\)/);
-  assert.match(tracker, />View photos/);
+  assert.match(tracker, /class="btn-mini view-photos"/);
+  assert.match(tracker, /data-view-photos="\$\{esc\(f\.link\)\}"/);
   assert.doesNotMatch(tracker, />Photo link/);
 });
 

@@ -189,6 +189,10 @@
     cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px;
   }
   .btn-mini:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-mini.view-photos {
+    border-color: var(--blue); background: var(--blue); color: #fff; font-weight: 650;
+  }
+  .btn-mini.view-photos:hover { border-color: var(--blue); background: #2457c5; color: #fff; }
   .btn-mini.danger { border-color: #f3b7bb; color: var(--red); }
   .btn-mini.danger:hover { border-color: var(--red); background: #fff4f5; }
   .btn-mini:disabled { opacity: .55; cursor: not-allowed; border-color: var(--line); color: var(--ink-3); }
@@ -247,12 +251,6 @@
   .answer-label, .answer-value { padding: 11px 12px; }
   .answer-label { color: var(--ink-2); font-size: 13px; }
   .answer-value { color: var(--ink); font-weight: 600; }
-  a.open {
-    color: var(--blue); text-decoration: none; font-size: 13px;
-    display: inline-flex; align-items: center; gap: 4px;
-  }
-  a.open:hover { text-decoration: underline; }
-
   .state { padding: 40px 16px; text-align: center; color: var(--ink-2); background: var(--surface); border-radius: 6px; }
   .state.err { color: var(--red); }
 
@@ -544,8 +542,9 @@ function rowHtml(f, i, gcolor) {
           Ask for more</button>` : ''}
         ${IS_AIRCON && f.assessment?.rooms ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
           Answers</button>` : ''}
-        ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener" title="Open this customer's uploaded photos in WorkDrive">View photos
-         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
+        ${f.link ? `<button type="button" class="btn-mini view-photos" data-view-photos="${esc(f.link)}" title="Open this customer's uploaded photos in WorkDrive">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          View photos</button>` : ''}
         <button class="btn-mini danger" data-delete="${esc(f.id)}" title="Move this folder and its photos to WorkDrive trash">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
           Delete</button>
@@ -628,6 +627,10 @@ function render() {
 
   board.querySelectorAll('[data-answers]').forEach(btn => {
     btn.onclick = () => openAnswersModal(btn.dataset.answers);
+  });
+
+  board.querySelectorAll('[data-view-photos]').forEach(btn => {
+    btn.onclick = () => window.open(btn.dataset.viewPhotos, '_blank', 'noopener');
   });
 
   board.querySelectorAll('[data-delete]').forEach(btn => {
