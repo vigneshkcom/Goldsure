@@ -336,3 +336,16 @@ test('aircon upload notification email includes customer details, every answer a
     "['vignesh@goldsure.com.au', 'david@goldsure.com.au', 'amit@goldsure.com.au']",
   ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);
 });
+
+test('all Hot Water photo notifications go only to the info mailbox', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  for (const product of ['hws-vic', 'hws-nsw']) {
+    const block = api.slice(api.indexOf(`if (product === '${product}')`), api.indexOf("\n  }", api.indexOf(`if (product === '${product}')`)));
+    assert.match(block, /notifyRecipients: \['info@goldsure\.com\.au'\]/);
+    assert.doesNotMatch(block, /vignesh@goldsure\.com\.au|david@goldsure\.com\.au/);
+  }
+
+  const genericHwsBlock = api.slice(api.indexOf("uploadPath: '/u'"), api.indexOf('\n  };', api.indexOf("uploadPath: '/u'")));
+  assert.match(genericHwsBlock, /notifyRecipients: \['info@goldsure\.com\.au'\]/);
+  assert.doesNotMatch(genericHwsBlock, /vignesh@goldsure\.com\.au|david@goldsure\.com\.au/);
+});

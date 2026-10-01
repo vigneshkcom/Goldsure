@@ -95,7 +95,7 @@ function productConfig(value) {
       pipelineIdEnv: HWS_PIPELINE_ID_ENV,
       pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
       uploadedStageNames: ['Photos Received'],
-      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+      notifyRecipients: ['info@goldsure.com.au'],
     };
   }
   if (product === 'hws-nsw') {
@@ -108,7 +108,7 @@ function productConfig(value) {
       pipelineIdEnv: NSW_HWS_PIPELINE_ID_ENV,
       pipelineNameHints: NSW_HWS_PIPELINE_NAME_HINTS,
       uploadedStageNames: ['Photos Received'],
-      notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+      notifyRecipients: ['info@goldsure.com.au'],
     };
   }
   return {
@@ -120,7 +120,7 @@ function productConfig(value) {
     pipelineIdEnv: HWS_PIPELINE_ID_ENV,
     pipelineNameHints: HWS_PIPELINE_NAME_HINTS,
     uploadedStageNames: ['Photos Received'],
-    notifyRecipients: ['vignesh@goldsure.com.au', 'david@goldsure.com.au'],
+    notifyRecipients: ['info@goldsure.com.au'],
   };
 }
 
