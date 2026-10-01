@@ -135,8 +135,13 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 
 /* ── Board table ── */
 .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
-.table-header-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.table-header-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .table-title { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); }
+.duplicate-btn { font-family: inherit; font-size: 13px; height: 32px; padding: 0 12px; border: 1px solid var(--border2); border-radius: 4px; background: #fff; color: var(--text); cursor: pointer; }
+.duplicate-btn:hover { border-color: var(--blue); color: var(--blue); }
+.duplicate-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+#duplicatesBtn { margin-left: auto; }
+.duplicate-copy-badge { display: inline-flex; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: #fff3d6; color: #8a5b00; font-size: 10px; font-weight: 650; vertical-align: middle; }
 .del-btn {
   font-family: inherit; font-size: 13px; font-weight: 400; padding: 0 12px; height: 32px;
   border-radius: 4px; border: 1px solid var(--red); background: #fff; color: var(--red);
@@ -144,6 +149,7 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 }
 .del-btn:hover:not(:disabled) { background: var(--red); color: #fff; }
 .del-btn:disabled { opacity: .4; cursor: not-allowed; }
+.del-btn { margin-left: 0; }
 .row-check, #selectAll { width: 16px; height: 16px; cursor: pointer; vertical-align: middle; accent-color: var(--blue); }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 1440px; }
@@ -327,6 +333,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 </style>
   <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
   <script src="/assets/internal-systems-sidebar.js" defer></script>
+  <script type="module" src="/assets/quote-duplicates.mjs"></script>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon-smoke.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
@@ -385,7 +392,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
   </div>
 
   <div class="table-wrap">
-    <div class="table-header-bar"><span class="table-title">Sent Quotes</span><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
+    <div class="table-header-bar"><span class="table-title">Sent Quotes</span><button id="duplicatesBtn" class="duplicate-btn" onclick="toggleDuplicateFilter()">Duplicate quotes</button><button id="selectDuplicatesBtn" class="duplicate-btn" onclick="selectDuplicateCopies()" hidden>Select copies to delete</button><button id="deleteBtn" class="del-btn" onclick="deleteSelected()" disabled>Delete Selected</button></div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -422,6 +429,8 @@ const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
 
 let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
+let duplicateOnly = false;
+let duplicateAnalysis = { groupIds:new Set(), deleteIds:new Set(), roles:new Map(), groupCount:0 };
 let ghlOppData = {};  // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
 let ghlStages  = [];  // [{ id, name, position }] for Smoke Alarms pipeline
 let ghlStagesLoaded = false;
@@ -581,6 +590,8 @@ async function updateGhlStage(e, quoteId, email, stageId, stageName) {
 }
 
 function applyFilters() {
+  duplicateAnalysis = window.QuoteDuplicates.analyseDuplicates(allQuotes);
+  updateDuplicateControls();
   const search  = document.getElementById('searchInput').value.toLowerCase();
   const service = document.getElementById('filterService').value.toLowerCase();
   const lead    = document.getElementById('filterLeadType').value.toLowerCase();
@@ -589,6 +600,7 @@ function applyFilters() {
   const period  = document.getElementById('filterPeriod').value;
   const now     = new Date();
   filtered = allQuotes.filter(q => {
+    if (duplicateOnly && !duplicateAnalysis.groupIds.has(String(q.id))) return false;
     const sentAt = new Date(q.sent_at);
     if (search) { const hay = `${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); if (!hay.includes(search)) return false; }
     if (service && !(q.service_type||'').toLowerCase().includes(service)) return false;
@@ -649,8 +661,34 @@ function sortBy(col) {
 }
 
 function clearFilters() {
+  duplicateOnly = false;
   ['searchInput','filterService','filterLeadType','filterAgent','filterStatus','filterPeriod'].forEach(id => { document.getElementById(id).value = ''; });
   applyFilters();
+}
+
+function updateDuplicateControls() {
+  const button = document.getElementById('duplicatesBtn');
+  const select = document.getElementById('selectDuplicatesBtn');
+  if (button) {
+    button.classList.toggle('active', duplicateOnly);
+    button.textContent = duplicateOnly ? `Showing duplicates (${duplicateAnalysis.groupIds.size})` : `Duplicate quotes (${duplicateAnalysis.groupIds.size})`;
+  }
+  if (select) select.hidden = !duplicateOnly || duplicateAnalysis.deleteIds.size === 0;
+}
+function toggleDuplicateFilter() {
+  duplicateOnly = !duplicateOnly;
+  applyFilters();
+  if (duplicateOnly && !duplicateAnalysis.groupIds.size) showToast('No duplicate quotes found.');
+}
+function selectDuplicateCopies() {
+  document.querySelectorAll('.row-check').forEach(box => { box.checked = duplicateAnalysis.deleteIds.has(String(box.value)); });
+  updateDeleteBtn();
+  const count = getSelectedIds().length;
+  showToast(count ? `Selected ${count} duplicate ${count === 1 ? 'copy' : 'copies'} to delete.` : 'No safe duplicate copies to select.');
+}
+function renderDuplicateBadge(q) {
+  const role = duplicateOnly ? duplicateAnalysis.roles.get(String(q.id)) : '';
+  return role ? `<span class="duplicate-copy-badge">${esc(role)}</span>` : '';
 }
 
 function populateAgentFilter() {
@@ -727,7 +765,7 @@ function renderTable() {
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
-      <td><div class="td-name">${esc(q.customer_name||'—')}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td><div class="td-name">${esc(q.customer_name||'—')}${renderDuplicateBadge(q)}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
       <td><span class="lead-badge ${leadClass}">${leadLabel}</span></td>
       <td>${agentChip(q.agent_name)}</td>
       <td class="td-mono">${q.alarm_qty||0}</td>
