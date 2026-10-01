@@ -270,8 +270,8 @@
         <option value="">All agents</option>
       </select>
       <select id="dayFilter" onchange="onDay()">
-        <option value="today">Today · Tue 4 Aug</option>
-        <option value="yday">Yesterday · Mon 3 Aug</option>
+        <option value="today">Today</option>
+        <option value="yday">Yesterday</option>
       </select>
     </div>
   </div>
@@ -369,7 +369,13 @@ function iconSvg(name){
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.phone}</svg>`;
 }
-let NOW_HOUR = (function(){ try{ return Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Australia/Melbourne',hour:'2-digit',hour12:false}).format(new Date())); }catch(e){ return new Date().getHours(); } })();
+const MEL_TZ='Australia/Melbourne';
+function melNowHour(){ try{ return Number(new Intl.DateTimeFormat('en-GB',{timeZone:MEL_TZ,hour:'2-digit',hour12:false}).format(new Date()))%24; }catch(e){ return new Date().getHours(); } }
+// Melbourne calendar date (YYYY-MM-DD) for today (offset 0) or yesterday (offset -1)
+function melYmd(offset){ const t=new Intl.DateTimeFormat('en-CA',{timeZone:MEL_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); if(!offset) return t; const d=new Date(t+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+offset); return d.toISOString().slice(0,10); }
+function melDayLabel(ymd){ return new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'}).format(new Date(ymd+'T00:00:00Z')).replace(/,/g,''); }
+let NOW_HOUR = melNowHour();
+let dayKey = melYmd(0);
 
 // Demo dataset: per agent, per hour -> {made, conn} ; noAnswer = made-conn ; duration derived
 function mk(made, conn){ return {made, conn}; }
@@ -417,6 +423,7 @@ function allAgents(){ return Object.keys(activeData()); }
 function setLiveBadge(live){ const b=document.getElementById('demoBadge'); if(b) b.style.display=live?'none':''; }
 function populateAgents(){ const sel=document.getElementById('agentFilter'); if(!sel) return; const cur=sel.value; const names=Object.keys(activeData()); sel.innerHTML='<option value="">All agents</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join(''); if(names.includes(cur)) sel.value=cur; }
 async function loadLive(day){
+  let ok=false;
   try{
     const r=await fetch('/api/ringcentral/timeline?date='+(day==='yday'?'yday':'today'),{cache:'no-store'});
     const j=await r.json().catch(()=>({}));
@@ -431,10 +438,11 @@ async function loadLive(day){
           mIn[a.name][h]={made:+ci.made||0,conn:+ci.conn||0,dur:+ci.dur||0};
         });
       });
-      LIVE[day]=m; LIVE_IN[day]=mIn; setLiveBadge(true);
+      LIVE[day]=m; LIVE_IN[day]=mIn; setLiveBadge(true); ok=true;
     } else { setLiveBadge(false); }
   }catch(e){ setLiveBadge(false); }
   populateAgents(); render();
+  return ok;
 }
 function onDay(){ const d=curDay(); if(LIVE[d]===null){ loadLive(d); } else { populateAgents(); render(); } loadMissed(d); }
 
@@ -567,17 +575,38 @@ async function loadMissed(day){
   }catch(e){ list.innerHTML='<div class="miss-empty">Couldn’t load missed calls.</div>'; if(cnt){cnt.textContent='—';cnt.className='miss-head-count';} }
 }
 
-// "updated Xs ago" timestamp (resets whenever fresh data loads)
-let secs=0;
-setInterval(()=>{ secs+=5; const el=document.getElementById('updated'); if(el) el.textContent = secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago'); },5000);
+// "updated Xs ago" timestamp (resets only when fresh data actually loads)
+let secs=0, lastOk=true;
+function showUpdated(){ const el=document.getElementById('updated'); if(!el) return; el.textContent = !lastOk ? 'update failed · retrying' : (secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago')); }
+setInterval(()=>{ secs+=5; showUpdated(); },5000);
+
+// Day labels + "now" column follow the real Melbourne clock. If the page is left
+// open past midnight, drop the previous day's cache so Today/Yesterday reload.
+function syncClock(){
+  const key=melYmd(0), rolled = key!==dayKey;
+  NOW_HOUR = melNowHour();
+  const t=document.querySelector('#dayFilter option[value="today"]'), y=document.querySelector('#dayFilter option[value="yday"]');
+  if(t) t.textContent='Today · '+melDayLabel(key);
+  if(y) y.textContent='Yesterday · '+melDayLabel(melYmd(-1));
+  if(rolled){ dayKey=key; LIVE.today=null; LIVE.yday=null; LIVE_IN.today=null; LIVE_IN.yday=null; }
+  return rolled;
+}
+function refreshAll(){
+  syncClock();
+  const d=curDay();
+  loadLive(d).then(ok=>{ lastOk=ok; if(ok) secs=0; showUpdated(); });
+  loadMissed(d);
+}
 
 // Boot: render demo instantly, then pull live data (falls back to demo on any error)
+syncClock();
 populateAgents();
 render();
-loadLive('today').then(()=>{ secs=0; });
-loadMissed('today');
+refreshAll();
 // Auto-refresh the current day's live data every 3 minutes
-setInterval(()=>{ loadLive(curDay()).then(()=>{ secs=0; }); loadMissed(curDay()); }, 180000);
+setInterval(refreshAll, 180000);
+// Background tabs throttle timers, so refresh as soon as the tab is visible again
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && secs>=60) refreshAll(); });
 </script>
 </body>
 </html>
