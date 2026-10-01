@@ -4,15 +4,20 @@ import { readFile } from 'node:fs/promises';
 
 import acceptHandler from '../api/smoke-alarms/accept.js';
 
-test('smoke alarm acceptance page requires and saves the customer property address', async () => {
+test('smoke alarm acceptance page uses Google autocomplete and saves the customer property address', async () => {
   const source = await readFile(new URL('../accept-quote.html', import.meta.url), 'utf8');
 
   assert.match(source, /id="propertyAddress"[\s\S]*?required/);
-  assert.match(source, /id="propertySuburb"[\s\S]*?required/);
-  assert.match(source, /id="propertyPostcode"[\s\S]*?required/);
+  assert.match(source, /id="propertyStreet"[\s\S]*?type="hidden"/);
+  assert.match(source, /id="propertySuburb"[\s\S]*?type="hidden"/);
+  assert.match(source, /id="propertyPostcode"[\s\S]*?type="hidden"/);
+  assert.match(source, /fetch\('\/api\/smoke-alarms\/google-key'\)/);
+  assert.match(source, /libraries=places&callback=initPropertyAddressAutocomplete/);
+  assert.match(source, /componentRestrictions:\s*\{ country: 'au' \}/);
+  assert.match(source, /state !== 'QLD'/);
   assert.match(source, /customer_address:\s*propertyAddress/);
   assert.match(source, /property_street:\s*propertyStreet/);
-  assert.match(source, /property_state:\s*'QLD'/);
+  assert.match(source, /property_state:\s*propertyState/);
   assert.match(source, /\['Property Address',\s*row\.customer_address/);
 
   const scripts = [...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];

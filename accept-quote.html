@@ -79,11 +79,10 @@ main {
   font: 14px 'Sora', sans-serif; color: var(--text); background: #fff; outline: none;
 }
 .address-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(176,141,46,0.12); }
-.address-grid { display: grid; grid-template-columns: minmax(0, 1fr) 110px 80px; gap: 12px; margin-top: 14px; }
-.field-group { min-width: 0; }
-.state-pill { display: flex; align-items: center; height: 47px; padding: 0 15px; border: 1px solid var(--border); border-radius: 10px; background: #f7f8fa; font-size: 14px; font-weight: 700; color: var(--text); }
 .field-help { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.field-help.is-confirmed { color: var(--green); font-weight: 600; }
 .field-error { min-height: 18px; font-size: 11px; color: var(--red); margin-top: 7px; }
+.pac-container { z-index: 9999 !important; font-family: 'Sora', sans-serif; }
 .accept-button {
   width: 100%; border: 0; border-radius: 10px; background: var(--gold); color: #111;
   padding: 14px 18px; margin-top: 12px; font: 700 12px 'Sora', sans-serif;
@@ -164,7 +163,6 @@ footer a { color: var(--gold); text-decoration: none; }
 @media (max-width: 600px) {
   .card { padding: 32px 22px; }
   .contact-strip { flex-direction: column; gap: 12px; }
-  .address-grid { grid-template-columns: 1fr; }
 }
 </style>
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -193,29 +191,17 @@ footer a { color: var(--gold); text-decoration: none; }
     <!-- ADDRESS CONFIRMATION -->
     <div class="state-confirm" id="stateConfirm">
       <h2>Confirm your property address</h2>
-      <p class="subtitle">Please enter the address where the smoke alarm service will be completed, then confirm your quote acceptance.</p>
+      <p class="subtitle">Enter the address where the smoke alarm service will be completed, then confirm your quote acceptance.</p>
       <form id="acceptanceForm" novalidate>
-        <label class="field-label" for="propertyAddress">Street address <span>*</span></label>
+        <label class="field-label" for="propertyAddress">Property address <span>*</span></label>
         <input class="address-input" id="propertyAddress" name="propertyAddress" type="text"
-               autocomplete="address-line1" maxlength="140" required
-               placeholder="e.g. Unit 3/12 Example Street">
-        <div class="address-grid">
-          <div class="field-group">
-            <label class="field-label" for="propertySuburb">Suburb <span>*</span></label>
-            <input class="address-input" id="propertySuburb" name="propertySuburb" type="text"
-                   autocomplete="address-level2" maxlength="100" required placeholder="e.g. Brisbane">
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="propertyPostcode">Postcode <span>*</span></label>
-            <input class="address-input" id="propertyPostcode" name="propertyPostcode" type="text"
-                   autocomplete="postal-code" inputmode="numeric" maxlength="4" required placeholder="4000">
-          </div>
-          <div class="field-group">
-            <span class="field-label">State</span>
-            <div class="state-pill">QLD</div>
-          </div>
-        </div>
-        <p class="field-help">Smoke alarm services are available for Queensland properties.</p>
+               autocomplete="street-address" maxlength="220" required
+               placeholder="Start typing your property address">
+        <input id="propertyStreet" name="propertyStreet" type="hidden">
+        <input id="propertySuburb" name="propertySuburb" type="hidden">
+        <input id="propertyPostcode" name="propertyPostcode" type="hidden">
+        <input id="propertyState" name="propertyState" type="hidden" value="QLD">
+        <p class="field-help" id="addressHelp">Start typing and select your Queensland address from Google.</p>
         <p class="field-error" id="addressError" role="alert"></p>
         <button class="accept-button" id="acceptButton" type="submit">Accept quote</button>
       </form>
@@ -380,6 +366,7 @@ function buildQuoteInfo(row, acceptedAt) {
 
 let currentQuoteRow = null;
 let currentQuoteToken = '';
+let addressConfirmed = false;
 
 function normaliseAddress(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
@@ -393,6 +380,100 @@ function parseStoredAddress(value) {
 
 function showAddressError(message) {
   document.getElementById('addressError').innerText = message || '';
+}
+
+function setAddressHelp(message, confirmed = false) {
+  const help = document.getElementById('addressHelp');
+  help.innerText = message;
+  help.classList.toggle('is-confirmed', confirmed);
+}
+
+function clearAddressParts() {
+  addressConfirmed = false;
+  document.getElementById('propertyStreet').value = '';
+  document.getElementById('propertySuburb').value = '';
+  document.getElementById('propertyPostcode').value = '';
+  document.getElementById('propertyState').value = 'QLD';
+}
+
+function getAddressComponent(components, type, useShortName = false) {
+  const component = (components || []).find(item => item.types && item.types.includes(type));
+  return component ? normaliseAddress(useShortName ? component.short_name : component.long_name) : '';
+}
+
+function applyAddressParts({ street, suburb, state, postcode }) {
+  document.getElementById('propertyStreet').value = street;
+  document.getElementById('propertySuburb').value = suburb;
+  document.getElementById('propertyPostcode').value = postcode;
+  document.getElementById('propertyState').value = state;
+  addressConfirmed = true;
+  showAddressError('');
+  setAddressHelp('Queensland address selected.', true);
+}
+
+window.initPropertyAddressAutocomplete = function initPropertyAddressAutocomplete() {
+  const input = document.getElementById('propertyAddress');
+  if (!input || !window.google?.maps?.places) return;
+
+  const autocomplete = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'au' },
+    fields: ['formatted_address', 'address_components'],
+    types: ['address'],
+  });
+
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    const components = place.address_components || [];
+    const unit = getAddressComponent(components, 'subpremise');
+    const streetNumber = getAddressComponent(components, 'street_number');
+    const route = getAddressComponent(components, 'route');
+    const suburb = getAddressComponent(components, 'locality')
+      || getAddressComponent(components, 'postal_town')
+      || getAddressComponent(components, 'sublocality_level_1');
+    const state = getAddressComponent(components, 'administrative_area_level_1', true).toUpperCase();
+    const postcode = getAddressComponent(components, 'postal_code');
+    const street = normaliseAddress(`${unit ? `${unit}/` : ''}${streetNumber} ${route}`);
+
+    clearAddressParts();
+    if (state !== 'QLD') {
+      showAddressError('Please select a Queensland property address.');
+      setAddressHelp('Smoke alarm services are available for Queensland properties.');
+      input.focus();
+      return;
+    }
+    if (!street || !suburb || !/^\d{4}$/.test(postcode)) {
+      showAddressError('Please choose a complete property address from the Google suggestions.');
+      input.focus();
+      return;
+    }
+
+    input.value = place.formatted_address || `${street}, ${suburb} QLD ${postcode}`;
+    applyAddressParts({ street, suburb, state, postcode });
+  });
+};
+
+async function loadGoogleAddressAutocomplete() {
+  if (window.google?.maps?.places) {
+    window.initPropertyAddressAutocomplete();
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/smoke-alarms/google-key');
+    if (!response.ok) throw new Error(`Google key request failed: ${response.status}`);
+    const { key } = await response.json();
+    if (!key) throw new Error('Google Maps key is unavailable');
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=initPropertyAddressAutocomplete`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => setAddressHelp('Enter the full Queensland address, including suburb and postcode.');
+    document.head.appendChild(script);
+  } catch (error) {
+    console.error('[accept-quote] Google address autocomplete error:', error);
+    setAddressHelp('Enter the full Queensland address, including suburb and postcode.');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -453,9 +534,10 @@ async function processAcceptance() {
     currentQuoteRow = row;
     currentQuoteToken = token;
     const storedAddress = parseStoredAddress(row.customer_address);
-    document.getElementById('propertyAddress').value = storedAddress?.street || row.customer_address || '';
-    document.getElementById('propertySuburb').value = storedAddress?.suburb || '';
-    document.getElementById('propertyPostcode').value = storedAddress?.postcode || '';
+    document.getElementById('propertyAddress').value = row.customer_address || '';
+    if (storedAddress) {
+      applyAddressParts({ ...storedAddress, state: 'QLD' });
+    }
     showState('stateConfirm');
 
   } catch (err) {
@@ -470,11 +552,14 @@ async function submitAcceptance(event) {
   event.preventDefault();
   if (!currentQuoteRow || !currentQuoteToken) return;
 
-  const propertyStreet = normaliseAddress(document.getElementById('propertyAddress').value);
-  const propertySuburb = normaliseAddress(document.getElementById('propertySuburb').value);
-  const propertyPostcode = normaliseAddress(document.getElementById('propertyPostcode').value);
-  if (propertyStreet.length < 3 || propertySuburb.length < 2 || !/^\d{4}$/.test(propertyPostcode)) {
-    showAddressError('Please enter the street address, suburb and four-digit postcode.');
+  const enteredAddress = normaliseAddress(document.getElementById('propertyAddress').value);
+  const manuallyParsed = parseStoredAddress(enteredAddress);
+  const propertyStreet = normaliseAddress(document.getElementById('propertyStreet').value || manuallyParsed?.street);
+  const propertySuburb = normaliseAddress(document.getElementById('propertySuburb').value || manuallyParsed?.suburb);
+  const propertyPostcode = normaliseAddress(document.getElementById('propertyPostcode').value || manuallyParsed?.postcode);
+  const propertyState = normaliseAddress(document.getElementById('propertyState').value).toUpperCase();
+  if ((!addressConfirmed && !manuallyParsed) || propertyStreet.length < 3 || propertySuburb.length < 2 || propertyState !== 'QLD' || !/^\d{4}$/.test(propertyPostcode)) {
+    showAddressError('Start typing your address and choose the full Queensland address from Google.');
     document.getElementById('propertyAddress').focus();
     return;
   }
@@ -533,7 +618,7 @@ async function submitAcceptance(event) {
           customer_address: propertyAddress,
           property_street:  propertyStreet,
           property_suburb:  propertySuburb,
-          property_state:   'QLD',
+          property_state:   propertyState,
           property_postcode: propertyPostcode,
           agent_name:       updatedRow.agent_name       || row.agent_name       || '',
           service_type:     updatedRow.service_type     || row.service_type     || '',
@@ -565,6 +650,13 @@ async function submitAcceptance(event) {
 
 // Run on load
 document.getElementById('acceptanceForm').addEventListener('submit', submitAcceptance);
+document.getElementById('propertyAddress').addEventListener('input', () => {
+  if (!addressConfirmed) return;
+  clearAddressParts();
+  showAddressError('');
+  setAddressHelp('Start typing and select your Queensland address from Google.');
+});
+loadGoogleAddressAutocomplete();
 processAcceptance();
 </script>
 
