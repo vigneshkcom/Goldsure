@@ -131,7 +131,7 @@ function setCorsHeaders(req, res) {
     res.setHeader('Access-Control-Allow-Origin', PROMO_ORIGIN);
     res.setHeader('Vary', 'Origin');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -340,9 +340,92 @@ const phoneFromDescription = d => {
   return m ? m[1].trim() : '';
 };
 
+const phoneFromFolderName = value => {
+  const matches = [...String(value || '').matchAll(/\((\+?[\d\s-]{6,})\)/g)];
+  return matches.length ? matches.at(-1)[1].trim() : '';
+};
+
+const descriptionValue = (description, key) => {
+  const match = new RegExp(`(?:^|\\n)${key}:([^\\n]+)`, 'i').exec(String(description || ''));
+  return match ? match[1].trim() : '';
+};
+
 export const customerNameFromFolder = value => String(value || '')
   .replace(/\s*\((?:\+?[\d\s-]{6,})\)\s*$/, '')
   .trim();
+
+export function photoRequestFromFolder(file, config, baseUrl) {
+  const a = file?.attributes || {};
+  const description = String(a.description || '');
+  const assessment = assessmentFromDescription(description);
+  const phone = phoneFromDescription(description) || phoneFromFolderName(a.name);
+  const rawPhotoCount = a.storage_info?.files_count ?? null;
+  const actualPhotoCount = rawPhotoCount == null
+    ? null
+    : Math.max(0, Number(rawPhotoCount) - (config.product === 'aircon' ? 1 : 0));
+  const requiredPhotoCount = config.product === 'aircon'
+    ? 2 + Math.max(1, Math.min(7, Number(assessment.rooms) || 1))
+    : 4;
+  const viewedAt = descriptionValue(description, 'link_viewed_at') || null;
+  const status = actualPhotoCount == null ? 'unknown'
+    : actualPhotoCount >= requiredPhotoCount ? 'received'
+      : actualPhotoCount > 0 ? 'partial'
+        : viewedAt ? 'viewed' : 'awaiting';
+  const statusLabel = {
+    awaiting: 'Awaiting photos',
+    viewed: 'Link viewed',
+    partial: 'Photos partly received',
+    received: 'Photos received',
+    unknown: 'Photo status unknown',
+  }[status];
+  const firstName = customerNameFromFolder(a.name).split(/\s+/)[0] || '';
+  const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
+  const phoneParam = phone ? `&p=${encodeURIComponent(phone)}` : '';
+  return {
+    id: file.id,
+    product: config.product,
+    productLabel: config.label,
+    name: a.name || '',
+    customerName: customerNameFromFolder(a.name),
+    phone,
+    assessment,
+    photoCount: rawPhotoCount,
+    actualPhotoCount,
+    requiredPhotoCount,
+    status,
+    statusLabel,
+    viewedAt,
+    createdAt: a.created_time_in_millisecond || null,
+    modifiedAt: a.modified_time_in_millisecond || null,
+    link: a.permalink || null,
+    uploadPageUrl: `${baseUrl}${config.uploadPath}?f=${encodeURIComponent(file.id)}${nameParam}${phoneParam}`,
+  };
+}
+
+async function recordPhotoLinkView(accessToken, folderId, parentId) {
+  const directChildren = await listChildren(accessToken, parentId);
+  if (!directChildren.some(item => String(item?.id || '') === String(folderId))) {
+    return { recorded: false, reason: 'folder-not-in-product' };
+  }
+  const details = await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, Accept: 'application/vnd.api+json' },
+  });
+  if (!details.ok) return { recorded: false, reason: 'folder-not-found' };
+  const data = await details.json();
+  const description = String(data?.data?.attributes?.description || '').trim();
+  const existing = descriptionValue(description, 'link_viewed_at');
+  if (existing) return { recorded: false, reason: 'already-recorded', viewedAt: existing };
+
+  const viewedAt = new Date().toISOString();
+  const nextDescription = [description, `link_viewed_at:${viewedAt}`].filter(Boolean).join('\n');
+  const update = await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: { attributes: { description: nextDescription }, type: 'files' } }),
+  });
+  if (!update.ok) return { recorded: false, reason: 'view-update-failed' };
+  return { recorded: true, viewedAt };
+}
 
 const assessmentFromDescription = d => {
   const text = String(d || '');
@@ -644,27 +727,38 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query.action === 'list') {
     try {
       const accessToken = await getAccessToken();
+      const baseUrl = process.env.SITE_URL || 'https://portal.goldsure.com.au';
       const children = await listChildren(accessToken, parentId);
       const folders = children
         .filter(f => f?.attributes?.is_folder !== false)
-        .map(f => {
-          const a = f.attributes || {};
-          return {
-            id: f.id,
-            name: a.name || '',
-            phone: phoneFromDescription(a.description),
-            assessment: assessmentFromDescription(a.description),
-            photoCount: a.storage_info?.files_count ?? null,
-            createdAt: a.created_time_in_millisecond || null,
-            modifiedAt: a.modified_time_in_millisecond || null,
-            link: a.permalink || null,
-          };
-        })
+        .map(f => photoRequestFromFolder(f, config, baseUrl))
         .sort((x, y) => (y.modifiedAt || 0) - (x.modifiedAt || 0));
       return res.status(200).json({ folders });
     } catch (err) {
       console.error('Zoho list failed:', err.message);
       return res.status(502).json({ error: 'Zoho list failed', detail: err.message });
+    }
+  }
+
+  // The customer upload page records its first real opening. Staff previews
+  // add source=tracker and never call this route, so they cannot create a false
+  // "Link viewed" status.
+  if (req.method === 'PATCH' && req.body?.action === 'record-view') {
+    const folderId = String(req.body?.folderId || '').trim();
+    if (!folderId) return res.status(400).json({ error: 'folderId is required' });
+    try {
+      const accessToken = await getAccessToken();
+      const result = await recordPhotoLinkView(accessToken, folderId, parentId);
+      if (result.reason === 'folder-not-in-product' || result.reason === 'folder-not-found') {
+        return res.status(404).json({ error: 'Photo request not found.' });
+      }
+      if (result.reason === 'view-update-failed') {
+        return res.status(502).json({ error: 'Could not record the photo link view.' });
+      }
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.error('[Zoho] record photo link view failed:', err.message);
+      return res.status(502).json({ error: 'Could not record the photo link view.' });
     }
   }
 

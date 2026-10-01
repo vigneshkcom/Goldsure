@@ -453,7 +453,8 @@ const avatarColor = name => AVATAR_COLORS[
 function statusOf(f) {
   const n = photoCountOf(f);
   if (n === null || n === undefined) return { cls: 'unknown', text: 'Unknown' };
-  if (n === 0) return { cls: 'none', text: 'Waiting on photos' };
+  if (n === 0 && f.viewedAt) return { cls: 'part', text: 'Link viewed' };
+  if (n === 0) return { cls: 'none', text: 'Awaiting photos' };
   if (n < slotCountFor(f)) return { cls: 'part', text: 'Partly received' };
   return { cls: 'done', text: 'Photos received' };
 }
@@ -542,6 +543,8 @@ function rowHtml(f, i, gcolor) {
           Ask for more</button>` : ''}
         ${IS_AIRCON && f.assessment?.rooms ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
           Answers</button>` : ''}
+        <a class="open" href="${esc(uploadLinkFor(f, '', true))}" target="_blank" rel="noopener" title="Open the customer's photo upload page without changing its viewed status">Photo link
+         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
         ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
         <button class="btn-mini danger" data-delete="${esc(f.id)}" title="Move this folder and its photos to WorkDrive trash">
@@ -592,12 +595,14 @@ function render() {
 
   const completed = list.filter(isCompletedFolder);
   const active = list.filter(f => !isCompletedFolder(f));
-  const waiting = active.filter(f => (photoCountOf(f) || 0) === 0);
+  const waiting = active.filter(f => (photoCountOf(f) || 0) === 0 && !f.viewedAt);
+  const viewed  = active.filter(f => (photoCountOf(f) || 0) === 0 && Boolean(f.viewedAt));
   const partial = active.filter(f => (photoCountOf(f) || 0) > 0 && photoCountOf(f) < slotCountFor(f));
   const done    = active.filter(f => (photoCountOf(f) || 0) >= slotCountFor(f));
 
   board.innerHTML =
-      groupHtml('waiting', 'Waiting on photos', 'var(--red)', waiting)
+      groupHtml('waiting', 'Awaiting photos',   'var(--red)', waiting)
+    + groupHtml('viewed',  'Link viewed',       'var(--blue)', viewed)
     + groupHtml('partial', 'Partly received',   'var(--orange)', partial)
     + groupHtml('done',    'Photos received',   'var(--green)', done)
     + groupHtml('completed', 'Completed',       'var(--blue)', completed);
@@ -726,13 +731,20 @@ const phoneFor = f => (ghl[ghlKey(f)] || {}).phone || f.phone || '';
 // what's already in it, so a customer following a re-sent link isn't asked
 // for the photos they've sent before. `more=1` only sets the wording up
 // front, before that read has come back.
-function uploadLinkFor(f, mode) {
+function uploadLinkFor(f, mode, staffPreview = false) {
   const first = String(f.name || '').replace(/\(.*?\)/g, '').trim().split(/\s+/)[0] || '';
   const n = first ? `&n=${encodeURIComponent(first)}` : '';
   const ph = phoneFor(f);
   const p = ph ? `&p=${encodeURIComponent(ph)}` : '';
   const more = mode === 'more' ? '&more=1' : '';
-  return `${location.origin}${UPLOAD_PATH}?f=${encodeURIComponent(f.id)}${n}${p}${more}`;
+  const source = staffPreview ? '&source=tracker' : '';
+  const stored = f.uploadPageUrl ? new URL(f.uploadPageUrl, location.origin) : null;
+  if (stored) {
+    if (mode === 'more') stored.searchParams.set('more', '1');
+    if (staffPreview) stored.searchParams.set('source', 'tracker');
+    return stored.toString();
+  }
+  return `${location.origin}${UPLOAD_PATH}?f=${encodeURIComponent(f.id)}${n}${p}${more}${source}`;
 }
 
 function reminderText(f, mode) {

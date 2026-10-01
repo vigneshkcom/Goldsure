@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { customerNameFromFolder, inferLegacyHwsProduct } from '../api/zoho/create-photo-request.js';
+import { customerNameFromFolder, inferLegacyHwsProduct, photoRequestFromFolder } from '../api/zoho/create-photo-request.js';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -25,9 +25,63 @@ test('photo notifications recover the full customer name from the WorkDrive fold
 });
 
 test('customer upload and SMS scripts compile', async () => {
-  for (const path of ['hotwater/upload-photos.html', 'hotwater/photo-tracker.html', 'sms/index.html']) {
+  for (const path of [
+    'hotwater/upload-photos.html',
+    'hotwater/photo-tracker.html',
+    'hotwater/quote-tracker.html',
+    'hotwater-nsw/quote-tracker.html',
+    'aircons/quote-tracker.html',
+    'sms/index.html',
+  ]) {
     const html = await read(path);
     for (const source of inlineScripts(html)) assert.doesNotThrow(() => new Function(source), path);
+  }
+});
+
+test('photo requests report awaiting, viewed, partial and received statuses', () => {
+  const config = { product: 'hws-vic', label: 'VIC Hot Water', uploadPath: '/vic-hws-photos' };
+  const folder = (filesCount, description = 'phone:0412345678') => ({
+    id: 'folder-1',
+    attributes: {
+      name: 'Jane Smith (0412345678)',
+      description,
+      storage_info: { files_count: filesCount },
+      created_time_in_millisecond: 1,
+      modified_time_in_millisecond: 2,
+    },
+  });
+  assert.equal(photoRequestFromFolder(folder(0), config, 'https://portal.goldsure.com.au').status, 'awaiting');
+  assert.equal(photoRequestFromFolder(folder(0, 'phone:0412345678\nlink_viewed_at:2026-10-01T00:00:00.000Z'), config, 'https://portal.goldsure.com.au').status, 'viewed');
+  assert.equal(photoRequestFromFolder(folder(2), config, 'https://portal.goldsure.com.au').status, 'partial');
+  assert.equal(photoRequestFromFolder(folder(4), config, 'https://portal.goldsure.com.au').status, 'received');
+});
+
+test('staff can view customer photo links without falsely recording a customer view', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  const upload = await read('hotwater/upload-photos.html');
+  const tracker = await read('hotwater/photo-tracker.html');
+  const sms = await read('sms/index.html');
+  for (const source of [tracker, sms]) assert.match(source, /source["']?,?["']?tracker|searchParams\.set\('source',\s*'tracker'\)/);
+  assert.match(upload, /const isStaffPreview = params\.get\('source'\) === 'tracker'/);
+  assert.match(upload, /if \(!folderId \|\| isStaffPreview\) return/);
+  assert.match(api, /req\.method === 'PATCH' && req\.body\?\.action === 'record-view'/);
+  assert.match(api, /link_viewed_at:/);
+});
+
+test('SMS and quote trackers show the matching photo request status and link', async () => {
+  const sms = await read('sms/index.html');
+  assert.match(sms, /Quotes &amp; photos/);
+  assert.match(sms, /Photo link/);
+  assert.match(sms, /\['aircon', 'hws-vic', 'hws-nsw'\]/);
+  for (const [path, product] of [
+    ['hotwater/quote-tracker.html', 'hws-vic'],
+    ['hotwater-nsw/quote-tracker.html', 'hws-nsw'],
+    ['aircons/quote-tracker.html', 'aircon'],
+  ]) {
+    const tracker = await read(path);
+    assert.match(tracker, new RegExp(`loadPhotoRequests\\('${product}'\\)`));
+    assert.match(tracker, /renderPhotoRequest\(q\)/);
+    assert.match(tracker, /Photo link ↗/);
   }
 });
 

@@ -320,6 +320,8 @@
     .q-status.st-installed { --c: #0f6b41; --bg: #d6f1e3; }
     .q-status.st-rejected { --c: #b42318; --bg: #fdeaea; }
     .q-status.st-expired { --c: #6b6976; --bg: #eeedf2; }
+    .photo-card-status { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 8px; background: #fff3d6; color: #8a5b00; font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+    .photo-card-status.received { background: #e6f7ee; color: #1a8f4f; }
     #chatChips { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
     .header-actions { display: flex; gap: 8px; }
     .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -1473,15 +1475,48 @@
   // Looked up by phone number, shown under the chat header with a link to the
   // customer-facing quote and a status dropdown (same statuses as the trackers).
   let quotesByPhone = {};
+  let photoRequestsByPhone = {};
+  const photoPhoneKey = value => {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length >= 9 ? digits.slice(-9) : '';
+  };
+  const staffPhotoUrl = value => {
+    if (!value) return '';
+    const url = new URL(value, location.origin);
+    url.searchParams.set('source', 'tracker');
+    return url.toString();
+  };
+  async function loadContactPhotoRequests(phone) {
+    const key = photoPhoneKey(phone);
+    if (!key) { photoRequestsByPhone[phone] = []; return; }
+    const products = ['aircon', 'hws-vic', 'hws-nsw'];
+    const results = await Promise.allSettled(products.map(async product => {
+      const res = await fetch(`/api/zoho/create-photo-request?action=list&product=${encodeURIComponent(product)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.folders || []).filter(request => photoPhoneKey(request.phone) === key);
+    }));
+    const byId = new Map();
+    results.forEach(result => {
+      if (result.status !== 'fulfilled') return;
+      result.value.forEach(request => {
+        const previous = byId.get(request.id);
+        if (!previous || Number(request.modifiedAt || 0) > Number(previous.modifiedAt || 0)) byId.set(request.id, request);
+      });
+    });
+    photoRequestsByPhone[phone] = [...byId.values()].sort((a, b) => Number(b.modifiedAt || 0) - Number(a.modifiedAt || 0));
+  }
   async function loadContactQuotes(phone) {
     const el = document.getElementById('chatQuotes');
     if (el && phone === activePhone) el.innerHTML = '';
-    try {
+    const quoteRequest = (async () => {
       const res = await fetch(`${API}?action=contact-quotes&phone=${encodeURIComponent(phone)}`);
       if (!res.ok) return;
       const data = await res.json();
       quotesByPhone[phone] = Array.isArray(data.quotes) ? data.quotes : [];
-    } catch (e) { console.error('[contact-quotes]', e); return; }
+    })();
+    const results = await Promise.allSettled([quoteRequest, loadContactPhotoRequests(phone)]);
+    results.forEach(result => { if (result.status === 'rejected') console.error('[contact-activity]', result.reason); });
     if (phone === activePhone) renderContactQuotes(phone);
   }
 
@@ -1489,8 +1524,9 @@
     const el = document.getElementById('chatQuotes');
     if (!el) return;
     const quotes = quotesByPhone[phone] || [];
-    if (!quotes.length) { el.innerHTML = ''; return; }
-    const cards = quotes.map((q, i) => {
+    const photos = photoRequestsByPhone[phone] || [];
+    if (!quotes.length && !photos.length) { el.innerHTML = ''; return; }
+    const quoteCards = quotes.map((q, i) => {
       const sent = q.sentAt ? new Date(q.sentAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '';
       const total = q.total != null && !isNaN(q.total) ? '$' + Math.round(q.total).toLocaleString('en-AU') : '';
       const views = q.viewCount != null ? `${q.viewCount} view${q.viewCount === 1 ? '' : 's'}` : '';
@@ -1515,7 +1551,25 @@
         </div>
       </div>`;
     }).join('');
-    el.innerHTML = `<div class="quotes-title">Quotes</div><div class="quotes-list">${cards}</div>`;
+    const photoCards = photos.map(request => {
+      const sent = request.createdAt ? new Date(Number(request.createdAt)).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '';
+      const count = request.actualPhotoCount == null ? '' : `${request.actualPhotoCount}/${request.requiredPhotoCount} photos`;
+      const parts = [sent && `Sent ${esc(sent)}`, count && esc(count)].filter(Boolean);
+      const tracker = request.product === 'aircon' ? '/aircons/photo-tracker.html' : request.product === 'hws-nsw' ? '/hotwater-nsw/photo-tracker.html' : '/hotwater/photo-tracker.html';
+      const statusClass = request.status === 'received' ? ' received' : '';
+      return `<div class="quote-card">
+        <div class="q-info">
+          <span class="q-prod">Photos · ${esc(request.productLabel || 'Customer')}</span>
+          <span class="q-meta">${parts.join('<i>•</i>')}</span>
+        </div>
+        <div class="q-actions">
+          <span class="photo-card-status${statusClass}">${esc(request.statusLabel || 'Photo request')}</span>
+          <a class="q-view" href="${esc(staffPhotoUrl(request.uploadPageUrl))}" target="_blank" rel="noopener" title="Open the customer's photo page without changing its viewed status">Photo link <span aria-hidden="true">↗</span></a>
+          <a class="q-view" href="${tracker}?search=${encodeURIComponent(request.customerName || phone)}" target="_blank" rel="noopener">Tracker <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>`;
+    }).join('');
+    el.innerHTML = `<div class="quotes-title">Quotes &amp; photos</div><div class="quotes-list">${quoteCards}${photoCards}</div>`;
   }
 
   async function changeQuoteStatus(sel) {

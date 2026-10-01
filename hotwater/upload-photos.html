@@ -242,6 +242,7 @@ const params = new URLSearchParams(location.search);
 const folderId = params.get('f') || params.get('folder');
 let custName = params.get('n') || params.get('name') || '';
 const custPhone = params.get('p') || params.get('phone') || '';
+const isStaffPreview = params.get('source') === 'tracker';
 const customerNameFromFolder = value => String(value || '')
   .replace(/\s*\((?:\+?[\d\s-]{6,})\)\s*$/, '')
   .trim();
@@ -565,6 +566,19 @@ function renderSlots() {
   if (!folderId) document.querySelectorAll('.slot-btn').forEach(b => { b.disabled = true; });
 }
 
+async function recordLinkView() {
+  if (!folderId || isStaffPreview) return;
+  try {
+    await fetch('/api/zoho/create-photo-request', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'record-view', product, folderId }),
+    });
+  } catch (error) {
+    console.warn('Could not record photo link view', error);
+  }
+}
+
 if (!folderId) {
   setStatus('This upload link is missing information. Please contact us for a new link.', 'err');
   document.querySelectorAll('.slot-btn').forEach(b => b.disabled = true);
@@ -727,7 +741,7 @@ function refreshSubmit() {
     : `Upload ${newCount} Photo${newCount === 1 ? '' : 's'}`;
 }
 renderSlots();
-loadStatus();
+Promise.allSettled([recordLinkView(), loadStatus()]);
 
 function handleAddressInput() {
   addressConfirmed = false;
