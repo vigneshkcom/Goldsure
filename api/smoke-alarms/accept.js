@@ -83,7 +83,11 @@ export default async function handler(req, res) {
     }
   } catch (dataforceErr) {
     dataforceJob = { synced: false, reason: dataforceErr.message || 'unexpected-error' };
-    console.error('[Smoke accept] Dataforce job failed (non-fatal):', dataforceErr.message);
+    console.error(
+      '[Smoke accept] Dataforce job failed (non-fatal):',
+      dataforceErr.message,
+      dataforceErr.dataforceDetails ? JSON.stringify(dataforceErr.dataforceDetails) : ''
+    );
   }
 
   const html = `<!DOCTYPE html>

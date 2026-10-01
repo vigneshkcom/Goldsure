@@ -75,8 +75,10 @@ test('creates a customer, accepted job and unassigned waiting-list appointment',
 
   const customerCall = calls.find(call => call.url.endsWith('/customers') && call.options.method === 'POST');
   const customer = JSON.parse(customerCall.options.body);
+  assert.equal(customer.customerAgentId, 1);
   assert.equal(customer.firstname, 'Test');
   assert.equal(customer.surname, 'Customer');
+  assert.equal(customer.consentToSMS, 'IC');
   assert.equal(customer.unitNo, '3');
   assert.equal(customer.streetNo, '12');
   assert.equal(customer.streetName, 'Example');
