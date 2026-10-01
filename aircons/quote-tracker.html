@@ -196,8 +196,10 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
   color: #9699a6; max-width: 300px; white-space: normal; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.photo-button { flex: none; height: 22px; padding: 0 7px; border: 1px solid var(--blue); border-radius: 5px; background: var(--blue); color: #fff; font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; white-space: nowrap; }
-.photo-button:hover { background: #2457c5; }
+.photo-button { height: 26px; padding: 0 9px; border-radius: 6px; font: inherit; font-size: 10.5px; font-weight: 650; white-space: nowrap; }
+.photo-button.view { border: 1px solid #147548; background: #147548; color: #fff; cursor: pointer; }
+.photo-button.view:hover { background: #0f633c; }
+.photo-button.awaiting { border: 1px solid #edcf86; background: #fff3d6; color: #8a5b00; cursor: default; opacity: 1; }
 .td-mono-sub { font-family: inherit; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
 .td-mono { font-family: inherit; font-weight: 400; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .td-gold { color: var(--text); font-family: inherit; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -394,6 +396,7 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
             <th style="width:30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Date<i class="sort-caret"></i></th>
             <th onclick="sortBy('customer_name')" data-col="customer_name">Customer<i class="sort-caret"></i></th>
+            <th>Photos</th>
             <th onclick="sortBy('agent_name')" data-col="agent_name">Agent<i class="sort-caret"></i></th>
             <th>Units</th>
             <th onclick="sortBy('total_inc_gst')" data-col="total_inc_gst">Total inc GST<i class="sort-caret"></i></th>
@@ -476,10 +479,11 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function photoPhoneKey(value){ const digits=String(value||'').replace(/\D/g,''); return digits.length>=9?digits.slice(-9):''; }
 function renderPhotoRequest(q){
   const request=photoRequestsByPhone[photoPhoneKey(q.customer_phone)];
-  if(!request?.link)return '';
-  const count=request.actualPhotoCount==null?'':` ${request.actualPhotoCount}/${request.requiredPhotoCount}`;
-  const title=`${request.statusLabel}${count}. Open this customer's uploaded photos in WorkDrive`;
-  return `<button type="button" class="photo-button" data-photo-url="${esc(request.link)}" onclick="window.open(this.dataset.photoUrl,'_blank','noopener')" title="${esc(title)}">Photos${esc(count)}</button>`;
+  if(!request)return '—';
+  if((Number(request.actualPhotoCount)||0)>0 && request.link){
+    return `<button type="button" class="photo-button view" data-photo-url="${esc(request.link)}" onclick="window.open(this.dataset.photoUrl,'_blank','noopener')" title="Open this customer's uploaded photos in WorkDrive">View photos</button>`;
+  }
+  return '<button type="button" class="photo-button awaiting" disabled>Awaiting photos</button>';
 }
 async function loadPhotoRequests(product){
   try{
@@ -671,7 +675,7 @@ async function updateGhlStage(e,quoteId,email,stageId,stageName){
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
-  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
+  if(!filtered.length){ tbody.innerHTML=`<tr><td colspan="16"><div class="empty-state"><div class="empty-icon">📭</div><h3>No quotes found</h3><p>Send your first aircon quote from the Quote Builder.</p></div></td></tr>`; updateDeleteBtn(); return; }
   tbody.innerHTML=filtered.map(q=>{
     const date=q.sent_at?new Date(q.sent_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const st=(q.status||'sent').toLowerCase();
@@ -686,7 +690,8 @@ function renderTable(){
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
-      <td><div class="td-name"><span class="customer-name">${esc(q.customer_name||'—')}</span>${renderDuplicateBadge(q)}${renderPhotoRequest(q)}<button class="view-quote-btn" onclick="openQuoteView('${q.id}')" title="View what was sent">View quote</button></div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td><div class="td-name"><span class="customer-name">${esc(q.customer_name||'—')}</span>${renderDuplicateBadge(q)}<button class="view-quote-btn" onclick="openQuoteView('${q.id}')" title="View what was sent">View quote</button></div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td>${renderPhotoRequest(q)}</td>
       <td>${agentChip(q.agent_name)}</td>
       <td class="td-mono">${unitCount(q)}</td>
       <td class="td-gold">${money(q.total_inc_gst)}</td>
@@ -734,7 +739,7 @@ async function deleteSelected(){
   }catch(err){ console.error(err); showToast('Network error deleting.'); }
 }
 
-function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
+function showEmptyTable(msg){ document.getElementById('results-count').textContent='0'; document.getElementById('table-body').innerHTML=`<tr><td colspan="16"><div class="empty-state"><div class="empty-icon">🔌</div><h3>No Data</h3><p>${msg}</p></div></td></tr>`; }
 
 function toggleMenu(e,btn){ e.stopPropagation(); const menu=btn.querySelector('.status-menu'); const open=menu.classList.contains('open'); document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')); if(!open)menu.classList.add('open'); }
 document.addEventListener('click',()=>document.querySelectorAll('.status-menu.open').forEach(m=>m.classList.remove('open')));

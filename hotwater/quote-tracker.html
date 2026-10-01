@@ -189,8 +189,10 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
   color: #9699a6; max-width: 300px; white-space: normal; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.photo-button { flex: none; height: 22px; padding: 0 7px; border: 1px solid var(--blue); border-radius: 5px; background: var(--blue); color: #fff; font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; white-space: nowrap; }
-.photo-button:hover { background: #2457c5; }
+.photo-button { height: 26px; padding: 0 9px; border-radius: 6px; font: inherit; font-size: 10.5px; font-weight: 650; white-space: nowrap; }
+.photo-button.view { border: 1px solid #147548; background: #147548; color: #fff; cursor: pointer; }
+.photo-button.view:hover { background: #0f633c; }
+.photo-button.awaiting { border: 1px solid #edcf86; background: #fff3d6; color: #8a5b00; cursor: default; opacity: 1; }
 .td-mono-sub { font-family: inherit; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
 .td-mono { font-family: inherit; font-weight: 400; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .td-gold { color: var(--text); font-family: inherit; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -393,6 +395,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
             <th style="width:30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
             <th onclick="sortBy('sent_at')" data-col="sent_at">Date<i class="sort-caret"></i></th>
             <th onclick="sortBy('customer_name')" data-col="customer_name">Customer<i class="sort-caret"></i></th>
+            <th>Photos</th>
             <th onclick="sortBy('agent_name')" data-col="agent_name">Agent<i class="sort-caret"></i></th>
             <th>Tank Model</th>
             <th onclick="sortBy('total_out_of_pocket')" data-col="total_out_of_pocket">Out-of-Pocket<i class="sort-caret"></i></th>
@@ -468,10 +471,11 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function photoPhoneKey(value){ const digits=String(value||'').replace(/\D/g,''); return digits.length>=9?digits.slice(-9):''; }
 function renderPhotoRequest(q){
   const request=photoRequestsByPhone[photoPhoneKey(q.customer_phone)];
-  if(!request?.link)return '';
-  const count=request.actualPhotoCount==null?'':` ${request.actualPhotoCount}/${request.requiredPhotoCount}`;
-  const title=`${request.statusLabel}${count}. Open this customer's uploaded photos in WorkDrive`;
-  return `<button type="button" class="photo-button" data-photo-url="${esc(request.link)}" onclick="window.open(this.dataset.photoUrl,'_blank','noopener')" title="${esc(title)}">Photos${esc(count)}</button>`;
+  if(!request)return '—';
+  if((Number(request.actualPhotoCount)||0)>0 && request.link){
+    return `<button type="button" class="photo-button view" data-photo-url="${esc(request.link)}" onclick="window.open(this.dataset.photoUrl,'_blank','noopener')" title="Open this customer's uploaded photos in WorkDrive">View photos</button>`;
+  }
+  return '<button type="button" class="photo-button awaiting" disabled>Awaiting photos</button>';
 }
 async function loadPhotoRequests(product){
   try{
@@ -675,7 +679,8 @@ function renderTable(){
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>
-      <td><div class="td-name"><span class="customer-name">${esc(q.customer_name||'—')}</span>${renderDuplicateBadge(q)}${renderPhotoRequest(q)}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td><div class="td-name"><span class="customer-name">${esc(q.customer_name||'—')}</span>${renderDuplicateBadge(q)}</div>${q.customer_phone?`<div class="td-sub td-mono-sub">${esc(q.customer_phone)}</div>`:''}${q.customer_email?`<div class="td-sub">${esc(q.customer_email)}</div>`:''}${q.customer_address?`<div class="td-sub td-addr">${esc(q.customer_address)}</div>`:''}</td>
+      <td>${renderPhotoRequest(q)}</td>
       <td>${agentChip(q.agent_name)}</td>
       <td>${q.tank_model?`<span class="model-badge">${esc(q.tank_model)}</span>`:'—'}</td>
       <td class="td-oop">${money(q.total_out_of_pocket)}</td>

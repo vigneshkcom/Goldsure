@@ -83,10 +83,13 @@ test('SMS and quote trackers show the matching photo request status and a staff 
     const tracker = await read(path);
     assert.match(tracker, new RegExp(`loadPhotoRequests\\('${product}'\\)`));
     assert.match(tracker, /renderPhotoRequest\(q\)/);
-    assert.match(tracker, /<button type="button" class="photo-button"/);
+    assert.match(tracker, /<th>Photos<\/th>/);
+    assert.match(tracker, /class="photo-button view"/);
+    assert.match(tracker, />View photos<\/button>/);
+    assert.match(tracker, /class="photo-button awaiting" disabled>Awaiting photos<\/button>/);
     assert.match(tracker, /data-photo-url="\$\{esc\(request\.link\)\}"/);
-    assert.match(tracker, /class="td-name">.*renderPhotoRequest\(q\)/);
-    assert.doesNotMatch(tracker, /\$\{renderPhotoRequest\(q\)\}<\/td>/);
+    assert.match(tracker, /<td>\$\{renderPhotoRequest\(q\)\}<\/td>/);
+    assert.doesNotMatch(tracker, />Photos\$\{esc\(count\)\}<\/button>/);
   }
 });
 
