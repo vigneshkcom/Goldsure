@@ -337,13 +337,16 @@ test('aircon upload notification email includes customer details, every answer a
   ]) assert.ok(api.includes(marker), `missing email detail ${marker}`);
 });
 
-test('all Hot Water photo notifications go only to the info mailbox', async () => {
+test('Hot Water photo notifications use the exact state-specific recipient lists', async () => {
   const api = await read('api/zoho/create-photo-request.js');
-  for (const product of ['hws-vic', 'hws-nsw']) {
-    const block = api.slice(api.indexOf(`if (product === '${product}')`), api.indexOf("\n  }", api.indexOf(`if (product === '${product}')`)));
-    assert.match(block, /notifyRecipients: \['info@goldsure\.com\.au'\]/);
-    assert.doesNotMatch(block, /vignesh@goldsure\.com\.au|david@goldsure\.com\.au/);
-  }
+  const vicStart = api.indexOf("if (product === 'hws-vic')");
+  const vicBlock = api.slice(vicStart, api.indexOf('\n  }', vicStart));
+  assert.match(vicBlock, /notifyRecipients: \['info@goldsure\.com\.au'\]/);
+
+  const nswStart = api.indexOf("if (product === 'hws-nsw')");
+  const nswBlock = api.slice(nswStart, api.indexOf('\n  }', nswStart));
+  assert.match(nswBlock, /notifyRecipients: \['vignesh@goldsure\.com\.au', 'shanira@goldsure\.com\.au', 'david@goldsure\.com\.au'\]/);
+  assert.doesNotMatch(nswBlock, /info@goldsure\.com\.au/);
 
   const genericHwsBlock = api.slice(api.indexOf("uploadPath: '/u'"), api.indexOf('\n  };', api.indexOf("uploadPath: '/u'")));
   assert.match(genericHwsBlock, /notifyRecipients: \['info@goldsure\.com\.au'\]/);

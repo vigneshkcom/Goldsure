@@ -108,7 +108,7 @@ function productConfig(value) {
       pipelineIdEnv: NSW_HWS_PIPELINE_ID_ENV,
       pipelineNameHints: NSW_HWS_PIPELINE_NAME_HINTS,
       uploadedStageNames: ['Photos Received'],
-      notifyRecipients: ['info@goldsure.com.au'],
+      notifyRecipients: ['vignesh@goldsure.com.au', 'shanira@goldsure.com.au', 'david@goldsure.com.au'],
     };
   }
   return {
