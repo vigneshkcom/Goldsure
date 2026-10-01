@@ -85,6 +85,8 @@ test('SMS and quote trackers show the matching photo request status and a staff 
     assert.match(tracker, /renderPhotoRequest\(q\)/);
     assert.match(tracker, /<button type="button" class="photo-button"/);
     assert.match(tracker, /data-photo-url="\$\{esc\(request\.link\)\}"/);
+    assert.match(tracker, /class="td-name">.*renderPhotoRequest\(q\)/);
+    assert.doesNotMatch(tracker, /\$\{renderPhotoRequest\(q\)\}<\/td>/);
   }
 });
 
