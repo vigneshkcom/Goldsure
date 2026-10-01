@@ -333,7 +333,7 @@
     </div>
   </div>
 
-  <div class="foot">Demo data shown. Once the RingCentral app (Analytics scope + JWT) is connected, this fills with live call data, auto-refreshing every few minutes.</div>
+  <div class="foot" id="footNote">Demo data shown. Once the RingCentral app (Analytics scope + JWT) is connected, this fills with live call data, auto-refreshing every few minutes.</div>
 </div>
 
 <script>
@@ -422,11 +422,14 @@ function activeDataFor(dir){ return dir==='in' ? activeDataIn() : activeData(); 
 function allAgents(){ return Object.keys(activeData()); }
 function setLiveBadge(live){ const b=document.getElementById('demoBadge'); if(b) b.style.display=live?'none':''; }
 function populateAgents(){ const sel=document.getElementById('agentFilter'); if(!sel) return; const cur=sel.value; const names=Object.keys(activeData()); sel.innerHTML='<option value="">All agents</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join(''); if(names.includes(cur)) sel.value=cur; }
+let lastErr='';
 async function loadLive(day){
-  let ok=false;
+  let ok=false; lastErr='';
   try{
     const r=await fetch('/api/ringcentral/timeline?date='+(day==='yday'?'yday':'today'),{cache:'no-store'});
     const j=await r.json().catch(()=>({}));
+    if(!j||!j.ok) lastErr=((j&&j.error)||'No usable response')+' (HTTP '+r.status+')';
+    else if(!Array.isArray(j.agents)||!j.agents.length) lastErr='RingCentral returned no calls for this day';
     if(j&&j.ok&&Array.isArray(j.agents)&&j.agents.length){
       const m={}, mIn={};
       j.agents.forEach(a=>{
@@ -440,7 +443,7 @@ async function loadLive(day){
       });
       LIVE[day]=m; LIVE_IN[day]=mIn; setLiveBadge(true); ok=true;
     } else { setLiveBadge(false); }
-  }catch(e){ setLiveBadge(false); }
+  }catch(e){ lastErr='Could not reach the server: '+e.message; setLiveBadge(false); }
   populateAgents(); render();
   return ok;
 }
@@ -577,7 +580,8 @@ async function loadMissed(day){
 
 // "updated Xs ago" timestamp (resets only when fresh data actually loads)
 let secs=0, lastOk=true;
-function showUpdated(){ const el=document.getElementById('updated'); if(!el) return; el.textContent = !lastOk ? 'update failed · retrying' : (secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago')); }
+const FOOT_DEFAULT=(document.getElementById('footNote')||{}).textContent||'';
+function showUpdated(){ const el=document.getElementById('updated'); if(!el) return; el.title = lastOk ? '' : lastErr; const b=document.getElementById('demoBadge'); if(b) b.title = lastOk ? '' : lastErr; const f=document.getElementById('footNote'); if(f) f.textContent = lastOk ? FOOT_DEFAULT : 'Live data failed to load: '+lastErr+'. Demo data is shown until this is fixed.'; el.textContent = !lastOk ? 'update failed · retrying' : (secs<60?(secs+'s ago'):(Math.floor(secs/60)+'m ago')); }
 setInterval(()=>{ secs+=5; showUpdated(); },5000);
 
 // Day labels + "now" column follow the real Melbourne clock. If the page is left
