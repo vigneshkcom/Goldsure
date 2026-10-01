@@ -602,7 +602,7 @@ function applyFilters() {
   filtered = allQuotes.filter(q => {
     if (duplicateOnly && !duplicateAnalysis.groupIds.has(String(q.id))) return false;
     const sentAt = new Date(q.sent_at);
-    if (search) { const hay = `${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); if (!hay.includes(search)) return false; }
+    if (search) { const hay = `${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); const digits = search.replace(/\D/g,''); const phone = String(q.customer_phone||'').replace(/\D/g,''); if (!hay.includes(search) && !(digits.length >= 6 && phone.endsWith(digits.slice(-9)))) return false; }
     if (service && !(q.service_type||'').toLowerCase().includes(service)) return false;
     const quoteLead = (q.customer_type||'digital').toLowerCase();
     if (lead === 'direct' && !['direct', 'letterbox'].includes(quoteLead)) return false;

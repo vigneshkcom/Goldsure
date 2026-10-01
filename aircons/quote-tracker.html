@@ -476,13 +476,13 @@ async function loadQuotes(){
 function money(n){ return '$'+(parseFloat(n)||0).toLocaleString('en-AU',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function photoPhoneKey(value){ const digits=String(value||'').replace(/\D/g,''); return digits.length>=9?digits.slice(-9):''; }
-function staffPhotoUrl(value){ if(!value)return ''; const u=new URL(value,location.origin); u.searchParams.set('source','tracker'); return u.toString(); }
 function renderPhotoRequest(q){
   const request=photoRequestsByPhone[photoPhoneKey(q.customer_phone)];
   if(!request)return '';
   const count=request.actualPhotoCount==null?'':` ${request.actualPhotoCount}/${request.requiredPhotoCount}`;
   const cls=request.status==='received'?' received':'';
-  return `<div class="photo-request"><span class="photo-request-status${cls}">${esc(request.statusLabel)}${esc(count)}</span><a class="photo-link" href="${esc(staffPhotoUrl(request.uploadPageUrl))}" target="_blank" rel="noopener" title="Open without changing the customer's viewed status">Photo link ↗</a></div>`;
+  const view=request.link?`<a class="photo-link" href="${esc(request.link)}" target="_blank" rel="noopener" title="Open this customer's uploaded photos in WorkDrive">View photos ↗</a>`:'';
+  return `<div class="photo-request"><span class="photo-request-status${cls}">${esc(request.statusLabel)}${esc(count)}</span>${view}</div>`;
 }
 async function loadPhotoRequests(product){
   try{
@@ -564,7 +564,7 @@ function applyFilters(){
   filtered=allQuotes.filter(q=>{
     if(duplicateOnly&&!duplicateAnalysis.groupIds.has(String(q.id)))return false;
     const sentAt=new Date(q.sent_at);
-    if(search){const hay=`${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase(); if(!hay.includes(search))return false;}
+    if(search){const hay=`${q.customer_name||''} ${q.customer_email||''} ${q.customer_phone||''} ${q.agent_name||''}`.toLowerCase();const digits=search.replace(/\D/g,'');const phone=String(q.customer_phone||'').replace(/\D/g,'');if(!hay.includes(search)&&!(digits.length>=6&&phone.endsWith(digits.slice(-9))))return false;}
     if(agent && (q.agent_name||'').toLowerCase()!==agent) return false;
     if(status && (q.status||'').toLowerCase()!==status) return false;
     if(period==='today'){const t=new Date();t.setHours(0,0,0,0); if(sentAt<t)return false;}

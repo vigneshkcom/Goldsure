@@ -407,6 +407,7 @@
 
 <script>
 const requestedProduct = new URLSearchParams(location.search).get('product');
+const requestedSearch = new URLSearchParams(location.search).get('search') || '';
 const PRODUCT = location.pathname.startsWith('/aircons/') || requestedProduct === 'aircon'
   ? 'aircon'
   : location.pathname.startsWith('/hotwater-nsw/') || requestedProduct === 'hws-nsw'
@@ -543,9 +544,7 @@ function rowHtml(f, i, gcolor) {
           Ask for more</button>` : ''}
         ${IS_AIRCON && f.assessment?.rooms ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
           Answers</button>` : ''}
-        <a class="open" href="${esc(uploadLinkFor(f, '', true))}" target="_blank" rel="noopener" title="Open the customer's photo upload page without changing its viewed status">Photo link
-         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
-        ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener">Folder
+        ${f.link ? `<a class="open" href="${esc(f.link)}" target="_blank" rel="noopener" title="Open this customer's uploaded photos in WorkDrive">View photos
          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : ''}
         <button class="btn-mini danger" data-delete="${esc(f.id)}" title="Move this folder and its photos to WorkDrive trash">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
@@ -583,7 +582,11 @@ function groupHtml(key, name, color, items) {
 
 function render() {
   const q = $('search').value.trim().toLowerCase();
-  const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
+  const digits = q.replace(/\D/g, '');
+  const list = q ? folders.filter(f => {
+    const phone = String(phoneFor(f) || '').replace(/\D/g, '');
+    return f.name.toLowerCase().includes(q) || (digits.length >= 6 && phone.endsWith(digits.slice(-9)));
+  }) : folders;
   const board = $('board');
 
   if (!list.length) {
@@ -908,6 +911,7 @@ async function load() {
   }
 }
 
+$('search').value = requestedSearch;
 $('search').addEventListener('input', render);
 $('refreshBtn').onclick = load;
 $('newBtn').onclick = () => { if ($('drawer').classList.toggle('open')) $('reqName').focus(); };

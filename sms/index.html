@@ -300,14 +300,14 @@
     .quotes-bar { display: flex; align-items: flex-start; gap: 14px; padding: 10px 22px; background: #faf9fd; border-bottom: 1px solid var(--border); }
     .quotes-bar:empty { display: none; }
     .quotes-title { flex: none; padding-top: 9px; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; color: var(--faint, #a5a3ae); }
-    .quotes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 8px; min-width: 0; flex: 1; max-height: 148px; overflow-y: auto; padding: 1px; }
-    .quote-card { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 7px 8px 7px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 2px rgba(47,43,61,.04); }
-    .quote-card .q-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+    .quotes-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(430px, 100%), 1fr)); gap: 8px; min-width: 0; flex: 1; max-height: 220px; overflow-y: auto; padding: 1px; }
+    .quote-card { display: grid; grid-template-columns: minmax(0,1fr); align-content: center; gap: 7px; min-width: 0; padding: 9px 10px 9px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 2px rgba(47,43,61,.04); }
+    .quote-card .q-info { display: grid; grid-template-columns: max-content minmax(0,1fr); align-items: center; gap: 8px; min-width: 0; }
     .quote-card .q-prod { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
     .quote-card .q-total { font-weight: 600; color: var(--text); }
-    .quote-card .q-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .quote-card .q-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 0; min-width: 0; font-size: 11px; line-height: 1.35; color: var(--muted); white-space: normal; }
     .quote-card .q-meta i { font-style: normal; margin: 0 5px; color: #d0cfd8; }
-    .quote-card .q-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+    .quote-card .q-actions { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 6px; min-width: 0; }
     .quote-card a.q-view { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 11.5px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: all .15s; }
     .quote-card a.q-view:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-soft); }
     .q-status { position: relative; display: inline-flex; align-items: center; height: 28px; border-radius: 8px; --c: #2f5fd0; --bg: #e8f0fe; background: var(--bg); color: var(--c); }
@@ -847,7 +847,8 @@
       .quotes-bar { flex-direction: column; gap: 6px; padding: 8px 12px; }
       .quotes-title { padding-top: 0; }
       .quotes-list { width: 100%; }
-      .quote-card { flex-wrap: wrap; gap: 8px; }
+      .quote-card { gap: 8px; }
+      .quote-card .q-info { grid-template-columns: 1fr; gap: 2px; }
       .quotes-list { grid-template-columns: 1fr; max-height: 240px; }
       .quote-card .q-actions { width: 100%; }
       .quote-card a.q-view { flex: 1; justify-content: center; }
@@ -1480,11 +1481,9 @@
     const digits = String(value || '').replace(/\D/g, '');
     return digits.length >= 9 ? digits.slice(-9) : '';
   };
-  const staffPhotoUrl = value => {
-    if (!value) return '';
-    const url = new URL(value, location.origin);
-    url.searchParams.set('source', 'tracker');
-    return url.toString();
+  const trackerSearch = value => {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length >= 9 ? digits.slice(-9) : String(value || '').trim();
   };
   async function loadContactPhotoRequests(phone) {
     const key = photoPhoneKey(phone);
@@ -1542,7 +1541,7 @@
         </div>
         <div class="q-actions">
           <a class="q-view" href="${esc(q.url)}" target="_blank" rel="noopener" title="Open the quote the customer received">Quote <span aria-hidden="true">↗</span></a>
-          <a class="q-view" href="${esc(q.tracker)}?search=${encodeURIComponent(q.customerName || phone)}" target="_blank" rel="noopener" title="Open the ${esc(q.label)} quote tracker, filtered to this customer">Tracker <span aria-hidden="true">↗</span></a>
+          <a class="q-view" href="${esc(q.tracker)}?search=${encodeURIComponent(trackerSearch(phone) || q.customerName)}" target="_blank" rel="noopener" title="Open the ${esc(q.label)} quote tracker, filtered to this customer">Tracker <span aria-hidden="true">↗</span></a>
           <label class="q-status st-${esc(q.status)}" title="Change quote status">
             <select data-i="${i}" onchange="changeQuoteStatus(this)" aria-label="Quote status">
               ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(statusLabel(s))}</option>`).join('')}
@@ -1557,6 +1556,9 @@
       const parts = [sent && `Sent ${esc(sent)}`, count && esc(count)].filter(Boolean);
       const tracker = request.product === 'aircon' ? '/aircons/photo-tracker.html' : request.product === 'hws-nsw' ? '/hotwater-nsw/photo-tracker.html' : '/hotwater/photo-tracker.html';
       const statusClass = request.status === 'received' ? ' received' : '';
+      const viewPhotos = request.link
+        ? `<a class="q-view" href="${esc(request.link)}" target="_blank" rel="noopener" title="Open this customer's uploaded photos in WorkDrive">View photos <span aria-hidden="true">↗</span></a>`
+        : '';
       return `<div class="quote-card">
         <div class="q-info">
           <span class="q-prod">Photos · ${esc(request.productLabel || 'Customer')}</span>
@@ -1564,8 +1566,8 @@
         </div>
         <div class="q-actions">
           <span class="photo-card-status${statusClass}">${esc(request.statusLabel || 'Photo request')}</span>
-          <a class="q-view" href="${esc(staffPhotoUrl(request.uploadPageUrl))}" target="_blank" rel="noopener" title="Open the customer's photo page without changing its viewed status">Photo link <span aria-hidden="true">↗</span></a>
-          <a class="q-view" href="${tracker}?search=${encodeURIComponent(request.customerName || phone)}" target="_blank" rel="noopener">Tracker <span aria-hidden="true">↗</span></a>
+          ${viewPhotos}
+          <a class="q-view" href="${tracker}?search=${encodeURIComponent(trackerSearch(request.phone || phone) || request.customerName)}" target="_blank" rel="noopener" title="Open the photo tracker, filtered to this customer">Tracker <span aria-hidden="true">↗</span></a>
         </div>
       </div>`;
     }).join('');

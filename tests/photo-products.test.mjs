@@ -56,22 +56,24 @@ test('photo requests report awaiting, viewed, partial and received statuses', ()
   assert.equal(photoRequestFromFolder(folder(4), config, 'https://portal.goldsure.com.au').status, 'received');
 });
 
-test('staff can view customer photo links without falsely recording a customer view', async () => {
+test('the customer upload page records customer views but not staff previews', async () => {
   const api = await read('api/zoho/create-photo-request.js');
   const upload = await read('hotwater/upload-photos.html');
   const tracker = await read('hotwater/photo-tracker.html');
-  const sms = await read('sms/index.html');
-  for (const source of [tracker, sms]) assert.match(source, /source["']?,?["']?tracker|searchParams\.set\('source',\s*'tracker'\)/);
+  assert.match(tracker, /source["']?,?["']?tracker|searchParams\.set\('source',\s*'tracker'\)/);
   assert.match(upload, /const isStaffPreview = params\.get\('source'\) === 'tracker'/);
   assert.match(upload, /if \(!folderId \|\| isStaffPreview\) return/);
   assert.match(api, /req\.method === 'PATCH' && req\.body\?\.action === 'record-view'/);
   assert.match(api, /link_viewed_at:/);
 });
 
-test('SMS and quote trackers show the matching photo request status and link', async () => {
+test('SMS and quote trackers show the matching photo request status and a staff photo viewer', async () => {
   const sms = await read('sms/index.html');
   assert.match(sms, /Quotes &amp; photos/);
-  assert.match(sms, /Photo link/);
+  assert.match(sms, /View photos/);
+  assert.doesNotMatch(sms, />Photo link/);
+  assert.match(sms, /href="\$\{esc\(request\.link\)\}"/);
+  assert.match(sms, /trackerSearch\(request\.phone \|\| phone\)/);
   assert.match(sms, /\['aircon', 'hws-vic', 'hws-nsw'\]/);
   for (const [path, product] of [
     ['hotwater/quote-tracker.html', 'hws-vic'],
@@ -81,8 +83,25 @@ test('SMS and quote trackers show the matching photo request status and link', a
     const tracker = await read(path);
     assert.match(tracker, new RegExp(`loadPhotoRequests\\('${product}'\\)`));
     assert.match(tracker, /renderPhotoRequest\(q\)/);
-    assert.match(tracker, /Photo link ↗/);
+    assert.match(tracker, /View photos ↗/);
+    assert.match(tracker, /href="\$\{esc\(request\.link\)\}"/);
   }
+});
+
+test('photo tracker reads the customer filter from its URL and searches by phone', async () => {
+  const tracker = await read('hotwater/photo-tracker.html');
+  assert.match(tracker, /const requestedSearch = new URLSearchParams\(location\.search\)\.get\('search'\) \|\| ''/);
+  assert.match(tracker, /\$\('search'\)\.value = requestedSearch/);
+  assert.match(tracker, /phone\.endsWith\(digits\.slice\(-9\)\)/);
+  assert.match(tracker, />View photos/);
+  assert.doesNotMatch(tracker, />Photo link/);
+});
+
+test('SMS quote cards wrap their details instead of clipping text', async () => {
+  const sms = await read('sms/index.html');
+  assert.match(sms, /\.quote-card \.q-meta \{[^}]*flex-wrap: wrap/);
+  assert.match(sms, /\.quote-card \.q-actions \{[^}]*flex-wrap: wrap/);
+  assert.match(sms, /\.quote-card \.q-info \{[^}]*grid-template-columns: max-content minmax\(0,1fr\)/);
 });
 
 test('photo uploads reuse Zoho tokens and allow unlimited additional photos', async () => {
