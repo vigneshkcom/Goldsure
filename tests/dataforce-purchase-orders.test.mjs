@@ -146,6 +146,8 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   assert.match(html, /creates a draft supplier bill only/i);
   assert.match(html, /action:'preview'/);
   assert.match(html, /action:'create',confirm:true/);
+  assert.match(html, /function pdfFilename\(response,po\)/);
+  assert.match(html, /link\.download=fileName/);
   assert.match(html, /two weeks in arrears/);
   assert.match(html, /PO for \$\{worker\.name\} - Week ending/);
 });
