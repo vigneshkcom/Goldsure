@@ -162,14 +162,19 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
     DATAFORCE_CLIENT_ID: 'client',
     DATAFORCE_CLIENT_SECRET: 'secret',
   });
-  let searchPayload;
+  const searchProperties = [];
   global.fetch = async (url, init = {}) => {
     const value = String(url);
     if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
     if (value.endsWith('/GOLDSURE_ASAP/fieldworkers')) return new Response(JSON.stringify({ records: [{ fieldworkerId: 1009, name: 'Alex Symonds', companyName: 'Alex Electrical', email: 'alex@example.com', taxId: '12345678901', gstRegistered: true }] }), { status: 200 });
     if (value.includes('/appointments/search')) {
-      searchPayload = JSON.parse(init.body);
-      return new Response(JSON.stringify({ totalCount: 1, records: [{ appointmentId: 9001, jobId: 7001, fieldworkerId: 1009, completionStatusDescription: 'Completed', actualCompletedDate: '2026-09-20T15:30:00' }] }), { status: 200 });
+      const searchPayload = JSON.parse(init.body);
+      const propertyName = searchPayload.filterGroups[0].filters[0].propertyName;
+      searchProperties.push(propertyName);
+      const records = propertyName === 'scheduledDate'
+        ? [{ appointmentId: 9001, jobId: 7001, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-09-20T09:00:00' }]
+        : [];
+      return new Response(JSON.stringify({ totalCount: records.length, records }), { status: 200 });
     }
     if (value.includes('/appointments/9001/invoice')) return new Response(JSON.stringify({ transactionBalance: 300, productLines: [{ productId: 3429, productName: '[3429] Booking Fee', lineQty: 1 }, { productId: 3430, productName: '[3430] Hard Wired', lineQty: 4 }] }), { status: 200 });
     if (value.includes('/appointments/9001/tags')) return new Response(JSON.stringify({ records: [{ tagId: 7, tagName: 'Cash', scope: 'Job' }] }), { status: 200 });
@@ -183,7 +188,8 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
       body: { action: 'purchase-order-preview', startDate: '2026-09-14', endDate: '2026-09-20' },
     }, response);
     assert.equal(response.statusCode, 200);
-    assert.equal(searchPayload.filterGroups[0].filters[0].propertyName, 'actualCompletedDate');
+    assert.deepEqual(searchProperties.sort(), ['actualCompletedDate', 'scheduledDate']);
+    assert.equal(response.body.rows[0].installedDate, '2026-09-20');
     assert.equal(response.body.workers[0].email, 'alex@example.com');
     assert.equal(response.body.rows[0].items[0].totalIncGst, 33);
     assert.equal(response.body.rows[0].items[1].rateExGst, 13);
