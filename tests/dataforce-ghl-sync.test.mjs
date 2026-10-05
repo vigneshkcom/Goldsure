@@ -31,8 +31,9 @@ test('normalises exact customer identifiers', () => {
   assert.equal(normalizePhone('1234'), '');
 });
 
-test('only treats explicit completed statuses as completed', () => {
+test('treats completed field appointments as completed', () => {
   assert.equal(isCompletedAppointment({ completionStatusDescription: 'Completed' }), true);
+  assert.equal(isCompletedAppointment({ completionStatusDescription: 'Completed - Field' }), true);
   assert.equal(isCompletedAppointment({ completionStatusCode: 'C' }), true);
   assert.equal(isCompletedAppointment({ completionStatusDescription: 'Not Completed' }), false);
   assert.equal(isCompletedAppointment({ completionStatusDescription: 'Scheduled' }), false);
