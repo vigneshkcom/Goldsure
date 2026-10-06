@@ -17,7 +17,6 @@
     <section class="card controls" aria-label="Report controls">
       <label class="field">Leads from<input type="date" id="from"></label>
       <label class="field">Leads to<input type="date" id="to"></label>
-      <label class="field">Portal access PIN<input type="password" id="pin" autocomplete="current-password"></label>
       <button type="button" class="primary" id="load">Show leads</button>
     </section>
     <div id="message" class="message">Choose up to 7 days. The list will show leads without a recorded connection first.</div>
@@ -47,7 +46,7 @@
     const dateLabel=value=>value?new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Sydney',dateStyle:'medium',timeStyle:'short'}):'Unknown';
     const now=new Date();$('to').value=localDate(now);$('from').value=localDate(new Date(now.getTime()-2*86400000));
     function message(text,error=false){$('message').textContent=text;$('message').className=`message${error?' error':''}`}
-    async function request(params){const response=await fetch(`${api}?${new URLSearchParams(params)}`,{headers:{'x-lead-report-pin':$('pin').value},cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||`Request failed (${response.status})`);return data}
+    async function request(params){const response=await fetch(`${api}?${new URLSearchParams(params)}`,{cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||`Request failed (${response.status})`);return data}
     const unconnected=row=>row.contactStatus==='Attempted, no confirmed response'||row.contactStatus==='No attempt recorded';
     const resultLabel=row=>row.contactStatus==='Connected call or SMS reply'?'Connection or reply recorded':row.contactStatus==='Attempted, no confirmed response'?'No connection recorded':row.contactStatus==='No attempt recorded'?'No outbound attempt recorded':'Needs review';
     function filteredRows(){

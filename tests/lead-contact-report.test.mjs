@@ -46,8 +46,8 @@ test('only connected calls or replies count as contact signals and uncertainty s
 
 test('report checks all three sources and reads GHL notes without writes', async () => {
   const savedFetch = global.fetch;
-  const saved = Object.fromEntries(['LEAD_REPORT_PIN', 'GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'].map(key => [key, process.env[key]]));
-  Object.assign(process.env, { LEAD_REPORT_PIN: 'test-pin', GHL_API_KEY: 'ghl-test', GHL_LOCATION_ID: 'location123', SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'supa-test' });
+  const saved = Object.fromEntries(['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'].map(key => [key, process.env[key]]));
+  Object.assign(process.env, { GHL_API_KEY: 'ghl-test', GHL_LOCATION_ID: 'location123', SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'supa-test' });
   const seen = [];
   let incompleteLeads = false;
   global.fetch = async (url, options = {}) => {
@@ -67,11 +67,8 @@ test('report checks all three sources and reads GHL notes without writes', async
     throw new Error(`Unexpected read: ${value}`);
   };
   try {
-    const denied = recorder();
-    await leadContactReport({ headers: {}, query: { leadReport: 'report' } }, denied, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
-    assert.equal(denied.statusCode, 401);
     const response = recorder();
-    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, response, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    await leadContactReport({ headers: {}, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, response, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
     assert.equal(response.statusCode, 200, response.body?.error);
     assert.equal(response.body.rows.length, 1);
     assert.equal(response.body.rows[0].stage, 'New Lead');
@@ -80,12 +77,12 @@ test('report checks all three sources and reads GHL notes without writes', async
     assert.equal(response.body.rows[0].callsMade, 1);
     assert.equal(response.body.rows[0].lastTemplate, 'Not Reachable – 1st Attempt');
     const notes = recorder();
-    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'notes', contactId: 'contact1' } }, notes, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    await leadContactReport({ headers: {}, query: { leadReport: 'notes', contactId: 'contact1' } }, notes, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
     assert.equal(notes.body.notes[0].id, 'n1');
     assert.ok(seen.every(call => call.method === 'GET'));
     incompleteLeads = true;
     const incomplete = recorder();
-    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, incomplete, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    await leadContactReport({ headers: {}, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, incomplete, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
     assert.equal(incomplete.statusCode, 502);
     assert.equal(incomplete.body.totals, undefined);
   } finally {
@@ -104,4 +101,5 @@ test('lead report page script compiles', () => {
   assert.match(html, /value="unconnected">No connection recorded/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
+  assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
 });
