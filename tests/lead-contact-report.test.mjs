@@ -156,7 +156,7 @@ test('lead page answers the follow-up question first and groups leads under each
     if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'open' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
     return elements.get(id);
   };
-  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary, rangeParts, mergeRows, setRange })`, {
+  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary, rangeParts, mergeRows, setRange, percent })`, {
     document: { getElementById, addEventListener() {} }, URLSearchParams, fetch: () => new Promise(() => {}),
   });
   const to = getElementById('to').value;
@@ -172,8 +172,12 @@ test('lead page answers the follow-up question first and groups leads under each
   page.state.loaded = true;
   page.renderSummary();
   page.render();
-  assert.equal(getElementById('answerTitle').textContent, '1 of 6 new leads reached');
-  assert.match(getElementById('answerDetail').innerHTML, /5 leads not reached yet<\/strong>: 2 not reachable so far, 2 not tried yet, 1 needs a manual check\./);
+  assert.equal(getElementById('answerTitle').textContent, '1 of 6 new leads reached (17%)');
+  assert.match(getElementById('answerDetail').innerHTML, /5 of 6 leads \(83%\) not reached yet<\/strong>: 2 not reachable so far \(33%\), 2 not tried yet \(33%\), 1 needs a manual check \(17%\)\./);
+  assert.match(getElementById('pipelineSummary').innerHTML, /<b>2<\/b><em>33%<\/em>/, 'each count shows its share of the leads');
+  assert.equal(page.percent(199, 200), '>99%');
+  assert.equal(page.percent(1, 300), '<1%');
+  assert.equal(page.percent(0, 5), '0%');
   assert.equal((getElementById('pipelineSummary').innerHTML.match(/class="pipe-row( total)?"/g) || []).length, 5);
   assert.equal(getElementById('callNote').textContent, 'Calls to leads not reachable so far: 4 calls to 2 customers.');
   const sections = getElementById('pipelineSections').innerHTML;
@@ -189,6 +193,13 @@ test('lead page answers the follow-up question first and groups leads under each
   assert.equal(merged[0].opportunityCount, 2);
   page.setRange(7);
   assert.equal(getElementById('from').value, new Date(Date.parse(`${getElementById('to').value}T00:00:00Z`) - 6 * 86400000).toISOString().slice(0, 10));
+  const savedRows = page.state.rows;
+  page.state.rows = [{ ...savedRows[0], reachability: 'reached' }, { ...savedRows[1], reachability: 'unreachable' }, { ...savedRows[3], reachability: 'unreachable' }];
+  page.renderSummary();
+  assert.equal(getElementById('answerTitle').textContent, '1 of 3 new leads reached (33%)');
+  assert.match(getElementById('answerDetail').innerHTML, /<strong>2 of 3 leads \(67%\) not reachable so far<\/strong>\./);
+  page.state.rows = savedRows;
+  page.renderSummary();
   getElementById('view').value = 'all';
   page.render();
   assert.equal((getElementById('pipelineSections').innerHTML.match(/<table class="leads">/g) || []).length, 4);

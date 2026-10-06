@@ -26,7 +26,7 @@
     .split{display:flex;gap:2px;height:12px;border-radius:99px;overflow:hidden;background:#edf1f6}.pipe-row.total .split{height:16px}.seg{min-width:4px}
     .seg-reached,.dot-reached{background:var(--connected)}.seg-unreachable,.dot-unreachable{background:var(--tried)}.seg-untried,.dot-untried{background:var(--none)}.seg-review,.dot-review{background:var(--review)}
     .dot{display:inline-block;flex:none;width:9px;height:9px;border-radius:50%}
-    .n{text-align:right;font-variant-numeric:tabular-nums}.n b{font-size:16px}.n span{display:none}.n.zero b{color:#b4bdc9;font-weight:400}
+    .n{text-align:right;font-variant-numeric:tabular-nums}.n b{font-size:16px}.n em{display:block;margin-top:1px;font-style:normal;font-size:11px;color:var(--subtle)}.n span{display:none}.n.zero b{color:#b4bdc9;font-weight:400}
     .foot{margin:12px 0 0;font-size:12px;color:var(--subtle)}.foot:empty{display:none}
     .list{overflow:hidden}.list-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:20px 22px 16px;border-bottom:1px solid var(--line)}.list-head h2{font-size:20px;letter-spacing:-.02em;margin:0 0 4px}.list-head p{margin:0;font-size:12px;color:var(--subtle)}
     .tools{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.tools .field select{min-width:220px}.tools .field input{min-width:190px}
@@ -155,8 +155,13 @@
       const label=STATUSES.map(status=>`${status.label}: ${c[status.key]}`).join(', ');
       return `<div class="split" role="img" aria-label="${escapeHtml(label)}">${STATUSES.map(status=>c[status.key]?`<span class="seg seg-${status.key}" style="flex:${c[status.key]}" title="${status.label}: ${c[status.key]}"></span>`:'').join('')}</div>`;
     }
+    // Share of `total`, never rounded up to 100% or down to 0% unless it really is.
+    function percent(count,total){
+      if(!total)return '';const value=Math.round(count/total*100);
+      return count===total?'100%':!count?'0%':value<1?'<1%':value>99?'>99%':`${value}%`;
+    }
     function summaryRow(name,c,total=false){
-      return `<div class="pipe-row${total?' total':''}"><div class="pipe-name">${escapeHtml(name)}<small>${plural(c.total,'lead')}</small></div>${splitBar(c)}${STATUSES.map(status=>`<div class="n${c[status.key]?'':' zero'}"><b>${c[status.key]}</b><span><i class="dot dot-${status.key}"></i>${status.label}</span></div>`).join('')}</div>`;
+      return `<div class="pipe-row${total?' total':''}"><div class="pipe-name">${escapeHtml(name)}<small>${plural(c.total,'lead')}</small></div>${splitBar(c)}${STATUSES.map(status=>`<div class="n${c[status.key]?'':' zero'}"><b>${c[status.key]}</b>${c[status.key]?`<em>${percent(c[status.key],c.total)}</em>`:''}<span><i class="dot dot-${status.key}"></i>${status.label}</span></div>`).join('')}</div>`;
     }
     function renderSummary(){
       $('range').textContent=state.range;
@@ -167,9 +172,11 @@
         $('answerDetail').textContent='Direct Call leads are not counted. Choose other dates to check a different period.';
         $('pipelineSummary').innerHTML='';$('callNote').textContent='';return;
       }
-      $('answerTitle').textContent=c.reached===c.total&&c.total>1?`All ${c.total} new leads reached`:`${c.reached} of ${plural(c.total,'new lead')} reached`;
-      const parts=[c.unreachable&&`${c.unreachable} not reachable so far`,c.untried&&`${c.untried} not tried yet`,c.review&&`${c.review} ${c.review===1?'needs':'need'} a manual check`].filter(Boolean);
-      $('answerDetail').innerHTML=open?`<strong>${plural(open,'lead')} not reached yet</strong>: ${parts.join(', ')}.<button type="button" class="link-btn" data-view="open">Show who</button>`:'Nobody is waiting to be reached.';
+      $('answerTitle').textContent=c.reached===c.total&&c.total>1?`All ${c.total} new leads reached`:`${c.reached} of ${plural(c.total,'new lead')} reached (${percent(c.reached,c.total)})`;
+      const kinds=[[c.unreachable,'not reachable so far'],[c.untried,'not tried yet'],[c.review,c.review===1?'needs a manual check':'need a manual check']].filter(([count])=>count);
+      const share=`${open} of ${plural(c.total,'lead')} (${percent(open,c.total)})`;
+      const detail=kinds.length===1?`<strong>${share} ${kinds[0][1].replace(/^needs? /,'needing ')}</strong>.`:`<strong>${share} not reached yet</strong>: ${kinds.map(([count,label])=>`${count} ${label} (${percent(count,c.total)})`).join(', ')}.`;
+      $('answerDetail').innerHTML=open?`${detail}<button type="button" class="link-btn" data-view="open">Show who</button>`:'Nobody is waiting to be reached.';
       const head=`<div class="pipe-row pipe-head" aria-hidden="true"><div>Pipeline</div><div>Reachability</div>${STATUSES.map(status=>`<div class="n"><i class="dot dot-${status.key}"></i>${status.label}</div>`).join('')}</div>`;
       $('pipelineSummary').innerHTML=head+summaryRow('All pipelines',c,true)+pipelineGroups(state.rows).map(group=>summaryRow(group.name,counts(group.rows))).join('');
       const called=state.rows.filter(row=>statusKey(row)==='unreachable'&&Number(row.callsMade)>0),calls=called.reduce((sum,row)=>sum+Number(row.callsMade),0);
