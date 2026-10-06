@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, reportPhone, reportTotals } from '../lib/lead-contact-report.js';
+import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, leadReachability, reportPhone, reportTotals, stageProgress } from '../lib/lead-contact-report.js';
 import { leadContactReport, sydneyMidnight } from '../lib/lead-contact-report-api.js';
 
 function recorder() {
@@ -44,6 +44,21 @@ test('only connected calls or replies count as contact signals and uncertainty s
   assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Attempted, no confirmed response', callsMade: 3 }, { contactStatus: 'No attempt recorded', callsMade: 0 }, { contactStatus: 'Needs review' }]), { customers: 4, reached: 1, attempted: 1, noAttempt: 1, needsReview: 1, calledNoConnection: 1, callsToUnconnected: 3 });
 });
 
+test('a lead past New Lead in GHL counts as reached; New Lead leads use call and SMS records', () => {
+  assert.equal(stageProgress('New Lead'), 'new');
+  assert.equal(stageProgress('Today'), 'new');
+  assert.equal(stageProgress('Unknown stage'), 'new');
+  assert.equal(stageProgress('Not Reachable'), 'not-reachable');
+  for (const stage of ['Quote Sent', 'Follow Up', 'IHA Booked', 'Installed', 'Not Interested/Spam']) assert.equal(stageProgress(stage), 'moved-on', stage);
+  assert.equal(leadReachability({ stage: 'Quote Sent', contactStatus: 'No attempt recorded' }), 'reached');
+  assert.equal(leadReachability({ stage: 'Quote Sent', contactStatus: 'Needs review' }), 'reached');
+  assert.equal(leadReachability({ stage: 'Not Reachable', contactStatus: 'Connected call or SMS reply' }), 'unreachable');
+  assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Connected call or SMS reply' }), 'reached');
+  assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Attempted, no confirmed response' }), 'unreachable');
+  assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'No attempt recorded' }), 'untried');
+  assert.equal(leadReachability({ stage: 'Today', contactStatus: 'Needs review' }), 'review');
+});
+
 test('report checks all three sources and reads GHL notes without writes', async () => {
   const savedFetch = global.fetch;
   const saved = Object.fromEntries(['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'].map(key => [key, process.env[key]]));
@@ -72,6 +87,8 @@ test('report checks all three sources and reads GHL notes without writes', async
     assert.equal(response.statusCode, 200, response.body?.error);
     assert.equal(response.body.rows.length, 1);
     assert.equal(response.body.rows[0].stage, 'New Lead');
+    assert.equal(response.body.rows[0].stageProgress, 'new');
+    assert.equal(response.body.rows[0].reachability, 'reached');
     assert.equal(response.body.rows[0].leadAt, '2026-10-05T01:00:00.000Z');
     assert.equal(response.body.totals.reached, 1);
     assert.equal(response.body.rows[0].callsMade, 1);
@@ -97,8 +114,8 @@ test('lead report page script compiles', () => {
   assert.ok(script);
   new vm.Script(script);
   assert.match(html, /GHL stage/);
-  assert.match(html, /Calls to leads not yet connected/);
-  assert.match(html, /value="open">Not connected yet/);
+  assert.match(html, /Calls to leads not reachable so far/);
+  assert.match(html, /<option value="open">Not reached yet/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
@@ -109,7 +126,7 @@ test('lead page answers the follow-up question first and groups leads under each
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   const elements = new Map();
   const getElementById = id => {
-    if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'all' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
+    if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'open' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
     return elements.get(id);
   };
   const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary })`, {
@@ -118,27 +135,27 @@ test('lead page answers the follow-up question first and groups leads under each
   const to = getElementById('to').value;
   assert.equal(getElementById('from').value, new Date(Date.parse(`${to}T00:00:00Z`) - 86400000).toISOString().slice(0, 10));
   const names = ['Smoke Alarms', 'Aircons', 'HWS Pipeline', 'NSW HWS Pipeline'];
-  const statuses = ['Connected call or SMS reply', 'Attempted, no confirmed response', 'No attempt recorded', 'Needs review'];
+  const leads = [['Quote Sent', 'moved-on', 'reached'], ['New Lead', 'new', 'unreachable'], ['New Lead', 'new', 'untried'], ['Not Reachable', 'not-reachable', 'unreachable']];
   page.state.rows = names.map((pipeline, index) => ({
-    pipeline, stage: 'New Lead', name: `Customer ${index}`, phone: '0412345678', source: 'Meta', leadAt: `2026-10-05T0${index}:00:00Z`,
-    callsMade: index, smsSent: 0, contactStatus: statuses[index], link: 'https://example.com', contactId: `contact${index}`,
+    pipeline, stage: leads[index][0], stageProgress: leads[index][1], reachability: leads[index][2], name: `Customer ${index}`, phone: '0412345678', source: 'Meta',
+    leadAt: `2026-10-05T0${index}:00:00Z`, callsMade: index, smsSent: 0, contactStatus: 'Attempted, no confirmed response', link: 'https://example.com', contactId: `contact${index}`,
   }));
-  page.state.rows.push({ ...page.state.rows[0], name: 'Not called yet', contactId: 'contact4', contactStatus: 'No attempt recorded', callsMade: 0, leadAt: '2026-10-05T00:30:00Z' });
-  page.state.totals = { calledNoConnection: 1, callsToUnconnected: 1 };
+  page.state.rows.push({ ...page.state.rows[0], name: 'Unclear record', contactId: 'contact4', stage: 'New Lead', stageProgress: 'new', reachability: 'review', callsMade: 0, leadAt: '2026-10-05T00:30:00Z' });
+  page.state.rows.push({ ...page.state.rows[1], name: 'Not called yet', contactId: 'contact5', reachability: 'untried', callsMade: 0, leadAt: '2026-10-04T23:00:00Z' });
   page.state.loaded = true;
   page.renderSummary();
   page.render();
-  assert.equal(getElementById('answerTitle').textContent, '1 of 5 new leads connected');
-  assert.match(getElementById('answerDetail').innerHTML, /3 leads still need follow-up<\/strong> — 2 with no call or SMS found\. 1 lead needs a manual check in GHL\./);
+  assert.equal(getElementById('answerTitle').textContent, '1 of 6 new leads reached');
+  assert.match(getElementById('answerDetail').innerHTML, /5 leads not reached yet<\/strong>: 2 not reachable so far, 2 not tried yet, 1 needs a manual check\./);
   assert.equal((getElementById('pipelineSummary').innerHTML.match(/class="pipe-row( total)?"/g) || []).length, 5);
-  assert.equal(getElementById('callNote').textContent, 'Calls to leads not yet connected: 1 call to 1 customer.');
+  assert.equal(getElementById('callNote').textContent, 'Calls to leads not reachable so far: 4 calls to 2 customers.');
   const sections = getElementById('pipelineSections').innerHTML;
-  assert.equal((sections.match(/class="group"/g) || []).length, 4);
-  assert.equal((sections.match(/<table class="leads">/g) || []).length, 4);
-  assert.ok(sections.indexOf('Not called yet') < sections.indexOf('Customer 0'), 'leads without a connection are listed first');
-  assert.equal(page.statusKey({ contactStatus: 'Something new' }), 'review');
-  getElementById('view').value = 'open';
+  assert.equal((sections.match(/class="group"/g) || []).length, 4, 'opens on leads not reached yet, still grouped by pipeline');
+  assert.doesNotMatch(sections, /Customer 0/, 'Quote Sent counts as reached and is hidden by default');
+  assert.ok(sections.indexOf('Not called yet') < sections.indexOf('Customer 1'), 'within a pipeline, not tried yet is listed before not reachable even when older');
+  assert.equal(page.statusKey({ reachability: 'something new' }), 'review');
+  getElementById('view').value = 'all';
   page.render();
-  assert.doesNotMatch(getElementById('pipelineSections').innerHTML, /Customer 0|Customer 3/);
-  assert.match(getElementById('pipelineSections').innerHTML, /Customer 1[\s\S]*Customer 2/);
+  assert.equal((getElementById('pipelineSections').innerHTML.match(/<table class="leads">/g) || []).length, 4);
+  assert.ok(getElementById('pipelineSections').innerHTML.indexOf('Unclear record') < getElementById('pipelineSections').innerHTML.indexOf('Customer 0'), 'reached leads sink to the bottom');
 });

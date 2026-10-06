@@ -24,7 +24,7 @@
     .pipe-head{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);padding:12px 0 9px}.pipe-head .n{line-height:1.3}.pipe-head .dot{margin-right:5px;vertical-align:0}
     .pipe-name{font-size:13px;font-weight:700}.pipe-name small{display:block;font-weight:400;color:var(--subtle);font-size:11px;margin-top:2px}.pipe-row.total{border-bottom:2px solid var(--line)}.pipe-row.total .pipe-name{font-size:14px}
     .split{display:flex;gap:2px;height:12px;border-radius:99px;overflow:hidden;background:#edf1f6}.pipe-row.total .split{height:16px}.seg{min-width:4px}
-    .seg-connected,.dot-connected{background:var(--connected)}.seg-tried,.dot-tried{background:var(--tried)}.seg-none,.dot-none{background:var(--none)}.seg-review,.dot-review{background:var(--review)}
+    .seg-reached,.dot-reached{background:var(--connected)}.seg-unreachable,.dot-unreachable{background:var(--tried)}.seg-untried,.dot-untried{background:var(--none)}.seg-review,.dot-review{background:var(--review)}
     .dot{display:inline-block;flex:none;width:9px;height:9px;border-radius:50%}
     .n{text-align:right;font-variant-numeric:tabular-nums}.n b{font-size:16px}.n span{display:none}.n.zero b{color:#b4bdc9;font-weight:400}
     .foot{margin:12px 0 0;font-size:12px;color:var(--subtle)}.foot:empty{display:none}
@@ -36,7 +36,7 @@
     .leads th:first-child,.leads td:first-child{padding-left:22px}.leads th:last-child,.leads td:last-child{padding-right:22px}.leads small{display:block;margin-top:3px;color:var(--subtle);font-size:11.5px;line-height:1.4}
     .c-customer strong{color:#142d4f}.c-received{color:var(--subtle)}.c-stage{color:#33415a}.c-actions{text-align:right;white-space:nowrap}.c-actions button{min-height:30px;padding:4px 10px;font-size:12px}.c-actions a{margin-left:10px;font-size:12px;font-weight:700;text-decoration:none}
     .status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700}.status::before{content:'';flex:none;width:9px;height:9px;border-radius:50%}
-    .status-connected{color:var(--connected-ink)}.status-connected::before{background:var(--connected)}.status-tried{color:var(--tried-ink)}.status-tried::before{background:var(--tried)}.status-none{color:var(--none-ink)}.status-none::before{background:var(--none)}.status-review{color:var(--review-ink)}.status-review::before{background:var(--review)}
+    .status-reached{color:var(--connected-ink)}.status-reached::before{background:var(--connected)}.status-unreachable{color:var(--tried-ink)}.status-unreachable::before{background:var(--tried)}.status-untried{color:var(--none-ink)}.status-untried::before{background:var(--none)}.status-review{color:var(--review-ink)}.status-review::before{background:var(--review)}
     .empty{margin:0;padding:36px 22px;text-align:center;color:var(--subtle);font-size:13px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
     .method{max-width:900px;margin:22px auto 0;font-size:12px;color:var(--subtle);line-height:1.55}.method summary{cursor:pointer;font-weight:700;text-align:center}.method p{margin:10px 0 0}
     .modal{position:fixed;inset:0;background:#162a4599;display:none;align-items:center;justify-content:center;padding:16px}.modal.open{display:flex}.dialog{background:#fff;border-radius:10px;width:min(700px,100%);max-height:85vh;overflow:auto;padding:22px}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.dialog-head h2{font-size:18px;margin:0}.note{border-top:1px solid #e5eaf1;padding:13px 0;white-space:pre-wrap;font-size:13px;line-height:1.5}.note time{display:block;font-size:11px;color:var(--subtle);margin-bottom:5px}
@@ -56,7 +56,7 @@
   <main>
     <div class="top">
       <div><span class="eyebrow">Marketing · Live report</span><h1>Lead follow-up</h1>
-        <p class="intro">Has someone connected with each new lead? Calls and SMS are checked for every new GHL lead. Direct Call leads are excluded. Read-only.</p></div>
+        <p class="intro">Can we reach our new leads? A lead counts as reached once it moves past New Lead in GHL (for example Quote Sent), or when a call connects or the customer replies. Direct Call leads are excluded. Read-only.</p></div>
       <section class="dates" aria-label="Report dates">
         <label class="field">Leads from<input type="date" id="from"></label>
         <label class="field">Leads to<input type="date" id="to"></label>
@@ -73,32 +73,33 @@
     </section>
     <section class="card list" aria-labelledby="listTitle">
       <div class="list-head">
-        <div><h2 id="listTitle">Leads by pipeline</h2><p>Leads without a connection are listed first.</p></div>
+        <div><h2 id="listTitle">Leads by pipeline</h2><p>Starts with leads not reached yet. Change “Show” to see everyone.</p></div>
         <div class="tools">
-          <label class="field">Show<select id="view"><option value="all">All leads</option><option value="open">Not connected yet</option><option value="none">No attempt found</option><option value="tried">Tried, no connection</option><option value="connected">Connected</option><option value="review">Needs review</option></select></label>
+          <label class="field">Show<select id="view"><option value="open">Not reached yet</option><option value="unreachable">Not reachable</option><option value="untried">Not tried yet</option><option value="review">Needs review</option><option value="newLead">Still in New Lead</option><option value="reached">Reached</option><option value="all">All leads</option></select></label>
           <label class="field">Find a customer<input id="search" type="search" placeholder="Name or phone"></label>
           <button type="button" id="csv" disabled>Download CSV</button>
         </div>
       </div>
       <div id="pipelineSections"></div>
     </section>
-    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. Calls are matched by phone number from RingCentral, and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. “Connected” means a call connected or the customer replied by SMS; a connected call may still be voicemail, so it is not proof of a conversation. “Tried, no connection” and “No attempt found” are not proof a person was unreachable or ignored. Direct Call opportunities are excluded by their GHL source or name. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Check known leads before sharing the figures.</p></details>
+    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. A lead whose GHL stage has moved past New Lead (for example Quote Sent, Follow Up or Installed) counts as reached, and one in Not Reachable counts as not reachable. For leads still in New Lead (or Today), calls are matched by phone number from RingCentral and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. A connected call or a customer SMS reply counts as reached, although a connected call may still be voicemail. Calls or SMS with no answer count as not reachable, and no call or SMS at all as not tried yet. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Direct Call opportunities are excluded by their GHL source or name. Check known leads before sharing the figures.</p></details>
   </main>
   <div class="modal" id="modal"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="noteTitle"><div class="dialog-head"><h2 id="noteTitle">GHL notes</h2><button type="button" id="close">Close</button></div><div id="notes" class="muted">Loading…</div></div></div>
   <script>
-    const $=id=>document.getElementById(id),api='/api/smoke-alarms/reports',state={rows:[],totals:null,loaded:false,range:''};
+    const $=id=>document.getElementById(id),api='/api/smoke-alarms/reports',state={rows:[],loaded:false,range:''};
     const PIPELINES=['Smoke Alarms','Aircons','HWS Pipeline','NSW HWS Pipeline'];
-    // One plain label per API contact status, in display order from best to worst.
+    // Reachability worked out by the API (GHL stage first, then calls and SMS), in display order.
     const STATUSES=[
-      {key:'connected',label:'Connected',source:'Connected call or SMS reply'},
-      {key:'tried',label:'Tried, no connection',source:'Attempted, no confirmed response'},
-      {key:'none',label:'No attempt found',source:'No attempt recorded'},
-      {key:'review',label:'Needs review',source:'Needs review'}
+      {key:'reached',label:'Reached'},
+      {key:'unreachable',label:'Not reachable'},
+      {key:'untried',label:'Not tried yet'},
+      {key:'review',label:'Needs review'}
     ];
-    const STATUS=Object.fromEntries(STATUSES.map(status=>[status.key,status])),PRIORITY={none:0,tried:1,review:2,connected:3};
-    const VIEWS={all:()=>true,open:key=>key==='tried'||key==='none',none:key=>key==='none',tried:key=>key==='tried',connected:key=>key==='connected',review:key=>key==='review'};
-    const statusKey=row=>STATUSES.find(status=>status.source===row.contactStatus)?.key||'review';
+    const STATUS=Object.fromEntries(STATUSES.map(status=>[status.key,status])),PRIORITY={untried:0,unreachable:1,review:2,reached:3};
+    const statusKey=row=>STATUS[row.reachability]?row.reachability:'review';
+    const VIEWS={all:()=>true,open:row=>statusKey(row)!=='reached',unreachable:row=>statusKey(row)==='unreachable',untried:row=>statusKey(row)==='untried',review:row=>statusKey(row)==='review',newLead:row=>row.stageProgress==='new',reached:row=>statusKey(row)==='reached'};
     const resultLabel=row=>STATUS[statusKey(row)].label;
+    const CONTACT_LABELS={'Connected call or SMS reply':'Call connected or SMS reply','Attempted, no confirmed response':'Called or texted, no answer','No attempt recorded':'No call or SMS found','Needs review':'Unclear'};
     const byPriority=(a,b)=>PRIORITY[statusKey(a)]-PRIORITY[statusKey(b)]||String(b.leadAt).localeCompare(String(a.leadAt));
     const plural=(count,word,many=`${word}s`)=>`${count} ${count===1?word:many}`;
     const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -108,7 +109,7 @@
       const extras=[...new Set(rows.map(row=>String(row.pipeline||'').trim()||'Unknown pipeline').filter(name=>!known.has(pipelineKey(name))))].sort((a,b)=>a.localeCompare(b));
       return [...PIPELINES,...extras].map(name=>({name,rows:rows.filter(row=>pipelineKey(row.pipeline)===pipelineKey(name))}));
     }
-    function counts(rows){const result={total:rows.length,connected:0,tried:0,none:0,review:0};for(const row of rows)result[statusKey(row)]++;return result}
+    function counts(rows){const result={total:rows.length,reached:0,unreachable:0,untried:0,review:0};for(const row of rows)result[statusKey(row)]++;return result}
     const localDate=date=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Sydney',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).map(part=>[part.type,part.value]));return `${parts.year}-${parts.month}-${parts.day}`};
     const previousDay=day=>new Date(Date.parse(`${day}T00:00:00Z`)-86400000).toISOString().slice(0,10);
     const dateLabel=value=>value?new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Sydney',dateStyle:'medium',timeStyle:'short'}):'Unknown';
@@ -127,7 +128,7 @@
     async function request(params){const response=await fetch(`${api}?${new URLSearchParams(params)}`,{cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||`Request failed (${response.status})`);return data}
     function filteredRows(){
       const view=VIEWS[$('view').value]||VIEWS.all,search=$('search').value.trim().toLowerCase(),digits=search.replace(/\D/g,'');
-      return state.rows.filter(row=>view(statusKey(row))&&(!search||[row.name,row.phone,row.email].join(' ').toLowerCase().includes(search)||(digits.length>=3&&String(row.phone||'').replace(/\D/g,'').includes(digits))));
+      return state.rows.filter(row=>view(row)&&(!search||[row.name,row.phone,row.email].join(' ').toLowerCase().includes(search)||(digits.length>=3&&String(row.phone||'').replace(/\D/g,'').includes(digits))));
     }
     function splitBar(c){
       const label=STATUSES.map(status=>`${status.label}: ${c[status.key]}`).join(', ');
@@ -139,36 +140,40 @@
     function renderSummary(){
       $('range').textContent=state.range;
       if(!state.loaded){$('pipelineSummary').innerHTML='';$('callNote').textContent='';return}
-      const c=counts(state.rows),open=c.tried+c.none,totals=state.totals||{};
+      const c=counts(state.rows),open=c.unreachable+c.untried+c.review;
       if(!c.total){
         $('answerTitle').textContent='No new leads in these dates';
         $('answerDetail').textContent='Direct Call leads are not counted. Choose other dates to check a different period.';
         $('pipelineSummary').innerHTML='';$('callNote').textContent='';return;
       }
-      $('answerTitle').textContent=c.connected===c.total&&c.total>1?`All ${c.total} new leads connected`:`${c.connected} of ${plural(c.total,'new lead')} connected`;
-      const follow=open?`<strong>${plural(open,'lead')} still ${open===1?'needs':'need'} follow-up</strong>${c.none?` — ${c.none} with no call or SMS found`:''}.`:'No leads are waiting on follow-up.';
-      const review=c.review?` ${plural(c.review,'lead')} ${c.review===1?'needs':'need'} a manual check in GHL.`:'';
-      $('answerDetail').innerHTML=`${follow}${review}${open?'<button type="button" class="link-btn" data-view="open">Show who</button>':''}`;
-      const head=`<div class="pipe-row pipe-head" aria-hidden="true"><div>Pipeline</div><div>Follow-up split</div>${STATUSES.map(status=>`<div class="n"><i class="dot dot-${status.key}"></i>${status.label}</div>`).join('')}</div>`;
+      $('answerTitle').textContent=c.reached===c.total&&c.total>1?`All ${c.total} new leads reached`:`${c.reached} of ${plural(c.total,'new lead')} reached`;
+      const parts=[c.unreachable&&`${c.unreachable} not reachable so far`,c.untried&&`${c.untried} not tried yet`,c.review&&`${c.review} ${c.review===1?'needs':'need'} a manual check`].filter(Boolean);
+      $('answerDetail').innerHTML=open?`<strong>${plural(open,'lead')} not reached yet</strong>: ${parts.join(', ')}.<button type="button" class="link-btn" data-view="open">Show who</button>`:'Nobody is waiting to be reached.';
+      const head=`<div class="pipe-row pipe-head" aria-hidden="true"><div>Pipeline</div><div>Reachability</div>${STATUSES.map(status=>`<div class="n"><i class="dot dot-${status.key}"></i>${status.label}</div>`).join('')}</div>`;
       $('pipelineSummary').innerHTML=head+summaryRow('All pipelines',c,true)+pipelineGroups(state.rows).map(group=>summaryRow(group.name,counts(group.rows))).join('');
-      $('callNote').textContent=totals.calledNoConnection?`Calls to leads not yet connected: ${plural(totals.callsToUnconnected,'call')} to ${plural(totals.calledNoConnection,'customer')}.`:'';
+      const called=state.rows.filter(row=>statusKey(row)==='unreachable'&&Number(row.callsMade)>0),calls=called.reduce((sum,row)=>sum+Number(row.callsMade),0);
+      const stale=state.rows.filter(row=>statusKey(row)==='reached'&&row.stageProgress==='new').length;
+      $('callNote').textContent=[called.length&&`Calls to leads not reachable so far: ${plural(calls,'call')} to ${plural(called.length,'customer')}.`,stale&&`${plural(stale,'reached lead')} ${stale===1?'is':'are'} still in New Lead in GHL.`].filter(Boolean).join(' ');
     }
     function updateViewOptions(){
-      const c=counts(state.rows),labels={all:`All leads (${c.total})`,open:`Not connected yet (${c.tried+c.none})`,none:`No attempt found (${c.none})`,tried:`Tried, no connection (${c.tried})`,connected:`Connected (${c.connected})`,review:`Needs review (${c.review})`};
+      const c=counts(state.rows),labels={open:`Not reached yet (${c.total-c.reached})`,unreachable:`Not reachable (${c.unreachable})`,untried:`Not tried yet (${c.untried})`,review:`Needs review (${c.review})`,newLead:`Still in New Lead (${state.rows.filter(VIEWS.newLead).length})`,reached:`Reached (${c.reached})`,all:`All leads (${c.total})`};
       for(const option of $('view').options||[])option.textContent=state.loaded?labels[option.value]:labels[option.value].replace(/ \(\d+\)$/,'');
     }
-    function followUpDetail(row,key){
-      if(key==='none')return '';
+    function reachDetail(row,key){
+      if(key==='untried')return '';
+      if(key==='reached'&&row.stageProgress==='moved-on')return '<small>Moved past New Lead in GHL</small>';
       const parts=[plural(Number(row.callsMade)||0,'call'),`${Number(row.smsSent)||0} SMS`];
       if(row.lastCall)parts.push(`last call: ${row.lastCall}`);
+      const activity=`<small>${escapeHtml(parts.join(' · '))}</small>`;
+      if(key==='reached')return `${activity}<small>Still in New Lead in GHL</small>`;
       const template=row.lastTemplate&&!['Not recorded','Could not check'].includes(row.lastTemplate)?`<small>SMS template: ${escapeHtml(row.lastTemplate)}</small>`:'';
-      return `<small>${escapeHtml(parts.join(' · '))}</small>${template}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
+      return `${activity}${template}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
     }
     function renderRow(row){
       const key=statusKey(row),source=row.source&&row.source!=='Not recorded'?` · ${row.source}`:'';
-      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(receivedLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${followUpDetail(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
+      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(receivedLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${reachDetail(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
     }
-    const TABLE_HEAD='<colgroup><col style="width:27%"><col style="width:15%"><col style="width:28%"><col style="width:16%"><col style="width:14%"></colgroup><thead><tr><th>Customer</th><th>Received</th><th>Follow-up</th><th>GHL stage</th><th><span class="sr-only">Actions</span></th></tr></thead>';
+    const TABLE_HEAD='<colgroup><col style="width:27%"><col style="width:15%"><col style="width:28%"><col style="width:16%"><col style="width:14%"></colgroup><thead><tr><th>Customer</th><th>Received</th><th>Reachable?</th><th>GHL stage</th><th><span class="sr-only">Actions</span></th></tr></thead>';
     function render(){
       updateViewOptions();
       if(!state.loaded){$('pipelineSections').innerHTML='';return}
@@ -178,9 +183,9 @@
         const shown=visible.filter(row=>pipelineKey(row.pipeline)===pipelineKey(group.name)).sort(byPriority);
         if(filtered&&!shown.length)return '';
         const c=counts(group.rows);
-        const meta=c.total?`${plural(c.total,'lead')} · ${c.connected} connected${shown.length===c.total?'':` · showing ${shown.length}`}`:'No leads in these dates';
+        const meta=c.total?`${plural(c.total,'lead')} · ${c.reached} reached${shown.length===c.total?'':` · showing ${shown.length}`}`:'No leads in these dates';
         return `<section class="group" aria-label="${escapeHtml(group.name)} leads"><div class="group-head"><h3>${escapeHtml(group.name)}</h3><span>${meta}</span></div>${shown.length?`<table class="leads">${TABLE_HEAD}<tbody>${shown.map(renderRow).join('')}</tbody></table>`:''}</section>`;
-      }).join('')||'<p class="empty">No leads match this filter.</p>';
+      }).join('')||`<p class="empty">${$('view').value==='open'&&!$('search').value.trim()?'Every new lead in these dates has been reached.':'No leads match this filter.'}</p>`;
     }
     async function load(){
       const button=$('load');button.disabled=true;state.range=rangeLabel();state.loaded=false;message('');
@@ -188,13 +193,13 @@
       renderSummary();render();
       try{
         const data=await request({leadReport:'report',from:$('from').value,to:$('to').value});
-        state.rows=data.rows||[];state.totals=data.totals||null;state.loaded=true;
+        state.rows=data.rows||[];state.loaded=true;
         $('generated').textContent=`Updated ${dateLabel(data.generatedAt)}`;
         $('csv').disabled=!state.rows.length;
         const extra=pipelineGroups(state.rows).length-PIPELINES.length;
         message(extra?`${plural(extra,'additional GHL pipeline')} ${extra===1?'is':'are'} included so no leads are left out.`:'');
       }catch(error){
-        state.rows=[];state.totals=null;message(error.message,true);
+        state.rows=[];message(error.message,true);
         $('answerTitle').textContent='Report not available';$('answerDetail').textContent='No figures are shown because the report could not be completed. Try again or choose a shorter date range.';
         $('csv').disabled=true;
       }finally{button.disabled=false;renderSummary();render()}
@@ -204,7 +209,7 @@
     $('pipelineSections').addEventListener('click',async event=>{const button=event.target.closest('.view-notes');if(!button)return;$('noteTitle').textContent=`GHL notes · ${button.dataset.name}`;$('notes').textContent='Loading…';$('modal').classList.add('open');try{const data=await request({leadReport:'notes',contactId:button.dataset.id});$('notes').innerHTML=data.notes.length?data.notes.sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(note=>`<div class="note"><time>${escapeHtml(dateLabel(note.date))}</time>${escapeHtml(note.body)}</div>`).join(''):'No GHL notes recorded for this contact.'}catch(error){$('notes').textContent=`Could not load notes: ${error.message}`}});
     const closeNotes=()=>$('modal').classList.remove('open');
     $('close').addEventListener('click',closeNotes);$('modal').addEventListener('click',event=>{if(event.target===$('modal'))closeNotes()});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeNotes()});
-    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='contactStatus'?resultLabel(row):row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Reachability','reachability'],['Call and SMS result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='reachability'?resultLabel(row):key==='contactStatus'?CONTACT_LABELS[row.contactStatus]||'Unclear':row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
     load();
   </script>
 </body>
