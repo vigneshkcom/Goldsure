@@ -116,3 +116,33 @@ test('reminder endpoint: cron secret required, preview never sends, force sends 
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
   }
 });
+
+test('"Send now" from the lead report sends to info@ only, only from the portal, once a minute', async () => {
+  const keys = ['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'CRON_SECRET', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN', 'LEAD_REMINDER_TO'];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]])), savedFetch = global.fetch;
+  Object.assign(process.env, { GHL_API_KEY: 'k', GHL_LOCATION_ID: 'loc', SUPABASE_URL: 'https://sb.example', SUPABASE_ANON_KEY: 'a', HOSTINGER_MAILBOX_RESOURCE_ID: 'box', HOSTINGER_MAIL_API_TOKEN: 'mail' });
+  delete process.env.CRON_SECRET; delete process.env.LEAD_REMINDER_TO;
+  const sent = [];
+  global.fetch = mockServices(sent);
+  const post = async origin => {
+    const res = { statusCode: 0, body: null, setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; }, send(body) { this.body = body; return this; } };
+    await leadCallReminder({ method: 'POST', query: { leadReport: 'reminder', recipient: 'someone@else.com' }, headers: { host: 'portal.goldsure.com.au', ...(origin ? { origin } : {}) } }, res, { ringcentralToken: async () => 'rc', ringcentralServer: () => 'https://rc.example' });
+    return res;
+  };
+  try {
+    assert.equal((await post('https://evil.example')).statusCode, 403);
+    assert.equal(sent.length, 0);
+    const first = await post('https://portal.goldsure.com.au');
+    assert.equal(first.statusCode, 200, JSON.stringify(first.body));
+    assert.deepEqual(first.body.to, ['info@goldsure.com.au']);
+    assert.equal(first.body.needCalls, 1);
+    assert.equal(sent.length, 1);
+    assert.deepEqual(sent[0].to, ['info@goldsure.com.au'], 'recipient cannot be changed from the request');
+    const second = await post('https://portal.goldsure.com.au');
+    assert.equal(second.statusCode, 429);
+    assert.equal(sent.length, 1);
+  } finally {
+    global.fetch = savedFetch;
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+});

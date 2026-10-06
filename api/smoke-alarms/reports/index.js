@@ -560,8 +560,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query && req.query.rc === 'hourly-email') {
     return ringcentralHourlyEmail(req, res);
   }
-  // 12 pm and 3 pm Sydney call reminder email (Vercel cron via /api/leads/call-reminder).
-  if (req.method === 'GET' && req.query?.leadReport === 'reminder') {
+  // 12 pm and 3 pm Sydney call reminder email (Vercel cron via /api/leads/call-reminder),
+  // or POST from the lead report's "Send now" button.
+  if ((req.method === 'GET' || req.method === 'POST') && req.query?.leadReport === 'reminder') {
     return leadCallReminder(req, res, { ringcentralToken: rcAccessToken, ringcentralServer: rcServer });
   }
   if (req.method === 'GET' && req.query?.leadReport) {

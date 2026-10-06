@@ -157,6 +157,8 @@ test('lead report page script compiles', () => {
   assert.match(html, /<option value="open">Not reached yet/);
   assert.match(html, /<button type="button" data-days="7">Last 7 days<\/button>/);
   assert.match(html, /label:'Not reachable so far'/);
+  assert.match(html, /<button type="button" id="sendReminder">Send now<\/button>/);
+  assert.match(html, /href="\/api\/smoke-alarms\/reports\?leadReport=reminder&amp;preview=1"/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
