@@ -103,3 +103,33 @@ test('lead report page script compiles', () => {
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
 });
+
+test('lead page defaults to yesterday through today and renders four separate pipeline tables', () => {
+  const html = readFileSync(new URL('../leads/index.html', import.meta.url), 'utf8');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  const elements = new Map();
+  const getElementById = id => {
+    if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'all' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
+    return elements.get(id);
+  };
+  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, stageTone, render, renderChart })`, {
+    document: { getElementById }, URLSearchParams, fetch: () => new Promise(() => {}),
+  });
+  const to = getElementById('to').value;
+  assert.equal(getElementById('from').value, new Date(Date.parse(`${to}T00:00:00Z`) - 86400000).toISOString().slice(0, 10));
+  const names = ['Smoke Alarms', 'Aircons', 'HWS Pipeline', 'NSW HWS Pipeline'];
+  page.state.rows = names.map((pipeline, index) => ({
+    pipeline, stage: index === 0 ? 'New Lead' : index === 1 ? 'Follow-Up' : index === 2 ? 'Quote Sent' : 'Quote Accepted',
+    name: `Customer ${index}`, phone: '0412345678', source: 'Meta', leadAt: '2026-10-05T01:00:00Z',
+    callsMade: index, smsSent: 0, contactStatus: 'No attempt recorded', link: 'https://example.com', contactId: `contact${index}`,
+  }));
+  page.renderChart();
+  page.render();
+  assert.equal((getElementById('pipelineSections').innerHTML.match(/class="card pipeline-panel"/g) || []).length, 4);
+  assert.equal((getElementById('pipelineSections').innerHTML.match(/<table class="report">/g) || []).length, 4);
+  assert.equal((getElementById('chart').innerHTML.match(/class="chart-row"/g) || []).length, 4);
+  assert.match(getElementById('pipelineSections').innerHTML, /stage-pill stage-accepted">Quote Accepted/);
+  assert.equal(page.stageTone('New Lead'), 'new');
+  assert.equal(page.stageTone('Follow-Up'), 'follow');
+  assert.equal(page.stageTone('Quote Sent'), 'quote');
+});
