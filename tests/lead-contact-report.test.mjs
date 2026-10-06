@@ -96,15 +96,15 @@ test('lead report page script compiles', () => {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(script);
   new vm.Script(script);
-  assert.match(html, /Current GHL stage/);
-  assert.match(html, /Calls to those customers/);
-  assert.match(html, /value="unconnected">No connection recorded/);
+  assert.match(html, /GHL stage/);
+  assert.match(html, /Calls to leads not yet connected/);
+  assert.match(html, /value="open">Not connected yet/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
 });
 
-test('lead page defaults to yesterday through today and renders four separate pipeline tables', () => {
+test('lead page answers the follow-up question first and groups leads under each pipeline', () => {
   const html = readFileSync(new URL('../leads/index.html', import.meta.url), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   const elements = new Map();
@@ -112,24 +112,33 @@ test('lead page defaults to yesterday through today and renders four separate pi
     if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'all' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
     return elements.get(id);
   };
-  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, stageTone, render, renderChart })`, {
-    document: { getElementById }, URLSearchParams, fetch: () => new Promise(() => {}),
+  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary })`, {
+    document: { getElementById, addEventListener() {} }, URLSearchParams, fetch: () => new Promise(() => {}),
   });
   const to = getElementById('to').value;
   assert.equal(getElementById('from').value, new Date(Date.parse(`${to}T00:00:00Z`) - 86400000).toISOString().slice(0, 10));
   const names = ['Smoke Alarms', 'Aircons', 'HWS Pipeline', 'NSW HWS Pipeline'];
+  const statuses = ['Connected call or SMS reply', 'Attempted, no confirmed response', 'No attempt recorded', 'Needs review'];
   page.state.rows = names.map((pipeline, index) => ({
-    pipeline, stage: index === 0 ? 'New Lead' : index === 1 ? 'Follow-Up' : index === 2 ? 'Quote Sent' : 'Quote Accepted',
-    name: `Customer ${index}`, phone: '0412345678', source: 'Meta', leadAt: '2026-10-05T01:00:00Z',
-    callsMade: index, smsSent: 0, contactStatus: 'No attempt recorded', link: 'https://example.com', contactId: `contact${index}`,
+    pipeline, stage: 'New Lead', name: `Customer ${index}`, phone: '0412345678', source: 'Meta', leadAt: `2026-10-05T0${index}:00:00Z`,
+    callsMade: index, smsSent: 0, contactStatus: statuses[index], link: 'https://example.com', contactId: `contact${index}`,
   }));
-  page.renderChart();
+  page.state.rows.push({ ...page.state.rows[0], name: 'Not called yet', contactId: 'contact4', contactStatus: 'No attempt recorded', callsMade: 0, leadAt: '2026-10-05T00:30:00Z' });
+  page.state.totals = { calledNoConnection: 1, callsToUnconnected: 1 };
+  page.state.loaded = true;
+  page.renderSummary();
   page.render();
-  assert.equal((getElementById('pipelineSections').innerHTML.match(/class="card pipeline-panel"/g) || []).length, 4);
-  assert.equal((getElementById('pipelineSections').innerHTML.match(/<table class="report">/g) || []).length, 4);
-  assert.equal((getElementById('chart').innerHTML.match(/class="chart-row"/g) || []).length, 4);
-  assert.match(getElementById('pipelineSections').innerHTML, /stage-pill stage-accepted">Quote Accepted/);
-  assert.equal(page.stageTone('New Lead'), 'new');
-  assert.equal(page.stageTone('Follow-Up'), 'follow');
-  assert.equal(page.stageTone('Quote Sent'), 'quote');
+  assert.equal(getElementById('answerTitle').textContent, '1 of 5 new leads connected');
+  assert.match(getElementById('answerDetail').innerHTML, /3 leads still need follow-up<\/strong> — 2 with no call or SMS found\. 1 lead needs a manual check in GHL\./);
+  assert.equal((getElementById('pipelineSummary').innerHTML.match(/class="pipe-row( total)?"/g) || []).length, 5);
+  assert.equal(getElementById('callNote').textContent, 'Calls to leads not yet connected: 1 call to 1 customer.');
+  const sections = getElementById('pipelineSections').innerHTML;
+  assert.equal((sections.match(/class="group"/g) || []).length, 4);
+  assert.equal((sections.match(/<table class="leads">/g) || []).length, 4);
+  assert.ok(sections.indexOf('Not called yet') < sections.indexOf('Customer 0'), 'leads without a connection are listed first');
+  assert.equal(page.statusKey({ contactStatus: 'Something new' }), 'review');
+  getElementById('view').value = 'open';
+  page.render();
+  assert.doesNotMatch(getElementById('pipelineSections').innerHTML, /Customer 0|Customer 3/);
+  assert.match(getElementById('pipelineSections').innerHTML, /Customer 1[\s\S]*Customer 2/);
 });
