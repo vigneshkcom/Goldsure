@@ -181,3 +181,28 @@ test('a busy week (over 150 leads) still builds the reminder from the few custom
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
   }
 });
+
+test('when the reminder cannot be built, nothing is emailed', async () => {
+  const keys = ['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'CRON_SECRET', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN'];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]])), savedFetch = global.fetch, savedError = console.error;
+  Object.assign(process.env, { GHL_API_KEY: 'k', GHL_LOCATION_ID: 'loc', SUPABASE_URL: 'https://sb.example', SUPABASE_ANON_KEY: 'a', CRON_SECRET: 'cron', HOSTINGER_MAILBOX_RESOURCE_ID: 'box', HOSTINGER_MAIL_API_TOKEN: 'mail' });
+  const mail = [];
+  global.fetch = async url => {
+    const value = String(url);
+    if (value.startsWith('https://api.mail.hostinger.com/')) { mail.push(value); return new Response('{}', { status: 200 }); }
+    if (value.includes('/opportunities/')) return new Response('{}', { status: 401 });
+    if (value.includes('/call-log')) return new Response(JSON.stringify({ records: [] }), { status: 200 });
+    if (value.includes('/sms_messages')) return new Response('[]', { status: 200 });
+    throw new Error(`Unexpected request: ${value}`);
+  };
+  console.error = () => {};
+  try {
+    const res = { statusCode: 0, body: null, setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; }, send(body) { this.body = body; return this; } };
+    await leadCallReminder({ query: { leadReport: 'reminder', force: '1' }, headers: { authorization: 'Bearer cron' } }, res, { ringcentralToken: async () => 'rc', ringcentralServer: () => 'https://rc.example' });
+    assert.equal(res.statusCode, 502);
+    assert.equal(mail.length, 0, 'no "could not be prepared" email');
+  } finally {
+    global.fetch = savedFetch; console.error = savedError;
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+});
