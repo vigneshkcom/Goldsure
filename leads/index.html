@@ -12,7 +12,7 @@
     .top{display:flex;justify-content:space-between;align-items:flex-end;gap:20px 32px;flex-wrap:wrap;margin-bottom:20px}
     .eyebrow{font-size:10px;letter-spacing:.16em;font-weight:800;color:var(--gold);text-transform:uppercase}
     h1{font-size:30px;letter-spacing:-.03em;line-height:1.15;margin:6px 0}.intro{margin:0;max-width:540px;font-size:14px;line-height:1.5;color:var(--subtle)}
-    .dates{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.generated{flex-basis:100%;margin:0;text-align:right;font-size:11px;color:var(--faint)}
+    .dates{display:grid;grid-template-columns:auto auto auto;align-items:end;gap:10px}.presets{display:flex;grid-column:1/-1;justify-self:end}.presets button{min-height:32px;padding:5px 12px;font-size:12px;border-radius:0;margin-left:-1px}.presets button:first-child{border-radius:6px 0 0 6px;margin-left:0}.presets button:last-child{border-radius:0 6px 6px 0}.presets button[aria-pressed="true"]{position:relative;background:#e6edf6;border-color:#8ea6c4;color:var(--navy)}.generated{grid-column:1/-1;margin:0;text-align:right;font-size:11px;color:var(--faint)}
     .field{display:grid;gap:5px;font-size:11px;font-weight:700;color:var(--subtle)}.field input,.field select{min-height:38px;padding:7px 10px;border:1px solid #c9d3e0;border-radius:6px;background:#fff;color:var(--ink);font:inherit;font-size:13px}
     button{min-height:38px;padding:7px 14px;border:1px solid #c3cfdd;border-radius:6px;background:#fff;color:var(--navy);font:inherit;font-size:13px;font-weight:700;cursor:pointer}button:hover{background:#f3f6fa}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--navy);border-color:var(--navy);color:#fff}button.primary:hover{background:#0f2a4a}
     .message{margin:0 0 16px;padding:11px 14px;border:1px solid #d8e5f4;border-radius:6px;background:#edf4fc;color:#28507e;font-size:13px}.message.error{border-color:#f3d3cc;background:#fff2ef;color:#9b3329}.message[hidden]{display:none}
@@ -41,9 +41,9 @@
     .method{max-width:900px;margin:22px auto 0;font-size:12px;color:var(--subtle);line-height:1.55}.method summary{cursor:pointer;font-weight:700;text-align:center}.method p{margin:10px 0 0}
     .modal{position:fixed;inset:0;background:#162a4599;display:none;align-items:center;justify-content:center;padding:16px}.modal.open{display:flex}.dialog{background:#fff;border-radius:10px;width:min(700px,100%);max-height:85vh;overflow:auto;padding:22px}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.dialog-head h2{font-size:18px;margin:0}.note{border-top:1px solid #e5eaf1;padding:13px 0;white-space:pre-wrap;font-size:13px;line-height:1.5}.note time{display:block;font-size:11px;color:var(--subtle);margin-bottom:5px}
     @media(max-width:760px){
-      header{padding:14px 16px}main{padding:22px 16px 44px}h1{font-size:26px}.dates{width:100%}.dates .field{flex:1 1 130px}.dates .field input{width:100%}.dates button{flex:1 1 100%}.generated{text-align:left}
+      header{padding:14px 16px}main{padding:22px 16px 44px}h1{font-size:26px}.dates{width:100%;grid-template-columns:1fr 1fr}.presets{justify-self:stretch}.presets button{flex:1}.dates .field input{width:100%}#load{grid-column:1/-1}.generated{text-align:left}
       .answer{padding:20px 16px}.answer h2{font-size:22px}.pipe-head{display:none}.pipe-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px;padding:14px 0}.pipe-name,.split{grid-column:1/-1}.pipe-name{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.pipe-name small{margin:0}
-      .n{text-align:left}.pipe-row.total .n span{display:flex;align-items:center;gap:5px;margin-top:2px;font-size:10.5px;line-height:1.25;color:var(--subtle)}
+      .n{text-align:left;align-self:start}.pipe-row.total .n span{display:flex;align-items:center;gap:5px;margin-top:2px;font-size:10.5px;line-height:1.25;color:var(--subtle)}
       .list-head{padding:18px 16px 14px}.tools{width:100%}.tools .field{flex:1 1 100%}.tools .field select,.tools .field input{min-width:0;width:100%}.tools button{width:100%}.group-head{padding:16px 16px 8px}
       .leads colgroup,.leads thead{display:none}.leads,.leads tbody{display:block}.leads tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 16px;border-top:1px solid #edf1f5}.leads td{display:block;padding:0!important;border:0}
       .c-received{grid-column:2;grid-row:1;text-align:right;font-size:12px}.c-result{grid-column:1/-1}.c-stage{font-size:12px}.c-stage::before{content:'GHL stage: ';color:var(--faint)}.c-actions{align-self:end}
@@ -56,8 +56,9 @@
   <main>
     <div class="top">
       <div><span class="eyebrow">Marketing · Live report</span><h1>Lead follow-up</h1>
-        <p class="intro">Can we reach our new leads? A lead counts as reached once it moves past New Lead in GHL (for example Quote Sent), or when a call connects or the customer replies. Direct Call leads are excluded. Read-only.</p></div>
+        <p class="intro">Can we reach our new leads? A lead past New Lead in GHL (for example Quote Sent) counts as reached. For leads still in New Lead, calls, customer replies and Not Reachable SMS templates decide. Direct Call leads are excluded. Read-only.</p></div>
       <section class="dates" aria-label="Report dates">
+        <div class="presets" id="presets" role="group" aria-label="Quick date ranges"><button type="button" data-days="1">Today</button><button type="button" data-days="2">Last 2 days</button><button type="button" data-days="7">Last 7 days</button></div>
         <label class="field">Leads from<input type="date" id="from"></label>
         <label class="field">Leads to<input type="date" id="to"></label>
         <button type="button" class="primary" id="load">Update report</button>
@@ -75,14 +76,14 @@
       <div class="list-head">
         <div><h2 id="listTitle">Leads by pipeline</h2><p>Starts with leads not reached yet. Change “Show” to see everyone.</p></div>
         <div class="tools">
-          <label class="field">Show<select id="view"><option value="open">Not reached yet</option><option value="unreachable">Not reachable</option><option value="untried">Not tried yet</option><option value="review">Needs review</option><option value="newLead">Still in New Lead</option><option value="reached">Reached</option><option value="all">All leads</option></select></label>
+          <label class="field">Show<select id="view"><option value="open">Not reached yet</option><option value="unreachable">Not reachable so far</option><option value="untried">Not tried yet</option><option value="review">Needs review</option><option value="newLead">Still in New Lead</option><option value="reached">Reached</option><option value="all">All leads</option></select></label>
           <label class="field">Find a customer<input id="search" type="search" placeholder="Name or phone"></label>
           <button type="button" id="csv" disabled>Download CSV</button>
         </div>
       </div>
       <div id="pipelineSections"></div>
     </section>
-    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. A lead whose GHL stage has moved past New Lead (for example Quote Sent, Follow Up or Installed) counts as reached, and one in Not Reachable counts as not reachable. For leads still in New Lead (or Today), calls are matched by phone number from RingCentral and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. A connected call or a customer SMS reply counts as reached, although a connected call may still be voicemail. Calls or SMS with no answer count as not reachable, and no call or SMS at all as not tried yet. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Direct Call opportunities are excluded by their GHL source or name. Check known leads before sharing the figures.</p></details>
+    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. A lead whose GHL stage has moved past New Lead (for example Quote Sent, Follow Up or Installed) counts as reached, and one in Not Reachable counts as not reachable. For leads still in New Lead (or Today), a Not Reachable SMS template sent from the SMS portal means the customer was tried but not reached, so the lead counts as not reachable so far until the customer replies by SMS or calls in. Otherwise calls are matched by phone number from RingCentral and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. A connected call or a customer SMS reply counts as reached, although a connected call may still be voicemail. Calls or SMS with no answer count as not reachable so far, and no call or SMS at all as not tried yet. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Direct Call opportunities are excluded by their GHL source or name. Check known leads before sharing the figures.</p></details>
   </main>
   <div class="modal" id="modal"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="noteTitle"><div class="dialog-head"><h2 id="noteTitle">GHL notes</h2><button type="button" id="close">Close</button></div><div id="notes" class="muted">Loading…</div></div></div>
   <script>
@@ -91,7 +92,7 @@
     // Reachability worked out by the API (GHL stage first, then calls and SMS), in display order.
     const STATUSES=[
       {key:'reached',label:'Reached'},
-      {key:'unreachable',label:'Not reachable'},
+      {key:'unreachable',label:'Not reachable so far'},
       {key:'untried',label:'Not tried yet'},
       {key:'review',label:'Needs review'}
     ];
@@ -99,7 +100,7 @@
     const statusKey=row=>STATUS[row.reachability]?row.reachability:'review';
     const VIEWS={all:()=>true,open:row=>statusKey(row)!=='reached',unreachable:row=>statusKey(row)==='unreachable',untried:row=>statusKey(row)==='untried',review:row=>statusKey(row)==='review',newLead:row=>row.stageProgress==='new',reached:row=>statusKey(row)==='reached'};
     const resultLabel=row=>STATUS[statusKey(row)].label;
-    const CONTACT_LABELS={'Connected call or SMS reply':'Call connected or SMS reply','Attempted, no confirmed response':'Called or texted, no answer','No attempt recorded':'No call or SMS found','Needs review':'Unclear'};
+    const CONTACT_LABELS={'Connected call or SMS reply':'Call connected or SMS reply','Attempted, no confirmed response':'Called or texted, no answer','No attempt recorded':'No call or SMS found','Needs review':'Unclear','Not checked':'Not checked (past New Lead)'};
     const byPriority=(a,b)=>PRIORITY[statusKey(a)]-PRIORITY[statusKey(b)]||String(b.leadAt).localeCompare(String(a.leadAt));
     const plural=(count,word,many=`${word}s`)=>`${count} ${count===1?word:many}`;
     const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -113,7 +114,7 @@
     const localDate=date=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Sydney',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).map(part=>[part.type,part.value]));return `${parts.year}-${parts.month}-${parts.day}`};
     const previousDay=day=>new Date(Date.parse(`${day}T00:00:00Z`)-86400000).toISOString().slice(0,10);
     const dateLabel=value=>value?new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Sydney',dateStyle:'medium',timeStyle:'short'}):'Unknown';
-    function receivedLabel(value){
+    function whenLabel(value){
       const date=new Date(value||'');if(!Number.isFinite(date.getTime()))return 'Unknown';
       const day=localDate(date),today=localDate(new Date());
       const name=day===today?'Today':day===previousDay(today)?'Yesterday':date.toLocaleDateString('en-AU',{timeZone:'Australia/Sydney',weekday:'short',day:'numeric',month:'short'});
@@ -123,9 +124,29 @@
       const from=$('from').value,to=$('to').value,format=day=>new Date(`${day}T00:00:00Z`).toLocaleDateString('en-AU',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'});
       return from&&to?`Leads received ${from===to?format(from):`${format(from)} – ${format(to)}`}`:'';
     }
-    const today=localDate(new Date());$('to').value=today;$('from').value=previousDay(today);
+    const daysBack=(day,count)=>new Date(Date.parse(`${day}T00:00:00Z`)-count*86400000).toISOString().slice(0,10);
+    const dayCount=(from,to)=>Math.round((Date.parse(`${to}T00:00:00Z`)-Date.parse(`${from}T00:00:00Z`))/86400000)+1;
+    // GHL allows about 100 reads every 10 seconds, so ranges over 3 days are checked in parts (a week: 3 + 2 + 2 days).
+    function rangeParts(from,to){
+      const days=dayCount(from,to),count=Math.ceil(days/3),parts=[];let end=to,left=days;
+      for(let index=0;index<count;index++){const size=Math.ceil(left/(count-index)),start=daysBack(end,size-1);parts.push({from:start,to:end});left-=size;end=daysBack(start,1)}
+      return parts;
+    }
+    // One row per customer across all parts, keeping their newest lead as the API does within a part.
+    function mergeRows(parts){
+      const byContact=new Map();
+      for(const row of parts.flat()){const prior=byContact.get(row.contactId);byContact.set(row.contactId,!prior?row:{...(String(row.leadAt)>String(prior.leadAt)?row:prior),opportunityCount:(Number(prior.opportunityCount)||1)+(Number(row.opportunityCount)||1)})}
+      return [...byContact.values()].sort((a,b)=>String(b.leadAt).localeCompare(String(a.leadAt)));
+    }
+    function setRange(days){const end=localDate(new Date());$('to').value=end;$('from').value=daysBack(end,days-1)}
+    function markPreset(){const end=localDate(new Date());for(const button of $('presets').querySelectorAll?.('[data-days]')||[])button.setAttribute('aria-pressed',String($('to').value===end&&$('from').value===daysBack(end,Number(button.dataset.days)-1)))}
+    $('from').max=$('to').max=localDate(new Date());setRange(2);markPreset();
     function message(text,error=false){$('message').textContent=text;$('message').className=`message${error?' error':''}`;$('message').hidden=!text}
-    async function request(params){const response=await fetch(`${api}?${new URLSearchParams(params)}`,{cache:'no-store'});const data=await response.json();if(!response.ok)throw new Error(data.error||`Request failed (${response.status})`);return data}
+    async function request(params){
+      const response=await fetch(`${api}?${new URLSearchParams(params)}`,{cache:'no-store'});
+      let data;try{data=await response.json()}catch{throw new Error(response.ok?'The report sent back an unreadable response. Please try again.':`The report did not finish (error ${response.status}). Try again in a minute or choose fewer days.`)}
+      if(!response.ok)throw new Error(data.error||`Request failed (${response.status})`);return data;
+    }
     function filteredRows(){
       const view=VIEWS[$('view').value]||VIEWS.all,search=$('search').value.trim().toLowerCase(),digits=search.replace(/\D/g,'');
       return state.rows.filter(row=>view(row)&&(!search||[row.name,row.phone,row.email].join(' ').toLowerCase().includes(search)||(digits.length>=3&&String(row.phone||'').replace(/\D/g,'').includes(digits))));
@@ -156,7 +177,7 @@
       $('callNote').textContent=[called.length&&`Calls to leads not reachable so far: ${plural(calls,'call')} to ${plural(called.length,'customer')}.`,stale&&`${plural(stale,'reached lead')} ${stale===1?'is':'are'} still in New Lead in GHL.`].filter(Boolean).join(' ');
     }
     function updateViewOptions(){
-      const c=counts(state.rows),labels={open:`Not reached yet (${c.total-c.reached})`,unreachable:`Not reachable (${c.unreachable})`,untried:`Not tried yet (${c.untried})`,review:`Needs review (${c.review})`,newLead:`Still in New Lead (${state.rows.filter(VIEWS.newLead).length})`,reached:`Reached (${c.reached})`,all:`All leads (${c.total})`};
+      const c=counts(state.rows),labels={open:`Not reached yet (${c.total-c.reached})`,unreachable:`Not reachable so far (${c.unreachable})`,untried:`Not tried yet (${c.untried})`,review:`Needs review (${c.review})`,newLead:`Still in New Lead (${state.rows.filter(VIEWS.newLead).length})`,reached:`Reached (${c.reached})`,all:`All leads (${c.total})`};
       for(const option of $('view').options||[])option.textContent=state.loaded?labels[option.value]:labels[option.value].replace(/ \(\d+\)$/,'');
     }
     function reachDetail(row,key){
@@ -166,12 +187,12 @@
       if(row.lastCall)parts.push(`last call: ${row.lastCall}`);
       const activity=`<small>${escapeHtml(parts.join(' · '))}</small>`;
       if(key==='reached')return `${activity}<small>Still in New Lead in GHL</small>`;
-      const template=row.lastTemplate&&!['Not recorded','Could not check'].includes(row.lastTemplate)?`<small>SMS template: ${escapeHtml(row.lastTemplate)}</small>`:'';
-      return `${activity}${template}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
+      const template=row.lastTemplate&&!['Not recorded','Could not check','Not checked'].includes(row.lastTemplate)?`<small>Sent “${escapeHtml(row.lastTemplate)}”${row.lastTemplateAt?` · ${escapeHtml(whenLabel(row.lastTemplateAt))}`:''}</small>`:'';
+      return `${template}${activity}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
     }
     function renderRow(row){
       const key=statusKey(row),source=row.source&&row.source!=='Not recorded'?` · ${row.source}`:'';
-      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(receivedLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${reachDetail(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
+      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(whenLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${reachDetail(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
     }
     const TABLE_HEAD='<colgroup><col style="width:27%"><col style="width:15%"><col style="width:28%"><col style="width:16%"><col style="width:14%"></colgroup><thead><tr><th>Customer</th><th>Received</th><th>Reachable?</th><th>GHL stage</th><th><span class="sr-only">Actions</span></th></tr></thead>';
     function render(){
@@ -188,13 +209,21 @@
       }).join('')||`<p class="empty">${$('view').value==='open'&&!$('search').value.trim()?'Every new lead in these dates has been reached.':'No leads match this filter.'}</p>`;
     }
     async function load(){
-      const button=$('load');button.disabled=true;state.range=rangeLabel();state.loaded=false;message('');
-      $('answerTitle').textContent='Checking new leads…';$('answerDetail').textContent='Reading GHL, RingCentral and SMS records. This may take a moment.';
+      const button=$('load');button.disabled=true;for(const preset of $('presets').querySelectorAll?.('button')||[])preset.disabled=true;state.range=rangeLabel();state.loaded=false;message('');
+      $('answerTitle').textContent='Checking new leads…';$('answerDetail').textContent='Reading GHL, RingCentral and SMS records. A full week can take up to a minute.';
       renderSummary();render();
       try{
-        const data=await request({leadReport:'report',from:$('from').value,to:$('to').value});
-        state.rows=data.rows||[];state.loaded=true;
-        $('generated').textContent=`Updated ${dateLabel(data.generatedAt)}`;
+        const from=$('from').value,to=$('to').value,days=from&&to?dayCount(from,to):NaN;
+        if(!Number.isFinite(days))throw new Error('Choose both dates.');
+        if(days<1)throw new Error('The “Leads from” date must be on or before the “Leads to” date.');
+        if(days>7)throw new Error('Choose up to 7 days.');
+        const parts=rangeParts(from,to),results=[];
+        for(const [index,part] of parts.entries()){
+          if(parts.length>1)$('answerDetail').textContent=`Reading GHL, RingCentral and SMS records: part ${index+1} of ${parts.length}. A full week can take about a minute.`;
+          results.push(await request({leadReport:'report',from:part.from,to:part.to}));
+        }
+        state.rows=mergeRows(results.map(data=>data.rows||[]));state.loaded=true;
+        $('generated').textContent=`Updated ${dateLabel(results.map(data=>data.generatedAt).sort().at(-1))}`;
         $('csv').disabled=!state.rows.length;
         const extra=pipelineGroups(state.rows).length-PIPELINES.length;
         message(extra?`${plural(extra,'additional GHL pipeline')} ${extra===1?'is':'are'} included so no leads are left out.`:'');
@@ -202,14 +231,15 @@
         state.rows=[];message(error.message,true);
         $('answerTitle').textContent='Report not available';$('answerDetail').textContent='No figures are shown because the report could not be completed. Try again or choose a shorter date range.';
         $('csv').disabled=true;
-      }finally{button.disabled=false;renderSummary();render()}
+      }finally{button.disabled=false;for(const preset of $('presets').querySelectorAll?.('button')||[])preset.disabled=false;renderSummary();render()}
     }
-    $('load').addEventListener('click',load);for(const id of ['view','search'])$(id).addEventListener('input',render);
+    $('load').addEventListener('click',load);for(const id of ['from','to'])$(id).addEventListener('input',markPreset);
+    $('presets').addEventListener('click',event=>{const button=event.target.closest('[data-days]');if(!button||$('load').disabled)return;setRange(Number(button.dataset.days));markPreset();load()});for(const id of ['view','search'])$(id).addEventListener('input',render);
     $('answerDetail').addEventListener('click',event=>{const button=event.target.closest('[data-view]');if(!button)return;$('view').value=button.dataset.view;$('search').value='';render();$('listTitle').scrollIntoView({behavior:'smooth',block:'start'})});
     $('pipelineSections').addEventListener('click',async event=>{const button=event.target.closest('.view-notes');if(!button)return;$('noteTitle').textContent=`GHL notes · ${button.dataset.name}`;$('notes').textContent='Loading…';$('modal').classList.add('open');try{const data=await request({leadReport:'notes',contactId:button.dataset.id});$('notes').innerHTML=data.notes.length?data.notes.sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(note=>`<div class="note"><time>${escapeHtml(dateLabel(note.date))}</time>${escapeHtml(note.body)}</div>`).join(''):'No GHL notes recorded for this contact.'}catch(error){$('notes').textContent=`Could not load notes: ${error.message}`}});
     const closeNotes=()=>$('modal').classList.remove('open');
     $('close').addEventListener('click',closeNotes);$('modal').addEventListener('click',event=>{if(event.target===$('modal'))closeNotes()});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeNotes()});
-    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Reachability','reachability'],['Call and SMS result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='reachability'?resultLabel(row):key==='contactStatus'?CONTACT_LABELS[row.contactStatus]||'Unclear':row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Reachability','reachability'],['Call and SMS result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Template sent','lastTemplateAt'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='reachability'?resultLabel(row):key==='contactStatus'?CONTACT_LABELS[row.contactStatus]||'Unclear':row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
     load();
   </script>
 </body>

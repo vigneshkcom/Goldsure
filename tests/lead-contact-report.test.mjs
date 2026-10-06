@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, leadReachability, reportPhone, reportTotals, stageProgress } from '../lib/lead-contact-report.js';
+import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, isNotReachableTemplate, leadReachability, noteText, reportPhone, reportTotals, respondedAfter, smsTemplateFromNote, stageProgress } from '../lib/lead-contact-report.js';
 import { leadContactReport, sydneyMidnight } from '../lib/lead-contact-report-api.js';
 
 function recorder() {
@@ -41,7 +41,7 @@ test('only connected calls or replies count as contact signals and uncertainty s
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], result: 'Unknown' }] }).status, 'Needs review');
   assert.equal(contactEvidence({ leadAt, sms: [{ createdAt: '2026-10-05T02:00:00Z', direction: 'inbound' }] }).status, 'Connected call or SMS reply');
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], startTime: '2026-10-04T23:00:00Z' }] }).status, 'No attempt recorded');
-  assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Attempted, no confirmed response', callsMade: 3 }, { contactStatus: 'No attempt recorded', callsMade: 0 }, { contactStatus: 'Needs review' }]), { customers: 4, reached: 1, attempted: 1, noAttempt: 1, needsReview: 1, calledNoConnection: 1, callsToUnconnected: 3 });
+  assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Attempted, no confirmed response', callsMade: 3 }, { contactStatus: 'No attempt recorded', callsMade: 0 }, { contactStatus: 'Needs review' }]), { customers: 4, reached: 1, attempted: 1, noAttempt: 1, needsReview: 1, notChecked: 0, calledNoConnection: 1, callsToUnconnected: 3 });
 });
 
 test('a lead past New Lead in GHL counts as reached; New Lead leads use call and SMS records', () => {
@@ -57,6 +57,29 @@ test('a lead past New Lead in GHL counts as reached; New Lead leads use call and
   assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Attempted, no confirmed response' }), 'unreachable');
   assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'No attempt recorded' }), 'untried');
   assert.equal(leadReachability({ stage: 'Today', contactStatus: 'Needs review' }), 'review');
+});
+
+test('GHL notes are shown as plain text and Not Reachable templates are recognised', () => {
+  assert.equal(noteText('<p style="margin:0px; padding-left: 0px!important;">Said number is not connected, not sure if sms is going to reach him.</p>'), 'Said number is not connected, not sure if sms is going to reach him.');
+  assert.equal(noteText('<p>Line one<br>Line &amp; two</p><p>&lt;b&gt; &#39;x&#39; &#x2013; &bogus;</p>'), "Line one\nLine & two\n<b> 'x' – &bogus;");
+  const portalNote = '[SMS Portal Note]\nTried calling, no answer. Texted "Not Reachable – 1st Attempt" via SMS Portal. Sent by Shanira.';
+  assert.equal(smsTemplateFromNote(portalNote), 'Not Reachable – 1st Attempt');
+  assert.equal(smsTemplateFromNote('<p>Tried calling, no answer. Texted &quot;Not Reachable – 2nd Attempt&quot; via SMS Portal.</p>'), 'Not Reachable – 2nd Attempt');
+  assert.equal(smsTemplateFromNote('$30 off code SMOKE30 sent via SMS as the final not-reachable lure. Sent by Amit.'), 'Not Reachable – Final');
+  assert.equal(smsTemplateFromNote('Called and booked in for Tuesday.'), '');
+  assert.equal(isNotReachableTemplate('Not Reachable – Final (30 Off)'), true);
+  assert.equal(isNotReachableTemplate('Referral / Incoming Call – Consent'), false);
+});
+
+test('a Not Reachable template means not reachable so far until the customer replies or calls in', () => {
+  const sentAt = '2026-10-06T00:51:00Z';
+  assert.equal(respondedAfter(sentAt, { calls: [{ direction: 'Outbound', result: 'Call connected', duration: 40, startTime: '2026-10-06T01:00:00Z' }] }), false, 'our own connected call (often voicemail) is not a response');
+  assert.equal(respondedAfter(sentAt, { sms: [{ direction: 'inbound', createdAt: '2026-10-06T00:30:00Z' }] }), false, 'a reply before the template does not count');
+  assert.equal(respondedAfter(sentAt, { ghlMessages: [{ direction: 'inbound', dateAdded: '2026-10-06T02:00:00Z' }] }), true);
+  assert.equal(respondedAfter(sentAt, { calls: [{ direction: 'Inbound', result: 'Accepted', duration: 30, startTime: '2026-10-06T02:00:00Z' }] }), true);
+  assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Connected call or SMS reply', notReachableSms: true }), 'unreachable');
+  assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Needs review', notReachableSms: true }), 'unreachable');
+  assert.equal(leadReachability({ stage: 'Quote Sent', contactStatus: 'Attempted, no confirmed response', notReachableSms: true }), 'reached');
 });
 
 test('report checks all three sources and reads GHL notes without writes', async () => {
@@ -88,7 +111,9 @@ test('report checks all three sources and reads GHL notes without writes', async
     assert.equal(response.body.rows.length, 1);
     assert.equal(response.body.rows[0].stage, 'New Lead');
     assert.equal(response.body.rows[0].stageProgress, 'new');
-    assert.equal(response.body.rows[0].reachability, 'reached');
+    assert.equal(response.body.rows[0].reachability, 'reached', 'the customer replied after the Not Reachable SMS');
+    assert.equal(response.body.rows[0].notReachableSms, false);
+    assert.equal(response.body.rows[0].lastTemplateAt, '2026-10-05T03:00:00Z');
     assert.equal(response.body.rows[0].leadAt, '2026-10-05T01:00:00.000Z');
     assert.equal(response.body.totals.reached, 1);
     assert.equal(response.body.rows[0].callsMade, 1);
@@ -116,6 +141,8 @@ test('lead report page script compiles', () => {
   assert.match(html, /GHL stage/);
   assert.match(html, /Calls to leads not reachable so far/);
   assert.match(html, /<option value="open">Not reached yet/);
+  assert.match(html, /<button type="button" data-days="7">Last 7 days<\/button>/);
+  assert.match(html, /label:'Not reachable so far'/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
@@ -129,7 +156,7 @@ test('lead page answers the follow-up question first and groups leads under each
     if (!elements.has(id)) elements.set(id, { value: id === 'view' ? 'open' : '', innerHTML: '', textContent: '', addEventListener() {}, setAttribute() {}, classList: { add() {}, remove() {} } });
     return elements.get(id);
   };
-  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary })`, {
+  const page = vm.runInNewContext(`${script}\n({ state, pipelineGroups, statusKey, render, renderSummary, rangeParts, mergeRows, setRange })`, {
     document: { getElementById, addEventListener() {} }, URLSearchParams, fetch: () => new Promise(() => {}),
   });
   const to = getElementById('to').value;
@@ -154,8 +181,109 @@ test('lead page answers the follow-up question first and groups leads under each
   assert.doesNotMatch(sections, /Customer 0/, 'Quote Sent counts as reached and is hidden by default');
   assert.ok(sections.indexOf('Not called yet') < sections.indexOf('Customer 1'), 'within a pipeline, not tried yet is listed before not reachable even when older');
   assert.equal(page.statusKey({ reachability: 'something new' }), 'review');
+  assert.deepEqual(JSON.parse(JSON.stringify(page.rangeParts('2026-09-30', '2026-10-06'))), [{ from: '2026-10-04', to: '2026-10-06' }, { from: '2026-10-02', to: '2026-10-03' }, { from: '2026-09-30', to: '2026-10-01' }], 'a week is read in three parts with no gaps');
+  assert.equal(page.rangeParts('2026-10-05', '2026-10-06').length, 1);
+  const merged = page.mergeRows([[{ contactId: 'a', leadAt: '2026-10-06T01:00:00Z', stage: 'New Lead', opportunityCount: 1 }], [{ contactId: 'a', leadAt: '2026-10-02T01:00:00Z', stage: 'Quote Sent', opportunityCount: 1 }]]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].stage, 'New Lead', 'keeps the newest lead for a customer found in two parts');
+  assert.equal(merged[0].opportunityCount, 2);
+  page.setRange(7);
+  assert.equal(getElementById('from').value, new Date(Date.parse(`${getElementById('to').value}T00:00:00Z`) - 6 * 86400000).toISOString().slice(0, 10));
   getElementById('view').value = 'all';
   page.render();
   assert.equal((getElementById('pipelineSections').innerHTML.match(/<table class="leads">/g) || []).length, 4);
   assert.ok(getElementById('pipelineSections').innerHTML.indexOf('Unclear record') < getElementById('pipelineSections').innerHTML.indexOf('Customer 0'), 'reached leads sink to the bottom');
+});
+
+function ghlMock({ opportunities, notes = [], messages = [], fail429 = 0 }) {
+  const seen = [];
+  let throttled = 0;
+  const fetch = async url => {
+    const value = String(url); seen.push(value);
+    const json = body => new Response(JSON.stringify(body), { status: 200 });
+    if (value.includes('/opportunities/search')) return json({ opportunities });
+    if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'pipe1', name: 'Smoke Alarms', stages: [{ id: 'new', name: 'New Lead' }, { id: 'quoted', name: 'Quote Sent' }] }] });
+    if (/\/contacts\/[^/]+\/notes/.test(value)) {
+      if (throttled < fail429) { throttled++; return new Response('{}', { status: 429, headers: { 'Retry-After': '0' } }); }
+      return json({ notes });
+    }
+    if (value.includes('/contacts/')) return json({ contact: { id: value.split('/contacts/')[1], firstName: 'Fetched', phone: '0499999999' } });
+    if (value.includes('/conversations/search')) return json({ conversations: [{ id: 'conversation1' }], total: 1 });
+    if (value.includes('/messages')) return json({ messages: { nextPage: false, messages } });
+    if (value.includes('/call-log')) return json({ records: [{ id: 'call1', sessionId: 's1', startTime: '2026-10-05T02:00:00Z', direction: 'Outbound', to: { phoneNumber: '+61412345678' }, result: 'Call connected', duration: 35 }] });
+    if (value.includes('/sms_messages')) return json([]);
+    throw new Error(`Unexpected read: ${value}`);
+  };
+  return { fetch, seen };
+}
+
+async function runReport(mock) {
+  const savedFetch = global.fetch;
+  const saved = Object.fromEntries(['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'].map(key => [key, process.env[key]]));
+  Object.assign(process.env, { GHL_API_KEY: 'ghl-test', GHL_LOCATION_ID: 'location123', SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'supa-test' });
+  global.fetch = mock.fetch;
+  try {
+    const response = recorder();
+    await leadContactReport({ headers: {}, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, response, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    return response;
+  } finally {
+    global.fetch = savedFetch;
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+}
+
+test('a connected call followed by a Not Reachable SMS reads as not reachable so far', async () => {
+  const mock = ghlMock({
+    opportunities: [{ id: 'lead1', contactId: 'contact1', contact: { id: 'contact1', name: 'Manoj Jayasundara', phone: '+61412345678' }, pipelineId: 'pipe1', pipelineStageId: 'new', dateAdded: '2026-10-05T01:00:00Z', source: 'Meta' }],
+    notes: [
+      { id: 'n1', dateAdded: '2026-10-05T02:51:00Z', body: '[SMS Portal Note]\nTried calling, no answer. Texted "Not Reachable – 1st Attempt" via SMS Portal. Sent by Shanira.' },
+      { id: 'n2', dateAdded: '2026-10-05T02:51:30Z', body: '<p style="margin:0px;">Said number is not connected, not sure if sms is going to reach him.</p>' },
+    ],
+  });
+  const response = await runReport(mock);
+  assert.equal(response.statusCode, 200, response.body?.error);
+  const [row] = response.body.rows;
+  assert.equal(row.contactStatus, 'Connected call or SMS reply');
+  assert.equal(row.reachability, 'unreachable');
+  assert.equal(row.notReachableSms, true);
+  assert.equal(row.lastTemplate, 'Not Reachable – 1st Attempt');
+  assert.equal(row.name, 'Manoj Jayasundara');
+  assert.ok(!mock.seen.some(url => /\/contacts\/contact1$/.test(url)), 'uses the contact included with the opportunity instead of another GHL read');
+});
+
+test('leads past New Lead skip message and note reads; a GHL 429 is waited out', async () => {
+  const mock = ghlMock({
+    fail429: 1,
+    opportunities: [
+      { id: 'lead1', contactId: 'quoted1', contact: { id: 'quoted1', name: 'Quoted Customer', phone: '0411111111' }, pipelineId: 'pipe1', pipelineStageId: 'quoted', dateAdded: '2026-10-05T03:00:00Z', source: 'Meta' },
+      { id: 'lead2', contactId: 'new1', pipelineId: 'pipe1', pipelineStageId: 'new', dateAdded: '2026-10-05T02:00:00Z', source: 'Meta' },
+    ],
+  });
+  const response = await runReport(mock);
+  assert.equal(response.statusCode, 200, response.body?.error);
+  const quoted = response.body.rows.find(row => row.contactId === 'quoted1');
+  const fresh = response.body.rows.find(row => row.contactId === 'new1');
+  assert.equal(quoted.reachability, 'reached');
+  assert.equal(quoted.contactStatus, 'Not checked');
+  assert.ok(!mock.seen.some(url => url.includes('quoted1')), 'no per-contact GHL reads for a lead past New Lead');
+  assert.equal(fresh.name, 'Fetched', 'a contact without a phone on the opportunity is looked up');
+  assert.equal(fresh.reachability, 'untried');
+  assert.equal(fresh.lastTemplate, 'Not recorded', 'notes were read after the 429 cleared');
+  assert.equal(mock.seen.filter(url => url.includes('/contacts/new1/notes')).length, 2);
+});
+
+test('notes endpoint returns plain text', async () => {
+  const mock = ghlMock({ opportunities: [], notes: [{ id: 'n1', dateAdded: '2026-10-05T02:51:00Z', body: '<p style="margin:0px;">Said number is not connected.</p>' }] });
+  const savedFetch = global.fetch, savedKey = process.env.GHL_API_KEY, savedLocation = process.env.GHL_LOCATION_ID;
+  Object.assign(process.env, { GHL_API_KEY: 'ghl-test', GHL_LOCATION_ID: 'location123' });
+  global.fetch = mock.fetch;
+  try {
+    const response = recorder();
+    await leadContactReport({ headers: {}, query: { leadReport: 'notes', contactId: 'contact1' } }, response, {});
+    assert.equal(response.body.notes[0].body, 'Said number is not connected.');
+  } finally {
+    global.fetch = savedFetch;
+    if (savedKey === undefined) delete process.env.GHL_API_KEY; else process.env.GHL_API_KEY = savedKey;
+    if (savedLocation === undefined) delete process.env.GHL_LOCATION_ID; else process.env.GHL_LOCATION_ID = savedLocation;
+  }
 });
