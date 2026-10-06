@@ -26,15 +26,15 @@ test('report dates use Sydney midnight across daylight saving changes', () => {
   assert.equal(new Date(sydneyMidnight('2026-04-06')).toISOString(), '2026-04-05T14:00:00.000Z');
 });
 
-test('only confirmed contact counts as reached and uncertainty is not called unreachable', () => {
+test('only connected calls or replies count as contact signals and uncertainty stays visible', () => {
   const leadAt = '2026-10-05T00:00:00Z';
   const missed = [{ startTime: '2026-10-05T01:00:00Z', direction: 'Outbound', result: 'No Answer' }];
   assert.equal(contactEvidence({ leadAt, calls: missed }).status, 'Attempted, no confirmed response');
   assert.equal(contactEvidence({ leadAt, calls: missed, complete: false }).status, 'Needs review');
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], result: 'Unknown' }] }).status, 'Needs review');
-  assert.equal(contactEvidence({ leadAt, sms: [{ createdAt: '2026-10-05T02:00:00Z', direction: 'inbound' }] }).status, 'Reached');
+  assert.equal(contactEvidence({ leadAt, sms: [{ createdAt: '2026-10-05T02:00:00Z', direction: 'inbound' }] }).status, 'Connected call or SMS reply');
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], startTime: '2026-10-04T23:00:00Z' }] }).status, 'No attempt recorded');
-  assert.deepEqual(reportTotals([{ contactStatus: 'Reached' }, { contactStatus: 'Needs review' }]), { customers: 2, reached: 1, attempted: 0, noAttempt: 0, needsReview: 1 });
+  assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Needs review' }]), { customers: 2, reached: 1, attempted: 0, noAttempt: 0, needsReview: 1 });
 });
 
 test('report checks all three sources and reads GHL notes without writes', async () => {
