@@ -131,7 +131,9 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   assert.match(html, /Bank transfer, review/);
   assert.match(html, /class="jobs-table"/);
   assert.match(html, /Installation breakdown/);
-  assert.match(html, /Job \/ installed/);
+  assert.match(html, /Job \/ scheduled/);
+  assert.match(html, /Scheduled from/);
+  assert.match(html, /Scheduled to/);
   assert.match(html, /Customer balance/);
   assert.match(html, /> Offset<\/label>/);
   assert.doesNotMatch(html, /Cash collected \/ offset|class="money-input cash-input"/);
@@ -152,7 +154,7 @@ test('purchase-order page exposes cash review, manual lines, payment date and bo
   assert.match(html, /PO for \$\{worker\.name\} - Week ending/);
 });
 
-test('builds a protected purchase-order preview from completed Dataforce jobs', async () => {
+test('assigns completed jobs to their scheduled day, not their later completion day', async () => {
   const originalFetch = global.fetch;
   const previousEnv = {
     PURCHASE_ORDER_PIN: process.env.PURCHASE_ORDER_PIN,
@@ -174,7 +176,7 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
       const propertyName = searchPayload.filterGroups[0].filters[0].propertyName;
       searchProperties.push(propertyName);
       const records = propertyName === 'scheduledDate'
-        ? [{ appointmentId: 9001, jobId: 7001, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-09-20T09:00:00' }]
+        ? [{ appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' }]
         : [];
       return new Response(JSON.stringify({ totalCount: records.length, records }), { status: 200 });
     }
@@ -187,17 +189,27 @@ test('builds a protected purchase-order preview from completed Dataforce jobs', 
     await handler({
       method: 'POST',
       headers: { 'x-purchase-order-pin': '4321' },
-      body: { action: 'purchase-order-preview', startDate: '2026-09-14', endDate: '2026-09-20' },
+      body: { action: 'purchase-order-preview', startDate: '2026-10-05', endDate: '2026-10-05' },
     }, response);
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(searchProperties.sort(), ['actualCompletedDate', 'scheduledDate']);
-    assert.equal(response.body.rows[0].installedDate, '2026-09-20');
+    assert.deepEqual(searchProperties, ['scheduledDate']);
+    assert.equal(response.body.rows[0].jobId, '36708');
+    assert.equal(response.body.rows[0].installedDate, '2026-10-05');
     assert.equal(response.body.workers[0].email, 'alex@example.com');
     assert.equal(response.body.rows[0].items[0].totalIncGst, 33);
     assert.equal(response.body.rows[0].items[1].rateExGst, 13);
     assert.equal(response.body.rows[0].transactionBalance, 300);
     assert.equal(response.body.rows[0].balanceSource, 'appointment invoice');
     assert.deepEqual(response.body.rows[0].paymentFlag, { type: 'cash', label: 'Cash' });
+    const nextDay = responseRecorder();
+    await handler({
+      method: 'POST',
+      headers: { 'x-purchase-order-pin': '4321' },
+      body: { action: 'purchase-order-preview', startDate: '2026-10-06', endDate: '2026-10-06' },
+    }, nextDay);
+    assert.equal(nextDay.statusCode, 200);
+    assert.deepEqual(nextDay.body.rows, []);
+    assert.deepEqual(searchProperties, ['scheduledDate', 'scheduledDate']);
   } finally {
     global.fetch = originalFetch;
     for (const [key, value] of Object.entries(previousEnv)) {
@@ -222,7 +234,7 @@ test('fills the customer balance for a cash-tagged job when Dataforce returns no
     if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
     if (value.endsWith('/GOLDSURE_ASAP/fieldworkers')) return new Response(JSON.stringify({ records: [{ fieldworkerId: 1009, name: 'Alex Symonds', gstRegistered: true }] }), { status: 200 });
     if (value.includes('/appointments/search')) {
-      return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
+      return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed', scheduledDate: '2026-09-20T09:00:00', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
     }
     const id = (value.match(/appointments\/(\d+)\//) || [])[1];
     if (id && value.endsWith('/invoice')) return new Response(JSON.stringify(invoice), { status: 200 });

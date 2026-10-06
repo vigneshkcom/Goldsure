@@ -45,8 +45,8 @@
   </header>
   <main>
     <section class="card controls" aria-label="Purchase order filters">
-      <div class="field"><label for="from">Installed from</label><input id="from" type="date"></div>
-      <div class="field"><label for="to">Installed to</label><input id="to" type="date"></div>
+      <div class="field"><label for="from">Scheduled from</label><input id="from" type="date"></div>
+      <div class="field"><label for="to">Scheduled to</label><input id="to" type="date"></div>
       <div class="field"><label for="worker">Electrician</label><select id="worker" disabled><option value="">Load completed jobs first</option></select></div>
       <div class="field"><label for="pin">Portal access PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter PIN"></div>
       <button class="btn" id="lastWeek" type="button">Previous week</button>
@@ -77,7 +77,7 @@
         <div><h2 id="poTitle">Purchase order preview</h2><p id="workerDetails">Load completed Dataforce jobs and select an electrician.</p></div>
         <div class="po-meta"><strong id="poNumber">PO pending</strong><span id="period">No period selected</span><br><span>Payable: <strong id="payableDate" style="display:inline;font-size:12px">Pending</strong></span></div>
       </div>
-      <div class="table-wrap" id="tableWrap"><div class="empty"><strong>No jobs loaded</strong>Select an installation date range to begin.</div></div>
+      <div class="table-wrap" id="tableWrap"><div class="empty"><strong>No jobs loaded</strong>Select a scheduled date range to begin.</div></div>
       <section class="additional" id="additionalSection">
         <div class="additional-head"><div><h3>Additional PO lines</h3><p>Add warranty work, call-outs or another approved payment. Enter the amount including GST.</p></div><button class="btn" id="addLine" type="button">+ Add line</button></div>
         <div id="additionalLines" class="additional-empty">No additional lines.</div>
@@ -193,7 +193,7 @@
 
     async function loadJobs(){
       hideNotice();const from=$('from').value,to=$('to').value,pin=$('pin').value;
-      if(!from||!to){showNotice('Choose an installed from and installed to date.','error');return}
+      if(!from||!to){showNotice('Choose a scheduled from and scheduled to date.','error');return}
       if(!pin){showNotice('Enter the Portal access PIN.','error');return}
       const button=$('load');button.disabled=true;button.textContent='Loading Dataforce...';
       try{
@@ -214,7 +214,7 @@
       const f=jobFigures(row);const unknown=unpricedItems(row);const invoiced=invoiceItems(row);const sourceNote=row.transactionBalance===null?'Balance not returned, review manually':row.balanceEstimated?`Estimated from the ${row.balanceSource||'Dataforce'}, edit if a deposit was paid`:`From ${row.balanceSource||'Dataforce'}`;const flag=row.paymentFlag?.type==='cash'?'<span class="flag flag-cash">Cash tagged</span>':row.paymentFlag?.type==='bank-transfer'?'<span class="flag flag-bank">Bank transfer, review</span>':'<span class="flag flag-none">No tag</span>';
       return `<tr class="${row._included?'':'excluded'}" data-row="${esc(row.jobId)}">
         <td class="center include-cell" data-label="Include"><input class="include-job" type="checkbox" ${row._included?'checked':''} aria-label="Include job ${esc(row.jobId)}"></td>
-        <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Installed ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
+        <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Scheduled ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
         ${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,f[key])).join('')}
         <td class="center total-cell" data-label="Total alarms"><span class="alarm-total">${f.alarmTotal}</span></td>
         <td class="num pay-cell" data-label="Pay"><div class="pay-stack"><strong>${money(f.grossIncGst)}</strong><small>${money(f.subtotalExGst)} ex GST</small>${unknown.length?`<small class="unmapped">${unknown.length} product${unknown.length===1?'':'s'} with no price</small>`:''}${invoiced.length?`<small class="invoiced">+ ${money(invoiced.reduce((sum,item)=>sum+Number(item.payIncGst||0),0))} ${invoiced.every(item=>item.fixedRate)?'fixed rate':'as invoiced'}: ${invoiced.map(item=>esc(item.name)).join(', ')}</small>`:''}</div></td>
@@ -225,12 +225,12 @@
     }
 
     function render(){
-      const worker=selectedWorker(),rows=visibleRows();if(!worker){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs found</strong>Try another installation date range.</div>';updateTotals({});renderAdditionalLines();return}
+      const worker=selectedWorker(),rows=visibleRows();if(!worker){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs found</strong>Try another scheduled date range.</div>';updateTotals({});renderAdditionalLines();return}
       const from=$('from').value,to=$('to').value,poNumber=`PO for ${worker.name} - Week ending ${friendly(weekEndingSunday(to))}`,payDate=payableDate(to);
       $('poNumber').textContent=poNumber;$('period').textContent=from===to?friendly(to):`${friendly(from)} to ${friendly(to)}`;$('payableDate').textContent=payDate;$('payableDateTotal').textContent=payDate;$('poTitle').textContent=`Purchase order for ${worker.companyName||worker.name}`;
       $('workerDetails').textContent=[worker.name,worker.email,worker.taxId?`ABN ${worker.taxId}`:'',worker.gstRegistered?'GST registered':'Not recorded as GST registered'].filter(Boolean).join(' | ');
-      if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;$('exportExcel').disabled=true;$('xeroBill').disabled=true;renderAdditionalLines();return}
-      $('tableWrap').innerHTML=`<table class="jobs-table">${colgroupHtml()}<thead><tr><th class="center" rowspan="2">Include</th><th rowspan="2">Job / installed</th><th class="center group-head" colspan="4">Installation breakdown</th><th class="center" rowspan="2">Total alarms</th><th class="num" rowspan="2">Pay</th><th rowspan="2">Payment status</th><th class="num" rowspan="2">Customer balance</th><th class="num" rowspan="2">PO payable</th></tr><tr><th class="center sub-head">Booking</th><th class="center sub-head">Hardwired</th><th class="center sub-head">Battery</th><th class="center sub-head">Remote</th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody><tfoot id="tableTotals"></tfoot></table>`;
+      if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or scheduled date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;$('exportExcel').disabled=true;$('xeroBill').disabled=true;renderAdditionalLines();return}
+      $('tableWrap').innerHTML=`<table class="jobs-table">${colgroupHtml()}<thead><tr><th class="center" rowspan="2">Include</th><th rowspan="2">Job / scheduled</th><th class="center group-head" colspan="4">Installation breakdown</th><th class="center" rowspan="2">Total alarms</th><th class="num" rowspan="2">Pay</th><th rowspan="2">Payment status</th><th class="num" rowspan="2">Customer balance</th><th class="num" rowspan="2">PO payable</th></tr><tr><th class="center sub-head">Booking</th><th class="center sub-head">Hardwired</th><th class="center sub-head">Battery</th><th class="center sub-head">Remote</th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody><tfoot id="tableTotals"></tfoot></table>`;
       bindRows(rows);renderAdditionalLines();finishRender(rows,worker,poNumber);
     }
 
@@ -270,7 +270,7 @@
       const button=$('exportExcel');const originalText=button.textContent;button.disabled=true;button.textContent='Preparing...';
       try{
         await loadSheetJs();
-        const header=['Installed','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Cash offset','PO payable'];
+        const header=['Scheduled','Job','Booking','Hardwired','Battery','Remote','Total alarms','Pay ex GST','Pay inc GST','Cash offset','PO payable'];
         const rows=po.jobs.map(job=>{const hardwired=job.items.filter(i=>i.key==='hardwired').reduce((s,i)=>s+Number(i.quantity||0),0);const battery=job.items.filter(i=>i.key==='battery').reduce((s,i)=>s+Number(i.quantity||0),0);const remote=job.items.filter(i=>i.key==='remote').reduce((s,i)=>s+Number(i.quantity||0),0);const booking=job.items.filter(i=>i.key==='booking').reduce((s,i)=>s+Number(i.quantity||0),0);const subtotalExGst=job.items.reduce((s,i)=>s+Number(i.subtotalExGst||0),0);return[dmyDate(job.installedDate),job.jobId||'',booking,hardwired,battery,remote,hardwired+battery+remote,roundMoney(subtotalExGst),Number(job.grossIncGst||0),job.cashOffset?Number(job.cashOffset):'',Number(job.payableIncGst||0)]});
         po.additionalLines.forEach(line=>rows.push(['','Additional: '+line.description,'','','','','','', Number(line.amountIncGst||0),'',Number(line.amountIncGst||0)]));
         const totals=po.totals||{};

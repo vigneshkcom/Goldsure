@@ -642,42 +642,33 @@ function listFromPayload(payload, keys = []) {
 
 async function dataforceCompletedAppointments(token, startDate, endDate) {
   const { instance } = dataforceConfig();
-  const appointmentsForDate = async propertyName => {
-    const appointments = [];
-    let after = 0;
-    while (appointments.length < 1000) {
-      const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
-        method: 'POST',
-        body: JSON.stringify({
-          filterGroups: [{ filters: [
-            { propertyName, value: `${startDate}T00:00:00`, operator: 'GTE' },
-            { propertyName, value: `${nextDate(endDate)}T00:00:00`, operator: 'LT' },
-          ] }],
-          sorts: [{ propertyName: 'appointmentId', direction: 'asc' }],
-          limit: 100,
-          after,
-        }),
-      });
-      const page = result.records || [];
-      appointments.push(...page);
-      after += page.length;
-      if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
-    }
-    return appointments;
-  };
-  // Some field-completed appointments have no actual-completion timestamp in
-  // Dataforce. Include them from their scheduled day, but only after applying
-  // the explicit completed-status check below.
-  const [actuallyCompleted, scheduled] = await Promise.all([
-    appointmentsForDate('actualCompletedDate'),
-    appointmentsForDate('scheduledDate'),
-  ]);
-  const uniqueAppointments = new Map();
-  [...actuallyCompleted, ...scheduled].forEach(appointment => {
-    const key = String(appointment?.appointmentId || '');
-    if (key && !uniqueAppointments.has(key)) uniqueAppointments.set(key, appointment);
+  const appointments = [];
+  let after = 0;
+  while (appointments.length < 1000) {
+    const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: 'scheduledDate', value: `${startDate}T00:00:00`, operator: 'GTE' },
+          { propertyName: 'scheduledDate', value: `${nextDate(endDate)}T00:00:00`, operator: 'LT' },
+        ] }],
+        sorts: [{ propertyName: 'appointmentId', direction: 'asc' }],
+        limit: 100,
+        after,
+      }),
+    });
+    const page = result.records || [];
+    appointments.push(...page);
+    after += page.length;
+    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+  }
+  // Completion controls eligibility, but the scheduled day controls the PO period.
+  // A later completion/sync must not move yesterday's job into today's PO.
+  return appointments.filter(appointment => {
+    const scheduledDate = scheduleDateKey(appointment.scheduledDate);
+    return isCompletedAppointment(appointment)
+      && scheduledDate >= startDate && scheduledDate <= endDate;
   });
-  return [...uniqueAppointments.values()].filter(isCompletedAppointment);
 }
 
 async function dataforcePurchaseOrderDocument(token, instance, appointment) {
@@ -751,7 +742,9 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
     return {
       jobId: String(job.jobId),
       appointmentId: appointment.appointmentId || null,
-      installedDate: dateOnly(appointment.actualCompletedDate || appointment.completedDate || appointment.scheduledDate),
+      // Legacy field name used by the PO/PDF/Xero payload; its value is the
+      // scheduled day, never the completion or sync day.
+      installedDate: scheduleDateKey(appointment.scheduledDate),
       address: customerAddress(customer).replace(/, Australia$/, ''),
       status: String(appointment.completionStatusDescription || '').trim(),
       worker,
