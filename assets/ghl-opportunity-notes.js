@@ -37,6 +37,28 @@
     el('ghln-status').className = `ghln-status${kind ? ` ${kind}` : ''}`;
   }
 
+  function readableNoteBody(value) {
+    const raw = String(value || '');
+    if (!/<\/?(?:p|br|div|span|ul|ol|li|strong|em|b|i|a|h[1-6])\b/i.test(raw)) return raw;
+    const template = document.createElement('template');
+    template.innerHTML = raw;
+    const chunks = [];
+    const blockTags = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+    const ignoredTags = new Set(['SCRIPT', 'STYLE', 'SVG', 'IFRAME', 'OBJECT']);
+    function walk(node) {
+      if (node.nodeType === 3) { chunks.push(node.nodeValue); return; }
+      if (node.nodeType !== 1 && node.nodeType !== 11) return;
+      const tag = node.nodeName;
+      if (ignoredTags.has(tag)) return;
+      if (tag === 'BR') { chunks.push('\n'); return; }
+      if (tag === 'LI') chunks.push('• ');
+      for (const child of node.childNodes) walk(child);
+      if (blockTags.has(tag)) chunks.push('\n');
+    }
+    walk(template.content);
+    return chunks.join('').replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
   function renderNotes(notes) {
     const list = el('ghln-list');
     list.replaceChildren();
@@ -46,7 +68,7 @@
       const meta = document.createElement('div'); meta.className = 'ghln-note-meta';
       const source = document.createElement('span'); source.className = 'ghln-source contact'; source.textContent = 'Contact note';
       const date = document.createElement('time'); date.textContent = note.date ? new Date(note.date).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable';
-      const body = document.createElement('div'); body.className = 'ghln-note-body'; body.textContent = note.body || '';
+      const body = document.createElement('div'); body.className = 'ghln-note-body'; body.textContent = readableNoteBody(note.body);
       meta.append(source, date); item.append(meta, body); list.appendChild(item);
     }
   }
