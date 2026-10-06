@@ -340,7 +340,9 @@ tr:hover .view-quote-btn, tr:focus-within .view-quote-btn { opacity: 1; }
 
 </style>
   <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+  <link rel="stylesheet" href="/assets/ghl-opportunity-notes.css">
   <script src="/assets/internal-systems-sidebar.js" defer></script>
+  <script src="/assets/ghl-opportunity-notes.js" defer></script>
   <script type="module" src="/assets/quote-duplicates.mjs"></script>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon-aircon.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="/assets/gs-favicon-96px.png">
@@ -433,6 +435,14 @@ let duplicateOnly = false;
 let duplicateAnalysis = { groupIds:new Set(), deleteIds:new Set(), roles:new Map(), groupCount:0 };
 let photoRequestsByPhone = {};
 let ghlOppData = {};   // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
+function openQuoteGhlNotes(id) {
+  const quote = allQuotes.find(q => String(q.id) === String(id));
+  if (!quote) return showToast('Quote not found.');
+  if (!ghlStagesLoaded) return showToast('GHL details are still loading. Please try again.');
+  const email = String(quote.customer_email || '').toLowerCase().trim();
+  GoldsureGhlNotes.open({ opportunityId: ghlOppData[email]?.opportunityId,
+    expectedEmail: email, customerName: quote.customer_name || 'Customer' });
+}
 let ghlStages  = [];   // [{ id, name, position }] for the Aircon pipeline
 let ghlStagesLoaded = false;
 let ghlWarning = '';   // why the stage column is empty, when it is GHL's fault
@@ -744,7 +754,7 @@ function renderTable(){
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td>${renderViewStat(q)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${statusLabel}</span><div class="status-menu">${menuItems}</div></button></td>
-      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button></td>
+      <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button><br><button class="ghln-link" onclick="openQuoteGhlNotes('${q.id}')">View GHL notes</button></td>
       <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
       <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
       <td><span class="count-badge">${getReminderCount(q)}</span></td>

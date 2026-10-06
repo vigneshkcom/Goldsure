@@ -327,6 +327,8 @@
     .create-task-btn { height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #dcd8fb; border-radius: 9px; background: var(--purple-soft); color: var(--purple); font: 700 11.5px 'Inter',sans-serif; cursor: pointer; white-space: nowrap; transition: all .15s; }
     .create-task-btn:hover { background: var(--purple); border-color: var(--purple); color: #fff; box-shadow: 0 4px 12px rgba(115,103,240,.22); }
     .create-task-btn svg { flex: none; }
+    .ghl-notes-header-btn { display: none; }
+    .staff-switch { display: block; margin: -3px 0 10px; border: 0; background: none; color: var(--purple); font: 600 11px 'Inter',sans-serif; cursor: pointer; }
 
     /* Messages */
     .messages {
@@ -855,7 +857,7 @@
       .q-status { flex: 1; }
       #chatChips .stage-select { width: 100%; max-width: 100%; min-height: 30px; font-size: 11.5px; }
       #chatChips .chat-chip { max-width: 100%; }
-      .header-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) 44px 44px; gap: 8px; width: 100%; }
+      .header-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) 44px 44px; gap: 8px; width: 100%; }
       .create-task-btn { width: 100%; height: 42px; padding: 0 12px; justify-content: center; }
       .create-task-btn span { display: inline; }
       .header-actions .icon-btn { width: 44px; height: 42px; }
@@ -907,7 +909,9 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237367f0'/%3E%3Cpath d='M6 8h20c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-9l-4 4v-4H6c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z' fill='white'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="/assets/gs-favicon-96px.png">
   <link rel="stylesheet" href="/assets/internal-systems-sidebar.css">
+  <link rel="stylesheet" href="/assets/ghl-opportunity-notes.css">
   <script src="/assets/internal-systems-sidebar.js" defer></script>
+  <script src="/assets/ghl-opportunity-notes.js" defer></script>
 </head>
 <body data-internal-sidebar-mode="hover">
 <div class="page" id="page">
@@ -929,6 +933,7 @@
           Dashboard
         </button>
       </div>
+      <button class="staff-switch" id="staffSwitch" onclick="showStaffPicker(false)">Select staff member</button>
 
       <div class="sidebar-tabs">
         <button class="tab active">Inbox Chat<span class="tab-badge" id="inboxBadge"></span></button>
@@ -1011,6 +1016,7 @@
           <div class="chat-sub"><span class="chat-phone-line" id="chatSubPhone"></span><span class="chat-channel">SMS · via SMS Gate</span><span id="chatChips"></span></div>
         </div>
         <div class="header-actions">
+          <button class="create-task-btn ghl-notes-header-btn" id="ghlNotesBtn" onclick="openActiveGhlNotes()" title="View and add GHL opportunity notes"><span>View GHL notes</span></button>
           <button class="create-task-btn" onclick="openCreateTask()" title="Create a task for this customer">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span>Create task</span>
@@ -1181,7 +1187,7 @@
 
 <div class="name-modal" id="nameModal" onclick="closeNameModal()">
   <div class="name-modal-box" onclick="event.stopPropagation()">
-    <div class="name-modal-title">Who is sending this message?</div>
+    <div class="name-modal-title" id="staffPickerTitle">Who is using the SMS portal?</div>
     <button class="name-opt" onclick="pickStaff('David')">David</button>
     <button class="name-opt" onclick="pickStaff('Vignesh')">Vignesh</button>
     <button class="name-opt" onclick="pickStaff('Amit')">Amit</button>
@@ -1234,6 +1240,7 @@
   const TASK_SB_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
   const TASK_SB_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
   const TASK_PEOPLE = ['Vignesh','David','Shanira','Alda','Amit'];
+  let staffPickerForTemplates = false;
   let activePhone = null;
   let taskCustomerPhone = null;
   let pollTimer = null;
@@ -1258,7 +1265,7 @@
     taskCustomerPhone = activePhone;
     const info = ghlInfo[activePhone] || {};
     const customerName = (ghlNames[activePhone] || info.name || activePhone).trim();
-    const savedStaff = (localStorage.getItem('staffFirstName') || '').trim();
+    const savedStaff = (sessionStorage.getItem('smsStaffName') || '').trim();
     const currentStaff = TASK_PEOPLE.includes(savedStaff) ? savedStaff : 'Vignesh';
     const options = TASK_PEOPLE.map(name => `<option value="${name}">${name}</option>`).join('');
     document.getElementById('taskCreatedBy').innerHTML = options;
@@ -1310,7 +1317,6 @@
         body:JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(await response.text());
-      localStorage.setItem('staffFirstName',createdBy);
       document.getElementById('taskCreateDialog').close();
       showTaskCreatedToast(`Task created and assigned to ${assignee}.`);
     } catch (error) {
@@ -1464,6 +1470,8 @@
       html += `<a class="chat-chip" href="${esc(info.link)}" target="_blank" rel="noopener">Open in GHL ↗</a>`;
     }
     el.innerHTML = html;
+    const notesBtn = document.getElementById('ghlNotesBtn');
+    if (notesBtn) notesBtn.style.display = info?.opportunityId ? 'inline-flex' : 'none';
 
     // Notes post to the GHL contact record — pointless for numbers not in GHL
     const notInGhl = info && info.none;
@@ -1504,6 +1512,13 @@
       });
     });
     photoRequestsByPhone[phone] = [...byId.values()].sort((a, b) => Number(b.modifiedAt || 0) - Number(a.modifiedAt || 0));
+  }
+
+  function openActiveGhlNotes() {
+    if (!activePhone) return;
+    const info = ghlInfo[activePhone] || {};
+    GoldsureGhlNotes.open({ opportunityId: info.opportunityId, expectedPhone: activePhone,
+      customerName: ghlNames[activePhone] || info.name || activePhone });
   }
   async function loadContactQuotes(phone) {
     const el = document.getElementById('chatQuotes');
@@ -1654,6 +1669,11 @@
     } catch {}
   }
 
+  if (!TASK_PEOPLE.includes(sessionStorage.getItem('smsStaffName'))) showStaffPicker(false);
+  else {
+    localStorage.setItem('staffFirstName', sessionStorage.getItem('smsStaffName'));
+    document.getElementById('staffSwitch').textContent = `Working as ${sessionStorage.getItem('smsStaffName')} · Change`;
+  }
   loadContacts();
 
   // Close GHL dropdown when clicking outside the panel
@@ -2589,7 +2609,7 @@
         if (pendingSendNote && (!pendingSendNote.requires || message.includes(pendingSendNote.requires))) {
           // Append who sent it (the "Sending as" staff name) so the note records
           // the sender, e.g. "… via SMS Portal. — Sent by Shanira".
-          const sender = (localStorage.getItem('staffFirstName') || '').trim();
+          const sender = (sessionStorage.getItem('smsStaffName') || '').trim();
           const noteText = pendingSendNote.text + (sender ? ` Sent by ${sender}.` : '');
           pendingSendNote = null;
           try {
@@ -3983,7 +4003,7 @@
   }
 
   function renderTemplates() {
-    const staffName = localStorage.getItem('staffFirstName') || '';
+    const staffName = sessionStorage.getItem('smsStaffName') || '';
     const custName = (activePhone && ghlNames[activePhone])
       ? ghlNames[activePhone].trim().split(/\s+/)[0] : '';
     const panel = document.getElementById('tplPanel');
@@ -4055,21 +4075,38 @@
       panel.classList.remove('open');
       document.getElementById('tplToggleBtn').classList.remove('active');
     } else {
-      // Always confirm who is sending before showing templates
-      document.getElementById('nameModal').classList.add('show');
+      if (!TASK_PEOPLE.includes(sessionStorage.getItem('smsStaffName'))) return showStaffPicker(true);
+      renderTemplates();
+      panel.classList.add('open');
+      document.getElementById('tplToggleBtn').classList.add('active');
     }
   }
 
+  function showStaffPicker(forTemplates) {
+    staffPickerForTemplates = Boolean(forTemplates);
+    document.getElementById('staffPickerTitle').textContent = 'Who is using the SMS portal?';
+    document.getElementById('nameModal').classList.add('show');
+  }
+
   function pickStaff(name) {
+    if (!TASK_PEOPLE.includes(name)) return;
+    const openTemplates = staffPickerForTemplates;
+    sessionStorage.setItem('smsStaffName', name);
     localStorage.setItem('staffFirstName', name);
+    document.getElementById('staffSwitch').textContent = `Working as ${name} · Change`;
     closeNameModal();
-    renderTemplates();
-    document.getElementById('tplPanel').classList.add('open');
-    document.getElementById('tplToggleBtn').classList.add('active');
+    if (document.getElementById('tplPanel').classList.contains('open') || openTemplates) renderTemplates();
+    if (openTemplates) {
+      document.getElementById('tplPanel').classList.add('open');
+      document.getElementById('tplToggleBtn').classList.add('active');
+    }
+    staffPickerForTemplates = false;
   }
 
   function closeNameModal() {
+    if (!TASK_PEOPLE.includes(sessionStorage.getItem('smsStaffName'))) return;
     document.getElementById('nameModal').classList.remove('show');
+    staffPickerForTemplates = false;
   }
 
   // Persist a manually-typed customer first name (used for unknown/new contacts).
@@ -4107,10 +4144,11 @@
     }
 
     // Substitute {{user.first_name}} — ask once if never set, then remember
-    let staffName = (localStorage.getItem('staffFirstName') || '').trim();
+    let staffName = (sessionStorage.getItem('smsStaffName') || '').trim();
     if (!staffName && body.includes('{{user.first_name}}')) {
       staffName = (prompt('Your first name?\n\n(fills {{user.first_name}} — saved for next time)') || '').trim();
       if (staffName) {
+        sessionStorage.setItem('smsStaffName', staffName);
         localStorage.setItem('staffFirstName', staffName);
         const n = document.getElementById('tplNameInput');
         if (n) n.value = staffName;
