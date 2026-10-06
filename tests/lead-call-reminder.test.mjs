@@ -146,3 +146,38 @@ test('"Send now" from the lead report sends to info@ only, only from the portal,
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
   }
 });
+
+test('a busy week (over 150 leads) still builds the reminder from the few customers in New Lead', async () => {
+  const keys = ['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]])), savedFetch = global.fetch;
+  Object.assign(process.env, { GHL_API_KEY: 'k', GHL_LOCATION_ID: 'loc', SUPABASE_URL: 'https://sb.example', SUPABASE_ANON_KEY: 'a' });
+  const now = Date.now(), seen = [];
+  // 170 leads in the last few days, newest first; every 34th is still in New Lead (5 customers).
+  const opportunities = Array.from({ length: 170 }, (_, index) => ({
+    id: `o${index}`, contactId: `c${index}`, contact: { id: `c${index}`, name: `Customer ${index}`, phone: `04${String(10000000 + index)}` },
+    pipelineId: 'p', pipelineStageId: index % 34 === 0 ? 'new' : 'quoted', dateAdded: new Date(now - (index + 1) * 20 * 60000).toISOString(), source: 'Meta',
+  }));
+  global.fetch = async url => {
+    const value = String(url); seen.push(value);
+    const json = body => new Response(JSON.stringify(body), { status: 200 });
+    if (value.includes('/opportunities/search')) { const page = Number(new URL(value).searchParams.get('page')); return json({ opportunities: opportunities.slice((page - 1) * 100, page * 100) }); }
+    if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'p', name: 'Smoke Alarms', stages: [{ id: 'new', name: 'New Lead' }, { id: 'quoted', name: 'Quote Sent' }] }] });
+    if (/\/contacts\/[^/]+\/notes/.test(value)) return json({ notes: [] });
+    if (value.includes('/conversations/search')) return json({ conversations: [], total: 0 });
+    if (value.includes('/call-log')) return json({ records: [] });
+    if (value.includes('/sms_messages')) return json([]);
+    throw new Error(`Unexpected request: ${value}`);
+  };
+  try {
+    const res = { statusCode: 0, body: null, setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; }, send(body) { this.body = body; return this; } };
+    await leadCallReminder({ query: { leadReport: 'reminder', preview: '1' }, headers: {} }, res, { ringcentralToken: async () => 'rc', ringcentralServer: () => 'https://rc.example' });
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.match(res.body, /5 customers need more calls today/);
+    assert.match(res.body, /No calls yet today \(5\)/);
+    assert.equal(seen.filter(url => url.includes('/notes')).length, 5, 'only customers still in New Lead are checked');
+    assert.equal(seen.filter(url => url.includes('/conversations/search')).length, 5);
+  } finally {
+    global.fetch = savedFetch;
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+});
