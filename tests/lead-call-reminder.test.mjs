@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { leadCallReminder, phoneLabel, reminderEmail, reminderGroups, REMINDER_HOURS, sydneyNow } from '../lib/lead-call-reminder.js';
+import { leadCallReminder, phoneLabel, reminderEmail, reminderGroups, reminderSkipReason } from '../lib/lead-call-reminder.js';
 
 const today = '2026-10-06';
 const row = (name, extra) => ({
@@ -66,6 +66,16 @@ function mockServices(sent) {
   };
 }
 
+test('the reminder is due at 12 pm and 3 pm Sydney on weekdays only, across daylight saving', () => {
+  assert.equal(reminderSkipReason(new Date('2026-10-12T01:00:00Z')), '', 'Monday 12 pm AEDT');
+  assert.equal(reminderSkipReason(new Date('2026-10-16T04:30:00Z')), '', 'Friday 3:30 pm AEDT');
+  assert.equal(reminderSkipReason(new Date('2026-06-15T02:00:00Z')), '', 'Monday 12 pm AEST');
+  assert.equal(reminderSkipReason(new Date('2026-06-15T01:00:00Z')), 'outside_reminder_hours', '11 am AEST, the other UTC run');
+  assert.equal(reminderSkipReason(new Date('2026-10-12T02:00:00Z')), 'outside_reminder_hours', '1 pm AEDT, the other UTC run');
+  assert.equal(reminderSkipReason(new Date('2026-10-10T01:00:00Z')), 'weekend', 'Saturday 12 pm');
+  assert.equal(reminderSkipReason(new Date('2026-10-11T04:00:00Z')), 'weekend', 'Sunday 3 pm');
+});
+
 test('reminder endpoint: cron secret required, preview never sends, force sends one team email', async () => {
   const keys = ['GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'CRON_SECRET', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN', 'LEAD_REMINDER_TO'];
   const saved = Object.fromEntries(keys.map(key => [key, process.env[key]])), savedFetch = global.fetch;
@@ -81,22 +91,26 @@ test('reminder endpoint: cron secret required, preview never sends, force sends 
   try {
     assert.equal((await call({})).statusCode, 401);
     assert.equal((await call({ force: '1' }, { authorization: 'Bearer wrong' })).statusCode, 401);
-    if (!REMINDER_HOURS.includes(sydneyNow().hour)) assert.equal((await call({}, { authorization: 'Bearer cron' })).body.reason, 'outside_reminder_hours');
+    // A scheduled run sends only at 12 pm or 3 pm on a weekday; check whichever applies right now.
+    const skip = reminderSkipReason(), scheduled = await call({}, { authorization: 'Bearer cron' });
+    if (skip) assert.equal(scheduled.body.reason, skip);
+    else assert.equal(scheduled.body.sent, 2);
+    const before = sent.length;
     const preview = await call({ preview: '1' });
     assert.equal(preview.statusCode, 200);
     assert.match(preview.body, /1 customer needs more calls today/);
     assert.match(preview.body, /Judith Lynch/);
     assert.doesNotMatch(preview.body, /Quoted Person/);
-    assert.equal(sent.length, 0, 'preview does not send');
+    assert.equal(sent.length, before, 'preview does not send');
     const forced = await call({ force: '1' }, { authorization: 'Bearer cron' });
     assert.equal(forced.statusCode, 200, JSON.stringify(forced.body));
-    assert.equal(sent.length, 1);
-    assert.deepEqual(sent[0].to, ['team@goldsure.com.au', 'owner@goldsure.com.au']);
-    assert.match(sent[0].subject, /^Call reminder .+: 1 customer needs more calls today$/);
-    assert.match(sent[0].html, /Sent “Not Reachable – 1st Attempt”/);
+    assert.equal(sent.length, before + 1);
+    assert.deepEqual(sent.at(-1).to, ['team@goldsure.com.au', 'owner@goldsure.com.au']);
+    assert.match(sent.at(-1).subject, /^Call reminder .+: 1 customer needs more calls today$/);
+    assert.match(sent.at(-1).html, /Sent “Not Reachable – 1st Attempt”/);
     delete process.env.LEAD_REMINDER_TO;
     await call({ force: '1' }, { authorization: 'Bearer cron' });
-    assert.deepEqual(sent[1].to, ['info@goldsure.com.au'], 'goes to info@ by default');
+    assert.deepEqual(sent.at(-1).to, ['info@goldsure.com.au'], 'goes to info@ by default');
   } finally {
     global.fetch = savedFetch;
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
