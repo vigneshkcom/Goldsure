@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { callEvidence, contactEvidence, dedupeCustomerCalls, reportPhone, reportTotals } from '../lib/lead-contact-report.js';
+import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, reportPhone, reportTotals } from '../lib/lead-contact-report.js';
 import { leadContactReport, sydneyMidnight } from '../lib/lead-contact-report-api.js';
 
 function recorder() {
@@ -17,6 +17,13 @@ test('phone matching rejects extensions and distinguishes call results', () => {
   assert.equal(callEvidence({ result: 'Accepted', duration: 25 }), 'connected');
   assert.equal(callEvidence({ result: 'Unknown', duration: 25 }), 'unknown');
   assert.equal(dedupeCustomerCalls([{ sessionId: 'same', result: 'No Answer' }, { sessionId: 'same', result: 'Accepted', duration: 25 }])[0].result, 'Accepted');
+});
+
+test('Direct Call leads are identified by exact source or opportunity name', () => {
+  assert.equal(isDirectCallOpportunity({ source: 'Direct Call' }), true);
+  assert.equal(isDirectCallOpportunity({ source: 'direct_call' }), true);
+  assert.equal(isDirectCallOpportunity({ name: 'ALEX LEAD - Direct Call' }), true);
+  assert.equal(isDirectCallOpportunity({ source: 'Facebook', name: 'Direct Call advertising enquiry' }), false);
 });
 
 test('report dates use Sydney midnight across daylight saving changes', () => {
@@ -34,7 +41,7 @@ test('only connected calls or replies count as contact signals and uncertainty s
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], result: 'Unknown' }] }).status, 'Needs review');
   assert.equal(contactEvidence({ leadAt, sms: [{ createdAt: '2026-10-05T02:00:00Z', direction: 'inbound' }] }).status, 'Connected call or SMS reply');
   assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], startTime: '2026-10-04T23:00:00Z' }] }).status, 'No attempt recorded');
-  assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Needs review' }]), { customers: 2, reached: 1, attempted: 0, noAttempt: 0, needsReview: 1 });
+  assert.deepEqual(reportTotals([{ contactStatus: 'Connected call or SMS reply' }, { contactStatus: 'Attempted, no confirmed response', callsMade: 3 }, { contactStatus: 'No attempt recorded', callsMade: 0 }, { contactStatus: 'Needs review' }]), { customers: 4, reached: 1, attempted: 1, noAttempt: 1, needsReview: 1, calledNoConnection: 1, callsToUnconnected: 3 });
 });
 
 test('report checks all three sources and reads GHL notes without writes', async () => {
@@ -46,7 +53,10 @@ test('report checks all three sources and reads GHL notes without writes', async
   global.fetch = async (url, options = {}) => {
     const value = String(url); seen.push({ value, method: options.method || 'GET' });
     const json = body => new Response(JSON.stringify(body), { status: 200 });
-    if (value.includes('/opportunities/search')) return json(incompleteLeads ? {} : { opportunities: [{ id: 'lead1', contactId: 'contact1', pipelineId: 'pipe1', pipelineStageId: 'stage1', dateAdded: '2026-10-05T01:00:00Z', source: 'Facebook campaign' }] });
+    if (value.includes('/opportunities/search')) return json(incompleteLeads ? {} : { opportunities: [
+      { id: 'direct', contactId: 'direct-contact', name: 'DIRECT PERSON - Direct Call', pipelineId: 'pipe1', pipelineStageId: 'stage1', dateAdded: '2026-10-05T02:00:00Z', source: 'Direct Call' },
+      { id: 'lead1', contactId: 'contact1', pipelineId: 'pipe1', pipelineStageId: 'stage1', dateAdded: '2026-10-05T01:00:00Z', source: 'Facebook campaign' },
+    ] });
     if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'pipe1', name: 'Smoke Alarms', stages: [{ id: 'stage1', name: 'New Lead' }] }] });
     if (value.includes('/contacts/contact1/notes')) return json({ notes: [{ id: 'n1', dateAdded: '2026-10-05T03:00:00Z', body: 'Tried calling, no answer. Texted "Not Reachable – 1st Attempt" via SMS Portal.' }] });
     if (value.includes('/contacts/contact1')) return json({ contact: { id: 'contact1', firstName: 'Alex', lastName: 'Lead', phone: '0412345678' } });
@@ -63,6 +73,9 @@ test('report checks all three sources and reads GHL notes without writes', async
     const response = recorder();
     await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, response, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
     assert.equal(response.statusCode, 200, response.body?.error);
+    assert.equal(response.body.rows.length, 1);
+    assert.equal(response.body.rows[0].stage, 'New Lead');
+    assert.equal(response.body.rows[0].leadAt, '2026-10-05T01:00:00.000Z');
     assert.equal(response.body.totals.reached, 1);
     assert.equal(response.body.rows[0].callsMade, 1);
     assert.equal(response.body.rows[0].lastTemplate, 'Not Reachable – 1st Attempt');
@@ -86,4 +99,9 @@ test('lead report page script compiles', () => {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(script);
   new vm.Script(script);
+  assert.match(html, /Current GHL stage/);
+  assert.match(html, /Calls to those customers/);
+  assert.match(html, /value="unconnected">No connection recorded/);
+  assert.match(html, /Direct Call leads are excluded/);
+  assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
 });
