@@ -94,6 +94,9 @@ test('reminder endpoint: cron secret required, preview never sends, force sends 
     assert.deepEqual(sent[0].to, ['team@goldsure.com.au', 'owner@goldsure.com.au']);
     assert.match(sent[0].subject, /^Call reminder .+: 1 customer needs more calls today$/);
     assert.match(sent[0].html, /Sent “Not Reachable – 1st Attempt”/);
+    delete process.env.LEAD_REMINDER_TO;
+    await call({ force: '1' }, { authorization: 'Bearer cron' });
+    assert.deepEqual(sent[1].to, ['info@goldsure.com.au'], 'goes to info@ by default');
   } finally {
     global.fetch = savedFetch;
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
