@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { callEvidence, contactEvidence, dedupeCustomerCalls, isDirectCallOpportunity, isNotReachableTemplate, leadReachability, noteText, reportPhone, reportTotals, respondedAfter, smsTemplateFromNote, stageProgress } from '../lib/lead-contact-report.js';
+import { callEvidence, contactEvidence, dailyCalls, dedupeCustomerCalls, lastOutboundContact, isDirectCallOpportunity, isNotReachableTemplate, leadReachability, noteText, reportPhone, reportTotals, respondedAfter, smsTemplateFromNote, stageProgress } from '../lib/lead-contact-report.js';
 import { leadContactReport, sydneyMidnight } from '../lib/lead-contact-report-api.js';
 
 function recorder() {
@@ -80,6 +80,20 @@ test('a Not Reachable template means not reachable so far until the customer rep
   assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Connected call or SMS reply', notReachableSms: true }), 'unreachable');
   assert.equal(leadReachability({ stage: 'New Lead', contactStatus: 'Needs review', notReachableSms: true }), 'unreachable');
   assert.equal(leadReachability({ stage: 'Quote Sent', contactStatus: 'Attempted, no confirmed response', notReachableSms: true }), 'reached');
+});
+
+test('calls are counted per Sydney day against 3 a day, stopping when the lead moved to Not Reachable', () => {
+  const now = Date.parse('2026-10-06T03:00:00Z'); // 2 pm Tuesday 6 Oct in Sydney
+  const call = startTime => ({ direction: 'Outbound', startTime });
+  assert.deepEqual(dailyCalls({ leadAt: '2026-10-04T22:00:00Z', now, calls: [call('2026-10-04T23:00:00Z'), call('2026-10-05T01:00:00Z'), call('2026-10-05T05:00:00Z'), call('2026-10-05T22:30:00Z'), { direction: 'Inbound', startTime: '2026-10-05T23:00:00Z' }] }), [
+    { day: '2026-10-05', calls: 3, status: 'met' }, { day: '2026-10-06', calls: 1, status: 'today' },
+  ]);
+  assert.deepEqual(dailyCalls({ leadAt: '2026-10-04T08:36:00Z', now, calls: [call('2026-10-04T09:00:00Z')] }).map(day => day.status), ['late', 'short', 'today'], 'a lead arriving at 7:36 pm is not expected to get 3 calls that evening');
+  assert.deepEqual(dailyCalls({ leadAt: '2026-10-04T22:00:00Z', now, calls: [call('2026-10-04T23:00:00Z'), call('2026-10-05T02:00:00Z')], stoppedAt: '2026-10-05T01:00:00Z' }), [{ day: '2026-10-05', calls: 1, status: 'short' }], 'moved to Not Reachable after 1 call');
+  assert.deepEqual(dailyCalls({ leadAt: '2026-10-04T07:28:00Z', now, calls: [call('2026-10-04T08:00:00Z')], stoppedAt: '2026-10-04T09:28:00Z' }), [{ day: '2026-10-04', calls: 1, status: 'short' }], 'a 6:28 pm lead moved to Not Reachable that evening after 1 call is not excused');
+  assert.deepEqual(dailyCalls({ leadAt: '2026-10-04T07:28:00Z', now, calls: [call('2026-10-04T08:00:00Z'), call('2026-10-04T22:00:00Z'), call('2026-10-05T00:00:00Z'), call('2026-10-05T02:00:00Z')], stoppedAt: '2026-10-05T03:00:00Z' }).map(day => day.status), ['late', 'met'], 'an evening lead called 3 times the next day before the move is fine');
+  assert.deepEqual(lastOutboundContact({ leadAt: '2026-10-04T22:00:00Z', calls: [call('2026-10-05T01:00:00Z')], sms: [{ direction: 'outbound', status: 'sent', createdAt: '2026-10-05T02:00:00Z' }, { direction: 'outbound', status: 'scheduled', createdAt: '2026-10-06T02:00:00Z' }] }), { at: '2026-10-05T02:00:00.000Z', type: 'SMS' });
+  assert.equal(lastOutboundContact({ leadAt: '2026-10-05T00:00:00Z', calls: [call('2026-10-04T23:00:00Z')] }), null, 'contact before the lead arrived does not count');
 });
 
 test('report checks all three sources and reads GHL notes without writes', async () => {
@@ -167,7 +181,13 @@ test('lead page answers the follow-up question first and groups leads under each
     pipeline, stage: leads[index][0], stageProgress: leads[index][1], reachability: leads[index][2], name: `Customer ${index}`, phone: '0412345678', source: 'Meta',
     leadAt: `2026-10-05T0${index}:00:00Z`, callsMade: index, smsSent: 0, contactStatus: 'Attempted, no confirmed response', link: 'https://example.com', contactId: `contact${index}`,
   }));
-  page.state.rows.push({ ...page.state.rows[0], name: 'Unclear record', contactId: 'contact4', stage: 'New Lead', stageProgress: 'new', reachability: 'review', callsMade: 0, leadAt: '2026-10-05T00:30:00Z' });
+  const today = getElementById('to').value;
+  page.state.rows[1].callDays = [{ day: '2026-10-05', calls: 1, status: 'short' }, { day: today, calls: 1, status: 'today' }];
+  page.state.rows[2].callDays = [{ day: today, calls: 0, status: 'today' }];
+  page.state.rows[3].callDays = [{ day: '2026-10-05', calls: 3, status: 'met' }];
+  page.state.rows[3].stoppedAt = '2026-10-05T06:00:00Z';
+  for (const row of page.state.rows) row.callsChecked = true;
+  page.state.rows.push({ ...page.state.rows[0], callsChecked: false, name: 'Unclear record', contactId: 'contact4', stage: 'New Lead', stageProgress: 'new', reachability: 'review', callsMade: 0, leadAt: '2026-10-05T00:30:00Z' });
   page.state.rows.push({ ...page.state.rows[1], name: 'Not called yet', contactId: 'contact5', reachability: 'untried', callsMade: 0, leadAt: '2026-10-04T23:00:00Z' });
   page.state.loaded = true;
   page.renderSummary();
@@ -179,10 +199,15 @@ test('lead page answers the follow-up question first and groups leads under each
   assert.equal(page.percent(1, 300), '<1%');
   assert.equal(page.percent(0, 5), '0%');
   assert.equal((getElementById('pipelineSummary').innerHTML.match(/class="pipe-row( total)?"/g) || []).length, 5);
-  assert.equal(getElementById('callNote').textContent, 'Calls to leads not reachable so far: 4 calls to 2 customers.');
+  assert.equal(getElementById('callNote').innerHTML, '<strong>3 calls a day:</strong> 2 of 4 leads not reached had a day with fewer than 3 calls, and 3 have had fewer than 3 calls so far today.<br>Calls to leads not reachable so far: 4 calls to 2 customers.');
   const sections = getElementById('pipelineSections').innerHTML;
   assert.equal((sections.match(/class="group"/g) || []).length, 4, 'opens on leads not reached yet, still grouped by pipeline');
   assert.doesNotMatch(sections, /Customer 0/, 'Quote Sent counts as reached and is hidden by default');
+  assert.match(sections, /<span class="day day-short" title="[^"]+">Mon <b>1<\/b><\/span>/);
+  assert.match(sections, /Today <b>0\/3<\/b>/);
+  assert.match(sections, /Under 3 calls on 1 day/);
+  assert.match(sections, /3\+ calls every day before Not Reachable/);
+  assert.match(sections, /Phone missing or shared, so calls could not be matched/);
   assert.ok(sections.indexOf('Not called yet') < sections.indexOf('Customer 1'), 'within a pipeline, not tried yet is listed before not reachable even when older');
   assert.equal(page.statusKey({ reachability: 'something new' }), 'review');
   assert.deepEqual(JSON.parse(JSON.stringify(page.rangeParts('2026-09-30', '2026-10-06'))), [{ from: '2026-10-04', to: '2026-10-06' }, { from: '2026-10-02', to: '2026-10-03' }, { from: '2026-09-30', to: '2026-10-01' }], 'a week is read in three parts with no gaps');
@@ -213,7 +238,7 @@ function ghlMock({ opportunities, notes = [], messages = [], fail429 = 0 }) {
     const value = String(url); seen.push(value);
     const json = body => new Response(JSON.stringify(body), { status: 200 });
     if (value.includes('/opportunities/search')) return json({ opportunities });
-    if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'pipe1', name: 'Smoke Alarms', stages: [{ id: 'new', name: 'New Lead' }, { id: 'quoted', name: 'Quote Sent' }] }] });
+    if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'pipe1', name: 'Smoke Alarms', stages: [{ id: 'new', name: 'New Lead' }, { id: 'quoted', name: 'Quote Sent' }, { id: 'nr', name: 'Not Reachable' }] }] });
     if (/\/contacts\/[^/]+\/notes/.test(value)) {
       if (throttled < fail429) { throttled++; return new Response('{}', { status: 429, headers: { 'Retry-After': '0' } }); }
       return json({ notes });
@@ -297,4 +322,19 @@ test('notes endpoint returns plain text', async () => {
     if (savedKey === undefined) delete process.env.GHL_API_KEY; else process.env.GHL_API_KEY = savedKey;
     if (savedLocation === undefined) delete process.env.GHL_LOCATION_ID; else process.env.GHL_LOCATION_ID = savedLocation;
   }
+});
+
+test('a lead moved to Not Reachable after 1 call shows that day as under 3 calls', async () => {
+  const mock = ghlMock({
+    opportunities: [{ id: 'lead1', contactId: 'contact1', contact: { id: 'contact1', name: 'Moved Early', phone: '0412345678' }, pipelineId: 'pipe1', pipelineStageId: 'nr', dateAdded: '2026-10-05T01:00:00Z', lastStageChangeAt: '2026-10-05T03:00:00Z', source: 'Meta' }],
+  });
+  const response = await runReport(mock);
+  assert.equal(response.statusCode, 200, response.body?.error);
+  const [row] = response.body.rows;
+  assert.equal(row.reachability, 'unreachable');
+  assert.equal(row.stoppedAt, '2026-10-05T03:00:00.000Z');
+  assert.deepEqual(row.callDays, [{ day: '2026-10-05', calls: 1, status: 'short' }]);
+  assert.equal(row.lastContactAt, '2026-10-05T02:00:00.000Z');
+  assert.equal(row.lastContactType, 'call');
+  assert.equal(row.callsChecked, true);
 });

@@ -35,6 +35,9 @@
     .leads td{padding:12px;border-bottom:1px solid #edf1f5;font-size:13px;line-height:1.35;vertical-align:top}.leads tr:last-child td{border-bottom:0}.leads tbody tr:hover{background:#fafbfd}
     .leads th:first-child,.leads td:first-child{padding-left:22px}.leads th:last-child,.leads td:last-child{padding-right:22px}.leads small{display:block;margin-top:3px;color:var(--subtle);font-size:11.5px;line-height:1.4}
     .c-customer strong{color:#142d4f}.c-received{color:var(--subtle)}.c-stage{color:#33415a}.c-actions{text-align:right;white-space:nowrap}.c-actions button{min-height:30px;padding:4px 10px;font-size:12px}.c-actions a{margin-left:10px;font-size:12px;font-weight:700;text-decoration:none}
+    .c-last{color:#33415a}.c-last .when{display:block;font-size:12.5px;color:var(--ink)}.c-last .when em{font-style:normal;color:var(--subtle)}.na{color:var(--faint);font-size:12px}
+    .days{display:flex;flex-wrap:wrap;gap:4px}.day{display:inline-flex;align-items:baseline;gap:4px;padding:3px 6px;border:1px solid transparent;border-radius:4px;font-size:11px;line-height:1.2;white-space:nowrap}.day b{font-variant-numeric:tabular-nums}
+    .day-met{background:#e4f4ea;color:var(--connected-ink)}.day-short{background:#fbe9e7;border-color:#f2cbc6;color:var(--none-ink)}.day-today{background:#fdf1db;color:var(--tried-ink)}.day-late{background:#edf0f4;color:var(--review-ink)}.rule-short{color:var(--none-ink)!important}.rule-met{color:var(--connected-ink)!important}
     .status{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700}.status::before{content:'';flex:none;width:9px;height:9px;border-radius:50%}
     .status-reached{color:var(--connected-ink)}.status-reached::before{background:var(--connected)}.status-unreachable{color:var(--tried-ink)}.status-unreachable::before{background:var(--tried)}.status-untried{color:var(--none-ink)}.status-untried::before{background:var(--none)}.status-review{color:var(--review-ink)}.status-review::before{background:var(--review)}
     .empty{margin:0;padding:36px 22px;text-align:center;color:var(--subtle);font-size:13px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -46,7 +49,7 @@
       .n{text-align:left;align-self:start}.pipe-row.total .n span{display:flex;align-items:center;gap:5px;margin-top:2px;font-size:10.5px;line-height:1.25;color:var(--subtle)}
       .list-head{padding:18px 16px 14px}.tools{width:100%}.tools .field{flex:1 1 100%}.tools .field select,.tools .field input{min-width:0;width:100%}.tools button{width:100%}.group-head{padding:16px 16px 8px}
       .leads colgroup,.leads thead{display:none}.leads,.leads tbody{display:block}.leads tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 16px;border-top:1px solid #edf1f5}.leads td{display:block;padding:0!important;border:0}
-      .c-received{grid-column:2;grid-row:1;text-align:right;font-size:12px}.c-result{grid-column:1/-1}.c-stage{font-size:12px}.c-stage::before{content:'GHL stage: ';color:var(--faint)}.c-actions{align-self:end}
+      .c-received{grid-column:2;grid-row:1;text-align:right;font-size:12px}.c-result,.c-last,.c-days{grid-column:1/-1}.c-last::before{content:'Last contacted: ';color:var(--faint)}.c-last .when{display:inline}.c-days::before{content:'Calls per day (3 needed)';display:block;margin-bottom:4px;font-size:11px;color:var(--faint)}.c-stage{font-size:12px}.c-stage::before{content:'GHL stage: ';color:var(--faint)}.c-actions{align-self:end}
     }
     @media print{:root,body{background:#fff}header,.dates,.tools,.message,.link-btn,.c-actions,.method,.modal{display:none!important}main{max-width:none;padding:0}.card{box-shadow:none;border-color:#cfd6df}.answer{break-inside:avoid}.leads tr{break-inside:avoid}.leads th,.leads td{font-size:9px;padding:5px 8px}.split,.dot,.status::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style>
@@ -76,14 +79,14 @@
       <div class="list-head">
         <div><h2 id="listTitle">Leads by pipeline</h2><p>Starts with leads not reached yet. Change “Show” to see everyone.</p></div>
         <div class="tools">
-          <label class="field">Show<select id="view"><option value="open">Not reached yet</option><option value="unreachable">Not reachable so far</option><option value="untried">Not tried yet</option><option value="review">Needs review</option><option value="newLead">Still in New Lead</option><option value="reached">Reached</option><option value="all">All leads</option></select></label>
+          <label class="field">Show<select id="view"><option value="open">Not reached yet</option><option value="unreachable">Not reachable so far</option><option value="untried">Not tried yet</option><option value="review">Needs review</option><option value="callToday">Needs more calls today</option><option value="behind">Under 3 calls on a day</option><option value="newLead">Still in New Lead</option><option value="reached">Reached</option><option value="all">All leads</option></select></label>
           <label class="field">Find a customer<input id="search" type="search" placeholder="Name or phone"></label>
           <button type="button" id="csv" disabled>Download CSV</button>
         </div>
       </div>
       <div id="pipelineSections"></div>
     </section>
-    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. A lead whose GHL stage has moved past New Lead (for example Quote Sent, Follow Up or Installed) counts as reached, and one in Not Reachable counts as not reachable. For leads still in New Lead (or Today), a Not Reachable SMS template sent from the SMS portal means the customer was tried but not reached, so the lead counts as not reachable so far until the customer replies by SMS or calls in. Otherwise calls are matched by phone number from RingCentral and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. A connected call or a customer SMS reply counts as reached, although a connected call may still be voicemail. Calls or SMS with no answer count as not reachable so far, and no call or SMS at all as not tried yet. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Direct Call opportunities are excluded by their GHL source or name. Check known leads before sharing the figures.</p></details>
+    <details class="method"><summary>How results are worked out</summary><p>One row per customer, using their newest lead in the selected dates. A lead whose GHL stage has moved past New Lead (for example Quote Sent, Follow Up or Installed) counts as reached, and one in Not Reachable counts as not reachable. For leads still in New Lead (or Today), a Not Reachable SMS template sent from the SMS portal means the customer was tried but not reached, so the lead counts as not reachable so far until the customer replies by SMS or calls in. Otherwise calls are matched by phone number from RingCentral and SMS from the SMS portal and GHL conversations, counting only activity after the lead arrived. A connected call or a customer SMS reply counts as reached, although a connected call may still be voicemail. Calls or SMS with no answer count as not reachable so far, and no call or SMS at all as not tried yet. A missing or shared phone number, an unclear call result or incomplete GHL data is marked “Needs review”. Direct Call opportunities are excluded by their GHL source or name. Check known leads before sharing the figures.</p><p>Calls per day: every lead not yet reached should get at least 3 calls a day until it is moved to Not Reachable. Outbound RingCentral calls are counted per calendar day (Sydney time, weekends included) from the day the lead arrived. For a lead in Not Reachable the check stops on the day it was moved there. The arrival day is not counted against staff when the lead came in from 3 pm, and today is shown as in progress. Calls made from other phones are not seen. “Last contacted” is the latest call or SMS sent to the customer.</p></details>
   </main>
   <div class="modal" id="modal"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="noteTitle"><div class="dialog-head"><h2 id="noteTitle">GHL notes</h2><button type="button" id="close">Close</button></div><div id="notes" class="muted">Loading…</div></div></div>
   <script>
@@ -98,7 +101,9 @@
     ];
     const STATUS=Object.fromEntries(STATUSES.map(status=>[status.key,status])),PRIORITY={untried:0,unreachable:1,review:2,reached:3};
     const statusKey=row=>STATUS[row.reachability]?row.reachability:'review';
-    const VIEWS={all:()=>true,open:row=>statusKey(row)!=='reached',unreachable:row=>statusKey(row)==='unreachable',untried:row=>statusKey(row)==='untried',review:row=>statusKey(row)==='review',newLead:row=>row.stageProgress==='new',reached:row=>statusKey(row)==='reached'};
+    const CALLS_PER_DAY=3;
+    const hasDay=(row,status)=>statusKey(row)!=='reached'&&(row.callDays||[]).some(day=>day.status===status);
+    const VIEWS={callToday:row=>hasDay(row,'today'),behind:row=>hasDay(row,'short'),all:()=>true,open:row=>statusKey(row)!=='reached',unreachable:row=>statusKey(row)==='unreachable',untried:row=>statusKey(row)==='untried',review:row=>statusKey(row)==='review',newLead:row=>row.stageProgress==='new',reached:row=>statusKey(row)==='reached'};
     const resultLabel=row=>STATUS[statusKey(row)].label;
     const CONTACT_LABELS={'Connected call or SMS reply':'Call connected or SMS reply','Attempted, no confirmed response':'Called or texted, no answer','No attempt recorded':'No call or SMS found','Needs review':'Unclear','Not checked':'Not checked (past New Lead)'};
     const byPriority=(a,b)=>PRIORITY[statusKey(a)]-PRIORITY[statusKey(b)]||String(b.leadAt).localeCompare(String(a.leadAt));
@@ -181,27 +186,49 @@
       $('pipelineSummary').innerHTML=head+summaryRow('All pipelines',c,true)+pipelineGroups(state.rows).map(group=>summaryRow(group.name,counts(group.rows))).join('');
       const called=state.rows.filter(row=>statusKey(row)==='unreachable'&&Number(row.callsMade)>0),calls=called.reduce((sum,row)=>sum+Number(row.callsMade),0);
       const stale=state.rows.filter(row=>statusKey(row)==='reached'&&row.stageProgress==='new').length;
-      $('callNote').textContent=[called.length&&`Calls to leads not reachable so far: ${plural(calls,'call')} to ${plural(called.length,'customer')}.`,stale&&`${plural(stale,'reached lead')} ${stale===1?'is':'are'} still in New Lead in GHL.`].filter(Boolean).join(' ');
+      const checked=state.rows.filter(row=>statusKey(row)!=='reached'&&row.callsChecked),behind=checked.filter(VIEWS.behind).length,today=checked.filter(VIEWS.callToday).length;
+      $('callNote').innerHTML=[
+        checked.length&&`<strong>3 calls a day:</strong> ${behind} of ${plural(checked.length,'lead')} not reached had a day with fewer than 3 calls${today?`, and ${today} ${today===1?'has':'have'} had fewer than 3 calls so far today`:''}.`,
+        called.length&&`Calls to leads not reachable so far: ${plural(calls,'call')} to ${plural(called.length,'customer')}.`,
+        stale&&`${plural(stale,'reached lead')} ${stale===1?'is':'are'} still in New Lead in GHL.`
+      ].filter(Boolean).join('<br>');
     }
     function updateViewOptions(){
-      const c=counts(state.rows),labels={open:`Not reached yet (${c.total-c.reached})`,unreachable:`Not reachable so far (${c.unreachable})`,untried:`Not tried yet (${c.untried})`,review:`Needs review (${c.review})`,newLead:`Still in New Lead (${state.rows.filter(VIEWS.newLead).length})`,reached:`Reached (${c.reached})`,all:`All leads (${c.total})`};
+      const c=counts(state.rows),labels={open:`Not reached yet (${c.total-c.reached})`,unreachable:`Not reachable so far (${c.unreachable})`,untried:`Not tried yet (${c.untried})`,review:`Needs review (${c.review})`,callToday:`Needs more calls today (${state.rows.filter(VIEWS.callToday).length})`,behind:`Under 3 calls on a day (${state.rows.filter(VIEWS.behind).length})`,newLead:`Still in New Lead (${state.rows.filter(VIEWS.newLead).length})`,reached:`Reached (${c.reached})`,all:`All leads (${c.total})`};
       for(const option of $('view').options||[])option.textContent=state.loaded?labels[option.value]:labels[option.value].replace(/ \(\d+\)$/,'');
     }
     function reachDetail(row,key){
       if(key==='untried')return '';
       if(key==='reached'&&row.stageProgress==='moved-on')return '<small>Moved past New Lead in GHL</small>';
-      const parts=[plural(Number(row.callsMade)||0,'call'),`${Number(row.smsSent)||0} SMS`];
-      if(row.lastCall)parts.push(`last call: ${row.lastCall}`);
-      const activity=`<small>${escapeHtml(parts.join(' · '))}</small>`;
-      if(key==='reached')return `${activity}<small>Still in New Lead in GHL</small>`;
+      if(key==='reached')return '<small>Still in New Lead in GHL</small>';
       const template=row.lastTemplate&&!['Not recorded','Could not check','Not checked'].includes(row.lastTemplate)?`<small>Sent “${escapeHtml(row.lastTemplate)}”${row.lastTemplateAt?` · ${escapeHtml(whenLabel(row.lastTemplateAt))}`:''}</small>`:'';
-      return `${template}${activity}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
+      return `${template}${key==='review'&&row.issue?`<small>${escapeHtml(row.issue)}</small>`:''}`;
+    }
+    function lastContactCell(row){
+      const totals=`${plural(Number(row.callsMade)||0,'call')} · ${Number(row.smsSent)||0} SMS in total`;
+      const last=row.lastContactAt?`<span class="when">${escapeHtml(whenLabel(row.lastContactAt))} <em>· ${row.lastContactType==='call'?'call':'SMS'}</em></span>`:'<span class="when">No call or SMS yet</span>';
+      return `${last}<small>${escapeHtml(totals)}</small>${row.lastCall?`<small>Last call: ${escapeHtml(row.lastCall)}</small>`:''}`;
+    }
+    const DAY_NOTES={met:`${CALLS_PER_DAY} or more calls`,short:`fewer than ${CALLS_PER_DAY} calls`,today:'today so far',late:'lead arrived from 3 pm, so not counted'};
+    function callDaysCell(row,key){
+      if(key==='reached')return '<span class="na">Not needed, reached</span>';
+      if(!row.callsChecked)return '<small>Phone missing or shared, so calls could not be matched</small>';
+      const days=row.callDays||[];if(!days.length)return '';
+      const shown=days.slice(-7),today=localDate(new Date());
+      const chips=shown.map(day=>{
+        const date=new Date(`${day.day}T00:00:00Z`),name=day.day===today?'Today':date.toLocaleDateString('en-AU',{timeZone:'UTC',weekday:'short'});
+        const title=`${date.toLocaleDateString('en-AU',{timeZone:'UTC',weekday:'long',day:'numeric',month:'short'})}: ${plural(day.calls,'call')}, ${DAY_NOTES[day.status]||''}`;
+        return `<span class="day day-${escapeHtml(day.status)}" title="${escapeHtml(title)}">${escapeHtml(name)} <b>${day.calls}${day.status==='today'?`/${CALLS_PER_DAY}`:''}</b></span>`;
+      }).join('');
+      const short=days.filter(day=>day.status==='short').length,earlier=days.length-shown.length;
+      const note=short?`<small class="rule-short">Under ${CALLS_PER_DAY} calls on ${plural(short,'day')}${earlier?` (including ${plural(earlier,'earlier day')} not shown)`:''}</small>`:row.stoppedAt&&days.some(day=>day.status==='met')&&days.every(day=>day.status==='met'||day.status==='late')?`<small class="rule-met">${CALLS_PER_DAY}+ calls every day before Not Reachable</small>`:'';
+      return `<div class="days">${chips}</div>${note}`;
     }
     function renderRow(row){
       const key=statusKey(row),source=row.source&&row.source!=='Not recorded'?` · ${row.source}`:'';
-      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(whenLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${reachDetail(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
+      return `<tr><td class="c-customer"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml((row.phone||'No phone')+source)}</small></td><td class="c-received">${escapeHtml(whenLabel(row.leadAt))}</td><td class="c-result"><span class="status status-${key}">${escapeHtml(STATUS[key].label)}</span>${reachDetail(row,key)}</td><td class="c-last">${lastContactCell(row)}</td><td class="c-days">${callDaysCell(row,key)}</td><td class="c-stage">${escapeHtml(row.stage)}</td><td class="c-actions"><button type="button" class="view-notes" data-id="${escapeHtml(row.contactId)}" data-name="${escapeHtml(row.name)}">Notes</button><a href="${escapeHtml(row.link)}" target="_blank" rel="noopener">GHL ↗</a></td></tr>`;
     }
-    const TABLE_HEAD='<colgroup><col style="width:27%"><col style="width:15%"><col style="width:28%"><col style="width:16%"><col style="width:14%"></colgroup><thead><tr><th>Customer</th><th>Received</th><th>Reachable?</th><th>GHL stage</th><th><span class="sr-only">Actions</span></th></tr></thead>';
+    const TABLE_HEAD='<colgroup><col style="width:17%"><col style="width:11%"><col style="width:19%"><col style="width:14%"><col style="width:18%"><col style="width:10%"><col style="width:11%"></colgroup><thead><tr><th>Customer</th><th>Received</th><th>Reachable?</th><th>Last contacted</th><th>Calls per day (3 needed)</th><th>GHL stage</th><th><span class="sr-only">Actions</span></th></tr></thead>';
     function render(){
       updateViewOptions();
       if(!state.loaded){$('pipelineSections').innerHTML='';return}
@@ -246,7 +273,7 @@
     $('pipelineSections').addEventListener('click',async event=>{const button=event.target.closest('.view-notes');if(!button)return;$('noteTitle').textContent=`GHL notes · ${button.dataset.name}`;$('notes').textContent='Loading…';$('modal').classList.add('open');try{const data=await request({leadReport:'notes',contactId:button.dataset.id});$('notes').innerHTML=data.notes.length?data.notes.sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(note=>`<div class="note"><time>${escapeHtml(dateLabel(note.date))}</time>${escapeHtml(note.body)}</div>`).join(''):'No GHL notes recorded for this contact.'}catch(error){$('notes').textContent=`Could not load notes: ${error.message}`}});
     const closeNotes=()=>$('modal').classList.remove('open');
     $('close').addEventListener('click',closeNotes);$('modal').addEventListener('click',event=>{if(event.target===$('modal'))closeNotes()});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeNotes()});
-    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Reachability','reachability'],['Call and SMS result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Template sent','lastTemplateAt'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='reachability'?resultLabel(row):key==='contactStatus'?CONTACT_LABELS[row.contactStatus]||'Unclear':row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+    $('csv').addEventListener('click',()=>{const columns=[['Received','leadAt'],['Customer','name'],['Phone','phone'],['Source','source'],['Pipeline','pipeline'],['Current GHL stage','stage'],['Reachability','reachability'],['Call and SMS result','contactStatus'],['Calls made','callsMade'],['SMS records','smsSent'],['Last call result','lastCall'],['Last template note','lastTemplate'],['Template sent','lastTemplateAt'],['Last contacted','lastContactAt'],['Last contact by','lastContactType'],['Calls per day','callDays'],['Days under 3 calls','shortDays'],['Review reason','issue'],['GHL link','link']];const cell=value=>{const text=String(value??'');return `"${(/^[\s]*[=+\-@]/.test(text)?"'":'')+text.replaceAll('"','""')}"`};const csv=[columns.map(([heading])=>cell(heading)).join(','),...filteredRows().map(row=>columns.map(([,key])=>cell(key==='reachability'?resultLabel(row):key==='contactStatus'?CONTACT_LABELS[row.contactStatus]||'Unclear':key==='callDays'?(row.callDays||[]).map(day=>`${day.day}: ${day.calls}${day.status==='today'?' (today)':day.status==='late'?' (arrived from 3 pm)':''}`).join('; '):key==='shortDays'?(row.callDays||[]).filter(day=>day.status==='short').length:row[key])).join(','))].join('\r\n');const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download=`Lead follow-up ${$('from').value} to ${$('to').value}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
     load();
   </script>
 </body>
