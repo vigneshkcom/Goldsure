@@ -6,6 +6,7 @@ import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinge
 import { sendResendMail } from '../../../lib/resend-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
+import { leadContactReport } from '../../../lib/lead-contact-report-api.js';
 import {
   createOrFindDraftPurchaseOrderBill,
   createXeroClient,
@@ -557,6 +558,9 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && req.query && req.query.rc === 'hourly-email') {
     return ringcentralHourlyEmail(req, res);
+  }
+  if (req.method === 'GET' && req.query?.leadReport) {
+    return leadContactReport(req, res, { ringcentralToken: rcAccessToken, ringcentralServer: rcServer });
   }
 
   if (req.method !== 'POST') {

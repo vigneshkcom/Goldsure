@@ -1,0 +1,89 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { callEvidence, contactEvidence, dedupeCustomerCalls, reportPhone, reportTotals } from '../lib/lead-contact-report.js';
+import { leadContactReport, sydneyMidnight } from '../lib/lead-contact-report-api.js';
+
+function recorder() {
+  return { statusCode: 0, body: null, headers: {}, setHeader(key, value) { this.headers[key] = value; return this; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+}
+
+test('phone matching rejects extensions and distinguishes call results', () => {
+  assert.equal(reportPhone('+61 412 345 678'), '412345678');
+  assert.equal(reportPhone('0412 345 678'), '412345678');
+  assert.equal(reportPhone('12345678'), '');
+  assert.equal(callEvidence({ result: 'Voicemail', duration: 25 }), 'no-answer');
+  assert.equal(callEvidence({ result: 'Accepted', duration: 25 }), 'connected');
+  assert.equal(callEvidence({ result: 'Unknown', duration: 25 }), 'unknown');
+  assert.equal(dedupeCustomerCalls([{ sessionId: 'same', result: 'No Answer' }, { sessionId: 'same', result: 'Accepted', duration: 25 }])[0].result, 'Accepted');
+});
+
+test('report dates use Sydney midnight across daylight saving changes', () => {
+  assert.equal(new Date(sydneyMidnight('2026-10-05')).toISOString(), '2026-10-04T13:00:00.000Z');
+  assert.equal(new Date(sydneyMidnight('2026-10-04')).toISOString(), '2026-10-03T14:00:00.000Z');
+  assert.equal(new Date(sydneyMidnight('2026-04-05')).toISOString(), '2026-04-04T13:00:00.000Z');
+  assert.equal(new Date(sydneyMidnight('2026-04-06')).toISOString(), '2026-04-05T14:00:00.000Z');
+});
+
+test('only confirmed contact counts as reached and uncertainty is not called unreachable', () => {
+  const leadAt = '2026-10-05T00:00:00Z';
+  const missed = [{ startTime: '2026-10-05T01:00:00Z', direction: 'Outbound', result: 'No Answer' }];
+  assert.equal(contactEvidence({ leadAt, calls: missed }).status, 'Attempted, no confirmed response');
+  assert.equal(contactEvidence({ leadAt, calls: missed, complete: false }).status, 'Needs review');
+  assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], result: 'Unknown' }] }).status, 'Needs review');
+  assert.equal(contactEvidence({ leadAt, sms: [{ createdAt: '2026-10-05T02:00:00Z', direction: 'inbound' }] }).status, 'Reached');
+  assert.equal(contactEvidence({ leadAt, calls: [{ ...missed[0], startTime: '2026-10-04T23:00:00Z' }] }).status, 'No attempt recorded');
+  assert.deepEqual(reportTotals([{ contactStatus: 'Reached' }, { contactStatus: 'Needs review' }]), { customers: 2, reached: 1, attempted: 0, noAttempt: 0, needsReview: 1 });
+});
+
+test('report checks all three sources and reads GHL notes without writes', async () => {
+  const savedFetch = global.fetch;
+  const saved = Object.fromEntries(['LEAD_REPORT_PIN', 'GHL_API_KEY', 'GHL_LOCATION_ID', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'].map(key => [key, process.env[key]]));
+  Object.assign(process.env, { LEAD_REPORT_PIN: 'test-pin', GHL_API_KEY: 'ghl-test', GHL_LOCATION_ID: 'location123', SUPABASE_URL: 'https://supabase.example', SUPABASE_ANON_KEY: 'supa-test' });
+  const seen = [];
+  let incompleteLeads = false;
+  global.fetch = async (url, options = {}) => {
+    const value = String(url); seen.push({ value, method: options.method || 'GET' });
+    const json = body => new Response(JSON.stringify(body), { status: 200 });
+    if (value.includes('/opportunities/search')) return json(incompleteLeads ? {} : { opportunities: [{ id: 'lead1', contactId: 'contact1', pipelineId: 'pipe1', pipelineStageId: 'stage1', dateAdded: '2026-10-05T01:00:00Z', source: 'Facebook campaign' }] });
+    if (value.includes('/opportunities/pipelines')) return json({ pipelines: [{ id: 'pipe1', name: 'Smoke Alarms', stages: [{ id: 'stage1', name: 'New Lead' }] }] });
+    if (value.includes('/contacts/contact1/notes')) return json({ notes: [{ id: 'n1', dateAdded: '2026-10-05T03:00:00Z', body: 'Tried calling, no answer. Texted "Not Reachable – 1st Attempt" via SMS Portal.' }] });
+    if (value.includes('/contacts/contact1')) return json({ contact: { id: 'contact1', firstName: 'Alex', lastName: 'Lead', phone: '0412345678' } });
+    if (value.includes('/conversations/search')) return json({ conversations: [{ id: 'conversation1' }], total: 1 });
+    if (value.includes('/conversations/conversation1/messages')) return json({ messages: { nextPage: false, messages: [{ id: 'm1', dateAdded: '2026-10-05T04:00:00Z', messageType: 'TYPE_SMS', direction: 'inbound', body: 'Please call me' }] } });
+    if (value.includes('/call-log')) return json({ records: [{ id: 'call1', sessionId: 'session1', startTime: '2026-10-05T02:00:00Z', direction: 'Outbound', to: { phoneNumber: '+61412345678' }, result: 'No Answer', duration: 0 }] });
+    if (value.includes('/sms_messages')) return json([{ id: 1, created_at: '2026-10-05T03:00:00Z', phone_number: '0412345678', direction: 'outbound', status: 'sent', message: 'Hi Alex' }]);
+    throw new Error(`Unexpected read: ${value}`);
+  };
+  try {
+    const denied = recorder();
+    await leadContactReport({ headers: {}, query: { leadReport: 'report' } }, denied, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    assert.equal(denied.statusCode, 401);
+    const response = recorder();
+    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, response, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    assert.equal(response.statusCode, 200, response.body?.error);
+    assert.equal(response.body.totals.reached, 1);
+    assert.equal(response.body.rows[0].callsMade, 1);
+    assert.equal(response.body.rows[0].lastTemplate, 'Not Reachable – 1st Attempt');
+    const notes = recorder();
+    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'notes', contactId: 'contact1' } }, notes, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    assert.equal(notes.body.notes[0].id, 'n1');
+    assert.ok(seen.every(call => call.method === 'GET'));
+    incompleteLeads = true;
+    const incomplete = recorder();
+    await leadContactReport({ headers: { 'x-lead-report-pin': 'test-pin' }, query: { leadReport: 'report', from: '2026-10-05', to: '2026-10-05' } }, incomplete, { ringcentralToken: async () => 'rc-test', ringcentralServer: () => 'https://ringcentral.example' });
+    assert.equal(incomplete.statusCode, 502);
+    assert.equal(incomplete.body.totals, undefined);
+  } finally {
+    global.fetch = savedFetch;
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+});
+
+test('lead report page script compiles', () => {
+  const html = readFileSync(new URL('../leads/index.html', import.meta.url), 'utf8');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script);
+  new vm.Script(script);
+});
