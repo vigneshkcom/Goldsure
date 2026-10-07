@@ -56,10 +56,15 @@ test('pays inspection fees (3437) a fixed $60 ex GST, not the $131 invoiced', ()
   assert.equal(unregistered.gst, 0);
 });
 
-test('purchase orders require Completed - Field, not a generic completed code', () => {
+test('purchase orders require completed status and Field sub-status', () => {
   assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Completed - Field' }), true);
   assert.equal(isFieldCompletedAppointment({ completionStatusDescription: ' completed-field ' }), true);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field' }), true);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionSubStatusDescription: 'field' }), true);
   assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed' }), false);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Partial' }), false);
+  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Completed - Field', completionSubStatusDescription: 'Partial' }), false);
+  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Assigned', completionSubStatusDescription: 'Field' }), false);
   assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed - Office' }), false);
   assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C' }), false);
 });
@@ -186,7 +191,7 @@ test('assigns completed jobs to their scheduled day, not their later completion 
       searchProperties.push(propertyName);
       const records = propertyName === 'scheduledDate'
         ? [
-          { appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' },
+          { appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' },
           { appointmentId: 9002, jobId: 36753, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T10:00:00' },
         ]
         : [];
