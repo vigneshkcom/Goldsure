@@ -434,12 +434,44 @@ let allQuotes = [], filtered = [], sortCol = 'sent_at', sortDir = 'desc';
 let duplicateOnly = false;
 let duplicateAnalysis = { groupIds:new Set(), deleteIds:new Set(), roles:new Map(), groupCount:0 };
 let ghlOppData = {};  // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
-function openQuoteGhlNotes(id) {
+const ghlNotesLookups = new Map();
+let ghlLoadVersion = 0;
+async function openQuoteGhlNotes(id) {
   const quote = allQuotes.find(q => String(q.id) === String(id));
   if (!quote) return showToast('Quote not found.');
-  if (!ghlStagesLoaded) return showToast('GHL details are still loading. Please try again.');
   const email = String(quote.customer_email || '').toLowerCase().trim();
-  GoldsureGhlNotes.open({ opportunityId: ghlOppData[email]?.opportunityId,
+  if (!email) return showToast('This quote has no customer email for a safe GHL match.');
+  let details = ghlOppData[email];
+  if (!details?.opportunityId) {
+    try {
+      if (!ghlNotesLookups.has(email)) {
+        ghlNotesLookups.set(email, (async () => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 20000);
+          try {
+            const response = await fetch('/api/smoke-alarms/ghl', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ emails: [email] }),
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error(`GHL lookup failed (${response.status})`);
+            const result = await response.json();
+            if (!(email in result) || result[email]?.lookupError) throw new Error('GHL lookup unavailable');
+            ghlOppData[email] = result[email];
+            applyGhlCells([quote], ghlOppData);
+            return result[email];
+          } finally { clearTimeout(timeout); }
+        })());
+      }
+      details = await ghlNotesLookups.get(email);
+    } catch (error) {
+      console.warn('GHL notes lookup failed', error);
+      return showToast('Could not load GHL details for this customer. Please retry.');
+    } finally { ghlNotesLookups.delete(email); }
+  }
+  if (!details?.opportunityId) return showToast('No matching Smoke Alarms GHL opportunity found for this customer.');
+  GoldsureGhlNotes.open({ opportunityId: details.opportunityId,
     expectedEmail: email, customerName: quote.customer_name || 'Customer' });
 }
 let ghlStages  = [];  // [{ id, name, position }] for Smoke Alarms pipeline
@@ -478,21 +510,26 @@ function applyGhlCells(quotes, map) {
     const email = (q.customer_email || '').toLowerCase().trim();
     if (!(email in map)) return; // not fetched yet — leave its current (loading) state
     const data = map[email];
-    el.textContent = data?.stage || '—';
-    el.className = ghlBadgeClass(data?.stage);
+    el.textContent = data?.lookupError ? 'Unavailable' : (data?.stage || '—');
+    el.className = data?.lookupError ? 'badge badge-ghl badge-ghl-none' : ghlBadgeClass(data?.stage);
+    el.title = data?.lookupError ? 'GHL lookup failed. Refresh or retry View GHL notes.' : '';
   });
 }
 
 async function loadGhlStages(quotes) {
-  const emails = [...new Set(quotes.map(q => q.customer_email).filter(Boolean))];
-  if (!emails.length) return;
+  const version = ++ghlLoadVersion;
+  const emails = [...new Set(quotes.map(q => String(q.customer_email || '').toLowerCase().trim()).filter(Boolean))];
+  if (!emails.length) { ghlStagesLoaded = true; return; }
   // Fetch in sequential chunks: sending every email at once bursts past GHL's
   // rate limit (later lookups 429 and come back as "no contact") and can blow
   // the serverless timeout. Smaller sequential requests stay under both and let
   // the rows fill in progressively.
   const CHUNK = 20;
   const map = {};
+  ghlOppData = map;
+  ghlStagesLoaded = false;
   for (let i = 0; i < emails.length; i += CHUNK) {
+    if (version !== ghlLoadVersion) return;
     const chunk = emails.slice(i, i + CHUNK);
     try {
       const res = await fetch('/api/smoke-alarms/ghl', {
@@ -500,14 +537,20 @@ async function loadGhlStages(quotes) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emails: chunk })
       });
-      if (res.ok) {
-        Object.assign(map, await res.json());
-        ghlOppData = map;           // keep global in sync as we go
-        applyGhlCells(quotes, map); // progressive fill
-      }
-    } catch(e) { console.warn('GHL stage fetch failed', e); }
+      if (!res.ok) throw new Error(`GHL stage lookup failed (${res.status})`);
+      const result = await res.json();
+      if (version !== ghlLoadVersion) return;
+      chunk.forEach(email => {
+        if (map[email]?.opportunityId) return; // retain a successful on-demand lookup
+        map[email] = Object.hasOwn(result, email) ? result[email] : { lookupError: true };
+      });
+    } catch(e) {
+      console.warn('GHL stage fetch failed', e);
+      if (version !== ghlLoadVersion) return;
+      chunk.forEach(email => { if (!map[email]?.opportunityId) map[email] = { lookupError: true }; });
+    }
+    applyGhlCells(quotes, map); // progressive fill, including visible failures
   }
-  ghlOppData = map; // store globally (keys are already lowercased emails)
   ghlStagesLoaded = true;
   applyGhlCells(quotes, map);
 }
@@ -548,6 +591,10 @@ function toggleGhlMenu(e, btn, quoteId) {
 
 function populateGhlMenu(menu, email, quoteId) {
   const oppData = ghlOppData[email];
+  if (oppData?.lookupError || !(email in ghlOppData)) {
+    menu.innerHTML = '<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">GHL details unavailable. Please refresh.</div>';
+    return;
+  }
   if (!oppData?.opportunityId) {
     menu.innerHTML = '<div class="status-menu-item" style="color:var(--muted);cursor:default;font-style:italic;">No GHL record found</div>';
     return;
@@ -770,8 +817,9 @@ function renderTable() {
     ).join('');
     const ghlEmail = (q.customer_email || '').toLowerCase().trim();
     const ghlD = ghlOppData[ghlEmail];
-    const ghlBadgeText = ghlStagesLoaded ? (ghlD?.stage || '—') : '…';
-    const ghlBadgeCls  = ghlStagesLoaded ? ghlBadgeClass(ghlD?.stage) : 'badge badge-ghl-loading';
+    const ghlKnown = !ghlEmail || Object.hasOwn(ghlOppData, ghlEmail);
+    const ghlBadgeText = !ghlKnown ? (ghlStagesLoaded ? 'Unavailable' : '…') : (ghlD?.lookupError ? 'Unavailable' : (ghlD?.stage || '—'));
+    const ghlBadgeCls  = !ghlKnown && !ghlStagesLoaded ? 'badge badge-ghl-loading' : (ghlD?.lookupError || !ghlKnown ? 'badge badge-ghl badge-ghl-none' : ghlBadgeClass(ghlD?.stage));
     return `<tr>
       <td><input type="checkbox" class="row-check" value="${q.id}" onchange="updateDeleteBtn()"></td>
       <td class="td-date">${date}</td>

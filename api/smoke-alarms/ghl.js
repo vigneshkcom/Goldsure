@@ -34,19 +34,15 @@ async function ghlGetRaw(path, attempt = 0) {
 
 async function getPipelineStages(locationId) {
   // GHL v2 pipelines endpoint uses camelCase locationId (not location_id)
-  const r = await fetch(
-    `${GHL_BASE}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
-    { headers: GHL_HEADERS() }
-  );
+  const r = await ghlGetRaw(`/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`);
   if (!r.ok) {
-    const text = await r.text();
-    console.error('GHL pipelines fetch failed:', r.status, text.slice(0, 200));
-    return { error: 'Failed to fetch GHL pipelines', status: r.status, detail: text.slice(0, 200) };
+    console.error('GHL pipelines fetch failed:', r.status, r.raw || r.data);
+    return { error: 'Failed to fetch GHL pipelines', status: r.status };
   }
-  const data = await r.json();
+  const data = r.data || {};
   const pipelines = data.pipelines || [];
-  const pipeline = pipelines.find(p => (p.name || '').toLowerCase().includes('smoke')) || pipelines[0];
-  if (!pipeline) return { error: 'No pipelines found in GHL' };
+  const pipeline = pipelines.find(p => (p.name || '').toLowerCase().includes('smoke'));
+  if (!pipeline) return { error: 'Smoke Alarms pipeline not found in GHL' };
   return {
     pipelineId: pipeline.id,
     pipelineName: pipeline.name,
@@ -62,16 +58,16 @@ async function getStageForEmail(email, locationId, pipelineId) {
   const r = await ghlGetRaw(`/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(email)}&limit=5`);
   if (!r.ok) {
     console.error(`GHL contacts lookup failed for ${email}: HTTP ${r.status}`, r.raw || r.data);
-    return null;
+    throw new Error('GHL contacts lookup failed');
   }
   const contacts = r.data?.contacts || [];
-  const contact = contacts.find(c => (c.email || '').toLowerCase() === email.toLowerCase()) || contacts[0];
+  const contact = contacts.find(c => (c.email || '').trim().toLowerCase() === email.toLowerCase());
   if (!contact) return null;
 
   const o = await ghlGetRaw(`/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=20`);
   if (!o.ok) {
     console.error(`GHL opportunities lookup failed for contact ${contact.id}: HTTP ${o.status}`, o.data);
-    return null;
+    throw new Error('GHL opportunities lookup failed');
   }
   const opportunities = o.data?.opportunities || [];
   const matching = pipelineId ? opportunities.filter(item => item.pipelineId === pipelineId) : opportunities;
@@ -128,10 +124,9 @@ export default async function handler(req, res) {
     // /opportunities/search response omits pipelineStageName (it often only
     // returns pipelineStageId).
     const pipelineInfo = await getPipelineStages(locationId);
+    if (pipelineInfo.error) return res.status(502).json({ error: 'GHL pipeline is unavailable. Please retry.' });
     const stageMap = {};
-    if (!pipelineInfo.error) {
-      (pipelineInfo.stages || []).forEach(s => { stageMap[s.id] = s.name; });
-    }
+    (pipelineInfo.stages || []).forEach(s => { stageMap[s.id] = s.name; });
 
 
     const unique = [...new Set(emails.map(e => e.toLowerCase().trim()).filter(Boolean))];
@@ -146,7 +141,7 @@ export default async function handler(req, res) {
             data.stage = stageMap[data.stageId];
           }
           result[email] = data;
-        } catch { result[email] = null; }
+        } catch { result[email] = { lookupError: true }; }
       }));
     }
     return res.status(200).json(result);
