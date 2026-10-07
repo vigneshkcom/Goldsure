@@ -4,7 +4,6 @@
 import {
   normalizeEmail,
   normalizePhone,
-  isCompletedAppointment,
   classifyDataforceProduct,
   pipelineMatchesProduct,
   findInstalledStage,
@@ -17,6 +16,7 @@ import {
 import {
   normaliseFieldworker,
   normalisePurchaseOrderLine,
+  isFieldCompletedAppointment,
   dataforcePaymentFlag,
   dataforceTransactionBalance,
   dataforceEstimatedBalance,
@@ -666,7 +666,7 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
   // A later completion/sync must not move yesterday's job into today's PO.
   return appointments.filter(appointment => {
     const scheduledDate = scheduleDateKey(appointment.scheduledDate);
-    return isCompletedAppointment(appointment)
+    return isFieldCompletedAppointment(appointment)
       && scheduledDate >= startDate && scheduledDate <= endDate;
   });
 }

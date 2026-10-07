@@ -8,6 +8,7 @@ import {
   dataforceEstimatedBalance,
   normaliseFieldworker,
   normalisePurchaseOrderLine,
+  isFieldCompletedAppointment,
   purchaseOrderPayableDate,
 } from '../lib/dataforce-purchase-orders.js';
 import handler from '../api/smoke-alarms/google-key.js';
@@ -53,6 +54,14 @@ test('pays inspection fees (3437) a fixed $60 ex GST, not the $131 invoiced', ()
   const unregistered = normalisePurchaseOrderLine(line, false);
   assert.equal(unregistered.payIncGst, 60);
   assert.equal(unregistered.gst, 0);
+});
+
+test('purchase orders require Completed - Field, not a generic completed code', () => {
+  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Completed - Field' }), true);
+  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: ' completed-field ' }), true);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed' }), false);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed - Office' }), false);
+  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C' }), false);
 });
 
 test('estimates a cash job balance from the invoice total when Dataforce returns none', () => {
@@ -176,7 +185,10 @@ test('assigns completed jobs to their scheduled day, not their later completion 
       const propertyName = searchPayload.filterGroups[0].filters[0].propertyName;
       searchProperties.push(propertyName);
       const records = propertyName === 'scheduledDate'
-        ? [{ appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' }]
+        ? [
+          { appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' },
+          { appointmentId: 9002, jobId: 36753, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T10:00:00' },
+        ]
         : [];
       return new Response(JSON.stringify({ totalCount: records.length, records }), { status: 200 });
     }
@@ -193,6 +205,7 @@ test('assigns completed jobs to their scheduled day, not their later completion 
     }, response);
     assert.equal(response.statusCode, 200);
     assert.deepEqual(searchProperties, ['scheduledDate']);
+    assert.equal(response.body.rows.length, 1);
     assert.equal(response.body.rows[0].jobId, '36708');
     assert.equal(response.body.rows[0].installedDate, '2026-10-05');
     assert.equal(response.body.workers[0].email, 'alex@example.com');
@@ -234,7 +247,7 @@ test('fills the customer balance for a cash-tagged job when Dataforce returns no
     if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
     if (value.endsWith('/GOLDSURE_ASAP/fieldworkers')) return new Response(JSON.stringify({ records: [{ fieldworkerId: 1009, name: 'Alex Symonds', gstRegistered: true }] }), { status: 200 });
     if (value.includes('/appointments/search')) {
-      return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed', scheduledDate: '2026-09-20T09:00:00', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
+      return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-09-20T09:00:00', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
     }
     const id = (value.match(/appointments\/(\d+)\//) || [])[1];
     if (id && value.endsWith('/invoice')) return new Response(JSON.stringify(invoice), { status: 200 });
