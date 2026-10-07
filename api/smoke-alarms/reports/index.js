@@ -7,7 +7,6 @@ import { sendResendMail } from '../../../lib/resend-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import { leadContactReport } from '../../../lib/lead-contact-report-api.js';
-import { leadCallReminder } from '../../../lib/lead-call-reminder.js';
 import {
   createOrFindDraftPurchaseOrderBill,
   createXeroClient,
@@ -559,11 +558,6 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && req.query && req.query.rc === 'hourly-email') {
     return ringcentralHourlyEmail(req, res);
-  }
-  // 12 pm and 3 pm Sydney call reminder email (Vercel cron via /api/leads/call-reminder),
-  // or POST from the lead report's "Send now" button.
-  if ((req.method === 'GET' || req.method === 'POST') && req.query?.leadReport === 'reminder') {
-    return leadCallReminder(req, res, { ringcentralToken: rcAccessToken, ringcentralServer: rcServer });
   }
   if (req.method === 'GET' && req.query?.leadReport) {
     return leadContactReport(req, res, { ringcentralToken: rcAccessToken, ringcentralServer: rcServer });

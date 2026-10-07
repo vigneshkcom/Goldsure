@@ -157,11 +157,18 @@ test('lead report page script compiles', () => {
   assert.match(html, /<option value="open">Not reached yet/);
   assert.match(html, /<button type="button" data-days="7">Last 7 days<\/button>/);
   assert.match(html, /label:'Not reachable so far'/);
-  assert.match(html, /<button type="button" id="sendReminder">Send now<\/button>/);
-  assert.match(html, /href="\/api\/smoke-alarms\/reports\?leadReport=reminder&amp;preview=1"/);
+  assert.doesNotMatch(html, /Call reminder email|sendReminder|leadReport=reminder/);
   assert.match(html, /Direct Call leads are excluded/);
   assert.doesNotMatch(html, /Assigned staff member|First call\/SMS time/);
   assert.doesNotMatch(html, /Portal access PIN|x-lead-report-pin/);
+});
+
+test('the call-reminder email has no cron, route or manual send control', () => {
+  const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const route = readFileSync(new URL('../api/smoke-alarms/reports/index.js', import.meta.url), 'utf8');
+  assert.ok(!config.crons.some(cron => cron.path === '/api/leads/call-reminder'));
+  assert.ok(!config.rewrites.some(rewrite => rewrite.source === '/api/leads/call-reminder'));
+  assert.doesNotMatch(route, /leadCallReminder|leadReport === 'reminder'/);
 });
 
 test('lead page answers the follow-up question first and groups leads under each pipeline', () => {
