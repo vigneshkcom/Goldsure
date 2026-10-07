@@ -103,8 +103,12 @@ Pty Ltd** (day, shift times, hours, rate, amount; **no GST** — not a tax
 invoice). Use the browser print dialog's *Save as PDF* to file it as a bill in Xero.
 Completed shifts only; manager view only (agents can't generate it). There's **no
 Goldsure logo** (it's the agent billing Goldsure). Each agent's billing/payment details
-(address, ABN, bank account) live server-side in `TIME_AGENT_DETAILS` and are sent only
-to the manager — never to an agent's page.
+are returned only to the manager, never to an agent's page. Defaults live server-side;
+set `TIME_AGENT_DETAILS` in the hosting environment to override fields for one agent
+without replacing the other agents' details. The invoice supports `currency` (`FJD`
+displays the Fiji-dollar payment instruction), `bank`, `payName`, `bsb`, `acct`, and
+`swift`. David's bank details must be configured in production; they are not stored
+in this public repository.
 
 **Sub-contractors & pay cycles** (configured in `time/index.html`):
 

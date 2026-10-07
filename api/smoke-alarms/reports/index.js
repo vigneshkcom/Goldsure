@@ -712,11 +712,20 @@ export default async function handler(req, res) {
     // Per-agent billing details for the manager invoice PDF. Sent ONLY to the
     // manager (in list-all), never to an agent's page. Override with TIME_AGENT_DETAILS.
     let agentDetails = {
-      David:   { name: 'David', lines: ['2 Kaba Place, Field 40 New Subdivision', 'Lautoka, Fiji'], phone: '+679 507 5588', email: 'admin@optimumoutsourcing.org', abn: '', payName: 'Marijo Mcgoon', bsb: '736125', acct: '791581', payPhone: '' },
+      David:   { name: 'David', lines: ['2 Kaba Place, Field 40 New Subdivision', 'Lautoka, Fiji'], phone: '+679 507 5588', email: 'admin@optimumoutsourcing.org', abn: '', payName: '', bsb: '', acct: '', payPhone: '' },
       Shanira: { name: 'Shanira Gonzalez', lines: ['1/149 Carlton Rd', 'Dandenong North VIC 3175'], phone: '+61 473 196 332', email: '', abn: '94 293 140 554', payName: 'Shanira Gonzalez', bsb: '733186', acct: '584056', payPhone: '+61 473 196 332' },
       'Alda Amonaki': { name: 'Alda Amonaki', lines: ['Votualevu', 'Nadi, Fiji'], phone: '+679 730 3900', email: 'alda.omanaki7@gmail.com', abn: '', payName: 'Alda Amonaki', bsb: '', acct: '', payPhone: '+679 730 3900' },
     };
-    try { if (process.env.TIME_AGENT_DETAILS) agentDetails = JSON.parse(process.env.TIME_AGENT_DETAILS); } catch { /* keep defaults */ }
+    try {
+      if (process.env.TIME_AGENT_DETAILS) {
+        const overrides = JSON.parse(process.env.TIME_AGENT_DETAILS);
+        for (const [agent, details] of Object.entries(overrides)) {
+          if (agentDetails[agent] && details && typeof details === 'object' && !Array.isArray(details)) {
+            agentDetails[agent] = { ...agentDetails[agent], ...details };
+          }
+        }
+      }
+    } catch { /* keep defaults */ }
 
     // Manager notification emails (best-effort, bounded so they never delay a clock
     // action; the message is already saved before we email). To vignesh@ by default.
