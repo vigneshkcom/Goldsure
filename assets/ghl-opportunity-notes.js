@@ -30,6 +30,9 @@
       refresh();
     });
     el('ghln-form').addEventListener('submit', save);
+    el('ghln-list').addEventListener('click', event => {
+      if (event.target.closest('[data-ghln-retry]')) refresh();
+    });
   }
 
   function status(message, kind = '') {
@@ -94,7 +97,7 @@
       else if (!selectedStaff) status('Select your name to add a note.');
     } catch (error) {
       if (current === openedFor) {
-        el('ghln-list').innerHTML = `<div class="ghln-empty">Could not load notes: ${String(error.message).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}</div>`;
+        el('ghln-list').innerHTML = `<div class="ghln-empty">Could not load notes: ${String(error.message).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}<br><button type="button" class="ghln-retry" data-ghln-retry>Retry loading notes</button></div>`;
         status('Saving is unavailable until the GHL customer is verified.', 'error');
       }
     }

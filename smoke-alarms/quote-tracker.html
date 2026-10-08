@@ -436,14 +436,27 @@ let duplicateAnalysis = { groupIds:new Set(), deleteIds:new Set(), roles:new Map
 let ghlOppData = {};  // email (lowercase) → { stage, stageId, opportunityId, pipelineId }
 const ghlNotesLookups = new Map();
 let ghlLoadVersion = 0;
+let ghlNotesPriority = false;
+let resumeGhlStages = null;
+function setGhlNotesPriority(active) {
+  ghlNotesPriority = active;
+  if (!active && resumeGhlStages) { resumeGhlStages(); resumeGhlStages = null; }
+}
+async function waitForGhlNotes() {
+  while (ghlNotesPriority) await new Promise(resolve => { resumeGhlStages = resolve; });
+}
 async function openQuoteGhlNotes(id) {
   const quote = allQuotes.find(q => String(q.id) === String(id));
   if (!quote) return showToast('Quote not found.');
   const email = String(quote.customer_email || '').toLowerCase().trim();
   if (!email) return showToast('This quote has no customer email for a safe GHL match.');
-  let details = ghlOppData[email];
-  if (!details?.opportunityId) {
-    try {
+  // GHL's quota is shared with the stage column. Pause background batches
+  // until this customer's notes window closes so viewing notes comes first.
+  setGhlNotesPriority(true);
+  let priorityPassedToDialog = false;
+  try {
+    let details = ghlOppData[email];
+    if (!details?.opportunityId) {
       if (!ghlNotesLookups.has(email)) {
         ghlNotesLookups.set(email, (async () => {
           const controller = new AbortController();
@@ -465,14 +478,23 @@ async function openQuoteGhlNotes(id) {
         })());
       }
       details = await ghlNotesLookups.get(email);
-    } catch (error) {
+      ghlNotesLookups.delete(email);
+    }
+    if (!details?.opportunityId) return showToast('No matching Smoke Alarms GHL opportunity found for this customer.');
+    GoldsureGhlNotes.open({ opportunityId: details.opportunityId,
+      expectedEmail: email, customerName: quote.customer_name || 'Customer' });
+    const dialog = document.querySelector('dialog.ghln-dialog');
+    if (dialog?.open) {
+      priorityPassedToDialog = true;
+      dialog.addEventListener('close', () => setGhlNotesPriority(false), { once: true });
+    }
+  } catch (error) {
       console.warn('GHL notes lookup failed', error);
       return showToast('Could not load GHL details for this customer. Please retry.');
-    } finally { ghlNotesLookups.delete(email); }
+  } finally {
+    ghlNotesLookups.delete(email);
+    if (!priorityPassedToDialog) setGhlNotesPriority(false);
   }
-  if (!details?.opportunityId) return showToast('No matching Smoke Alarms GHL opportunity found for this customer.');
-  GoldsureGhlNotes.open({ opportunityId: details.opportunityId,
-    expectedEmail: email, customerName: quote.customer_name || 'Customer' });
 }
 let ghlStages  = [];  // [{ id, name, position }] for Smoke Alarms pipeline
 let ghlStagesLoaded = false;
@@ -524,11 +546,12 @@ async function loadGhlStages(quotes) {
   // rate limit (later lookups 429 and come back as "no contact") and can blow
   // the serverless timeout. Smaller sequential requests stay under both and let
   // the rows fill in progressively.
-  const CHUNK = 20;
+  const CHUNK = 10;
   const map = {};
   ghlOppData = map;
   ghlStagesLoaded = false;
   for (let i = 0; i < emails.length; i += CHUNK) {
+    await waitForGhlNotes();
     if (version !== ghlLoadVersion) return;
     const chunk = emails.slice(i, i + CHUNK);
     try {
@@ -550,6 +573,8 @@ async function loadGhlStages(quotes) {
       chunk.forEach(email => { if (!map[email]?.opportunityId) map[email] = { lookupError: true }; });
     }
     applyGhlCells(quotes, map); // progressive fill, including visible failures
+    // Leave capacity for notes and other portal operations on GHL's shared quota.
+    if (i + CHUNK < emails.length) await new Promise(resolve => setTimeout(resolve, 1200));
   }
   ghlStagesLoaded = true;
   applyGhlCells(quotes, map);

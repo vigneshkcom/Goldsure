@@ -8,13 +8,13 @@ const html = readFileSync(new URL('../smoke-alarms/quote-tracker.html', import.m
 const script = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
   .map(match => match[1]).find(source => source.includes('function openQuoteGhlNotes'));
 
-function trackerFixture(fetchImpl) {
+function trackerFixture(fetchImpl, dialog = null) {
   const opened = [];
   const toasts = [];
   const stageCell = { textContent: '', className: '', title: '' };
   const context = vm.createContext({
     window: { addEventListener() {} },
-    document: { addEventListener() {}, getElementById(id) { return id === 'ghl-1' ? stageCell : null; } },
+    document: { addEventListener() {}, getElementById(id) { return id === 'ghl-1' ? stageCell : null; }, querySelector() { return dialog; } },
     fetch: fetchImpl,
     GoldsureGhlNotes: { open(details) { opened.push(details); } },
     AbortController, setTimeout, clearTimeout, console,
@@ -58,6 +58,25 @@ test('a failed stage batch resolves its loading badge as unavailable', async () 
   await vm.runInContext('loadGhlStages(allQuotes)', fixture.context);
   assert.equal(fixture.stageCell.textContent, 'Unavailable');
   assert.equal(vm.runInContext('ghlStagesLoaded', fixture.context), true);
+});
+
+test('the background stage loader pauses while a notes dialog is open', async () => {
+  let onClose;
+  let stageRequests = 0;
+  const dialog = { open: true, addEventListener(_event, listener) { onClose = listener; } };
+  const fixture = trackerFixture(async () => {
+    stageRequests++;
+    return new Response(JSON.stringify({ 'person@example.com': { opportunityId: 'opp123', stage: 'Quote Sent' } }), { status: 200 });
+  }, dialog);
+  vm.runInContext(`ghlOppData = { 'person@example.com': { opportunityId: 'opp123', stage: 'Quote Sent' } };`, fixture.context);
+  await vm.runInContext(`openQuoteGhlNotes('1')`, fixture.context);
+  assert.equal(fixture.opened.length, 1);
+  const loading = vm.runInContext('loadGhlStages(allQuotes)', fixture.context);
+  await Promise.resolve();
+  assert.equal(stageRequests, 0);
+  onClose();
+  await loading;
+  assert.equal(stageRequests, 1);
 });
 
 function response() {
