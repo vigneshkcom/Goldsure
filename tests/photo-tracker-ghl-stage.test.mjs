@@ -33,13 +33,14 @@ test('folder deletion is password protected and constrained to the selected prod
 
 test('photo lookup returns GHL opportunity status and tracker script compiles', async () => {
   const [html, ghlApi] = await Promise.all([readFile(trackerUrl, 'utf8'), readFile(ghlUrl, 'utf8')]);
-  assert.match(html, /action=ghl-opps&phones=' \+ encodeURIComponent\(batch\.join\(','\)\)/);
+  assert.match(html, /action=ghl-opps&phones=' \+ encodeURIComponent\(batch\.join\(','\)\) \+ '&product=' \+ encodeURIComponent\(PRODUCT\)/);
   assert.match(html, /status: info\.oppStatus \|\| info\.status \|\| ''/);
+  assert.match(html, /GHL unavailable — refresh to retry/);
+  assert.match(html, /ghl = \{\};\s*render\(\);\s*loadPipelines\(generation\)/);
   assert.match(html, /const legacyKeys =/);
   assert.match(ghlApi, /if \(product === 'hws-nsw'\) return name\.includes\('nsw'\)/);
-  assert.match(ghlApi, /const productPipelineIds = new Set/);
-  assert.match(ghlApi, /const relevantOpps = productPipelineIds\.size \? opps\.filter\(o => productPipelineIds\.has\(o\.pipelineId\)\) : opps/);
-  assert.match(ghlApi, /const candidates = relevantOpps\.length \? relevantOpps : opps/);
+  assert.match(ghlApi, /const productPipelineIds = photoPipelineIds\(pipes, product\)/);
+  assert.match(ghlApi, /const candidates = product \? opps\.filter\(o => productPipelineIds\.has\(o\.pipelineId\)\) : opps/);
   assert.match(ghlApi, /for \(let offset = 0; offset < items\.length; offset \+= 5\)/);
   assert.match(ghlApi, /response\.status !== 429/);
   assert.match(ghlApi, /info\.status\s*=\s*opp\.status \|\| ''/);

@@ -428,6 +428,7 @@ const AVATAR_COLORS = ['#0073ea','#a25ddc','#00c875','#fdab3d','#e2445c','#009eb
 
 let folders = [];
 let ghl = {};              // phone → { pipeline, stage, … } from GHL
+let lookupGeneration = 0;
 const collapsed = {};
 
 const $ = id => document.getElementById(id);
@@ -504,6 +505,7 @@ function ageHtml(f) {
 function ghlStageHtml(f) {
   const info = ghl[ghlKey(f)];
   if (info === undefined) return '<span class="ghl-stage loading">Checking GHL...</span>';
+  if (info?.error) return '<span class="ghl-stage loading">GHL unavailable — refresh to retry</span>';
   if (!info || (!info.pipeline && !info.stage)) return '<span class="ghl-stage missing">No GHL opportunity</span>';
   return `<span class="ghl-stage">${esc(info.stage || 'Stage not set')}${info.pipeline ? `<span class="pipeline">${esc(info.pipeline)}</span>` : ''}</span>`;
 }
@@ -684,7 +686,7 @@ const ghlKey = f => {
   return `${name}~${last4}`;
 };
 
-async function loadPipelines() {
+async function loadPipelines(generation) {
   const fullPhoneFor = f => {
     const stored = String(f.phone || '').trim();
     if (stored.replace(/\D/g, '').length >= 6) return stored;
@@ -700,20 +702,23 @@ async function loadPipelines() {
   });
   const phones = [...phoneToKeys.keys()];
 
-  for (let i = 0; i < phones.length; i += 15) {
-    const batch = phones.slice(i, i + 15);
+  for (let i = 0; i < phones.length; i += 5) {
+    if (generation !== lookupGeneration) return;
+    const batch = phones.slice(i, i + 5);
     try {
-      const res = await fetch('/api/battery/request-callback?action=ghl-opps&phones=' + encodeURIComponent(batch.join(',')));
+      const res = await fetch('/api/battery/request-callback?action=ghl-opps&phones=' + encodeURIComponent(batch.join(',')) + '&product=' + encodeURIComponent(PRODUCT), { cache: 'no-store' });
       if (!res.ok) throw new Error('lookup failed');
       const found = await res.json();
+      if (generation !== lookupGeneration) return;
       batch.forEach(phone => {
         const info = found[phone];
-        const value = info && !info.none ? { ...info, status: info.oppStatus || info.status || '' } : null;
+        const value = info?.error || !info ? { error: true } : info.none ? null : { ...info, status: info.oppStatus || info.status || '' };
         (phoneToKeys.get(phone) || []).forEach(key => { ghl[key] = value; });
       });
     } catch {
+      if (generation !== lookupGeneration) return;
       batch.forEach(phone => {
-        (phoneToKeys.get(phone) || []).forEach(key => { if (ghl[key] === undefined) ghl[key] = null; });
+        (phoneToKeys.get(phone) || []).forEach(key => { ghl[key] = { error: true }; });
       });
     }
     render();
@@ -723,14 +728,17 @@ async function loadPipelines() {
   // Keep the legacy name lookup for that small remainder.
   const legacyKeys = [...new Set(folders.filter(f => !fullPhoneFor(f)).map(ghlKey).filter(k => k && !k.startsWith('~')))];
   for (let i = 0; i < legacyKeys.length; i += 20) {
+    if (generation !== lookupGeneration) return;
     const batch = legacyKeys.slice(i, i + 20);
     try {
-      const res = await fetch('/api/battery/request-callback?action=ghl-find&product=' + encodeURIComponent(PRODUCT) + '&items=' + encodeURIComponent(batch.join(',')));
+      const res = await fetch('/api/battery/request-callback?action=ghl-find&product=' + encodeURIComponent(PRODUCT) + '&items=' + encodeURIComponent(batch.join(',')), { cache: 'no-store' });
       if (!res.ok) throw new Error('lookup failed');
       const found = await res.json();
+      if (generation !== lookupGeneration) return;
       batch.forEach(key => { ghl[key] = found[key] || null; });
     } catch {
-      batch.forEach(key => { if (ghl[key] === undefined) ghl[key] = null; });
+      if (generation !== lookupGeneration) return;
+      batch.forEach(key => { ghl[key] = { error: true }; });
     }
     render();
   }
@@ -908,15 +916,19 @@ document.addEventListener('keydown', e => {
 });
 
 async function load() {
+  const generation = ++lookupGeneration;
   try {
     const res = await fetch(`/api/zoho/create-photo-request?action=list&product=${PRODUCT}`);
     const data = await res.json();
+    if (generation !== lookupGeneration) return;
     if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
     folders = data.folders || [];
+    ghl = {};
     render();
-    loadPipelines();
+    loadPipelines(generation);
     $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
+    if (generation !== lookupGeneration) return;
     $('board').innerHTML = `<div class="state err">Couldn't load the board: ${esc(e.message)}</div>`;
   }
 }

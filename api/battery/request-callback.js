@@ -13,6 +13,20 @@ import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
+const photoPipelineIds = (pipes, product) => {
+  const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
+    : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
+    : product === 'hws-vic' ? process.env.HWS_PIPELINE_ID : '';
+  const matches = p => {
+    const name = String(p.name || '').toLowerCase();
+    if (product === 'aircon') return ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'].some(h => name.includes(h));
+    if (product === 'hws-nsw') return name.includes('nsw') && (name.includes('hws') || name.includes('hot water'));
+    if (product === 'hws-vic') return !name.includes('nsw') && (name.includes('hws') || name.includes('hot water') || name.includes('heat pump'));
+    return false;
+  };
+  const named = pipes.filter(matches);
+  return new Set((named.length ? named : pipes.filter(p => p.id === configured)).map(p => p.id));
+};
 // A quote was rejected -> move the customer's GHL opportunity to "Not Interested".
 // Best-effort: never throws, so it can't break the reject notification or the
 // status change that triggered it.
@@ -325,71 +339,78 @@ export default async function handler(req, res) {
 
       const last9   = s => String(s || '').replace(/\D/g, '').slice(-9);
       const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+      const ghlFetch = async url => {
+        let response;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          response = await fetch(url, { headers, cache: 'no-store' });
+          if (response.status !== 429 && response.status < 500) return response;
+          const retryAfter = Number.parseInt(response.headers.get('retry-after') || '', 10);
+          const waitMs = Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 4000) : 400 * (2 ** attempt);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        return response;
+      };
+      res.setHeader('Cache-Control', 'no-store');
 
       // Pipeline + stage id → name maps (one call covers every contact)
       let pipes = [];
       try {
-        const pRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`, { headers });
-        if (pRes.ok) pipes = (await pRes.json()).pipelines || [];
-      } catch {}
+        const pRes = await ghlFetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`);
+        if (!pRes.ok) throw new Error(`HTTP ${pRes.status}`);
+        pipes = (await pRes.json()).pipelines || [];
+      } catch (e) { console.warn('[ghl-opps] pipeline lookup failed:', e.message); }
       const pipeName  = pid => (pipes.find(p => p.id === pid) || {}).name || '';
       const stageName = (pid, sid) => {
         const p = pipes.find(x => x.id === pid);
         return p ? ((p.stages || []).find(s => s.id === sid) || {}).name || '' : '';
       };
       const product = String(req.query.product || '').toLowerCase();
-      const pipelineIdEnv = product === 'aircon' ? (process.env.AIRCON_PIPELINE_ID || '')
-        : product === 'hws-nsw' ? (process.env.NSW_HWS_PIPELINE_ID || '')
-        : (process.env.HWS_PIPELINE_ID || '');
-      const isProductPipeline = p => {
-        const name = String(p.name || '').toLowerCase();
-        if (product === 'aircon') return ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'].some(h => name.includes(h));
-        if (product === 'hws-nsw') return name.includes('nsw') && (name.includes('hws') || name.includes('hot water'));
-        if (product === 'hws-vic' || product === 'hws') return !name.includes('nsw') && (name.includes('hws') || name.includes('hot water') || name.includes('heat pump'));
-        return false;
-      };
-      // Keep both the configured ID and exact product-name matches. This
-      // tolerates a stale environment ID without hiding a valid opportunity.
-      const productPipelineIds = new Set([
-        ...(pipelineIdEnv && pipes.some(p => p.id === pipelineIdEnv) ? [pipelineIdEnv] : []),
-        ...pipes.filter(isProductPipeline).map(p => p.id),
-      ]);
+      const productPipelineIds = photoPipelineIds(pipes, product);
+      if (product && !productPipelineIds.size) return res.status(503).json({ error: 'GHL product pipeline unavailable' });
 
       const out = {};
-      await Promise.all(phones.map(async (phone) => {
-        let contactId = phones.length === 1 ? (req.query.cid || null) : null;
-        let name = '';
-        if (!contactId) {
+      for (let offset = 0; offset < phones.length; offset += 3) {
+      await Promise.all(phones.slice(offset, offset + 3).map(async phone => {
+        try {
+        let contacts = [];
+        if (phones.length === 1 && req.query.cid && !product) contacts = [{ id: req.query.cid }];
+        if (!contacts.length) {
           const target = last9(phone);
-          if (target.length < 6) return;
+          if (target.length < 9) { out[phone] = { none: true }; return; }
           const variants = [...new Set([phone, phone.replace(/^\+/, ''), '0' + target, target])];
           for (const q of variants) {
-            try {
-              const r = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`, { headers });
-              if (!r.ok) continue;
-              const d = await r.json();
-              const match = (d.contacts || []).find(c => last9(c.phone) === target);
-              if (match) {
-                contactId = match.id;
-                name = tidyName([match.firstName, match.lastName].filter(Boolean).join(' ') || match.name || '');
-                break;
-              }
-            } catch {}
+            const r = await ghlFetch(`https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(q)}&limit=20`);
+            if (!r.ok) throw new Error(`GHL contact lookup HTTP ${r.status}`);
+            const d = await r.json();
+            contacts = (d.contacts || []).filter(c => c.id && last9(c.phone) === target).slice(0, 5);
+            if (contacts.length) break;
           }
         }
-        if (!contactId) { out[phone] = { none: true }; return; }
+        if (!contacts.length) { out[phone] = { none: true }; return; }
 
+        const primary = contacts[0];
         const info = {
-          name, contactId,
-          link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contactId}`,
+          name: tidyName([primary.firstName, primary.lastName].filter(Boolean).join(' ') || primary.name || ''),
+          contactId: primary.id,
+          link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${primary.id}`,
         };
-        try {
-          const oRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contactId)}`, { headers });
-          if (oRes.ok) {
-            const opps = (await oRes.json()).opportunities || [];
-            const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
-            const opp = opps.filter(o => o.status === 'open').sort(byUpdated)[0] || opps.sort(byUpdated)[0];
-            if (opp) {
+        const matches = [];
+        for (const contact of contacts) {
+          const oRes = await ghlFetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${encodeURIComponent(locationId)}&contact_id=${encodeURIComponent(contact.id)}&limit=100`);
+          if (!oRes.ok) throw new Error(`GHL opportunity lookup HTTP ${oRes.status}`);
+          const opps = (await oRes.json()).opportunities || [];
+          for (const opp of opps) {
+            if (product && !productPipelineIds.has(opp.pipelineId)) continue;
+            matches.push({ opp, contact });
+          }
+        }
+        const byUpdated = (a, b) => new Date(b.opp.updatedAt || b.opp.dateUpdated || 0) - new Date(a.opp.updatedAt || a.opp.dateUpdated || 0);
+        const selected = matches.filter(m => m.opp.status === 'open').sort(byUpdated)[0] || matches.sort(byUpdated)[0];
+        if (selected) {
+              const { opp, contact } = selected;
+              info.name = tidyName([contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.name || '');
+              info.contactId = contact.id;
+              info.link = `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contact.id}`;
               info.pipeline      = pipeName(opp.pipelineId);
               info.stage         = stageName(opp.pipelineId, opp.pipelineStageId);
               info.value         = opp.monetaryValue || 0;
@@ -400,11 +421,14 @@ export default async function handler(req, res) {
               // Stage list for this contact's pipeline → powers the stage dropdown
               const pipe = pipes.find(x => x.id === opp.pipelineId);
               info.stages = pipe ? (pipe.stages || []).map(s => ({ id: s.id, name: s.name })) : [];
-            }
-          }
-        } catch {}
+        }
         out[phone] = info;
+        } catch (e) {
+          console.warn('[ghl-opps] lookup failed:', e.message);
+          out[phone] = { error: true };
+        }
       }));
+      }
 
       return res.status(200).json(out);
     }
@@ -424,6 +448,7 @@ export default async function handler(req, res) {
       const locationId = process.env.GHL_LOCATION_ID;
       if (!apiKey || !locationId) return res.status(200).json({});
       const headers = { Authorization: `Bearer ${apiKey}`, Version: '2021-07-28', Accept: 'application/json' };
+      res.setHeader('Cache-Control', 'no-store');
       const ghlFetch = async url => {
         let response;
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -446,8 +471,12 @@ export default async function handler(req, res) {
         const p = pipes.find(x => x.id === pid);
         return p ? ((p.stages || []).find(s => s.id === sid) || {}).name || '' : '';
       };
+      const product = String(req.query.product || '').toLowerCase();
+      const productPipelineIds = photoPipelineIds(pipes, product);
+      if (product && !productPipelineIds.size) return res.status(503).json({ error: 'GHL product pipeline unavailable' });
 
       const out = {};
+      let lookupFailed = false;
       for (let offset = 0; offset < items.length; offset += 5) {
         const batch = items.slice(offset, offset + 5);
         await Promise.all(batch.map(async (item) => {
@@ -458,7 +487,7 @@ export default async function handler(req, res) {
           const r = await ghlFetch(
             `https://services.leadconnectorhq.com/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(name)}&limit=20`,
           );
-          if (!r.ok) return;
+          if (!r.ok) { lookupFailed = true; return; }
           const contacts = (await r.json()).contacts || [];
           const digits = c => String(c.phone || '').replace(/\D/g, '');
           // With last 4 digits, insist on that match so two customers sharing a
@@ -479,8 +508,7 @@ export default async function handler(req, res) {
             if (oRes.ok) {
               const opps = (await oRes.json()).opportunities || [];
               const byUpdated = (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
-              const relevantOpps = productPipelineIds.size ? opps.filter(o => productPipelineIds.has(o.pipelineId)) : opps;
-              const candidates = relevantOpps.length ? relevantOpps : opps;
+              const candidates = product ? opps.filter(o => productPipelineIds.has(o.pipelineId)) : opps;
               const opp = candidates.filter(o => o.status === 'open').sort(byUpdated)[0] || candidates.sort(byUpdated)[0];
               if (opp) {
                 info.pipeline = pipeName(opp.pipelineId);
@@ -488,13 +516,14 @@ export default async function handler(req, res) {
                 info.status   = opp.status || '';
                 info.opportunityId = opp.id;
               }
-            }
-          } catch {}
+            } else lookupFailed = true;
+          } catch { lookupFailed = true; }
           out[item] = info;
-        } catch {}
+        } catch { lookupFailed = true; }
         }));
       }
 
+      if (lookupFailed) return res.status(503).json({ error: 'GHL lookup temporarily unavailable' });
       return res.status(200).json(out);
     }
 
