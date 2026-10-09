@@ -137,7 +137,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         </table>
         <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">${hasUpfrontPayment
           ? `Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit.`
-          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment when the minimum finance amount of $2,000 is met.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
+          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -227,7 +227,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
           <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">${hasUpfrontPayment
             ? `A <strong style="color:#141c2e;">${money(calc.deposit_amount)} deposit</strong> is required up front to book your installation. It forms part of your total installed price above; it is not an additional charge.`
             : calc.finance_requested
-            ? 'No upfront payment is required. The full installed price shown above can be included in the Home Energy Saver loan by Brighte when the minimum finance amount is met, subject to approval.'
+            ? 'No upfront payment is required. The full installed price shown above can be included in the Home Energy Saver loan by Brighte, subject to approval.'
             : 'No deposit is required up front. Our team will confirm the payment arrangements with you before installation.'}</div>
         </td>
       </tr></table>
@@ -605,7 +605,7 @@ export default async function handler(req, res) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
         const smsText = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
-          ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with the Home Energy Saver loan by Brighte available when the minimum finance amount is met, subject to approval. View your offer: ${quoteUrl}`
+          ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with the Home Energy Saver loan by Brighte available subject to approval. View your offer: ${quoteUrl}`
           : `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch(`${SMSGATE_API}/messages`, {

@@ -55,7 +55,7 @@ CREATE TABLE nsw_hws_quotes (
   income_eligible text,          -- yes | no | needs_confirmation
   finance_eligibility text,      -- not_eligible | potentially_eligible | n_a
   finance_term_years integer DEFAULT 10,
-  -- normal upfront payment; a Brighte loan requires at least $2,000 financed
+  -- normal upfront payment; lower loan quotes are raised to Brighte's $2,000 minimum finance amount
   deposit_amount numeric DEFAULT 0,
   amount_financed numeric DEFAULT 0,
   fortnightly_repayment numeric DEFAULT 0,

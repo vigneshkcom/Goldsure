@@ -79,6 +79,8 @@ export function calculateQuote(input = {}) {
   const existingSystem = input.existing_system;
   const listBasePrice = getBasePrice(existingSystem, input.heat_pump_model);
   let basePrice = listBasePrice;
+  let loanMinimumAdjustment = 0;
+  const financeRequested = !!input.finance_requested;
 
   const tankStaying = !!input.tank_staying;
   const relocationType = tankStaying ? null : (input.relocation_type || null);
@@ -97,12 +99,9 @@ export function calculateQuote(input = {}) {
 
   const totalExtras = round2(relocationCharge + backToBackCharge + cableCharge + otherExtrasTotal);
 
-  // The Home Energy Saver loan by Brighte does not charge Goldsure a vendor fee, so
-  // choosing the loan must not alter the price automatically. An agent can
-  // deliberately apply a discretionary Goldsure discount and choose its
-  // amount — whether or not the customer is financing — but it must never
-  // reduce the quote below zero.
-  const financeRequested = !!input.finance_requested;
+  // An agent can deliberately apply a discretionary Goldsure discount and
+  // choose its amount, but a loan quote must still satisfy Brighte's $2,000
+  // minimum finance amount.
   const applyNoFinanceDiscount = input.apply_no_finance_discount === true;
   const requestedNoFinanceDiscount = round2(Math.max(0, Number(input.no_finance_discount_amount) || 0));
   let noFinanceDiscount = applyNoFinanceDiscount
@@ -127,7 +126,12 @@ export function calculateQuote(input = {}) {
       basePrice = round2(basePrice + priceOverride - beforeDiscount);
     }
   }
-  const finalPrice = round2(basePrice + totalExtras - noFinanceDiscount);
+  let finalPrice = round2(basePrice + totalExtras - noFinanceDiscount);
+  if (financeRequested && finalPrice < BRIGHTE_MINIMUM_FINANCE_AMOUNT) {
+    loanMinimumAdjustment = round2(BRIGHTE_MINIMUM_FINANCE_AMOUNT - finalPrice);
+    basePrice = round2(basePrice + loanMinimumAdjustment);
+    finalPrice = BRIGHTE_MINIMUM_FINANCE_AMOUNT;
+  }
 
   const incomeEligible = input.income_eligible || null; // 'yes' | 'no' | 'needs_confirmation'
   const financeEligibility = !financeRequested
@@ -162,6 +166,7 @@ export function calculateQuote(input = {}) {
     other_extras: otherExtras,
     total_extras: totalExtras,
     no_finance_discount: noFinanceDiscount,
+    loan_minimum_adjustment: loanMinimumAdjustment,
     final_price: finalPrice,
     finance_requested: financeRequested,
     finance_available: financeAvailable,

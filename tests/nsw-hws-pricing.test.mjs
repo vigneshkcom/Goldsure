@@ -52,7 +52,7 @@ test('finances the full installed price when it meets Brighte minimum finance am
   assert.equal(quote.monthly_repayment, 19.99);
 });
 
-test('does not allow a Brighte loan below the $2,000 minimum finance amount', () => {
+test('raises a low-price Brighte loan to the $2,000 minimum finance amount', () => {
   const quote = calculateQuote({
     existing_system: 'electric',
     heat_pump_model: 'EG-330FR',
@@ -60,9 +60,11 @@ test('does not allow a Brighte loan below the $2,000 minimum finance amount', ()
     finance_requested: true,
   });
 
-  assert.equal(quote.final_price, 1599);
-  assert.equal(quote.finance_available, false);
-  assert.equal(quote.amount_financed, 0);
+  assert.equal(quote.base_price, 2000);
+  assert.equal(quote.final_price, 2000);
+  assert.equal(quote.loan_minimum_adjustment, 401);
+  assert.equal(quote.finance_available, true);
+  assert.equal(quote.amount_financed, 2000);
 });
 
 test('keeps the normal upfront payment arrangement when the customer does not use the loan', () => {

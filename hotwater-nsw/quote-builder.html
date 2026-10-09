@@ -396,6 +396,7 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
         <div class="card-head"><span class="step-badge">Summary</span><h3>Quote Total</h3></div>
         <div class="card-body">
           <div class="tot-row"><span class="lbl">Base price</span><span class="val" id="sumBase">$0.00</span></div>
+          <div class="tot-row" id="loanMinimumRow" style="display:none;"><span class="lbl">Loan minimum adjustment</span><span class="val" id="sumLoanMinimum">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Standard relocation</span><span class="val" id="sumReloc">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Back-to-back relocation</span><span class="val" id="sumB2b">$0.00</span></div>
           <div class="tot-row"><span class="lbl">Additional electrical cable</span><span class="val" id="sumCable">$0.00</span></div>
@@ -659,12 +660,19 @@ function recalc(){
     if(override <= beforeDiscount){ shownDiscount = beforeDiscount - override; }
     else { shownDiscount = 0; shownBase = basePrice + override - beforeDiscount; }
   }
-  const finalPrice = hasOverride ? override : calcTotal;
+  let finalPrice = hasOverride ? override : calcTotal;
+  let loanMinimumAdjustment = 0;
+  if(state.finance_requested && finalPrice < BRIGHTE_MINIMUM_FINANCE_AMOUNT){
+    loanMinimumAdjustment = BRIGHTE_MINIMUM_FINANCE_AMOUNT - finalPrice;
+    finalPrice = BRIGHTE_MINIMUM_FINANCE_AMOUNT;
+  }
   $('overrideHint').textContent = hasOverride
     ? 'Calculated total: ' + money(calcTotal) + ' · overriding to ' + money(finalPrice) + ' (' + (finalPrice<calcTotal?'−':'+') + ' ' + money(Math.abs(finalPrice-calcTotal)).replace('− ','') + ').'
     : 'Enter the exact total installed price (inc GST) to quote instead of the calculated one.';
 
   $('sumBase').textContent  = money(shownBase);
+  $('loanMinimumRow').style.display = loanMinimumAdjustment > 0 ? 'flex' : 'none';
+  $('sumLoanMinimum').textContent = money(loanMinimumAdjustment);
   $('sumReloc').textContent = money(relocCharge);
   $('sumB2b').textContent   = money(b2bCharge);
   $('sumCable').textContent = money(cableCharge);
@@ -689,7 +697,7 @@ function recalc(){
   $('monthlyOut').textContent = money(monthly);
 
   calc = { basePrice: shownBase, discount: shownDiscount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
-           cableCharge, otherTotal, finalPrice, term, financeAvailable, financed, fortnightly, monthly };
+           cableCharge, otherTotal, finalPrice, loanMinimumAdjustment, term, financeAvailable, financed, fortnightly, monthly };
 }
 
 function currentCustomer(){
@@ -744,6 +752,7 @@ function openPreview(){
     </div>
     <table class="pv">
       ${rows.map(([l,a])=>`<tr><td>${l}</td><td class="r">${money(a)}</td></tr>`).join('')}
+      ${calc.loanMinimumAdjustment>0?`<tr><td>Loan minimum adjustment</td><td class="r">${money(calc.loanMinimumAdjustment)}</td></tr>`:''}
       <tr class="grand"><td>Total Installed Price</td><td class="r">${money(calc.finalPrice)}</td></tr>
     </table>
     ${state.finance_requested?`<div class="pv-fin">
