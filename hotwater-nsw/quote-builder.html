@@ -75,6 +75,8 @@ main{padding:18px 20px 30px;max-width:1120px;margin:0 auto;}
 .col .card{margin-bottom:0;}
 .summary-card{flex:1;display:flex;flex-direction:column;}
 .summary-card .card-body{flex:1;display:flex;flex-direction:column;}
+.summary-finance-toggle{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+.summary-finance-toggle .btn{width:100%;justify-content:center;}
 @media(max-width:860px){.layout{grid-template-columns:1fr;}}
 
 /* ── Cards ── */
@@ -409,6 +411,9 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
             <div class="sub" id="overrideHint">Enter the exact total installed price (inc GST) to quote instead of the calculated one.</div>
           </div>
           <div class="note-box">Applicable NSW Energy Savings Scheme, Peak Demand Reduction Scheme and STC discounts are already included in the pricing above.</div>
+          <div class="summary-finance-toggle">
+            <button type="button" class="btn" id="summaryFinanceToggle" onclick="toggleFinanceFromSummary()">Show upfront pricing</button>
+          </div>
         </div>
       </div>
 
@@ -514,8 +519,10 @@ function setFinance(v){
   $('finNo').classList.toggle('on', v===false);
   $('finFields').style.display = v ? 'block' : 'none';
   $('noFinanceFields').style.display = v ? 'none' : 'block';
+  $('summaryFinanceToggle').textContent = v ? 'Show upfront pricing' : 'Show loan pricing';
   recalc();
 }
+function toggleFinanceFromSummary(){ setFinance(!state.finance_requested); }
 function setNoFinanceDiscount(v){
   state.apply_no_finance_discount=v;
   $('discYes').classList.toggle('on', v===true);

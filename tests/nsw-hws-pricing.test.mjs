@@ -95,6 +95,8 @@ test('keeps the browser quote calculator aligned with server pricing', () => {
   assert.match(builder, /const priceModel = PRICE_EQUIVALENT_MODEL\[heatPumpModel\] \|\| heatPumpModel;/);
   assert.match(builder, /existing_heat_pump:\{ default:2639 \}/);
   assert.match(builder, /BRIGHTE_MINIMUM_FINANCE_AMOUNT = 2000/);
+  assert.match(builder, /id="summaryFinanceToggle" onclick="toggleFinanceFromSummary\(\)"/);
+  assert.match(builder, /function toggleFinanceFromSummary\(\)\{ setFinance\(!state\.finance_requested\); \}/);
   assert.match(builder, /getBasePrice\(state\.existing_system, state\.heat_pump_model\)/);
   assert.match(builder, /function updateModelPrices\(\)/);
   assert.match(builder, /option\.textContent = state\.existing_system \? `\$\{label\} · \$\{money\(price\)\}` : label/);
