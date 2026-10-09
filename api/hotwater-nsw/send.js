@@ -10,7 +10,7 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
-import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, DEPOSIT_AMOUNT } from './pricing.js';
+import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricing.js';
 import {
   SEPTEMBER_OFFER_CAMPAIGN,
   SEPTEMBER_OFFER_EMAIL_BODY,
@@ -137,7 +137,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         </table>
         <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">${hasUpfrontPayment
           ? `Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit.`
-          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
+          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment when the minimum finance amount of $2,000 is met.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -225,9 +225,9 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         <td style="padding:13px 16px;">
           <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b08d2e;margin-bottom:5px;">${hasUpfrontPayment ? 'Deposit to Proceed' : 'No upfront payment'}</div>
           <div style="font-size:12.5px;color:#3d4658;line-height:1.6;">${hasUpfrontPayment
-            ? `A <strong style="color:#141c2e;">${money(DEPOSIT_AMOUNT)} deposit</strong> is required up front to book your installation. It forms part of your total installed price above; it is not an additional charge.`
+            ? `A <strong style="color:#141c2e;">${money(calc.deposit_amount)} deposit</strong> is required up front to book your installation. It forms part of your total installed price above; it is not an additional charge.`
             : calc.finance_requested
-            ? 'No upfront payment is required. The full installed price shown above can be included in the Home Energy Saver loan by Brighte, subject to approval.'
+            ? 'No upfront payment is required. The full installed price shown above can be included in the Home Energy Saver loan by Brighte when the minimum finance amount is met, subject to approval.'
             : 'No deposit is required up front. Our team will confirm the payment arrangements with you before installation.'}</div>
         </td>
       </tr></table>
@@ -249,7 +249,7 @@ ${financeBlock}
     <!-- Accept / view -->
     <tr><td align="center" style="padding:26px 32px 6px;font-family:${FONT};">
       <div style="font-size:13px;color:#3d4658;line-height:1.6;margin-bottom:15px;">${hasUpfrontPayment
-        ? `Happy to go ahead? Accept your quote online and our team will call you shortly to take the ${money(DEPOSIT_AMOUNT)} deposit and book your installation.`
+        ? `Happy to go ahead? Accept your quote online and our team will call you shortly to take the ${money(calc.deposit_amount)} deposit and book your installation.`
         : 'Happy to go ahead? Accept your quote online and our team will contact you to arrange the next steps and book your installation.'}</div>
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${acceptUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="16%" stroke="f" fillcolor="#b08d2e"><w:anchorlock/><center style="color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;">Accept This Quote</center></v:roundrect><![endif]-->
       <!--[if !mso]><!--><a href="${acceptUrl}" style="display:inline-block;background:#b08d2e;color:#141c2e;font-family:${FONT};font-size:15px;font-weight:700;text-decoration:none;padding:15px 40px;border-radius:8px;">Accept This Quote</a><!--<![endif]-->
@@ -479,6 +479,9 @@ export default async function handler(req, res) {
   if (!body.heat_pump_model) return res.status(400).json({ error: 'Select the heat pump being quoted.' });
 
   const calc = calculateQuote(body);
+  if (calc.finance_requested && !calc.finance_available) {
+    return res.status(400).json({ error: 'The Home Energy Saver loan requires at least $2,000 to be financed.' });
+  }
   const uniqueTokenPart = globalThis.crypto?.randomUUID?.() || String(Date.now());
   const token = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
     ? buildSeptemberOfferToken(body.source_quote_id, uniqueTokenPart)
@@ -602,7 +605,7 @@ export default async function handler(req, res) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
         const smsText = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
-          ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with $0 upfront available through the Home Energy Saver loan by Brighte, subject to approval. View your offer: ${quoteUrl}`
+          ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with the Home Energy Saver loan by Brighte available when the minimum finance amount is met, subject to approval. View your offer: ${quoteUrl}`
           : `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
         const smsRes = await fetch(`${SMSGATE_API}/messages`, {

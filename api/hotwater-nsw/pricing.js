@@ -24,6 +24,7 @@ export const BASE_PRICE = {
     default: 2899,
   },
   solar_boosted: { default: 2639 },
+  existing_heat_pump: { default: 2639 },
 };
 
 // EG-290FR is always priced the same as ECON-300RVW for every existing
@@ -37,6 +38,7 @@ export const EXISTING_SYSTEM_LABEL = {
   electric: 'Electric hot water',
   gas: 'Gas hot water',
   solar_boosted: 'Solar boosted hot water',
+  existing_heat_pump: 'Existing heat pump hot water',
 };
 
 // Keep legacy model labels here as well so previously saved quotes continue to
@@ -56,9 +58,10 @@ export const CABLE_INCLUDED_METRES = 15; // included in the gas base price
 export const CABLE_PER_METRE = 20;
 export const FINANCE_TERM_YEARS = [1, 2, 3, 5, 7, 10];
 export const INCOME_THRESHOLD = 210000;
-// The full installed price can be included in the Home Energy Saver loan, so
-// new quotes do not require an amount to be paid up front.
-export const DEPOSIT_AMOUNT = 0;
+// Quotes paid upfront keep their normal payment arrangement. A Home Energy
+// Saver loan by Brighte is available only when at least $2,000 is financed.
+export const UPFRONT_PAYMENT_AMOUNT = 0;
+export const BRIGHTE_MINIMUM_FINANCE_AMOUNT = 2000;
 
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -138,11 +141,12 @@ export function calculateQuote(input = {}) {
   const termYears = FINANCE_TERM_YEARS.includes(Number(input.finance_term_years))
     ? Number(input.finance_term_years)
     : 10;
-  // New quotes have no up-front payment, so the full installed price is the
-  // amount financed when the customer selects the loan.
-  const amountFinanced = financeRequested
-    ? round2(Math.max(0, finalPrice - DEPOSIT_AMOUNT))
+  const requestedAmountFinanced = financeRequested
+    ? round2(Math.max(0, finalPrice - UPFRONT_PAYMENT_AMOUNT))
     : 0;
+  const financeAvailable = !financeRequested || requestedAmountFinanced >= BRIGHTE_MINIMUM_FINANCE_AMOUNT;
+  const upfrontPayment = UPFRONT_PAYMENT_AMOUNT;
+  const amountFinanced = financeRequested && financeAvailable ? requestedAmountFinanced : 0;
   const fortnightlyRepayment = round2(amountFinanced / (termYears * 26));
   const monthlyRepayment = round2(amountFinanced / (termYears * 12));
 
@@ -160,10 +164,11 @@ export function calculateQuote(input = {}) {
     no_finance_discount: noFinanceDiscount,
     final_price: finalPrice,
     finance_requested: financeRequested,
+    finance_available: financeAvailable,
     income_eligible: incomeEligible,
     finance_eligibility: financeEligibility,
     finance_term_years: termYears,
-    deposit_amount: DEPOSIT_AMOUNT,
+    deposit_amount: upfrontPayment,
     amount_financed: amountFinanced,
     fortnightly_repayment: fortnightlyRepayment,
     monthly_repayment: monthlyRepayment,

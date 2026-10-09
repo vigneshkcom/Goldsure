@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import {
   calculateQuote,
-  DEPOSIT_AMOUNT,
+  BRIGHTE_MINIMUM_FINANCE_AMOUNT,
+  UPFRONT_PAYMENT_AMOUNT,
   getBasePrice,
 } from '../api/hotwater-nsw/pricing.js';
 
@@ -18,7 +19,7 @@ test('uses the September 2026 D17 and D19 model pricing', () => {
 });
 
 test('always prices EG-290FR the same as ECON-300RVW', () => {
-  for (const existingSystem of ['electric', 'gas', 'solar_boosted']) {
+  for (const existingSystem of ['electric', 'gas', 'solar_boosted', 'existing_heat_pump']) {
     assert.equal(
       getBasePrice(existingSystem, 'EG-290FR'),
       getBasePrice(existingSystem, 'ECON-300RVW'),
@@ -32,7 +33,7 @@ test('retains the previous price for models not listed on the new sheet', () => 
   assert.equal(getBasePrice('solar_boosted', 'EG-330FR'), 2639);
 });
 
-test('finances the full installed price with zero upfront payment', () => {
+test('finances the full installed price when it meets Brighte minimum finance amount', () => {
   const quote = calculateQuote({
     existing_system: 'gas',
     heat_pump_model: 'ECON-300RVW',
@@ -41,13 +42,46 @@ test('finances the full installed price with zero upfront payment', () => {
     finance_term_years: 10,
   });
 
-  assert.equal(DEPOSIT_AMOUNT, 0);
+  assert.equal(BRIGHTE_MINIMUM_FINANCE_AMOUNT, 2000);
   assert.equal(quote.base_price, 2399);
   assert.equal(quote.final_price, 2399);
   assert.equal(quote.deposit_amount, 0);
+  assert.equal(quote.finance_available, true);
   assert.equal(quote.amount_financed, 2399);
   assert.equal(quote.fortnightly_repayment, 9.23);
   assert.equal(quote.monthly_repayment, 19.99);
+});
+
+test('does not allow a Brighte loan below the $2,000 minimum finance amount', () => {
+  const quote = calculateQuote({
+    existing_system: 'electric',
+    heat_pump_model: 'EG-330FR',
+    tank_staying: true,
+    finance_requested: true,
+  });
+
+  assert.equal(quote.final_price, 1599);
+  assert.equal(quote.finance_available, false);
+  assert.equal(quote.amount_financed, 0);
+});
+
+test('keeps the normal upfront payment arrangement when the customer does not use the loan', () => {
+  const quote = calculateQuote({
+    existing_system: 'gas',
+    heat_pump_model: 'ECON-300RVW',
+    tank_staying: true,
+    finance_requested: false,
+  });
+
+  assert.equal(UPFRONT_PAYMENT_AMOUNT, 0);
+  assert.equal(quote.deposit_amount, 0);
+  assert.equal(quote.amount_financed, 0);
+});
+
+test('prices an existing heat pump exactly like a solar boosted system', () => {
+  for (const model of ['EG-290FR', 'EG-330FR', 'ECON-300RVW', 'ECON-300RVW-2.0E']) {
+    assert.equal(getBasePrice('existing_heat_pump', model), getBasePrice('solar_boosted', model), model);
+  }
 });
 
 test('keeps the browser quote calculator aligned with server pricing', () => {
@@ -57,7 +91,8 @@ test('keeps the browser quote calculator aligned with server pricing', () => {
   assert.match(builder, /gas:\{ 'EG-330FR':1999, 'ECON-300RVW':2399/);
   assert.match(builder, /const PRICE_EQUIVALENT_MODEL = \{ 'EG-290FR':'ECON-300RVW' \};/);
   assert.match(builder, /const priceModel = PRICE_EQUIVALENT_MODEL\[heatPumpModel\] \|\| heatPumpModel;/);
-  assert.match(builder, /const DEPOSIT_AMOUNT = 0;/);
+  assert.match(builder, /existing_heat_pump:\{ default:2639 \}/);
+  assert.match(builder, /BRIGHTE_MINIMUM_FINANCE_AMOUNT = 2000/);
   assert.match(builder, /getBasePrice\(state\.existing_system, state\.heat_pump_model\)/);
   assert.match(builder, /function updateModelPrices\(\)/);
   assert.match(builder, /option\.textContent = state\.existing_system \? `\$\{label\} · \$\{money\(price\)\}` : label/);
@@ -76,6 +111,7 @@ test('lets an agent override the final price below the calculated total as a dis
   assert.equal(quote.final_price, 2400);
   assert.equal(quote.no_finance_discount, 239);
   assert.equal(quote.base_price + quote.total_extras - quote.no_finance_discount, 2400);
+  assert.equal(quote.deposit_amount, 0);
   assert.equal(quote.amount_financed, 2400);
 });
 

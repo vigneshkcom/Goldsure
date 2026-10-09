@@ -263,6 +263,7 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
               <button type="button" data-v="electric" onclick="setExisting('electric')">Electric</button>
               <button type="button" data-v="gas" onclick="setExisting('gas')">Gas</button>
               <button type="button" data-v="solar_boosted" onclick="setExisting('solar_boosted')">Solar Boosted</button>
+              <button type="button" data-v="existing_heat_pump" onclick="setExisting('existing_heat_pump')">Existing Heat Pump</button>
             </div>
           </div>
           <div class="readout"><span class="lbl">Base price (inc GST)</span><span class="val" id="basePriceOut">—</span></div>
@@ -365,13 +366,13 @@ table.pv tr.grand td.r{font-size:16px;text-transform:none;letter-spacing:0;}
               </div>
             </div>
             <div class="readout"><span class="lbl">Eligibility</span><span id="eligibilityOut">—</span></div>
-            <div class="readout"><span class="lbl">Upfront payment</span><span class="val">$0.00</span></div>
+            <div class="readout"><span class="lbl">Minimum amount financed</span><span class="val">$2,000.00</span></div>
             <div class="readout"><span class="lbl">Amount financed</span><span class="val" id="financedOut">$0.00</span></div>
             <div class="fin-figs">
               <div class="fin-fig"><div class="amt" id="fortnightlyOut">$0.00</div><div class="lbl">per fortnight</div></div>
               <div class="fin-fig"><div class="amt" id="monthlyOut">$0.00</div><div class="lbl">per month</div></div>
             </div>
-            <div class="note-box">Home Energy Saver loan by Brighte · 0% interest · up to $15,000 · up to 10 years · no establishment, account-keeping or early repayment fees. Subject to Brighte approval.</div>
+            <div class="note-box">Home Energy Saver loan by Brighte · minimum amount financed $2,000 · 0% interest · up to $15,000 · up to 10 years · no establishment, account-keeping or early repayment fees. Subject to Brighte approval.</div>
           </div>
           <div id="noFinanceFields" style="display:none;">
             <div class="readout"><span class="lbl">Vendor fee — Home Energy Saver loan by Brighte</span><span class="val">$0.00</span></div>
@@ -442,6 +443,7 @@ const BASE_PRICE = {
   electric:{ 'EG-330FR':1599, 'ECON-300RVW':1999, default:2499 },
   gas:{ 'EG-330FR':1999, 'ECON-300RVW':2399, default:2899 },
   solar_boosted:{ default:2639 },
+  existing_heat_pump:{ default:2639 },
 };
 const PRICE_EQUIVALENT_MODEL = { 'EG-290FR':'ECON-300RVW' };
 const MODEL_LABEL = {
@@ -452,9 +454,9 @@ const MODEL_LABEL = {
   'ECON-300SV-4.2E':  'ECON-300SV-4.2E - 290L Split System',
   'EG-330FRE-WR':     'EG-330FRE-WR - 330L Split System',
 };
-const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted' };
+const EXISTING_LABEL = { electric:'Electric', gas:'Gas', solar_boosted:'Solar Boosted', existing_heat_pump:'Existing Heat Pump' };
 const RELOCATION_PER_METRE = 155, BACK_TO_BACK_FLAT = 460, CABLE_INCLUDED_METRES = 15, CABLE_PER_METRE = 20;
-const DEPOSIT_AMOUNT = 0;
+const UPFRONT_PAYMENT_AMOUNT = 0, BRIGHTE_MINIMUM_FINANCE_AMOUNT = 2000;
 const DEFAULT_EMAIL_BODY = 'Thank you for the opportunity to quote your heat pump hot water upgrade. The price below includes the applicable NSW scheme discounts and covers the installation as quoted, based on the information provided. If anything unforeseen is identified on site that requires additional work, we\u2019ll explain it clearly and confirm any cost with you before proceeding.';
 
 let state = { existing_system:null, heat_pump_model:null, tank_staying:null, relocation_type:null, finance_requested:true, apply_no_finance_discount:false, other_extras:[] };
@@ -671,21 +673,23 @@ function recalc(){
   $('sumDisc').textContent = '− ' + money(shownDiscount);
   $('sumFinal').textContent = money(finalPrice);
 
+  const term = Number($('financeTerm').value)||10;
+  const requestedFinanced = state.finance_requested ? Math.max(0, finalPrice - UPFRONT_PAYMENT_AMOUNT) : 0;
+  const financeAvailable = !state.finance_requested || requestedFinanced >= BRIGHTE_MINIMUM_FINANCE_AMOUNT;
+  const financed = state.finance_requested && financeAvailable ? requestedFinanced : 0;
   const income = $('incomeEligible').value;
   $('eligibilityOut').innerHTML = !state.finance_requested ? '<span class="tag na">n/a</span>'
+    : !financeAvailable ? '<span class="tag na">Minimum finance amount is $2,000</span>'
     : income==='no' ? '<span class="tag na">Not eligible</span>'
     : income==='yes' ? '<span class="tag code">Potentially eligible</span>'
     : '<span class="tag na">Needs confirmation</span>';
-  const term = Number($('financeTerm').value)||10;
-  // The full installed price can be financed with no up-front payment.
-  const financed = state.finance_requested ? Math.max(0, finalPrice - DEPOSIT_AMOUNT) : 0;
   const fortnightly = financed/(term*26), monthly = financed/(term*12);
   $('financedOut').textContent = money(financed);
   $('fortnightlyOut').textContent = money(fortnightly);
   $('monthlyOut').textContent = money(monthly);
 
   calc = { basePrice: shownBase, discount: shownDiscount, relocMetres, relocCharge, b2bCharge, cableMetres, cableChargeable,
-           cableCharge, otherTotal, finalPrice, term, financed, fortnightly, monthly };
+           cableCharge, otherTotal, finalPrice, term, financeAvailable, financed, fortnightly, monthly };
 }
 
 function currentCustomer(){
@@ -703,6 +707,7 @@ function openPreview(){
   if(!state.existing_system){ showToast('Select the existing hot water system.'); return; }
   if(!state.heat_pump_model){ showToast('Select the heat pump being quoted.'); return; }
   recalc();
+  if(state.finance_requested && !calc.financeAvailable){ showToast('The Home Energy Saver loan requires at least $2,000 to be financed.'); return; }
 
   const rows = [
     [`${MODEL_LABEL[state.heat_pump_model]}<br><span style="font-size:11px;color:var(--muted2);">Upgrade from ${EXISTING_LABEL[state.existing_system].toLowerCase()} hot water</span>`, calc.basePrice],
@@ -743,7 +748,7 @@ function openPreview(){
     </table>
     ${state.finance_requested?`<div class="pv-fin">
       <strong>Home Energy Saver loan by Brighte - 0% interest</strong><br>
-      ${money(DEPOSIT_AMOUNT)} upfront · ${money(calc.financed)} financed<br>
+      ${calc.financeAvailable ? `${money(calc.financed)} financed` : 'Loan unavailable: minimum finance amount is $2,000.00'}<br>
       ${money(calc.fortnightly)} per fortnight · ${money(calc.monthly)} per month · ${calc.term} year term
     </div>`:''}
     <label class="pv-lbl" for="emailBody">Email message</label>

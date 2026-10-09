@@ -4,7 +4,7 @@ export const SEPTEMBER_OFFER_CUTOFF = '2026-09-15T02:07:16.360Z';
 export const SEPTEMBER_OFFER_SUBJECT = 'September Offer: Your Updated Goldsure Hot Water Quote';
 export const SEPTEMBER_OFFER_EMAIL_BODY = 'Thank you for speaking with us previously about upgrading your hot water system. '
   + 'For September, Goldsure has new reduced pricing available. We have prepared an updated quote using the latest price. '
-  + 'The full installed price can also be included in the Home Energy Saver loan by Brighte with $0 upfront payment, subject to approval and eligibility. '
+  + 'The Home Energy Saver loan by Brighte is available when the minimum finance amount is met, subject to approval and eligibility. '
   + 'This September offer is valid for 21 days from the date of this quote.';
 
 const money = (value) => '$' + (Number(value) || 0).toLocaleString('en-AU', {
@@ -17,7 +17,7 @@ export function buildSeptemberOfferEmailBody(oldPrice, newPrice) {
   return 'Thank you for speaking with us previously about upgrading your hot water system. '
     + `For September, Goldsure has new reduced pricing. Your previous quoted price was ${money(oldPrice)}. `
     + `Your updated offer is ${money(newPrice)}, saving you ${money(saving)}. `
-    + 'The full installed price can also be included in the Home Energy Saver loan by Brighte with $0 upfront payment, subject to approval and eligibility. '
+    + 'The Home Energy Saver loan by Brighte is available when the minimum finance amount is met, subject to approval and eligibility. '
     + 'This September offer is valid for 21 days from the date of this quote.';
 }
 
