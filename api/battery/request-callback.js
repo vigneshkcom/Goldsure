@@ -106,6 +106,19 @@ export default async function handler(req, res) {
   };
   const campaignRest = path => `${SUPABASE_URL}/rest/v1/${path}`;
 
+  // Fetch every page explicitly; Supabase caps the number of rows per request.
+  async function campaignRows(campaignId, fields) {
+    const rows = [];
+    for (let offset = 0; ; offset += 500) {
+      const response = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaignId)}&select=${fields}&order=created_at.asc,id.asc&limit=500&offset=${offset}`), { headers: campaignHeaders, signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error('recipient-query-failed');
+      const page = await response.json();
+      if (!Array.isArray(page)) throw new Error('invalid-recipient-response');
+      rows.push(...page);
+      if (page.length < 500) return rows;
+    }
+  }
+
   async function campaignRecipient(token) {
     if (!isTrackingToken(token)) return null;
     const result = await fetch(
@@ -153,38 +166,55 @@ export default async function handler(req, res) {
     const campaign = await batteryCampaign();
     if (!campaign) throw new Error('campaign-not-configured');
     if (campaign.status !== 'sending') return { state: campaign.status, sent: false };
-    const candidates = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.pending&select=id,tracking_token,email,first_name&order=created_at.asc&limit=1`), { headers: campaignHeaders });
+    const candidates = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.pending&unsubscribed_at=is.null&sent_at=is.null&select=id,tracking_token,email,first_name&order=created_at.asc&limit=1`), { headers: campaignHeaders });
     if (!candidates.ok) throw new Error('recipient-query-failed');
     const recipient = (await candidates.json())[0];
     if (!recipient) {
+      const rows = await campaignRows(campaign.id, 'delivery_status');
+      if (rows.some(row => row.delivery_status === 'sending' || row.delivery_status === 'unknown')) {
+        const paused = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}&status=eq.sending`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
+        if (!paused.ok) throw new Error('campaign-pause-failed');
+        return { state: 'paused', sent: false, needsReview: true };
+      }
       await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'completed', updated_at: new Date().toISOString() }) });
       return { state: 'completed', sent: false };
     }
-    const claim = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.pending`), {
+    const claim = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.pending&unsubscribed_at=is.null&sent_at=is.null`), {
       method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'sending', updated_at: new Date().toISOString() }),
     });
-    const claimed = claim.ok ? await claim.json() : [];
+    if (!claim.ok) throw new Error('recipient-claim-failed');
+    const claimed = await claim.json();
     if (!claimed.length) return { state: 'sending', sent: false };
-    const urls = batteryTrackingUrls(recipient.tracking_token);
+    let accepted = false;
     try {
+      const urls = batteryTrackingUrls(recipient.tracking_token);
       const sendController = new AbortController();
       const sendTimeout = setTimeout(() => sendController.abort(), 15000);
       try { await sendHostingerMail({
         displayName: 'Goldsure', to: [recipient.email],
         subject: 'Home battery rebate changes 1 January 2027',
         html: buildBatteryCampaignEmail({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl, unsubscribeUrl: urls.unsubscribeUrl, trackingPixelUrl: urls.pixelUrl }),
-        text: buildBatteryCampaignText({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl }),
+        text: `${buildBatteryCampaignText({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl })}\n\nUnsubscribe: ${urls.unsubscribeUrl}`,
         signal: sendController.signal,
       }); } finally { clearTimeout(sendTimeout); }
+      accepted = true;
       const now = new Date().toISOString();
-      await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'sent', sent_at: now, updated_at: now }) });
-      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'sent' }) });
+      // Do not overwrite an unsubscribe that arrived while the provider was sending.
+      const saved = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ sent_at: now, send_error: null, updated_at: now }) });
+      if (!saved.ok) throw new Error('Provider accepted email but saving its sent time failed. Check the sent mailbox before retrying.');
+      const statusSaved = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.sending`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'sent' }) });
+      if (!statusSaved.ok) throw new Error('Provider accepted email but saving its status failed.');
+      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'sent' }) }).catch(() => null);
       return { state: 'sending', sent: true };
     } catch (error) {
       const now = new Date().toISOString();
-      await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'failed', send_error: String(error.message || 'send-failed').slice(0, 500), updated_at: now }) });
-      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'failed', detail: { message: String(error.message || 'send-failed').slice(0, 500) } }) }).catch(() => null);
-      return { state: 'sending', sent: false, failed: true };
+      const uncertain = accepted || !error.status && error.code !== 'HOSTINGER_MAIL_NOT_CONFIGURED';
+      const detail = uncertain ? `Send result unconfirmed: ${error.message}. Check Hostinger before retrying.` : String(error.message || 'Send rejected.');
+      const saved = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.sending`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: uncertain ? 'unknown' : 'failed', send_error: detail.slice(0, 500), updated_at: now }) });
+      if (!saved.ok) throw new Error('Send result could not be saved. Check Hostinger before retrying.');
+      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: uncertain ? 'unknown' : 'failed', detail: { message: detail.slice(0, 500) } }) }).catch(() => null);
+      if (uncertain) await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: now }) });
+      return { state: uncertain ? 'paused' : 'sending', sent: false, failed: !uncertain, needsReview: uncertain };
     }
   }
 
@@ -272,19 +302,19 @@ export default async function handler(req, res) {
       return res.redirect(302, destination);
     }
     if (campaignAction === 'battery-campaign-stats') {
+      res.setHeader('Cache-Control', 'no-store');
       try {
         const cRes = await fetch(campaignRest(`email_campaigns?slug=eq.${encodeURIComponent(BATTERY_CAMPAIGN_SLUG)}&select=id,name,status`), { headers: campaignHeaders });
         const campaigns = cRes.ok ? await cRes.json() : [];
         const campaign = Array.isArray(campaigns) ? campaigns[0] : null;
         if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
-        const rRes = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&select=delivery_status,opened_at,clicked_at,unsubscribed_at,callback_requested_at`), { headers: campaignHeaders });
-        if (!rRes.ok) throw new Error('recipient-query-failed');
-        const recipients = await rRes.json();
+        const recipients = await campaignRows(campaign.id, 'delivery_status,sent_at,opened_at,clicked_at,unsubscribed_at,callback_requested_at');
         const count = predicate => recipients.filter(predicate).length;
         return res.status(200).json({
           campaign: { name: campaign.name, status: campaign.status },
           total: recipients.length,
-          sent: count(r => r.delivery_status === 'sent'),
+          sent: count(r => !!r.sent_at || r.delivery_status === 'sent'),
+          pending: count(r => r.delivery_status === 'pending' && !r.unsubscribed_at && !r.sent_at),
           failed: count(r => r.delivery_status === 'failed' || r.delivery_status === 'bounced'),
           opened: count(r => !!r.opened_at),
           clicked: count(r => !!r.clicked_at),
@@ -3598,11 +3628,13 @@ ${notesHtml}
   // These actions require the existing dashboard password. The public tracking
   // page can never import personal data or trigger a customer email by itself.
   if (String(body.action || '').startsWith('battery-campaign-')) {
+    res.setHeader('Cache-Control', 'no-store');
     if (!campaignAdmin()) return res.status(401).json({ error: 'Enter the portal password to manage this campaign.' });
     try {
       const campaign = await batteryCampaign();
       if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
       if (body.action === 'battery-campaign-import') {
+        if (campaign.status === 'sending') return res.status(409).json({ error: 'Pause the campaign before uploading more customers.' });
         const raw = Array.isArray(body.recipients) ? body.recipients : [];
         if (!raw.length || raw.length > 500) return res.status(400).json({ error: 'Upload between 1 and 500 valid recipients.' });
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -3619,30 +3651,35 @@ ${notesHtml}
         const recipients = [...deduped.values()];
         if (!recipients.length) return res.status(400).json({ error: 'No valid recipients found.' });
         const saved = await fetch(campaignRest('email_campaign_recipients?on_conflict=campaign_id,email'), {
-          method: 'POST', headers: { ...campaignHeaders, Prefer: 'resolution=merge-duplicates,return=representation' }, body: JSON.stringify(recipients),
+          method: 'POST', headers: { ...campaignHeaders, Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(recipients),
         });
         if (!saved.ok) throw new Error(`recipient-import-failed-${saved.status}`);
-        await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'ready', updated_at: new Date().toISOString() }) });
-        return res.status(200).json({ success: true, imported: recipients.length });
+        const inserted = await saved.json();
+        const updated = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'ready', updated_at: new Date().toISOString() }) });
+        if (!updated.ok) throw new Error('campaign-update-failed');
+        return res.status(200).json({ success: true, imported: inserted.length, skipped: recipients.length - inserted.length });
       }
       if (body.action === 'battery-campaign-recipients') {
-        const list = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&select=id,email,first_name,last_name,phone,job_id,delivery_status,send_error,sent_at,opened_at,clicked_at,unsubscribed_at,callback_requested_at,updated_at&order=created_at.asc`), { headers: campaignHeaders });
-        if (!list.ok) throw new Error('recipient-list-failed');
-        return res.status(200).json({ recipients: await list.json() });
+        const recipients = await campaignRows(campaign.id, 'id,email,first_name,last_name,phone,job_id,delivery_status,send_error,sent_at,opened_at,clicked_at,unsubscribed_at,callback_requested_at,updated_at');
+        return res.status(200).json({ recipients });
       }
       if (body.action === 'battery-campaign-start') {
+        const rows = await campaignRows(campaign.id, 'delivery_status,sent_at,unsubscribed_at');
+        if (!rows.some(row => row.delivery_status === 'pending' && !row.sent_at && !row.unsubscribed_at)) return res.status(409).json({ error: 'There are no queued customers. Review the customer table for completed or unconfirmed sends.' });
         const changed = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'sending', updated_at: new Date().toISOString() }) });
         if (!changed.ok) throw new Error('campaign-start-failed');
         return res.status(200).json({ success: true, status: 'sending' });
       }
       if (body.action === 'battery-campaign-pause') {
-        await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
+        const paused = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
+        if (!paused.ok) throw new Error('campaign-pause-failed');
         return res.status(200).json({ success: true, status: 'paused' });
       }
       if (body.action === 'battery-campaign-retry-stuck') {
+        if (campaign.status === 'sending') return res.status(409).json({ error: 'Pause the campaign before resetting interrupted sends.' });
         const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-        const reset = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.sending&updated_at=lte.${encodeURIComponent(cutoff)}`), {
-          method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'pending', updated_at: new Date().toISOString() }),
+        const reset = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=in.(sending,unknown)&sent_at=is.null&unsubscribed_at=is.null&updated_at=lte.${encodeURIComponent(cutoff)}`), {
+          method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'pending', send_error: null, updated_at: new Date().toISOString() }),
         });
         if (!reset.ok) throw new Error('retry-reset-failed');
         const rows = await reset.json();
