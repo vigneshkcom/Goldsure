@@ -75,7 +75,7 @@ test('after 6 pm the server does not claim a recipient or contact Hostinger', as
   const result = await callApi(async input => {
     assert.match(input, /email_campaigns\?/); calls++;
     return response([{ ...campaign, status: 'sending' }]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' }, {}, '2026-10-12T07:00:00Z');
+  }, { action: 'battery-campaign-send-next' }, {}, '2026-10-12T07:00:00Z');
   assert.equal(calls, 2); assert.equal(result.data.sent, false);
   assert.equal(result.data.waitingForSchedule, true);
   assert.equal(result.data.nextSendAt, '2026-10-12T21:00:00.000Z');
@@ -96,7 +96,7 @@ test('a claim that crosses 6 pm is released without sending', async () => {
       released = true; return response([]);
     }
     return response([recipient]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' }, {}, '2026-10-12T06:59:59Z');
+  }, { action: 'battery-campaign-send-next' }, {}, '2026-10-12T06:59:59Z');
   assert.equal(released, true); assert.equal(result.data.waitingForSchedule, true);
 });
 const callbackToken = '12345678-1234-4234-8234-123456789abc';
@@ -155,18 +155,18 @@ test('live-schema constraint failure is identified before contacting the mail pr
     if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
     if (options.method === 'PATCH') return new Response(JSON.stringify({ code: '23514', message: 'new row violates check constraint' }), { status: 400 });
     return response([{ id: 'recipient-1', tracking_token: '12345678-1234-4234-8234-123456789abc', email: 'fixture@example.com', first_name: 'Fixture' }]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' });
+  }, { action: 'battery-campaign-send-next' });
   assert.equal(result.statusCode, 500);
   assert.equal(result.data.code, 'CAMPAIGN_RECIPIENT_CLAIM_FAILED');
   assert.match(result.data.error, /before contacting Hostinger/);
   assert.match(result.data.error, /database migration/);
   assert.equal(providerCalls, 0);
 });
-test('customer details require authentication without making any database request', async () => {
-  const result = await callApi(() => { throw new Error('Unexpected database access'); }, { action: 'battery-campaign-recipients' });
+test('internal diagnostics still require staff authentication', async () => {
+  const result = await callApi(() => { throw new Error('Unexpected database access'); }, { action: 'battery-campaign-health' });
   assert.equal(result.statusCode, 401);
 });
-test('authenticated customer list returns every page and all engagement fields', async () => {
+test('customer list returns every page and all engagement fields without login', async () => {
   const rows = Array.from({ length: 1205 }, (_, i) => ({ id: i, email: `customer${i}@example.com`, sent_at: '2026-10-12', opened_at: '2026-10-12', clicked_at: '2026-10-12' }));
   const offsets = [];
   const result = await callApi(async input => {
@@ -175,7 +175,7 @@ test('authenticated customer list returns every page and all engagement fields',
     const offset = Number(url.searchParams.get('offset')); offsets.push(offset);
     assert.match(url.searchParams.get('select'), /callback_requested_at/);
     return response(rows.slice(offset, offset + 500));
-  }, { action: 'battery-campaign-recipients', password: 'fixture-password' });
+  }, { action: 'battery-campaign-recipients' });
   assert.equal(result.statusCode, 200); assert.equal(result.data.recipients.length, 1205);
   assert.deepEqual(offsets, [0, 500, 1000]); assert.equal(result.headers['Cache-Control'], 'no-store');
 });
@@ -186,7 +186,7 @@ test('repeat import preserves existing sent and unsubscribed customers', async (
     assert.equal(options.method, 'POST');
     assert.match(options.headers.Prefer, /resolution=ignore-duplicates/);
     return response([JSON.parse(options.body)[1]]);
-  }, { action: 'battery-campaign-import', password: 'fixture-password', recipients: [{ email: 'existing@example.com', firstName: 'Existing' }, { email: 'new@example.com', firstName: 'New' }] });
+  }, { action: 'battery-campaign-import', recipients: [{ email: 'existing@example.com', firstName: 'Existing' }, { email: 'new@example.com', firstName: 'New' }] });
   assert.equal(result.data.imported, 1); assert.equal(result.data.skipped, 1);
 });
 test('aggregate sent total still includes a sent customer who later unsubscribed', async () => {
@@ -206,7 +206,7 @@ test('provider timeout records unconfirmed instead of claiming a definite failur
     if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
     if (url.pathname.endsWith('/email_campaign_recipients')) return response([recipient]);
     return response([]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' });
+  }, { action: 'battery-campaign-send-next' });
   assert.equal(result.data.needsReview, true); assert.equal(result.data.state, 'paused');
   assert.ok(patches.some(p => p.delivery_status === 'unknown'));
   assert.ok(!patches.some(p => p.delivery_status === 'failed'));
@@ -221,7 +221,7 @@ test('campaign with an unresolved send pauses instead of announcing completion',
     if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
     if (url.searchParams.get('delivery_status') === 'eq.pending') return response([]);
     return response([{ delivery_status: 'unknown' }]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' });
+  }, { action: 'battery-campaign-send-next' });
   assert.equal(result.data.state, 'paused'); assert.equal(result.data.needsReview, true);
   assert.ok(patches.some(p => p.status === 'paused'));
   assert.ok(!patches.some(p => p.status === 'completed'));
@@ -242,6 +242,6 @@ test('successful sending retains unsubscribe state and includes unsubscribe in p
     if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
     if (url.pathname.endsWith('/email_campaign_recipients')) return response([recipient]);
     return response([]);
-  }, { action: 'battery-campaign-send-next', password: 'fixture-password' });
+  }, { action: 'battery-campaign-send-next' });
   assert.equal(result.data.sent, true); assert.equal(providerCalls, 1);
 });

@@ -1,7 +1,7 @@
 import { parseAudience, delivery, matchesRecipient, localDate } from './campaign-model.js';
 
 const $ = id => document.getElementById(id);
-let selected = [], recipients = [], campaign = null, unlocked = false, busy = false;
+let selected = [], recipients = [], campaign = null, customersLoaded = false, busy = false;
 let sending = false, sendTimer = null, generation = 0, refreshing = false;
 const endpoint = '/api/battery/request-callback';
 const campaignNames = { draft: 'Draft', ready: 'Ready to send', sending: 'Sending', paused: 'Paused', completed: 'Completed' };
@@ -12,17 +12,16 @@ function badge(label, tone) { return textElement('span', label, `badge ${tone}`)
 function controls() {
   const status = campaign?.campaign.status;
   $('stage-audience').disabled = busy || sending || status === 'sending' || !selected.length;
-  $('start-campaign').disabled = busy || sending || !campaign?.pending || !unlocked;
+  $('start-campaign').disabled = busy || sending || !campaign?.pending || !customersLoaded;
   $('start-campaign').textContent = status === 'sending' || status === 'paused' ? 'Resume sending' : 'Start sending';
   $('pause-campaign').disabled = busy || (!sending && status !== 'sending');
-  $('retry-stuck').disabled = busy || sending || !unlocked;
+  $('retry-stuck').disabled = busy || sending || !customersLoaded;
 }
 async function request(action, extra = {}) {
   const response = await fetch(endpoint, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, password: $('portal-password').value, ...extra }), signal: AbortSignal.timeout(45000) });
+    body: JSON.stringify({ action, ...extra }), signal: AbortSignal.timeout(45000) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401) { unlocked = false; recipients = []; renderRecipients(); controls(); }
     throw new Error(data.error || 'The server did not return a result. Refresh the customer list before retrying.');
   }
   return data;
@@ -81,12 +80,12 @@ function renderRecipients() {
   $('recipient-body').replaceChildren(fragment);
   $('row-count').textContent = `${visible.length} of ${recipients.length} customers`;
   $('empty-state').hidden = visible.length > 0;
-  $('empty-state').textContent = !unlocked ? 'Unlock the customer list using the portal password above.' : recipients.length ? 'No customers match this search or filter.' : 'No customers uploaded yet.';
+  $('empty-state').textContent = !customersLoaded ? 'Customer list is loading or temporarily unavailable. Use Refresh to try again.' : recipients.length ? 'No customers match this search or filter.' : 'No customers uploaded yet.';
 }
 async function loadRecipients() {
   const data = await request('battery-campaign-recipients');
-  recipients = data.recipients; unlocked = true;
-  $('access-status').textContent = 'Customer details unlocked. Automatic refresh is on.';
+  recipients = data.recipients; customersLoaded = true;
+  $('access-status').textContent = 'Customer details are available. Automatic refresh is on.';
   $('table-message').textContent = 'Delivery history is retained, including sent emails and unsubscribes. Opens / viewed means a tracking pixel was loaded.';
   $('table-message').classList.remove('error');
   $('refresh-note').textContent = `Updated ${new Date().toLocaleTimeString('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
@@ -94,14 +93,9 @@ async function loadRecipients() {
 }
 async function refresh() {
   if (refreshing) return; refreshing = true;
-  try { await Promise.all([loadStats(), ...(unlocked ? [loadRecipients()] : [])]); }
+  try { await Promise.all([loadStats(), loadRecipients()]); }
   catch (error) { $('table-message').textContent = `Refresh unavailable: ${error.message} Displayed details may be out of date.`; $('table-message').classList.add('error'); }
   finally { refreshing = false; }
-}
-async function connect() {
-  if (!$('portal-password').value) { $('access-status').textContent = 'Enter your portal password first.'; return; }
-  try { await loadRecipients(); await loadStats(); }
-  catch (error) { $('access-status').textContent = error.message; }
 }
 function stopLoop() { sending = false; generation++; clearTimeout(sendTimer); sendTimer = null; controls(); }
 async function sendNext(run) {
@@ -153,10 +147,7 @@ $('retry-stuck').addEventListener('click', async () => {
   try { const result = await request('battery-campaign-retry-stuck'); message(result.reset ? `${result.reset} interrupted sends queued again. Press Start sending when ready.` : 'No eligible interrupted sends found.'); await refresh(); }
   catch (error) { message(error.message, true); } finally { busy = false; controls(); }
 });
-$('connect').addEventListener('click', connect);
-$('portal-password').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void connect(); } });
-$('portal-password').addEventListener('input', () => { unlocked = false; recipients = []; renderRecipients(); controls(); });
-$('refresh-recipients').addEventListener('click', connect);
+$('refresh-recipients').addEventListener('click', refresh);
 $('recipient-search').addEventListener('input', renderRecipients);
 $('recipient-filter').addEventListener('change', renderRecipients);
 setInterval(() => { if (!document.hidden) void refresh(); }, 10000);

@@ -3657,12 +3657,14 @@ ${notesHtml}
     return res.status(success ? 200 : 404).json(success ? { success: true } : { error: 'This unsubscribe link is invalid or has expired.' });
   }
 
-  // ── POST: staff-controlled battery campaign sender ────────────────────────
-  // These actions require the existing dashboard password. The public tracking
-  // page can never import personal data or trigger a customer email by itself.
+  // ── POST: battery campaign sender ────────────────────────────────────────
+  // The owner explicitly chose no-login access to the customer list and send
+  // controls. Internal diagnostics/recovery remain separate protected actions.
   if (String(body.action || '').startsWith('battery-campaign-')) {
     res.setHeader('Cache-Control', 'no-store');
-    if (!campaignAdmin()) return res.status(401).json({ error: 'Enter the portal password to manage this campaign.' });
+    if (['battery-campaign-health', 'battery-campaign-restore'].includes(body.action) && !campaignAdmin()) {
+      return res.status(401).json({ error: 'Staff authentication is required for campaign maintenance.' });
+    }
     try {
       if (body.action === 'battery-campaign-health') {
         // Staff-only, read-only diagnostics. Never return keys or customer data.
