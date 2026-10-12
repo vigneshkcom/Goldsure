@@ -11,6 +11,7 @@ import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricing.js';
+import { nswQuotePricingRecord } from '../../lib/nsw-hws-quote-record.js';
 import {
   SEPTEMBER_OFFER_CAMPAIGN,
   SEPTEMBER_OFFER_EMAIL_BODY,
@@ -507,7 +508,7 @@ export default async function handler(req, res) {
       existing_system: body.existing_system,
       heat_pump_model: body.heat_pump_model,
       tank_staying: body.tank_staying === true,
-      ...calc,
+      ...nswQuotePricingRecord(calc),
       sent_at: sentAt,
       created_at: sentAt,
       updated_at: sentAt,

@@ -44,6 +44,9 @@ CREATE TABLE nsw_hws_quotes (
   other_extras jsonb DEFAULT '[]'::jsonb,
 
   -- Pricing
+  -- finance_available and loan_minimum_adjustment are calculator-only metadata,
+  -- not columns. The sender maps supported fields via nswQuotePricingRecord;
+  -- base_price/final_price already include any minimum-loan adjustment.
   base_price numeric DEFAULT 0,
   total_extras numeric DEFAULT 0,
   -- $200 waived when the customer pays up front instead of financing
