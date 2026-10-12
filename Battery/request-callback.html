@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- Disable Cloudflare email obfuscation for this page -->
   <meta name="email-obfuscation" content="off">
+  <meta name="referrer" content="no-referrer">
   <title>Request a Call Back | Goldsure</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -23,6 +24,7 @@
       --r: 12px;
     }
 
+    [hidden] { display: none !important; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
@@ -191,7 +193,7 @@
 
     label .optional {
       font-size: 9px;
-      color: var(--border);
+      color: var(--muted);
       font-weight: 500;
       letter-spacing: 0;
       text-transform: none;
@@ -226,10 +228,6 @@
       border-color: #e04f4f;
     }
 
-    .solar-details { display:none; margin:4px 0 18px; padding:18px; background:var(--gold-bg); border:1px solid #f0dfad; border-radius:8px; }
-    .solar-details.visible { display:block; }
-    .check-label { display:flex; gap:9px; align-items:flex-start; font-size:13px; line-height:1.5; letter-spacing:0; text-transform:none; color:var(--text); cursor:pointer; }
-    .check-label input { width:auto; margin:3px 0 0; }
 
     .error-msg {
       font-size: 11px;
@@ -423,13 +421,15 @@
         <p class="eyebrow">Solar Battery Rebate</p>
         <h1>Request a <span>Call Back</span></h1>
         <div class="gold-rule"></div>
-        <p>Leave your details below and a member of the Goldsure team will call you to discuss battery options, your existing solar setup and any support that may apply to an eligible installation.</p>
+        <p id="callbackIntro">Choose a convenient time and request a call from our battery team. We can confirm the details during an in-home assessment.</p>
       </div>
 
       <div class="form-card">
-        <p class="form-title">Your Contact Details</p>
+        <p class="form-title">Let’s talk about your home battery</p>
+        <p id="callbackStatus" role="status" style="font-size:13px;line-height:1.7;margin-bottom:20px;">Loading your callback options…</p>
 
         <form id="callbackForm" novalidate>
+          <fieldset id="contactFields" hidden disabled style="border:0;padding:0;margin:0;">
 
           <div class="field">
             <label for="fullName">Full Name</label>
@@ -449,33 +449,7 @@
             <p class="error-msg" id="emailError">Please enter a valid email address.</p>
           </div>
 
-          <div class="field">
-            <label for="addressInput">Property Address <span class="optional">optional</span></label>
-            <input type="text" id="addressInput" name="addressInput" placeholder="Start typing your address…" autocomplete="off" />
-            <p class="error-msg" id="addressError">Please select an address from the suggestions.</p>
-          </div>
-
-          <!-- Hidden field stores the confirmed Places address -->
-          <input type="hidden" id="address" name="address" value="" />
-
-          <div class="field">
-            <label for="hasSolar">Do you already have solar?</label>
-            <select id="hasSolar" name="hasSolar">
-              <option value="">Please select</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-              <option value="Not sure">Not sure</option>
-            </select>
-          </div>
-
-          <div class="solar-details" id="solarDetails">
-            <p style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;">Optional solar details</p>
-            <div class="field"><label for="solarSize">Approximate solar system size</label><select id="solarSize"><option value="">I don't know</option><option>Under 5 kW</option><option>5–6.6 kW</option><option>6.6–10 kW</option><option>Over 10 kW</option></select></div>
-            <div class="field"><label for="inverterBrand">Inverter brand or model <span class="optional">optional</span></label><input id="inverterBrand" type="text" maxlength="120" placeholder="e.g. Fronius, Sungrow, or I don't know"></div>
-            <div class="field"><label for="batteryInterest">What are you most interested in?</label><select id="batteryInterest"><option value="">I am not sure yet</option><option>Lower electricity bills</option><option>Using solar at night</option><option>Backup power</option><option>Advice on the best option</option></select></div>
-            <label class="check-label"><input type="checkbox" id="sendPhotos"> <span>I can send optional photos of my inverter label, inverter, switchboard or electricity bill after I submit this form.</span></label>
-            <p style="font-size:11px;line-height:1.6;color:var(--muted);margin:9px 0 0;">Everything is optional. We can confirm the details during an in-home assessment.</p>
-          </div>
+          </fieldset>
 
           <div class="field">
             <label for="preferredCallbackTime">Preferred callback time <span class="optional">optional</span></label>
@@ -487,7 +461,7 @@
             </select>
           </div>
 
-          <button type="submit" class="submit-btn" id="submitBtn">Request a Call Back</button>
+          <button type="submit" class="submit-btn" id="submitBtn" disabled>Yes, request a call back</button>
 
           <div class="form-error" id="formError">
             Something went wrong. Please try again or call us on <strong>03 7050 2846</strong>.
@@ -516,155 +490,83 @@
   </footer>
 
   <script>
-    // ── 1. Define callback FIRST so it exists when Maps script fires it ───────
-    window.initAutocomplete = function () {
-      const input  = document.getElementById('addressInput');
-      const hidden = document.getElementById('address');
+    const params = new URLSearchParams(window.location.search);
+    const recipientToken = params.get('recipient') || '';
+    const form = document.getElementById('callbackForm');
+    const btn = document.getElementById('submitBtn');
+    const status = document.getElementById('callbackStatus');
+    const formError = document.getElementById('formError');
+    let ready = false;
 
-      const autocomplete = new google.maps.places.Autocomplete(input, {
-        componentRestrictions: { country: 'au' },
-        fields: ['formatted_address'],
-        types: ['address']
-      });
-
-      autocomplete.addListener('place_changed', function () {
-        const place = autocomplete.getPlace();
-        if (place && place.formatted_address) {
-          hidden.value = place.formatted_address;
-          input.classList.remove('error');
-          document.getElementById('addressError').classList.remove('visible');
-        } else {
-          hidden.value = '';
-        }
-      });
-
-      input.addEventListener('input', function () {
-        if (!input.value.trim()) hidden.value = '';
-      });
-    };
-
-    // ── 2. NOW fetch the key and inject the Maps script ───────────────────────
-    fetch('/api/smoke-alarms/google-key')
-      .then(r => r.json())
-      .then(data => {
-        const script = document.createElement('script');
-        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + data.key + '&libraries=places&callback=initAutocomplete';
-        script.async = true;
-        document.head.appendChild(script);
-      })
-      .catch(err => console.warn('Could not load Google Maps:', err));
-
-    // ── 3. Form validation & submission ──────────────────────────────────────
-    document.getElementById('callbackForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const fullName   = document.getElementById('fullName');
-      const phone      = document.getElementById('phone');
-      const email      = document.getElementById('email');
-      const addressInp = document.getElementById('addressInput');
-      const addressHid = document.getElementById('address');
-      const hasSolar   = document.getElementById('hasSolar');
-      const solarSize = document.getElementById('solarSize');
-      const inverterBrand = document.getElementById('inverterBrand');
-      const batteryInterest = document.getElementById('batteryInterest');
-      const sendPhotos = document.getElementById('sendPhotos');
-      const preferredCallbackTime = document.getElementById('preferredCallbackTime');
-      const btn        = document.getElementById('submitBtn');
-      const formErr    = document.getElementById('formError');
-
-      clearError('fullName');
-      clearError('phone');
-      clearError('email');
-      clearError('addressInput');
-      formErr.classList.remove('visible');
-
-      let valid = true;
-
-      if (!fullName.value.trim()) {
-        showError('fullName'); valid = false;
-      }
-
-      const phoneDigits = phone.value.replace(/\D/g, '');
-      if (!phone.value.trim() || phoneDigits.length < 8) {
-        showError('phone'); valid = false;
-      }
-
-      if (email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
-        showError('email'); valid = false;
-      }
-
-      if (addressInp.value.trim() && !addressHid.value) {
-        showError('addressInput');
-        document.getElementById('addressError').textContent = 'Please select an address from the suggestions.';
-        valid = false;
-      }
-
-      if (!valid) return;
-
-      btn.disabled = true;
-      btn.textContent = 'Sending…';
-
-      const payload = {
-        fullName: fullName.value.trim(),
-        phone:    phone.value.trim(),
-        email:    email.value.trim(),
-        address:  addressHid.value || addressInp.value.trim() || '',
-        hasSolar: hasSolar.value,
-        solarSize: solarSize.value,
-        inverterBrand: inverterBrand.value.trim(),
-        batteryInterest: batteryInterest.value,
-        preferredCallbackTime: preferredCallbackTime.value,
-        campaignSource: new URLSearchParams(window.location.search).get('source') || 'Goldsure Solar Battery form',
-        campaignRecipientToken: new URLSearchParams(window.location.search).get('recipient') || '',
-      };
-
-      try {
-        const res = await fetch('/api/battery/request-callback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          if (hasSolar.value === 'Yes' && sendPhotos.checked) {
-            const photos = await fetch('/api/zoho/create-photo-request?product=battery', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: fullName.value.trim(), phone: phone.value.trim() })
-            });
-            const photoData = await photos.json();
-            if (photos.ok && photoData.uploadPageUrl) {
-              window.location.href = photoData.uploadPageUrl;
-              return;
-            }
-          }
-          window.location.href = '/Battery/thank-you.html';
-        } else {
-          throw new Error('Server error: ' + res.status);
-        }
-      } catch (err) {
-        console.error(err);
-        formErr.classList.add('visible');
+    async function initialise() {
+      if (!recipientToken) {
+        const fields = document.getElementById('contactFields');
+        fields.hidden = false;
+        fields.disabled = false;
+        status.textContent = 'Leave your name and phone number so our team can reach you.';
+        ready = true;
         btn.disabled = false;
-        btn.textContent = 'Request a Call Back';
+        return;
+      }
+      try {
+        const response = await fetch('/api/battery/request-callback?action=battery-callback-context&t=' + encodeURIComponent(recipientToken), { cache: 'no-store', referrerPolicy: 'no-referrer' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load your callback link. Please try again.');
+        status.textContent = 'Hi ' + data.firstName + ', we already have your details. Just choose a preferred time below, or leave it as no preference.';
+        ready = true;
+        btn.disabled = false;
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (!ready || btn.disabled) return;
+      formError.classList.remove('visible');
+      const payload = {
+        preferredCallbackTime: document.getElementById('preferredCallbackTime').value,
+      };
+      if (recipientToken) {
+        payload.action = 'battery-callback-request';
+        payload.campaignRecipientToken = recipientToken;
+      } else {
+        let valid = true;
+        for (const id of ['fullName', 'phone', 'email']) {
+          document.getElementById(id).classList.remove('error');
+          document.getElementById(id + 'Error').classList.remove('visible');
+          payload[id] = document.getElementById(id).value.trim();
+        }
+        const invalid = [];
+        if (!payload.fullName) invalid.push('fullName');
+        if (payload.phone.replace(/\D/g, '').length < 8) invalid.push('phone');
+        if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) invalid.push('email');
+        for (const id of invalid) {
+          document.getElementById(id).classList.add('error');
+          document.getElementById(id + 'Error').classList.add('visible');
+          valid = false;
+        }
+        if (!valid) return;
+        payload.campaignSource = 'Goldsure Solar Battery form';
+      }
+      btn.disabled = true;
+      btn.textContent = 'Requesting your call…';
+      try {
+        const response = await fetch('/api/battery/request-callback', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload), referrerPolicy: 'no-referrer',
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Unable to submit. Please try again or call 03 7050 2846.');
+        window.location.href = '/Battery/thank-you.html';
+      } catch (error) {
+        formError.textContent = error.message;
+        formError.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Yes, request a call back';
       }
     });
-
-    document.getElementById('hasSolar').addEventListener('change', function () {
-      document.getElementById('solarDetails').classList.toggle('visible', this.value === 'Yes');
-    });
-
-    function showError(fieldId) {
-      document.getElementById(fieldId).classList.add('error');
-      const errEl = document.getElementById(fieldId + 'Error');
-      if (errEl) errEl.classList.add('visible');
-    }
-
-    function clearError(fieldId) {
-      document.getElementById(fieldId).classList.remove('error');
-      const errEl = document.getElementById(fieldId + 'Error');
-      if (errEl) errEl.classList.remove('visible');
-    }
+    initialise();
   </script>
-
 </body>
 </html>

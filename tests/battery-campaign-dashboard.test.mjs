@@ -25,15 +25,64 @@ test('engagement remains visible after unsubscribe and unknown send outcomes sta
 const response = data => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
 async function callApi(fetchImpl, body, query = {}) {
   const originalFetch = global.fetch;
-  const names = ['DASHBOARD_PASSWORD', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN'];
+  const names = ['DASHBOARD_PASSWORD', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN', 'GHL_API_KEY', 'GHL_LOCATION_ID', 'BATTERY_PIPELINE_ID'];
   const previous = Object.fromEntries(names.map(key => [key, process.env[key]]));
   Object.assign(process.env, { DASHBOARD_PASSWORD: 'fixture-password', SUPABASE_URL: 'https://database.example', SUPABASE_SERVICE_ROLE_KEY: 'fixture-key', HOSTINGER_MAILBOX_RESOURCE_ID: 'fixture-mailbox', HOSTINGER_MAIL_API_TOKEN: 'fixture-token' });
+  Object.assign(process.env, { GHL_API_KEY: 'fixture-ghl', GHL_LOCATION_ID: 'fixture-location', BATTERY_PIPELINE_ID: '' });
   global.fetch = fetchImpl;
   const res = { statusCode: 200, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(data) { this.data = data; return this; } };
   try { await handler({ method: body ? 'POST' : 'GET', body, query, headers: {} }, res); return res; }
   finally { global.fetch = originalFetch; for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
 }
 const campaign = { id: 'campaign-1', name: 'Fixture campaign', status: 'ready' };
+const callbackToken = '12345678-1234-4234-8234-123456789abc';
+test('callback context exposes only the first name and never sends or writes', async () => {
+  const result = await callApi(async (input, options) => {
+    assert.equal(options.method, undefined);
+    assert.equal(new URL(input).searchParams.get('select'), 'id,first_name');
+    return response([{ id: 'r1', first_name: 'Pat' }]);
+  }, null, { action: 'battery-callback-context', t: callbackToken });
+  assert.deepEqual(result.data, { firstName: 'Pat' });
+  assert.equal(result.headers['Cache-Control'], 'no-store');
+});
+test('invalid callback token cannot send or create a lead', async () => {
+  const result = await callApi(() => { throw new Error('Must not contact services'); }, { action: 'battery-callback-request', campaignRecipientToken: 'bad' });
+  assert.equal(result.statusCode, 404);
+});
+test('previously requested callback does not send another notification', async () => {
+  let reads = 0;
+  const result = await callApi(async (input, options) => {
+    assert.equal(options.method, undefined); reads++;
+    return response([{ id: 'r1', callback_requested_at: '2026-10-12' }]);
+  }, { action: 'battery-callback-request', campaignRecipientToken: callbackToken });
+  assert.equal(reads, 1); assert.equal(result.data.alreadyRequested, true);
+});
+for (const phone of ['0400000000', '']) test(`callback uses saved identity, staff time and Battery Customers opportunity (${phone ? 'phone' : 'email only'})`, async () => {
+  let mail, note, opportunity, tracked = false;
+  const result = await callApi(async (input, options = {}) => {
+    const url = new URL(input);
+    const data = options.body ? JSON.parse(options.body) : null;
+    if (url.hostname === 'api.mail.hostinger.com') { mail = data; return response({}); }
+    if (url.hostname === 'database.example') {
+      if (options.method === 'PATCH') { tracked = !!data.callback_requested_at; return response([]); }
+      if (options.method === 'POST') return response([]);
+      return response([{ id: 'r1', first_name: 'Pat', last_name: 'Citizen', email: 'pat@example.com', phone, job_id: 'J123' }]);
+    }
+    if (url.pathname === '/contacts/') return response({ contacts: [{ id: 'contact1', phone, email: 'pat@example.com' }] });
+    if (url.pathname === '/contacts/contact1/notes') { note = data.body; return response({}); }
+    if (url.pathname === '/opportunities/pipelines') return response({ pipelines: [{ id: 'battery', name: 'Battery Customers', stages: [{ id: 'new', name: 'New Lead' }] }] });
+    if (url.pathname === '/opportunities/search') return response({ opportunities: [] });
+    if (url.pathname === '/opportunities/') { opportunity = data; return response({ opportunity: { id: 'opp1' } }); }
+    throw new Error('Unexpected request ' + url);
+  }, { action: 'battery-callback-request', campaignRecipientToken: callbackToken, preferredCallbackTime: 'Afternoon', fullName: 'Forged identity', email: 'forged@example.com', phone: '9999999999' });
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(mail.to, ['vignesh@goldsure.com.au']);
+  assert.match(mail.html, /Afternoon/); assert.match(mail.html, /J123/);
+  assert.match(mail.html, /Pat Citizen/); assert.doesNotMatch(mail.html, /Forged|forged@example/);
+  assert.match(note, /Preferred callback time: Afternoon/);
+  assert.equal(opportunity.pipelineId, 'battery'); assert.equal(opportunity.pipelineStageId, 'new');
+  assert.equal(opportunity.contactId, 'contact1'); assert.equal(tracked, true);
+});
 test('live-schema constraint failure is identified before contacting the mail provider', async () => {
   let providerCalls = 0;
   const result = await callApi(async (input, options = {}) => {

@@ -13,7 +13,6 @@ import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
-import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
 import { escapeHtml } from '../../lib/battery-campaign-email.js';
 import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
 import { BATTERY_CAMPAIGN_SLUG, batteryTrackingUrls, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
@@ -119,11 +118,11 @@ export default async function handler(req, res) {
     }
   }
 
-  async function campaignRecipient(token) {
+  async function campaignRecipient(token, fields = 'id,delivery_status') {
     if (!isTrackingToken(token)) return null;
     const result = await fetch(
-      campaignRest(`email_campaign_recipients?tracking_token=eq.${encodeURIComponent(token)}&select=id,delivery_status`),
-      { headers: campaignHeaders }
+      campaignRest(`email_campaign_recipients?tracking_token=eq.${encodeURIComponent(token)}&select=${fields}`),
+      { headers: campaignHeaders, signal: AbortSignal.timeout(10000) }
     );
     if (!result.ok) return null;
     const rows = await result.json();
@@ -298,6 +297,17 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const campaignAction = String(req.query.action || '');
     const trackingToken = String(req.query.t || '');
+    if (campaignAction === 'battery-callback-context') {
+      res.setHeader('Cache-Control', 'no-store');
+      try {
+        const recipient = await campaignRecipient(trackingToken, 'id,first_name');
+        if (!recipient) return res.status(404).json({ error: 'This callback link is unavailable. Please call 03 7050 2846.' });
+        // Never expose the stored email, phone or full customer record publicly.
+        return res.status(200).json({ firstName: recipient.first_name || 'there' });
+      } catch {
+        return res.status(503).json({ error: 'Unable to load your callback link. Please try again.' });
+      }
+    }
     if (campaignAction === 'battery-email-open') {
       await recordCampaignEvent(trackingToken, 'open').catch(() => false);
       res.setHeader('Content-Type', 'image/gif');
@@ -3705,10 +3715,29 @@ ${notesHtml}
   }
 
   // ── POST legacy: battery callback form ─────────────────────────────────────
-  // Detected by fullName field – same contract as before, no changes to the form.
-  if (body.fullName !== undefined) {
-    const { fullName, phone, email, address, campaignSource, campaignRecipientToken, preferredCallbackTime, hasSolar, solarSize, inverterBrand, batteryInterest } = body;
-    if (!fullName || !phone) {
+  if (body.fullName !== undefined || body.action === 'battery-callback-request') {
+    let callback = body;
+    if (body.action === 'battery-callback-request' || body.campaignRecipientToken) {
+      res.setHeader('Cache-Control', 'no-store');
+      try {
+        const recipient = await campaignRecipient(String(body.campaignRecipientToken || ''), 'id,first_name,last_name,email,phone,job_id,callback_requested_at');
+        if (!recipient) return res.status(404).json({ error: 'This callback link is unavailable. Please call 03 7050 2846.' });
+        if (recipient.callback_requested_at) return res.status(200).json({ success: true, alreadyRequested: true });
+        if (!['', 'Morning', 'Afternoon', 'Evening'].includes(body.preferredCallbackTime || '')) return res.status(400).json({ error: 'Please choose a valid callback time.' });
+        // Resolve identity on the server. Never trust submitted contact details for a campaign link.
+        callback = {
+          fullName: [recipient.first_name, recipient.last_name].filter(Boolean).join(' '),
+          phone: recipient.phone || '', email: recipient.email || '', address: '',
+          jobId: recipient.job_id || '', campaignSource: 'Existing customer email campaign',
+          campaignRecipientToken: body.campaignRecipientToken,
+          preferredCallbackTime: body.preferredCallbackTime || '',
+        };
+      } catch {
+        return res.status(503).json({ error: 'Unable to load your callback details. Please try again.' });
+      }
+    }
+    const { fullName, phone, email, address, campaignSource, campaignRecipientToken, preferredCallbackTime, hasSolar, solarSize, inverterBrand, batteryInterest, jobId } = callback;
+    if (!fullName || (!phone && !(campaignRecipientToken && email))) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -3720,11 +3749,11 @@ ${notesHtml}
 
     const safeFullName = escapeHtml(fullName);
     const safeFirstName = escapeHtml(String(fullName).trim().split(/\s+/)[0] || 'Customer');
-    const safePhone = escapeHtml(phone);
+    const safePhone = escapeHtml(phone || 'Not in campaign list. Check existing customer record.');
     const safeEmail = escapeHtml(email || '');
     const safeAddress = escapeHtml(address || '');
     const safeSource = escapeHtml(campaignSource || 'Goldsure Solar Battery form');
-    const safeTime = escapeHtml(preferredCallbackTime || 'Not provided');
+    const safeTime = escapeHtml(preferredCallbackTime || 'No preference');
     const safeHasSolar = escapeHtml(hasSolar || 'Not provided');
     const htmlMessage = `
 <!DOCTYPE html>
@@ -3751,13 +3780,15 @@ ${notesHtml}
         </td></tr>
         <tr><td style="background-color:#ffffff;padding:0 32px 8px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:8px;overflow:hidden;">
+            <tr><td style="padding:14px 18px;background-color:#f5f6f8;font-size:12px;">Preferred callback time</td><td style="padding:14px 18px;font-size:14px;font-weight:bold;">${safeTime}</td></tr>
+            ${jobId ? `<tr><td style="padding:14px 18px;background-color:#f5f6f8;font-size:12px;">Existing job</td><td style="padding:14px 18px;font-size:14px;">${escapeHtml(jobId)}</td></tr>` : ''}
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;width:36%;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Full Name</p></td>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">${safeFullName}</p></td>
             </tr>
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Phone</p></td>
-              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;"><a href="tel:${safePhone}" style="color:#141c2e;text-decoration:none;">${safePhone}</a></p></td>
+              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">${phone ? `<a href="tel:${safePhone}" style="color:#141c2e;text-decoration:none;">${safePhone}</a>` : safePhone}</p></td>
             </tr>
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Email</p></td>
@@ -3770,11 +3801,11 @@ ${notesHtml}
           </table>
         </td></tr>
         <tr><td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
-          <table cellpadding="0" cellspacing="0"><tr>
+          ${phone ? `<table cellpadding="0" cellspacing="0"><tr>
             <td style="background-color:#141c2e;border-radius:8px;">
               <a href="tel:${safePhone}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;">&#128222;&nbsp;Call ${safeFirstName} Now</a>
             </td>
-          </tr></table>
+          </tr></table>` : '<p style="font-size:13px;color:#6b7899;">Please use the existing customer record to find their callback number.</p>'}
         </td></tr>
         <tr><td style="padding:14px 32px;background-color:#f5f6f8;border:1px solid #e3e7ef;border-top:none;"><p style="margin:0;font-size:11px;color:#aaaaaa;">Submitted: ${submittedAt}</p></td></tr>
         <tr><td style="padding:20px 32px;text-align:center;"><p style="margin:0;font-size:11px;color:#aaaaaa;">Goldsure Pty Ltd &nbsp;&middot;&nbsp; info@goldsure.com.au &nbsp;&middot;&nbsp; 03 7050 2846</p></td></tr>
@@ -3802,7 +3833,12 @@ ${notesHtml}
       const [firstName, ...lastNameParts] = String(fullName).trim().split(/\s+/);
       const contact = await findOrCreateGhlContact({ phone, email, firstName, lastName: lastNameParts.join(' '), address });
       if (contact?.contactId) {
-        await postGhlNoteByPhone(phone, `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSolar size: ${solarSize || 'Not provided'}\nInverter: ${inverterBrand || 'Not provided'}\nInterest: ${batteryInterest || 'Not provided'}\nSubmitted: ${submittedAt}`);
+        const note = `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'No preference'}\nExisting job: ${jobId || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSolar size: ${solarSize || 'Not provided'}\nInverter: ${inverterBrand || 'Not provided'}\nInterest: ${batteryInterest || 'Not provided'}\nSubmitted: ${submittedAt}`;
+        const noteResult = await fetch(`https://services.leadconnectorhq.com/contacts/${encodeURIComponent(contact.contactId)}/notes`, {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.GHL_API_KEY}`, Version: '2021-07-28', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: note }), signal: AbortSignal.timeout(10000),
+        }).catch(() => null);
+        if (!noteResult?.ok) console.error('[Battery callback] Could not save callback note. Details remain in staff email.');
         // Prefer an explicitly configured pipeline ID, but always fall back to
         // the live GHL pipeline name. A missing Vercel setting must never turn
         // a genuine customer callback into a contact/note with no opportunity.
