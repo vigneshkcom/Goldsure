@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/battery/request-callback.js';
 import { parseAudience, matchesRecipient, delivery } from '../Battery/campaign-model.js';
@@ -23,7 +23,8 @@ test('engagement remains visible after unsubscribe and unknown send outcomes sta
 });
 
 const response = data => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
-async function callApi(fetchImpl, body, query = {}) {
+async function callApi(fetchImpl, body, query = {}, now = '2026-10-12T01:00:00Z') {
+  mock.timers.enable({ apis: ['Date'], now: new Date(now) });
   const originalFetch = global.fetch;
   const names = ['DASHBOARD_PASSWORD', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN', 'GHL_API_KEY', 'GHL_LOCATION_ID', 'BATTERY_PIPELINE_ID'];
   const previous = Object.fromEntries(names.map(key => [key, process.env[key]]));
@@ -32,9 +33,38 @@ async function callApi(fetchImpl, body, query = {}) {
   global.fetch = fetchImpl;
   const res = { statusCode: 200, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(data) { this.data = data; return this; } };
   try { await handler({ method: body ? 'POST' : 'GET', body, query, headers: {} }, res); return res; }
-  finally { global.fetch = originalFetch; for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
+  finally { mock.timers.reset(); global.fetch = originalFetch; for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
 }
 const campaign = { id: 'campaign-1', name: 'Fixture campaign', status: 'ready' };
+test('after 6 pm the server does not claim a recipient or contact Hostinger', async () => {
+  let calls = 0;
+  const result = await callApi(async input => {
+    assert.match(input, /email_campaigns\?/); calls++;
+    return response([{ ...campaign, status: 'sending' }]);
+  }, { action: 'battery-campaign-send-next', password: 'fixture-password' }, {}, '2026-10-12T07:00:00Z');
+  assert.equal(calls, 2); assert.equal(result.data.sent, false);
+  assert.equal(result.data.waitingForSchedule, true);
+  assert.equal(result.data.nextSendAt, '2026-10-12T21:00:00.000Z');
+});
+test('a claim that crosses 6 pm is released without sending', async () => {
+  const recipient = { id: 'r1' }; let released = false;
+  const result = await callApi(async (input, options = {}) => {
+    const url = new URL(input);
+    assert.notEqual(url.hostname, 'api.mail.hostinger.com');
+    if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
+    if (options.method === 'PATCH') {
+      if (JSON.parse(options.body).delivery_status === 'sending') {
+        mock.timers.setTime(new Date('2026-10-12T07:00:00Z').getTime());
+        return response([recipient]);
+      }
+      assert.equal(JSON.parse(options.body).delivery_status, 'pending');
+      assert.equal(url.searchParams.get('delivery_status'), 'eq.sending');
+      released = true; return response([]);
+    }
+    return response([recipient]);
+  }, { action: 'battery-campaign-send-next', password: 'fixture-password' }, {}, '2026-10-12T06:59:59Z');
+  assert.equal(released, true); assert.equal(result.data.waitingForSchedule, true);
+});
 const callbackToken = '12345678-1234-4234-8234-123456789abc';
 test('callback context exposes only the first name and never sends or writes', async () => {
   const result = await callApi(async (input, options) => {

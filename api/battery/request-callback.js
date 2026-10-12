@@ -15,6 +15,7 @@ import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { escapeHtml } from '../../lib/battery-campaign-email.js';
 import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
+import { batterySendingWindow } from '../../lib/battery-campaign-schedule.js';
 import { BATTERY_CAMPAIGN_SLUG, batteryTrackingUrls, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
@@ -165,6 +166,8 @@ export default async function handler(req, res) {
     const campaign = await batteryCampaign();
     if (!campaign) throw new Error('campaign-not-configured');
     if (campaign.status !== 'sending') return { state: campaign.status, sent: false };
+    const window = batterySendingWindow();
+    if (!window.allowed) return { state: 'sending', sent: false, waitingForSchedule: true, nextSendAt: window.nextSendAt };
     const candidates = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.pending&unsubscribed_at=is.null&sent_at=is.null&select=id,tracking_token,email,first_name&order=created_at.asc&limit=1`), { headers: campaignHeaders });
     if (!candidates.ok) throw new Error('recipient-query-failed');
     const recipient = (await candidates.json())[0];
@@ -192,6 +195,17 @@ export default async function handler(req, res) {
     }
     const claimed = await claim.json();
     if (!claimed.length) return { state: 'sending', sent: false };
+    // A database request can cross 6 pm. Release only our unsent claim before
+    // contacting the mail provider, preserving any concurrent unsubscribe.
+    const beforeSend = batterySendingWindow();
+    if (!beforeSend.allowed) {
+      const released = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.sending&sent_at=is.null`), {
+        method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' },
+        body: JSON.stringify({ delivery_status: 'pending', updated_at: new Date().toISOString() }),
+      });
+      if (!released.ok) throw new Error('Could not release the unsent customer after the sending-hours cutoff.');
+      return { state: 'sending', sent: false, waitingForSchedule: true, nextSendAt: beforeSend.nextSendAt };
+    }
     let accepted = false;
     try {
       const urls = batteryTrackingUrls(recipient.tracking_token);
@@ -330,6 +344,7 @@ export default async function handler(req, res) {
         const count = predicate => recipients.filter(predicate).length;
         return res.status(200).json({
           campaign: { name: campaign.name, status: campaign.status },
+          sendingWindow: batterySendingWindow(),
           total: recipients.length,
           sent: count(r => !!r.sent_at || r.delivery_status === 'sent'),
           pending: count(r => r.delivery_status === 'pending' && !r.unsubscribed_at && !r.sent_at),

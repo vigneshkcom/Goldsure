@@ -31,12 +31,15 @@ async function loadStats() {
   const response = await fetch(`${endpoint}?action=battery-campaign-stats`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
   const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Campaign summary unavailable.');
   campaign = data;
-  const status = data.campaign.status, label = campaignNames[status] || status;
+  const status = data.campaign.status;
+  const waiting = status === 'sending' && data.sendingWindow?.allowed === false;
+  const nextStart = data.sendingWindow?.nextSendAt ? localDate(data.sendingWindow.nextSendAt) : '8:00 am';
+  const label = waiting ? `Outside sending hours · resumes ${nextStart}` : campaignNames[status] || status;
   $('campaign-status').textContent = label;
   $('campaign-status').className = `badge ${status === 'sending' ? 'blue' : status === 'completed' ? 'green' : 'neutral'}`;
   $('stats-note').textContent = data.campaign.name;
   $('audience-count').textContent = `${data.total} customer${data.total === 1 ? '' : 's'}`;
-  $('send-state').textContent = status === 'sending' && !sending ? 'Awaiting resume in this browser' : label;
+  $('send-state').textContent = status === 'sending' && !sending ? (waiting ? `Next window ${nextStart} · press Resume to enable` : 'Awaiting resume in this browser') : label;
   const fields = [['Customers', data.total], ['Sent', data.sent], ['Opened / viewed', data.opened], ['Clicked', data.clicked], ['Failed / bounced', data.failed], ['Unsubscribed', data.unsubscribed], ['Callbacks', data.callbacks]];
   $('stats').replaceChildren(...fields.map(([title, count]) => {
     const card = textElement('div', '', 'stat'); card.append(textElement('strong', count ?? 0), textElement('span', title)); return card;
@@ -108,6 +111,11 @@ async function sendNext(run) {
     if (run !== generation) return;
     await refresh();
     if (result.state !== 'sending') { stopLoop(); message(result.state === 'completed' ? 'Campaign finished. Review each customer’s result below.' : 'Sending paused. Review the customer table below.'); await refresh(); return; }
+    if (result.waitingForSchedule) {
+      message(`Sending is on hold until ${localDate(result.nextSendAt)} Melbourne time. Keep this page open and your computer awake to resume automatically. No email was sent.`);
+      sendTimer = setTimeout(() => sendNext(run), 60000);
+      return;
+    }
     message(result.failed ? 'The last email failed. Its error is shown in the customer table. Next attempt in one minute.' : result.sent ? 'Email accepted by Hostinger. The customer table has updated. Next email in one minute.' : 'Waiting for the next available customer.');
     sendTimer = setTimeout(() => sendNext(run), 60000);
   } catch (error) { stopLoop(); message(`Sending stopped: ${error.message}`, true); await refresh(); }
