@@ -3588,14 +3588,19 @@ ${notesHtml}
       const contact = await findOrCreateGhlContact({ phone, email, firstName, lastName: lastNameParts.join(' '), address });
       if (contact?.contactId) {
         await postGhlNoteByPhone(phone, `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSolar size: ${solarSize || 'Not provided'}\nInverter: ${inverterBrand || 'Not provided'}\nInterest: ${batteryInterest || 'Not provided'}\nSubmitted: ${submittedAt}`);
-        if (process.env.BATTERY_PIPELINE_ID) {
-          await ensureOpportunityInStage({
-            contactId: contact.contactId,
-            opportunityName: `${fullName} - Battery callback`,
-            pipelineIdEnv: process.env.BATTERY_PIPELINE_ID,
-            stageNames: ['New Lead', 'New Enquiry', 'Follow-Up'],
-            source: 'Existing customer email campaign',
-          });
+        // Prefer an explicitly configured pipeline ID, but always fall back to
+        // the live GHL pipeline name. A missing Vercel setting must never turn
+        // a genuine customer callback into a contact/note with no opportunity.
+        const opportunity = await ensureOpportunityInStage({
+          contactId: contact.contactId,
+          opportunityName: `${fullName} - Battery callback`,
+          pipelineIdEnv: process.env.BATTERY_PIPELINE_ID || '',
+          nameHints: ['Battery Customers', 'battery customers', 'battery'],
+          stageNames: ['New Lead'],
+          source: 'Existing customer email campaign',
+        });
+        if (!opportunity) {
+          console.error('[Battery callback] Opportunity was not created or located in the Battery Customers pipeline.');
         }
       }
     } catch (error) {
