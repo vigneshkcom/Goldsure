@@ -3646,6 +3646,9 @@ ${notesHtml}
         });
         if (!reset.ok) throw new Error('retry-reset-failed');
         const rows = await reset.json();
+        if (rows.length) {
+          await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
+        }
         return res.status(200).json({ success: true, reset: rows.length });
       }
       if (body.action === 'battery-campaign-send-next') return res.status(200).json(await dispatchOneBatteryCampaignEmail());
