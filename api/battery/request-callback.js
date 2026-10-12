@@ -15,7 +15,8 @@ import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
 import { escapeHtml } from '../../lib/battery-campaign-email.js';
-import { BATTERY_CAMPAIGN_SLUG, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
+import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
+import { BATTERY_CAMPAIGN_SLUG, batteryTrackingUrls, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
     : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
@@ -134,6 +135,54 @@ export default async function handler(req, res) {
       body: JSON.stringify({ recipient_id: recipient.id, event_type: eventType }),
     }).catch(() => null);
     return true;
+  }
+
+  const campaignAdmin = () => {
+    const expected = String(process.env.DASHBOARD_PASSWORD || '').trim();
+    return Boolean(expected && String((req.body || {}).password || '') === expected);
+  };
+
+  async function batteryCampaign() {
+    const response = await fetch(campaignRest(`email_campaigns?slug=eq.${encodeURIComponent(BATTERY_CAMPAIGN_SLUG)}&select=id,name,status&limit=1`), { headers: campaignHeaders });
+    if (!response.ok) throw new Error('campaign-query-failed');
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows[0] || null : null;
+  }
+
+  async function dispatchOneBatteryCampaignEmail() {
+    const campaign = await batteryCampaign();
+    if (!campaign) throw new Error('campaign-not-configured');
+    if (campaign.status !== 'sending') return { state: campaign.status, sent: false };
+    const candidates = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.pending&select=id,tracking_token,email,first_name&order=created_at.asc&limit=1`), { headers: campaignHeaders });
+    if (!candidates.ok) throw new Error('recipient-query-failed');
+    const recipient = (await candidates.json())[0];
+    if (!recipient) {
+      await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'completed', updated_at: new Date().toISOString() }) });
+      return { state: 'completed', sent: false };
+    }
+    const claim = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.pending`), {
+      method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'sending', updated_at: new Date().toISOString() }),
+    });
+    const claimed = claim.ok ? await claim.json() : [];
+    if (!claimed.length) return { state: 'sending', sent: false };
+    const urls = batteryTrackingUrls(recipient.tracking_token);
+    try {
+      await sendHostingerMail({
+        displayName: 'Goldsure', to: [recipient.email],
+        subject: 'Home battery rebate changes 1 January 2027',
+        html: buildBatteryCampaignEmail({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl, unsubscribeUrl: urls.unsubscribeUrl, trackingPixelUrl: urls.pixelUrl }),
+        text: buildBatteryCampaignText({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl }),
+      });
+      const now = new Date().toISOString();
+      await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'sent', sent_at: now, updated_at: now }) });
+      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'sent' }) });
+      return { state: 'sending', sent: true };
+    } catch (error) {
+      const now = new Date().toISOString();
+      await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'failed', send_error: String(error.message || 'send-failed').slice(0, 500), updated_at: now }) });
+      await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'failed', detail: { message: String(error.message || 'send-failed').slice(0, 500) } }) }).catch(() => null);
+      return { state: 'sending', sent: false, failed: true };
+    }
   }
 
   // Title-case names that come back all-lower or all-upper from GHL ("karen parsons"
@@ -3540,6 +3589,54 @@ ${notesHtml}
   if (body.action === 'battery-email-unsubscribe') {
     const success = await recordCampaignEvent(String(body.trackingToken || ''), 'unsubscribe').catch(() => false);
     return res.status(success ? 200 : 404).json(success ? { success: true } : { error: 'This unsubscribe link is invalid or has expired.' });
+  }
+
+  // ── POST: staff-controlled battery campaign sender ────────────────────────
+  // These actions require the existing dashboard password. The public tracking
+  // page can never import personal data or trigger a customer email by itself.
+  if (String(body.action || '').startsWith('battery-campaign-')) {
+    if (!campaignAdmin()) return res.status(401).json({ error: 'Enter the portal password to manage this campaign.' });
+    try {
+      const campaign = await batteryCampaign();
+      if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
+      if (body.action === 'battery-campaign-import') {
+        const raw = Array.isArray(body.recipients) ? body.recipients : [];
+        if (!raw.length || raw.length > 500) return res.status(400).json({ error: 'Upload between 1 and 500 valid recipients.' });
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const deduped = new Map();
+        raw.forEach(row => {
+          const email = String(row?.email || '').trim().toLowerCase();
+          const firstName = String(row?.firstName || '').trim();
+          if (emailPattern.test(email) && firstName) deduped.set(email, {
+            campaign_id: campaign.id, email, first_name: firstName.slice(0, 120), last_name: String(row?.lastName || '').trim().slice(0, 120) || null,
+            phone: String(row?.phone || '').trim().slice(0, 50) || null, job_id: String(row?.jobId || '').trim().slice(0, 100) || null,
+            delivery_status: 'pending', updated_at: new Date().toISOString(),
+          });
+        });
+        const recipients = [...deduped.values()];
+        if (!recipients.length) return res.status(400).json({ error: 'No valid recipients found.' });
+        const saved = await fetch(campaignRest('email_campaign_recipients?on_conflict=campaign_id,email'), {
+          method: 'POST', headers: { ...campaignHeaders, Prefer: 'resolution=merge-duplicates,return=representation' }, body: JSON.stringify(recipients),
+        });
+        if (!saved.ok) throw new Error(`recipient-import-failed-${saved.status}`);
+        await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'ready', updated_at: new Date().toISOString() }) });
+        return res.status(200).json({ success: true, imported: recipients.length });
+      }
+      if (body.action === 'battery-campaign-start') {
+        const changed = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'sending', updated_at: new Date().toISOString() }) });
+        if (!changed.ok) throw new Error('campaign-start-failed');
+        return res.status(200).json({ success: true, status: 'sending' });
+      }
+      if (body.action === 'battery-campaign-pause') {
+        await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
+        return res.status(200).json({ success: true, status: 'paused' });
+      }
+      if (body.action === 'battery-campaign-send-next') return res.status(200).json(await dispatchOneBatteryCampaignEmail());
+      return res.status(400).json({ error: 'Unknown campaign action.' });
+    } catch (error) {
+      console.error('[Battery campaign] sender action failed:', error.message);
+      return res.status(500).json({ error: 'Campaign action failed. Please try again.' });
+    }
   }
 
   // ── POST legacy: battery callback form ─────────────────────────────────────
