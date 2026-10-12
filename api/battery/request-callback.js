@@ -13,6 +13,8 @@ import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
+import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
+import { buildBatteryCampaignEmail, buildBatteryCampaignText, escapeHtml } from '../../lib/battery-campaign-email.js';
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
     : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
@@ -3458,10 +3460,36 @@ ${notesHtml}
     return res.status(200).json({ success: true });
   }
 
+  // ── POST: send an internal-only personalised campaign test ─────────────────
+  // This deliberately never accepts a customer recipient. It lets staff check
+  // the real Hostinger rendering before a separate reviewed recipient queue is enabled.
+  if (body.action === 'battery-campaign-test') {
+    const suppliedKey = String(body.adminKey || '');
+    const configuredKey = String(process.env.BATTERY_CAMPAIGN_ADMIN_KEY || '');
+    if (!configuredKey || suppliedKey !== configuredKey) {
+      return res.status(403).json({ error: 'Campaign access is not configured or the access key is incorrect.' });
+    }
+    const firstName = String(body.firstName || 'Vignesh').trim().slice(0, 80);
+    const callbackUrl = 'https://portal.goldsure.com.au/Battery/request-callback.html?source=existing-customer-email';
+    try {
+      await sendHostingerMail({
+        displayName: 'Goldsure',
+        to: ['vignesh@goldsure.com.au'],
+        subject: `[TEST] Goldsure battery options for ${firstName}`,
+        html: buildBatteryCampaignEmail({ firstName, callbackUrl }),
+        text: buildBatteryCampaignText({ firstName, callbackUrl }),
+      });
+      return res.status(200).json({ success: true, sentTo: 'vignesh@goldsure.com.au' });
+    } catch (error) {
+      console.error('[Battery campaign] test email failed:', error.message);
+      return res.status(502).json({ error: 'The Hostinger test email could not be sent.' });
+    }
+  }
+
   // ── POST legacy: battery callback form ─────────────────────────────────────
   // Detected by fullName field – same contract as before, no changes to the form.
   if (body.fullName !== undefined) {
-    const { fullName, phone, email, address } = body;
+    const { fullName, phone, email, address, campaignSource, preferredCallbackTime, hasSolar } = body;
     if (!fullName || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -3472,6 +3500,14 @@ ${notesHtml}
       timeStyle: 'short',
     });
 
+    const safeFullName = escapeHtml(fullName);
+    const safeFirstName = escapeHtml(String(fullName).trim().split(/\s+/)[0] || 'Customer');
+    const safePhone = escapeHtml(phone);
+    const safeEmail = escapeHtml(email || '');
+    const safeAddress = escapeHtml(address || '');
+    const safeSource = escapeHtml(campaignSource || 'Goldsure Solar Battery form');
+    const safeTime = escapeHtml(preferredCallbackTime || 'Not provided');
+    const safeHasSolar = escapeHtml(hasSolar || 'Not provided');
     const htmlMessage = `
 <!DOCTYPE html>
 <html lang="en">
@@ -3492,33 +3528,33 @@ ${notesHtml}
         </td></tr>
         <tr><td style="background-color:#ffffff;padding:32px 32px 0;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
           <p style="margin:0 0 6px;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#b08d2e;">New Lead - Solar Battery</p>
-          <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#141c2e;line-height:1.3;">Call back request from ${fullName.split(' ')[0]}</h1>
-          <p style="margin:0 0 24px;font-size:13px;color:#6b7899;line-height:1.6;">Submitted via the Goldsure Solar Battery form. Please follow up as soon as possible.</p>
+          <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#141c2e;line-height:1.3;">Call back request from ${safeFirstName}</h1>
+          <p style="margin:0 0 24px;font-size:13px;color:#6b7899;line-height:1.6;">Submitted via ${safeSource}. Please follow up as soon as possible.</p>
         </td></tr>
         <tr><td style="background-color:#ffffff;padding:0 32px 8px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;">
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e7ef;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;width:36%;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Full Name</p></td>
-              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">${fullName}</p></td>
+              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;">${safeFullName}</p></td>
             </tr>
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Phone</p></td>
-              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;"><a href="tel:${phone}" style="color:#141c2e;text-decoration:none;">${phone}</a></p></td>
+              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;font-weight:700;color:#141c2e;"><a href="tel:${safePhone}" style="color:#141c2e;text-decoration:none;">${safePhone}</a></p></td>
             </tr>
             <tr>
               <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#f5f6f8;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Email</p></td>
-              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;color:#141c2e;">${email ? `<a href="mailto:${email}" style="color:#b08d2e;text-decoration:none;">${email}</a>` : '<span style="color:#aaaaaa;">Not provided</span>'}</p></td>
+              <td style="padding:14px 18px;border-bottom:1px solid #e3e7ef;background-color:#ffffff;"><p style="margin:0;font-size:14px;color:#141c2e;">${email ? `<a href="mailto:${safeEmail}" style="color:#b08d2e;text-decoration:none;">${safeEmail}</a>` : '<span style="color:#aaaaaa;">Not provided</span>'}</p></td>
             </tr>
             <tr>
               <td style="padding:14px 18px;background-color:#f5f6f8;"><p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b7899;">Property Address</p></td>
-              <td style="padding:14px 18px;background-color:#ffffff;"><p style="margin:0;font-size:14px;color:#141c2e;">${address || '<span style="color:#aaaaaa;">Not provided</span>'}</p></td>
+              <td style="padding:14px 18px;background-color:#ffffff;"><p style="margin:0;font-size:14px;color:#141c2e;">${address ? safeAddress : '<span style="color:#aaaaaa;">Not provided</span>'}</p></td>
             </tr>
           </table>
         </td></tr>
         <tr><td style="background-color:#ffffff;padding:24px 32px 32px;border-left:1px solid #e3e7ef;border-right:1px solid #e3e7ef;border-bottom:1px solid #e3e7ef;">
           <table cellpadding="0" cellspacing="0"><tr>
             <td style="background-color:#141c2e;border-radius:8px;">
-              <a href="tel:${phone}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;">&#128222;&nbsp;Call ${fullName.split(' ')[0]} Now</a>
+              <a href="tel:${safePhone}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;">&#128222;&nbsp;Call ${safeFirstName} Now</a>
             </td>
           </tr></table>
         </td></tr>
@@ -3533,14 +3569,34 @@ ${notesHtml}
     try {
       await sendHostingerMail({
         displayName: 'Goldsure Leads',
-        to: ['info@goldsure.com.au'],
-        subject: `New Call Back Request - ${fullName}`,
+        to: ['vignesh@goldsure.com.au'],
+        subject: `Battery callback request - ${fullName}`,
         html: htmlMessage,
-        text: `New Callback: ${fullName} | ${phone} | ${email || 'no email'} | ${address || 'no address'} | ${submittedAt}`,
+        text: `Battery callback: ${fullName} | ${phone} | ${email || 'no email'} | ${address || 'no address'} | Solar: ${hasSolar || 'not provided'} | Preferred time: ${preferredCallbackTime || 'not provided'} | Source: ${campaignSource || 'Goldsure Solar Battery form'} | ${submittedAt}`,
       });
     } catch (error) {
       console.error('[Hostinger] callback email failed:', error.message);
       return res.status(500).json({ error: 'Failed to send email' });
+    }
+
+    // Best-effort GHL handoff. The enquiry is never discarded if GHL is down.
+    try {
+      const [firstName, ...lastNameParts] = String(fullName).trim().split(/\s+/);
+      const contact = await findOrCreateGhlContact({ phone, email, firstName, lastName: lastNameParts.join(' '), address });
+      if (contact?.contactId) {
+        await postGhlNoteByPhone(phone, `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSubmitted: ${submittedAt}`);
+        if (process.env.BATTERY_PIPELINE_ID) {
+          await ensureOpportunityInStage({
+            contactId: contact.contactId,
+            opportunityName: `${fullName} - Battery callback`,
+            pipelineIdEnv: process.env.BATTERY_PIPELINE_ID,
+            stageNames: ['New Lead', 'New Enquiry', 'Follow-Up'],
+            source: 'Existing customer email campaign',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Battery callback] GHL handoff failed:', error.message);
     }
 
     return res.status(200).json({ success: true });

@@ -198,7 +198,7 @@
       margin-left: 5px;
     }
 
-    input {
+    input, select {
       width: 100%;
       background: var(--surface2);
       border: 1.5px solid var(--border);
@@ -217,7 +217,7 @@
       color: #bec5d4;
     }
 
-    input:focus {
+    input:focus, select:focus {
       border-color: var(--gold);
       background: var(--surface);
     }
@@ -408,7 +408,7 @@
   </header>
 
   <div class="urgency-bar">
-    <span>Rebates reduce after April 30 &mdash; Act now to lock in the full amount</span>
+    <span>Battery support changes 1 January 2027 &mdash; request your call back today</span>
   </div>
 
   <main>
@@ -418,7 +418,7 @@
         <p class="eyebrow">Solar Battery Rebate</p>
         <h1>Request a <span>Call Back</span></h1>
         <div class="gold-rule"></div>
-        <p>Leave your details below and a member of the Goldsure team will call you to discuss your solar battery options and available federal subsidies before the April 30 deadline.</p>
+        <p>Leave your details below and a member of the Goldsure team will call you to discuss battery options, your existing solar setup and any support that may apply to an eligible installation.</p>
       </div>
 
       <div class="form-card">
@@ -452,6 +452,26 @@
 
           <!-- Hidden field stores the confirmed Places address -->
           <input type="hidden" id="address" name="address" value="" />
+
+          <div class="field">
+            <label for="hasSolar">Do you already have solar?</label>
+            <select id="hasSolar" name="hasSolar">
+              <option value="">Please select</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+              <option value="Not sure">Not sure</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="preferredCallbackTime">Preferred callback time <span class="optional">optional</span></label>
+            <select id="preferredCallbackTime" name="preferredCallbackTime">
+              <option value="">No preference</option>
+              <option value="Morning">Morning</option>
+              <option value="Afternoon">Afternoon</option>
+              <option value="Evening">Evening</option>
+            </select>
+          </div>
 
           <button type="submit" class="submit-btn" id="submitBtn">Request a Call Back</button>
 
@@ -529,6 +549,8 @@
       const email      = document.getElementById('email');
       const addressInp = document.getElementById('addressInput');
       const addressHid = document.getElementById('address');
+      const hasSolar   = document.getElementById('hasSolar');
+      const preferredCallbackTime = document.getElementById('preferredCallbackTime');
       const btn        = document.getElementById('submitBtn');
       const formErr    = document.getElementById('formError');
 
@@ -569,6 +591,9 @@
         phone:    phone.value.trim(),
         email:    email.value.trim(),
         address:  addressHid.value || addressInp.value.trim() || '',
+        hasSolar: hasSolar.value,
+        preferredCallbackTime: preferredCallbackTime.value,
+        campaignSource: new URLSearchParams(window.location.search).get('source') || 'Goldsure Solar Battery form',
       };
 
       try {
