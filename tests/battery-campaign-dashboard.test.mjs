@@ -36,6 +36,40 @@ async function callApi(fetchImpl, body, query = {}, now = '2026-10-12T01:00:00Z'
   finally { mock.timers.reset(); global.fetch = originalFetch; for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
 }
 const campaign = { id: 'campaign-1', name: 'Fixture campaign', status: 'ready' };
+test('campaign recovery requires staff authentication', async () => {
+  const result = await callApi(() => { throw new Error('No database access allowed'); }, { action: 'battery-campaign-restore' });
+  assert.equal(result.statusCode, 401);
+});
+test('recovery preserves any existing campaign without writing or sending', async () => {
+  let calls = 0;
+  const result = await callApi(async (input, options = {}) => {
+    assert.equal(options.method, undefined);
+    assert.match(input, /email_campaigns\?/); calls++;
+    return response([{ ...campaign, status: 'sending' }]);
+  }, { action: 'battery-campaign-restore', password: 'fixture-password' });
+  assert.equal(calls, 1); assert.equal(result.data.created, false);
+  assert.equal(result.data.campaign.status, 'sending');
+});
+test('recovery creates only the missing paused campaign and never replaces history', async () => {
+  let created = false, writes = 0;
+  const result = await callApi(async (input, options = {}) => {
+    const url = new URL(input);
+    assert.equal(url.pathname, '/rest/v1/email_campaigns');
+    if (options.method === 'POST') {
+      const data = JSON.parse(options.body);
+      assert.equal(data.slug, 'vic-battery-existing-customers-2026');
+      assert.equal(data.status, 'paused');
+      assert.equal(url.searchParams.get('on_conflict'), 'slug');
+      assert.match(options.headers.Prefer, /resolution=ignore-duplicates/);
+      created = true; writes++; return response([{ ...campaign, status: 'paused' }]);
+    }
+    assert.equal(options.method, undefined);
+    return response(created ? [{ ...campaign, status: 'paused' }] : []);
+  }, { action: 'battery-campaign-restore', password: 'fixture-password' });
+  assert.equal(result.statusCode, 200); assert.equal(writes, 1);
+  assert.equal(result.data.created, true); assert.equal(result.data.historyRestored, false);
+  assert.equal(result.data.campaign.status, 'paused');
+});
 test('after 6 pm the server does not claim a recipient or contact Hostinger', async () => {
   let calls = 0;
   const result = await callApi(async input => {

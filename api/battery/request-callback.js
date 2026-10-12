@@ -3684,6 +3684,23 @@ ${notesHtml}
         } catch { /* New-format keys are opaque; never return their contents. */ }
         return res.status(200).json({ serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), configuredRole, databaseHost: new URL(SUPABASE_URL).hostname, checks });
       }
+      if (body.action === 'battery-campaign-restore') {
+        // Explicit staff recovery only. Never reset an existing campaign or
+        // recreate recipients, tracking tokens, delivery history or consent.
+        const existing = await batteryCampaign();
+        if (existing) return res.status(200).json({ success: true, created: false, campaign: existing });
+        const restored = await fetch(campaignRest('email_campaigns?on_conflict=slug'), {
+          method: 'POST', headers: { ...campaignHeaders, Prefer: 'resolution=ignore-duplicates,return=representation' },
+          body: JSON.stringify({ slug: BATTERY_CAMPAIGN_SLUG, name: 'VIC Battery - Existing Customers',
+            description: 'Battery campaign for prior HWS and air-conditioning customers.', status: 'paused' }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!restored.ok) throw new Error('campaign-restore-failed');
+        const inserted = await restored.json();
+        const campaign = await batteryCampaign();
+        if (!campaign) throw new Error('campaign-restore-verification-failed');
+        return res.status(200).json({ success: true, created: inserted.length > 0, campaign, historyRestored: false });
+      }
       const campaign = await batteryCampaign();
       if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
       if (body.action === 'battery-campaign-import') {
