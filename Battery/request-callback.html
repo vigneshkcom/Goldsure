@@ -226,6 +226,11 @@
       border-color: #e04f4f;
     }
 
+    .solar-details { display:none; margin:4px 0 18px; padding:18px; background:var(--gold-bg); border:1px solid #f0dfad; border-radius:8px; }
+    .solar-details.visible { display:block; }
+    .check-label { display:flex; gap:9px; align-items:flex-start; font-size:13px; line-height:1.5; letter-spacing:0; text-transform:none; color:var(--text); cursor:pointer; }
+    .check-label input { width:auto; margin:3px 0 0; }
+
     .error-msg {
       font-size: 11px;
       color: #e04f4f;
@@ -463,6 +468,15 @@
             </select>
           </div>
 
+          <div class="solar-details" id="solarDetails">
+            <p style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;">Optional solar details</p>
+            <div class="field"><label for="solarSize">Approximate solar system size</label><select id="solarSize"><option value="">I don't know</option><option>Under 5 kW</option><option>5–6.6 kW</option><option>6.6–10 kW</option><option>Over 10 kW</option></select></div>
+            <div class="field"><label for="inverterBrand">Inverter brand or model <span class="optional">optional</span></label><input id="inverterBrand" type="text" maxlength="120" placeholder="e.g. Fronius, Sungrow, or I don't know"></div>
+            <div class="field"><label for="batteryInterest">What are you most interested in?</label><select id="batteryInterest"><option value="">I am not sure yet</option><option>Lower electricity bills</option><option>Using solar at night</option><option>Backup power</option><option>Advice on the best option</option></select></div>
+            <label class="check-label"><input type="checkbox" id="sendPhotos"> <span>I can send optional photos of my inverter label, inverter, switchboard or electricity bill after I submit this form.</span></label>
+            <p style="font-size:11px;line-height:1.6;color:var(--muted);margin:9px 0 0;">Everything is optional. We can confirm the details during an in-home assessment.</p>
+          </div>
+
           <div class="field">
             <label for="preferredCallbackTime">Preferred callback time <span class="optional">optional</span></label>
             <select id="preferredCallbackTime" name="preferredCallbackTime">
@@ -550,6 +564,10 @@
       const addressInp = document.getElementById('addressInput');
       const addressHid = document.getElementById('address');
       const hasSolar   = document.getElementById('hasSolar');
+      const solarSize = document.getElementById('solarSize');
+      const inverterBrand = document.getElementById('inverterBrand');
+      const batteryInterest = document.getElementById('batteryInterest');
+      const sendPhotos = document.getElementById('sendPhotos');
       const preferredCallbackTime = document.getElementById('preferredCallbackTime');
       const btn        = document.getElementById('submitBtn');
       const formErr    = document.getElementById('formError');
@@ -592,6 +610,9 @@
         email:    email.value.trim(),
         address:  addressHid.value || addressInp.value.trim() || '',
         hasSolar: hasSolar.value,
+        solarSize: solarSize.value,
+        inverterBrand: inverterBrand.value.trim(),
+        batteryInterest: batteryInterest.value,
         preferredCallbackTime: preferredCallbackTime.value,
         campaignSource: new URLSearchParams(window.location.search).get('source') || 'Goldsure Solar Battery form',
       };
@@ -604,6 +625,17 @@
         });
 
         if (res.ok) {
+          if (hasSolar.value === 'Yes' && sendPhotos.checked) {
+            const photos = await fetch('/api/zoho/create-photo-request?product=battery', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: fullName.value.trim(), phone: phone.value.trim() })
+            });
+            const photoData = await photos.json();
+            if (photos.ok && photoData.uploadPageUrl) {
+              window.location.href = photoData.uploadPageUrl;
+              return;
+            }
+          }
           window.location.href = '/Battery/thank-you.html';
         } else {
           throw new Error('Server error: ' + res.status);
@@ -614,6 +646,10 @@
         btn.disabled = false;
         btn.textContent = 'Request a Call Back';
       }
+    });
+
+    document.getElementById('hasSolar').addEventListener('change', function () {
+      document.getElementById('solarDetails').classList.toggle('visible', this.value === 'Yes');
     });
 
     function showError(fieldId) {

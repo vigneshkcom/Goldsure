@@ -31,10 +31,13 @@ const NSW_HWS_PIPELINE_ID_ENV = process.env.NSW_HWS_PIPELINE_ID || '';
 const NSW_HWS_PIPELINE_NAME_HINTS = ['nsw hws pipeline', 'nsw hot water', 'nsw hws'];
 const AIRCON_PIPELINE_ID_ENV = process.env.AIRCON_PIPELINE_ID || '';
 const AIRCON_PIPELINE_NAME_HINTS = ['air con', 'aircon', 'air-con', 'air conditioning', 'hvac'];
+const BATTERY_PIPELINE_ID_ENV = process.env.BATTERY_PIPELINE_ID || '';
+const BATTERY_PIPELINE_NAME_HINTS = ['battery', 'solar battery'];
 
 const normaliseProduct = value => {
   const product = String(value || '').trim().toLowerCase();
   if (product === 'aircon') return 'aircon';
+  if (['battery', 'solar-battery', 'solar_battery'].includes(product)) return 'battery';
   if (['hws-vic', 'vic-hws', 'hotwater-vic'].includes(product)) return 'hws-vic';
   if (['hws-nsw', 'nsw-hws', 'hotwater-nsw'].includes(product)) return 'hws-nsw';
   if (['smoke-promo', 'smoke_promo', 'smoke'].includes(product)) return 'smoke-promo';
@@ -54,6 +57,19 @@ export function inferLegacyHwsProduct(value, address) {
 
 function productConfig(value) {
   const product = normaliseProduct(value);
+  if (product === 'battery') {
+    return {
+      product,
+      parentId: process.env.ZOHO_WORKDRIVE_BATTERY_PARENT_FOLDER_ID,
+      uploadPath: '/hotwater/upload-photos.html?product=battery',
+      label: 'Solar Battery',
+      opportunityName: who => `Battery - ${who}`,
+      pipelineIdEnv: BATTERY_PIPELINE_ID_ENV,
+      pipelineNameHints: BATTERY_PIPELINE_NAME_HINTS,
+      uploadedStageNames: [],
+      notifyRecipients: ['vignesh@goldsure.com.au'],
+    };
+  }
   if (product === 'aircon') {
     return {
       product,
@@ -925,7 +941,8 @@ export default async function handler(req, res) {
       // suffix never leaks into the greeting.
       const firstName = name.trim().split(/\s+/)[0];
       const nameParam = firstName ? `&n=${encodeURIComponent(firstName)}` : '';
-      const uploadPageUrl = `${baseUrl}${config.uploadPath}?f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
+      const querySeparator = config.uploadPath.includes('?') ? '&' : '?';
+      const uploadPageUrl = `${baseUrl}${config.uploadPath}${querySeparator}f=${encodeURIComponent(folderId)}${nameParam}${phoneParam}`;
       const folderUrl = await getFolderLink(accessToken, folderId);
       return res.status(200).json({ folderId, folderName, folderUrl, uploadPageUrl, product: config.product, reused: Boolean(existingId), photoCount });
     } catch (err) {

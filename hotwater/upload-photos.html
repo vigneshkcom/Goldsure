@@ -249,6 +249,8 @@ const customerNameFromFolder = value => String(value || '')
 const requestedProduct = params.get('product');
 const product = location.pathname === '/ac' || requestedProduct === 'aircon'
   ? 'aircon'
+  : requestedProduct === 'battery'
+    ? 'battery'
   : location.pathname === '/nsw-hws-photos'
     ? 'hws-nsw'
     : location.pathname === '/vic-hws-photos'
@@ -257,6 +259,7 @@ const product = location.pathname === '/ac' || requestedProduct === 'aircon'
         ? requestedProduct
         : 'hws';
 const isAircon = product === 'aircon';
+const isBattery = product === 'battery';
 const addressInputId = isAircon ? 'propertyAddress' : 'hwsPropertyAddress';
 const addressBadgeId = isAircon ? 'addressBadge' : 'hwsAddressBadge';
 let addressConfirmed = false;
@@ -267,6 +270,12 @@ const HWS_SLOTS = [
   { key: 'hot-water',   label: 'Existing hot water system',  note: 'The whole unit, from a few steps back.',                                          required: true },
   { key: 'access',      label: 'Access to the property',     note: 'The path to the unit, so we can check we can get the new one in.',                required: true },
   { key: 'compliance',  label: 'Hot water compliance plate', note: 'The sticker on the unit showing its model details. Skip this if there isn’t one.', required: false },
+];
+const BATTERY_SLOTS = [
+  { key: 'inverter-label', label: 'Inverter compliance plate or label', note: 'A clear close-up of the label showing the inverter model and rating.', required: false },
+  { key: 'inverter-wide', label: 'Existing inverter', note: 'A wider photo showing the inverter and the area around it.', required: false },
+  { key: 'switchboard', label: 'Switchboard', note: 'A clear photo of the electrical switchboard, if safe to take.', required: false },
+  { key: 'electricity-bill', label: 'Electricity bill', note: 'Optional. You may cover account numbers and payment details.', required: false },
 ];
 
 const airconSlots = () => {
@@ -283,7 +292,7 @@ const airconSlots = () => {
   ];
 };
 
-let SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
+let SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : HWS_SLOTS;
 const commentLabelForSlot = slot => /^room-(\d+)$/.test(slot.key)
   ? `Room ${slot.key.split('-')[1]} name and comments`
   : `${slot.label} comments`;
@@ -299,7 +308,7 @@ if (isAircon) {
   document.getElementById('fullName').value = custName;
   document.getElementById('extraGrid').classList.add('aircon-comments');
   document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
-} else {
+} else if (!isBattery) {
   document.getElementById('hwsQuestions').style.display = 'block';
 }
 
@@ -364,6 +373,8 @@ const setStatus = (msg, cls) => {
 
 const BLURB = isAircon
   ? 'please answer the questions and add the photos below so we can assess the installation and prepare your quote.'
+  : isBattery
+    ? 'if you can, add any photos below that will help us understand your existing solar setup. Everything is optional and we can confirm the details at your in-home assessment.'
   : 'please confirm the property address and take a clear photo of each item below so we can prepare your quote.';
 const TOPUP_BLURB = 'we already have the photos ticked below — just add whatever else you can, no need to send those again.';
 const MIXED_BLURB = 'the photos ticked below are already in — please add the ones still missing, and anything else that helps.';
@@ -396,7 +407,7 @@ function greet() {
 
   document.getElementById('headline').textContent = topUp
     ? 'Send us a few more photos'
-    : (isAircon ? 'Quick aircon assessment' : 'Upload your photos');
+    : (isAircon ? 'Quick aircon assessment' : isBattery ? 'Optional solar photos' : 'Upload your photos');
   const blurb = topUp ? TOPUP_BLURB : partial ? MIXED_BLURB : BLURB;
   document.getElementById('subText').textContent = first
     ? `Hi ${first}, ${blurb}`
@@ -517,7 +528,7 @@ function renderRecap() {
 }
 
 function renderSlots() {
-  SLOTS = isAircon ? airconSlots() : HWS_SLOTS;
+  SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : HWS_SLOTS;
   document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
     <div class="slot" id="slot-${s.key}">
       <div class="slot-head">
@@ -731,7 +742,7 @@ function refreshSubmit() {
       Number(document.getElementById('roomCount').value) >= 1 &&
       document.getElementById('roofType').value
     )
-    : addressComplete;
+    : isBattery ? true : addressComplete;
 
   btn.disabled = !questionsComplete || missing.length > 0 || newCount === 0 || !folderId;
   btn.textContent =

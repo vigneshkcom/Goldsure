@@ -15,6 +15,7 @@ import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
 import { buildBatteryCampaignEmail, buildBatteryCampaignText, escapeHtml } from '../../lib/battery-campaign-email.js';
+const campaignTestRate = new Map();
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
     : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
@@ -3464,11 +3465,12 @@ ${notesHtml}
   // This deliberately never accepts a customer recipient. It lets staff check
   // the real Hostinger rendering before a separate reviewed recipient queue is enabled.
   if (body.action === 'battery-campaign-test') {
-    const suppliedKey = String(body.adminKey || '');
-    const configuredKey = String(process.env.BATTERY_CAMPAIGN_ADMIN_KEY || '');
-    if (!configuredKey || suppliedKey !== configuredKey) {
-      return res.status(403).json({ error: 'Campaign access is not configured or the access key is incorrect.' });
+    const requester = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+    const lastTestAt = campaignTestRate.get(requester) || 0;
+    if (Date.now() - lastTestAt < 60_000) {
+      return res.status(429).json({ error: 'Please wait one minute before sending another test email.' });
     }
+    campaignTestRate.set(requester, Date.now());
     const firstName = String(body.firstName || 'Vignesh').trim().slice(0, 80);
     const callbackUrl = 'https://portal.goldsure.com.au/Battery/request-callback.html?source=existing-customer-email';
     try {
@@ -3489,7 +3491,7 @@ ${notesHtml}
   // ── POST legacy: battery callback form ─────────────────────────────────────
   // Detected by fullName field – same contract as before, no changes to the form.
   if (body.fullName !== undefined) {
-    const { fullName, phone, email, address, campaignSource, preferredCallbackTime, hasSolar } = body;
+    const { fullName, phone, email, address, campaignSource, preferredCallbackTime, hasSolar, solarSize, inverterBrand, batteryInterest } = body;
     if (!fullName || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -3572,7 +3574,7 @@ ${notesHtml}
         to: ['vignesh@goldsure.com.au'],
         subject: `Battery callback request - ${fullName}`,
         html: htmlMessage,
-        text: `Battery callback: ${fullName} | ${phone} | ${email || 'no email'} | ${address || 'no address'} | Solar: ${hasSolar || 'not provided'} | Preferred time: ${preferredCallbackTime || 'not provided'} | Source: ${campaignSource || 'Goldsure Solar Battery form'} | ${submittedAt}`,
+        text: `Battery callback: ${fullName} | ${phone} | ${email || 'no email'} | ${address || 'no address'} | Solar: ${hasSolar || 'not provided'} | Solar size: ${solarSize || 'not provided'} | Inverter: ${inverterBrand || 'not provided'} | Interest: ${batteryInterest || 'not provided'} | Preferred time: ${preferredCallbackTime || 'not provided'} | Source: ${campaignSource || 'Goldsure Solar Battery form'} | ${submittedAt}`,
       });
     } catch (error) {
       console.error('[Hostinger] callback email failed:', error.message);
@@ -3584,7 +3586,7 @@ ${notesHtml}
       const [firstName, ...lastNameParts] = String(fullName).trim().split(/\s+/);
       const contact = await findOrCreateGhlContact({ phone, email, firstName, lastName: lastNameParts.join(' '), address });
       if (contact?.contactId) {
-        await postGhlNoteByPhone(phone, `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSubmitted: ${submittedAt}`);
+        await postGhlNoteByPhone(phone, `[Battery callback requested]\nSource: ${campaignSource || 'Goldsure Solar Battery form'}\nPreferred callback time: ${preferredCallbackTime || 'Not provided'}\nHas solar: ${hasSolar || 'Not provided'}\nSolar size: ${solarSize || 'Not provided'}\nInverter: ${inverterBrand || 'Not provided'}\nInterest: ${batteryInterest || 'Not provided'}\nSubmitted: ${submittedAt}`);
         if (process.env.BATTERY_PIPELINE_ID) {
           await ensureOpportunityInStage({
             contactId: contact.contactId,
