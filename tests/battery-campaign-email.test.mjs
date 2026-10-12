@@ -21,3 +21,12 @@ test('plain-text fallback uses the first name and callback URL', () => {
 test('HTML escaping protects all email template fields', () => {
   assert.equal(escapeHtml(`"<&>'`), '&quot;&lt;&amp;&gt;&#39;');
 });
+
+test('email can include an unsubscribe link and open tracker pixel', () => {
+  const html = buildBatteryCampaignEmail({
+    unsubscribeUrl: 'https://portal.goldsure.com.au/Battery/unsubscribe.html?t=token',
+    trackingPixelUrl: 'https://portal.goldsure.com.au/api/battery/request-callback?action=battery-email-open&t=token',
+  });
+  assert.match(html, /Unsubscribe/);
+  assert.match(html, /battery-email-open/);
+});

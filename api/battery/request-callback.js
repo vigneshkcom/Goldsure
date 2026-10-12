@@ -16,6 +16,7 @@ import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
 import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
 import { escapeHtml } from '../../lib/battery-campaign-email.js';
+import { BATTERY_CAMPAIGN_SLUG, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
 const campaignTestRate = new Map();
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
@@ -99,6 +100,43 @@ export default async function handler(req, res) {
   // hard-deletes (the anon key is subject to RLS, which can silently delete 0 rows
   // and still return 204). Server-side only; falls back to anon if it isn't set.
   const SUPABASE_ADMIN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
+  const campaignHeaders = {
+    apikey: SUPABASE_ADMIN_KEY,
+    Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const campaignRest = path => `${SUPABASE_URL}/rest/v1/${path}`;
+
+  async function campaignRecipient(token) {
+    if (!isTrackingToken(token)) return null;
+    const result = await fetch(
+      campaignRest(`email_campaign_recipients?tracking_token=eq.${encodeURIComponent(token)}&select=id,delivery_status`),
+      { headers: campaignHeaders }
+    );
+    if (!result.ok) return null;
+    const rows = await result.json();
+    return Array.isArray(rows) ? rows[0] || null : null;
+  }
+
+  async function recordCampaignEvent(token, eventType) {
+    const recipient = await campaignRecipient(token);
+    if (!recipient) return false;
+    const now = new Date().toISOString();
+    const patch = { updated_at: now };
+    if (eventType === 'open') { patch.opened_at = now; }
+    if (eventType === 'click') { patch.clicked_at = now; }
+    if (eventType === 'unsubscribe') { patch.unsubscribed_at = now; patch.delivery_status = 'unsubscribed'; }
+    if (eventType === 'callback') { patch.callback_requested_at = now; }
+    const update = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), {
+      method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+    });
+    if (!update.ok) return false;
+    await fetch(campaignRest('email_campaign_events'), {
+      method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' },
+      body: JSON.stringify({ recipient_id: recipient.id, event_type: eventType }),
+    }).catch(() => null);
+    return true;
+  }
 
   // Title-case names that come back all-lower or all-upper from GHL ("karen parsons"
   // → "Karen Parsons"), but leave deliberately mixed-case names ("McDonald") alone.
@@ -168,8 +206,46 @@ export default async function handler(req, res) {
     return '';
   };
 
-  // ── GET: history or contacts ────────────────────────────────────────────────
+  // ── GET: battery campaign tracking, history or contacts ─────────────────────
   if (req.method === 'GET') {
+    const campaignAction = String(req.query.action || '');
+    const trackingToken = String(req.query.t || '');
+    if (campaignAction === 'battery-email-open') {
+      await recordCampaignEvent(trackingToken, 'open').catch(() => false);
+      res.setHeader('Content-Type', 'image/gif');
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      return res.status(200).send(Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
+    }
+    if (campaignAction === 'battery-email-click') {
+      await recordCampaignEvent(trackingToken, 'click').catch(() => false);
+      const destination = `https://portal.goldsure.com.au/Battery/request-callback.html?source=existing-customer-email&recipient=${encodeURIComponent(trackingToken)}`;
+      return res.redirect(302, destination);
+    }
+    if (campaignAction === 'battery-campaign-stats') {
+      try {
+        const cRes = await fetch(campaignRest(`email_campaigns?slug=eq.${encodeURIComponent(BATTERY_CAMPAIGN_SLUG)}&select=id,name,status`), { headers: campaignHeaders });
+        const campaigns = cRes.ok ? await cRes.json() : [];
+        const campaign = Array.isArray(campaigns) ? campaigns[0] : null;
+        if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
+        const rRes = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&select=delivery_status,opened_at,clicked_at,unsubscribed_at,callback_requested_at`), { headers: campaignHeaders });
+        if (!rRes.ok) throw new Error('recipient-query-failed');
+        const recipients = await rRes.json();
+        const count = predicate => recipients.filter(predicate).length;
+        return res.status(200).json({
+          campaign: { name: campaign.name, status: campaign.status },
+          total: recipients.length,
+          sent: count(r => r.delivery_status === 'sent'),
+          failed: count(r => r.delivery_status === 'failed' || r.delivery_status === 'bounced'),
+          opened: count(r => !!r.opened_at),
+          clicked: count(r => !!r.clicked_at),
+          unsubscribed: count(r => !!r.unsubscribed_at),
+          callbacks: count(r => !!r.callback_requested_at),
+        });
+      } catch (error) {
+        console.error('[Battery campaign] tracker summary failed:', error.message);
+        return res.status(503).json({ error: 'Campaign tracker is temporarily unavailable.' });
+      }
+    }
     // Debug: last 25 rows as saved (newest receive-time first) — use to check
     // whether a missing reply ever reached the database at all.
     if (req.query.action === 'recent') {
@@ -3462,6 +3538,12 @@ ${notesHtml}
     return res.status(200).json({ success: true });
   }
 
+  // ── POST: customer unsubscribe. The opaque token contains no customer data.
+  if (body.action === 'battery-email-unsubscribe') {
+    const success = await recordCampaignEvent(String(body.trackingToken || ''), 'unsubscribe').catch(() => false);
+    return res.status(success ? 200 : 404).json(success ? { success: true } : { error: 'This unsubscribe link is invalid or has expired.' });
+  }
+
   // ── POST: send an internal-only personalised campaign test ─────────────────
   // This deliberately never accepts a customer recipient. It lets staff check
   // the real Hostinger rendering before a separate reviewed recipient queue is enabled.
@@ -3492,7 +3574,7 @@ ${notesHtml}
   // ── POST legacy: battery callback form ─────────────────────────────────────
   // Detected by fullName field – same contract as before, no changes to the form.
   if (body.fullName !== undefined) {
-    const { fullName, phone, email, address, campaignSource, preferredCallbackTime, hasSolar, solarSize, inverterBrand, batteryInterest } = body;
+    const { fullName, phone, email, address, campaignSource, campaignRecipientToken, preferredCallbackTime, hasSolar, solarSize, inverterBrand, batteryInterest } = body;
     if (!fullName || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -3605,6 +3687,10 @@ ${notesHtml}
       }
     } catch (error) {
       console.error('[Battery callback] GHL handoff failed:', error.message);
+    }
+
+    if (campaignRecipientToken) {
+      await recordCampaignEvent(String(campaignRecipientToken), 'callback').catch(() => false);
     }
 
     return res.status(200).json({ success: true });
