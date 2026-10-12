@@ -14,7 +14,8 @@ import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerA
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
-import { buildBatteryCampaignEmail, buildBatteryCampaignText, escapeHtml } from '../../lib/battery-campaign-email.js';
+import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
+import { escapeHtml } from '../../lib/battery-campaign-email.js';
 const campaignTestRate = new Map();
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
