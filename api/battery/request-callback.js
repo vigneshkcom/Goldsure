@@ -3677,7 +3677,12 @@ ${notesHtml}
             ...(!check.ok ? { errorCode: rows?.code || 'unavailable' } : {}),
           };
         }
-        return res.status(200).json({ serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), checks });
+        let configuredRole = 'unknown';
+        try {
+          const role = JSON.parse(Buffer.from(String(SUPABASE_ADMIN_KEY).split('.')[1], 'base64url').toString()).role;
+          if (['anon', 'authenticated', 'service_role'].includes(role)) configuredRole = role;
+        } catch { /* New-format keys are opaque; never return their contents. */ }
+        return res.status(200).json({ serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), configuredRole, databaseHost: new URL(SUPABASE_URL).hostname, checks });
       }
       const campaign = await batteryCampaign();
       if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
