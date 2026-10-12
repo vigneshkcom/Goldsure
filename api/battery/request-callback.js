@@ -3664,6 +3664,21 @@ ${notesHtml}
     res.setHeader('Cache-Control', 'no-store');
     if (!campaignAdmin()) return res.status(401).json({ error: 'Enter the portal password to manage this campaign.' });
     try {
+      if (body.action === 'battery-campaign-health') {
+        // Staff-only, read-only diagnostics. Never return keys or customer data.
+        const checks = {};
+        for (const table of ['email_campaigns', 'email_campaign_recipients', 'email_campaign_events']) {
+          const check = await fetch(campaignRest(`${table}?select=${table === 'email_campaigns' ? 'id,slug,name,status' : 'id'}&limit=5`), {
+            headers: { ...campaignHeaders, Prefer: 'count=exact' }, signal: AbortSignal.timeout(10000),
+          });
+          const rows = await check.json().catch(() => null);
+          checks[table] = { status: check.status, count: check.headers.get('content-range')?.split('/')[1] || null,
+            ...(check.ok && table === 'email_campaigns' ? { campaigns: rows } : {}),
+            ...(!check.ok ? { errorCode: rows?.code || 'unavailable' } : {}),
+          };
+        }
+        return res.status(200).json({ serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), checks });
+      }
       const campaign = await batteryCampaign();
       if (!campaign) return res.status(503).json({ error: 'Campaign tracker is not configured.' });
       if (body.action === 'battery-campaign-import') {
