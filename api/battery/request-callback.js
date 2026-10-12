@@ -167,12 +167,15 @@ export default async function handler(req, res) {
     if (!claimed.length) return { state: 'sending', sent: false };
     const urls = batteryTrackingUrls(recipient.tracking_token);
     try {
-      await sendHostingerMail({
+      const sendController = new AbortController();
+      const sendTimeout = setTimeout(() => sendController.abort(), 15000);
+      try { await sendHostingerMail({
         displayName: 'Goldsure', to: [recipient.email],
         subject: 'Home battery rebate changes 1 January 2027',
         html: buildBatteryCampaignEmail({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl, unsubscribeUrl: urls.unsubscribeUrl, trackingPixelUrl: urls.pixelUrl }),
         text: buildBatteryCampaignText({ firstName: recipient.first_name, callbackUrl: urls.callbackUrl }),
-      });
+        signal: sendController.signal,
+      }); } finally { clearTimeout(sendTimeout); }
       const now = new Date().toISOString();
       await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ delivery_status: 'sent', sent_at: now, updated_at: now }) });
       await fetch(campaignRest('email_campaign_events'), { method: 'POST', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ recipient_id: recipient.id, event_type: 'sent' }) });
@@ -3622,6 +3625,11 @@ ${notesHtml}
         await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'ready', updated_at: new Date().toISOString() }) });
         return res.status(200).json({ success: true, imported: recipients.length });
       }
+      if (body.action === 'battery-campaign-recipients') {
+        const list = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&select=id,email,first_name,last_name,phone,job_id,delivery_status,send_error,sent_at,opened_at,clicked_at,unsubscribed_at,callback_requested_at,updated_at&order=created_at.asc`), { headers: campaignHeaders });
+        if (!list.ok) throw new Error('recipient-list-failed');
+        return res.status(200).json({ recipients: await list.json() });
+      }
       if (body.action === 'battery-campaign-start') {
         const changed = await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'sending', updated_at: new Date().toISOString() }) });
         if (!changed.ok) throw new Error('campaign-start-failed');
@@ -3630,6 +3638,15 @@ ${notesHtml}
       if (body.action === 'battery-campaign-pause') {
         await fetch(campaignRest(`email_campaigns?id=eq.${encodeURIComponent(campaign.id)}`), { method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() }) });
         return res.status(200).json({ success: true, status: 'paused' });
+      }
+      if (body.action === 'battery-campaign-retry-stuck') {
+        const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const reset = await fetch(campaignRest(`email_campaign_recipients?campaign_id=eq.${encodeURIComponent(campaign.id)}&delivery_status=eq.sending&updated_at=lte.${encodeURIComponent(cutoff)}`), {
+          method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'pending', updated_at: new Date().toISOString() }),
+        });
+        if (!reset.ok) throw new Error('retry-reset-failed');
+        const rows = await reset.json();
+        return res.status(200).json({ success: true, reset: rows.length });
       }
       if (body.action === 'battery-campaign-send-next') return res.status(200).json(await dispatchOneBatteryCampaignEmail());
       return res.status(400).json({ error: 'Unknown campaign action.' });
