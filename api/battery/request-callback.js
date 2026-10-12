@@ -182,7 +182,15 @@ export default async function handler(req, res) {
     const claim = await fetch(campaignRest(`email_campaign_recipients?id=eq.${encodeURIComponent(recipient.id)}&delivery_status=eq.pending&unsubscribed_at=is.null&sent_at=is.null`), {
       method: 'PATCH', headers: { ...campaignHeaders, Prefer: 'return=representation' }, body: JSON.stringify({ delivery_status: 'sending', updated_at: new Date().toISOString() }),
     });
-    if (!claim.ok) throw new Error('recipient-claim-failed');
+    if (!claim.ok) {
+      const detail = await claim.json().catch(() => ({}));
+      const error = new Error(`recipient-claim-failed (${detail.code || claim.status})`);
+      error.publicMessage = detail.code === '23514'
+        ? 'Sending stopped before contacting Hostinger: the campaign database does not allow the required sending status. The sender database migration must be applied.'
+        : 'Sending stopped before contacting Hostinger: the customer could not be moved from Queued to Sending. Your customer remains queued.';
+      error.publicCode = 'CAMPAIGN_RECIPIENT_CLAIM_FAILED';
+      throw error;
+    }
     const claimed = await claim.json();
     if (!claimed.length) return { state: 'sending', sent: false };
     let accepted = false;
@@ -3692,7 +3700,7 @@ ${notesHtml}
       return res.status(400).json({ error: 'Unknown campaign action.' });
     } catch (error) {
       console.error('[Battery campaign] sender action failed:', error.message);
-      return res.status(500).json({ error: 'Campaign action failed. Please try again.' });
+      return res.status(500).json({ error: error.publicMessage || 'Campaign action failed. Please try again.', ...(error.publicCode ? { code: error.publicCode } : {}) });
     }
   }
 

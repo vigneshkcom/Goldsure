@@ -34,6 +34,21 @@ async function callApi(fetchImpl, body, query = {}) {
   finally { global.fetch = originalFetch; for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; } }
 }
 const campaign = { id: 'campaign-1', name: 'Fixture campaign', status: 'ready' };
+test('live-schema constraint failure is identified before contacting the mail provider', async () => {
+  let providerCalls = 0;
+  const result = await callApi(async (input, options = {}) => {
+    const url = new URL(input);
+    if (url.hostname === 'api.mail.hostinger.com') { providerCalls++; throw new Error('Must not send'); }
+    if (url.pathname.endsWith('/email_campaigns')) return response([{ ...campaign, status: 'sending' }]);
+    if (options.method === 'PATCH') return new Response(JSON.stringify({ code: '23514', message: 'new row violates check constraint' }), { status: 400 });
+    return response([{ id: 'recipient-1', tracking_token: '12345678-1234-4234-8234-123456789abc', email: 'fixture@example.com', first_name: 'Fixture' }]);
+  }, { action: 'battery-campaign-send-next', password: 'fixture-password' });
+  assert.equal(result.statusCode, 500);
+  assert.equal(result.data.code, 'CAMPAIGN_RECIPIENT_CLAIM_FAILED');
+  assert.match(result.data.error, /before contacting Hostinger/);
+  assert.match(result.data.error, /database migration/);
+  assert.equal(providerCalls, 0);
+});
 test('customer details require authentication without making any database request', async () => {
   const result = await callApi(() => { throw new Error('Unexpected database access'); }, { action: 'battery-campaign-recipients' });
   assert.equal(result.statusCode, 401);

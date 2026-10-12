@@ -18,7 +18,9 @@ create table if not exists public.email_campaign_recipients (
   last_name text,
   phone text,
   job_id text,
-  delivery_status text not null default 'pending',
+  delivery_status text not null default 'pending'
+    constraint email_campaign_recipients_delivery_status_check
+    check (delivery_status in ('pending', 'sending', 'sent', 'failed', 'bounced', 'unsubscribed', 'unknown')),
   provider_message_id text,
   send_error text,
   sent_at timestamptz,
@@ -36,7 +38,9 @@ create table if not exists public.email_campaign_recipients (
 create table if not exists public.email_campaign_events (
   id bigint generated always as identity primary key,
   recipient_id uuid not null references public.email_campaign_recipients(id) on delete cascade,
-  event_type text not null,
+  event_type text not null
+    constraint email_campaign_events_event_type_check
+    check (event_type in ('sent', 'failed', 'bounced', 'open', 'click', 'unsubscribe', 'callback', 'unknown')),
   occurred_at timestamptz not null default now(),
   detail jsonb not null default '{}'::jsonb
 );
