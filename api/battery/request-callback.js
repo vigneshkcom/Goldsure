@@ -14,10 +14,8 @@ import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerA
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
 import { postGhlNoteByPhone } from '../../lib/ghl-note.js';
-import { buildBatteryCampaignEmail, buildBatteryCampaignText } from '../../lib/battery-campaign-email-final.js';
 import { escapeHtml } from '../../lib/battery-campaign-email.js';
 import { BATTERY_CAMPAIGN_SLUG, isTrackingToken } from '../../lib/battery-campaign-tracking.js';
-const campaignTestRate = new Map();
 const photoPipelineIds = (pipes, product) => {
   const configured = product === 'aircon' ? process.env.AIRCON_PIPELINE_ID
     : product === 'hws-nsw' ? process.env.NSW_HWS_PIPELINE_ID
@@ -3542,33 +3540,6 @@ ${notesHtml}
   if (body.action === 'battery-email-unsubscribe') {
     const success = await recordCampaignEvent(String(body.trackingToken || ''), 'unsubscribe').catch(() => false);
     return res.status(success ? 200 : 404).json(success ? { success: true } : { error: 'This unsubscribe link is invalid or has expired.' });
-  }
-
-  // ── POST: send an internal-only personalised campaign test ─────────────────
-  // This deliberately never accepts a customer recipient. It lets staff check
-  // the real Hostinger rendering before a separate reviewed recipient queue is enabled.
-  if (body.action === 'battery-campaign-test') {
-    const requester = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-    const lastTestAt = campaignTestRate.get(requester) || 0;
-    if (Date.now() - lastTestAt < 60_000) {
-      return res.status(429).json({ error: 'Please wait one minute before sending another test email.' });
-    }
-    campaignTestRate.set(requester, Date.now());
-    const firstName = String(body.firstName || 'Vignesh').trim().slice(0, 80);
-    const callbackUrl = 'https://portal.goldsure.com.au/Battery/request-callback.html?source=existing-customer-email';
-    try {
-      await sendHostingerMail({
-        displayName: 'Goldsure',
-        to: ['vignesh@goldsure.com.au'],
-        subject: `[TEST] Goldsure battery options for ${firstName}`,
-        html: buildBatteryCampaignEmail({ firstName, callbackUrl }),
-        text: buildBatteryCampaignText({ firstName, callbackUrl }),
-      });
-      return res.status(200).json({ success: true, sentTo: 'vignesh@goldsure.com.au' });
-    } catch (error) {
-      console.error('[Battery campaign] test email failed:', error.message);
-      return res.status(502).json({ error: 'The Hostinger test email could not be sent.' });
-    }
   }
 
   // ── POST legacy: battery callback form ─────────────────────────────────────
