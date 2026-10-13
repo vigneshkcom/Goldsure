@@ -2,7 +2,7 @@
   const groups = [
     {
       key: 'smoke', label: 'Smoke Alarms', color: '#0073ea', icon: '<ellipse cx="12" cy="9" rx="9" ry="4"/><path d="M3 9v4a9 4 0 0 0 18 0V9"/><path d="M12 3v2M8 4.5l1 1.5M16 4.5l-1 1.5"/>',
-      items: [['Sales App', '/smoke-alarms/smoke-alarm.html'], ['Quote Tracker', '/smoke-alarms/quote-tracker.html']]
+      items: [['Sales App', '/smoke-alarms/smoke-alarm.html'], ['Quote Tracker', '/smoke-alarms/quote-tracker.html'], ['QLD Certificate Signer', '/compliance/']]
     },
     {
       key: 'vic-aircon', label: 'VIC Aircons', color: '#a25ddc', icon: '<path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07"/>',

@@ -1130,6 +1130,10 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed.' });
   const action = req.body && req.body.action;
+  if (typeof action === 'string' && action.startsWith('qld-certificate-')) {
+    const { handleCertificates } = await import('../../lib/qld-certificates.js');
+    return handleCertificates(req, res);
+  }
   try {
     if (action === 'purchase-order-preview') {
       if (!resolvePurchaseOrderAccess(req, res)) return;
