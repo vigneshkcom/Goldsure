@@ -26,7 +26,6 @@ async function load() {
   status('trackerStatus', `Updated ${date(new Date())}. No emails are sent by refreshing.`);
 }
 for (const id of ['unlock', 'refresh']) $(id).addEventListener('click', () => run($(id), id === 'unlock' ? 'accessStatus' : 'trackerStatus', async () => { await load(); status('accessStatus', 'Staff access unlocked for this page only.'); }));
-$('setup').onclick = () => run($('setup'), 'accessStatus', async () => { await api('setup', {}, password()); status('accessStatus', 'Private certificate storage is ready. No emails sent.'); await load(); });
 $('lookup').onclick = () => run($('lookup'), 'lookupStatus', async () => {
   const result = await api('lookup', { jobNumber: $('lookupNumber').value.trim() }, password());
   for (const key of ['jobNumber', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress', 'siteAddress', 'state']) $(key).value = result[key] || '';

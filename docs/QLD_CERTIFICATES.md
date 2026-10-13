@@ -41,7 +41,8 @@ Uses the existing `/api/smoke-alarms/google-key` function with isolated
 - Verify existing `DASHBOARD_PASSWORD`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
   `DATAFORCE_CLIENT_ID`, `DATAFORCE_CLIENT_SECRET`, `HOSTINGER_MAILBOX_RESOURCE_ID`,
   and `HOSTINGER_MAIL_API_TOKEN`. Never fall back to an anonymous Supabase key.
-- Publish to Vercel, open the staff page, and initialise private storage. This creates
+- Publish to Vercel and initialise private storage through the protected server setup
+  action during deployment. There is no storage setup button on the staff page. This creates
   only the `qld-compliance-certificates` private PDF bucket, after verifying all
   three PostgreSQL tables exist. There is no fallback to storing JSON in a bucket.
 - Verify anonymous/public/authenticated reads and writes are denied. Ensure Storage

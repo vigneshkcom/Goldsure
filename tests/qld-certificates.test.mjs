@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { certificateAction, finishCertificate, lookupJob } from '../lib/qld-certificates.js';
 import { requestFields, signatureFields, signingToken, CHECKS, prefillFields, phoneField } from '../lib/qld-certificate-model.js';
 import { certificatePdf } from '../lib/qld-certificate-pdf.js';
@@ -15,6 +16,13 @@ export class MemoryStore {
   async get(path) { return this.data.get(path) || null; }
   async list(offset) { return [...this.data.keys()].filter(x => x.startsWith('requests/')).slice(offset, offset + 25).map(x => ({ name: x.split('/')[1] })); }
 }
+test('staff page has no storage setup control or stale setup event handler', async () => {
+  const html = await readFile(new URL('../compliance/index.html', import.meta.url), 'utf8');
+  const js = await readFile(new URL('../compliance/staff.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /id="setup"|Initialise private storage/);
+  assert.doesNotMatch(js, /\$\('setup'\)/);
+  assert.match(html, /id="unlock"/);
+});
 function fixture() {
   const store = new MemoryStore(), mails = [], env = { DASHBOARD_PASSWORD: 'staff-test', QLD_CERTIFICATE_SIGNING_SECRET: 'test-only-secret-not-for-production-123456789' };
   const deps = { store, env, mailer: async mail => { mails.push(mail); } };
