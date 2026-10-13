@@ -8,8 +8,16 @@ Uses the existing `/api/smoke-alarms/google-key` function with isolated
 
 1. Staff unlocks with the existing staff password, looks up a Dataforce job or enters
    details manually. No Dataforce records are created or changed.
-2. Staff confirms the commissioning party separately from the homeowner/customer,
-   describes the actual installation/equipment tested, and reviews the unsigned PDF.
+2. The work recipient defaults to Goldsure Pty Ltd and its existing portal address,
+   with a collapsed edit option for exceptions. Customer details remain separate.
+   Staff selects an electrician from the protected, read-only Dataforce dropdown.
+   Name, company, email and mobile are filled, all still editable. Explicitly named
+   contractor licence attributes fill the contractor licence field automatically.
+   Dataforce's generic `Electrical License Number` is shown separately: staff must
+   confirm it is the contractor licence before using it, or enter the correct one.
+   Missing/expired recorded electrical licences are flagged, not silently verified.
+   The API returns only allowlisted contact/licence fields, never Dataforce passwords
+   or tax IDs. No Dataforce writes occur. Staff describes the work and reviews the PDF.
 3. Choose an email invitation or **Save & open SMS portal**. The latter creates the
    request without sending an invitation email or SMS. A same-tab, one-time session
    storage handoff opens `/sms/` with an editable mobile number and message. Review

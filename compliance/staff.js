@@ -1,6 +1,34 @@
 import { $, escapeHtml as e, status, api, date, saveBlob } from './common.js';
 let offset = 0, requestId = crypto.randomUUID(), pendingDraft = null, previewUrl = null, busy = false;
 const password = () => $('password').value;
+let electricians = [];
+async function loadElectricians() {
+  const selected = $('electricianSelect').value;
+  const result = await api('electricians', {}, password());
+  electricians = result.electricians;
+  $('electricianSelect').innerHTML = '<option value="">Enter details manually</option>' + electricians.map(worker => `<option value="${worker.id}">${e(worker.name)}${worker.companyName !== worker.name ? ` — ${e(worker.companyName)}` : ''}${worker.electricalLicenceExpired ? ' (check licence expiry)' : ''}</option>`).join('');
+  if (electricians.some(worker => String(worker.id) === selected)) $('electricianSelect').value = selected;
+  status('electricianLoadStatus', `${electricians.length} electricians loaded from Dataforce. Select one to fill their details.`);
+}
+function clearLicenceSource() { $('licenceSource').textContent = ''; $('useRecordedLicence').hidden = true; }
+$('reloadElectricians').onclick = () => run($('reloadElectricians'), 'electricianLoadStatus', loadElectricians);
+$('electricianSelect').onchange = () => {
+  clearLicenceSource();
+  const worker = electricians.find(item => String(item.id) === $('electricianSelect').value);
+  for (const id of ['electricianName','electricianEmail','electricianPhone','prefillContractorName','prefillContractorLicence','prefillContractorPhone']) $(id).value = '';
+  if (!worker) return;
+  $('electricianName').value = worker.name; $('electricianEmail').value = worker.email; $('electricianPhone').value = worker.phone;
+  $('prefillContractorName').value = worker.companyName; $('prefillContractorPhone').value = worker.phone;
+  $('prefillContractorLicence').value = worker.contractorLicence;
+  $('licenceSource').textContent = (worker.contractorLicence ? `Contractor licence ${worker.contractorLicence} from Dataforce. Confirm it is current and belongs to the issuing contractor.` : worker.recordedElectricalLicence ? `Dataforce records Electrical License Number: ${worker.recordedElectricalLicence}. This may be a worker licence, not a contractor licence. Confirm the type before using it below, or enter the correct contractor licence.` : 'No licence number found in Dataforce. Enter the contractor licence or leave it for the electrician.') + (worker.electricalLicenceExpiry ? ` Recorded electrical licence expiry: ${worker.electricalLicenceExpiry}${worker.electricalLicenceExpired ? ' — EXPIRED in Dataforce; check the current licence.' : '.'}` : ' No expiry recorded.');
+  $('useRecordedLicence').hidden = Boolean(worker.contractorLicence || !worker.recordedElectricalLicence);
+};
+$('useRecordedLicence').onclick = () => {
+  const worker = electricians.find(item => String(item.id) === $('electricianSelect').value);
+  if (!worker?.recordedElectricalLicence) return;
+  if (!confirm(`Have you checked that ${worker.recordedElectricalLicence} is the current electrical CONTRACTOR licence for ${worker.companyName}, not the electrician's worker licence?`)) return;
+  $('prefillContractorLicence').value = worker.recordedElectricalLicence;
+};
 $('rows').closest('table').querySelector('thead th:nth-child(3)').textContent = 'Signing request';
 const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'replacementDate', 'notes'];
 const prefillId = key => `prefill${key[0].toUpperCase()}${key.slice(1)}`;
@@ -25,7 +53,7 @@ async function load() {
   $('prev').disabled = offset === 0; $('next').disabled = !result.hasMore; $('pageLabel').textContent = `Page ${offset / 25 + 1}`;
   status('trackerStatus', `Updated ${date(new Date())}. No emails are sent by refreshing.`);
 }
-for (const id of ['unlock', 'refresh']) $(id).addEventListener('click', () => run($(id), id === 'unlock' ? 'accessStatus' : 'trackerStatus', async () => { await load(); status('accessStatus', 'Staff access unlocked for this page only.'); }));
+for (const id of ['unlock', 'refresh']) $(id).addEventListener('click', () => run($(id), id === 'unlock' ? 'accessStatus' : 'trackerStatus', async () => { await load(); status('accessStatus', 'Staff access unlocked for this page only.'); if (id === 'unlock') { try { await loadElectricians(); } catch (error) { status('electricianLoadStatus', error.message, true); } } }));
 $('lookup').onclick = () => run($('lookup'), 'lookupStatus', async () => {
   const result = await api('lookup', { jobNumber: $('lookupNumber').value.trim() }, password());
   for (const key of ['jobNumber', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress', 'siteAddress', 'state']) $(key).value = result[key] || '';
@@ -60,7 +88,7 @@ $('confirmSend').onclick = async () => {
   } catch (error) { status('sendStatus', error.message, true); }
   finally { busy = false; $('closeReview').disabled = false; /* Same request ID makes retries safe. */ $('confirmSend').disabled = false; }
 };
-$('newDraft').onclick = () => { if (!confirm('Start a new certificate request? Unsaved form entries will be cleared.')) return; $('draftForm').reset(); deliveryChanged(); $('prefillSmoke').hidden = false; requestId = crypto.randomUUID(); pendingDraft = null; status('draftStatus', 'New draft. Nothing sent.'); };
+$('newDraft').onclick = () => { if (!confirm('Start a new certificate request? Unsaved form entries will be cleared.')) return; $('draftForm').reset(); clearLicenceSource(); deliveryChanged(); $('prefillSmoke').hidden = false; requestId = crypto.randomUUID(); pendingDraft = null; status('draftStatus', 'New draft. Nothing sent.'); };
 $('prev').onclick = () => run($('prev'), 'trackerStatus', async () => { offset = Math.max(0, offset - 25); await load(); $('prev').disabled = offset === 0; });
 $('next').onclick = () => run($('next'), 'trackerStatus', async () => { offset += 25; await load(); });
 $('rows').onclick = event => {
