@@ -66,7 +66,7 @@ test('preview returns a PDF and never saves or emails', async () => {
 test('invitation is create-only, safe on concurrent double click', async () => {
   const f = fixture(), id = randomUUID(), input = { action: 'qld-certificate-send', id, draft, confirmSend: true };
   await Promise.all([certificateAction(input, f.admin, f.deps), certificateAction(input, f.admin, f.deps)]);
-  assert.equal(f.mails.length, 1); assert.deepEqual(f.mails[0].to, [draft.electricianEmail]);
+  assert.equal(f.mails.length, 1); assert.deepEqual(f.mails[0].to, ['vignesh@goldsure.com.au']);
   assert.ok(f.mails[0].text.includes(`/compliance/sign.html#${id}.`));
   await assert.rejects(certificateAction({ ...input, draft: { ...draft, customerName: 'Changed' } }, f.admin, f.deps), /different details/);
 });
@@ -75,7 +75,7 @@ test('signature and PDF survive concurrent submissions and mail is sent once', a
   const input = { action: 'qld-certificate-sign', ...credentials, signature };
   await Promise.all([certificateAction(input, { headers: {} }, f.deps), certificateAction(input, { headers: {} }, f.deps)]);
   assert.equal(f.mails.length, 2);
-  assert.deepEqual(f.mails[1].to, ['customer@example.test', 'vignesh@goldsure.com.au']);
+  assert.deepEqual(f.mails[1].to, ['vignesh@goldsure.com.au']);
   assert.ok(f.mails[1].attachments[0].content);
   const original = f.store.data.get(`records/${credentials.id}/signed.json`);
   await certificateAction({ ...input, signature: { ...signature, notes: 'Changed after signing' } }, { headers: {} }, f.deps);
@@ -157,7 +157,7 @@ test('SMS-only request creates a reusable signing link without any invitation em
   await assert.rejects(certificateAction({ ...input, action: 'qld-certificate-send' }, f.admin, f.deps), /delivery method changed/);
   const token = signingToken(id, f.env.QLD_CERTIFICATE_SIGNING_SECRET);
   await certificateAction({ action: 'qld-certificate-sign', id, token, signature }, { headers: {} }, f.deps);
-  assert.equal(f.mails.length, 1); assert.deepEqual(f.mails[0].to, [draft.customerEmail, 'vignesh@goldsure.com.au']);
+  assert.equal(f.mails.length, 1); assert.deepEqual(f.mails[0].to, ['vignesh@goldsure.com.au']);
 });
 test('SMS links for saved requests require staff auth and cannot reopen signed or expired requests', async () => {
   const f = fixture(), credentials = await create(f);
