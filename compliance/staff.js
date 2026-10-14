@@ -9,24 +9,19 @@ async function loadElectricians() {
   if (electricians.some(worker => String(worker.id) === selected)) $('electricianSelect').value = selected;
   status('electricianLoadStatus', `${electricians.length} electricians loaded from Dataforce. Select one to fill their details.`);
 }
-function clearLicenceSource() { $('licenceSource').textContent = ''; $('useRecordedLicence').hidden = true; }
+function clearLicenceSource() { $('licenceSource').textContent = ''; }
 $('reloadElectricians').onclick = () => run($('reloadElectricians'), 'electricianLoadStatus', loadElectricians);
 $('electricianSelect').onchange = () => {
   clearLicenceSource();
   const worker = electricians.find(item => String(item.id) === $('electricianSelect').value);
   for (const id of ['electricianName','electricianEmail','electricianPhone','prefillContractorName','prefillContractorLicence','prefillContractorPhone']) $(id).value = '';
   if (!worker) return;
+  const dataforceLicence = worker.contractorLicence || worker.recordedElectricalLicence || '';
   $('electricianName').value = worker.name; $('electricianEmail').value = worker.email; $('electricianPhone').value = worker.phone;
   $('prefillContractorName').value = worker.companyName; $('prefillContractorPhone').value = worker.phone;
-  $('prefillContractorLicence').value = worker.contractorLicence;
-  $('licenceSource').textContent = (worker.contractorLicence ? `Contractor licence ${worker.contractorLicence} from Dataforce. Confirm it is current and belongs to the issuing contractor.` : worker.recordedElectricalLicence ? `Dataforce records Electrical License Number: ${worker.recordedElectricalLicence}. This may be a worker licence, not a contractor licence. Confirm the type before using it below, or enter the correct contractor licence.` : 'No licence number found in Dataforce. Enter the contractor licence or leave it for the electrician.') + (worker.electricalLicenceExpiry ? ` Recorded electrical licence expiry: ${worker.electricalLicenceExpiry}${worker.electricalLicenceExpired ? ' — EXPIRED in Dataforce; check the current licence.' : '.'}` : ' No expiry recorded.');
-  $('useRecordedLicence').hidden = Boolean(worker.contractorLicence || !worker.recordedElectricalLicence);
-};
-$('useRecordedLicence').onclick = () => {
-  const worker = electricians.find(item => String(item.id) === $('electricianSelect').value);
-  if (!worker?.recordedElectricalLicence) return;
-  if (!confirm(`Have you checked that ${worker.recordedElectricalLicence} is the current electrical CONTRACTOR licence for ${worker.companyName}, not the electrician's worker licence?`)) return;
-  $('prefillContractorLicence').value = worker.recordedElectricalLicence;
+  $('prefillContractorLicence').value = dataforceLicence;
+  $('licenceSource').textContent = dataforceLicence ? `${worker.licenceSource || 'Licence number'} ${dataforceLicence} was prefilled from Dataforce. The electrician confirms the issuing contractor details before signing.` : 'No licence number found in Dataforce. Enter it before sending the certificate.';
+  if (worker.electricalLicenceExpiry) $('licenceSource').textContent += ` Recorded licence expiry: ${worker.electricalLicenceExpiry}${worker.electricalLicenceExpired ? ' — EXPIRED in Dataforce; check the current licence.' : '.'}`;
 };
 $('rows').closest('table').querySelector('thead th:nth-child(3)').textContent = 'Signing request';
 const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'replacementDate', 'notes'];

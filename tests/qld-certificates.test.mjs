@@ -19,7 +19,7 @@ export class MemoryStore {
 test('staff page has no storage setup control or stale setup event handler', async () => {
   const html = await readFile(new URL('../compliance/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../compliance/staff.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(html, /id="setup"|Initialise private storage|id="password"|Staff portal password/);
+  assert.doesNotMatch(html, /id="setup"|Initialise private storage|id="password"|Staff portal password|id="useRecordedLicence"/);
   assert.doesNotMatch(js, /\$\('setup'\)/);
   assert.doesNotMatch(js, /x-certificate-password|password\(\)/);
 });

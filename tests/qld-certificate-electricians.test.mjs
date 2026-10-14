@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { certificateElectrician, listCertificateElectricians } from '../lib/qld-certificate-electricians.js';
 import { certificateAction } from '../lib/qld-certificates.js';
 const worker = {fieldworkerId:1009,firstName:'Sam',surname:'Example',companyName:'Example Electrical',email:'sam@example.test',mobilePhone:'0400000001',apiPassword:'never-expose',taxId:'never-expose',attributes:[{name:'Electrical License Number',value:'0012345'},{name:'Electrical License Expiry',value:'2026-10-01T00:00:00+10:00'}],abilities:[{name:'QLD Smoke + LED',setting:true}]};
-test('generic electrical licence is not asserted to be contractor licence and secrets never leave server',()=>{
+test('Dataforce electrical licence is prefilled for the contractor field and secrets never leave server',()=>{
   const result = certificateElectrician(worker,new Date('2026-10-13'));
-  assert.equal(result.name,'Sam Example'); assert.equal(result.contractorLicence,'');
+  assert.equal(result.name,'Sam Example'); assert.equal(result.contractorLicence,'0012345');
   assert.equal(result.recordedElectricalLicence,'0012345'); assert.equal(result.electricalLicenceExpired,true);
   assert.doesNotMatch(JSON.stringify(result),/never-expose|apiPassword|taxId/);
 });
-test('explicit contractor licence is prefillable; missing licences stay empty; disabled QLD ability excluded',()=>{
+test('explicit contractor licence takes priority; missing licences stay empty; disabled QLD ability excluded',()=>{
   assert.equal(certificateElectrician({...worker,attributes:[{name:'Electrical Contractor Licence Number',value:'012345'}]}).contractorLicence,'012345');
   assert.equal(certificateElectrician({...worker,attributes:[]}).recordedElectricalLicence,'');
   assert.equal(certificateElectrician({...worker,abilities:[{name:'QLD Smoke + LED',setting:false}]}),null);
