@@ -22,10 +22,10 @@ async function load() {
   const replacementYear = $('replacementDate'), firstYear = Number($('testDate').max.slice(0, 4));
   replacementYear.innerHTML = '<option value="">Select year (if known)</option><option value="not-applicable">Not applicable - installation date unknown; compliant at time of testing</option>' + Array.from({ length: 21 }, (_, index) => `<option value="${firstYear + index}">${firstYear + index}</option>`).join('');
   $('smokeSection').hidden = false; $('smokeOutcome').required = true;
-  $('checks').innerHTML = result.checks.map((label, i) => `<label for="check${i}">${e(label)}</label><select id="check${i}" class="inspection-check" required><option value="">Choose…</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
+  $('checks').innerHTML = result.checks.map((label, i) => `<label class="inspection-item" for="check${i}"><input id="check${i}" class="inspection-check" type="checkbox"><span>${e(label)}</span></label>`).join('');
   for (const key of ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'notes', 'smokeOutcome']) if (record.prefill?.[key]) $(key).value = record.prefill[key];
   if (record.prefill?.replacementDate) { const savedReplacement = String(record.prefill.replacementDate); replacementYear.value = savedReplacement === 'not-applicable' ? savedReplacement : savedReplacement.slice(0, 4); }
-  [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.value = record.prefill?.checks?.[i] || ''; });
+  [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.checked = record.prefill?.checks?.[i] === 'Yes'; });
   // Prefilled values remain editable; safety, authority and consent stay unchecked.
   $('content').hidden = false; status('pageStatus', 'Please review every detail before signing.');
   if (result.signedAt) completed(result.signedAt, result.delivery);
@@ -36,10 +36,10 @@ $('signForm').onsubmit = async event => {
   if (!confirm('Sign this certificate and email the completed PDF only to Vignesh for this test? You cannot change the signed record.')) return;
   submitting = true; $('submitSignature').disabled = true; $('clearSignature').disabled = true;
   status('signStatus', 'Saving your signed certificate and preparing the emails. Please keep this page open…');
-  const signature = { ...Object.fromEntries(new FormData($('signForm'))), checks: [...document.querySelectorAll('.inspection-check')].map(input => input.value), strokes, certifySafe: $('certifySafe').checked, confirmDetails: $('confirmDetails').checked, consent: $('consent').checked };
+  const signature = { ...Object.fromEntries(new FormData($('signForm'))), checks: [...document.querySelectorAll('.inspection-check')].map(input => input.checked ? 'Yes' : 'No'), strokes, certifySafe: $('certifySafe').checked, confirmDetails: $('confirmDetails').checked, consent: $('consent').checked };
   try { const result = await api('sign', { ...credentials, signature }); completed(new Date(), result.delivery); }
   catch (error) { status('signStatus', `${error.message} Your signature may already be saved. You can retry this same submission safely.`, true); }
   finally { submitting = false; $('submitSignature').disabled = false; $('clearSignature').disabled = false; }
 };
-$('download').onclick = async () => { $('download').disabled = true; try { saveBlob(await api('download', credentials, '', true), `QLD-Contractor-Certificate-${record.jobNumber || id}.pdf`); } catch (error) { status('pageStatus', error.message, true); } finally { $('download').disabled = false; } };
+$('download').onclick = async () => { $('download').disabled = true; try { saveBlob(await api('download', credentials, true), `QLD-Contractor-Certificate-${record.jobNumber || id}.pdf`); } catch (error) { status('pageStatus', error.message, true); } finally { $('download').disabled = false; } };
 load().catch(error => status('pageStatus', error.message, true));

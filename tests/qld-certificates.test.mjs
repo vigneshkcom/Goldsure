@@ -50,10 +50,10 @@ test('replacement field accepts a year or an unknown-installation-date status', 
   assert.equal(signatureFields({ ...signature, replacementDate: 'not-applicable' }, draft).replacementDate, 'not-applicable');
   assert.throws(() => signatureFields({ ...signature, replacementDate: 'next year' }, draft));
 });
-test('no conflicting compliant checklist or unexplained exclusions', () => {
+test('compliant inspections require every checklist item to be ticked and non-compliance needs observations', () => {
   assert.throws(() => signatureFields({ ...signature, checks: ['No', ...signature.checks.slice(1)] }, draft));
   assert.throws(() => signatureFields({ ...signature, smokeOutcome: 'not-compliant' }, draft));
-  assert.throws(() => signatureFields({ ...signature, checks: ['Not applicable', ...signature.checks.slice(1)] }, draft));
+  assert.throws(() => signatureFields({ ...signature, checks: ['Maybe', ...signature.checks.slice(1)] }, draft));
   assert.equal(signatureFields({ ...signature, smokeOutcome: 'not-compliant', notes: 'Bedroom alarm missing.' }, draft).smokeOutcome, 'not-compliant');
 });
 test('signature points have finite bounded coordinates and real strokes', () => {

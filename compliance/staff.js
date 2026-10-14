@@ -26,9 +26,7 @@ $('electricianSelect').onchange = () => {
 $('rows').closest('table').querySelector('thead th:nth-child(3)').textContent = 'Signing request';
 const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'notes'];
 const prefillId = key => `prefill${key[0].toUpperCase()}${key.slice(1)}`;
-const draft = () => ({ ...Object.fromEntries(new FormData($('draftForm'))), certificateType: 'installation', smokeInspection: true, prefill: { ...Object.fromEntries(prefillKeys.map(key => [key, $(prefillId(key)).value])), checks: [...document.querySelectorAll('.prefill-check')].map(input => input.value) } });
-const checkLabels = ['Alarms are photoelectric', 'Alarms are interconnected', 'Alarms comply with AS 3786:2014', 'Power supply and backup are suitable for the installation', 'An alarm is installed on each required storey', 'An alarm is installed in each required bedroom', 'Hallway and exit-path placement meets applicable requirements'];
-$('prefillChecks').innerHTML = checkLabels.map((label, i) => `<label for="prefillCheck${i}">${e(label)}</label><select id="prefillCheck${i}" class="prefill-check"><option value="">Leave for electrician</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
+const draft = () => ({ ...Object.fromEntries(new FormData($('draftForm'))), certificateType: 'installation', smokeInspection: true, prefill: Object.fromEntries(prefillKeys.map(key => [key, $(prefillId(key)).value])) });
 function deliveryChanged() { $('electricianEmail').required = $('deliveryMethod').value === 'email'; $('electricianEmail').previousElementSibling.textContent = $('deliveryMethod').value === 'email' ? "Electrician's email" : "Electrician's email (optional for SMS)"; }
 $('deliveryMethod').onchange = deliveryChanged;
 function openSms(sms) {
