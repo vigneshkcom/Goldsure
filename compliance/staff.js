@@ -1,10 +1,9 @@
 import { $, escapeHtml as e, status, api, date, saveBlob } from './common.js';
 let offset = 0, requestId = crypto.randomUUID(), pendingDraft = null, previewUrl = null, busy = false;
-const password = () => $('password').value;
 let electricians = [];
 async function loadElectricians() {
   const selected = $('electricianSelect').value;
-  const result = await api('electricians', {}, password());
+  const result = await api('electricians');
   electricians = result.electricians;
   $('electricianSelect').innerHTML = '<option value="">Enter details manually</option>' + electricians.map(worker => `<option value="${worker.id}">${e(worker.name)}${worker.companyName !== worker.name ? ` — ${e(worker.companyName)}` : ''}${worker.electricalLicenceExpired ? ' (check licence expiry)' : ''}</option>`).join('');
   if (electricians.some(worker => String(worker.id) === selected)) $('electricianSelect').value = selected;
@@ -48,14 +47,15 @@ async function run(button, target, work) {
   try { await work(); } catch (error) { status(target, error.message, true); } finally { if (!['prev', 'next'].includes(button.id)) button.disabled = false; }
 }
 async function load() {
-  const result = await api('list', { offset }, password());
+  const result = await api('list', { offset });
   $('rows').innerHTML = result.rows.length ? result.rows.map(row => `<tr><td><strong>${e(row.customerName)}</strong><small>${e(row.customerEmail)}</small><small>Job ${e(row.jobNumber || 'Manual')} • ${e(date(row.createdAt))}</small></td><td>${e(row.electricianName)}<small>${e(row.electricianEmail)}</small><small>${e(row.electricianPhone)}</small></td><td><span class="pill ${row.invitation === 'accepted' ? 'good' : 'warn'}">${e(row.invitation)}</span>${row.expired && !row.signedAt ? '<small>Link expired</small>' : ''}</td><td>${e(date(row.viewedAt))}</td><td>${e(date(row.signedAt))}</td><td><span class="pill ${row.delivery === 'accepted' ? 'good' : ''}">${e(row.delivery)}</span></td><td>${row.signedAt ? `<button data-download="${row.id}" data-job="${e(row.jobNumber)}">Download PDF</button>${row.delivery === 'pending / check' ? `<button data-finish="${row.id}">Recover completion</button>` : ''}` : row.expired ? 'Link expired' : `<button data-sms="${row.id}">Open signing link in SMS</button>`}</td></tr>`).join('') : '<tr><td colspan="7">No certificate requests on this page. Prepare your first request above.</td></tr>';
   $('prev').disabled = offset === 0; $('next').disabled = !result.hasMore; $('pageLabel').textContent = `Page ${offset / 25 + 1}`;
   status('trackerStatus', `Updated ${date(new Date())}. No emails are sent by refreshing.`);
 }
-for (const id of ['unlock', 'refresh']) $(id).addEventListener('click', () => run($(id), id === 'unlock' ? 'accessStatus' : 'trackerStatus', async () => { await load(); status('accessStatus', 'Staff access unlocked for this page only.'); if (id === 'unlock') { try { await loadElectricians(); } catch (error) { status('electricianLoadStatus', error.message, true); } } }));
+$('refresh').addEventListener('click', () => run($('refresh'), 'trackerStatus', load));
+loadElectricians().catch(error => status('electricianLoadStatus', error.message, true));
 $('lookup').onclick = () => run($('lookup'), 'lookupStatus', async () => {
-  const result = await api('lookup', { jobNumber: $('lookupNumber').value.trim() }, password());
+  const result = await api('lookup', { jobNumber: $('lookupNumber').value.trim() });
   for (const key of ['jobNumber', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress', 'siteAddress', 'state']) $(key).value = result[key] || '';
   status('lookupStatus', result.source);
 });
@@ -64,7 +64,7 @@ $('draftForm').onsubmit = event => {
   event.preventDefault();
   run(event.submitter, 'draftStatus', async () => {
     pendingDraft = draft();
-    const pdf = await api('preview', { draft: pendingDraft }, password(), true);
+    const pdf = await api('preview', { draft: pendingDraft }, true);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = URL.createObjectURL(pdf); $('preview').src = previewUrl;
     $('reviewRecipients').textContent = pendingDraft.deliveryMethod === 'sms' ? `Test mode: the signing link is prepared for SMS to ${pendingDraft.electricianPhone || 'a number you will enter'} (nothing is sent automatically from this page). After signing, the PDF email is sent only to vignesh@goldsure.com.au.` : 'Test mode: the signing-link email and the signed-PDF email are both sent only to vignesh@goldsure.com.au. No customer, commissioning party or electrician email is sent.';
@@ -80,7 +80,7 @@ $('confirmSend').onclick = async () => {
   busy = true; $('confirmSend').disabled = true; $('closeReview').disabled = true;
   status('sendStatus', pendingDraft.deliveryMethod === 'sms' ? 'Saving request and preparing the SMS draft. Nothing will be sent yet…' : 'Saving request and sending the private link…');
   try {
-    const result = await api(pendingDraft.deliveryMethod === 'sms' ? 'prepare-sms' : 'send', { id: requestId, draft: pendingDraft, confirmSend: true }, password());
+    const result = await api(pendingDraft.deliveryMethod === 'sms' ? 'prepare-sms' : 'send', { id: requestId, draft: pendingDraft, confirmSend: true });
     if (result.sms) { openSms(result.sms); return; }
     status('sendStatus', `Request ${result.id}: ${result.invitation.message}`, result.invitation.status !== 'accepted');
     status('draftStatus', `Request saved. Invitation: ${result.invitation.status}. Use New request for another certificate.`);
@@ -94,8 +94,9 @@ $('next').onclick = () => run($('next'), 'trackerStatus', async () => { offset +
 $('rows').onclick = event => {
   const button = event.target.closest('button'); if (!button) return;
   run(button, 'trackerStatus', async () => {
-    if (button.dataset.sms) openSms(await api('sms-link', { id: button.dataset.sms }, password()));
-    if (button.dataset.download) { const pdf = await api('download', { id: button.dataset.download }, password(), true); saveBlob(pdf, `QLD-Contractor-Certificate-${button.dataset.job || button.dataset.download}.pdf`); status('trackerStatus', 'Signed PDF downloaded.'); }
-    if (button.dataset.finish) { const result = await api('finish', { id: button.dataset.finish }, password()); await load(); status('trackerStatus', result.delivery.message, result.delivery.status !== 'accepted'); }
+    if (button.dataset.sms) openSms(await api('sms-link', { id: button.dataset.sms }));
+    if (button.dataset.download) { const pdf = await api('download', { id: button.dataset.download }, true); saveBlob(pdf, `QLD-Contractor-Certificate-${button.dataset.job || button.dataset.download}.pdf`); status('trackerStatus', 'Signed PDF downloaded.'); }
+    if (button.dataset.finish) { const result = await api('finish', { id: button.dataset.finish }); await load(); status('trackerStatus', result.delivery.message, result.delivery.status !== 'accepted'); }
   });
 };
+load().catch(error => status('trackerStatus', error.message, true));

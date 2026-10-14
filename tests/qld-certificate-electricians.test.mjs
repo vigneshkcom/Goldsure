@@ -15,12 +15,10 @@ test('explicit contractor licence is prefillable; missing licences stay empty; d
   assert.equal(certificateElectrician({...worker,abilities:[{name:'QLD Smoke + LED',setting:false}]}),null);
   assert.equal(certificateElectrician({...worker,fieldworkerId:undefined}),null);
 });
-test('electricians action requires staff access and list retrieval only reads fieldworkers',async()=>{
-  const calls=[]; const env={DASHBOARD_PASSWORD:'test',DATAFORCE_CLIENT_ID:'test',DATAFORCE_CLIENT_SECRET:'test'};
+test('electricians list needs no password and only reads fieldworkers',async()=>{
+  const calls=[]; const env={DATAFORCE_CLIENT_ID:'test',DATAFORCE_CLIENT_SECRET:'test'};
   const fetchImpl=async(url,init)=>{calls.push({url,init});return new Response(JSON.stringify(url.includes('/authorization/')?{access_token:'fake'}:{totalCount:1,records:[worker]}));};
-  await assert.rejects(certificateAction({action:'qld-certificate-electricians'},{headers:{}},{env,store:{},fetch:fetchImpl}),/staff portal password/);
-  assert.equal(calls.length,0);
-  const result=await certificateAction({action:'qld-certificate-electricians'},{headers:{'x-certificate-password':'test'}},{env,store:{},fetch:fetchImpl});
+  const result=await certificateAction({action:'qld-certificate-electricians'},{headers:{}},{env,store:{},fetch:fetchImpl});
   assert.equal(result.electricians.length,1); assert.equal(calls.length,2); assert.equal(calls[1].init.method,undefined);
   assert.equal(calls[1].url,'https://asap-api.dataforce.com.au/GOLDSURE_ASAP/fieldworkers');
 });

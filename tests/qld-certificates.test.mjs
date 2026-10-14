@@ -19,14 +19,14 @@ export class MemoryStore {
 test('staff page has no storage setup control or stale setup event handler', async () => {
   const html = await readFile(new URL('../compliance/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../compliance/staff.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(html, /id="setup"|Initialise private storage/);
+  assert.doesNotMatch(html, /id="setup"|Initialise private storage|id="password"|Staff portal password/);
   assert.doesNotMatch(js, /\$\('setup'\)/);
-  assert.match(html, /id="unlock"/);
+  assert.doesNotMatch(js, /x-certificate-password|password\(\)/);
 });
 function fixture() {
-  const store = new MemoryStore(), mails = [], env = { DASHBOARD_PASSWORD: 'staff-test', QLD_CERTIFICATE_SIGNING_SECRET: 'test-only-secret-not-for-production-123456789' };
+  const store = new MemoryStore(), mails = [], env = { QLD_CERTIFICATE_SIGNING_SECRET: 'test-only-secret-not-for-production-123456789' };
   const deps = { store, env, mailer: async mail => { mails.push(mail); } };
-  const admin = { headers: { 'x-certificate-password': 'staff-test' } };
+  const admin = { headers: {} };
   return { store, mails, deps, admin, env };
 }
 async function create(f) { const id = randomUUID(); await certificateAction({ action: 'qld-certificate-send', id, draft, confirmSend: true }, f.admin, f.deps); return { id, token: signingToken(id, f.env.QLD_CERTIFICATE_SIGNING_SECRET) }; }
@@ -51,12 +51,15 @@ test('no conflicting compliant checklist or unexplained exclusions', () => {
 test('signature points have finite bounded coordinates and real strokes', () => {
   for (const strokes of [[], [[[.1,.1]]], [[[NaN,1],[1,1]]], Array.from({ length: 101 }, () => [[0,0],[1,1]])]) assert.throws(() => signatureFields({ ...signature, strokes }, draft));
 });
-test('all staff actions reject absent staff access', async () => {
+test('staff actions do not require a password', async () => {
   const f = fixture();
-  for (const action of ['setup', 'lookup', 'list', 'send', 'finish', 'preview']) await assert.rejects(certificateAction({ action: `qld-certificate-${action}` }, { headers: {} }, f.deps), /staff portal password/);
+  const listed = await certificateAction({ action: 'qld-certificate-list' }, { headers: {} }, f.deps);
+  assert.deepEqual(listed.rows, []);
+  const preview = await certificateAction({ action: 'qld-certificate-preview', draft }, { headers: {} }, f.deps);
+  assert.equal(preview.pdf.subarray(0, 4).toString(), '%PDF');
   assert.equal(f.mails.length, 0);
 });
-test('cross-origin action rejected even with staff password', async () => {
+test('cross-origin action remains rejected', async () => {
   const f = fixture(); await assert.rejects(certificateAction({ action: 'qld-certificate-list' }, { headers: { ...f.admin.headers, origin: 'https://evil.example' } }, f.deps), /Goldsure portal/);
 });
 test('preview returns a PDF and never saves or emails', async () => {
@@ -82,13 +85,14 @@ test('signature and PDF survive concurrent submissions and mail is sent once', a
   assert.equal(f.store.data.get(`records/${credentials.id}/signed.json`), original);
   assert.equal(f.mails.length, 2);
 });
-test('token is required even with staff credentials to sign', async () => {
+test('the private signing token is always required to sign', async () => {
   const f = fixture(), { id } = await create(f);
-  await assert.rejects(certificateAction({ action: 'qld-certificate-sign', id, signature }, f.admin, f.deps), /electrician signing link/);
+  await assert.rejects(certificateAction({ action: 'qld-certificate-sign', id, signature }, f.admin, f.deps), /invalid/);
 });
-test('invalid and expired tokens reject all public operations', async () => {
+test('invalid and expired tokens reject signing-link operations', async () => {
   const f = fixture(), credentials = await create(f);
-  for (const action of ['view', 'sign', 'download']) await assert.rejects(certificateAction({ action: `qld-certificate-${action}`, ...credentials, token: 'bad' }, { headers: {} }, f.deps), /invalid/);
+  for (const action of ['view', 'sign']) await assert.rejects(certificateAction({ action: `qld-certificate-${action}`, ...credentials, token: 'bad' }, { headers: {} }, f.deps), /invalid/);
+  await assert.rejects(certificateAction({ action: 'qld-certificate-download', ...credentials }, { headers: {} }, f.deps), /not ready/);
   f.store.data.get(`requests/${credentials.id}.json`).expiresAt = '2000-01-01';
   await assert.rejects(certificateAction({ action: 'qld-certificate-view', ...credentials }, { headers: {} }, f.deps), /expired/);
 });
@@ -159,11 +163,10 @@ test('SMS-only request creates a reusable signing link without any invitation em
   await certificateAction({ action: 'qld-certificate-sign', id, token, signature }, { headers: {} }, f.deps);
   assert.equal(f.mails.length, 1); assert.deepEqual(f.mails[0].to, ['vignesh@goldsure.com.au']);
 });
-test('SMS links for saved requests require staff auth and cannot reopen signed or expired requests', async () => {
+test('SMS links for saved requests need no password and cannot reopen signed or expired requests', async () => {
   const f = fixture(), credentials = await create(f);
   const body = { action: 'qld-certificate-sms-link', id: credentials.id };
-  await assert.rejects(certificateAction({ ...body, token: credentials.token }, { headers: {} }, f.deps), /staff portal password/);
-  const result = await certificateAction(body, f.admin, f.deps); assert.ok(result.message.includes(credentials.token)); assert.equal(f.mails.length, 1);
+  const result = await certificateAction(body, { headers: {} }, f.deps); assert.ok(result.message.includes(credentials.token)); assert.equal(f.mails.length, 1);
   f.store.data.get(`requests/${credentials.id}.json`).expiresAt = '2000-01-01';
   await assert.rejects(certificateAction(body, f.admin, f.deps), /expired/);
 });
