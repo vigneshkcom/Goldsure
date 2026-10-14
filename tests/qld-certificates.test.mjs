@@ -236,12 +236,14 @@ test('storage setup refuses missing PostgreSQL tables without creating a bucket'
   await assert.rejects(store.setup(), /PostgreSQL migration/);
   assert.equal(calls.length, 1); assert.equal(calls[0].init.method, undefined);
 });
-test('completed email identifies the contractor and has an unbranded attachment name', async () => {
+test('completed email uses the customer-facing Goldsure layout and has an unbranded attachment name', async () => {
   const f = fixture(), credentials = await create(f);
   await certificateAction({ action: 'qld-certificate-sign', ...credentials, signature }, { headers: {} }, f.deps);
   const mail = f.mails[1];
-  assert.equal(mail.displayName, 'Certificate delivery');
-  assert.match(mail.text, /Issuing electrical contractor: Example Electrical Pty Ltd/);
-  assert.ok(!mail.text.includes('Goldsure'));
+  assert.equal(mail.displayName, 'Goldsure Compliance');
+  assert.match(mail.text, /Issued by: Example Electrical Pty Ltd/);
+  assert.match(mail.html, /Your signed certificate is ready/);
+  assert.match(mail.html, /Certificate summary/);
+  assert.match(mail.html, /Goldsure/);
   assert.ok(!mail.attachments[0].filename.includes('Goldsure'));
 });
