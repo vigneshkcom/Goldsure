@@ -59,8 +59,8 @@ $('draftForm').onsubmit = event => {
     const pdf = await api('preview', { draft: pendingDraft }, true);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = URL.createObjectURL(pdf); $('preview').src = previewUrl;
-    $('reviewRecipients').textContent = pendingDraft.deliveryMethod === 'sms' ? `Test mode: the signing link is prepared for SMS to ${pendingDraft.electricianPhone || 'a number you will enter'} (nothing is sent automatically from this page). After signing, the PDF email is sent only to vignesh@goldsure.com.au.` : 'Test mode: the signing-link email and the signed-PDF email are both sent only to vignesh@goldsure.com.au. No customer, commissioning party or electrician email is sent.';
-    $('confirmSend').textContent = pendingDraft.deliveryMethod === 'sms' ? 'Save & open SMS portal' : 'Send test email to Vignesh';
+    $('reviewRecipients').textContent = pendingDraft.deliveryMethod === 'sms' ? `The signing link is prepared for SMS to ${pendingDraft.electricianPhone || 'a number you will enter'}. After signing, the PDF is emailed to the customer with vignesh@goldsure.com.au copied.` : 'The signing link is emailed to the electrician. After signing, the completed PDF is emailed to the customer with vignesh@goldsure.com.au copied.';
+    $('confirmSend').textContent = pendingDraft.deliveryMethod === 'sms' ? 'Save & open SMS portal' : 'Send signing link';
     $('reviewConfirmed').checked = false; $('confirmSend').disabled = true; status('sendStatus', ''); $('review').showModal(); status('draftStatus', 'Preview ready. No email has been sent.');
   });
 };

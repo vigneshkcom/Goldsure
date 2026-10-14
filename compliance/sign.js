@@ -33,7 +33,7 @@ async function load() {
 $('signForm').onsubmit = async event => {
   event.preventDefault(); if (submitting) return;
   if (strokes.reduce((n, s) => n + s.length, 0) < 8) return status('signStatus', 'Please draw a clear signature.', true);
-  if (!confirm('Sign this certificate and email the completed PDF only to Vignesh for this test? You cannot change the signed record.')) return;
+  if (!confirm('Sign this certificate and email the completed PDF to the customer, with Goldsure copied? You cannot change the signed record.')) return;
   submitting = true; $('submitSignature').disabled = true; $('clearSignature').disabled = true;
   status('signStatus', 'Saving your signed certificate and preparing the emails. Please keep this page open…');
   const signature = { ...Object.fromEntries(new FormData($('signForm'))), checks: [...document.querySelectorAll('.inspection-check')].map(input => input.checked ? 'Yes' : 'No'), strokes, certifySafe: $('certifySafe').checked, confirmDetails: $('confirmDetails').checked, consent: $('consent').checked };
