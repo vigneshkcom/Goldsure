@@ -8,7 +8,7 @@ import { certificatePdf } from '../lib/qld-certificate-pdf.js';
 import { CertificateStore } from '../lib/qld-certificate-store.js';
 
 export const draft = { customerName: 'Example Customer', customerEmail: 'customer@example.test', customerAddress: '10 Example Street, Brisbane QLD 4000', customerPhone: '0400 000 000', siteAddress: '10 Example Street, Brisbane QLD 4000', workForName: 'Example Customer', workForEmail: 'customer@example.test', workForAddress: '10 Example Street, Brisbane QLD 4000', jobNumber: '123456', workDescription: 'Installed and tested six interconnected photoelectric smoke alarms at the locations listed in the installation record. Testing covers the electrical work performed.', electricianName: 'Example Electrician', electricianEmail: 'electrician@example.test', certificateType: 'installation', smokeInspection: true, state: 'QLD' };
-export const signature = { signerName: 'Example Electrician', workDescription: 'Installed and tested six interconnected photoelectric smoke alarms throughout the residence.', contractorName: 'Example Electrical Pty Ltd', contractorLicence: 'EXAMPLE-12345', contractorPhone: '0400 000 001', testDate: '2026-10-12', notes: '', certifySafe: true, confirmDetails: true, consent: true, smokeOutcome: 'compliant', checks: CHECKS.map(() => 'Yes'), replacementDate: '2036-10-12', strokes: [[[.1,.7],[.15,.3],[.2,.5],[.25,.8],[.3,.25],[.4,.6],[.5,.4],[.65,.6],[.8,.3]]] };
+export const signature = { signerName: 'Example Electrician', workDescription: 'Installed and tested six interconnected photoelectric smoke alarms throughout the residence.', contractorName: 'Example Electrical Pty Ltd', contractorLicence: 'EXAMPLE-12345', contractorPhone: '0400 000 001', testDate: '2026-10-12', notes: '', certifySafe: true, confirmDetails: true, consent: true, smokeOutcome: 'compliant', checks: CHECKS.map(() => 'Yes'), replacementDate: '2036', strokes: [[[.1,.7],[.15,.3],[.2,.5],[.25,.8],[.3,.25],[.4,.6],[.5,.4],[.65,.6],[.8,.3]]] };
 export class MemoryStore {
   data = new Map();
   async setup() {}
@@ -45,6 +45,10 @@ test('signing requires deliberate safety, authority and consent confirmations', 
 });
 test('test date must be a real non-future date', () => {
   for (const value of ['2026-02-30', '2099-01-01', 'no-date']) assert.throws(() => signatureFields({ ...signature, testDate: value }, draft));
+});
+test('replacement field accepts a year or an unknown-installation-date status', () => {
+  assert.equal(signatureFields({ ...signature, replacementDate: 'not-applicable' }, draft).replacementDate, 'not-applicable');
+  assert.throws(() => signatureFields({ ...signature, replacementDate: 'next year' }, draft));
 });
 test('no conflicting compliant checklist or unexplained exclusions', () => {
   assert.throws(() => signatureFields({ ...signature, checks: ['No', ...signature.checks.slice(1)] }, draft));

@@ -19,9 +19,12 @@ async function load() {
   $('details').innerHTML = pairs.map(([label, value]) => `<dt>${e(label)}</dt><dd>${e(value)}</dd>`).join('');
   $('declaration').textContent = result.declaration; $('signerName').value = record.electricianName;
   $('testDate').max = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const replacementYear = $('replacementDate'), firstYear = Number($('testDate').max.slice(0, 4));
+  replacementYear.innerHTML = '<option value="">Select year (if known)</option><option value="not-applicable">Not applicable - installation date unknown; compliant at time of testing</option>' + Array.from({ length: 21 }, (_, index) => `<option value="${firstYear + index}">${firstYear + index}</option>`).join('');
   $('smokeSection').hidden = false; $('smokeOutcome').required = true;
   $('checks').innerHTML = result.checks.map((label, i) => `<label for="check${i}">${e(label)}</label><select id="check${i}" class="inspection-check" required><option value="">Choose…</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
-  for (const key of ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'notes', 'smokeOutcome', 'replacementDate']) if (record.prefill?.[key]) $(key).value = record.prefill[key];
+  for (const key of ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'notes', 'smokeOutcome']) if (record.prefill?.[key]) $(key).value = record.prefill[key];
+  if (record.prefill?.replacementDate) { const savedReplacement = String(record.prefill.replacementDate); replacementYear.value = savedReplacement === 'not-applicable' ? savedReplacement : savedReplacement.slice(0, 4); }
   [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.value = record.prefill?.checks?.[i] || ''; });
   // Prefilled values remain editable; safety, authority and consent stay unchecked.
   $('content').hidden = false; status('pageStatus', 'Please review every detail before signing.');

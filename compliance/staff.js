@@ -24,7 +24,7 @@ $('electricianSelect').onchange = () => {
   if (worker.electricalLicenceExpiry) $('licenceSource').textContent += ` Recorded licence expiry: ${worker.electricalLicenceExpiry}${worker.electricalLicenceExpired ? ' — EXPIRED in Dataforce; check the current licence.' : '.'}`;
 };
 $('rows').closest('table').querySelector('thead th:nth-child(3)').textContent = 'Signing request';
-const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'replacementDate', 'notes'];
+const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'notes'];
 const prefillId = key => `prefill${key[0].toUpperCase()}${key.slice(1)}`;
 const draft = () => ({ ...Object.fromEntries(new FormData($('draftForm'))), certificateType: 'installation', smokeInspection: true, prefill: { ...Object.fromEntries(prefillKeys.map(key => [key, $(prefillId(key)).value])), checks: [...document.querySelectorAll('.prefill-check')].map(input => input.value) } });
 const checkLabels = ['Alarms are photoelectric', 'Alarms are interconnected', 'Alarms comply with AS 3786:2014', 'Power supply and backup are suitable for the installation', 'An alarm is installed on each required storey', 'An alarm is installed in each required bedroom', 'Hallway and exit-path placement meets applicable requirements'];
