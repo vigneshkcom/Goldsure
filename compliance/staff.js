@@ -26,12 +26,11 @@ $('electricianSelect').onchange = () => {
 $('rows').closest('table').querySelector('thead th:nth-child(3)').textContent = 'Signing request';
 const prefillKeys = ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'smokeOutcome', 'replacementDate', 'notes'];
 const prefillId = key => `prefill${key[0].toUpperCase()}${key.slice(1)}`;
-const draft = () => ({ ...Object.fromEntries(new FormData($('draftForm'))), smokeInspection: $('smokeInspection').checked, prefill: { ...Object.fromEntries(prefillKeys.map(key => [key, $(prefillId(key)).value])), checks: [...document.querySelectorAll('.prefill-check')].map(input => input.value) } });
+const draft = () => ({ ...Object.fromEntries(new FormData($('draftForm'))), certificateType: 'installation', smokeInspection: true, prefill: { ...Object.fromEntries(prefillKeys.map(key => [key, $(prefillId(key)).value])), checks: [...document.querySelectorAll('.prefill-check')].map(input => input.value) } });
 const checkLabels = ['Alarms are photoelectric', 'Alarms are interconnected', 'Alarms comply with AS 3786:2014', 'Power supply and backup are suitable for the installation', 'An alarm is installed on each required storey', 'An alarm is installed in each required bedroom', 'Hallway and exit-path placement meets applicable requirements'];
 $('prefillChecks').innerHTML = checkLabels.map((label, i) => `<label for="prefillCheck${i}">${e(label)}</label><select id="prefillCheck${i}" class="prefill-check"><option value="">Leave for electrician</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
 function deliveryChanged() { $('electricianEmail').required = $('deliveryMethod').value === 'email'; $('electricianEmail').previousElementSibling.textContent = $('deliveryMethod').value === 'email' ? "Electrician's email" : "Electrician's email (optional for SMS)"; }
 $('deliveryMethod').onchange = deliveryChanged;
-$('smokeInspection').onchange = () => { $('prefillSmoke').hidden = !$('smokeInspection').checked; };
 function openSms(sms) {
   const key = crypto.randomUUID();
   sessionStorage.setItem(`qld-certificate-sms:${key}`, JSON.stringify({ ...sms, createdAt: Date.now() }));
@@ -83,7 +82,7 @@ $('confirmSend').onclick = async () => {
   } catch (error) { status('sendStatus', error.message, true); }
   finally { busy = false; $('closeReview').disabled = false; /* Same request ID makes retries safe. */ $('confirmSend').disabled = false; }
 };
-$('newDraft').onclick = () => { if (!confirm('Start a new certificate request? Unsaved form entries will be cleared.')) return; $('draftForm').reset(); clearLicenceSource(); deliveryChanged(); $('prefillSmoke').hidden = false; requestId = crypto.randomUUID(); pendingDraft = null; status('draftStatus', 'New draft. Nothing sent.'); };
+$('newDraft').onclick = () => { if (!confirm('Start a new certificate request? Unsaved form entries will be cleared.')) return; $('draftForm').reset(); clearLicenceSource(); deliveryChanged(); requestId = crypto.randomUUID(); pendingDraft = null; status('draftStatus', 'New draft. Nothing sent.'); };
 $('prev').onclick = () => run($('prev'), 'trackerStatus', async () => { offset = Math.max(0, offset - 25); await load(); $('prev').disabled = offset === 0; });
 $('next').onclick = () => run($('next'), 'trackerStatus', async () => { offset += 25; await load(); });
 $('rows').onclick = event => {

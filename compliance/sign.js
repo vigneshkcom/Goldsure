@@ -15,14 +15,14 @@ function completed(at, delivery) { $('signForm').hidden = true; $('completed').h
 async function load() {
   if (!id || !token) throw new Error('Open the private link from your Goldsure email or SMS. This page cannot be opened without it.');
   const result = await api('view', credentials); record = result.record;
-  const pairs = [['Job number', record.jobNumber || 'Manual entry'], ['Customer', `${record.customerName}\n${record.customerEmail}\n${record.customerAddress}`], ['Work performed for', `${record.workForName}\n${record.workForAddress}\n${record.workForEmail}`], ['Installation address', record.siteAddress], ['Certificate type', record.certificateType === 'installation' ? 'Testing and compliance - electrical installation' : 'Testing and safety - electrical equipment'], ['Electrician', `${record.electricianName}\n${record.electricianEmail}`]];
+  const pairs = [['Job number', record.jobNumber || 'Manual entry'], ['Customer', `${record.customerName}\n${record.customerEmail}\n${record.customerAddress}`], ['Work performed for', `${record.workForName}\n${record.workForAddress}\n${record.workForEmail}`], ['Installation address', record.siteAddress], ['Certificate', 'Smoke alarm inspection - testing and compliance (electrical installation)'], ['Electrician', `${record.electricianName}\n${record.electricianEmail}`]];
   $('details').innerHTML = pairs.map(([label, value]) => `<dt>${e(label)}</dt><dd>${e(value)}</dd>`).join('');
   $('declaration').textContent = result.declaration; $('signerName').value = record.electricianName;
   $('testDate').max = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  $('smokeSection').hidden = !record.smokeInspection; $('smokeOutcome').required = record.smokeInspection;
-  if (record.smokeInspection) $('checks').innerHTML = result.checks.map((label, i) => `<label for="check${i}">${e(label)}</label><select id="check${i}" class="inspection-check" required><option value="">Choose…</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
+  $('smokeSection').hidden = false; $('smokeOutcome').required = true;
+  $('checks').innerHTML = result.checks.map((label, i) => `<label for="check${i}">${e(label)}</label><select id="check${i}" class="inspection-check" required><option value="">Choose…</option><option>Yes</option><option>No</option><option>Not applicable</option></select>`).join('');
   for (const key of ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'notes', 'smokeOutcome', 'replacementDate']) if (record.prefill?.[key]) $(key).value = record.prefill[key];
-  if (record.smokeInspection) [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.value = record.prefill?.checks?.[i] || ''; });
+  [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.value = record.prefill?.checks?.[i] || ''; });
   // Prefilled values remain editable; safety, authority and consent stay unchecked.
   $('content').hidden = false; status('pageStatus', 'Please review every detail before signing.');
   if (result.signedAt) completed(result.signedAt, result.delivery);
