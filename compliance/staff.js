@@ -74,9 +74,15 @@ $('confirmSend').onclick = async () => {
   try {
     const result = await api(pendingDraft.deliveryMethod === 'sms' ? 'prepare-sms' : 'send', { id: requestId, draft: pendingDraft, confirmSend: true });
     if (result.sms) { openSms(result.sms); return; }
-    status('sendStatus', `Request ${result.id}: ${result.invitation.message}`, result.invitation.status !== 'accepted');
-    status('draftStatus', `Request saved. Invitation: ${result.invitation.status}. Use New request for another certificate.`);
+    const accepted = result.invitation.status === 'accepted';
+    status('sendStatus', `Request ${result.id}: ${result.invitation.message}`, !accepted);
+    status('draftStatus', `Request saved. Invitation: ${result.invitation.status}. Use New request for another certificate.`, !accepted);
     await load();
+    if (accepted) {
+      $('review').close();
+      status('trackerStatus', `Signing link sent. ${result.invitation.message}`);
+      $('tracker').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   } catch (error) { status('sendStatus', error.message, true); }
   finally { busy = false; $('closeReview').disabled = false; /* Same request ID makes retries safe. */ $('confirmSend').disabled = false; }
 };
