@@ -7,8 +7,8 @@ import { requestFields, signatureFields, signingToken, CHECKS, prefillFields, ph
 import { certificatePdf } from '../lib/qld-certificate-pdf.js';
 import { CertificateStore } from '../lib/qld-certificate-store.js';
 
-export const draft = { customerName: 'Example Customer', customerEmail: 'customer@example.test', customerAddress: '10 Example Street, Brisbane QLD 4000', customerPhone: '0400 000 000', siteAddress: '10 Example Street, Brisbane QLD 4000', workForName: 'Example Customer', workForEmail: 'customer@example.test', workForAddress: '10 Example Street, Brisbane QLD 4000', jobNumber: '123456', workDescription: 'Installed and tested six interconnected photoelectric smoke alarms at the locations listed in the installation record. Testing covers the electrical work performed.', electricianName: 'Example Electrician', electricianEmail: 'electrician@example.test', certificateType: 'installation', smokeInspection: true, state: 'QLD' };
-export const signature = { signerName: 'Example Electrician', workDescription: 'Installed and tested six interconnected photoelectric smoke alarms throughout the residence.', contractorName: 'Example Electrical Pty Ltd', contractorLicence: 'EXAMPLE-12345', contractorPhone: '0400 000 001', testDate: '2026-10-12', notes: '', certifySafe: true, confirmDetails: true, consent: true, smokeOutcome: 'compliant', checks: CHECKS.map(() => 'Yes'), replacementDate: '2036', strokes: [[[.1,.7],[.15,.3],[.2,.5],[.25,.8],[.3,.25],[.4,.6],[.5,.4],[.65,.6],[.8,.3]]] };
+export const draft = { customerName: 'Example Customer', customerEmail: 'customer@example.test', customerAddress: '10 Example Street, Brisbane QLD 4000', customerPhone: '0400 000 000', siteAddress: '10 Example Street, Brisbane QLD 4000', workForName: 'Example Customer', workForEmail: 'customer@example.test', workForAddress: '10 Example Street, Brisbane QLD 4000', jobNumber: '123456', electricianName: 'Example Electrician', electricianEmail: 'electrician@example.test', certificateType: 'installation', smokeInspection: true, state: 'QLD' };
+export const signature = { signerName: 'Example Electrician', contractorName: 'Example Electrical Pty Ltd', contractorLicence: 'EXAMPLE-12345', contractorPhone: '0400 000 001', testDate: '2026-10-12', notes: '', certifySafe: true, confirmDetails: true, consent: true, smokeOutcome: 'compliant', checks: CHECKS.map(() => 'Yes'), replacementDate: '2036', strokes: [[[.1,.7],[.15,.3],[.2,.5],[.25,.8],[.3,.25],[.4,.6],[.5,.4],[.65,.6],[.8,.3]]] };
 export class MemoryStore {
   data = new Map();
   async setup() {}
@@ -22,6 +22,8 @@ test('staff page has no storage setup control or stale setup event handler', asy
   assert.doesNotMatch(html, /id="setup"|Initialise private storage|id="password"|Staff portal password|id="useRecordedLicence"|id="certificateType"|value="equipment"/);
   assert.doesNotMatch(js, /\$\('setup'\)/);
   assert.doesNotMatch(js, /x-certificate-password|password\(\)/);
+  const sign = await readFile(new URL('../compliance/sign.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(sign, /id="workDescription"|WORK COMPLETED/);
 });
 function fixture() {
   const store = new MemoryStore(), mails = [], env = { QLD_CERTIFICATE_SIGNING_SECRET: 'test-only-secret-not-for-production-123456789' };
@@ -34,13 +36,11 @@ async function create(f) { const id = randomUUID(); await certificateAction({ ac
 test('required recipient, job details and Queensland scope validated', () => {
   assert.equal(requestFields(draft).customerName, draft.customerName);
   for (const bad of [{ customerEmail: 'bad' }, { state: 'NSW' }, { workForName: '' }, { electricianEmail: 'x\ny@z.com' }]) assert.throws(() => requestFields({ ...draft, ...bad }));
-  assert.equal(requestFields({ ...draft, workDescription: '' }).workDescription, '');
   assert.equal(requestFields({ ...draft, certificateType: 'equipment', smokeInspection: false }).certificateType, 'installation');
   assert.equal(requestFields({ ...draft, certificateType: 'equipment', smokeInspection: false }).smokeInspection, true);
 });
 test('signing requires deliberate safety, authority and consent confirmations', () => {
   for (const key of ['certifySafe', 'confirmDetails', 'consent']) assert.throws(() => signatureFields({ ...signature, [key]: false }, draft));
-  assert.throws(() => signatureFields({ ...signature, workDescription: '' }, draft));
   assert.throws(() => signatureFields({ ...signature, signerName: 'Someone else' }, draft));
 });
 test('test date must be a real non-future date', () => {
@@ -156,7 +156,7 @@ test('Dataforce lookup only reads jobs/customers and does not write records', as
   assert.equal(calls.length, 3);
 });
 test('PDF renders signed content with enough space for maximum-length fields', async () => {
-  const pdf = await certificatePdf({ ...draft, id: randomUUID(), workDescription: 'Specific work and installation details. '.repeat(35) }, { ...signatureFields(signature, draft), notes: 'Detailed observations and exclusions. '.repeat(35), signedAt: '2026-10-13T02:00:00Z' });
+  const pdf = await certificatePdf({ ...draft, id: randomUUID() }, { ...signatureFields(signature, draft), notes: 'Detailed observations and exclusions. '.repeat(35), signedAt: '2026-10-13T02:00:00Z' });
   assert.ok(pdf.length > 3000);
 });
 test('SMS-only request creates a reusable signing link without any invitation email', async () => {
