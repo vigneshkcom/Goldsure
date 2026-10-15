@@ -333,12 +333,19 @@ async function setFolderAssessment(accessToken, folderId, phone, assessment = {}
   }
 }
 
-async function setFolderHwsAddress(accessToken, folderId, phone, assessment = {}) {
-  const address = String(assessment.address || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 500);
+async function setFolderHwsAssessment(accessToken, folderId, phone, assessment = {}, product = 'hws') {
+  const oneLine = value => String(value || '').replace(/[\r\n]+/g, ' ').trim();
+  const address = oneLine(assessment.address).slice(0, 500);
+  const systemType = oneLine(assessment.systemType).slice(0, 40);
+  const gasLocation = oneLine(assessment.gasLocation).slice(0, 80);
+  const gasDistance = oneLine(assessment.gasDistance).slice(0, 80);
   const lines = [
     phone ? `phone:${phone}` : '',
-    'product:hws',
+    `product:${product}`,
     address ? `address:${address}` : '',
+    systemType ? `system_type:${systemType}` : '',
+    gasLocation ? `gas_location:${gasLocation}` : '',
+    gasDistance ? `gas_distance:${gasDistance}` : '',
   ].filter(Boolean);
   try {
     await fetch(`${API_BASE}/files/${encodeURIComponent(folderId)}`, {
@@ -347,7 +354,7 @@ async function setFolderHwsAddress(accessToken, folderId, phone, assessment = {}
       body: JSON.stringify({ data: { attributes: { description: lines.join('\n') }, type: 'files' } }),
     });
   } catch (e) {
-    console.error('[Zoho] could not store hot water property address on folder:', e.message);
+    console.error('[Zoho] could not store hot water assessment on folder:', e.message);
   }
 }
 
@@ -381,7 +388,9 @@ export function photoRequestFromFolder(file, config, baseUrl) {
     : Math.max(0, Number(rawPhotoCount) - (config.product === 'aircon' ? 1 : 0));
   const requiredPhotoCount = config.product === 'aircon'
     ? 2 + Math.max(1, Math.min(7, Number(assessment.rooms) || 1))
-    : 4;
+    : config.product === 'hws-nsw' && assessment.systemType === 'Gas'
+      ? 5
+      : 4;
   const viewedAt = descriptionValue(description, 'link_viewed_at') || null;
   const status = actualPhotoCount == null ? 'unknown'
     : actualPhotoCount >= requiredPhotoCount ? 'received'
@@ -460,6 +469,9 @@ const assessmentFromDescription = d => {
     units,
     rooms,
     roof: pick('roof'),
+    systemType: pick('system_type'),
+    gasLocation: pick('gas_location'),
+    gasDistance: pick('gas_distance'),
     comments,
   };
 };
@@ -489,6 +501,21 @@ function cleanPhotoLabels(photoLabels) {
   return [...new Set((Array.isArray(photoLabels) ? photoLabels : [])
     .map(label => String(label || '').replace(/[\r\n]+/g, ' ').trim())
     .filter(Boolean))].slice(0, 30);
+}
+
+function hwsSiteCheckRows(assessment) {
+  if (!assessment?.systemType) return [];
+  const rows = [['Existing system', assessment.systemType]];
+  if (assessment.systemType === 'Gas') {
+    rows.push(
+      ['Gas unit location from switchboard', assessment.gasLocation || 'Not answered'],
+      ['Gas unit distance from switchboard', assessment.gasDistance || 'Not answered'],
+    );
+  }
+  const needsReview = assessment.systemType === 'Not sure'
+    || (assessment.systemType === 'Gas' && (!assessment.gasLocation || !assessment.gasDistance || assessment.gasLocation === 'Not sure' || assessment.gasDistance === 'Not sure'));
+  rows.push(['Site check status', needsReview ? 'Needs review' : 'Ready to quote']);
+  return rows;
 }
 
 function receivedAtSydney() {
@@ -534,6 +561,7 @@ function photoUploadEmailHtml({ config, who, what, phone, folderUrl, folderId, a
     ['Customer name', who],
     ...commonAnswers,
     ['Property address', assessment?.address || 'Not provided'],
+    ...hwsSiteCheckRows(assessment),
     ['Photos submitted', labels.length ? labels.join(', ') : 'Not provided'],
     ['New photos uploaded', Number(uploadCount) || 0],
   ] : [
@@ -601,6 +629,7 @@ function photoUploadEmailText({ config, who, what, phone, folderUrl, folderId, a
   }
   if (isHwsProduct(config.product)) {
     lines.push(`Property address: ${assessment?.address || 'Not provided'}`);
+    for (const [label, value] of hwsSiteCheckRows(assessment)) lines.push(`${label}: ${value}`);
   }
   lines.push(
     `${isPromo ? 'Files' : 'Photos'} submitted: ${labels.length ? labels.join(', ') : 'Not provided'}`,
@@ -628,9 +657,15 @@ function airconAssessmentError(assessment) {
   return '';
 }
 
-function hwsAssessmentError(assessment) {
+function hwsAssessmentError(assessment, product) {
   const address = String(assessment?.address || '').trim();
-  return address.length >= 6 ? '' : 'property address is required';
+  if (address.length < 6) return 'property address is required';
+  if (product !== 'hws-nsw') return '';
+  if (!['Gas', 'Electric', 'Not sure'].includes(assessment?.systemType)) return 'existing hot water system type is required';
+  if (assessment.systemType !== 'Gas') return '';
+  if (!['Left of the switchboard', 'Right of the switchboard', 'In front of the switchboard', 'Behind the switchboard', 'Not sure'].includes(assessment?.gasLocation)) return 'gas unit location from the switchboard is required';
+  if (!['0–5 metres', '5–10 metres', '10–15 metres', '15–20 metres', 'More than 20 metres', 'Not sure'].includes(assessment?.gasDistance)) return 'gas unit distance from the switchboard is required';
+  return '';
 }
 
 // Ask Zoho for the folder's own canonical link rather than constructing one —
@@ -962,8 +997,8 @@ export default async function handler(req, res) {
     // Old links that were already open before this field launched may not
     // carry assessment at all. Keep those uploads working, while validating
     // every submission from the current page that includes the address block.
-    if (isHwsProduct(config.product) && assessment) {
-      const assessmentError = hwsAssessmentError(assessment);
+    if (config.product === 'hws-nsw' || (isHwsProduct(config.product) && assessment)) {
+      const assessmentError = hwsAssessmentError(assessment, config.product);
       if (assessmentError) return res.status(400).json({ error: assessmentError });
     }
 
@@ -983,7 +1018,7 @@ export default async function handler(req, res) {
         await setFolderAssessment(accessToken, folderId, phone, assessment);
       }
       if (isHwsProduct(config.product) && assessment?.address) {
-        await setFolderHwsAddress(accessToken, folderId, phone, assessment);
+        await setFolderHwsAssessment(accessToken, folderId, phone, assessment, config.product);
       }
 
       // Notify the team so uploads don't have to be checked for manually.
@@ -1023,9 +1058,12 @@ export default async function handler(req, res) {
           const addressLine = (config.product === 'aircon' || isHwsProduct(config.product)) && knownAssessment?.address
             ? `\nProperty: ${String(knownAssessment.address).replace(/[\r\n]+/g, ' ').trim()}`
             : '';
+          const hwsSiteCheckLine = isHwsProduct(config.product) && knownAssessment?.systemType
+            ? `\nSite check: ${knownAssessment.systemType}${knownAssessment.systemType === 'Gas' ? `; ${knownAssessment.gasLocation || 'location not answered'}; ${knownAssessment.gasDistance || 'distance not answered'}` : ''}; ${hwsSiteCheckRows(knownAssessment).at(-1)?.[1] || 'Needs review'}`
+            : '';
           const noteBody = folderUrl
-            ? `${notePrefix}\n${who} ${what}.${addressLine}\nView them here: ${folderUrl}`
-            : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}`;
+            ? `${notePrefix}\n${who} ${what}.${addressLine}${hwsSiteCheckLine}\nView them here: ${folderUrl}`
+            : `${notePrefix}\n${who} ${what} to their WorkDrive folder (${folderId}).${addressLine}${hwsSiteCheckLine}`;
           noteAdded = config.product === 'smoke-promo'
             ? await postGhlNoteWithRetry(knownPhone, noteBody)
             : await postGhlNoteByPhone(knownPhone, noteBody);

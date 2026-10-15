@@ -390,7 +390,7 @@
   </div>
 </div>
 
-<!-- Aircon answers: read-only summary of the choices stored on the WorkDrive folder. -->
+<!-- Assessment answers: read-only summary of the choices stored on the WorkDrive folder. -->
 <div class="overlay" id="answersOverlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="answersTitle">
     <div class="modal-head">
@@ -419,6 +419,7 @@ const PRODUCT = location.pathname.startsWith('/aircons/') || requestedProduct ==
     ? 'hws-nsw'
     : 'hws-vic';
 const IS_AIRCON = PRODUCT === 'aircon';
+const IS_NSW_HWS = PRODUCT === 'hws-nsw';
 const PRODUCT_LABEL = IS_AIRCON ? 'VIC Aircon' : PRODUCT === 'hws-nsw' ? 'NSW Hot Water' : 'VIC Hot Water';
 const UPLOAD_PATH = IS_AIRCON ? '/ac' : PRODUCT === 'hws-nsw' ? '/nsw-hws-photos' : '/vic-hws-photos';
 document.title = `${PRODUCT_LABEL} Photo Tracker - Goldsure`;
@@ -485,7 +486,7 @@ const photoCountOf = f => {
 
 const slotCountFor = f => IS_AIRCON
   ? 2 + Math.max(1, Math.min(7, Number(f.assessment?.rooms) || 1))
-  : 4;
+  : IS_NSW_HWS && f.assessment?.systemType === 'Gas' ? 5 : 4;
 
 function ageDays(ms) {
   if (!ms) return null;
@@ -549,8 +550,8 @@ function rowHtml(f, i, gcolor) {
         ${canAskMore ? `<button class="btn-mini" data-more="${esc(f.id)}" title="Text this customer for more photos — they won't have to re-send the ones we have">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3z"/><path d="M12 10v6M9 13h6"/></svg>
           Ask for more</button>` : ''}
-        ${IS_AIRCON && f.assessment?.rooms ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
-          Answers</button>` : ''}
+        ${(IS_AIRCON && f.assessment?.rooms) || (IS_NSW_HWS && f.assessment?.systemType) ? `<button class="btn-mini" data-answers="${esc(f.id)}" title="View this customer's assessment answers">
+          ${IS_NSW_HWS ? 'Site check' : 'Answers'}</button>` : ''}
         ${f.link ? `<button type="button" class="btn-mini view-photos" data-view-photos="${esc(f.link)}" title="Open this customer's uploaded photos in WorkDrive">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
           View photos</button>` : ''}
@@ -829,9 +830,27 @@ function openAnswersModal(folderId) {
   const f = folders.find(x => x.id === folderId);
   if (!f) return;
   const a = f.assessment || {};
-  $('answersTitle').textContent = 'Aircon assessment answers';
+  $('answersTitle').textContent = IS_NSW_HWS ? 'NSW hot water site check' : 'Aircon assessment answers';
   $('answersCustomer').innerHTML =
     `<span class="avatar" style="background:${avatarColor(f.name)}">${esc(initials(f.name))}</span>${esc(f.name)}`;
+  if (IS_NSW_HWS) {
+    const needsReview = a.systemType === 'Not sure'
+      || (a.systemType === 'Gas' && (!a.gasLocation || !a.gasDistance || a.gasLocation === 'Not sure' || a.gasDistance === 'Not sure'));
+    const rows = [
+      ['Property address', a.address || 'Not answered'],
+      ['Existing system', a.systemType || 'Not answered'],
+      ...(a.systemType === 'Gas' ? [
+        ['Gas unit location from switchboard', a.gasLocation || 'Not answered'],
+        ['Gas unit distance from switchboard', a.gasDistance || 'Not answered'],
+      ] : []),
+      ['Site check status', needsReview ? 'Needs review' : 'Ready to quote'],
+    ];
+    $('answersGrid').innerHTML = rows.map(([label, value]) =>
+      `<div class="answer-row"><div class="answer-label">${esc(label)}</div><div class="answer-value">${esc(value)}</div></div>`
+    ).join('');
+    $('answersOverlay').classList.add('show');
+    return;
+  }
   const comments = a.comments || {};
   const commentRows = [];
   if (comments.switchboard) commentRows.push(['Switchboard comments', comments.switchboard]);

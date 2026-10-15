@@ -131,13 +131,49 @@
       <p class="sub" id="subText">Please take a clear photo of each item below so we can prepare your quote.</p>
 
       <div class="questions" id="hwsQuestions">
-        <div class="questions-title">Property details</div>
+        <div class="questions-title">Property and system details</div>
         <div class="question-grid">
           <div class="question">
             <label for="hwsPropertyAddress">Property address</label>
             <input id="hwsPropertyAddress" type="text" autocomplete="off" placeholder="Start typing the property address..." required>
             <div class="field-hint">Choose the full address from the Google suggestions.</div>
             <div class="address-badge" id="hwsAddressBadge" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="question-grid" id="nswSiteCheck" hidden>
+          <div class="question">
+            <label for="existingSystemType">Is your existing hot water system gas or electric?</label>
+            <select id="existingSystemType">
+              <option value="">Choose one</option>
+              <option value="Gas">Gas</option>
+              <option value="Electric">Electric</option>
+              <option value="Not sure">Not sure</option>
+            </select>
+          </div>
+          <div class="question" id="nswGasLocationQuestion" hidden>
+            <label for="gasUnitLocation">Where is the gas unit compared with the main switchboard?</label>
+            <select id="gasUnitLocation">
+              <option value="">Choose one</option>
+              <option value="Left of the switchboard">Left of the switchboard</option>
+              <option value="Right of the switchboard">Right of the switchboard</option>
+              <option value="In front of the switchboard">In front of the switchboard</option>
+              <option value="Behind the switchboard">Behind the switchboard</option>
+              <option value="Not sure">Not sure</option>
+            </select>
+            <div class="field-hint">Stand at the switchboard and look towards the property. An estimate is fine.</div>
+          </div>
+          <div class="question" id="nswGasDistanceQuestion" hidden>
+            <label for="gasUnitDistance">About how far is the gas unit from the main switchboard?</label>
+            <select id="gasUnitDistance">
+              <option value="">Choose one</option>
+              <option value="0–5 metres">0–5 metres</option>
+              <option value="5–10 metres">5–10 metres</option>
+              <option value="10–15 metres">10–15 metres</option>
+              <option value="15–20 metres">15–20 metres</option>
+              <option value="More than 20 metres">More than 20 metres</option>
+              <option value="Not sure">Not sure</option>
+            </select>
+            <div class="field-hint">A rough walking distance is all we need. No measuring tape needed.</div>
           </div>
         </div>
       </div>
@@ -260,6 +296,7 @@ const product = location.pathname === '/ac' || requestedProduct === 'aircon'
         : 'hws';
 const isAircon = product === 'aircon';
 const isBattery = product === 'battery';
+const isNswHws = product === 'hws-nsw';
 const addressInputId = isAircon ? 'propertyAddress' : 'hwsPropertyAddress';
 const addressBadgeId = isAircon ? 'addressBadge' : 'hwsAddressBadge';
 let addressConfirmed = false;
@@ -278,6 +315,17 @@ const BATTERY_SLOTS = [
   { key: 'electricity-bill', label: 'Electricity bill', note: 'Optional. You may cover account numbers and payment details.', required: false },
 ];
 
+const hwsSlots = () => {
+  if (!isNswHws || document.getElementById('existingSystemType')?.value !== 'Gas') return HWS_SLOTS;
+  return [
+    { key: 'switchboard', label: 'Main switchboard', note: 'Stand a few steps back so we can see the whole switchboard and the wall around it.', required: true },
+    { key: 'hot-water', label: 'Existing gas hot water system', note: 'Take the whole unit from a few steps back, including the wall and flue if visible.', required: true },
+    { key: 'switchboard-to-system', label: 'Path from switchboard to gas system', note: 'Stand where we can see the route between them. This confirms the side and distance you selected above.', required: true },
+    { key: 'access', label: 'Access to the property', note: 'Show the path from the driveway or gate to the unit, so we can check the new system can be brought in.', required: true },
+    { key: 'compliance', label: 'Hot water compliance plate', note: 'The sticker on the unit showing its model details. Skip this if there isn’t one.', required: false },
+  ];
+};
+
 const airconSlots = () => {
   const count = Math.max(0, Math.min(7, Number(document.getElementById('roomCount')?.value) || 0));
   return [
@@ -292,7 +340,7 @@ const airconSlots = () => {
   ];
 };
 
-let SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : HWS_SLOTS;
+let SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : hwsSlots();
 const commentLabelForSlot = slot => /^room-(\d+)$/.test(slot.key)
   ? `Room ${slot.key.split('-')[1]} name and comments`
   : `${slot.label} comments`;
@@ -310,6 +358,7 @@ if (isAircon) {
   document.querySelector('.extra-sec .slot-note').textContent = 'Anything else that helps us assess the installation, such as the outdoor unit location, extra room angles, or difficult access.';
 } else if (!isBattery) {
   document.getElementById('hwsQuestions').style.display = 'block';
+  if (isNswHws) document.getElementById('nswSiteCheck').hidden = false;
 }
 
 function setAddressBadge(message, state = '') {
@@ -469,6 +518,15 @@ async function loadStatus() {
       addressConfirmed = true;
       setAddressBadge('Saved property address', 'valid');
     }
+    if (isNswHws && d.assessment?.systemType) {
+      document.getElementById('existingSystemType').value = d.assessment.systemType;
+      const isGas = d.assessment.systemType === 'Gas';
+      document.getElementById('nswGasLocationQuestion').hidden = !isGas;
+      document.getElementById('nswGasDistanceQuestion').hidden = !isGas;
+      document.getElementById('gasUnitLocation').value = d.assessment.gasLocation || '';
+      document.getElementById('gasUnitDistance').value = d.assessment.gasDistance || '';
+      renderSlots();
+    }
 
     for (const f of d.files || []) {
       if (!/\.(jpe?g|png|webp|heic)$/i.test(String(f.name || ''))) continue;
@@ -528,7 +586,7 @@ function renderRecap() {
 }
 
 function renderSlots() {
-  SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : HWS_SLOTS;
+  SLOTS = isAircon ? airconSlots() : isBattery ? BATTERY_SLOTS : hwsSlots();
   document.getElementById('slots').innerHTML = SLOTS.map((s, i) => `
     <div class="slot" id="slot-${s.key}">
       <div class="slot-head">
@@ -742,7 +800,13 @@ function refreshSubmit() {
       Number(document.getElementById('roomCount').value) >= 1 &&
       document.getElementById('roofType').value
     )
-    : isBattery ? true : addressComplete;
+    : isBattery ? true : addressComplete && (!isNswHws || (
+      document.getElementById('existingSystemType').value &&
+      (document.getElementById('existingSystemType').value !== 'Gas' || (
+        document.getElementById('gasUnitLocation').value &&
+        document.getElementById('gasUnitDistance').value
+      ))
+    ));
 
   btn.disabled = !questionsComplete || missing.length > 0 || newCount === 0 || !folderId;
   btn.textContent =
@@ -774,6 +838,20 @@ if (isAircon) {
   document.getElementById('roomCount').addEventListener('change', renderSlots);
   document.getElementById('storeys').addEventListener('change', refreshSubmit);
   document.getElementById('roofType').addEventListener('change', refreshSubmit);
+}
+if (isNswHws) {
+  document.getElementById('existingSystemType').addEventListener('change', () => {
+    const isGas = document.getElementById('existingSystemType').value === 'Gas';
+    document.getElementById('nswGasLocationQuestion').hidden = !isGas;
+    document.getElementById('nswGasDistanceQuestion').hidden = !isGas;
+    if (!isGas) {
+      document.getElementById('gasUnitLocation').value = '';
+      document.getElementById('gasUnitDistance').value = '';
+    }
+    renderSlots();
+  });
+  document.getElementById('gasUnitLocation').addEventListener('change', refreshSubmit);
+  document.getElementById('gasUnitDistance').addEventListener('change', refreshSubmit);
 }
 
 const blobToBase64 = blob => new Promise((resolve, reject) => {
@@ -822,6 +900,11 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     comments: Object.fromEntries(commentEntries.filter(item => item.comment).map(item => [item.key, item.comment])),
   } : {
     address: document.getElementById('hwsPropertyAddress').value.trim(),
+    ...(isNswHws ? {
+      systemType: document.getElementById('existingSystemType').value,
+      gasLocation: document.getElementById('gasUnitLocation').value,
+      gasDistance: document.getElementById('gasUnitDistance').value,
+    } : {}),
   };
   const commentsText = isAircon
     ? `\nPhoto comments\n${commentEntries.map(item => `${item.label}: ${item.comment || 'No comment provided'}`).join('\n')}\n`

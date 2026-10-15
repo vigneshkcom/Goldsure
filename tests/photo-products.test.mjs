@@ -54,6 +54,11 @@ test('photo requests report awaiting, viewed, partial and received statuses', ()
   assert.equal(photoRequestFromFolder(folder(0, 'phone:0412345678\nlink_viewed_at:2026-10-01T00:00:00.000Z'), config, 'https://portal.goldsure.com.au').status, 'viewed');
   assert.equal(photoRequestFromFolder(folder(2), config, 'https://portal.goldsure.com.au').status, 'partial');
   assert.equal(photoRequestFromFolder(folder(4), config, 'https://portal.goldsure.com.au').status, 'received');
+
+  const nswGasConfig = { product: 'hws-nsw', label: 'NSW Hot Water', uploadPath: '/nsw-hws-photos' };
+  const nswGasDescription = 'phone:0412345678\nproduct:hws-nsw\nsystem_type:Gas\ngas_location:Left of the switchboard\ngas_distance:5–10 metres';
+  assert.equal(photoRequestFromFolder(folder(4, nswGasDescription), nswGasConfig, 'https://portal.goldsure.com.au').status, 'partial');
+  assert.equal(photoRequestFromFolder(folder(5, nswGasDescription), nswGasConfig, 'https://portal.goldsure.com.au').status, 'received');
 });
 
 test('the customer upload page records customer views but not staff previews', async () => {
@@ -155,11 +160,12 @@ test('Hot Water photo links collect and surface the property address', async () 
     'assessment,',
   ]) assert.ok(upload.includes(marker), `missing HWS address marker ${marker}`);
   for (const marker of [
-    'setFolderHwsAddress(accessToken, folderId, phone, assessment)',
+    'setFolderHwsAssessment(accessToken, folderId, phone, assessment, config.product)',
+    "config.product === 'hws-nsw' && assessment.systemType === 'Gas'",
     "['Property address', assessment?.address || 'Not provided']",
     'isHwsProduct(config.product)',
     "const isHwsProduct = product => ['hws', 'hws-vic', 'hws-nsw'].includes(product)",
-    'hwsAssessmentError(assessment)',
+    'hwsAssessmentError(assessment, config.product)',
     "['Customer name', who]",
     "['Phone number', phone || 'Not provided']",
     "['Service', config.label]",
@@ -304,6 +310,41 @@ test('photo tracker displays every saved aircon answer in a modal', async () => 
   assert.match(tracker, /\['Roof', a\.roof/);
   assert.match(tracker, /Room \$\{room\} name and comments/);
   assert.match(tracker, /Rates notice or utility bill comments/);
+});
+
+test('NSW HWS upload collects a conditional gas site check and shows staff its summary', async () => {
+  const api = await read('api/zoho/create-photo-request.js');
+  const upload = await read('hotwater/upload-photos.html');
+  const tracker = await read('hotwater/photo-tracker.html');
+  for (const marker of [
+    'id="nswSiteCheck"',
+    'id="existingSystemType"',
+    'Is your existing hot water system gas or electric?',
+    'id="gasUnitLocation"',
+    'id="gasUnitDistance"',
+    'Path from switchboard to gas system',
+    'const isNswHws = product === \'hws-nsw\';',
+    'systemType: document.getElementById(\'existingSystemType\').value',
+    'gasLocation: document.getElementById(\'gasUnitLocation\').value',
+    'gasDistance: document.getElementById(\'gasUnitDistance\').value',
+  ]) assert.ok(upload.includes(marker), `missing NSW site-check marker ${marker}`);
+  for (const marker of [
+    'function hwsSiteCheckRows(assessment)',
+    'system_type:',
+    'gas_location:',
+    'gas_distance:',
+    "product !== 'hws-nsw'",
+    "'Site check status'",
+    'setFolderHwsAssessment(accessToken, folderId, phone, assessment, config.product)',
+  ]) assert.ok(api.includes(marker), `missing persisted NSW site-check marker ${marker}`);
+  for (const marker of [
+    "const IS_NSW_HWS = PRODUCT === 'hws-nsw';",
+    "${IS_NSW_HWS ? 'Site check' : 'Answers'}",
+    "$('answersTitle').textContent = IS_NSW_HWS ? 'NSW hot water site check'",
+    "['Gas unit location from switchboard', a.gasLocation || 'Not answered']",
+    "['Gas unit distance from switchboard', a.gasDistance || 'Not answered']",
+    "['Site check status', needsReview ? 'Needs review' : 'Ready to quote']",
+  ]) assert.ok(tracker.includes(marker), `missing NSW tracker summary marker ${marker}`);
 });
 
 test('photo button always offers NSW Hot Water, VIC Hot Water and VIC Aircon', async () => {
