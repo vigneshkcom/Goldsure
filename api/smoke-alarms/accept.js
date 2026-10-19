@@ -1,5 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
-import { syncAcceptedSmokeAlarmStage, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncAcceptedSmokeAlarmStage, verifyCustomerAcceptedQuote, getQuoteCustomerSource } from '../../lib/ghl-smoke-alarm-stage.js';
 import { syncAcceptedSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
 
 const escapeHtml = value => String(value ?? '')
@@ -63,6 +63,7 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Customer acceptance has not been verified.', reason: acceptance.reason });
   }
 
+  const customerSource = await getQuoteCustomerSource({ quote: acceptance.quote });
   const hasControllers = parseInt(ctrl_qty) > 0;
   const alarmQtyNumeric = parseInt(alarm_qty, 10) || 0;
   const hasConcreteCeiling = Number(alarm_unit_price) > 98.005;
@@ -147,6 +148,7 @@ export default async function handler(req, res) {
               <tr><td style="height:1px;background:#e3e7ef;font-size:1px;line-height:1px;">&nbsp;</td></tr>
             </table>
 
+            <p style="font-size:13px;color:#141c2e;">Customer source: <strong>${escapeHtml(customerSource)}</strong></p>
             <!-- Customer Details -->
             <p style="margin:0 0 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7899;">Customer Details</p>
 
