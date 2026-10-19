@@ -755,6 +755,7 @@ function doLogout() {
     <label>Customer Name</label>
     <div class="customer-search-wrap">
       <input type="text" id="custName" oninput="onMainCustomerSearch()" placeholder="Search GHL by customer name, phone or email…" autocomplete="off">
+      <p id="mainCustomerSource" style="font-size:12px;color:var(--muted)" aria-live="polite"></p>
       <div class="ghl-results" id="mainGhlResults" onclick="pickMainGhlResult(event)"></div>
     </div>
   </div>
@@ -1054,6 +1055,7 @@ function doLogout() {
         <label class="ctype-label"><input type="radio" name="custType" value="digital" onchange="validateEmailModal()">  Digital Lead</label>
         <label class="ctype-label"><input type="radio" name="custType" value="letterbox" onchange="validateEmailModal()">  Direct Call</label>
       </div>
+      <p id="emailCustomerSource" style="font-size:12px;color:var(--muted)" aria-live="polite"></p>
       <div class="phone-required-hint" id="custTypeHint">Customer type is required before sending.</div>
     </div>
 
@@ -1376,6 +1378,7 @@ function onMainCustomerSearch() {
   const q = document.getElementById('custName').value.trim();
   const box = document.getElementById('mainGhlResults');
   selectedGhlContact = null;
+  applyGhlCustomerSource(null);
   selectedGhlContactId = '';
   clearTimeout(mainGhlTimer);
   if (q.length < 2) {
@@ -1396,12 +1399,26 @@ function onMainCustomerSearch() {
   }, 300);
 }
 
+function applyGhlCustomerSource(contact) {
+  const source = String(contact?.source || '').trim();
+  const label = contact ? `Customer source: ${source || 'Not recorded in GHL'}` : '';
+  document.getElementById('mainCustomerSource').textContent = label;
+  document.getElementById('emailCustomerSource').textContent = label;
+  // Unknown sources require an explicit choice rather than guessing digital.
+  const type = /direct[ _-]*call|letterbox/i.test(source) ? 'letterbox'
+    : /facebook|meta|digital|instagram|google|website|web form/i.test(source) ? 'digital' : '';
+  document.querySelectorAll('input[name="custType"]').forEach(radio => {
+    radio.checked = !!type && radio.value === type;
+  });
+}
+
 function pickMainGhlResult(event) {
   const item = event.target.closest('[data-main-ghl-index]');
   if (!item) return;
   const contact = mainGhlResults[Number(item.dataset.mainGhlIndex)];
   if (!contact) return;
   selectedGhlContact = contact;
+  applyGhlCustomerSource(contact);
   selectedGhlContactId = contact.id || '';
   customerName = contact.name || contact.phone || '';
   document.getElementById('custName').value = customerName;
@@ -1582,6 +1599,7 @@ function onEmailGhlSearch() {
   const q = document.getElementById('emailGhlSearch').value.trim();
   const box = document.getElementById('emailGhlResults');
   selectedGhlContact = null;
+  applyGhlCustomerSource(null);
   selectedGhlContactId = '';
   clearTimeout(emailGhlTimer);
   if (q.length < 2) {
@@ -1608,6 +1626,7 @@ function pickEmailGhlResult(event) {
   const contact = emailGhlResults[Number(item.dataset.ghlIndex)];
   if (!contact) return;
   selectedGhlContact = contact;
+  applyGhlCustomerSource(contact);
   selectedGhlContactId = contact.id || '';
   customerName = contact.name || contact.phone || '';
   document.getElementById('custName').value = customerName;
@@ -1625,8 +1644,7 @@ function pickEmailGhlResult(event) {
       setAddressState('pending', 'Confirm this is a Queensland address');
     }
   }
-  const digitalLead = document.querySelector('input[name="custType"][value="digital"]');
-  if (digitalLead) digitalLead.checked = true;
+  applyGhlCustomerSource(contact);
   document.getElementById('emailGhlResults').classList.remove('open');
   validateEmailModal();
 }
@@ -1747,10 +1765,7 @@ function openEmailModal() {
   document.getElementById('phoneHint').style.display = 'block';
   document.getElementById('custTypeHint').style.display = 'block';
   document.querySelectorAll('input[name="custType"]').forEach(radio => { radio.checked = false; });
-  if (ghlContact) {
-    const digitalLead = document.querySelector('input[name="custType"][value="digital"]');
-    if (digitalLead) digitalLead.checked = true;
-  }
+  applyGhlCustomerSource(ghlContact);
   document.getElementById('sendQuoteSms').checked = true;
   selectedGhlContactId = ghlContact?.id || '';
   emailGhlResults = [];

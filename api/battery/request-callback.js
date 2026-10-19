@@ -417,6 +417,7 @@ export default async function handler(req, res) {
           name:  tidyName([c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '') || c.phone,
           phone: c.phone,
           email: c.email || '',
+          source: typeof c.source === 'string' ? c.source.trim() : '',
           address: [c.address1, c.city, c.state, c.postalCode].filter(Boolean).join(', '),
           // Built here so callers never need the GHL location id client-side.
           link: `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${c.id}`,
