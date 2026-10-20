@@ -133,7 +133,7 @@ export default async function handler(req, res) {
             <td style="padding:8px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#b08d2e;text-align:right;">Total</td>
           </tr>
           <tr bgcolor="#ffffff">
-            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Raptor Smoke Alarms</span><br><span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; 10-Yr Warranty</span></td>
+            <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;border-top:1px solid #f0f0f0;"><span style="font-family:Arial,Helvetica,sans-serif;">Raptor Smoke Alarms</span><br><span style="font-size:11px;color:#888888;">Photoelectric &middot; Interconnected &middot; Hardwired replaced with hardwired</span></td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:center;border-top:1px solid #f0f0f0;">${alarmQtyNumeric}</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111111;text-align:right;border-top:1px solid #f0f0f0;">$98.00</td>
             <td style="padding:10px 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#000000;text-align:right;border-top:1px solid #f0f0f0;">${quotedAlarmTotal}</td>
