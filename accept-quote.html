@@ -531,7 +531,18 @@ async function processAcceptance() {
       return;
     }
 
-    currentQuoteRow = row;
+    const requestedQty=new URLSearchParams(location.search).get('alarm_qty');
+    const originalQty=Number(row.alarm_qty)||0;
+    const qty=requestedQty===null?originalQty:Number(requestedQty);
+    if(!Number.isInteger(qty)||qty<originalQty||qty>Math.max(100,originalQty)||(row.service_type!=='Installation Quote'&&qty!==originalQty))throw new Error('Invalid alarm quantity');
+    const extra=qty-originalQty;
+    const unit=Number(row.alarm_unit_price)>98.005?109:98;
+    const originalTotal=Number(row.grand_total_numeric??row.grand_total)||0;
+    const summary=document.createElement('div');
+    summary.className='info-block';summary.id='acceptancePriceSummary';
+    summary.innerHTML=`<div class="info-block-title">Review Your Quote</div><div class="info-row"><span>Smoke alarms</span><strong>${qty}</strong></div><div class="info-row"><span>Additional alarms</span><strong>${extra}</strong></div><div class="info-row"><span>Total (incl. GST)</span><strong>${fmtCurrency(originalTotal+extra*unit)}</strong></div><p style="font-size:11px;line-height:1.6;margin-top:12px">Final alarm placement and quantity are subject to the electrician’s assessment.</p>`;
+    document.getElementById('acceptanceForm').before(summary);
+    currentQuoteRow = { ...row, selected_alarm_qty: qty };
     currentQuoteToken = token;
     const storedAddress = parseStoredAddress(row.customer_address);
     document.getElementById('propertyAddress').value = row.customer_address || '';
@@ -573,70 +584,21 @@ async function submitAcceptance(event) {
   try {
     const row = currentQuoteRow;
     const token = currentQuoteToken;
-    // Save the customer-confirmed property address in the same update that
-    // accepts the quote so staff notifications never receive a blank address.
-    const acceptedAt = new Date().toISOString();
-    const updateResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey':        SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type':  'application/json',
-          'Prefer':        'return=representation',
-        },
-        body: JSON.stringify({
-          accepted: true,
-          status: 'accepted',
-          accepted_at: acceptedAt,
-          customer_address: propertyAddress,
-        }),
-      }
-    );
-
-    if (!updateResp.ok) {
-      const errBody = await updateResp.text();
-      throw new Error(`Supabase PATCH failed: ${updateResp.status} — ${errBody}`);
-    }
-
-    const updatedRows = await updateResp.json();
-    const updatedRow = (updatedRows && updatedRows[0])
-      ? updatedRows[0]
-      : { ...row, customer_address: propertyAddress, accepted: true, status: 'accepted', accepted_at: acceptedAt };
-
-    // Email and GHL updates are best-effort after the accepted quote is saved.
-    try {
-      const notifyResp = await fetch('/api/smoke-alarms/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quote_token:      token,
-          customer_name:    updatedRow.customer_name    || row.customer_name    || '',
-          customer_email:   updatedRow.customer_email   || row.customer_email   || '',
-          customer_phone:   updatedRow.customer_phone   || row.customer_phone   || '',
-          customer_address: propertyAddress,
-          property_street:  propertyStreet,
-          property_suburb:  propertySuburb,
-          property_state:   propertyState,
-          property_postcode: propertyPostcode,
-          agent_name:       updatedRow.agent_name       || row.agent_name       || '',
-          service_type:     updatedRow.service_type     || row.service_type     || '',
-          alarm_qty:        updatedRow.alarm_qty        || row.alarm_qty        || 0,
-          alarm_total:      fmtCurrency(updatedRow.alarm_total  ?? row.alarm_total),
-          alarm_unit_price: updatedRow.alarm_unit_price ?? row.alarm_unit_price ?? 98,
-          ctrl_qty:         updatedRow.ctrl_qty         || row.ctrl_qty         || 0,
-          ctrl_total:       fmtCurrency(updatedRow.ctrl_total   ?? row.ctrl_total),
-          fee_label:        updatedRow.fee_label        || row.fee_label        || '',
-          fee_amount:       fmtCurrency(updatedRow.fee_amount   ?? row.fee_amount),
-          grand_total:      fmtCurrency(updatedRow.grand_total  ?? row.grand_total),
-          accepted_at:      acceptedAt,
-        }),
-      });
-      if (!notifyResp.ok) console.error('[accept-quote] Notification request failed:', notifyResp.status);
-    } catch (emailErr) {
-      console.error('[accept-quote] Notification email error (non-fatal):', emailErr);
-    }
+    const acceptResp=await fetch('/api/smoke-alarms/quotes',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'accept-customer',token,
+        alarm_qty:row.selected_alarm_qty??row.alarm_qty,
+        customer_address: propertyAddress,
+        property_street: propertyStreet, property_suburb:propertySuburb,
+        property_state: propertyState, property_postcode:propertyPostcode,
+      }),
+    });
+    const result=await acceptResp.json();
+    if(!acceptResp.ok)throw new Error(result.error||'Could not accept quote');
+    const updatedRow=result.quote;
+    if(!updatedRow?.accepted_at)throw new Error('Acceptance was not saved');
+    const acceptedAt=updatedRow.accepted_at;
+    if(result.already_accepted){showState('stateAlready');return;}
 
     buildQuoteInfo({ ...row, ...updatedRow, customer_address: propertyAddress }, acceptedAt);
     showState('stateSuccess');

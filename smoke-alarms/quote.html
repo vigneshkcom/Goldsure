@@ -96,6 +96,7 @@ body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);
   .total-band,.note,.legal,.sig{margin-left:13px;margin-right:13px}
   .accept{padding-left:13px;padding-right:13px}
 }
+.adjuster{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin:16px 0}.adjuster button{width:42px;height:42px;border:1px solid #b08d2e;background:#fff;color:#604900;border-radius:9px;font-size:24px;cursor:pointer}.adjuster button:disabled{opacity:.4;cursor:default}.adjuster label{display:flex;align-items:center;gap:10px;font-size:12px}.adjuster input{width:70px;padding:10px;border:1px solid #b7bec9;border-radius:8px;font:inherit;text-align:center}
 </style>
 </head>
 <body>
@@ -117,6 +118,12 @@ body{font-family:'Sora',system-ui,-apple-system,sans-serif;background:var(--bg);
     <table class="q"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Total</th></tr></thead><tbody id="itemRows"></tbody><tfoot><tr class="grand"><td colspan="3" style="text-align:right">Grand Total (Incl. GST)</td><td class="r" id="tableTotal"></td></tr></tfoot></table>
   </section>
   <div class="total-band"><span class="lbl">Your Total</span><span class="val" id="bandTotal"></span></div>
+  <section class="note hidden" id="alarmAdjuster" aria-label="Adjust smoke alarms">
+    <div class="lbl">Need additional smoke alarms?</div>
+    <p>Your quote includes <span id="originalAlarmCount"></span> alarms. Add extras below. Final placement and quantity will be confirmed by your licensed electrician.</p>
+    <div class="adjuster"><button id="minus" aria-label="Remove one additional alarm">−</button><label for="alarmCount">Total alarms <input id="alarmCount" type="number" min="8" max="100" step="1" value="8"></label><button id="plus" aria-label="Add one smoke alarm">+</button></div>
+    <p id="changeNote" aria-live="polite"></p>
+  </section>
   <section class="note"><div class="lbl">Payment Structure</div><p id="paymentNote"></p></section>
   <section class="note optional hidden" id="controllerNote"><div class="lbl">Optional Add-On · Smoke Alarm Controller</div><p>Ask our electrician about adding a Smoke Alarm Controller on the day for $49. It lets you silence nuisance alarms and check alarm status from one button.</p></section>
   <section class="legal"><h3>Queensland legislation · Effective 01/01/2027</h3><div class="legal-grid"><div class="legal-item">Photoelectric and interconnected</div><div class="legal-item">In each bedroom and connecting hallway</div><div class="legal-item">Installed on each level</div><div class="legal-item">10-year sealed lithium backup battery</div><div class="legal-item">Compliant with applicable Australian Standards</div><div class="legal-item">Hard-wired alarms replaced with hard-wired alarms</div></div></section>
@@ -208,6 +215,13 @@ async function fetchQuote(token){
     document.getElementById('agentName').textContent=q.agent_name||'The Goldsure Team';
     const first=String(q.customer_name||'').trim().split(/\s+/)[0]||'there';
     document.getElementById('intro').textContent=`Hi ${first}, thank you for choosing Goldsure. Your personalised smoke alarm quote is below. Our licensed electrician will confirm the exact alarm placement on the day to ensure full compliance with Queensland legislation.`;
+    let selectedQty=alarmQty;
+    function renderSelection(){
+    const alarmQty=selectedQty;
+    const extra=selectedQty-(Number(q.alarm_qty)||0);
+    const total=(Number(q.grand_total_numeric??q.grand_total)||0)+extra*(concreteCeiling?109:98);
+    const alarmTotal=concreteCeiling?alarmQty*98:((storedAlarmTotal||(Number(q.alarm_qty)||0)*98)+extra*98);
+    const ceilingTotal=concreteCeiling?alarmQty*11:0;
     const lines=[];
     if(isInstall&&alarmQty>0)lines.push({name:'Raptor Smoke Alarms',sub:'Photoelectric · Interconnected · 10-Year Warranty',qty:alarmQty,unit:98,total:alarmTotal});
     if(concreteCeiling)lines.push({name:'Concrete Ceiling Installation',sub:'Additional installation work per smoke alarm',qty:alarmQty,unit:11,total:ceilingTotal});
@@ -217,6 +231,20 @@ async function fetchQuote(token){
     document.getElementById('itemRows').innerHTML=lines.map(l=>`<tr><td><div class="it-name">${esc(l.name)}</div><div class="it-sub">${esc(l.sub)}</div></td><td class="r">${l.qty}</td><td class="r">${money(l.unit)}</td><td class="r">${money(l.total)}</td></tr>`).join('')+(discount>0?`<tr class="discount"><td colspan="3"><strong>Discount</strong></td><td class="r">−${money(discount)}</td></tr>`:'');
     document.getElementById('tableTotal').textContent=money(total);document.getElementById('bandTotal').textContent=money(total);
     document.getElementById('paymentNote').textContent=isInstall?`${money(feeAmount)} booking fee is payable today to secure your electrician. The remaining balance of ${money(Math.max(0,total-feeAmount))} is payable on the day of installation.`:`The ${money(total)} inspection fee is payable upfront to secure your booking. If alarms are non-compliant and you choose to upgrade with us, the inspection fee is fully waived; you only pay the booking fee plus required alarms.`;
+    const originalQty=Number(q.alarm_qty)||0;
+    document.getElementById('alarmCount').value=selectedQty;
+    document.getElementById('minus').disabled=selectedQty<=originalQty;
+    document.getElementById('changeNote').textContent=extra>0?`${extra} additional alarm${extra===1?'':'s'} · +${money(extra*(concreteCeiling?109:98))} to your original ${money(Number(q.grand_total_numeric??q.grand_total)||0)} quote.`:'No additional alarms selected.';
+    document.getElementById('acceptBtn').href='/accept-quote.html?token='+encodeURIComponent(q.quote_token)+'&alarm_qty='+selectedQty;
+    }
+    renderSelection();
+    const updateQty=value=>{selectedQty=Math.max(alarmQty,Math.min(Math.max(100,alarmQty),Math.trunc(Number(value)||alarmQty)));renderSelection()};
+    document.getElementById('originalAlarmCount').textContent=alarmQty;
+    document.getElementById('alarmCount').min=alarmQty;
+    document.getElementById('alarmCount').max=Math.max(100,alarmQty);
+    document.getElementById('minus').onclick=()=>updateQty(selectedQty-1);
+    document.getElementById('plus').onclick=()=>updateQty(selectedQty+1);
+    document.getElementById('alarmCount').onchange=event=>updateQty(event.target.value);
     if(isInstall&&!controllerQty)document.getElementById('controllerNote').classList.remove('hidden');
     const cta=document.getElementById('acceptCta');
     const status=String(q.status).toLowerCase();
@@ -225,7 +253,7 @@ async function fetchQuote(token){
     if(q.accepted_at)cta.innerHTML='<div class="status-chip">✓ You accepted this quote. Our team will be in touch.</div>';
     else if(status==='rejected')cta.innerHTML='<div class="status-chip rejected">This quote has been marked as not proceeding.</div>';
     else if(isExpired)cta.innerHTML='<div class="status-chip expired"><strong>This quote has expired.</strong><br>Please call <a href="tel:0721455155">07 2145 5155</a> or email <a href="mailto:info@goldsure.com.au">info@goldsure.com.au</a> and we will prepare an updated quote for you.</div>';
-    else{document.getElementById('acceptBtn').href='/accept-quote.html?token='+encodeURIComponent(q.quote_token);document.getElementById('rejectBtn').href='/reject-quote.html?token='+encodeURIComponent(q.quote_token)}
+    else{if(isInstall&&alarmQty>0)document.getElementById('alarmAdjuster').classList.remove('hidden');document.getElementById('rejectBtn').href='/reject-quote.html?token='+encodeURIComponent(q.quote_token)}
     show('ok');
   }catch(error){console.error(error);show('error')}
 })();

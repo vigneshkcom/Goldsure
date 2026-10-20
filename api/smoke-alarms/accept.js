@@ -35,6 +35,8 @@ export default async function handler(req, res) {
     fee_amount,
     grand_total,
     accepted_at,
+    original_alarm_qty,
+    original_grand_total,
   } = req.body;
 
   const clean = value => String(value || '').trim().replace(/\s+/g, ' ');
@@ -91,6 +93,8 @@ export default async function handler(req, res) {
     );
   }
 
+  const adjustmentSummary = Number.isInteger(Number(original_alarm_qty)) && Number(alarm_qty) > Number(original_alarm_qty)
+    ? `<p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#141c2e;"><strong>Customer added ${Number(alarm_qty)-Number(original_alarm_qty)} smoke alarm(s).</strong><br>Original quote: ${Number(original_alarm_qty)} alarms · $${Number(original_grand_total).toFixed(2)}<br>Accepted quote: ${Number(alarm_qty)} alarms · $${Number(String(grand_total).replace(/[^0-9.-]/g, '')).toFixed(2)}</p>` : '';
   const html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
@@ -105,6 +109,7 @@ export default async function handler(req, res) {
     <td align="center" style="padding:36px 16px 48px;">
       <table width="560" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;">
 
+        <tr><td>${adjustmentSummary}</td></tr>
         <!-- LOGO HEADER -->
         <tr>
           <td style="background:#000000;padding:20px 28px;border-radius:4px 4px 0 0;">
