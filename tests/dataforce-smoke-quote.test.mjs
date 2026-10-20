@@ -79,6 +79,8 @@ test('creates a customer, accepted job and unassigned waiting-list appointment',
   assert.equal(customer.firstname, 'Test');
   assert.equal(customer.surname, 'Customer');
   assert.equal(customer.consentToSMS, 'IC');
+  assert.match(customer.customerRef, /^[A-Za-z0-9]+$/, 'Dataforce rejects hyphens in customerRef');
+  assert.equal(customer.customerRef, 'GSQabc123');
   assert.equal(customer.unitNo, '3');
   assert.equal(customer.streetNo, '12');
   assert.equal(customer.streetName, 'Example');
@@ -188,4 +190,26 @@ test('does not call Dataforce for a quote marked accepted internally', async () 
 
   assert.deepEqual(result, { synced: false, reason: 'quote-not-customer-accepted' });
   assert.equal(calls.length, 1);
+});
+
+
+test('recovers a customer by its alphanumeric reference after a partial job-creation failure', async () => {
+  const calls=[];
+  const fetchImpl=async(url,options={})=>{
+    const value=String(url);calls.push({url:value,options});
+    if(value.includes('/rest/v1/quote_emails'))return json([acceptedQuote]);
+    if(value.endsWith('/authorization/token'))return json({access_token:'token'});
+    if(value.endsWith('/jobs/search'))return json({records:[]});
+    if(value.endsWith('/customers/search'))return json({records:[]});
+    if(value.endsWith('/customers/ref/GSQabc123'))return json({customerId:501});
+    if(value.endsWith('/jobs'))return json({jobId:601});
+    if(value.endsWith('/jobs/601/appointments'))return json({records:[]});
+    if(value.endsWith('/appointments'))return json({appointmentId:701});
+    throw new Error(`Unexpected request: ${value}`);
+  };
+  const result=await syncAcceptedSmokeQuoteToDataforce({quoteToken:'abc-123',fetchImpl,env});
+  assert.equal(result.synced,true);
+  assert.equal(calls.some(c=>c.url.endsWith('/customers')&&c.options.method==='POST'),false);
+  const searchCall=calls.find(c=>c.url.endsWith('/jobs/search'));
+  assert.equal(JSON.parse(searchCall.options.body).filterGroups[0].filters[0].value,'SMOKE-GSQ-abc123');
 });
