@@ -17,6 +17,10 @@
       items: [['NSW HWS Quote Builder', '/hotwater-nsw/quote-builder.html'], ['Quote Tracker', '/hotwater-nsw/quote-tracker.html'], ['Photo Tracker', '/hotwater-nsw/photo-tracker.html']]
     },
     {
+      key: 'battery', label: 'Battery', color: '#b08d2e', icon: '<rect x="3" y="6" width="17" height="12" rx="2"/><path d="M20 10h2v4h-2M8 10v4M6 12h4M13 12h3"/>',
+      items: [['Quote Builder', '/Battery/quotes/index.html'], ['Quote Tracker', '/Battery/quote-tracker.html']]
+    },
+    {
       key: 'accounting', label: 'Accounting', color: '#037f4c', icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h4M7 16h3M15 12v4M13 14h4"/>',
       items: [['BPOINT Invoice Creator', '/xero-bpoint/'], ['Eco Alliance Xero Recharge', '/xero-recharge/']]
     }

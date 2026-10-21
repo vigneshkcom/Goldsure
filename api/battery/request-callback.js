@@ -93,6 +93,10 @@ function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, sub
 }
 
 export default async function handler(req, res) {
+  if (req.query?.module === 'quotes') {
+    const { default: batteryQuoteHandler } = await import('../../lib/battery-quote-api.js');
+    return batteryQuoteHandler(req, res);
+  }
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
   // Service-role key bypasses Row Level Security — needed for privileged ops like
