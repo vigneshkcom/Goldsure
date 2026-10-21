@@ -3,7 +3,23 @@ async function initAddressSuggestions(){
  if(addressLoading)return;addressLoading=true;
  const help=document.getElementById('address-help');
  const unavailable=()=>{help.textContent='Address suggestions unavailable. Enter the full address manually.';addressLoading=false;};
- const attach=()=>{try{const input=document.getElementById('customer-address');const autocomplete=new google.maps.places.Autocomplete(input,{componentRestrictions:{country:'au'},types:['address'],fields:['formatted_address']});autocomplete.addListener('place_changed',()=>{const place=autocomplete.getPlace();if(place.formatted_address){input.value=place.formatted_address;help.textContent='Address selected from Google. Check any unit number.';renderPreview();}});help.textContent='Start typing and choose a Google address suggestion.';}catch{unavailable();}};
+ const attach=()=>{try{
+  const input=document.getElementById('customer-address'),service=new google.maps.places.AutocompleteService();
+  const results=document.createElement('div');results.id='address-suggestions';results.className='address-suggestions';results.setAttribute('role','listbox');results.setAttribute('aria-label','Google address suggestions');results.hidden=true;input.parentElement.append(results);
+  input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-controls',results.id);input.setAttribute('aria-expanded','false');
+  let timer,version=0,active=-1,predictions=[];
+  const close=()=>{results.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;};
+  const choose=index=>{const prediction=predictions[index];if(!prediction)return;++version;clearTimeout(timer);input.value=prediction.description;close();help.textContent='Address selected from Google. Check any unit number.';renderPreview();};
+  input.addEventListener('input',()=>{clearTimeout(timer);const current=++version,query=input.value.trim();close();if(query.length<3){help.textContent='Start typing to find an Australian address.';return;}help.textContent='Searching Google addresses…';timer=setTimeout(()=>service.getPlacePredictions({input:query,componentRestrictions:{country:'au'},types:['address']},(items,status)=>{
+   if(current!==version)return;results.replaceChildren();predictions=items||[];
+   if(status!=='OK'||!predictions.length){help.textContent=status==='ZERO_RESULTS'?'No matching address found. Continue typing or enter it manually.':'Google address lookup is unavailable. Enter the full address manually.';return;}
+   predictions.forEach((prediction,index)=>{const button=document.createElement('button');button.type='button';button.id='address-option-'+index;button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=prediction.description;button.addEventListener('mousedown',event=>event.preventDefault());button.onclick=event=>{event.preventDefault();choose(index);};results.append(button);});
+   const credit=document.createElement('small');credit.textContent='Powered by Google';results.append(credit);results.hidden=false;input.setAttribute('aria-expanded','true');help.textContent='Choose the matching address below.';
+  }),250);});
+  input.addEventListener('keydown',event=>{if(results.hidden)return;if(event.key==='Escape'){close();return;}if(event.key==='Enter'&&active>=0){event.preventDefault();choose(active);return;}if(!['ArrowDown','ArrowUp'].includes(event.key))return;event.preventDefault();active=(active+(event.key==='ArrowDown'?1:-1)+predictions.length)%predictions.length;results.querySelectorAll('button').forEach((button,index)=>button.setAttribute('aria-selected',String(index===active)));input.setAttribute('aria-activedescendant','address-option-'+active);});
+  input.addEventListener('blur',()=>setTimeout(()=>{++version;close();},150));
+  help.textContent='Start typing and choose a Google address suggestion.';
+ }catch{unavailable();}};
  try{if(window.google?.maps?.places){attach();return;}const response=await fetch('/api/smoke-alarms/google-key');if(!response.ok)throw Error();const {key}=await response.json();if(!key)throw Error();window.initBatteryAddressAutocomplete=attach;const script=document.createElement('script');script.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&libraries=places&loading=async&callback=initBatteryAddressAutocomplete';script.onerror=unavailable;document.head.append(script);}catch{unavailable();}
 }
 import {batteryPricing} from './pricing.js';
