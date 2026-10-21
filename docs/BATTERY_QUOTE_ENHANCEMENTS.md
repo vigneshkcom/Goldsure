@@ -1,6 +1,6 @@
 # Battery proposal redesign and customer acceptance
 
-Development branch: `feature/battery-proposals-acceptance`. Production has not been changed. No live database migration or customer messages were triggered.
+Initial development was completed on `feature/battery-proposals-acceptance` without production changes. On 21 October 2026 the user subsequently authorized deployment to main, including the required additive migrations. No customer messages or GHL customer-stage mutations were performed as deployment tests.
 
 ## Final customer flow
 
@@ -76,3 +76,13 @@ The local PostgreSQL tests execute the original schema and the additive migratio
 Browser review covers desktop/mobile quote, optional electricity blank, direct simulated send, short email CTA, interactive acceptance, reopen receipt, expired page, accepted tracker filter and print layout. Staff PDF is rendered for visual inspection; it is not attached or sent to customers.
 
 Verified result: all 65 `tests/battery*.test.mjs` tests pass. Desktop/mobile browser acceptance walkthrough and staff PDF render were inspected locally. No production deployment, schema migration, email, SMS or GHL mutation was performed.
+
+## Confirmed acceptance routing update
+
+The customer now accepts using the name saved on the quotation. No name entry is shown or trusted from the browser. The acknowledgment remains explicit. After acceptance, one staff notification is sent to the user-confirmed business inbox info@goldsure.com.au using the existing Hostinger sender. Notification status and errors appear in tracker review; retries never blindly repeat an uncertain notification. No customer acceptance email is added.
+
+Apply the additive `supabase/battery-quote-acceptance-routing.sql` after the first enhancement migration and before deploying this routing update. It stores the verified Proposal Sent and Quote Accepted stage IDs in settings, persists target stage and sync/notification claims, and updates the atomic acceptance function to use the saved name and accepted target stage. It does not mutate existing GHL records. New quotes reuse one unambiguous active Battery opportunity for the contact, or create a new one if none exists. Multiple active opportunities require review. Proposal Sent is used after sending; Quote Accepted after acceptance. Resending an accepted quote does not regress its stage.
+
+GHL sync is serialized per quote with a two-minute stale-claim recovery. A changed acceptance target during an external update is repaired before releasing the claim. Staff may retry acceptance effects from review. A provider timeout leaves the staff notification uncertain instead of automatically resending. Inspect the mailbox/provider before resolving any uncertain delivery; no recovery tool here invents delivery confirmation.
+
+Release verification: 69 battery tests pass after the saved-name acceptance, staff notification and stage-routing update. Both additive migrations were applied to Goldsure Calendar after read-only preflight found one draft and no previously sent or resent battery quotations. The original draft was preserved. Notification inbox: info@goldsure.com.au. Contact phone: 03 7050 2846.

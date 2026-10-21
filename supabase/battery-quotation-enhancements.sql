@@ -1,4 +1,4 @@
--- REVIEW ONLY. This file has not been applied to production.
+-- Additive migration. Initial production apply authorized on 21 October 2026.
 -- Run docs/BATTERY_QUOTE_ENHANCEMENTS.md preflight before this additive migration.
 begin;
 alter table public.battery_quotes add column if not exists first_sent_at timestamptz;
