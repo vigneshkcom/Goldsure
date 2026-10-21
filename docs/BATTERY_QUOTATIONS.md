@@ -46,7 +46,7 @@ The local preview is isolated and persists its own demonstration data. It never 
 
 ## Supplied brochures and address lookup
 
-The repository manifest automatically links the supplied Dyness STACK100 Pro AU brochure to all five packages, and the Solinteg MHS 3–8kW AU brochure to BAT-001, BAT-002 and BAT-003. BAT-004 and BAT-005 still require a Solis inverter brochure before sending. Existing quote snapshots retain their original files; create a new draft to include newly supplied brochures.
+The repository manifest automatically links the supplied Dyness STACK100 Pro AU brochure to all five packages, and the Solinteg MHS 3â€“8kW AU brochure to BAT-001, BAT-002 and BAT-003. BAT-004 and BAT-005 still require a Solis inverter brochure before sending. Existing quote snapshots retain their original files; create a new draft to include newly supplied brochures.
 
 The customer address field uses the existing Google key endpoint and Australian Google Places address suggestions. Manual entry remains available if Google cannot load. No state restriction is applied.
 
