@@ -53,3 +53,5 @@ The customer address field uses the existing Google key endpoint and Australian 
 Production setup remains incomplete until server access to the private battery tables and session signing are configured. Smoke alarm quotes currently use the existing anon-key path; that path does not grant access to the private battery tables. Do not disable RLS to bypass this requirement.
 
 The builder and tracker open directly without a Battery password. Requests without a signed session use staff access (quote, search, send and tracking). Pricing, settings, uploads and delivery-resolution administrator actions continue to require a valid administrator session. Database RLS and server storage credentials remain required.
+
+The supplied Solis S5-GR3P grid-tied datasheet is stored in the repository with no package mapping pending confirmation of the intended battery inverter model. It does not yet satisfy the Solis battery-package attachment requirement.
