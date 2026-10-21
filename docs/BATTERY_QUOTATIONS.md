@@ -57,3 +57,9 @@ The builder and tracker open directly without a Battery password. Requests witho
 The supplied Solis S5-GR3P grid-tied datasheet is stored in the repository with no package mapping pending confirmation of the intended battery inverter model. It does not yet satisfy the Solis battery-package attachment requirement.
 
 The user confirmed the supplied Solis inverter brochure is to accompany the Dyness battery packages. It is now mapped to BAT-004 and BAT-005. All five packages have a battery and inverter brochure. This records the selected quotation attachments, not a technical compatibility certification.
+
+## Direct email and SMS sending
+
+The builder uses Send quote: it saves the immutable quote and immediately sends it without opening the review dialog. Tracker Open still shows saved quote details and deliberate resend confirmation. SMS is selected by default in the builder and can be unchecked. After provider-confirmed email and persisted sent status, the existing SMS Gate sends the online quote link and logs it to sms_messages. SMS outcomes are separate quote events; SMS failure does not turn a successful email into a failed send. No automatic SMS retry is performed on an uncertain result. Opt-outs and valid Australian mobile checks apply. Administrator configuration actions stay restricted.
+
+The customer online quote no longer offers quotation PDF download, and the public-pdf action returns 404. Staff PDF download and the quotation PDF email attachment remain part of the existing quote workflow. Product brochures remain available to customers.
