@@ -51,3 +51,5 @@ The repository manifest automatically links the supplied Dyness STACK100 Pro AU 
 The customer address field uses the existing Google key endpoint and Australian Google Places address suggestions. Manual entry remains available if Google cannot load. No state restriction is applied.
 
 Production setup remains incomplete until server access to the private battery tables and session signing are configured. Smoke alarm quotes currently use the existing anon-key path; that path does not grant access to the private battery tables. Do not disable RLS to bypass this requirement.
+
+The builder and tracker open directly without a Battery password. Requests without a signed session use staff access (quote, search, send and tracking). Pricing, settings, uploads and delivery-resolution administrator actions continue to require a valid administrator session. Database RLS and server storage credentials remain required.
