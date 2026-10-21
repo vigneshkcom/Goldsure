@@ -35,7 +35,7 @@ test('GHL creates the exact Battery pipeline Proposal Sent with Direct Call sour
 test('PDF is a readable single A4 page without internal notes or inferred GST',async()=>{const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const h=harness(),q=await draft(h);const bytes=await batteryQuotePdf(q);const task=getDocument({data:new Uint8Array(bytes),useSystemFonts:true});const pdf=await task.promise;assert.equal(pdf.numPages,1);const page=await pdf.getPage(1),text=(await page.getTextContent()).items.map(i=>i.str).join(' ');assert.match(text,/6,100.00/);assert.match(text,/115 certificates/);assert.doesNotMatch(text,/INTERNAL SECRET|GST included|GST excluded/);assert.match(text,/ABN 66 683 305 106/);await task.destroy();});
 import {batteryPricing,snapshotBatteryPricing} from '../Battery/quotes/pricing.js';
 test('confirmed STC calculation preserves $7,900 OOP with 154 STCs at $39.50',()=>{
- const p={oop:7900,stcs:154};assert.deepEqual(batteryPricing(p),{gross:13983,deduction:6083,rate:39.5,oop:7900});
+ const p={oop:7900,stcs:154};assert.deepEqual(batteryPricing(p),{gross:13983,deduction:6083,rate:39.5,oop:7900,discount:0,discountLabel:''});
  const saved={...p,...snapshotBatteryPricing(p)};assert.equal(saved.stc_rate,39.5);assert.equal(saved.gross_amount,13983);assert.equal(saved.stc_deduction,6083);
 });
 test('all five package OOP amounts survive STC gross-up and deduction',()=>{
@@ -74,4 +74,11 @@ test('staff can edit the system price and add a labelled discount, and the saved
  const s=quoteSnapshot(pkg,customer,{},[],{pricing:{gross:'12000',discount:'250.50',discount_label:'Loyalty'}}).package_snapshot;
  assert.equal(s.gross_amount,12000);assert.equal(s.stc_deduction,4542.5);assert.equal(s.discount_amount,250.5);assert.equal(s.discount_label,'Loyalty');assert.equal(s.oop,7207);assert.equal(batteryPricing(s).discount,250.5);
  assert.throws(()=>quoteSnapshot(pkg,customer,{},[],{pricing:{discount:'999999'}}),/negative/);assert.throws(()=>quoteSnapshot(pkg,customer,{},[],{pricing:{discount:'-1'}}),/valid amounts/);
+});
+
+test('accepting without an address on file requires one and saves it; the checkbox is not needed',async()=>{
+ const h=await harness(),q=await draft(h);await call(h,'send',{id:q.id});await h.store.update(q.id,{customer:{...q.customer,address:''}});
+ const missing=await call(h,'accept',{token:q.public_token,consent:true});assert.equal(missing.statusCode,400);assert.match(missing.body.error,/installation address/);
+ const ok=await call(h,'accept',{token:q.public_token,consent:true,address:'1 Example Street, Melbourne VIC 3000'});assert.equal(ok.statusCode,200);
+ assert.equal((await h.store.quote(q.id)).customer.address,'1 Example Street, Melbourne VIC 3000');
 });
