@@ -71,7 +71,7 @@ async function getQuoteAction(action,id){const r=await fetch(`${endpoint}&action
 
 async function load(){try{const data=await request('bootstrap');Object.assign(state,data);state.selected=state.packages.find(p=>p.id===state.selected?.id&&p.active)||state.packages.find(p=>p.active);$('app').hidden=false;$('agent-name').textContent=`${state.session.agent} · ${state.session.role}`;$('preview-banner').hidden=!state.preview;document.body.classList.toggle('is-preview',state.preview);document.querySelectorAll('.admin-only').forEach(n=>n.hidden=state.session.role!=='admin');renderPackages();renderPreview();initAddressSuggestions();await loadQuotes();return true;}catch(error){message(error.message,true);return false;}}
 
-function tab(name){document.querySelectorAll('.tab').forEach(n=>n.hidden=n.id!=='tab-'+name);document.querySelectorAll('.tracker-nav [data-tab]').forEach(n=>n.classList.toggle('is-active',n.dataset.tab===name));history.replaceState(null,'','?view='+name);message('');if(name==='tracker')loadQuotes().catch(e=>message(e.message,true));}
+function tab(name){document.querySelectorAll('.tab').forEach(n=>n.hidden=n.id!=='tab-'+name);document.body.classList.toggle('view-builder',name==='builder');document.querySelectorAll('.tracker-nav [data-tab]').forEach(n=>n.classList.toggle('is-active',n.dataset.tab===name));history.replaceState(null,'','?view='+name);message('');if(name==='tracker')loadQuotes().catch(e=>message(e.message,true));}
 
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 
