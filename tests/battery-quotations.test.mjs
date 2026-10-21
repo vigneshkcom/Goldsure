@@ -82,3 +82,12 @@ test('accepting without an address on file requires one and saves it; the checkb
  const ok=await call(h,'accept',{token:q.public_token,consent:true,address:'1 Example Street, Melbourne VIC 3000'});assert.equal(ok.statusCode,200);
  assert.equal((await h.store.quote(q.id)).customer.address,'1 Example Street, Melbourne VIC 3000');
 });
+
+test('staff can set the final price while the STC deduction stays fixed',()=>{
+ const pkg={id:'BAT-X',battery_name:'Test',capacity_kwh:40,inverter_brand:'Solis',inverter_kw:10,phase:'Three Phase',oop:9999,stcs:160,active:true,document_ids:[],version:1};
+ const customer={name:'Test User',email:'a@b.co',phone:'0412345678',address:'1 Example Street Melbourne VIC'};
+ const s=quoteSnapshot(pkg,customer,{},[],{pricing:{oop:'15000'}}).package_snapshot;
+ assert.equal(s.oop,15000);assert.equal(s.stc_deduction,6320);assert.equal(s.stcs,160);assert.equal(s.gross_amount,21320);assert.equal(s.base_gross_amount,16319);assert.equal(s.discount_amount,0);
+ assert.equal(quoteSnapshot(pkg,customer,{},[],{pricing:{oop:'9999'}}).package_snapshot.oop,9999);
+ assert.throws(()=>quoteSnapshot(pkg,customer,{},[],{pricing:{oop:'-5'}}),/final price/);
+});

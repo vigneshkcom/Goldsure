@@ -90,9 +90,9 @@ function renderPreview(){const p=state.selected;$('save-quote').disabled=!p;if(!
 ['customer-name','customer-address','customer-notes'].forEach(id=>$(id).addEventListener('input',renderPreview));
 
 let pendingQuote=null;
-const currentPricing=()=>({gross:$('price-gross').value,discount:$('price-discount').value,discount_label:$('price-discount-label').value});
-function resetPricing(){const p=state.selected;$('price-gross').value=p?String(batteryPricing(p).gross):'';$('price-discount').value='';$('price-discount-label').value='';}
-['price-gross','price-discount','price-discount-label'].forEach(id=>$(id).addEventListener('input',renderPreview));
+const currentPricing=()=>({oop:$('price-final').value});
+function resetPricing(){const p=state.selected;$('price-final').value=p?String(batteryPricing(p).oop):'';}
+['price-final'].forEach(id=>$(id).addEventListener('input',renderPreview));
 $('price-reset').onclick=()=>{pendingQuote=null;resetPricing();renderPreview();};
 
 
