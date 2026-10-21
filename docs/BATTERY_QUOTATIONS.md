@@ -43,3 +43,11 @@
 Tests cover exact package seeds, validation, immutable snapshots, authorization, attachment hashes, duplicate-send protection, provider rejection/uncertainty, resend history, GHL destination, public data isolation and PDF content/page count. Existing battery campaign, callback and SMS quote regressions also pass.
 
 The local preview is isolated and persists its own demonstration data. It never calls real mail or GHL services. Production schema, credentials, attachments and real delivery are not confirmed by the local preview.
+
+## Supplied brochures and address lookup
+
+The repository manifest automatically links the supplied Dyness STACK100 Pro AU brochure to all five packages, and the Solinteg MHS 3–8kW AU brochure to BAT-001, BAT-002 and BAT-003. BAT-004 and BAT-005 still require a Solis inverter brochure before sending. Existing quote snapshots retain their original files; create a new draft to include newly supplied brochures.
+
+The customer address field uses the existing Google key endpoint and Australian Google Places address suggestions. Manual entry remains available if Google cannot load. No state restriction is applied.
+
+Production setup remains incomplete until server access to the private battery tables and session signing are configured. Smoke alarm quotes currently use the existing anon-key path; that path does not grant access to the private battery tables. Do not disable RLS to bypass this requirement.
