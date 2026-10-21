@@ -55,3 +55,5 @@ Production setup remains incomplete until server access to the private battery t
 The builder and tracker open directly without a Battery password. Requests without a signed session use staff access (quote, search, send and tracking). Pricing, settings, uploads and delivery-resolution administrator actions continue to require a valid administrator session. Database RLS and server storage credentials remain required.
 
 The supplied Solis S5-GR3P grid-tied datasheet is stored in the repository with no package mapping pending confirmation of the intended battery inverter model. It does not yet satisfy the Solis battery-package attachment requirement.
+
+The user confirmed the supplied Solis inverter brochure is to accompany the Dyness battery packages. It is now mapped to BAT-004 and BAT-005. All five packages have a battery and inverter brochure. This records the selected quotation attachments, not a technical compatibility certification.
