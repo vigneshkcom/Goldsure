@@ -1109,6 +1109,10 @@ function doLogout() {
       <button onclick="closeEmailModal()">Cancel</button>
       <button class="gold" id="sendEmailBtn" onclick="sendQuoteEmail()" disabled>Send Email</button>
     </div>
+    <div class="modal-actions" style="margin-top:10px">
+      <button class="gold" id="pushDataforceBtn" onclick="pushQuoteToDataforce()" disabled>Push to Dataforce</button>
+    </div>
+    <p id="pushDataforceStatus" role="status" style="font-size:12px;line-height:1.6;margin-top:8px">Enter a full Queensland street address to enable Push to Dataforce.</p>
   </div>
 </div>
 
@@ -1121,6 +1125,10 @@ let customerName = '';
 let serviceMode  = 'install';
 let selectedQLDAddress = false;   // ← tracks if a valid QLD address was picked
 let mapsLoaded = false;
+let dataforcePushBusy=false;
+let quoteEmailSent=false;
+let quoteEmailBusy=false;
+let pushedQuoteDetails=null;
 let currentQuoteToken = null;     // ← unique token per quote send
 let selectedGhlContactId = '';
 let selectedGhlContact = null;
@@ -1324,6 +1332,7 @@ function initAddressAutocomplete() {
 }
 
 function onAddressInput() {
+  validateDataforcePush();
   // If agent clears the field manually, reset the validation state
   if (!document.getElementById('emailCustomerAddress').value.trim()) {
     selectedQLDAddress = false;
@@ -1332,6 +1341,7 @@ function onAddressInput() {
 }
 
 function setAddressState(type, message) {
+  validateDataforcePush();
   const badge = document.getElementById('addressBadge');
   const icon  = document.getElementById('addressStatus');
   if (!message) { badge.innerHTML = ''; icon.innerText = ''; return; }
@@ -1586,7 +1596,8 @@ function validateEmailModal() {
   if (custTypeHint) custTypeHint.style.display = hasCustType ? 'none' : 'block';
   const ceilingHint = document.getElementById('ceilingTypeHint');
   if (ceilingHint) ceilingHint.style.display = hasCeilingType ? 'none' : 'block';
-  if (btn) btn.disabled = !(hasPhone && hasCustType && hasCeilingType);
+  if (btn) btn.disabled = quoteEmailSent || quoteEmailBusy || dataforcePushBusy || !(hasPhone && hasCustType && hasCeilingType);
+  validateDataforcePush();
 }
 
 function escHtml(value) {
@@ -1748,6 +1759,10 @@ function openEmailModal() {
   }
   // Reset address state every time modal opens
   selectedQLDAddress = false;
+  quoteEmailSent=false;dataforcePushBusy=false;pushedQuoteDetails=null;
+  document.getElementById('sendEmailBtn').innerText='Send Email';
+  document.getElementById('pushDataforceBtn').innerText='Push to Dataforce';
+  document.getElementById('pushDataforceStatus').textContent='Enter a full Queensland street address to enable Push to Dataforce.';
   currentQuoteToken  = (typeof crypto !== 'undefined' && crypto.randomUUID)
     ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1832,7 +1847,10 @@ async function sendQuoteEmail() {
   }
 
   const btn = document.getElementById('sendEmailBtn');
+  if(pushedQuoteDetails && dataforcePushFingerprint(getDataforcePushDetails())!==pushedQuoteDetails){showToast('Quote details changed after pushing. Reopen the quote window to prepare a new quote.');return;}
+  quoteEmailBusy=true;
   btn.disabled = true;
+  document.getElementById('pushDataforceBtn').disabled=true;
   btn.innerText = 'Sending…';
 
   try {
@@ -1875,16 +1893,52 @@ async function sendQuoteEmail() {
       showToast(data.sms_sent
         ? `Quote emailed to ${custEmail} + online quote link sent to ${custPhone}`
         : `Quote emailed to ${custEmail}`);
-      closeEmailModal();
+      quoteEmailSent=true;
     }
   } catch (err) {
     console.error('Network error:', err);
     showToast('Network error — please try again.');
   } finally {
-    btn.disabled = false;
-    btn.innerText = 'Send Email';
+    quoteEmailBusy=false;
+    btn.innerText = quoteEmailSent?'Email Sent':'Send Email';
+    validateEmailModal();
   }
 }
+
+function hasFullDataforceAddress(){
+  const value=document.getElementById('emailCustomerAddress').value.trim().replace(/,\s*Australia$/i,'');
+  return /^(.+),\s*([^,]+?)\s+(QLD|Queensland)\s+(4\d{3})$/i.test(value) && /\d/.test(value.split(',')[0]) && value.split(',')[0].trim().length>5;
+}
+function validateDataforcePush(){
+  const button=document.getElementById('pushDataforceBtn');if(!button)return;
+  button.disabled=quoteEmailBusy || dataforcePushBusy || !!pushedQuoteDetails || serviceMode!=='install' || !getCeilingType() || !hasFullDataforceAddress() ||
+    !document.getElementById('emailCustomerName').value.trim() || document.getElementById('emailCustomerPhone').value.replace(/\D/g,'').length<8 ||
+    !document.querySelector('input[name="custType"]:checked');
+}
+function dataforcePushFingerprint(details){const {customer_email,...core}=details;return JSON.stringify(core);}
+function getDataforcePushDetails(){
+  return {action:'staff-push-dataforce',token:currentQuoteToken,
+    customer_name:document.getElementById('emailCustomerName').value.trim(),
+    customer_phone:document.getElementById('emailCustomerPhone').value.trim(),
+    customer_email:document.getElementById('emailCustomerEmail').value.trim(),
+    customer_address:document.getElementById('emailCustomerAddress').value.trim(),
+    customer_type:document.querySelector('input[name="custType"]:checked')?.value||'',
+    service_type:serviceMode==='install'?'Installation Quote':'Inspection Quote',ceiling_type:getCeilingType(),
+    alarm_qty:Number(document.getElementById('res_alarmQty').innerText),ctrl_qty:Number(document.getElementById('res_ctrlQty').innerText)||0,
+    offer_discount:getEmailQuoteTotals().discount};
+}
+async function pushQuoteToDataforce(){
+  validateDataforcePush();const button=document.getElementById('pushDataforceBtn');if(button.disabled)return;
+  const details=getDataforcePushDetails();dataforcePushBusy=true;validateEmailModal();button.innerText='Pushing…';
+  const status=document.getElementById('pushDataforceStatus');status.textContent='Creating or finding the Dataforce job…';
+  try{
+    const response=await fetch('/api/smoke-alarms/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(details)});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not push to Dataforce.');
+    pushedQuoteDetails=dataforcePushFingerprint(details);button.innerText='Pushed to Dataforce';status.textContent=`Dataforce job ${result.job_id} · ${result.already_exists?'Existing job found':'Added to waiting list'}. ${(result.products||[]).map(p=>`${p.quantity} × ${p.name}`).join(' · ')}`;
+  }catch(error){button.innerText='Push to Dataforce';status.textContent=error.message;}
+  finally{dataforcePushBusy=false;validateEmailModal();}
+}
+['emailCustomerName','emailCustomerEmail'].forEach(id=>document.getElementById(id).addEventListener('input',validateDataforcePush));
 
 // ════════════════════════════════════════════════════════════
 // TOAST

@@ -1,3 +1,4 @@
+import { withSmokeProductApi } from './helpers/smoke-product-api.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -67,9 +68,10 @@ test('creates a customer, accepted job and unassigned waiting-list appointment',
     throw new Error(`Unexpected request: ${value}`);
   };
 
-  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl: withSmokeProductApi(fetchImpl), env });
 
   assert.equal(result.synced, true);
+  assert.equal(result.productsSynced, true);
   assert.equal(result.jobId, 601);
   assert.equal(result.waiting, true);
 
@@ -124,7 +126,7 @@ test('reuses the quote-tracked job and waiting appointment on retry', async () =
     throw new Error(`Unexpected request: ${value}`);
   };
 
-  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl: withSmokeProductApi(fetchImpl), env });
 
   assert.equal(result.reason, 'already-exists');
   assert.equal(result.jobId, 601);
@@ -159,7 +161,7 @@ test('reuses an existing Dataforce customer only when email and property address
     throw new Error(`Unexpected request: ${value}`);
   };
 
-  await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+  await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl: withSmokeProductApi(fetchImpl), env });
 
   const jobCall = calls.find(call => call.url.endsWith('/jobs') && call.options.method === 'POST');
   assert.equal(JSON.parse(jobCall.options.body).customerId, 501);
@@ -173,7 +175,7 @@ test('does not call Dataforce for an unaccepted quote', async () => {
     return json([{ ...acceptedQuote, accepted: false, status: 'sent' }]);
   };
 
-  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl: withSmokeProductApi(fetchImpl), env });
 
   assert.deepEqual(result, { synced: false, reason: 'quote-not-accepted' });
   assert.equal(calls.length, 1);
@@ -186,7 +188,7 @@ test('does not call Dataforce for a quote marked accepted internally', async () 
     return json([{ ...acceptedQuote, accepted_at: null }]);
   };
 
-  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl, env });
+  const result = await syncAcceptedSmokeQuoteToDataforce({ quoteToken: 'abc-123', fetchImpl: withSmokeProductApi(fetchImpl), env });
 
   assert.deepEqual(result, { synced: false, reason: 'quote-not-customer-accepted' });
   assert.equal(calls.length, 1);
@@ -207,7 +209,7 @@ test('recovers a customer by its alphanumeric reference after a partial job-crea
     if(value.endsWith('/appointments'))return json({appointmentId:701});
     throw new Error(`Unexpected request: ${value}`);
   };
-  const result=await syncAcceptedSmokeQuoteToDataforce({quoteToken:'abc-123',fetchImpl,env});
+  const result=await syncAcceptedSmokeQuoteToDataforce({quoteToken:'abc-123',fetchImpl:withSmokeProductApi(fetchImpl),env});
   assert.equal(result.synced,true);
   assert.equal(calls.some(c=>c.url.endsWith('/customers')&&c.options.method==='POST'),false);
   const searchCall=calls.find(c=>c.url.endsWith('/jobs/search'));

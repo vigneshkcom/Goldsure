@@ -188,7 +188,7 @@ export default async function handler(req, res) {
                 </td>
                 <td style="padding:10px 14px;border-bottom:1px solid #e3e7ef;">
                   <p style="margin:0;font-size:13px;font-weight:600;color:#141c2e;">${dataforceJob.jobId
-                    ? `${escapeHtml(dataforceJob.jobId)} · Waiting list`
+                    ? `${escapeHtml(dataforceJob.jobId)} · Waiting list${dataforceJob.productsSynced === false ? '<br><strong>Product quantities need review</strong>' : ''}`
                     : `Not created automatically (${escapeHtml(dataforceJob.reason || 'unknown error')})`}</p>
                 </td>
               </tr>
@@ -379,6 +379,8 @@ export default async function handler(req, res) {
     ghl_job_id_field_updated: ghlStage.jobIdFieldUpdated === true,
     dataforce_synced: dataforceJob.synced === true,
     dataforce_reason: dataforceJob.reason,
+    dataforce_products_synced: dataforceJob.productsSynced === true,
+    dataforce_product_error: dataforceJob.productError || null,
     dataforce_job_id: dataforceJob.jobId || null,
     dataforce_appointment_id: dataforceJob.appointmentId || null,
     dataforce_waiting: dataforceJob.waiting === true,
