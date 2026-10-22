@@ -615,8 +615,8 @@ export default async function handler(req, res) {
         return res.status(409).json({ error: 'The purchase order or Xero details changed. Review the Xero bill again before creating it.' });
       }
       const result = await createOrFindDraftPurchaseOrderBill(client, po, prepared);
-      await recordPurchaseOrderSafely(po, 'xero-bill', result.invoiceNumber || result.reference);
-      return res.status(200).json({ success: true, ...result });
+      const historySaved = await recordPurchaseOrderSafely(po, 'xero-bill', result.invoiceNumber || result.reference);
+      return res.status(200).json({ success: true, historySaved, ...result });
     } catch (err) {
       console.error('[Xero purchase order bill] Failed:', err.message);
       return res.status(500).json({ error: err.message || 'Could not create the Xero bill.' });
@@ -698,8 +698,8 @@ export default async function handler(req, res) {
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
         ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
       });
-      await recordPurchaseOrderSafely(po, isSummary ? 'summary-emailed' : 'emailed');
-      return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
+      const historySaved = await recordPurchaseOrderSafely(po, isSummary ? 'summary-emailed' : 'emailed');
+      return res.status(200).json({ success: true, historySaved, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
       console.error('[Resend] Purchase order send failed:', err.message);
       return res.status(500).json({ error: 'Failed to send the email from vignesh@goldsure.com.au.', detail: err.message });
