@@ -29,6 +29,8 @@ const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const CORE_FIELDWORKER = { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Core Energy Group' };
 const BLAKE_FIELDWORKER = { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison' };
 const BLAKE_ACCESS_PIN = '1008';
+const MASON_FIELDWORKER = { id: 1012, name: 'Mason Adams', displayName: 'Mason Adams' };
+const MASON_ACCESS_PIN = '1012';
 // `active` is the current crew. Everyone else stays on the roster so their
 // existing bookings keep showing on the calendar, but they are not offered as
 // booking candidates and they share one muted colour.
@@ -58,6 +60,7 @@ function resolvePlannerFieldworker(req, res) {
   const corePin = String(process.env.ROUTE_PLANNER_ACCESS_PIN || process.env.DASHBOARD_PASSWORD || '');
   const supplied = String(req.headers['x-route-planner-pin'] || '');
   if (supplied === BLAKE_ACCESS_PIN) return BLAKE_FIELDWORKER;
+  if (supplied === MASON_ACCESS_PIN) return MASON_FIELDWORKER;
   if (!corePin) {
     send(res, 503, { error: 'Route Planner access has not been configured yet. Add its PIN in Vercel.' });
     return null;
