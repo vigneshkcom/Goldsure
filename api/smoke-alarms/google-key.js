@@ -36,6 +36,7 @@ const INACTIVE_COLOR = '#9699a6';
 const TEAM_FIELDWORKERS = [
   { id: 1009, name: 'Alex Symonds', displayName: 'Alex Symonds', color: '#fdab3d', active: true },
   { id: 1011, name: 'Gurdip Singh', displayName: 'Gurdip Singh', color: '#0073ea', active: true },
+  { id: 1012, name: 'Mason Adams', displayName: 'Mason Adams', color: '#00c875', active: true },
   { id: 1007, name: 'Core Energy Group Pty Ltd', displayName: 'Surya', color: INACTIVE_COLOR, active: false },
   { id: 1008, name: 'Blake Harrison', displayName: 'Blake Harrison', color: INACTIVE_COLOR, active: false },
   { id: 1010, name: 'Liam Stuart', displayName: 'Liam Stuart', color: INACTIVE_COLOR, active: false },
