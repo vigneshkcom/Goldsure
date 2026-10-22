@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Purchase Order History | Goldsure</title>
+  <link rel="icon" type="image/png" href="/assets/gs-favicon-96px.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#323338;--ink-strong:#1f1f24;--muted:#676879;--line:#e6e9ef;--line-strong:#d0d4e4;--bg:#f6f7fb;--blue:#0073ea;--green-dark:#037f4c;--green-soft:#e5f9ef;--red:#df2f4a;--red-soft:#fdeef1;--radius:8px}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
+    header{height:64px;background:#fff;border-bottom:1px solid var(--line);padding:0 clamp(16px,3vw,40px);display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:18px}.brand img{height:54px}.brand h1{font-size:18px;margin:0}
+    main{max-width:1600px;margin:0 auto;padding:28px clamp(16px,3vw,40px) 48px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .controls{padding:18px 20px;display:grid;grid-template-columns:repeat(5,minmax(140px,1fr)) auto auto;gap:14px;align-items:end}
+    .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+    .field input,.field select{width:100%;height:40px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;padding:0 12px}
+    .btn{height:40px;padding:0 16px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
+    .btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+    .notice{margin-top:14px;border:1px solid #f7c9d1;border-left:4px solid var(--red);background:var(--red-soft);border-radius:6px;padding:11px 14px;display:none}.notice.show{display:block}
+    .summary{display:flex;gap:12px;margin:20px 0 16px;flex-wrap:wrap}.metric{padding:14px 18px;min-width:150px}.metric span{display:block;font-size:12px;color:var(--muted)}.metric strong{font-size:22px;color:var(--ink-strong)}
+    .table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:1100px}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;color:var(--muted);background:#f5f6f8;white-space:nowrap}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.sub{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+    .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:#f0f1f5;color:var(--muted);margin:0 4px 4px 0}.pill.done{background:var(--green-soft);color:var(--green-dark)}
+    .empty{padding:48px 20px;text-align:center;color:var(--muted)}
+    @media(max-width:900px){.controls{grid-template-columns:1fr 1fr}.brand h1{display:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"><h1>Purchase Order History</h1></div>
+    <div><a class="btn" href="/smoke-alarms/purchase-orders.html">&larr; Purchase orders</a></div>
+  </header>
+  <main>
+    <section class="card controls" aria-label="History filters">
+      <div class="field"><label for="pin">Portal access PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter PIN"></div>
+      <div class="field"><label for="from">Installed from</label><input id="from" type="date"></div>
+      <div class="field"><label for="to">Installed to</label><input id="to" type="date"></div>
+      <div class="field"><label for="electrician">Electrician</label><select id="electrician"><option value="">Everyone</option></select></div>
+      <div class="field"><label for="search">Job, address or PO</label><input id="search" type="search" placeholder="Search"></div>
+      <button class="btn btn-primary" id="load" type="button">Load history</button>
+      <button class="btn" id="csv" type="button" disabled>Download CSV</button>
+    </section>
+    <div class="notice" id="notice" role="alert"></div>
+    <section class="summary" id="summary" hidden>
+      <div class="card metric"><span>Jobs</span><strong id="mJobs">0</strong></div>
+      <div class="card metric"><span>Alarms installed</span><strong id="mAlarms">0</strong></div>
+      <div class="card metric"><span>Paid to electricians (inc GST)</span><strong id="mPaid">$0.00</strong></div>
+    </section>
+    <section class="card"><div class="table-wrap" id="tableWrap"><div class="empty">Enter the PIN and load the history. Purchase orders appear here once they are exported, emailed or turned into a Xero bill.</div></div></section>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const money = value => Number(value || 0).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
+    const dmy = value => { const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+    const stamp = value => value ? new Date(value).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let rows = [];
+    try { $('pin').value = sessionStorage.getItem('goldsure_po_pin') || ''; } catch (e) {}
+
+    function showError(message) { $('notice').textContent = message; $('notice').classList.toggle('show', Boolean(message)); }
+    const alarms = job => job.hardwired + job.battery + job.remote;
+
+    function statuses(po = {}) {
+      const list = [['exported_at', 'Exported'], ['emailed_at', 'PO emailed'], ['summary_emailed_at', 'Summary emailed'], ['xero_bill_at', 'Xero bill']];
+      const pills = list.filter(([key]) => po[key]).map(([key, label]) => `<span class="pill done">${label} ${stamp(po[key])}</span>`);
+      return pills.join('') || '<span class="pill">Saved only</span>';
+    }
+
+    function render() {
+      $('summary').hidden = !rows.length;
+      $('csv').disabled = !rows.length;
+      if (!rows.length) { $('tableWrap').innerHTML = '<div class="empty">No jobs found for those filters.</div>'; return; }
+      $('mJobs').textContent = rows.length;
+      $('mAlarms').textContent = rows.reduce((sum, job) => sum + alarms(job), 0);
+      $('mPaid').textContent = money(rows.reduce((sum, job) => sum + Number(job.payable_inc_gst), 0));
+      $('tableWrap').innerHTML = `<table><thead><tr><th>Installed</th><th>Job</th><th>Electrician</th><th class="num">Booking</th><th class="num">Hardwired</th><th class="num">Battery</th><th class="num">Remote</th><th class="num">Pay inc GST</th><th class="num">Cash offset</th><th class="num">PO payable</th><th>Purchase order</th><th>Status</th></tr></thead><tbody>${rows.map(job => `<tr>
+        <td>${dmy(job.installed_date)}</td>
+        <td><strong>${esc(job.job_id)}</strong><span class="sub">${esc(job.address)}</span></td>
+        <td>${esc(job.purchase_orders?.electrician_name)}</td>
+        <td class="num">${job.booking}</td><td class="num">${job.hardwired}</td><td class="num">${job.battery}</td><td class="num">${job.remote}</td>
+        <td class="num">${money(job.gross_inc_gst)}</td><td class="num">${job.cash_offset > 0 ? money(job.cash_offset) : ''}</td><td class="num"><strong>${money(job.payable_inc_gst)}</strong></td>
+        <td>${esc(job.po_number)}<span class="sub">Payable ${esc(job.purchase_orders?.payable_date)}${job.purchase_orders?.xero_bill_ref ? ` | ${esc(job.purchase_orders.xero_bill_ref)}` : ''}</span></td>
+        <td>${statuses(job.purchase_orders)}</td></tr>`).join('')}</tbody></table>`;
+    }
+
+    async function load() {
+      showError('');
+      const button = $('load'); button.disabled = true; button.textContent = 'Loading...';
+      try {
+        try { sessionStorage.setItem('goldsure_po_pin', $('pin').value); } catch (e) {}
+        const response = await fetch('/api/smoke-alarms/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-purchase-order-pin': $('pin').value }, body: JSON.stringify({ purchaseOrderHistory: { action: 'list', from: $('from').value, to: $('to').value, electrician: $('electrician').value, search: $('search').value } }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Could not load purchase order history.');
+        rows = data.jobs;
+        const names = [...new Set(rows.map(job => job.purchase_orders?.electrician_name).filter(Boolean))].sort();
+        const chosen = $('electrician').value;
+        $('electrician').innerHTML = '<option value="">Everyone</option>' + names.map(name => `<option${name === chosen ? ' selected' : ''}>${esc(name)}</option>`).join('');
+        render();
+      } catch (error) { showError(error.message); }
+      finally { button.disabled = false; button.textContent = 'Load history'; }
+    }
+
+    function downloadCsv() {
+      const header = ['Installed', 'Job', 'Address', 'Electrician', 'Booking', 'Hardwired', 'Battery', 'Remote', 'Pay inc GST', 'Cash offset', 'PO payable', 'Purchase order'];
+      const cell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const lines = rows.map(job => [dmy(job.installed_date), job.job_id, job.address, job.purchase_orders?.electrician_name, job.booking, job.hardwired, job.battery, job.remote, job.gross_inc_gst, job.cash_offset, job.payable_inc_gst, job.po_number].map(cell).join(','));
+      const url = URL.createObjectURL(new Blob([[header.map(cell).join(','), ...lines].join('\n')], { type: 'text/csv' }));
+      const link = Object.assign(document.createElement('a'), { href: url, download: 'purchase-order-history.csv' });
+      link.click(); URL.revokeObjectURL(url);
+    }
+
+    $('load').addEventListener('click', load);
+    $('csv').addEventListener('click', downloadCsv);
+    $('pin').addEventListener('keydown', event => { if (event.key === 'Enter') load(); });
+  </script>
+</body>
+</html>

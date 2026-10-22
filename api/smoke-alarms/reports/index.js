@@ -5,6 +5,7 @@
 import { hasHostingerMailConfig, sendHostingerMail } from '../../../lib/hostinger-mail.js';
 import { sendResendMail } from '../../../lib/resend-mail.js';
 import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEnding } from '../../../lib/dataforce-purchase-orders.js';
+import { listPurchaseOrderJobs, recordPurchaseOrder } from '../../../lib/purchase-order-history.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import { leadContactReport } from '../../../lib/lead-contact-report-api.js';
 import {
@@ -53,6 +54,18 @@ function emailEntries(value) {
 
 function emailRecipients(value) {
   return [...new Set(emailEntries(value))].filter(address => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)).slice(0, 10);
+}
+
+// History is a record-keeping side effect: a Supabase problem must never block
+// emailing a PO or creating its Xero bill, so failures are only logged.
+async function recordPurchaseOrderSafely(po, event, ref) {
+  try {
+    await recordPurchaseOrder(po, event, { ref });
+    return true;
+  } catch (err) {
+    console.error('[Purchase order history] Not recorded:', err.message);
+    return false;
+  }
 }
 
 export function validatedPurchaseOrder(po) {
@@ -602,10 +615,33 @@ export default async function handler(req, res) {
         return res.status(409).json({ error: 'The purchase order or Xero details changed. Review the Xero bill again before creating it.' });
       }
       const result = await createOrFindDraftPurchaseOrderBill(client, po, prepared);
+      await recordPurchaseOrderSafely(po, 'xero-bill', result.invoiceNumber || result.reference);
       return res.status(200).json({ success: true, ...result });
     } catch (err) {
       console.error('[Xero purchase order bill] Failed:', err.message);
       return res.status(500).json({ error: err.message || 'Could not create the Xero bill.' });
+    }
+  }
+
+  if (body.purchaseOrderHistory !== undefined) {
+    if (!purchaseOrderAccessAllowed(req)) {
+      return res.status(401).json({ error: 'Enter the Portal access PIN.' });
+    }
+    const request = body.purchaseOrderHistory || {};
+    try {
+      if (request.action === 'save') {
+        const po = validatedPurchaseOrder(request.purchaseOrder);
+        if (!po) return res.status(400).json({ error: 'The purchase order is incomplete.' });
+        await recordPurchaseOrder(po, request.event === 'exported' ? 'exported' : 'saved');
+        return res.status(200).json({ success: true });
+      }
+      if (request.action === 'list') {
+        return res.status(200).json({ success: true, jobs: await listPurchaseOrderJobs(request) });
+      }
+      return res.status(400).json({ error: 'Choose a valid history action.' });
+    } catch (err) {
+      console.error('[Purchase order history] Failed:', err.message);
+      return res.status(500).json({ error: err.message || 'Could not reach purchase order history.' });
     }
   }
 
@@ -662,6 +698,7 @@ export default async function handler(req, res) {
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
         ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
       });
+      await recordPurchaseOrderSafely(po, isSummary ? 'summary-emailed' : 'emailed');
       return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
       console.error('[Resend] Purchase order send failed:', err.message);

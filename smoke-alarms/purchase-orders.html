@@ -41,7 +41,7 @@
 <body>
   <header>
     <div class="brand"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure"><span class="brand-divider"></span><h1>Electrician Purchase Orders</h1></div>
-    <div class="head-actions"><a class="btn btn-ghost" href="/">&larr; Back to Portal</a></div>
+    <div class="head-actions"><a class="btn btn-ghost" href="/smoke-alarms/purchase-order-history.html">PO history</a><a class="btn btn-ghost" href="/">&larr; Back to Portal</a></div>
   </header>
   <main>
     <section class="card controls" aria-label="Purchase order filters">
@@ -287,6 +287,7 @@
         window.XLSX.utils.book_append_sheet(workbook,meta,'Summary');
         const filename=`${po.poNumber||'Purchase order'}`.replace(/[\\/:*?"<>|]+/g,'-')+'.xlsx';
         window.XLSX.writeFile(workbook,filename);
+        fetch('/api/smoke-alarms/reports',{method:'POST',headers:{'Content-Type':'application/json','x-purchase-order-pin':$('pin').value},body:JSON.stringify({purchaseOrderHistory:{action:'save',event:'exported',purchaseOrder:po}})}).then(r=>{if(!r.ok)showNotice('Exported, but it could not be saved to PO history.','error')}).catch(()=>{});
       }catch(error){showNotice(error.message||'Could not export to Excel.','error')}
       finally{button.disabled=!po.jobs.length;button.textContent=originalText}
     }
