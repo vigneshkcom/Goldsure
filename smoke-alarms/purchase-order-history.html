@@ -15,7 +15,7 @@
     .brand{display:flex;align-items:center;gap:18px}.brand img{height:54px}.brand h1{font-size:18px;margin:0}
     main{max-width:1600px;margin:0 auto;padding:28px clamp(16px,3vw,40px) 48px}
     .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .controls{padding:18px 20px;display:grid;grid-template-columns:repeat(5,minmax(140px,1fr)) auto auto;gap:14px;align-items:end}
+    .controls{padding:18px 20px;display:grid;grid-template-columns:repeat(4,minmax(140px,1fr)) auto auto;gap:14px;align-items:end}
     .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
     .field input,.field select{width:100%;height:40px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;padding:0 12px}
     .btn{height:40px;padding:0 16px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
@@ -37,7 +37,6 @@
   </header>
   <main>
     <section class="card controls" aria-label="History filters">
-      <div class="field"><label for="pin">Portal access PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter PIN"></div>
       <div class="field"><label for="from">Installed from</label><input id="from" type="date"></div>
       <div class="field"><label for="to">Installed to</label><input id="to" type="date"></div>
       <div class="field"><label for="electrician">Electrician</label><select id="electrician"><option value="">Everyone</option></select></div>
@@ -51,7 +50,7 @@
       <div class="card metric"><span>Alarms installed</span><strong id="mAlarms">0</strong></div>
       <div class="card metric"><span>Paid to electricians (inc GST)</span><strong id="mPaid">$0.00</strong></div>
     </section>
-    <section class="card"><div class="table-wrap" id="tableWrap"><div class="empty">Enter the PIN and load the history. Purchase orders appear here once they are exported, emailed or turned into a Xero bill.</div></div></section>
+    <section class="card"><div class="table-wrap" id="tableWrap"><div class="empty">Loading... Purchase orders appear here once they are exported, emailed or turned into a Xero bill.</div></div></section>
   </main>
   <script>
     const $ = id => document.getElementById(id);
@@ -60,7 +59,6 @@
     const stamp = value => value ? new Date(value).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     let rows = [];
-    try { $('pin').value = sessionStorage.getItem('goldsure_po_pin') || ''; } catch (e) {}
 
     function showError(message) { $('notice').textContent = message; $('notice').classList.toggle('show', Boolean(message)); }
     const alarms = job => job.hardwired + job.battery + job.remote;
@@ -92,8 +90,7 @@
       showError('');
       const button = $('load'); button.disabled = true; button.textContent = 'Loading...';
       try {
-        try { sessionStorage.setItem('goldsure_po_pin', $('pin').value); } catch (e) {}
-        const response = await fetch('/api/smoke-alarms/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-purchase-order-pin': $('pin').value }, body: JSON.stringify({ purchaseOrderHistory: { action: 'list', from: $('from').value, to: $('to').value, electrician: $('electrician').value, search: $('search').value } }) });
+        const response = await fetch('/api/smoke-alarms/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchaseOrderHistory: { action: 'list', from: $('from').value, to: $('to').value, electrician: $('electrician').value, search: $('search').value } }) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Could not load purchase order history.');
         rows = data.jobs;
@@ -116,7 +113,7 @@
 
     $('load').addEventListener('click', load);
     $('csv').addEventListener('click', downloadCsv);
-    $('pin').addEventListener('keydown', event => { if (event.key === 'Enter') load(); });
+    load();
   </script>
 </body>
 </html>

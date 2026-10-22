@@ -624,10 +624,11 @@ export default async function handler(req, res) {
   }
 
   if (body.purchaseOrderHistory !== undefined) {
-    if (!purchaseOrderAccessAllowed(req)) {
+    const request = body.purchaseOrderHistory || {};
+    // Reading history is PIN-free by request; saving still needs the PIN.
+    if (request.action !== 'list' && !purchaseOrderAccessAllowed(req)) {
       return res.status(401).json({ error: 'Enter the Portal access PIN.' });
     }
-    const request = body.purchaseOrderHistory || {};
     try {
       if (request.action === 'save') {
         const po = validatedPurchaseOrder(request.purchaseOrder);
