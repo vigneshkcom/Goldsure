@@ -63,9 +63,9 @@
     function showError(message) { $('notice').textContent = message; $('notice').classList.toggle('show', Boolean(message)); }
     const alarms = job => job.hardwired + job.battery + job.remote;
 
-    function statuses(po = {}) {
+    function statuses(job) {
       const list = [['exported_at', 'Exported'], ['emailed_at', 'PO emailed'], ['summary_emailed_at', 'Summary emailed'], ['xero_bill_at', 'Xero bill']];
-      const pills = list.filter(([key]) => po[key]).map(([key, label]) => `<span class="pill done">${label} ${stamp(po[key])}</span>`);
+      const pills = list.filter(([key]) => job[key]).map(([key, label]) => `<span class="pill done">${label} ${stamp(job[key])}</span>`);
       return pills.join('') || '<span class="pill">Saved only</span>';
     }
 
@@ -82,8 +82,8 @@
         <td>${esc(job.purchase_orders?.electrician_name)}</td>
         <td class="num">${job.booking}</td><td class="num">${job.hardwired}</td><td class="num">${job.battery}</td><td class="num">${job.remote}</td>
         <td class="num">${money(job.gross_inc_gst)}</td><td class="num">${job.cash_offset > 0 ? money(job.cash_offset) : ''}</td><td class="num"><strong>${money(job.payable_inc_gst)}</strong></td>
-        <td>${esc(job.po_number)}<span class="sub">Payable ${esc(job.purchase_orders?.payable_date)}${job.purchase_orders?.xero_bill_ref ? ` | ${esc(job.purchase_orders.xero_bill_ref)}` : ''}</span></td>
-        <td>${statuses(job.purchase_orders)}</td></tr>`).join('')}</tbody></table>`;
+        <td>${esc(job.po_number)}<span class="sub">Payable ${esc(job.purchase_orders?.payable_date)}${job.xero_bill_ref ? ` | ${esc(job.xero_bill_ref)}` : ''}</span></td>
+        <td>${statuses(job)}</td></tr>`).join('')}</tbody></table>`;
     }
 
     async function load() {

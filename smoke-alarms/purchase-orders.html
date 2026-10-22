@@ -159,7 +159,7 @@
     function quantityFor(row,key){return payableItems(row).filter(item=>item.key===key).reduce((sum,item)=>sum+Number(item.quantity||0),0)}
 
     function initialiseRow(row){
-      if(row._included===undefined)row._included=payableItems(row).length>0||invoiceItems(row).length>0;
+      if(row._included===undefined)row._included=!row.alreadySent&&(payableItems(row).length>0||invoiceItems(row).length>0);
       if(row._pendingBalance===undefined)row._pendingBalance=Math.max(0,Number(row.transactionBalance||0));
       if(row._cashCollected===undefined)row._cashCollected=row.paymentFlag?.type==='cash';
       return row;
@@ -199,11 +199,14 @@
       try{
         const response=await fetch('/api/smoke-alarms/google-key',{method:'POST',headers:{'Content-Type':'application/json','x-purchase-order-pin':pin},body:JSON.stringify({action:'purchase-order-preview',startDate:from,endDate:to})});
         const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||`Dataforce request failed (${response.status})`);
-        state.additionalLines=[];state.rows=(Array.isArray(data.rows)?data.rows:[]).map(initialiseRow);state.workers=Array.isArray(data.workers)?data.workers:[];populateWorkers();
-        showNotice(`Loaded ${state.rows.length} completed job${state.rows.length===1?'':'s'} from Dataforce.`,'success');render();
+        state.additionalLines=[];state.sentPoNumbers=Array.isArray(data.sentPoNumbers)?data.sentPoNumbers:[];state.rows=(Array.isArray(data.rows)?data.rows:[]).map(initialiseRow);state.workers=Array.isArray(data.workers)?data.workers:[];populateWorkers();
+        const alreadySent=state.rows.filter(row=>row.alreadySent).length;showNotice(`Loaded ${state.rows.length} completed job${state.rows.length===1?'':'s'} from Dataforce.${alreadySent?` ${alreadySent} already sent on an earlier PO, so ${alreadySent===1?'it is':'they are'} unticked.`:''}${data.historyWarning?' '+data.historyWarning:''}`,data.historyWarning?'error':'success');render();
       }catch(error){showNotice(error.message||'Could not load completed Dataforce jobs.','error')}
       finally{button.disabled=false;button.textContent='Load completed jobs'}
     }
+
+    // A second PO for the same electrician and week gets " (2)" so its email, history and Xero bill reference never collide with the first.
+    function uniquePoNumber(base){const sent=new Set(state.sentPoNumbers||[]);let n=1,candidate=base;while(sent.has(candidate)){n++;candidate=`${base} (${n})`}return candidate}
 
     function populateWorkers(){const select=$('worker');select.innerHTML=state.workers.length?state.workers.map(worker=>`<option value="${esc(worker.id)}">${esc(worker.name)}</option>`).join(''):'<option value="">No electricians found</option>';select.disabled=!state.workers.length;state.selectedWorkerId=state.workers[0]?String(state.workers[0].id):'';select.value=state.selectedWorkerId}
 
@@ -214,7 +217,7 @@
       const f=jobFigures(row);const unknown=unpricedItems(row);const invoiced=invoiceItems(row);const sourceNote=row.transactionBalance===null?'Balance not returned, review manually':row.balanceEstimated?`Estimated from the ${row.balanceSource||'Dataforce'}, edit if a deposit was paid`:`From ${row.balanceSource||'Dataforce'}`;const flag=row.paymentFlag?.type==='cash'?'<span class="flag flag-cash">Cash tagged</span>':row.paymentFlag?.type==='bank-transfer'?'<span class="flag flag-bank">Bank transfer, review</span>':'<span class="flag flag-none">No tag</span>';
       return `<tr class="${row._included?'':'excluded'}" data-row="${esc(row.jobId)}">
         <td class="center include-cell" data-label="Include"><input class="include-job" type="checkbox" ${row._included?'checked':''} aria-label="Include job ${esc(row.jobId)}"></td>
-        <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Scheduled ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}</td>
+        <td class="job-cell" data-label="Job"><strong class="job">Job ${esc(row.jobId)}</strong><span class="job-date">Scheduled ${esc(friendly(row.installedDate))}</span>${row.address?`<span class="job-address">${esc(row.address)}</span>`:''}${row.alreadySent?`<span class="job-address" style="color:var(--red);font-weight:600">Already sent in ${esc(row.alreadySent.poNumber)} on ${esc(friendly(String(row.alreadySent.sentAt).slice(0,10)))}. Tick Include to pay it again.</span>`:''}</td>
         ${['booking','hardwired','battery','remote'].map(key=>qtyCell(key,f[key])).join('')}
         <td class="center total-cell" data-label="Total alarms"><span class="alarm-total">${f.alarmTotal}</span></td>
         <td class="num pay-cell" data-label="Pay"><div class="pay-stack"><strong>${money(f.grossIncGst)}</strong><small>${money(f.subtotalExGst)} ex GST</small>${unknown.length?`<small class="unmapped">${unknown.length} product${unknown.length===1?'':'s'} with no price</small>`:''}${invoiced.length?`<small class="invoiced">+ ${money(invoiced.reduce((sum,item)=>sum+Number(item.payIncGst||0),0))} ${invoiced.every(item=>item.fixedRate)?'fixed rate':'as invoiced'}: ${invoiced.map(item=>esc(item.name)).join(', ')}</small>`:''}</div></td>
@@ -226,7 +229,7 @@
 
     function render(){
       const worker=selectedWorker(),rows=visibleRows();if(!worker){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs found</strong>Try another scheduled date range.</div>';updateTotals({});renderAdditionalLines();return}
-      const from=$('from').value,to=$('to').value,poNumber=`PO for ${worker.name} - Week ending ${friendly(weekEndingSunday(to))}`,payDate=payableDate(to);
+      const from=$('from').value,to=$('to').value,poNumber=uniquePoNumber(`PO for ${worker.name} - Week ending ${friendly(weekEndingSunday(to))}`),payDate=payableDate(to);
       $('poNumber').textContent=poNumber;$('period').textContent=from===to?friendly(to):`${friendly(from)} to ${friendly(to)}`;$('payableDate').textContent=payDate;$('payableDateTotal').textContent=payDate;$('poTitle').textContent=`Purchase order for ${worker.companyName||worker.name}`;
       $('workerDetails').textContent=[worker.name,worker.email,worker.taxId?`ABN ${worker.taxId}`:'',worker.gstRegistered?'GST registered':'Not recorded as GST registered'].filter(Boolean).join(' | ');
       if(!rows.length){$('tableWrap').innerHTML='<div class="empty"><strong>No completed jobs for this electrician</strong>Choose another electrician or scheduled date range.</div>';updateTotals({});$('review').disabled=true;$('summaryEmail').disabled=true;$('print').disabled=true;$('exportExcel').disabled=true;$('xeroBill').disabled=true;renderAdditionalLines();return}

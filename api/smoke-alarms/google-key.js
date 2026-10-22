@@ -22,6 +22,7 @@ import {
   dataforceEstimatedBalance,
   purchaseOrderRateCard,
 } from '../../lib/dataforce-purchase-orders.js';
+import { previousSends } from '../../lib/purchase-order-history.js';
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
 const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
@@ -1152,7 +1153,18 @@ export default async function handler(req, res) {
       if (!Number.isFinite(days) || days < 1 || days > 31) {
         return send(res, 400, { error: 'Choose a date range between 1 and 31 days.' });
       }
-      return send(res, 200, await dataforcePurchaseOrderPreview(startDate, endDate));
+      const preview = await dataforcePurchaseOrderPreview(startDate, endDate);
+      // Flag jobs already sent on an earlier PO so they are not paid twice. History
+      // being unreachable must not stop a PO being built, so say so instead.
+      try {
+        const { sentJobs, sentPoNumbers } = await previousSends(startDate, endDate);
+        preview.rows.forEach(row => { if (sentJobs[row.jobId]) row.alreadySent = sentJobs[row.jobId]; });
+        preview.sentPoNumbers = sentPoNumbers;
+      } catch (err) {
+        console.error('[Purchase order history] Could not check for jobs already sent:', err.message);
+        preview.historyWarning = 'Could not check PO history for jobs already sent. Check the PO history page before sending.';
+      }
+      return send(res, 200, preview);
     }
 
     if (action === 'dataforce-ghl-preview') {
