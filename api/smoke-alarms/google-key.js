@@ -15,7 +15,7 @@ import {
 } from '../../lib/dataforce-ghl-sync.js';
 import {
   normaliseFieldworker,
-  normalisePurchaseOrderLine,
+  normalisePurchaseOrderItems,
   isFieldCompletedAppointment,
   dataforcePaymentFlag,
   dataforceTransactionBalance,
@@ -725,7 +725,7 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
     ]);
     const document = documentResult?.document || null;
     const productLines = Array.isArray(document?.productLines) ? document.productLines : [];
-    const items = productLines.map(line => normalisePurchaseOrderLine(line, worker.gstRegistered));
+    const items = normalisePurchaseOrderItems(document, worker.gstRegistered);
     const tags = listFromPayload(tagPayload, ['tags']).map(tag => ({
       id: tag.tagId ?? tag.id ?? null,
       name: String(tag.tagName || tag.name || '').trim(),

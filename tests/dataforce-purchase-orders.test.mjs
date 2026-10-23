@@ -8,6 +8,7 @@ import {
   dataforceEstimatedBalance,
   normaliseFieldworker,
   normalisePurchaseOrderLine,
+  normalisePurchaseOrderItems,
   isFieldCompletedAppointment,
   purchaseOrderPayableDate,
 } from '../lib/dataforce-purchase-orders.js';
@@ -54,6 +55,26 @@ test('pays inspection fees (3437) a fixed $60 ex GST, not the $131 invoiced', ()
   const unregistered = normalisePurchaseOrderLine(line, false);
   assert.equal(unregistered.payIncGst, 60);
   assert.equal(unregistered.gst, 0);
+});
+
+test('inspection fee discount removes inspection pay and preserves upgrade pay', () => {
+  const inspection = { productId: 3437, lineQty: 1, lineRateIncTax: 131 };
+  const alarm = { productId: 3430, lineQty: 2, lineRateIncTax: 98 };
+  for (const gstRegistered of [true, false]) {
+    for (const nameField of ['discountName', 'description', 'productName', 'lineDescription', 'name']) {
+      const discountLines = [{ [nameField]: 'Inspection Fees Discount', lineQty: 1, lineRateIncTax: 131 }];
+      assert.deepEqual(normalisePurchaseOrderItems({ productLines: [inspection], discountLines }, gstRegistered), []);
+      const upgraded = normalisePurchaseOrderItems({ productLines: [inspection, alarm], discountLines }, gstRegistered);
+      assert.deepEqual(upgraded.map(item => item.code), ['3430']);
+      assert.equal(upgraded[0].subtotalExGst, 26);
+    }
+    for (const discountLines of [[], [{ discountName: 'Other discount', lineRateIncTax: 131 }],
+      [{ discountName: 'Inspection Fees Discount', lineRateIncTax: 0 }]]) {
+      assert.equal(normalisePurchaseOrderItems({ productLines: [inspection], discountLines }, gstRegistered)[0].payIncGst,
+        gstRegistered ? 66 : 60);
+    }
+  }
+  assert.deepEqual(normalisePurchaseOrderItems(null), []);
 });
 
 test('purchase orders require completed status and Field sub-status', () => {
