@@ -21,11 +21,12 @@ async function load() {
   $('testDate').max = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const replacementYear = $('replacementDate'), firstYear = Number($('testDate').max.slice(0, 4));
   replacementYear.innerHTML = '<option value="">Select year (if known)</option><option value="not-applicable">Not applicable - installation date unknown; compliant at time of testing</option>' + Array.from({ length: 21 }, (_, index) => `<option value="${firstYear + index}">${firstYear + index}</option>`).join('');
-  $('smokeSection').hidden = false; $('smokeOutcome').required = true;
-  $('checks').innerHTML = result.checks.map((label, i) => `<label class="inspection-item" for="check${i}"><input id="check${i}" class="inspection-check" type="checkbox"><span>${e(label)}</span></label>`).join('');
+  $('smokeSection').hidden = false;   $('checks').innerHTML = result.checks.map((label, i) => `<label class="inspection-item" for="check${i}"><input id="check${i}" class="inspection-check" type="checkbox"><span>${e(label)}</span></label>`).join('');
   for (const key of ['testDate', 'contractorName', 'contractorLicence', 'contractorPhone', 'notes', 'smokeOutcome']) if (record.prefill?.[key]) $(key).value = record.prefill[key];
   if (record.prefill?.replacementDate) { const savedReplacement = String(record.prefill.replacementDate); replacementYear.value = savedReplacement === 'not-applicable' ? savedReplacement : savedReplacement.slice(0, 4); }
   [...document.querySelectorAll('.inspection-check')].forEach((input, i) => { input.checked = record.prefill?.checks?.[i] === 'Yes'; });
+  const syncOutcome = () => { $('smokeOutcome').value = [...document.querySelectorAll('.inspection-check')].every(input => input.checked) ? 'compliant' : 'not-compliant'; };
+  document.querySelectorAll('.inspection-check').forEach(input => { input.onchange = syncOutcome; }); syncOutcome();
   // Prefilled values remain editable; safety, authority and consent stay unchecked.
   $('content').hidden = false; status('pageStatus', 'Please review every detail before signing.');
   if (result.signedAt) completed(result.signedAt, result.delivery);

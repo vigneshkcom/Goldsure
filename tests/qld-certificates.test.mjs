@@ -52,9 +52,10 @@ test('replacement field accepts a year or an unknown-installation-date status', 
 });
 test('compliant inspections require every checklist item to be ticked and non-compliance needs observations', () => {
   assert.throws(() => signatureFields({ ...signature, checks: ['No', ...signature.checks.slice(1)] }, draft));
-  assert.throws(() => signatureFields({ ...signature, smokeOutcome: 'not-compliant' }, draft));
+  assert.equal(signatureFields({ ...signature, smokeOutcome: 'not-compliant' }, draft).smokeOutcome, 'compliant');
+  assert.equal(signatureFields({ ...signature, smokeOutcome: 'compliant', checks: ['No', ...signature.checks.slice(1)], notes: 'Alarm missing.' }, draft).smokeOutcome, 'not-compliant');
   assert.throws(() => signatureFields({ ...signature, checks: ['Maybe', ...signature.checks.slice(1)] }, draft));
-  assert.equal(signatureFields({ ...signature, smokeOutcome: 'not-compliant', notes: 'Bedroom alarm missing.' }, draft).smokeOutcome, 'not-compliant');
+  assert.equal(signatureFields({ ...signature, checks: ['No', ...signature.checks.slice(1)], notes: 'Bedroom alarm missing.' }, draft).smokeOutcome, 'not-compliant');
 });
 test('signature points have finite bounded coordinates and real strokes', () => {
   for (const strokes of [[], [[[.1,.1]]], [[[NaN,1],[1,1]]], Array.from({ length: 101 }, () => [[0,0],[1,1]])]) assert.throws(() => signatureFields({ ...signature, strokes }, draft));
