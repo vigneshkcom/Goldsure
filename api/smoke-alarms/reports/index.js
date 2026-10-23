@@ -56,8 +56,8 @@ function emailRecipients(value) {
   return [...new Set(emailEntries(value))].filter(address => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)).slice(0, 10);
 }
 
-// History is a record-keeping side effect: a Supabase problem must never block
-// emailing a PO or creating its Xero bill, so failures are only logged.
+// A history failure must not disguise a successfully created Xero bill.
+// Return the save status so the user can retry with Save PO.
 async function recordPurchaseOrderSafely(po, event, ref) {
   try {
     await recordPurchaseOrder(po, event, { ref });
@@ -116,8 +116,7 @@ export function validatedPurchaseOrder(po) {
         label: paymentType === 'cash' ? 'Cash tagged' : paymentType === 'bank-transfer' ? 'Bank transfer - review' : '',
       },
     };
-  }).filter(job => job.jobId && job.items.length);
-  if (!jobs.length) return null;
+  }).filter(job => job.jobId);
   const items = jobs.flatMap(job => job.items);
   const additionalLines = (Array.isArray(po.additionalLines) ? po.additionalLines : []).map(line => {
     const description = String(line?.description || '').trim().slice(0, 160);
@@ -132,12 +131,16 @@ export function validatedPurchaseOrder(po) {
       gst: Math.round((amountIncGst - subtotalExGst) * 100) / 100,
     };
   }).filter(Boolean).slice(0, 200);
+  // Inspection-only jobs have no rate-card items; their fixed inspection
+  // payment is represented by an additional line tied to the job.
+  const payableJobs = jobs.filter(job => job.items.length || additionalLines.some(line => line.description.startsWith(`Job ${job.jobId} | `)));
+  if (!payableJobs.length) return null;
   const jobSubtotalExGst = items.reduce((sum, item) => sum + item.subtotalExGst, 0);
   const jobGst = items.reduce((sum, item) => sum + item.gst, 0);
   const subtotalExGst = Math.round((jobSubtotalExGst + additionalLines.reduce((sum, line) => sum + line.subtotalExGst, 0)) * 100) / 100;
   const gst = Math.round((jobGst + additionalLines.reduce((sum, line) => sum + line.gst, 0)) * 100) / 100;
   const grossIncGst = Math.round((subtotalExGst + gst) * 100) / 100;
-  const cashOffset = Math.round(jobs.reduce((sum, job) => sum + job.cashOffset, 0) * 100) / 100;
+  const cashOffset = Math.round(payableJobs.reduce((sum, job) => sum + job.cashOffset, 0) * 100) / 100;
   const weekEnding = purchaseOrderWeekEnding(String(po.weekEnding || '').trim());
   return {
     ...po,
@@ -150,12 +153,12 @@ export function validatedPurchaseOrder(po) {
       taxId: String(po.electrician.taxId || '').trim(),
       gstRegistered,
     },
-    jobs,
+    jobs: payableJobs,
     additionalLines,
     weekEnding,
     payableDate: purchaseOrderPayableDate(weekEnding),
     totals: {
-      jobs: jobs.length,
+      jobs: payableJobs.length,
       units: items.reduce((sum, item) => sum + item.quantity, 0),
       booking: items.filter(item => item.key === 'booking').reduce((sum, item) => sum + item.quantity, 0),
       hardwired: items.filter(item => item.key === 'hardwired').reduce((sum, item) => sum + item.quantity, 0),
@@ -633,7 +636,7 @@ export default async function handler(req, res) {
       if (request.action === 'save') {
         const po = validatedPurchaseOrder(request.purchaseOrder);
         if (!po) return res.status(400).json({ error: 'The purchase order is incomplete.' });
-        await recordPurchaseOrder(po, request.event === 'exported' ? 'exported' : 'saved');
+        await recordPurchaseOrder(po, 'saved');
         return res.status(200).json({ success: true });
       }
       if (request.action === 'list') {
@@ -699,8 +702,7 @@ export default async function handler(req, res) {
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
         ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
       });
-      const historySaved = await recordPurchaseOrderSafely(po, isSummary ? 'summary-emailed' : 'emailed');
-      return res.status(200).json({ success: true, historySaved, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
+      return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
       console.error('[Resend] Purchase order send failed:', err.message);
       return res.status(500).json({ error: 'Failed to send the email from vignesh@goldsure.com.au.', detail: err.message });
