@@ -9,6 +9,7 @@
 //   POST { fullName, phone, ... }       → legacy battery callback email (unchanged)
 
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { sendResendMail } from '../../lib/resend-mail.js';
 import { SMSGATE_API, SMSGATE_IS_PUBLIC_CLOUD } from '../../lib/sms-gate.js';
 import { syncAcceptedQuoteStage, syncRejectedQuoteStageForTable, verifyCustomerAcceptedQuote } from '../../lib/ghl-smoke-alarm-stage.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
@@ -1889,27 +1890,18 @@ ${notesHtml}
     }
     if (!emailSuccess) {
       try {
-        const r = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-            to: [customer_email],
-            ...(is_reminder ? {} : { bcc: hwsBcc }),
-            subject: hwsSubject,
-            html,
-            ...(attachments.length ? { attachments } : {}),
-          }),
+        await sendResendMail({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [customer_email],
+          ...(is_reminder ? {} : { bcc: hwsBcc }),
+          subject: hwsSubject,
+          html,
+          ...(attachments.length ? { attachments } : {}),
         });
-        if (!r.ok) {
-          const detail = await r.text();
-          console.error('[HWS] Resend failed:', r.status, detail);
-          return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) });
-        }
         emailSuccess = true;
       } catch (e) {
-        console.error('[HWS] Resend error:', e.message);
-        return res.status(500).json({ error: 'Internal error sending email.' });
+        console.error('[HWS] Resend failed:', e.message);
+        return res.status(500).json({ error: 'Failed to send email.', detail: String(e.message).slice(0, 300) });
       }
     }
 
@@ -2393,21 +2385,19 @@ ${notesHtml}
     }
     if (!emailSuccess) {
       try {
-        const r = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-            to: [customer_email],
-            ...(is_reminder ? {} : { bcc: acBcc }),
-            subject: acSubject,
-            html,
-            ...(attachments.length ? { attachments } : {}),
-          }),
+        await sendResendMail({
+          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+          to: [customer_email],
+          ...(is_reminder ? {} : { bcc: acBcc }),
+          subject: acSubject,
+          html,
+          ...(attachments.length ? { attachments } : {}),
         });
-        if (!r.ok) { const detail = await r.text(); console.error('[Aircon] Resend failed:', r.status, detail); return res.status(500).json({ error: 'Failed to send email.', detail: detail.slice(0, 300) }); }
         emailSuccess = true;
-      } catch (e) { console.error('[Aircon] Resend error:', e.message); return res.status(500).json({ error: 'Internal error sending email.' }); }
+      } catch (e) {
+        console.error('[Aircon] Resend failed:', e.message);
+        return res.status(500).json({ error: 'Failed to send email.', detail: String(e.message).slice(0, 300) });
+      }
     }
 
     // Confirmation SMS (best-effort)

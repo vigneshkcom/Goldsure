@@ -1,4 +1,5 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { sendResendMail } from '../../lib/resend-mail.js';
 import { SMSGATE_API } from '../../lib/sms-gate.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
@@ -315,32 +316,18 @@ export default async function handler(req, res) {
   // 2) Fallback: Resend (base64 attachment content is the same shape it wants)
   if (!emailSuccess) {
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
-          to: [to_email],
-          bcc: bccList,
-          subject: emailSubject,
-          html,
-          ...(attachments ? { attachments: attachments.map(a => ({ filename: a.filename, content: a.content })) } : {}),
-        }),
+      await sendResendMail({
+        from: 'Goldsure Pty Ltd <info@goldsure.com.au>',
+        to: [to_email],
+        bcc: bccList,
+        subject: emailSubject,
+        html,
+        ...(attachments ? { attachments } : {}),
       });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        console.error('[Resend] Send failed:', error);
-        return res.status(500).json({ error: 'Failed to send email.', detail: error });
-      }
-
       emailSuccess = true;
     } catch (err) {
-      console.error('[Resend] Server error:', err);
-      return res.status(500).json({ error: 'Internal server error.' });
+      console.error('[Resend] Send failed:', err.message);
+      return res.status(500).json({ error: 'Failed to send email.', detail: err.message });
     }
   }
 

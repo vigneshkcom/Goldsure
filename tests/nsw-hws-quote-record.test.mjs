@@ -28,7 +28,7 @@ for (const financeRequested of [true, false]) test(`sender saves supported field
   const names = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'HOSTINGER_MAILBOX_RESOURCE_ID', 'HOSTINGER_MAIL_API_TOKEN', 'GHL_API_KEY', 'GHL_LOCATION_ID'];
   const previous = Object.fromEntries(names.map(key => [key, process.env[key]]));
   Object.assign(process.env, { SUPABASE_URL: 'https://database.example', SUPABASE_ANON_KEY: 'fixture', HOSTINGER_MAILBOX_RESOURCE_ID: 'fixture', HOSTINGER_MAIL_API_TOKEN: 'fixture', GHL_API_KEY: '', GHL_LOCATION_ID: '' });
-  let saved, emailCalls = 0;
+  let saved, emailCalls = 0; const emails = [];
   global.fetch = async (input, options = {}) => {
     const url = new URL(input);
     if (url.hostname === 'database.example') {
@@ -41,7 +41,7 @@ for (const financeRequested of [true, false]) test(`sender saves supported field
     }
     if (url.hostname === 'api.mail.hostinger.com') {
       assert.ok(saved); emailCalls++;
-      const email = JSON.parse(options.body);
+      const email = JSON.parse(options.body); emails.push(email);
       assert.match(email.html, financeRequested ? /2,000\.00/ : /1,999\.00/);
       assert.doesNotMatch(email.html, /loan_minimum_adjustment|finance_available/);
       return new Response('{}', { status: 200 });
@@ -52,7 +52,10 @@ for (const financeRequested of [true, false]) test(`sender saves supported field
   const res = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(data) { this.data = data; return this; } };
   try {
     await handler({ method: 'POST', body: { customer_name: 'Fixture Customer', customer_email: 'fixture@example.com', existing_system: 'gas', heat_pump_model: 'EG-330FR', tank_staying: true, finance_requested: financeRequested, send_sms: false } }, res);
-    assert.equal(res.statusCode, 200); assert.equal(res.data.success, true); assert.equal(emailCalls, 1);
+    assert.equal(res.statusCode, 200); assert.equal(res.data.success, true); assert.equal(emailCalls, 2);
+    // The customer gets the brochure; the info@ copy is a separate message with no attachment.
+    assert.deepEqual(emails[0].to, ['fixture@example.com']); assert.ok(!emails[0].bcc); assert.ok(emails[0].attachments?.length);
+    assert.deepEqual(emails[1].to, ['info@goldsure.com.au']); assert.ok(!emails[1].attachments);
   } finally {
     global.fetch = originalFetch;
     for (const key of names) { if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key]; }
