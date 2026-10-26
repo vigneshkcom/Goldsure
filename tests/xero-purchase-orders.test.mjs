@@ -141,3 +141,24 @@ test('returns the matching existing bill instead of creating a duplicate', async
   assert.equal(client.calls.createContacts, 0);
   assert.equal(client.calls.createInvoices, 0);
 });
+
+
+for (const status of ['DELETED', 'VOIDED', 'DRAFT']) {
+  test(`replacement skips reserved references including ${status} with a different total`, async () => {
+    const client = xeroClient();
+    client.accountingApi.getInvoices = async (...args) => {
+      const reference = args[14];
+      return { body: { invoices: [purchaseOrder.poNumber, `${purchaseOrder.poNumber} (1)`].includes(reference)
+        ? [{ invoiceID: 'old-id', reference, type: 'ACCPAY', status, total: 50 }] : [] } };
+    };
+    const po = { ...purchaseOrder, xeroCreateAnother: status === 'DRAFT' };
+    const prepared = await preparePurchaseOrderBill(client, po);
+    assert.equal(prepared.plan.reference, `${purchaseOrder.poNumber} (2)`);
+    assert.equal(prepared.plan.existingBillId, null);
+    const result = await createOrFindDraftPurchaseOrderBill(client, po, prepared);
+    assert.equal(result.recoveredExisting, false);
+    assert.equal(client.calls.invoice.reference, prepared.plan.reference);
+    assert.equal(client.calls.invoice.date, purchaseOrder.weekEnding);
+    assert.equal(client.calls.createInvoices, 1);
+  });
+}

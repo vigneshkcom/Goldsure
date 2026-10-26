@@ -75,3 +75,15 @@ test('Excel export does not save a PO history record', async () => {
   assert.equal(downloads, 1);
   assert.equal(calls.length, 0);
 });
+
+
+test('Today selects today for both scheduled filters without loading or changing the PO', () => {
+  const p = page(() => { throw new Error('Today should not load jobs automatically'); });
+  p.context.reviewed = reviewed;
+  p.run('state.po=reviewed');
+  p.element('today').listeners.click();
+  const today = p.run('localDate(new Date())');
+  assert.equal(p.element('from').value, today);
+  assert.equal(p.element('to').value, today);
+  assert.equal(p.run('state.po'), reviewed);
+});
