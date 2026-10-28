@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const money = cents => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(cents / 100);
 const textFields = ['number', 'date', 'customer', 'address'];
 const amounts = ['stcDiscount', 'veecDiscount', 'solar', 'payments'];
+const documentName = data => `${data.number.trim() || 'Draft'}- ${data.type === 'quote' ? 'Quote' : 'Tax Invoice'}`;
 let dirty = false;
 let draftUrl;
 
@@ -56,7 +57,7 @@ function update() {
   $('payment-row').hidden = quote;
   $('due-label').textContent = quote ? 'Quoted Amount' : totals.due < 0 ? 'Credit Balance' : 'Amount Due';
   $('due').textContent = money(Math.abs(totals.due));
-  document.title = `Goldsure ${quote ? 'Quote' : 'Tax Invoice'}${data.number ? ` - ${data.number}` : ''}`;
+  document.title = documentName(data);
   $('add').disabled = data.items.length >= 50;
 }
 
@@ -95,7 +96,7 @@ $('save').addEventListener('click', () => {
     draftUrl = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = draftUrl;
-    link.download = `Goldsure-HWS-${data.type}-${(data.number || 'draft').replace(/[^a-zA-Z0-9_-]/g, '-')}.json`;
+    link.download = `${documentName(data).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')}.json`;
     link.click();
     dirty = false;
     showStatus('Draft download requested. Keep this file to reopen and edit the document.');
