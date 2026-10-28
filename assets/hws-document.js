@@ -8,7 +8,7 @@ const documentName = data => `${data.number.trim() || 'Draft'}- ${data.type === 
 let dirty = false;
 let draftUrl;
 let emailReview;
-let emailAttachment;
+let quotePdfUrl;
 let submittingEmail = false;
 
 
@@ -80,8 +80,7 @@ function newDocument() {
   $('document').reset();
   $('email').value = '';
   $('deposit').value = '0';
-  $('quote-pdf').value = '';
-  emailAttachment = emailReview = undefined;
+  emailReview = undefined;
   $('email-status').textContent = '';
   $('type').value = 'invoice';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]));
@@ -131,8 +130,7 @@ $('file').addEventListener('change', async () => {
   try {
     if (file.size > 1000000) throw new Error('This draft is too large. Choose a Goldsure HWS draft under 1 MB.');
     const data = validateDraft(JSON.parse(await file.text()));
-    $('quote-pdf').value = '';
-    emailAttachment = emailReview = undefined;
+    emailReview = undefined;
     $('email-status').textContent = '';
     $('type').value = data.type;
     for (const field of [...textFields, ...amounts]) $(field).value = data[field];
@@ -186,45 +184,29 @@ newDocument();
 
 async function emailApi(payload) {
   const response = await fetch('/api/hotwater/document-email', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-portal-pin': $('email-pin').value }, body: JSON.stringify(payload)
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || 'Email request could not be confirmed. Check the Hostinger Sent folder before trying again.');
   return result;
 }
 
-$('quote-pdf').addEventListener('change', async () => {
-  emailAttachment = undefined;
-  const file = $('quote-pdf').files[0];
-  if (!file) return;
-  try {
-    if (file.size > 3 * 1024 * 1024 || !file.name.toLowerCase().endsWith('.pdf')) throw new Error('Choose a PDF no larger than 3 MB.');
-    const content = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    if ($('quote-pdf').files[0] !== file) return;
-    emailAttachment = { content };
-    $('email-status').textContent = `Selected attachment: ${file.name}. Check that it is the current customer quote before sending.`;
-  } catch (error) { $('quote-pdf').value = ''; $('email-status').textContent = error.message; }
-});
-
 $('preview-email').addEventListener('click', async () => {
-  if ($('quote-pdf').files.length && !emailAttachment) { $('email-status').textContent = 'Wait for the PDF attachment to finish loading.'; return; }
   if (!$('document').reportValidity() || !$('email').reportValidity() || !$('deposit').reportValidity()) return;
   $('preview-email').disabled = true;
   $('email-status').textContent = 'Preparing email preview…';
   try {
     const document = read();
-    const attachment = emailAttachment;
-    const payload = { action: 'preview', document, ...(attachment ? { attachment } : {}) };
+    const payload = { action: 'preview', document };
     const preview = await emailApi(payload);
-    emailReview = { document, attachment, reviewToken: preview.reviewToken };
+    emailReview = { document, reviewToken: preview.reviewToken };
     $('preview-to').textContent = `To: ${preview.to} · From: Goldsure’s connected Hostinger mailbox`;
     $('preview-subject').textContent = `Subject: ${preview.subject}`;
-    $('preview-attachment').textContent = preview.attachment ? `Attachment: ${preview.attachment}` : 'No PDF attached. The full quote summary is included in the email.';
+    $('preview-attachment').textContent = `Automatically attached: ${preview.attachment}`;
+    if (quotePdfUrl) URL.revokeObjectURL(quotePdfUrl);
+    quotePdfUrl = URL.createObjectURL(new Blob([Uint8Array.from(atob(preview.pdfContent), char => char.charCodeAt(0))], { type: 'application/pdf' }));
+    $('preview-pdf').href = quotePdfUrl;
+
     $('email-frame').srcdoc = preview.html;
     $('send-status').textContent = '';
     $('send-email').disabled = false;
@@ -237,7 +219,7 @@ $('close-email').addEventListener('click', () => { if (!submittingEmail) $('emai
 $('email-preview').addEventListener('cancel', event => { if (submittingEmail) event.preventDefault(); });
 $('send-email').addEventListener('click', async () => {
   if (submittingEmail || !emailReview) return;
-  if (JSON.stringify(emailReview.document) !== JSON.stringify(read()) || emailReview.attachment !== emailAttachment) {
+  if (JSON.stringify(emailReview.document) !== JSON.stringify(read())) {
     $('send-status').textContent = 'The quote changed. Close this preview and preview the current details again.';
     $('send-email').disabled = true;
     return;
