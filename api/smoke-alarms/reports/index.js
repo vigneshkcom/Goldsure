@@ -690,7 +690,9 @@ export default async function handler(req, res) {
         contentType: 'application/pdf',
       };
     } catch (err) {
-      console.error('[Purchase order] PDF generation failed:', err.message);
+      // Never email a purchase order without its PDF; fail loudly so it can be retried.
+      console.error('[Purchase order] PDF generation failed:', err.stack || err.message);
+      return res.status(500).json({ error: 'Could not create the PDF attachment, so nothing was emailed.', detail: err.message });
     }
     try {
       const result = await sendResendMail({
@@ -700,7 +702,7 @@ export default async function handler(req, res) {
         cc: ccRecipients,
         subject: subject || (isSummary ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
-        ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
+        attachments: [pdfAttachment],
       });
       return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
