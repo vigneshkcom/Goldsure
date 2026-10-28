@@ -19,6 +19,7 @@ export function validateDraft(data) {
   data.deposit ??= 0;
   data.email ??= '';
   if (!check(data.deposit) || typeof data.email !== 'string' || data.email.length > 254) throw new Error('Invalid deposit or customer email.');
+  if (data.invoiceDueDate !== undefined && (typeof data.invoiceDueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.invoiceDueDate))) throw new Error('Invalid invoice due date.');
   // Reopen drafts made by the initial quantity/rate version as final amounts.
   for (const [field, quantity, rate] of [['stcDiscount', 'stcQuantity', 'stcRate'], ['veecDiscount', 'veecQuantity', 'veecRate']]) {
     if (data[field] === undefined && check(data[quantity]) && check(data[rate])) data[field] = Math.round(data[quantity] * cents(data[rate])) / 100;

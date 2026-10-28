@@ -37,6 +37,7 @@ function addItem(item = { description: '', quantity: 1, rate: 0 }) {
 function read() {
   return {
     version: 1, type: $('type').value,
+    invoiceDueDate: $('invoice-due-date').value || $('date').value,
     ...Object.fromEntries(textFields.map(field => [field, $(field).value])),
     ...Object.fromEntries(amounts.map(field => [field, Number($(field).value || 0)])),
     items: [...$('items').children].map(row => ({
@@ -61,6 +62,7 @@ function update() {
   $('deposit-balance').textContent = money(totals.grandTotal - deposit);
   $('preview-email').disabled = !quote;
   $('deposit').disabled = !quote;
+  $('invoice-due-date').disabled = !quote || deposit <= 0;
   $('deposit-explanation').textContent = !quote ? 'Choose Quote above to email a quotation or request a deposit.' : deposit > 0
     ? `Request ${money(deposit)} by bank transfer using reference ${data.number || '(enter quote number)'}. Balance after deposit payment: ${money(totals.grandTotal - deposit)}. This does not record a payment received.`
     : 'Leave the deposit at $0 to email the quote without requesting a deposit.';
@@ -85,6 +87,7 @@ function newDocument() {
   $('type').value = 'invoice';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]));
   $('date').value = `${parts.year}-${parts.month}-${parts.day}`;
+  $('invoice-due-date').value = $('date').value;
 
   $('items').replaceChildren();
   for (let index = 0; index < 8; index++) addItem({ description: '', quantity: 0, rate: 0 });
@@ -101,7 +104,7 @@ $('document').addEventListener('input', event => {
   update();
 });
 $('type').addEventListener('change', () => { dirty = true; update(); });
-for (const field of ['email', 'deposit']) $(field).addEventListener('input', () => { dirty = true; update(); });
+for (const field of ['email', 'deposit', 'invoice-due-date']) $(field).addEventListener('input', () => { dirty = true; update(); });
 $('add').addEventListener('click', () => { addItem(); dirty = true; update(); });
 $('new').addEventListener('click', () => {
   if (dirty && !confirm('Start a new document? Save your current draft first if you need to keep it.')) return;
@@ -134,6 +137,7 @@ $('file').addEventListener('change', async () => {
     $('email-status').textContent = '';
     $('type').value = data.type;
     for (const field of [...textFields, ...amounts]) $(field).value = data[field];
+    $('invoice-due-date').value = data.invoiceDueDate || data.date;
     $('items').replaceChildren();
     data.items.forEach(addItem);
     $('document').querySelectorAll('textarea').forEach(grow);
@@ -187,12 +191,12 @@ async function emailApi(payload) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || 'Email request could not be confirmed. Check the Hostinger Sent folder before trying again.');
+  if (!response.ok) throw new Error(result.error || 'Email request could not be confirmed. Check Xero and the Hostinger Sent folder before trying again.');
   return result;
 }
 
 $('preview-email').addEventListener('click', async () => {
-  if (!$('document').reportValidity() || !$('email').reportValidity() || !$('deposit').reportValidity()) return;
+  if (!$('document').reportValidity() || !$('email').reportValidity() || !$('deposit').reportValidity() || !$('invoice-due-date').reportValidity()) return;
   $('preview-email').disabled = true;
   $('email-status').textContent = 'Preparing email preview…';
   try {
@@ -208,6 +212,19 @@ $('preview-email').addEventListener('click', async () => {
     $('preview-pdf').href = quotePdfUrl;
 
     $('email-frame').srcdoc = preview.html;
+    $('xero-preview').hidden = !preview.xeroInvoice;
+    $('xero-preview-lines').replaceChildren();
+    $('send-email').textContent = preview.xeroInvoice ? 'Create Xero invoice & send email' : 'Send email via Hostinger';
+    if (preview.xeroInvoice) {
+      const plan = preview.xeroInvoice;
+      const [year, month, day] = plan.dueDate.split('-');
+      $('xero-preview-details').textContent = `Invoice ${plan.invoiceNumber} · Awaiting payment · Due ${day}/${month}/${year} · Amounts include GST. Total ${money(plan.lineItems.reduce((sum, item) => sum + Math.round(item.unitAmount * 100), 0))}.`;
+      for (const item of plan.lineItems) {
+        const row = window.document.createElement('tr');
+        for (const value of [item.description, money(Math.round(item.unitAmount * 100))]) { const cell = window.document.createElement('td'); cell.textContent = value; row.append(cell); }
+        $('xero-preview-lines').append(row);
+      }
+    }
     $('send-status').textContent = '';
     $('send-email').disabled = false;
     $('email-preview').showModal();
@@ -227,10 +244,11 @@ $('send-email').addEventListener('click', async () => {
   submittingEmail = true;
   $('send-email').disabled = true;
   $('close-email').disabled = true;
-  $('send-status').textContent = 'Submitting email to Hostinger…';
+  $('send-status').textContent = emailReview.document.deposit > 0 ? 'Creating the Xero customer invoice, then submitting email to Hostinger…' : 'Submitting email to Hostinger…';
   try {
     const result = await emailApi({ action: 'send', ...emailReview });
-    $('send-status').textContent = `Hostinger accepted the email to ${result.recipient}. This does not record the deposit as paid.`;
+    $('send-status').textContent = `${result.invoice ? `Xero invoice ${result.invoice.invoiceNumber} ${result.invoice.recoveredExisting ? 'reused' : 'created'} for ${money(Math.round(result.invoice.total * 100))}. ` : ''}Hostinger accepted the email to ${result.recipient}. This does not record the deposit as paid.`;
+    if (result.invoice?.url) { const link = document.createElement('a'); link.href = result.invoice.url; link.textContent = ' Open invoice in Xero'; link.target = '_blank'; link.rel = 'noopener'; $('send-status').append(link); }
     $('email-status').textContent = `Deposit/quote email accepted by Hostinger for ${result.recipient}.`;
   } catch (error) { $('send-status').textContent = error.message; }
   finally { emailReview = undefined; submittingEmail = false; $('close-email').disabled = false; }

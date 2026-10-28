@@ -7,7 +7,7 @@ const document = { version: 1, type: 'quote', number: '36598', date: '2026-10-28
 function response() { return { code: 0, data: null, setHeader() {}, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } }; }
 function setup(mail = async () => {}) {
   let currentTime = 1000000;
-  const handler = createHwsDocumentEmailHandler({ env: { DASHBOARD_PASSWORD: 'test-only-pin' }, configured: () => true, mail, now: () => currentTime });
+  const handler = createHwsDocumentEmailHandler({ env: { DASHBOARD_PASSWORD: 'test-only-pin' }, configured: () => true, mail, invoice: async () => ({ invoiceId: 'test-id', invoiceNumber: '36598', total: 998, status: 'AUTHORISED' }), now: () => currentTime });
   const request = async body => { const res = response(); await handler({ method: 'POST', headers: { origin: 'https://portal.goldsure.com.au', host: 'portal.goldsure.com.au' }, body }, res); return res; };
   return { handler, request, expire() { currentTime += 11 * 60 * 1000; } };
 }
