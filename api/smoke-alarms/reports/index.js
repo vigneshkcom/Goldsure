@@ -8,6 +8,7 @@ import { purchaseOrderPayableDate, purchaseOrderRateCard, purchaseOrderWeekEndin
 import { listPurchaseOrderJobs, recordPurchaseOrder } from '../../../lib/purchase-order-history.js';
 import { buildPurchaseOrderPdf, buildInstallSummaryPdf } from '../../../lib/purchase-order-pdf.js';
 import { leadContactReport } from '../../../lib/lead-contact-report-api.js';
+import { missedCallAlert } from '../../../lib/missed-call-alert.js';
 import {
   createOrFindDraftPurchaseOrderBill,
   createXeroClient,
@@ -574,6 +575,9 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && req.query && req.query.rc === 'hourly-email') {
     return ringcentralHourlyEmail(req, res);
+  }
+  if (req.method === 'GET' && req.query?.rc === 'callback-alert') {
+    return missedCallAlert(req, res, { fetchRecords: rcCallbackRecords });
   }
   if (req.method === 'GET' && req.query?.leadReport) {
     return leadContactReport(req, res, { ringcentralToken: rcAccessToken, ringcentralServer: rcServer });
@@ -1402,6 +1406,20 @@ async function rcFetchCallLogCached(which, range) {
 }
 
 function rcDigits(s) { return String(s || '').replace(/\D/g, '').slice(-9); }
+async function rcCallbackRecords(range) {
+  const token = await rcAccessToken();
+  const records = [];
+  for (let page = 1; page <= 100; page++) {
+    const url = `${rcServer()}/restapi/v1.0/account/~/call-log?view=Simple&type=Voice&perPage=1000&page=${page}&dateFrom=${encodeURIComponent(range.timeFrom)}&dateTo=${encodeURIComponent(range.timeTo)}`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Call log request failed: ${response.status}`);
+    const data = await response.json();
+    if (!Array.isArray(data.records)) throw new Error('Call log response is missing records.');
+    records.push(...data.records);
+    if (!data.navigation?.nextPage && page >= (data.paging?.totalPages || 1)) return records;
+  }
+  throw new Error('Call log pagination limit reached; alert withheld to avoid incomplete callback status.');
+}
 function rcNormalizeMissed(raw) {
   const zone = rcTz();
   const recs = raw?.records || [];
