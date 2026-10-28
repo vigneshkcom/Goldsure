@@ -55,6 +55,7 @@ function update() {
   for (const field of ['subtotal', 'gst', 'total', 'grandTotal', 'due']) $(field).textContent = money(totals[field]);
   $('reference').textContent = data.number;
   const quote = data.type === 'quote';
+  document.querySelector('.email-panel').hidden = !quote;
   const deposit = Math.round(data.deposit * 100);
   $('deposit-summary-row').hidden = $('deposit-balance-row').hidden = !quote || deposit <= 0;
   $('deposit').setCustomValidity(quote && deposit > totals.grandTotal ? 'The deposit cannot exceed the quoted total.' : '');
