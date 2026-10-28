@@ -1,55 +1,108 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en-AU">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VIC HWS Invoice &amp; Quote Generator | Goldsure</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/hws-document.css">
-  <script type="module" src="/assets/hws-document.js"></script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>VEU/SV Quote/Invoice Builder | Goldsure</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="/assets/hws-document.css" rel="stylesheet"/>
+<script src="/assets/hws-document.js" type="module"></script>
 </head>
 <body>
-  <header class="toolbar">
-    <div><a href="/">← Portal</a><strong>VIC HWS · Invoice &amp; Quote Generator</strong></div>
-    <div class="actions">
-      <label>Document <select id="type"><option value="invoice">Tax invoice</option><option value="quote">Quote</option></select></label>
-      <button id="save" type="button">Save draft</button>
-      <button id="load" type="button">Open draft</button>
-      <button id="new" type="button">New document</button>
-      <button id="print" class="primary" type="button">Print / Save PDF</button>
-      <input id="file" type="file" accept=".json,application/json" hidden>
-    </div>
-  </header>
-  <div class="guidance">Fill the document below. Item rates exclude GST; certificate rates and rebates include GST. Save a draft to keep an editable copy. In your print settings choose A4 and turn off headers and footers.</div>
-  <p id="status" role="status" aria-live="polite"></p>
-  <form id="document" class="sheet">
-    <div class="document-header">
-      <div><h1 id="heading">TAX INVOICE</h1><div class="gold-rule"></div><div class="product">VICTORIA · HOT WATER SYSTEMS</div></div>
-      <div class="company"><div class="brand"><span class="monogram">GS</span><span><span class="gold">Gold</span>sure</span></div><b>Goldsure Pty Ltd</b><div>Suite 4, Level 1, 293 High Street,<br>Preston, Victoria, 3072</div><div>goldsure.com.au · ABN: 66 683 305 106</div></div>
-    </div>
-    <div class="details">
-      <div><label><span id="number-label">INVOICE NUMBER</span><input id="number" required maxlength="80" autocomplete="off"></label><label><span id="date-label">INVOICE DATE</span><input id="date" type="date" required></label></div>
-      <div><label>CUSTOMER NAME<input id="customer" required maxlength="200" autocomplete="off"></label><label>INSTALLATION ADDRESS<textarea id="address" rows="1" required maxlength="1000"></textarea></label></div>
-    </div>
-    <table class="items"><colgroup><col><col class="qty-col"><col class="price-col"><col class="price-col"><col class="remove-col"></colgroup><thead><tr><th>ITEM</th><th>QTY</th><th>UNIT PRICE<br><small>(EX. GST)</small></th><th>TOTAL<br><small>(EX. GST)</small></th><th class="screen-only"><span class="sr-only">Remove</span></th></tr></thead><tbody id="items"></tbody></table>
-    <button id="add" type="button" class="screen-only add">+ Add item</button>
-    <div class="settlement">
-      <aside class="bank"><h2>BANKING DETAILS</h2><p>Please make payment to:</p><dl><div><dt>Account Name</dt><dd>Goldsure Pty Ltd</dd></div><div><dt>BSB Number</dt><dd>063 147</dd></div><div><dt>Account Number</dt><dd>10928147</dd></div></dl><label>Reference<input id="reference" maxlength="100" placeholder="Uses document number"></label><p>For electronic payments, please include your invoice number as your reference and send your remittance to <b>accounts@goldsure.com.au</b></p></aside>
-      <section class="totals" aria-label="Document totals">
-        <div class="total-row"><b>Subtotal (ex. GST)</b><output id="subtotal"></output></div>
-        <div class="total-row"><b>GST (10%)</b><output id="gst"></output></div>
-        <div class="total-row"><b>Total (inc. GST)</b><output id="total"></output></div>
-        <h2 class="rebate-title">LESS POINT OF SALE REBATES</h2>
-        <div class="rebate"><label>Small-Scale Technology Certificate Discount</label><div class="certificate"><label>Qty<input id="stcQuantity" type="number" min="0" max="10000000" step="1" value="0"></label><span>×</span><label>Rate (inc. GST)<input id="stcRate" type="number" min="0" max="10000000" step="0.01" value="0"></label><output id="stc"></output></div></div>
-        <div class="rebate"><label>Victorian Energy Efficiency Certificate Discount</label><div class="certificate"><label>Qty<input id="veecQuantity" type="number" min="0" max="10000000" step="1" value="0"></label><span>×</span><label>Rate (inc. GST)<input id="veecRate" type="number" min="0" max="10000000" step="0.01" value="0"></label><output id="veec"></output></div></div>
-        <div class="total-row"><label for="solar">Solar Victoria Rebate (inc. GST)</label><input id="solar" aria-label="Solar Victoria rebate" type="number" min="0" max="10000000" step="0.01" value="0"></div>
-        <div class="total-row grand"><b>Grand Total</b><output id="grandTotal"></output></div>
-        <div id="payment-row" class="total-row"><label for="payments">Payments Received</label><input id="payments" aria-label="Payments received" type="number" min="0" max="10000000" step="0.01" value="0"></div>
-        <div class="total-row due"><b id="due-label">Amount Due</b><output id="due"></output></div>
-      </section>
-    </div>
-    <section class="consumer"><h2>Important Information for Consumers</h2><p class="screen-only note-hint">Review these notes for this HWS job. The supplied template includes lighting terms; replace them with your approved HWS terms before issuing.</p><textarea id="notes" rows="8" maxlength="10000" aria-label="Consumer information and terms"></textarea></section>
-    <footer>Goldsure Pty Ltd · ABN 66 683 305 106</footer>
-  </form>
+<header class="toolbar">
+<div><a href="/">← Portal</a><strong>VEU/SV Quote/Invoice Builder</strong></div>
+<div class="actions">
+<label>Document <select id="type"><option value="invoice">Tax invoice</option><option value="quote">Quote</option></select></label>
+<button id="save" type="button">Save draft</button>
+<button id="load" type="button">Open draft</button>
+<button id="new" type="button">New document</button>
+<button class="primary" id="print" type="button">Print / Save PDF</button>
+<input accept=".json,application/json" hidden="" id="file" type="file"/>
+</div>
+</header>
+<div class="guidance">Item prices exclude GST. Enter STC, Victorian energy and Solar Victoria discounts as final amounts including GST. Save a draft to reopen it later. Print on A4 with headers and footers off.</div>
+<p aria-live="polite" id="status" role="status"></p>
+<form class="sheet" id="document" style="width: 794px; min-height: 1123px; box-sizing: border-box; padding: 36px 48px 28px; display: flex; flex-direction: column; gap: 14px; background: #ffffff; color: #111111; font-family: 'Poppins', Arial, sans-serif">
+<div style="display: flex; justify-content: space-between; align-items: flex-start">
+<div>
+<h1 id="heading" style="margin: 0; font-size: 52px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; color: #111111">TAX INVOICE</h1>
+<div style="width: 64px; height: 6px; background: #FFCB08; margin-top: 12px"></div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 46px; height: 46px; background: #000000; border-radius: 11px; display: flex; align-items: center; justify-content: center">
+<span aria-label="Goldsure GS monogram" role="img" style="font-size: 24px; line-height: 1; font-weight: 800; letter-spacing: -0.09em; padding-right: 0.09em; background: linear-gradient(180deg, #C9A039 0%, #E4BE45 35%, #B8892F 75%, #A97B27 100%); -webkit-background-clip: text; background-clip: text; color: transparent">GS</span>
+</div>
+<div style="display: flex; align-items: center">
+<span style="font-size: 28px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(180deg, #C9A039 0%, #E4BE45 35%, #B8892F 75%, #A97B27 100%); -webkit-background-clip: text; background-clip: text; color: transparent">Gold</span><span style="font-size: 28px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; color: #000000">sure</span>
+</div>
+</div>
+<div style="text-align: right; font-size: 11px; line-height: 1.55; color: #333333">
+<div style="font-weight: 700; color: #111111">Goldsure Pty Ltd</div>
+<div>Suite 4, Level 1, 293 High Street, Preston, Victoria, 3072</div>
+<div><span style="font-weight: 600; color: #111111">goldsure.com.au</span> · <span style="font-weight: 600; color: #111111">ABN: 66 683 305 106</span></div>
+</div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 230px minmax(0, 1fr); column-gap: 24px; border-top: 2px solid #111111; padding-top: 12px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div>
+<label for="number" id="number-label" style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: #5c5c5c; margin-bottom: 4px">INVOICE NUMBER</label>
+<input id="number" maxlength="200" required="" style="height: 28px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="text"/>
+</div>
+<div>
+<label for="date" id="date-label" style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: #5c5c5c; margin-bottom: 4px">INVOICE DATE</label>
+<input id="date" maxlength="200" required="" style="height: 28px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="date"/>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div>
+<label for="customer" style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: #5c5c5c; margin-bottom: 4px">CUSTOMER NAME</label>
+<input id="customer" maxlength="200" required="" style="height: 28px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="text"/>
+</div>
+<div>
+<label for="address" style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: #5c5c5c; margin-bottom: 4px">ADDRESS</label>
+<textarea id="address" maxlength="1000" required="" rows="1" style="height: 28px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7"></textarea>
+</div>
+</div>
+</div>
+<div class="item-box" style="border: 1px solid #111111; border-radius: 8px; overflow: hidden"><table class="items"><colgroup><col/><col style="width:70px"/><col style="width:110px"/><col style="width:110px"/></colgroup><thead><tr><th>ITEM</th><th>QTY</th><th>UNIT PRICE</th><th>TOTAL</th></tr></thead><tbody id="items"></tbody></table></div><button class="screen-only add" id="add" type="button">+ Add item</button>
+<div style="display: flex; gap: 24px; align-items: stretch">
+<div style="width: 270px; box-sizing: border-box; background: #FFCB08; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; color: #111111">
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.1em">BANKING DETAILS</div>
+<div style="font-size: 11.5px; font-weight: 500">Please make payment to:</div>
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px">
+<div style="display: flex; justify-content: space-between; gap: 12px"><span style="font-weight: 700">Account Name</span><span>Goldsure Pty Ltd</span></div>
+<div style="display: flex; justify-content: space-between; gap: 12px"><span style="font-weight: 700">BSB Number</span><span>063 147</span></div>
+<div style="display: flex; justify-content: space-between; gap: 12px"><span style="font-weight: 700">Account Number</span><span>10928147</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px"><span style="font-weight: 700">Reference</span><output id="reference" style="width: 110px; height: 24px; background: #ffffff; border-radius: 4px"></output></div>
+</div>
+<div style="margin-top: auto; font-size: 11px; line-height: 1.5">For electronic payments, please include your invoice number as your reference and send your remittance to <span style="font-weight: 700">accounts@goldsure.com.au</span></div>
+</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><span style="font-weight: 600">Subtotal</span><output class="calculated" id="subtotal" style="width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7"></output></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><span style="font-weight: 600">GST</span><output class="calculated" id="gst" style="width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7"></output></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><span style="font-weight: 700">Total</span><output class="calculated" id="total" style="width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7"></output></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><label for="stcDiscount">Small-Scale Technology Certificate Discount</label><input aria-label="Small-Scale Technology Certificate Discount" id="stcDiscount" max="10000000" min="0" step="0.01" style="flex: none; width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="number" value="0"/></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><label for="veecDiscount">Victorian Energy Efficiency Certificate Discount</label><input aria-label="Victorian Energy Efficiency Certificate Discount" id="veecDiscount" max="10000000" min="0" step="0.01" style="flex: none; width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="number" value="0"/></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><label for="solar">Solar Victoria Rebate</label><input aria-label="Solar Victoria Rebate" id="solar" max="10000000" min="0" step="0.01" style="flex: none; width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="number" value="0"/></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 34px; margin-top: 2px; border-top: 2px solid #111111"><span style="font-weight: 800; font-size: 13px">Grand Total</span><output class="calculated" id="grandTotal" style="width: 120px; height: 22px; border: 1px solid #111111; border-radius: 4px; background: #f7f7f7"></output></div>
+<div id="payment-row" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><label for="payments" style="font-weight: 600">Payments Received</label><input aria-label="Payments Received" id="payments" max="10000000" min="0" step="0.01" style="width: 120px; height: 22px; border: 1px solid #bdbdbd; border-radius: 4px; background: #f7f7f7" type="number" value="0"/></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 28px"><span id="due-label" style="font-weight: 800; font-size: 13px">Amount Due</span><output class="calculated" id="due" style="width: 120px; height: 22px; border: 1px solid #111111; border-radius: 4px; background: #f7f7f7"></output></div>
+</div>
+</div>
+<div style="margin-top: auto; border-top: 1px solid #d4d4d4; padding-top: 10px">
+<div style="font-size: 12.5px; font-weight: 700; margin-bottom: 6px">Important Information for Consumers</div>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.45; color: #333333">
+<div style="display: flex; gap: 10px"><div style="flex: none; width: 5px; height: 5px; background: #FFCB08; margin-top: 6px"></div><div>Under Australian Consumer Law, you have 10 business days to change your mind and cancel your installation appointment. This does not apply if the quotation is for less than $100.00, or if contact with us was initiated by you.</div></div>
+<div style="display: flex; gap: 10px"><div style="flex: none; width: 5px; height: 5px; background: #FFCB08; margin-top: 6px"></div><div>Additional charges may have applied that can only be identified by the electrician on the day of installation. These include but are not limited to: hard-wiring/double-wiring of transformer(s), transformers screwed to battens, any safety rectification work, high ceiling access or equipment, dimmer switch installation or deactivation due to incompatibility.</div></div>
+<div style="display: flex; gap: 10px"><div style="flex: none; width: 5px; height: 5px; background: #FFCB08; margin-top: 6px"></div><div>These charges have been explained to you before work was undertaken.</div></div>
+<div style="display: flex; gap: 10px"><div style="flex: none; width: 5px; height: 5px; background: #FFCB08; margin-top: 6px"></div><div>You were under no obligation to accept any additional charges, but if you did not, we may not complete the installation.</div></div>
+<div style="display: flex; gap: 10px"><div style="flex: none; width: 5px; height: 5px; background: #FFCB08; margin-top: 6px"></div><div>All products come with a minimum 1-year warranty.</div></div>
+</div>
+<div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: #5c5c5c"><span>Goldsure Pty Ltd · ABN 66 683 305 106</span></div>
+</div>
+</form>
 </body>
 </html>

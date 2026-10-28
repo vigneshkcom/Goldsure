@@ -2,32 +2,24 @@ import { calculateDocument, validateDraft } from './hws-document-model.js';
 
 const $ = id => document.getElementById(id);
 const money = cents => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(cents / 100);
-const textFields = ['number', 'date', 'customer', 'address', 'reference', 'notes'];
-const amounts = ['stcQuantity', 'stcRate', 'veecQuantity', 'veecRate', 'solar', 'payments'];
+const textFields = ['number', 'date', 'customer', 'address'];
+const amounts = ['stcDiscount', 'veecDiscount', 'solar', 'payments'];
 let dirty = false;
 let draftUrl;
-const originalNotes = `Under Australian Consumer Law, you have 10 business days to change your mind and cancel your installation appointment. This does not apply if the quotation is for less than $100.00, or if contact with us was initiated by you.
 
-Additional charges may have applied that can only be identified by the electrician on the day of installation. These include but are not limited to: hard-wiring/double-wiring of transformer(s), transformers screwed to battens, any safety rectification work, high ceiling access or equipment, dimmer switch installation or deactivation due to incompatibility.
-
-These charges have been explained to you before work was undertaken.
-
-You were under no obligation to accept any additional charges, but if you did not, we may not complete the installation.
-
-All products come with a minimum 1-year warranty.`;
 
 function grow(element) {
   element.style.height = 'auto';
-  element.style.height = `${element.scrollHeight + 2}px`;
+  element.style.height = `${element.scrollHeight + (element.classList.contains('description') ? 0 : 2)}px`;
 }
 
 function addItem(item = { description: '', quantity: 1, rate: 0 }) {
   if ($('items').children.length >= 50) return;
   const row = document.createElement('tr');
-  row.innerHTML = '<td><textarea class="description" rows="1" maxlength="2000" aria-label="Item description"></textarea></td><td><input class="quantity" type="number" min="0" max="10000000" step="0.01" aria-label="Item quantity"></td><td><input class="rate" type="number" min="0" max="10000000" step="0.01" aria-label="Unit price excluding GST"></td><td><output class="line-total"></output></td><td class="screen-only"><button class="remove" type="button" aria-label="Remove item">×</button></td>';
+  row.innerHTML = '<td><button class="remove screen-only" type="button" aria-label="Remove item">×</button><textarea class="description" rows="1" maxlength="2000" aria-label="Item description"></textarea></td><td><input class="quantity" type="number" min="0" max="10000000" step="0.01" aria-label="Item quantity"></td><td><input class="rate" type="number" min="0" max="10000000" step="0.01" aria-label="Unit price excluding GST"></td><td><output class="line-total"></output></td>';
   row.querySelector('.description').value = item.description;
-  row.querySelector('.quantity').value = item.quantity;
-  row.querySelector('.rate').value = item.rate;
+  row.querySelector('.quantity').value = !item.description && !item.quantity && !item.rate ? '' : item.quantity;
+  row.querySelector('.rate').value = !item.description && !item.quantity && !item.rate ? '' : item.rate;
   row.querySelector('.remove').addEventListener('click', () => {
     row.remove();
     if (!$('items').children.length) addItem();
@@ -54,8 +46,9 @@ function read() {
 function update() {
   const data = read();
   const totals = calculateDocument(data);
-  totals.lines.forEach((value, index) => $('items').children[index].querySelector('output').textContent = money(value));
-  for (const field of ['subtotal', 'gst', 'total', 'stc', 'veec', 'grandTotal', 'due']) $(field).textContent = money(totals[field]);
+  totals.lines.forEach((value, index) => $('items').children[index].querySelector('output').textContent = data.items[index].description || data.items[index].quantity || data.items[index].rate ? money(value) : '');
+  for (const field of ['subtotal', 'gst', 'total', 'grandTotal', 'due']) $(field).textContent = money(totals[field]);
+  $('reference').textContent = data.number;
   const quote = data.type === 'quote';
   $('heading').textContent = quote ? 'QUOTE' : 'TAX INVOICE';
   $('number-label').textContent = quote ? 'QUOTE NUMBER' : 'INVOICE NUMBER';
@@ -74,7 +67,7 @@ function newDocument() {
   $('type').value = 'invoice';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]));
   $('date').value = `${parts.year}-${parts.month}-${parts.day}`;
-  $('notes').value = originalNotes;
+
   $('items').replaceChildren();
   for (let index = 0; index < 8; index++) addItem({ description: '', quantity: 0, rate: 0 });
   $('document').querySelectorAll('textarea').forEach(grow);
@@ -138,9 +131,9 @@ function preparePrint() {
     if (input.type === 'date' && input.value) {
       const [year, month, day] = input.value.split('-');
       value.textContent = `${day}/${month}/${year}`;
-    } else if (input.id === 'reference') value.textContent = input.value || $('number').value;
-    else if (['solar', 'payments'].includes(input.id)) value.textContent = money(Math.round(Number(input.value || 0) * 100));
+    } else if (['stcDiscount', 'veecDiscount', 'solar', 'payments'].includes(input.id)) value.textContent = money(Math.round(Number(input.value || 0) * 100));
     else value.textContent = input.value;
+    value.style.cssText = input.style.cssText;
     input.after(value);
   });
 }
