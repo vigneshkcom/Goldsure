@@ -128,16 +128,16 @@ function preparePrint() {
   $('document').querySelectorAll('input, textarea').forEach(input => {
     const value = document.createElement('span');
     value.className = 'print-value';
+    value.dataset.field = input.id || input.className;
     if (input.type === 'date' && input.value) {
       const [year, month, day] = input.value.split('-');
       value.textContent = `${day}/${month}/${year}`;
     } else if (['stcDiscount', 'veecDiscount', 'solar', 'payments'].includes(input.id)) value.textContent = money(Math.round(Number(input.value || 0) * 100));
     else value.textContent = input.value;
-    value.style.cssText = input.style.cssText;
     input.after(value);
   });
 }
-$('print').addEventListener('click', () => {
+$('print').addEventListener('click', async () => {
   if (!$('document').reportValidity()) return;
   const data = read();
   if (!data.items.some(item => item.description.trim() && item.quantity > 0)) {
@@ -152,6 +152,8 @@ $('print').addEventListener('click', () => {
     showStatus('Rebates exceed the total. Check the amounts before printing.');
     return;
   }
+  await document.fonts.ready;
+  await Promise.all([...document.querySelectorAll('.document-logo img')].map(img => img.decode().catch(() => {})));
   preparePrint();
   window.print();
 });
