@@ -2,11 +2,14 @@ import { calculateDocument, validateDraft } from './hws-document-model.js';
 
 const $ = id => document.getElementById(id);
 const money = cents => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(cents / 100);
-const textFields = ['number', 'date', 'customer', 'address'];
-const amounts = ['stcDiscount', 'veecDiscount', 'solar', 'payments'];
+const textFields = ['number', 'date', 'customer', 'address', 'email'];
+const amounts = ['stcDiscount', 'veecDiscount', 'solar', 'payments', 'deposit'];
 const documentName = data => `${data.number.trim() || 'Draft'}- ${data.type === 'quote' ? 'Quote' : 'Tax Invoice'}`;
 let dirty = false;
 let draftUrl;
+let emailReview;
+let emailAttachment;
+let submittingEmail = false;
 
 
 function grow(element) {
@@ -51,6 +54,16 @@ function update() {
   for (const field of ['subtotal', 'gst', 'total', 'grandTotal', 'due']) $(field).textContent = money(totals[field]);
   $('reference').textContent = data.number;
   const quote = data.type === 'quote';
+  const deposit = Math.round(data.deposit * 100);
+  $('deposit-summary-row').hidden = $('deposit-balance-row').hidden = !quote || deposit <= 0;
+  $('deposit').setCustomValidity(quote && deposit > totals.grandTotal ? 'The deposit cannot exceed the quoted total.' : '');
+  $('deposit-summary').textContent = money(deposit);
+  $('deposit-balance').textContent = money(totals.grandTotal - deposit);
+  $('preview-email').disabled = !quote;
+  $('deposit').disabled = !quote;
+  $('deposit-explanation').textContent = !quote ? 'Choose Quote above to email a quotation or request a deposit.' : deposit > 0
+    ? `Request ${money(deposit)} by bank transfer using reference ${data.number || '(enter quote number)'}. Balance after deposit payment: ${money(totals.grandTotal - deposit)}. This does not record a payment received.`
+    : 'Leave the deposit at $0 to email the quote without requesting a deposit.';
   $('heading').textContent = quote ? 'QUOTE' : 'TAX INVOICE';
   $('number-label').textContent = quote ? 'QUOTE NUMBER' : 'INVOICE NUMBER';
   $('date-label').textContent = quote ? 'QUOTE DATE' : 'INVOICE DATE';
@@ -65,6 +78,11 @@ function showStatus(message) { $('status').textContent = message; }
 
 function newDocument() {
   $('document').reset();
+  $('email').value = '';
+  $('deposit').value = '0';
+  $('quote-pdf').value = '';
+  emailAttachment = emailReview = undefined;
+  $('email-status').textContent = '';
   $('type').value = 'invoice';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]));
   $('date').value = `${parts.year}-${parts.month}-${parts.day}`;
@@ -84,6 +102,7 @@ $('document').addEventListener('input', event => {
   update();
 });
 $('type').addEventListener('change', () => { dirty = true; update(); });
+for (const field of ['email', 'deposit']) $(field).addEventListener('input', () => { dirty = true; update(); });
 $('add').addEventListener('click', () => { addItem(); dirty = true; update(); });
 $('new').addEventListener('click', () => {
   if (dirty && !confirm('Start a new document? Save your current draft first if you need to keep it.')) return;
@@ -112,6 +131,9 @@ $('file').addEventListener('change', async () => {
   try {
     if (file.size > 1000000) throw new Error('This draft is too large. Choose a Goldsure HWS draft under 1 MB.');
     const data = validateDraft(JSON.parse(await file.text()));
+    $('quote-pdf').value = '';
+    emailAttachment = emailReview = undefined;
+    $('email-status').textContent = '';
     $('type').value = data.type;
     for (const field of [...textFields, ...amounts]) $(field).value = data[field];
     $('items').replaceChildren();
@@ -139,7 +161,7 @@ function preparePrint() {
   });
 }
 $('print').addEventListener('click', async () => {
-  if (!$('document').reportValidity()) return;
+  if (!$('document').reportValidity() || !$('deposit').reportValidity()) return;
   const data = read();
   if (!data.items.some(item => item.description.trim() && item.quantity > 0)) {
     showStatus('Enter at least one item description and quantity before printing.');
@@ -161,3 +183,73 @@ $('print').addEventListener('click', async () => {
 window.addEventListener('beforeprint', preparePrint);
 window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
 newDocument();
+
+async function emailApi(payload) {
+  const response = await fetch('/api/hotwater/document-email', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-portal-pin': $('email-pin').value }, body: JSON.stringify(payload)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Email request could not be confirmed. Check the Hostinger Sent folder before trying again.');
+  return result;
+}
+
+$('quote-pdf').addEventListener('change', async () => {
+  emailAttachment = undefined;
+  const file = $('quote-pdf').files[0];
+  if (!file) return;
+  try {
+    if (file.size > 3 * 1024 * 1024 || !file.name.toLowerCase().endsWith('.pdf')) throw new Error('Choose a PDF no larger than 3 MB.');
+    const content = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    if ($('quote-pdf').files[0] !== file) return;
+    emailAttachment = { content };
+    $('email-status').textContent = `Selected attachment: ${file.name}. Check that it is the current customer quote before sending.`;
+  } catch (error) { $('quote-pdf').value = ''; $('email-status').textContent = error.message; }
+});
+
+$('preview-email').addEventListener('click', async () => {
+  if ($('quote-pdf').files.length && !emailAttachment) { $('email-status').textContent = 'Wait for the PDF attachment to finish loading.'; return; }
+  if (!$('document').reportValidity() || !$('email').reportValidity() || !$('deposit').reportValidity()) return;
+  $('preview-email').disabled = true;
+  $('email-status').textContent = 'Preparing email preview…';
+  try {
+    const document = read();
+    const attachment = emailAttachment;
+    const payload = { action: 'preview', document, ...(attachment ? { attachment } : {}) };
+    const preview = await emailApi(payload);
+    emailReview = { document, attachment, reviewToken: preview.reviewToken };
+    $('preview-to').textContent = `To: ${preview.to} · From: Goldsure’s connected Hostinger mailbox`;
+    $('preview-subject').textContent = `Subject: ${preview.subject}`;
+    $('preview-attachment').textContent = preview.attachment ? `Attachment: ${preview.attachment}` : 'No PDF attached. The full quote summary is included in the email.';
+    $('email-frame').srcdoc = preview.html;
+    $('send-status').textContent = '';
+    $('send-email').disabled = false;
+    $('email-preview').showModal();
+    $('email-status').textContent = 'Preview ready. Review the recipient, deposit and quote before sending.';
+  } catch (error) { $('email-status').textContent = error.message; }
+  finally { update(); }
+});
+$('close-email').addEventListener('click', () => { if (!submittingEmail) $('email-preview').close(); });
+$('email-preview').addEventListener('cancel', event => { if (submittingEmail) event.preventDefault(); });
+$('send-email').addEventListener('click', async () => {
+  if (submittingEmail || !emailReview) return;
+  if (JSON.stringify(emailReview.document) !== JSON.stringify(read()) || emailReview.attachment !== emailAttachment) {
+    $('send-status').textContent = 'The quote changed. Close this preview and preview the current details again.';
+    $('send-email').disabled = true;
+    return;
+  }
+  submittingEmail = true;
+  $('send-email').disabled = true;
+  $('close-email').disabled = true;
+  $('send-status').textContent = 'Submitting email to Hostinger…';
+  try {
+    const result = await emailApi({ action: 'send', ...emailReview });
+    $('send-status').textContent = `Hostinger accepted the email to ${result.recipient}. This does not record the deposit as paid.`;
+    $('email-status').textContent = `Deposit/quote email accepted by Hostinger for ${result.recipient}.`;
+  } catch (error) { $('send-status').textContent = error.message; }
+  finally { emailReview = undefined; submittingEmail = false; $('close-email').disabled = false; }
+});

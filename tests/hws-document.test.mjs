@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateDocument, validateDraft } from '../assets/hws-document-model.js';
 
-const example = { version: 1, type: 'invoice', number: 'VIC-001', date: '2026-10-28', customer: 'Example', address: 'VIC', reference: '', notes: '', items: [{ description: 'ECONOVA - ECON-300RVW', quantity: 1, rate: 2417.73 }], stcDiscount: 348.5, veecDiscount: 315, solar: 998, payments: 0 };
+const example = { version: 1, type: 'invoice', number: 'VIC-001', date: '2026-10-28', customer: 'Example', address: 'VIC', reference: '', notes: '', email: '', deposit: 0, items: [{ description: 'ECONOVA - ECON-300RVW', quantity: 1, rate: 2417.73 }], stcDiscount: 348.5, veecDiscount: 315, solar: 998, payments: 0 };
 test('reproduces supplied Dataforce screenshot exactly', () => {
   assert.deepEqual(calculateDocument(example), { lines: [241773], subtotal: 241773, gst: 24177, total: 265950, stc: 34850, veec: 31500, solar: 99800, grandTotal: 99800, payments: 0, due: 99800 });
 });

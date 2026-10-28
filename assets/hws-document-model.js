@@ -16,6 +16,9 @@ export function validateDraft(data) {
     if (typeof data[field] !== 'string' || data[field].length > 10000) throw new Error('Invalid document details.');
   }
   const check = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 10000000;
+  data.deposit ??= 0;
+  data.email ??= '';
+  if (!check(data.deposit) || typeof data.email !== 'string' || data.email.length > 254) throw new Error('Invalid deposit or customer email.');
   // Reopen drafts made by the initial quantity/rate version as final amounts.
   for (const [field, quantity, rate] of [['stcDiscount', 'stcQuantity', 'stcRate'], ['veecDiscount', 'veecQuantity', 'veecRate']]) {
     if (data[field] === undefined && check(data[quantity]) && check(data[rate])) data[field] = Math.round(data[quantity] * cents(data[rate])) / 100;
