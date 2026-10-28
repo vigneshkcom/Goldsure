@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VIC HWS Invoice &amp; Quote Generator | Goldsure</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/hws-document.css">
+  <script type="module" src="/assets/hws-document.js"></script>
+</head>
+<body>
+  <header class="toolbar">
+    <div><a href="/">← Portal</a><strong>VIC HWS · Invoice &amp; Quote Generator</strong></div>
+    <div class="actions">
+      <label>Document <select id="type"><option value="invoice">Tax invoice</option><option value="quote">Quote</option></select></label>
+      <button id="save" type="button">Save draft</button>
+      <button id="load" type="button">Open draft</button>
+      <button id="new" type="button">New document</button>
+      <button id="print" class="primary" type="button">Print / Save PDF</button>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+  <div class="guidance">Fill the document below. Item rates exclude GST; certificate rates and rebates include GST. Save a draft to keep an editable copy. In your print settings choose A4 and turn off headers and footers.</div>
+  <p id="status" role="status" aria-live="polite"></p>
+  <form id="document" class="sheet">
+    <div class="document-header">
+      <div><h1 id="heading">TAX INVOICE</h1><div class="gold-rule"></div><div class="product">VICTORIA · HOT WATER SYSTEMS</div></div>
+      <div class="company"><div class="brand"><span class="monogram">GS</span><span><span class="gold">Gold</span>sure</span></div><b>Goldsure Pty Ltd</b><div>Suite 4, Level 1, 293 High Street,<br>Preston, Victoria, 3072</div><div>goldsure.com.au · ABN: 66 683 305 106</div></div>
+    </div>
+    <div class="details">
+      <div><label><span id="number-label">INVOICE NUMBER</span><input id="number" required maxlength="80" autocomplete="off"></label><label><span id="date-label">INVOICE DATE</span><input id="date" type="date" required></label></div>
+      <div><label>CUSTOMER NAME<input id="customer" required maxlength="200" autocomplete="off"></label><label>INSTALLATION ADDRESS<textarea id="address" rows="1" required maxlength="1000"></textarea></label></div>
+    </div>
+    <table class="items"><colgroup><col><col class="qty-col"><col class="price-col"><col class="price-col"><col class="remove-col"></colgroup><thead><tr><th>ITEM</th><th>QTY</th><th>UNIT PRICE<br><small>(EX. GST)</small></th><th>TOTAL<br><small>(EX. GST)</small></th><th class="screen-only"><span class="sr-only">Remove</span></th></tr></thead><tbody id="items"></tbody></table>
+    <button id="add" type="button" class="screen-only add">+ Add item</button>
+    <div class="settlement">
+      <aside class="bank"><h2>BANKING DETAILS</h2><p>Please make payment to:</p><dl><div><dt>Account Name</dt><dd>Goldsure Pty Ltd</dd></div><div><dt>BSB Number</dt><dd>063 147</dd></div><div><dt>Account Number</dt><dd>10928147</dd></div></dl><label>Reference<input id="reference" maxlength="100" placeholder="Uses document number"></label><p>For electronic payments, please include your invoice number as your reference and send your remittance to <b>accounts@goldsure.com.au</b></p></aside>
+      <section class="totals" aria-label="Document totals">
+        <div class="total-row"><b>Subtotal (ex. GST)</b><output id="subtotal"></output></div>
+        <div class="total-row"><b>GST (10%)</b><output id="gst"></output></div>
+        <div class="total-row"><b>Total (inc. GST)</b><output id="total"></output></div>
+        <h2 class="rebate-title">LESS POINT OF SALE REBATES</h2>
+        <div class="rebate"><label>Small-Scale Technology Certificate Discount</label><div class="certificate"><label>Qty<input id="stcQuantity" type="number" min="0" max="10000000" step="1" value="0"></label><span>×</span><label>Rate (inc. GST)<input id="stcRate" type="number" min="0" max="10000000" step="0.01" value="0"></label><output id="stc"></output></div></div>
+        <div class="rebate"><label>Victorian Energy Efficiency Certificate Discount</label><div class="certificate"><label>Qty<input id="veecQuantity" type="number" min="0" max="10000000" step="1" value="0"></label><span>×</span><label>Rate (inc. GST)<input id="veecRate" type="number" min="0" max="10000000" step="0.01" value="0"></label><output id="veec"></output></div></div>
+        <div class="total-row"><label for="solar">Solar Victoria Rebate (inc. GST)</label><input id="solar" aria-label="Solar Victoria rebate" type="number" min="0" max="10000000" step="0.01" value="0"></div>
+        <div class="total-row grand"><b>Grand Total</b><output id="grandTotal"></output></div>
+        <div id="payment-row" class="total-row"><label for="payments">Payments Received</label><input id="payments" aria-label="Payments received" type="number" min="0" max="10000000" step="0.01" value="0"></div>
+        <div class="total-row due"><b id="due-label">Amount Due</b><output id="due"></output></div>
+      </section>
+    </div>
+    <section class="consumer"><h2>Important Information for Consumers</h2><p class="screen-only note-hint">Review these notes for this HWS job. The supplied template includes lighting terms; replace them with your approved HWS terms before issuing.</p><textarea id="notes" rows="8" maxlength="10000" aria-label="Consumer information and terms"></textarea></section>
+    <footer>Goldsure Pty Ltd · ABN 66 683 305 106</footer>
+  </form>
+</body>
+</html>
