@@ -12,11 +12,11 @@ import {
   chooseOpportunity,
   calculateDataforceRevenue,
   groupAppointmentsByJob,
+  isCompletedAppointment,
 } from '../../lib/dataforce-ghl-sync.js';
 import {
   normaliseFieldworker,
   normalisePurchaseOrderItems,
-  isFieldCompletedAppointment,
   dataforcePaymentFlag,
   dataforceTransactionBalance,
   dataforceEstimatedBalance,
@@ -644,9 +644,6 @@ function listFromPayload(payload, keys = []) {
   return [];
 }
 
-// Jobs confirmed completed in the field although Dataforce left the sub-status blank.
-const PURCHASE_ORDER_FIELD_COMPLETE_JOBS = new Set(['36937']);
-
 async function dataforceCompletedAppointments(token, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
@@ -675,7 +672,7 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
   // A later completion/sync must not move yesterday's job into today's PO.
   return appointments.filter(appointment => {
     const scheduledDate = scheduleDateKey(appointment.scheduledDate);
-    return (isFieldCompletedAppointment(appointment) || PURCHASE_ORDER_FIELD_COMPLETE_JOBS.has(String(appointment.jobId)))
+    return isCompletedAppointment(appointment)
       && scheduledDate >= startDate && scheduledDate <= endDate;
   });
 }

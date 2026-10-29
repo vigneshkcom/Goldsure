@@ -9,7 +9,6 @@ import {
   normaliseFieldworker,
   normalisePurchaseOrderLine,
   normalisePurchaseOrderItems,
-  isFieldCompletedAppointment,
   purchaseOrderPayableDate,
 } from '../lib/dataforce-purchase-orders.js';
 import handler from '../api/smoke-alarms/google-key.js';
@@ -75,19 +74,6 @@ test('inspection fee discount removes inspection pay and preserves upgrade pay',
     }
   }
   assert.deepEqual(normalisePurchaseOrderItems(null), []);
-});
-
-test('purchase orders require completed status and Field sub-status', () => {
-  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Completed - Field' }), true);
-  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: ' completed-field ' }), true);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field' }), true);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionSubStatusDescription: 'field' }), true);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed' }), false);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Partial' }), false);
-  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Completed - Field', completionSubStatusDescription: 'Partial' }), false);
-  assert.equal(isFieldCompletedAppointment({ completionStatusDescription: 'Assigned', completionSubStatusDescription: 'Field' }), false);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: 'Completed - Office' }), false);
-  assert.equal(isFieldCompletedAppointment({ completionStatusCode: 'C' }), false);
 });
 
 test('estimates a cash job balance from the invoice total when Dataforce returns none', () => {
@@ -213,13 +199,15 @@ test('assigns completed jobs to their scheduled day, not their later completion 
       const records = propertyName === 'scheduledDate'
         ? [
           { appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' },
-          { appointmentId: 9002, jobId: 36753, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T10:00:00' },
+          { appointmentId: 9002, jobId: 36937, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T10:00:00' },
+          { appointmentId: 9003, jobId: 36938, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T11:00:00' },
+          { appointmentId: 9004, jobId: 36939, fieldworkerId: 1009, completionStatusDescription: 'Assigned', scheduledDate: '2026-10-05T12:00:00' },
         ]
         : [];
       return new Response(JSON.stringify({ totalCount: records.length, records }), { status: 200 });
     }
-    if (value.includes('/appointments/9001/invoice')) return new Response(JSON.stringify({ transactionBalance: 300, productLines: [{ productId: 3429, productName: '[3429] Booking Fee', lineQty: 1 }, { productId: 3430, productName: '[3430] Hard Wired', lineQty: 4 }] }), { status: 200 });
-    if (value.includes('/appointments/9001/tags')) return new Response(JSON.stringify({ records: [{ tagId: 7, tagName: 'Cash', scope: 'Job' }] }), { status: 200 });
+    if (/\/appointments\/900[123]\/invoice/.test(value)) return new Response(JSON.stringify({ transactionBalance: 300, productLines: [{ productId: 3429, productName: '[3429] Booking Fee', lineQty: 1 }, { productId: 3430, productName: '[3430] Hard Wired', lineQty: 4 }] }), { status: 200 });
+    if (/\/appointments\/900[123]\/tags/.test(value)) return new Response(JSON.stringify({ records: [{ tagId: 7, tagName: 'Cash', scope: 'Job' }] }), { status: 200 });
     throw new Error(`Unexpected request: ${value}`);
   };
   try {
@@ -231,7 +219,7 @@ test('assigns completed jobs to their scheduled day, not their later completion 
     }, response);
     assert.equal(response.statusCode, 200);
     assert.deepEqual(searchProperties, ['scheduledDate']);
-    assert.equal(response.body.rows.length, 1);
+    assert.deepEqual(response.body.rows.map(row => row.jobId), ['36708', '36937', '36938']);
     assert.equal(response.body.rows[0].jobId, '36708');
     assert.equal(response.body.rows[0].installedDate, '2026-10-05');
     assert.equal(response.body.workers[0].email, 'alex@example.com');
