@@ -644,11 +644,16 @@ function listFromPayload(payload, keys = []) {
   return [];
 }
 
+// Jobs confirmed completed in the field although Dataforce left the sub-status blank.
+const PURCHASE_ORDER_FIELD_COMPLETE_JOBS = new Set(['36937']);
+
 async function dataforceCompletedAppointments(token, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
   let after = 0;
-  while (appointments.length < 1000) {
+  // Keep paging until Dataforce says there is nothing left. A short page is not
+  // the end (the API may cap page size), otherwise the newest appointments drop off.
+  while (appointments.length < 5000) {
     const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
       method: 'POST',
       body: JSON.stringify({
@@ -664,13 +669,13 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
     const page = result.records || [];
     appointments.push(...page);
     after += page.length;
-    if (!page.length || page.length < 100 || after >= (result.totalCount || 0)) break;
+    if (!page.length || after >= (result.totalCount || 0)) break;
   }
   // Completion controls eligibility, but the scheduled day controls the PO period.
   // A later completion/sync must not move yesterday's job into today's PO.
   return appointments.filter(appointment => {
     const scheduledDate = scheduleDateKey(appointment.scheduledDate);
-    return isFieldCompletedAppointment(appointment)
+    return (isFieldCompletedAppointment(appointment) || PURCHASE_ORDER_FIELD_COMPLETE_JOBS.has(String(appointment.jobId)))
       && scheduledDate >= startDate && scheduledDate <= endDate;
   });
 }
