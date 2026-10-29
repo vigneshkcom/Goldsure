@@ -651,6 +651,7 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
   let after = 0;
+  let totalCount = 0;
   // Keep paging until Dataforce says there is nothing left. A short page is not
   // the end (the API may cap page size), otherwise the newest appointments drop off.
   while (appointments.length < 5000) {
@@ -669,15 +670,30 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
     const page = result.records || [];
     appointments.push(...page);
     after += page.length;
+    totalCount = result.totalCount || totalCount;
     if (!page.length || after >= (result.totalCount || 0)) break;
   }
   // Completion controls eligibility, but the scheduled day controls the PO period.
   // A later completion/sync must not move yesterday's job into today's PO.
-  return appointments.filter(appointment => {
+  const isEligible = appointment => {
     const scheduledDate = scheduleDateKey(appointment.scheduledDate);
     return (isFieldCompletedAppointment(appointment) || PURCHASE_ORDER_FIELD_COMPLETE_JOBS.has(String(appointment.jobId)))
       && scheduledDate >= startDate && scheduledDate <= endDate;
-  });
+  };
+  // Completed-looking appointments that were dropped, so a missing job can be explained.
+  const excluded = appointments.filter(appointment => !isEligible(appointment)
+    && /complet/i.test(`${appointment.completionStatusDescription || ''} ${appointment.completionStatusCode || ''}`))
+    .map(appointment => ({
+      jobId: String(appointment.jobId),
+      appointmentId: appointment.appointmentId,
+      status: String(appointment.completionStatusDescription || ''),
+      subStatus: String(appointment.completionSubStatusDescription || ''),
+      scheduledDate: scheduleDateKey(appointment.scheduledDate),
+    }));
+  return {
+    appointments: appointments.filter(isEligible),
+    diagnostics: { fetched: appointments.length, totalCount, excluded },
+  };
 }
 
 async function dataforcePurchaseOrderDocument(token, instance, appointment) {
@@ -701,7 +717,7 @@ async function dataforcePurchaseOrderDocument(token, instance, appointment) {
 async function dataforcePurchaseOrderPreview(startDate, endDate) {
   const token = await dataforceToken();
   const { instance } = dataforceConfig();
-  const [appointments, fieldworkerPayload] = await Promise.all([
+  const [{ appointments, diagnostics }, fieldworkerPayload] = await Promise.all([
     dataforceCompletedAppointments(token, startDate, endDate),
     dataforceOptionalFetch(token, `/${encodeURIComponent(instance)}/fieldworkers`),
   ]);
@@ -773,7 +789,7 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
   const workers = [...workersById.values()]
     .filter(worker => visibleWorkerIds.has(worker.id))
     .sort((a, b) => a.name.localeCompare(b.name));
-  return { startDate, endDate, rates: purchaseOrderRateCard(), workers, rows };
+  return { startDate, endDate, rates: purchaseOrderRateCard(), workers, rows, diagnostics };
 }
 
 async function dataforceAppointmentsBetween(token, startDate, endDate) {

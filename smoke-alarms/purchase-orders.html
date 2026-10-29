@@ -200,7 +200,8 @@
         const response=await fetch('/api/smoke-alarms/google-key',{method:'POST',headers:{'Content-Type':'application/json','x-purchase-order-pin':pin},body:JSON.stringify({action:'purchase-order-preview',startDate:from,endDate:to})});
         const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||`Dataforce request failed (${response.status})`);
         state.additionalLines=[];state.rows=(Array.isArray(data.rows)?data.rows:[]).map(initialiseRow);state.workers=Array.isArray(data.workers)?data.workers:[];populateWorkers();
-        showNotice(`Loaded ${state.rows.length} completed job${state.rows.length===1?'':'s'} from Dataforce.`,'success');render();
+        const diag=data.diagnostics||{};const skipped=(diag.excluded||[]).map(x=>`${x.jobId} (${x.status||'no status'}${x.subStatus?' / '+x.subStatus:' / no sub-status'}, ${x.scheduledDate||'no date'})`);
+        showNotice(`Loaded ${state.rows.length} completed job${state.rows.length===1?'':'s'} from Dataforce (${diag.fetched??'?'} of ${diag.totalCount??'?'} appointments fetched).${skipped.length?` Skipped as not field-completed: ${skipped.join(', ')}.`:''}`,'success');render();
       }catch(error){showNotice(error.message||'Could not load completed Dataforce jobs.','error')}
       finally{button.disabled=false;button.textContent='Load completed jobs'}
     }
