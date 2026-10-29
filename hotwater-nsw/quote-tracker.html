@@ -946,7 +946,7 @@ async function doSendReminder(id, sendSms, smsText){
         </div>
         <div class="offer-copy"><strong>Email:</strong> Special Offer: $300 Off Your Goldsure Hot Water Installation<br><br>The customer gets a fresh personal quote link showing the original price, a $300 special offer discount line and the new total, valid for installations completed before 10 November 2026.</div>
         <div class="offer-copy" id="discFinanceNote" style="display:none;background:#fdecef;border-color:#f3b7c1;color:#8a1c2e;">The new total is under $2,000, so the Brighte loan option is removed from this offer.</div>
-        <label class="rm-check"><input type="checkbox" id="discSmsToggle"> Also send the offer by SMS</label>
+        <p class="rm-line" id="discSmsNote" style="margin-top:12px"></p>
       </div>
       <div id="discOfferResult" class="offer-result hidden"></div>
     </div>
@@ -1041,7 +1041,7 @@ async function openDiscountOffer(id){
     document.getElementById('discNewPrice').textContent=money(data.new_price);
     document.getElementById('discSavings').textContent=money(data.savings);
     document.getElementById('discFinanceNote').style.display=data.finance_dropped?'block':'none';
-    const smsToggle=document.getElementById('discSmsToggle'); smsToggle.checked=!!data.sms_available; smsToggle.disabled=!data.sms_available;
+    document.getElementById('discSmsNote').innerHTML=data.sms_available?`An SMS with the offer link will also be sent to <strong>${esc(data.customer_phone)}</strong>.`:'No phone number on this quote, so no SMS will be sent.';
     document.getElementById('discOfferDetails').classList.remove('hidden');
     sendBtn.disabled=false;
   }catch(e){ console.error(e); document.getElementById('discOfferIntro').textContent='Network error preparing the offer.'; }
@@ -1051,7 +1051,7 @@ async function confirmDiscountOffer(){
   const btn=document.getElementById('discSendBtn'); btn.disabled=true; btn.textContent='Sending...';
   try{
     const q=allQuotes.find(x=>String(x.id)===String(_discQuoteId));
-    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send-discount-offer',source_quote_token:_discSourceToken,agent_name:SCOPE_AGENT||(q&&q.agent_name),send_sms:document.getElementById('discSmsToggle').checked})});
+    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send-discount-offer',source_quote_token:_discSourceToken,agent_name:SCOPE_AGENT||(q&&q.agent_name),send_sms:true})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok){ showToast(data.error||'Could not send the offer.'); btn.disabled=false; btn.textContent='Send $300 Offer'; return; }
     document.getElementById('discOfferDetails').classList.add('hidden');
