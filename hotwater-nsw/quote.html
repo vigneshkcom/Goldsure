@@ -229,8 +229,8 @@ table.q tfoot tr.grand td.r{font-size:15px;text-transform:none;letter-spacing:0}
   <div class="gold-rule"></div>
 
   <div class="campaign-banner hidden" id="campaignBanner">
-    <strong>September Offer</strong>
-    Updated pricing exclusively for previous Goldsure customers
+    <strong id="campaignTitle">September Offer</strong>
+    <span id="campaignText">Updated pricing exclusively for previous Goldsure customers</span>
   </div>
 
   <div class="parties">
@@ -355,7 +355,13 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
     const q = rows[0];
     if(!q){ show('error'); return; }
     const isSeptemberOffer = String(q.quote_token || '').startsWith('sep26-');
-    document.getElementById('campaignBanner').classList.toggle('hidden', !isSeptemberOffer);
+    const isDiscountOffer = String(q.quote_token || '').startsWith('off300-');
+    const OFFER_AMOUNT = 300;
+    document.getElementById('campaignBanner').classList.toggle('hidden', !(isSeptemberOffer || isDiscountOffer));
+    if(isDiscountOffer){
+      document.getElementById('campaignTitle').textContent = 'Special Offer · $300 Off';
+      document.getElementById('campaignText').textContent = 'When your installation is completed before 10 November 2026';
+    }
 
     // Count genuine customer opens once per browser tab/session. Tracker opens
     // carry source=tracker so staff checking a quote do not inflate the total.
@@ -381,7 +387,11 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
     document.getElementById('agentName').textContent = q.agent_name || 'The Goldsure Team';
 
     const first = String(q.customer_name||'').trim().split(/\s+/)[0] || 'there';
-    document.getElementById('intro').textContent = isSeptemberOffer
+    document.getElementById('intro').textContent = isDiscountOffer
+      ? `Hi ${first}, thank you for considering Goldsure for your hot water upgrade. As a special promotion, we are happy to take $300 off `
+        + `your installation if it is completed before 10 November 2026. Your updated price is shown below. `
+        + `If you have any questions, please call us on 02 7251 0007.`
+      : isSeptemberOffer
       ? `Hi ${first}, thank you for speaking with us previously about your hot water upgrade. `
         + `Goldsure now has new reduced September pricing, so we have prepared this updated offer for you. `
         + `The Home Energy Saver loan by Brighte is subject to approval and eligibility.`
@@ -402,7 +412,7 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
 
     // Present the customer's agreed net prices without exposing Goldsure's
     // internal discretionary discount, while keeping the itemised total exact.
-    let concealedDiscount = Math.max(0, Number(q.no_finance_discount)||0);
+    let concealedDiscount = Math.max(0, (Number(q.no_finance_discount)||0) - (isDiscountOffer ? OFFER_AMOUNT : 0));
     for(const line of lines){
       const reduction = Math.min(Math.max(0, Number(line.amt)||0), concealedDiscount);
       line.amt -= reduction;
@@ -410,7 +420,10 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
       if(concealedDiscount<=0) break;
     }
 
-    document.getElementById('itemRows').innerHTML = lines.map(l=>`<tr>
+    if(isDiscountOffer){
+      lines.push({ name:'Special offer discount', sub:'$300 off when installed before 10 November 2026', amt:-OFFER_AMOUNT, offer:true });
+    }
+    document.getElementById('itemRows').innerHTML = lines.map(l=>`<tr${l.offer?' style="color:#167249;font-weight:600"':''}>
       <td>
         <div class="it-name">${esc(l.name)}</div>
         <div class="it-sub">${esc(l.sub)}</div>

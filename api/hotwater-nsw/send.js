@@ -22,6 +22,17 @@ import {
   buildSeptemberOfferToken,
   isSeptemberOfferEligibleQuote,
 } from './september-offer.js';
+import {
+  DISCOUNT_OFFER_AMOUNT,
+  DISCOUNT_OFFER_CAMPAIGN,
+  DISCOUNT_OFFER_DEADLINE_LABEL,
+  DISCOUNT_OFFER_SUBJECT,
+  DISCOUNT_OFFER_TOKEN_PREFIX,
+  buildDiscountOfferInput,
+  buildDiscountOfferToken,
+  isDiscountOfferEligibleQuote,
+  isDiscountOfferOpen,
+} from './discount-offer.js';
 import { SMSGATE_API } from '../../lib/sms-gate.js';
 // Pipeline the "GHL Stage" column on the NSW tracker reads from — GHL has a
 // dedicated "NSW HWS Pipeline" alongside the VIC "HWS Pipeline". Name hints
@@ -77,6 +88,7 @@ async function isOptedOut(phone, SUPABASE_URL, SUPABASE_KEY) {
 // as the installer.
 function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   const isSeptemberOffer = q.campaign === SEPTEMBER_OFFER_CAMPAIGN;
+  const isDiscountOffer = q.campaign === DISCOUNT_OFFER_CAMPAIGN;
   const modelLabel = HEAT_PUMP_LABEL[q.heat_pump_model] || q.heat_pump_model || '';
   const systemLabel = (EXISTING_SYSTEM_LABEL[q.existing_system] || '').toLowerCase();
   const bodyHtml = esc(String(emailBody || '').trim() || DEFAULT_EMAIL_BODY).replace(/\r?\n/g, '<br>');
@@ -94,7 +106,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
   // Keep Goldsure's discretionary pricing internal. Fold any agent-applied
   // discount into the displayed line amounts so the customer sees only their
   // agreed net prices and the itemised figures still add up to the final total.
-  let concealedDiscount = Math.max(0, Number(calc.no_finance_discount) || 0);
+  let concealedDiscount = Math.max(0, (Number(calc.no_finance_discount) || 0) - (isDiscountOffer ? DISCOUNT_OFFER_AMOUNT : 0));
   for (const line of lines) {
     const reduction = Math.min(Math.max(0, Number(line.amt) || 0), concealedDiscount);
     line.amt -= reduction;
@@ -108,6 +120,13 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
     <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#111111;text-align:right;">${money(exGst(l.amt))}</td>
     <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;font-weight:700;color:#000000;text-align:right;">${money(exGst(l.amt))}</td>
   </tr>`).join('');
+
+  const offerRow = isDiscountOffer ? `<tr bgcolor="#eef9f3">
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#167249;font-weight:700;">Special offer discount<br><span style="font-size:11px;font-weight:400;">${money(DISCOUNT_OFFER_AMOUNT)} off when installed before ${DISCOUNT_OFFER_DEADLINE_LABEL}</span></td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#167249;text-align:center;">1</td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;color:#167249;text-align:right;">−${money(exGst(DISCOUNT_OFFER_AMOUNT))}</td>
+    <td valign="top" style="padding:11px 12px;font-family:${FONT};font-size:13px;font-weight:700;color:#167249;text-align:right;">−${money(exGst(DISCOUNT_OFFER_AMOUNT))}</td>
+  </tr>` : '';
 
   const subtotalEx = exGst(calc.final_price);
   const gst = calc.final_price - subtotalEx;
@@ -172,6 +191,13 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
       </div>
     </td></tr>` : ''}
 
+    ${isDiscountOffer ? `<tr><td style="padding:16px 32px 0;">
+      <div style="background:#fdf3d5;border:1px solid #e3c66f;border-radius:8px;padding:12px 16px;text-align:center;font-family:${FONT};">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#8b6a12;">Special Offer · ${money(DISCOUNT_OFFER_AMOUNT)} Off</div>
+        <div style="font-size:13px;color:#3d4658;margin-top:4px;line-height:1.5;">When your installation is completed before ${DISCOUNT_OFFER_DEADLINE_LABEL}</div>
+      </div>
+    </td></tr>` : ''}
+
     <!-- Parties -->
     <tr><td style="padding:26px 32px 8px;">
       <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>
@@ -205,6 +231,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
           <td style="padding:9px 12px;border-bottom:2px solid #141c2e;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#141c2e;text-align:right;">Total ex GST</td>
         </tr>
         ${itemRows}
+        ${offerRow}
         <tr><td colspan="3" style="padding:9px 12px;font-size:12px;color:#5b6577;text-align:right;border-bottom:1px solid #eef0f4;">Subtotal (ex GST)</td><td style="padding:9px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">${money(subtotalEx)}</td></tr>
         <tr><td colspan="3" style="padding:9px 12px;font-size:12px;color:#5b6577;text-align:right;border-bottom:1px solid #eef0f4;">GST (10%)</td><td style="padding:9px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:600;border-bottom:1px solid #eef0f4;">${money(gst)}</td></tr>
         <tr><td colspan="3" style="padding:11px 12px;font-size:12px;color:#141c2e;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #141c2e;">Total (inc GST)</td><td style="padding:11px 12px;font-size:14px;color:#141c2e;text-align:right;font-weight:700;border-bottom:2px solid #141c2e;">${money(calc.final_price)}</td></tr>
@@ -392,6 +419,30 @@ async function sendReminder(body, res, SUPABASE_URL, SUPABASE_KEY, HEADERS) {
   return res.status(200).json({ success: true, sms_sent: smsSent, reminder_count: newCount, last_reminder_sent_at: nowIso });
 }
 
+async function resolveDiscountOfferSource(sourceQuoteToken, SUPABASE_URL, HEADERS) {
+  if (!sourceQuoteToken) return { status: 400, error: 'Select a quote to send the offer for.' };
+  if (!isDiscountOfferOpen()) return { status: 403, error: `The $${DISCOUNT_OFFER_AMOUNT} offer closed on ${DISCOUNT_OFFER_DEADLINE_LABEL}.` };
+
+  const sourceRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=eq.${encodeURIComponent(sourceQuoteToken)}&select=*&limit=1`,
+    { headers: HEADERS }
+  );
+  const sourceRows = sourceRes.ok ? await sourceRes.json().catch(() => []) : [];
+  const source = sourceRows[0];
+  if (!source) return { status: 404, error: 'The original quote could not be found.' };
+  if (!isDiscountOfferEligibleQuote(source)) {
+    return { status: 403, error: 'Only quotes that are still open (sent, not accepted) can receive this offer.' };
+  }
+
+  const offerPrefix = `${DISCOUNT_OFFER_TOKEN_PREFIX}-${source.id}-`;
+  const existingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/nsw_hws_quotes?quote_token=like.${encodeURIComponent(`${offerPrefix}*`)}&select=id,quote_token,sent_at&order=sent_at.desc&limit=1`,
+    { headers: HEADERS }
+  );
+  const existingRows = existingRes.ok ? await existingRes.json().catch(() => []) : [];
+  return { source, existingOffer: existingRows[0] || null };
+}
+
 async function resolveSeptemberOfferSource(sourceQuoteToken, SUPABASE_URL, HEADERS) {
   if (!sourceQuoteToken) return { status: 400, error: 'Select an eligible old quote.' };
 
@@ -425,6 +476,44 @@ export default async function handler(req, res) {
 
   const requestBody = req.body || {};
   let body = requestBody;
+
+  if (requestBody.action === 'preview-discount-offer' || requestBody.action === 'send-discount-offer') {
+    let resolved;
+    try {
+      resolved = await resolveDiscountOfferSource(requestBody.source_quote_token, SUPABASE_URL, HEADERS);
+    } catch (e) {
+      console.error('[NSW HWS] Discount offer lookup failed:', e.message);
+      return res.status(502).json({ error: 'Could not load the original quote.' });
+    }
+    if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+
+    const offerInput = buildDiscountOfferInput(resolved.source, requestBody.agent_name);
+    const offerCalc = calculateQuote(offerInput);
+    const existingQuoteUrl = resolved.existingOffer
+      ? `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(resolved.existingOffer.quote_token)}`
+      : null;
+
+    if (requestBody.action === 'preview-discount-offer') {
+      return res.status(200).json({
+        eligible: true,
+        customer_name: offerInput.customer_name,
+        customer_email: offerInput.customer_email,
+        customer_phone: offerInput.customer_phone,
+        old_price: Number(resolved.source.final_price) || 0,
+        new_price: offerCalc.final_price,
+        savings: Math.max(0, (Number(resolved.source.final_price) || 0) - offerCalc.final_price),
+        finance_dropped: offerInput.finance_dropped === true,
+        sms_available: Boolean(offerInput.customer_phone),
+        already_sent: Boolean(resolved.existingOffer),
+        quote_url: existingQuoteUrl,
+      });
+    }
+
+    if (resolved.existingOffer) {
+      return res.status(409).json({ error: 'The offer has already been sent for this quote.', quote_url: existingQuoteUrl });
+    }
+    body = { ...offerInput, send_sms: requestBody.send_sms !== false };
+  }
 
   if (requestBody.action === 'preview-september-offer' || requestBody.action === 'send-september-offer') {
     let resolved;
@@ -486,6 +575,8 @@ export default async function handler(req, res) {
   const uniqueTokenPart = globalThis.crypto?.randomUUID?.() || String(Date.now());
   const token = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
     ? buildSeptemberOfferToken(body.source_quote_id, uniqueTokenPart)
+    : body.campaign === DISCOUNT_OFFER_CAMPAIGN
+    ? buildDiscountOfferToken(body.source_quote_id, uniqueTokenPart)
     : uniqueTokenPart;
   const quoteUrl = `${SITE}/hotwater-nsw/quote.html?token=${encodeURIComponent(token)}`;
   const acceptUrl = `${SITE}/hotwater-nsw/accept.html?token=${encodeURIComponent(token)}`;
@@ -578,6 +669,8 @@ export default async function handler(req, res) {
       displayName: 'Goldsure Pty Ltd',
       subject: body.campaign === SEPTEMBER_OFFER_CAMPAIGN
         ? SEPTEMBER_OFFER_SUBJECT
+        : body.campaign === DISCOUNT_OFFER_CAMPAIGN
+        ? DISCOUNT_OFFER_SUBJECT
         : 'Your Heat Pump Hot Water Quotation - Goldsure',
       html: buildEmailHtml(
         body,
@@ -605,7 +698,9 @@ export default async function handler(req, res) {
       if (smsUser && smsPass && !(await isOptedOut(smsPhone, SUPABASE_URL, SUPABASE_KEY))) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
-        const smsText = body.campaign === SEPTEMBER_OFFER_CAMPAIGN
+        const smsText = body.campaign === DISCOUNT_OFFER_CAMPAIGN
+          ? `Hi ${first}, Goldsure has a special offer for you: $${DISCOUNT_OFFER_AMOUNT} off your heat pump hot water installation when installed before ${DISCOUNT_OFFER_DEADLINE_LABEL}. Your updated price is ${money(calc.final_price)}. View your offer: ${quoteUrl}`
+          : body.campaign === SEPTEMBER_OFFER_CAMPAIGN
           ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with the Home Energy Saver loan by Brighte available subject to approval. View your offer: ${quoteUrl}`
           : `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;
         const creds = Buffer.from(`${smsUser}:${smsPass}`).toString('base64');
@@ -636,7 +731,7 @@ export default async function handler(req, res) {
       address: body.property_address,
     });
     if (found?.contactId) {
-      const noteBody = `${body.campaign === SEPTEMBER_OFFER_CAMPAIGN ? 'NSW Hot Water September offer' : 'NSW Hot Water quote'} sent by ${body.agent_name || 'Goldsure'}\n`
+      const noteBody = `${body.campaign === SEPTEMBER_OFFER_CAMPAIGN ? 'NSW Hot Water September offer' : body.campaign === DISCOUNT_OFFER_CAMPAIGN ? `NSW Hot Water $${DISCOUNT_OFFER_AMOUNT} offer (install before ${DISCOUNT_OFFER_DEADLINE_LABEL})` : 'NSW Hot Water quote'} sent by ${body.agent_name || 'Goldsure'}\n`
         + `Model: ${HEAT_PUMP_LABEL[body.heat_pump_model] || body.heat_pump_model}\n`
         + `Existing system: ${EXISTING_SYSTEM_LABEL[body.existing_system] || body.existing_system}\n`
         + `Grand TOTAL: ${money(calc.final_price)}`

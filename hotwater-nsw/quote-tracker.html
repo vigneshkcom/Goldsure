@@ -131,7 +131,7 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 .results-count strong { color: var(--text); font-family: inherit; font-variant-numeric: tabular-nums; }
 
 /* ── Board table ── */
-.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; max-width: 100%; box-shadow: var(--shadow); }
 .table-header-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .table-title { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); }
 .duplicate-btn { font-family: inherit; font-size: 13px; height: 32px; padding: 0 12px; border: 1px solid var(--border2); border-radius: 4px; background: #fff; color: var(--text); cursor: pointer; }
@@ -148,7 +148,8 @@ main { padding: 20px 24px 48px; max-width: none; margin: 0; }
 .del-btn:disabled { opacity: .4; cursor: not-allowed; }
 .del-btn { margin-left: 0; }
 .row-check, #selectAll { width: 16px; height: 16px; cursor: pointer; vertical-align: middle; accent-color: var(--blue); }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow: auto; max-height: calc(100vh - 150px); }
+.table-scroll thead th { position: sticky; top: 0; z-index: 3; background: var(--surface); }
 table { width: 100%; border-collapse: collapse; min-width: 1180px; }
 thead tr { background: var(--surface); }
 th {
@@ -234,6 +235,8 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .reminder-btn:disabled { opacity: .45; cursor: not-allowed; background: var(--surface2); color: #9699a6; border-color: var(--border); }
 .offer-btn{border:1px solid #d8b552;background:#fff8df;color:#7b5a08;border-radius:7px;padding:7px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
 .offer-btn:hover:not(:disabled){background:#f7e8ad;border-color:#b08d2e}
+.hidden{display:none !important}
+.offer-stack{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .offer-link{color:#8b6a12;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
 .offer-link:hover{text-decoration:underline}
 .count-badge { display: inline; background: none; border: none; padding: 0; min-width: 0; height: auto; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -400,7 +403,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
             <th>GHL Stage</th>
             <th>Loan</th>
             <th>Quote</th>
-            <th>September Offer</th>
+            <th>Offers</th>
             <th>Send Reminder</th>
             <th onclick="sortBy('last_reminder_sent_at')" data-col="last_reminder_sent_at">Days Since Reminder</th>
             <th onclick="sortBy('reminder_count')" data-col="reminder_count">Reminders<i class="sort-caret"></i></th>
@@ -561,6 +564,34 @@ function renderSeptemberOfferAction(q){
   if(existing) return `<a class="offer-link" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(existing.quote_token)}&source=tracker" target="_blank">View Offer</a>`;
   if(!canSendSeptemberOffer(q)) return '<span class="td-date">—</span>';
   return `<button class="offer-btn" onclick="openSeptemberOffer('${q.id}')">Prepare Offer</button>`;
+}
+const DISCOUNT_OFFER_DEADLINE='2026-11-10';
+const DISCOUNT_OFFER_AMOUNT=300;
+function discountOfferOpen(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Sydney'}).format(new Date())<DISCOUNT_OFFER_DEADLINE;
+}
+function findDiscountOffer(q){
+  const prefix=`off300-${q.id}-`;
+  return allQuotes.find(candidate=>String(candidate.quote_token||'').startsWith(prefix))||null;
+}
+function canSendDiscountOffer(q){
+  const token=String(q.quote_token||'');
+  return discountOfferOpen()
+    && (q.status||'').toLowerCase()==='sent'
+    && !q.accepted_at
+    && !token.startsWith('sep26-') && !token.startsWith('off300-')
+    && (Number(q.final_price)||0)>DISCOUNT_OFFER_AMOUNT
+    && !findDiscountOffer(q);
+}
+function renderDiscountOfferAction(q){
+  const existing=findDiscountOffer(q);
+  if(existing) return `<a class="offer-link" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(existing.quote_token)}&source=tracker" target="_blank">View $300 Offer</a>`;
+  if(!canSendDiscountOffer(q)) return '';
+  return `<button class="offer-btn" onclick="openDiscountOffer('${q.id}')">Send $300 Offer</button>`;
+}
+function renderOfferActions(q){
+  const parts=[renderSeptemberOfferAction(q),renderDiscountOfferAction(q)].filter(h=>h&&!h.includes('td-date'));
+  return parts.length?`<div class="offer-stack">${parts.join('')}</div>`:'<span class="td-date">—</span>';
 }
 function renderViewStat(q){
   const count=getViewCount(q);
@@ -757,7 +788,7 @@ function renderTable(){
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc(ghlEmail)}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button><br><button class="ghln-link" onclick="openQuoteGhlNotes('${q.id}')">View GHL notes</button></td>
       <td>${q.finance_requested?'<span class="fin-badge fin-yes">Yes</span>':'<span class="fin-badge fin-no">No</span>'}</td>
       <td><a class="view-btn" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a></td>
-      <td>${renderSeptemberOfferAction(q)}</td>
+      <td>${renderOfferActions(q)}</td>
       <td><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind&&!q._reminderSending?'':'disabled'}>${q._reminderSending?'Sending…':'Remind'}</button></td>
       <td>${renderDaysPill(daysSince(q.last_reminder_sent_at),2)}</td>
       <td><span class="count-badge">${getReminderCount(q)}</span></td>
@@ -902,6 +933,26 @@ async function doSendReminder(id, sendSms, smsText){
   </div>
 </div>
 
+<div id="discountOfferModal" class="rm-overlay" onclick="if(event.target===this)closeDiscountOffer()">
+  <div class="rm-card">
+    <div class="rm-head"><h3>$300 Offer</h3><button class="rm-close" onclick="closeDiscountOffer()">×</button></div>
+    <div class="rm-body">
+      <p class="rm-line" id="discOfferIntro">Loading…</p>
+      <div id="discOfferDetails" class="hidden">
+        <div class="offer-price-grid">
+          <div class="offer-price-box"><span>Current quote</span><strong id="discOldPrice"></strong></div>
+          <div class="offer-price-box"><span>Offer price</span><strong id="discNewPrice"></strong></div>
+          <div class="offer-price-box saving"><span>Customer saves</span><strong id="discSavings"></strong></div>
+        </div>
+        <div class="offer-copy"><strong>Email:</strong> Special Offer: $300 Off Your Goldsure Hot Water Installation<br><br>The customer gets a fresh personal quote link showing the original price, a $300 special offer discount line and the new total, valid for installations completed before 10 November 2026.</div>
+        <div class="offer-copy" id="discFinanceNote" style="display:none;background:#fdecef;border-color:#f3b7c1;color:#8a1c2e;">The new total is under $2,000, so the Brighte loan option is removed from this offer.</div>
+        <label class="rm-check"><input type="checkbox" id="discSmsToggle"> Also send the offer by SMS</label>
+      </div>
+      <div id="discOfferResult" class="offer-result hidden"></div>
+    </div>
+    <div class="rm-foot"><button class="rm-btn-cancel" onclick="closeDiscountOffer()">Close</button><button class="rm-btn-send" id="discSendBtn" onclick="confirmDiscountOffer()" disabled>Send $300 Offer</button></div>
+  </div>
+</div>
 <div id="septemberOfferModal" class="rm-overlay" onclick="if(event.target===this)closeSeptemberOffer()">
   <div class="rm-card">
     <div class="rm-head"><h3>September Offer</h3><button class="rm-close" onclick="closeSeptemberOffer()">×</button></div>
@@ -960,6 +1011,57 @@ async function confirmReminder(){
   const btn=document.getElementById('rmSendBtn'); btn.disabled=true; btn.textContent='Sending…';
   try{ await doSendReminder(id, sendSms, smsText); }
   finally{ btn.disabled=false; btn.textContent='Send Reminder'; closeReminderModal(); }
+}
+
+let _discQuoteId=null, _discSourceToken='';
+function closeDiscountOffer(){
+  document.getElementById('discountOfferModal').classList.remove('open');
+  _discQuoteId=null; _discSourceToken='';
+}
+async function openDiscountOffer(id){
+  const q=allQuotes.find(x=>String(x.id)===String(id));
+  if(!q||!canSendDiscountOffer(q)){ showToast('This quote is not eligible for the $300 offer.'); return; }
+  _discQuoteId=id; _discSourceToken=q.quote_token;
+  document.getElementById('discOfferIntro').textContent=`Preparing the $300 offer for ${q.customer_name||'customer'}...`;
+  document.getElementById('discOfferDetails').classList.add('hidden');
+  document.getElementById('discOfferResult').classList.add('hidden');
+  const sendBtn=document.getElementById('discSendBtn'); sendBtn.classList.remove('hidden'); sendBtn.disabled=true; sendBtn.textContent='Send $300 Offer';
+  document.getElementById('discountOfferModal').classList.add('open');
+  try{
+    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preview-discount-offer',source_quote_token:q.quote_token,agent_name:SCOPE_AGENT||q.agent_name})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ document.getElementById('discOfferIntro').textContent=data.error||'Could not prepare the offer.'; return; }
+    if(data.already_sent&&data.quote_url){
+      document.getElementById('discOfferIntro').textContent='The $300 offer has already been sent.';
+      const result=document.getElementById('discOfferResult'); result.innerHTML=`<a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the sent offer</a>`; result.classList.remove('hidden');
+      return;
+    }
+    document.getElementById('discOfferIntro').innerHTML=`A new quote will be emailed to <strong>${esc(data.customer_name)}</strong> at <strong>${esc(data.customer_email)}</strong>.`;
+    document.getElementById('discOldPrice').textContent=money(data.old_price);
+    document.getElementById('discNewPrice').textContent=money(data.new_price);
+    document.getElementById('discSavings').textContent=money(data.savings);
+    document.getElementById('discFinanceNote').style.display=data.finance_dropped?'block':'none';
+    const smsToggle=document.getElementById('discSmsToggle'); smsToggle.checked=!!data.sms_available; smsToggle.disabled=!data.sms_available;
+    document.getElementById('discOfferDetails').classList.remove('hidden');
+    sendBtn.disabled=false;
+  }catch(e){ console.error(e); document.getElementById('discOfferIntro').textContent='Network error preparing the offer.'; }
+}
+async function confirmDiscountOffer(){
+  if(!_discSourceToken)return;
+  const btn=document.getElementById('discSendBtn'); btn.disabled=true; btn.textContent='Sending...';
+  try{
+    const q=allQuotes.find(x=>String(x.id)===String(_discQuoteId));
+    const res=await fetch('/api/hotwater-nsw/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send-discount-offer',source_quote_token:_discSourceToken,agent_name:SCOPE_AGENT||(q&&q.agent_name),send_sms:document.getElementById('discSmsToggle').checked})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error||'Could not send the offer.'); btn.disabled=false; btn.textContent='Send $300 Offer'; return; }
+    document.getElementById('discOfferDetails').classList.add('hidden');
+    document.getElementById('discOfferIntro').textContent='$300 offer sent successfully.';
+    const result=document.getElementById('discOfferResult');
+    result.innerHTML=`The customer received the offer email${data.sms_sent?' and SMS':''}.<br><a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the new personal quote</a>`;
+    result.classList.remove('hidden');
+    btn.classList.add('hidden');
+    await loadQuotes();
+  }catch(e){ console.error(e); showToast('Network error sending the offer.'); btn.disabled=false; btn.textContent='Send $300 Offer'; }
 }
 
 let _sepQuoteId=null;
