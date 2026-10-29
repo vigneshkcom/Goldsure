@@ -240,6 +240,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 .offer-section-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
 .offer-email-frame{width:100%;height:340px;border:1px solid var(--border);border-radius:8px;background:#fff}
 .offer-sms{background:#e9f2ff;border:1px solid #c9dcf5;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;color:#1c2a44;white-space:pre-wrap}
+.offer-applied{display:inline-block;background:#eef9f3;border:1px solid #bfe4cf;color:#167249;border-radius:7px;padding:4px 8px;font-size:10.5px;font-weight:700;white-space:nowrap}
 .offer-stack{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .offer-link{color:#8b6a12;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
 .offer-link:hover{text-decoration:underline}
@@ -593,21 +594,21 @@ function discountOfferOpen(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Sydney'}).format(new Date())<DISCOUNT_OFFER_DEADLINE;
 }
 function findDiscountOffer(q){
-  const prefix=`off300-${q.id}-`;
-  return allQuotes.find(candidate=>String(candidate.quote_token||'').startsWith(prefix))||null;
+  return (Array.isArray(q.other_extras)?q.other_extras:[]).find(e=>e&&e.offer==='discount-300')||null;
 }
 function canSendDiscountOffer(q){
-  const token=String(q.quote_token||'');
   return discountOfferOpen()
     && (q.status||'').toLowerCase()==='sent'
     && !q.accepted_at
-    && !token.startsWith('sep26-') && !token.startsWith('off300-')
     && (Number(q.final_price)||0)>DISCOUNT_OFFER_AMOUNT
     && !findDiscountOffer(q);
 }
 function renderDiscountOfferAction(q){
-  const existing=findDiscountOffer(q);
-  if(existing) return `<a class="offer-link" href="/hotwater-nsw/quote.html?token=${encodeURIComponent(existing.quote_token)}&source=tracker" target="_blank">View $300 Offer</a>`;
+  const applied=findDiscountOffer(q);
+  if(applied){
+    const when=applied.applied_at?new Date(applied.applied_at).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'';
+    return `<span class="offer-applied" title="Was ${esc(money(applied.previous_price))}">✓ $300 offer applied${when?` · ${esc(when)}`:''}</span>`;
+  }
   if(!canSendDiscountOffer(q)) return '';
   return `<button class="offer-btn" onclick="openDiscountOffer('${q.id}')">Send $300 Offer</button>`;
 }
@@ -803,7 +804,7 @@ function renderTable(){
       <td>${renderPhotoRequest(q)}</td>
       <td>${agentChip(q.agent_name)}</td>
       <td>${q.heat_pump_model?`<span class="model-badge">${esc(MODEL_LABEL[q.heat_pump_model]||q.heat_pump_model)}</span>`:'—'}</td>
-      <td class="td-oop">${money(q.final_price)}</td>
+      <td class="td-oop">${money(q.final_price)}${findDiscountOffer(q)?`<div class="td-sub" style="color:#167249;font-weight:500">$300 off · was ${money(findDiscountOffer(q).previous_price)}</div>`:''}</td>
       <td>${renderDaysPill(daysSince(q.sent_at),4)}</td>
       <td>${renderViewStat(q)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${statusLabel}</span><div class="status-menu">${menuItems}</div></button></td>
@@ -1061,7 +1062,7 @@ async function openDiscountOffer(id){
       const result=document.getElementById('discOfferResult'); result.innerHTML=`<a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the sent offer</a>`; result.classList.remove('hidden');
       return;
     }
-    document.getElementById('discOfferIntro').innerHTML=`A new quote will be emailed to <strong>${esc(data.customer_name)}</strong> at <strong>${esc(data.customer_email)}</strong>.`;
+    document.getElementById('discOfferIntro').innerHTML=`This quote will be updated to the offer price (same link), and the updated quote emailed to <strong>${esc(data.customer_name)}</strong> at <strong>${esc(data.customer_email)}</strong>.`;
     document.getElementById('discOldPrice').textContent=money(data.old_price);
     document.getElementById('discNewPrice').textContent=money(data.new_price);
     document.getElementById('discSavings').textContent=money(data.savings);
@@ -1085,7 +1086,7 @@ async function confirmDiscountOffer(){
     document.getElementById('discOfferDetails').classList.add('hidden');
     document.getElementById('discOfferIntro').textContent='$300 offer sent successfully.';
     const result=document.getElementById('discOfferResult');
-    result.innerHTML=`The customer received the offer email${data.sms_sent?' and SMS':''}.<br><a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the new personal quote</a>`;
+    result.innerHTML=`The quote now shows ${money(data.new_price)} (was ${money(data.old_price)}). The customer received the updated quote by email${data.sms_sent?' and SMS':''}.<br><a href="${esc(data.quote_url)}&source=tracker" target="_blank">Open the updated quote</a>`;
     result.classList.remove('hidden');
     btn.classList.add('hidden');
     await loadQuotes();

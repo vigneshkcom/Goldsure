@@ -355,7 +355,8 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
     const q = rows[0];
     if(!q){ show('error'); return; }
     const isSeptemberOffer = String(q.quote_token || '').startsWith('sep26-');
-    const isDiscountOffer = String(q.quote_token || '').startsWith('off300-');
+    const offerMarker = (Array.isArray(q.other_extras) ? q.other_extras : []).find(e => e && e.offer === 'discount-300') || null;
+    const isDiscountOffer = !!offerMarker;
     const OFFER_AMOUNT = 300;
     document.getElementById('campaignBanner').classList.toggle('hidden', !(isSeptemberOffer || isDiscountOffer));
     if(isDiscountOffer){
@@ -374,7 +375,7 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
         .catch(e=>console.warn('Quote view tracking failed',e));
     }
 
-    const issued = q.sent_at ? new Date(q.sent_at) : (q.created_at ? new Date(q.created_at) : new Date());
+    const issued = isDiscountOffer && offerMarker.applied_at ? new Date(offerMarker.applied_at) : (q.sent_at ? new Date(q.sent_at) : (q.created_at ? new Date(q.created_at) : new Date()));
     const expiresAt = new Date(issued.getTime() + 21*86400000);
     document.getElementById('qRef').textContent  = 'NSW-' + String(q.quote_token).replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase();
     document.getElementById('qDate').textContent = auDate(issued);
@@ -407,12 +408,12 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
       q.relocation_charge > 0 ? { name:'Standard tank relocation', sub:`${q.relocation_metres||0}m @ $155.00 per metre`, amt:q.relocation_charge } : null,
       q.back_to_back_charge > 0 ? { name:'Back-to-back tank relocation', sub:'Fixed charge', amt:q.back_to_back_charge } : null,
       q.cable_charge > 0 ? { name:'Additional electrical cable', sub:`${q.cable_chargeable_metres||0}m @ $20.00 per metre beyond the 15m included`, amt:q.cable_charge } : null,
-      ...(Array.isArray(q.other_extras) ? q.other_extras.map(e=>({ name:e.label, sub:'Additional charge', amt:Number(e.amount)||0 })) : []),
+      ...(Array.isArray(q.other_extras) ? q.other_extras.map(e=>({ name:e.label, sub:e.offer ? '$300 off when installed before 10 November 2026' : 'Additional charge', amt:Number(e.amount)||0, offer:!!e.offer })) : []),
     ].filter(Boolean);
 
     // Present the customer's agreed net prices without exposing Goldsure's
     // internal discretionary discount, while keeping the itemised total exact.
-    let concealedDiscount = Math.max(0, (Number(q.no_finance_discount)||0) - (isDiscountOffer ? OFFER_AMOUNT : 0));
+    let concealedDiscount = Math.max(0, Number(q.no_finance_discount)||0);
     for(const line of lines){
       const reduction = Math.min(Math.max(0, Number(line.amt)||0), concealedDiscount);
       line.amt -= reduction;
@@ -420,9 +421,6 @@ const auDate = d => d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',yea
       if(concealedDiscount<=0) break;
     }
 
-    if(isDiscountOffer){
-      lines.push({ name:'Special offer discount', sub:'$300 off when installed before 10 November 2026', amt:-OFFER_AMOUNT, offer:true });
-    }
     document.getElementById('itemRows').innerHTML = lines.map(l=>`<tr${l.offer?' style="color:#167249;font-weight:600"':''}>
       <td>
         <div class="it-name">${esc(l.name)}</div>
