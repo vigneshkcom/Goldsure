@@ -47,6 +47,7 @@ test('prices the offer at the original total less $300', () => {
   assert.equal(input.campaign, DISCOUNT_OFFER_CAMPAIGN);
   assert.equal(calc.final_price, 2700);
   assert.equal(calc.finance_requested, true);
+  assert.doesNotMatch(input.email_body, /Brighte/);
   assert.equal(buildDiscountOfferToken('q-1', 'abc'), 'off300-q-1-abc');
   assert.match(input.email_body, /\$3,000\.00/);
   assert.match(input.email_body, /\$2,700\.00/);
@@ -57,6 +58,8 @@ test('drops the loan rather than inflating the price when under $2,000', () => {
   const input = buildDiscountOfferInput({ ...source, final_price: 2000 }, 'Vignesh');
   const calc = calculateQuote(input);
   assert.equal(input.finance_dropped, true);
+  assert.match(input.email_body, /Brighte's minimum loan amount is \$2,000/);
+  assert.match(input.email_body, /happy to work with you/);
   assert.equal(calc.final_price, 1700);
   assert.equal(calc.finance_requested, false);
 });
@@ -85,6 +88,11 @@ test('preview returns prices without inserting or sending anything', async () =>
   assert.equal(out.body.new_price, 2700);
   assert.equal(out.body.savings, 300);
   assert.ok(calls.every(c => c.method === 'GET'));
+});
+
+test('SMS never mentions the loan restriction', () => {
+  const text = buildDiscountOfferSms({ firstName: 'A', agentName: 'D', previousPrice: 2000, newPrice: 1700, quoteUrl: 'u' });
+  assert.doesNotMatch(text, /Brighte|loan/i);
 });
 
 test('SMS is a personal note from the agent who sent the quote', () => {

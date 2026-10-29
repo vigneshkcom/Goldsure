@@ -53,14 +53,18 @@ export function buildDiscountOfferInput(source, agentName) {
     finance_term_years: source.finance_term_years || 10,
     income_eligible: source.income_eligible || null,
     apply_no_finance_discount: false,
-    email_body: buildDiscountOfferEmailBody(oldPrice, newPrice),
+    email_body: buildDiscountOfferEmailBody(oldPrice, newPrice, source.finance_requested === true && !keepFinance),
   };
 }
 
-export function buildDiscountOfferEmailBody(oldPrice, newPrice) {
+export function buildDiscountOfferEmailBody(oldPrice, newPrice, financeDropped = false) {
   return 'Thank you for considering Goldsure for your hot water upgrade. '
     + `As a special promotion, we are happy to take ${money(DISCOUNT_OFFER_AMOUNT)} off your installation if it is completed before ${DISCOUNT_OFFER_DEADLINE_LABEL}. `
-    + `Your previous quoted price was ${money(oldPrice)}. Your special offer price is ${money(newPrice)}, saving you ${money(DISCOUNT_OFFER_AMOUNT)}.`;
+    + `Your previous quoted price was ${money(oldPrice)}. Your special offer price is ${money(newPrice)}, saving you ${money(DISCOUNT_OFFER_AMOUNT)}.`
+    + (financeDropped
+      ? ` Please note that with the ${money(DISCOUNT_OFFER_AMOUNT)} off, the total falls below $2,000, and unfortunately we would not be able to offer the Home Energy Saver loan by Brighte on this price, as Brighte's minimum loan amount is $2,000. `
+        + 'Whichever way you would prefer, we are happy to work with you: you can take the special offer price, or keep your original quote with the Brighte loan option. Just reply to this email or give us a call and we will sort it out.'
+      : '');
 }
 
 export function buildDiscountOfferToken(sourceId, uniquePart) {
