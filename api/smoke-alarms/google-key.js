@@ -12,11 +12,11 @@ import {
   chooseOpportunity,
   calculateDataforceRevenue,
   groupAppointmentsByJob,
-  isCompletedAppointment,
 } from '../../lib/dataforce-ghl-sync.js';
 import {
   normaliseFieldworker,
   normalisePurchaseOrderItems,
+  isPurchaseOrderCompletedAppointment,
   dataforcePaymentFlag,
   dataforceTransactionBalance,
   dataforceEstimatedBalance,
@@ -672,7 +672,7 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
   // A later completion/sync must not move yesterday's job into today's PO.
   return appointments.filter(appointment => {
     const scheduledDate = scheduleDateKey(appointment.scheduledDate);
-    return isCompletedAppointment(appointment)
+    return isPurchaseOrderCompletedAppointment(appointment)
       && scheduledDate >= startDate && scheduledDate <= endDate;
   });
 }
@@ -708,7 +708,8 @@ async function dataforcePurchaseOrderPreview(startDate, endDate) {
   const fallbackWorkers = TEAM_FIELDWORKERS.map(normaliseFieldworker);
   const workersById = new Map(fallbackWorkers.map(worker => [worker.id, worker]));
   dataforceWorkers.forEach(worker => workersById.set(worker.id, worker));
-  const groupedJobs = groupAppointmentsByJob(appointments).filter(job => job.completed);
+  // Appointments have already passed the PO completion check above.
+  const groupedJobs = groupAppointmentsByJob(appointments);
   const rows = await mapWithConcurrency(groupedJobs, 5, async job => {
     const appointment = job.representative || {};
     const workerId = Number(appointment.fieldworkerId);

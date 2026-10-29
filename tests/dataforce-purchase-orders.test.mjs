@@ -10,6 +10,7 @@ import {
   normalisePurchaseOrderLine,
   normalisePurchaseOrderItems,
   purchaseOrderPayableDate,
+  isPurchaseOrderCompletedAppointment,
 } from '../lib/dataforce-purchase-orders.js';
 import handler from '../api/smoke-alarms/google-key.js';
 import reportsHandler from '../api/smoke-alarms/reports/index.js';
@@ -74,6 +75,17 @@ test('inspection fee discount removes inspection pay and preserves upgrade pay',
     }
   }
   assert.deepEqual(normalisePurchaseOrderItems(null), []);
+});
+
+test('includes completed jobs without a Field sub-status but excludes cancelled C records', () => {
+  for (const status of ['Completed', 'Completed - Field', 'Completed - Office', 'Appointment Completed']) {
+    assert.equal(isPurchaseOrderCompletedAppointment({ completionStatusDescription: status }), true);
+  }
+  assert.equal(isPurchaseOrderCompletedAppointment({ completionStatusCode: 'C' }), true);
+  for (const status of ['Cancelled', 'Assigned', 'Waiting', 'Incomplete']) {
+    assert.equal(isPurchaseOrderCompletedAppointment({ completionStatusCode: 'C', completionStatusDescription: status }), false);
+  }
+  assert.equal(isPurchaseOrderCompletedAppointment({}), false);
 });
 
 test('estimates a cash job balance from the invoice total when Dataforce returns none', () => {
@@ -201,7 +213,7 @@ test('assigns completed jobs to their scheduled day, not their later completion 
           { appointmentId: 9001, jobId: 36708, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field', scheduledDate: '2026-10-05T09:00:00', actualCompletedDate: '2026-10-06T08:00:00' },
           { appointmentId: 9002, jobId: 36937, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T10:00:00' },
           { appointmentId: 9003, jobId: 36938, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Completed', scheduledDate: '2026-10-05T11:00:00' },
-          { appointmentId: 9004, jobId: 36939, fieldworkerId: 1009, completionStatusDescription: 'Assigned', scheduledDate: '2026-10-05T12:00:00' },
+          { appointmentId: 9004, jobId: 36939, fieldworkerId: 1009, completionStatusCode: 'C', completionStatusDescription: 'Cancelled', scheduledDate: '2026-10-05T12:00:00' },
         ]
         : [];
       return new Response(JSON.stringify({ totalCount: records.length, records }), { status: 200 });
