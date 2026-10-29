@@ -648,8 +648,8 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
   let after = 0;
-  // Keep paging until Dataforce says there is nothing left. A short page is not
-  // the end (the API may cap page size), otherwise the newest appointments drop off.
+  // Dataforce totalCount is the current page count, not the overall total.
+  // Read until an empty page, including after short pages, so newer jobs are kept.
   while (appointments.length < 5000) {
     const result = await dataforceFetch(token, `/${encodeURIComponent(instance)}/appointments/search`, {
       method: 'POST',
@@ -666,7 +666,7 @@ async function dataforceCompletedAppointments(token, startDate, endDate) {
     const page = result.records || [];
     appointments.push(...page);
     after += page.length;
-    if (!page.length || after >= (result.totalCount || 0)) break;
+    if (!page.length) break;
   }
   // Completion controls eligibility, but the scheduled day controls the PO period.
   // A later completion/sync must not move yesterday's job into today's PO.

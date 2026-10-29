@@ -207,6 +207,7 @@ test('assigns completed jobs to their scheduled day, not their later completion 
     if (value.includes('/appointments/search')) {
       const searchPayload = JSON.parse(init.body);
       const propertyName = searchPayload.filterGroups[0].filters[0].propertyName;
+      if (searchPayload.after) return new Response(JSON.stringify({ totalCount: 0, records: [] }), { status: 200 });
       searchProperties.push(propertyName);
       const records = propertyName === 'scheduledDate'
         ? [
@@ -258,6 +259,52 @@ test('assigns completed jobs to their scheduled day, not their later completion 
   }
 });
 
+test('loads job 37112 beyond the first page when totalCount is only the current page count', async () => {
+  const originalFetch = global.fetch;
+  const keys = ['PURCHASE_ORDER_PIN', 'DATAFORCE_CLIENT_ID', 'DATAFORCE_CLIENT_SECRET'];
+  const previousEnv = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  Object.assign(process.env, { PURCHASE_ORDER_PIN: '4321', DATAFORCE_CLIENT_ID: 'client', DATAFORCE_CLIENT_SECRET: 'secret' });
+  const offsets = [];
+  const completed = { appointmentId: 38883, jobId: 37112, fieldworkerId: 1009,
+    completionStatusCode: 'D', completionStatusDescription: 'Completed', completionSubStatusDescription: 'Field',
+    scheduledDate: '2026-10-28T12:00:00+11:00' };
+  global.fetch = async (url, init = {}) => {
+    const value = String(url);
+    let payload;
+    if (value.endsWith('/authorization/token')) payload = { access_token: 'token' };
+    else if (value.endsWith('/fieldworkers')) payload = { records: [{ fieldworkerId: 1009, name: 'Alex Symonds', gstRegistered: true }] };
+    else if (value.endsWith('/appointments/search')) {
+      const { after } = JSON.parse(init.body);
+      offsets.push(after);
+      // The live API reports 100, then 14, then 0, rather than the overall total.
+      const records = after === 0 ? Array.from({ length: 100 }, (_, i) => ({
+        appointmentId: 38000 + i, jobId: 36000 + i, completionStatusDescription: 'Assigned', scheduledDate: completed.scheduledDate,
+      })) : after === 100 ? [completed] : [];
+      payload = { totalCount: records.length, records };
+    } else if (value.endsWith('/appointments/38883/invoice')) payload = { productLines: [{ productId: 3431, lineQty: 2 }] };
+    else if (value.endsWith('/appointments/38883/tags')) payload = { records: [] };
+    else throw new Error(`Unexpected request: ${value}`);
+    return new Response(JSON.stringify(payload), { status: 200 });
+  };
+  try {
+    const response = responseRecorder();
+    await handler({ method: 'POST', headers: { 'x-purchase-order-pin': '4321' },
+      body: { action: 'purchase-order-preview', startDate: '2026-10-26', endDate: '2026-11-01' } }, response);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(offsets, [0, 100, 101]);
+    assert.deepEqual(response.body.rows.map(row => row.jobId), ['37112']);
+    assert.equal(response.body.rows[0].worker.name, 'Alex Symonds');
+    assert.equal(response.body.rows[0].installedDate, '2026-10-28');
+    assert.equal(response.body.rows[0].items[0].totalIncGst, 22);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test('fills the customer balance for a cash-tagged job when Dataforce returns no balance', async () => {
   const originalFetch = global.fetch;
   const previousEnv = {
@@ -268,11 +315,12 @@ test('fills the customer balance for a cash-tagged job when Dataforce returns no
   Object.assign(process.env, { PURCHASE_ORDER_PIN: '4321', DATAFORCE_CLIENT_ID: 'client', DATAFORCE_CLIENT_SECRET: 'secret' });
   const invoice = { productLines: [{ productId: 3430, productName: '[3430] Hard Wired', lineQty: 2, lineRateIncTax: 110 }] };
   const tagsByAppointment = { 9001: 'Cash', 9002: 'Bank Transfer' };
-  global.fetch = async (url) => {
+  global.fetch = async (url, init = {}) => {
     const value = String(url);
     if (value.endsWith('/authorization/token')) return new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
     if (value.endsWith('/GOLDSURE_ASAP/fieldworkers')) return new Response(JSON.stringify({ records: [{ fieldworkerId: 1009, name: 'Alex Symonds', gstRegistered: true }] }), { status: 200 });
     if (value.includes('/appointments/search')) {
+      if (JSON.parse(init.body).after) return new Response(JSON.stringify({ totalCount: 0, records: [] }), { status: 200 });
       return new Response(JSON.stringify({ totalCount: 2, records: [9001, 9002].map(id => ({ appointmentId: id, jobId: id + 6000, fieldworkerId: 1009, completionStatusDescription: 'Completed - Field', scheduledDate: '2026-09-20T09:00:00', actualCompletedDate: '2026-09-20T15:30:00' })) }), { status: 200 });
     }
     const id = (value.match(/appointments\/(\d+)\//) || [])[1];
