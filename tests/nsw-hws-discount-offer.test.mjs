@@ -6,6 +6,7 @@ import sendQuoteHandler from '../api/hotwater-nsw/send.js';
 import {
   DISCOUNT_OFFER_CAMPAIGN,
   buildDiscountOfferInput,
+  buildDiscountOfferSms,
   buildDiscountOfferToken,
   isDiscountOfferEligibleQuote,
   isDiscountOfferOpen,
@@ -84,4 +85,14 @@ test('preview returns prices without inserting or sending anything', async () =>
   assert.equal(out.body.new_price, 2700);
   assert.equal(out.body.savings, 300);
   assert.ok(calls.every(c => c.method === 'GET'));
+});
+
+test('SMS is a personal note from the agent who sent the quote', () => {
+  const text = buildDiscountOfferSms({ firstName: 'Khin', agentName: 'David', previousPrice: 3000, newPrice: 2700, quoteUrl: 'https://x.test/q' });
+  assert.match(text, /^Hi Khin, David from Goldsure here\./);
+  assert.match(text, /quote for \$3,000\.00/);
+  assert.match(text, /before 10 November 2026/);
+  assert.match(text, /\$300\.00 off your original quoted amount/);
+  assert.match(text, /view your new offer here: https:\/\/x\.test\/q$/);
+  assert.match(buildDiscountOfferSms({ firstName: 'Khin', previousPrice: 3000, newPrice: 2700, quoteUrl: 'u' }), /^Hi Khin, it's the team at Goldsure\./);
 });

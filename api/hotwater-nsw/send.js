@@ -29,6 +29,7 @@ import {
   DISCOUNT_OFFER_SUBJECT,
   DISCOUNT_OFFER_TOKEN_PREFIX,
   buildDiscountOfferInput,
+  buildDiscountOfferSms,
   buildDiscountOfferToken,
   isDiscountOfferEligibleQuote,
   isDiscountOfferOpen,
@@ -699,7 +700,7 @@ export default async function handler(req, res) {
         const first = String(customer_name).trim().split(/\s+/)[0] || 'there';
         const modelLabel = HEAT_PUMP_LABEL[body.heat_pump_model] || 'heat pump hot water system';
         const smsText = body.campaign === DISCOUNT_OFFER_CAMPAIGN
-          ? `Hi ${first}, Goldsure has a special offer for you: $${DISCOUNT_OFFER_AMOUNT} off your heat pump hot water installation when installed before ${DISCOUNT_OFFER_DEADLINE_LABEL}. Your updated price is ${money(calc.final_price)}. View your offer: ${quoteUrl}`
+          ? buildDiscountOfferSms({ firstName: first, agentName: body.agent_name, previousPrice: body.previous_price, newPrice: calc.final_price, quoteUrl })
           : body.campaign === SEPTEMBER_OFFER_CAMPAIGN
           ? `Hi ${first}, Goldsure has new September pricing for your heat pump hot water upgrade. We have emailed your updated quote for ${money(calc.final_price)}, with the Home Energy Saver loan by Brighte available subject to approval. View your offer: ${quoteUrl}`
           : `Hi ${first}, your Goldsure heat pump quote is ready.\n\nYour total installed price for the ${modelLabel} is ${money(calc.final_price)}${calc.finance_requested ? ', with the 0% interest Home Energy Saver loan by Brighte selected, subject to approval' : ''}.\n\nView your quote online: ${quoteUrl}`;

@@ -47,6 +47,7 @@ export function buildDiscountOfferInput(source, agentName) {
     source_quote_id: source.id,
     agent_name: String(agentName || source.agent_name || '').trim() || null,
     final_price_override: newPrice,
+    previous_price: oldPrice,
     finance_requested: keepFinance,
     finance_dropped: source.finance_requested === true && !keepFinance,
     finance_term_years: source.finance_term_years || 10,
@@ -64,4 +65,17 @@ export function buildDiscountOfferEmailBody(oldPrice, newPrice) {
 
 export function buildDiscountOfferToken(sourceId, uniquePart) {
   return `${DISCOUNT_OFFER_TOKEN_PREFIX}-${sourceId}-${uniquePart}`;
+}
+
+// Personal text from whoever sent the original quote.
+export function buildDiscountOfferSms({ firstName, agentName, previousPrice, newPrice, quoteUrl }) {
+  const agent = String(agentName || '').trim();
+  const intro = agent
+    ? `Hi ${firstName}, ${agent} from Goldsure here.`
+    : `Hi ${firstName}, it's the team at Goldsure.`;
+  return `${intro} Just wanted to let you know we're running a special promotion. `
+    + `We sent you a quote for ${money(previousPrice)} for your heat pump hot water system. `
+    + `If you get it installed, or even book it in, before ${DISCOUNT_OFFER_DEADLINE_LABEL}, we're happy to take ${money(DISCOUNT_OFFER_AMOUNT)} off your original quoted amount, `
+    + `bringing it down to ${money(newPrice)}.\n\n`
+    + `You can view your new offer here: ${quoteUrl}`;
 }
