@@ -12,16 +12,45 @@ test('9am to 6pm gates use Sydney time including daylight saving', () => {
   }
 });
 
-test('previous-day 5:30pm cutoff includes overnight calls across month, year and DST boundaries', () => {
+test('no alerts on Saturday or Sunday in Sydney, resuming Monday 9am', () => {
+  for (const [date, expected] of [['2026-10-30T07:00:00Z', true], ['2026-10-30T22:30:00Z', false], ['2026-10-31T03:00:00Z', false], ['2026-11-01T06:00:00Z', false], ['2026-11-01T21:59:00Z', false], ['2026-11-01T22:00:00Z', true]]) {
+    assert.equal(callbackHours(new Date(date)), expected, date);
+  }
+});
+
+test('previous-day 5:30pm cutoff, or 6:30pm Friday on Mondays, across month, year and DST boundaries', () => {
   for (const [now, start] of [
-    ['2026-10-27T22:00:00Z', '2026-10-27T06:30:00.000Z'],
+    ['2026-10-27T22:00:00Z', '2026-10-27T06:30:00.000Z'], // Wed 9am AEDT -> Tue 5:30pm AEDT
     ['2026-10-28T07:00:00Z', '2026-10-27T06:30:00.000Z'],
-    ['2026-10-03T22:00:00Z', '2026-10-03T07:30:00.000Z'],
-    ['2026-10-04T22:00:00Z', '2026-10-04T06:30:00.000Z'],
-    ['2026-04-04T23:00:00Z', '2026-04-04T06:30:00.000Z'],
-    ['2026-04-05T23:00:00Z', '2026-04-05T07:30:00.000Z'],
+    ['2026-10-04T22:00:00Z', '2026-10-02T08:30:00.000Z'], // Mon 9am AEDT -> Fri 6:30pm AEST
+    ['2026-10-05T22:00:00Z', '2026-10-05T06:30:00.000Z'], // Tue 9am AEDT -> Mon 5:30pm AEDT
+    ['2026-04-05T23:00:00Z', '2026-04-03T07:30:00.000Z'], // Mon 9am AEST -> Fri 6:30pm AEDT
+    ['2026-04-06T23:00:00Z', '2026-04-06T07:30:00.000Z'], // Tue 9am AEST -> Mon 5:30pm AEST
+    ['2026-11-01T22:00:00Z', '2026-10-30T07:30:00.000Z'], // Mon 9am -> Fri 6:30pm across the month
+    ['2026-11-02T07:00:00Z', '2026-10-30T07:30:00.000Z'], // Mon 6pm still covers the weekend
+    ['2026-10-30T22:30:00Z', '2026-10-30T07:30:00.000Z'], // Saturday dry run previews Monday's window
     ['2026-12-31T22:00:00Z', '2026-12-31T06:30:00.000Z'],
-  ]) assert.deepEqual(callbackRange(new Date(now)), { timeFrom: start, timeTo: new Date(now).toISOString() });
+  ]) assert.deepEqual(callbackRange(new Date(now)), { timeFrom: start, timeTo: new Date(now).toISOString() }, now);
+});
+
+test('Monday 9am alert includes calls since 6:30pm Friday, excluding earlier and returned calls', async () => {
+  process.env.CRON_SECRET = 'test-secret';
+  const now = new Date('2026-11-01T22:00:00Z');
+  const record = (startTime, number, direction = 'Inbound', result = 'Missed') => ({ ...call('01:00', direction, result), startTime, from: { phoneNumber: number }, to: { phoneNumber: number } });
+  const records = [
+    record('2026-10-30T07:29:59.000Z', '+61400000001'),
+    record('2026-10-30T07:30:00.000Z', '+61400000002'),
+    record('2026-10-31T00:00:00.000Z', '+61400000003'),
+    record('2026-11-01T21:59:00.000Z', '+61400000004'),
+    record('2026-10-31T01:00:00.000Z', '+61400000005'),
+    record('2026-10-31T02:00:00.000Z', '+61400000005', 'Outbound', 'No Answer'),
+  ];
+  const res = response();
+  await missedCallAlert({ headers: { authorization: 'Bearer test-secret' }, query: { dryRun: '1' } }, res, { now, fetchRecords: async range => { assert.deepEqual(range, callbackRange(now)); return records; } });
+  assert.equal(res.body.customers, 3);
+  assert.match(res.body.preview.text, /\+61400000002[\s\S]*\+61400000003[\s\S]*\+61400000004/);
+  assert.doesNotMatch(res.body.preview.text, /\+61400000001|\+61400000005/);
+  assert.match(res.body.preview.text, /since Fri, 30 Oct, 6:30 pm/);
 });
 
 test('9am alert includes previous evening and morning, excluding earlier and returned calls', async () => {
@@ -80,6 +109,9 @@ test('authentication, quiet hours, empty results, dry run and live mail decision
   res = response();
   await missedCallAlert(req, res, { ...deps, now: new Date('2026-10-28T08:00:00Z') });
   assert.equal(res.body.skipped, 'outside-reporting-hours'); assert.equal(fetched, 0);
+  res = response();
+  await missedCallAlert(req, res, { ...deps, now: new Date('2026-10-30T22:30:00Z') });
+  assert.equal(res.body.skipped, 'outside-reporting-hours'); assert.equal(fetched, 0); assert.equal(sent, 0);
   res = response();
   await missedCallAlert(req, res, { ...deps, fetchRecords: async () => [] });
   assert.equal(res.body.skipped, 'no-outstanding-callbacks'); assert.equal(sent, 0);
