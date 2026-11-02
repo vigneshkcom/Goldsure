@@ -335,9 +335,15 @@ export default async function handler(req, res) {
 
   // Notify the team via Hostinger (from info@goldsure.com.au); fall back to
   // Resend so a provider hiccup never drops an accepted-quote notification.
+  // To the agent who sent the quote (firstname@goldsure.com.au), CC vignesh@.
+  // If no agent name is available, fall back to info@ so it is never dropped.
+  const agentFirst = String(agent_name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  const toList = [agentFirst ? `${agentFirst}@goldsure.com.au` : 'info@goldsure.com.au'];
+  const ccList = ['vignesh@goldsure.com.au'].filter(addr => !toList.includes(addr));
+
   let sent = false;
   try {
-    await sendHostingerMail({ to: ['info@goldsure.com.au'], displayName: 'Goldsure Quotes', subject, html });
+    await sendHostingerMail({ to: toList, cc: ccList, displayName: 'Goldsure Quotes', subject, html });
     sent = true;
   } catch (hostErr) {
     console.error('[Smoke accept] Hostinger failed, falling back to Resend:', hostErr.message);
@@ -353,7 +359,8 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           from: 'Goldsure Quotes <info@goldsure.com.au>',
-          to: ['info@goldsure.com.au'],
+          to: toList,
+          ...(ccList.length ? { cc: ccList } : {}),
           subject,
           html,
         }),
