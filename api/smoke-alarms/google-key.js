@@ -617,22 +617,8 @@ function resolveDataforceGhlSyncAccess(req, res) {
   return true;
 }
 
-function resolvePurchaseOrderAccess(req, res) {
-  const expected = String(
-    process.env.PURCHASE_ORDER_PIN
-    || process.env.DATAFORCE_GHL_SYNC_PIN
-    || process.env.DASHBOARD_PASSWORD
-    || '',
-  ).trim();
-  const supplied = String(req.headers['x-purchase-order-pin'] || '').trim();
-  if (!expected) {
-    send(res, 503, { error: 'Purchase Order access has not been configured.' });
-    return false;
-  }
-  if (!supplied || supplied !== expected) {
-    send(res, 401, { error: 'Enter the Portal access PIN.' });
-    return false;
-  }
+// The purchase order tools no longer require a PIN (removed by request).
+function resolvePurchaseOrderAccess() {
   return true;
 }
 

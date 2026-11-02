@@ -36,15 +36,9 @@ function dmyDate(value) {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : String(value || '');
 }
 
-function purchaseOrderAccessAllowed(req) {
-  const expected = String(
-    process.env.PURCHASE_ORDER_PIN
-    || process.env.DATAFORCE_GHL_SYNC_PIN
-    || process.env.DASHBOARD_PASSWORD
-    || '',
-  ).trim();
-  const supplied = String(req.headers['x-purchase-order-pin'] || '').trim();
-  return Boolean(expected && supplied && supplied === expected);
+// The purchase order tools no longer require a PIN (removed by request).
+function purchaseOrderAccessAllowed() {
+  return true;
 }
 
 function emailEntries(value) {

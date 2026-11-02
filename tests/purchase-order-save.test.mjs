@@ -44,7 +44,7 @@ test('Save PO sends the reviewed record once and confirms only after storage suc
   assert.equal(p.element('savePo').disabled, true);
   assert.equal(p.element('notice').textContent, '');
   assert.deepEqual(JSON.parse(calls[0].body), { purchaseOrderHistory: { action: 'save', purchaseOrder: reviewed } });
-  assert.equal(calls[0].headers['x-purchase-order-pin'], '4321');
+  assert.equal(calls[0].headers['x-purchase-order-pin'], undefined);
   complete(new Response(JSON.stringify({ success: true })));
   await saving;
   assert.match(p.element('notice').textContent, /saved to PO history/);
