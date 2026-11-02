@@ -707,6 +707,7 @@ export default async function handler(req, res) {
         subject: subject || (isSummary ? `Installation summary - ${po.period}` : `Purchase order - ${po.period}`),
         html: isSummary ? buildInstallSummaryHtml(po) : buildPurchaseOrderHtml(po),
         attachments: [pdfAttachment],
+        keepCopyAttachments: true, // the CC (office) copy must include the PO PDF too
       });
       return res.status(200).json({ success: true, id: result.id, to: recipients, cc: ccRecipients, emailMode: isSummary ? 'summary' : 'purchase-order' });
     } catch (err) {
