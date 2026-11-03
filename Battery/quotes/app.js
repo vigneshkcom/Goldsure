@@ -125,6 +125,8 @@ $('retry-ghl').onclick=async()=>{const button=$('retry-ghl');button.disabled=tru
 $('resolve-delivery').onclick=async()=>{const resolution=prompt('After checking the email provider, enter SENT or NOT SENT.');if(!['SENT','NOT SENT'].includes(resolution))return;const evidence=prompt('Record the provider message ID or delivery-check evidence:');if(!evidence)return;const confirmed_sent_at=resolution==='SENT'?prompt('Original provider-confirmed send timestamp (ISO 8601 with timezone):',state.review.first_sent_at||state.review.sent_at||''):undefined;if(resolution==='SENT'&&!confirmed_sent_at)return;try{await request('resolve-delivery',{id:state.review.id,resolution:resolution==='SENT'?'confirmed_sent':'confirmed_not_sent',evidence,confirmed_sent_at});await review(state.review.id);await loadQuotes();}catch(error){$('review-message').textContent=error.message;}};
 
 await load();const initial=new URLSearchParams(location.search).get('view');if(['builder','tracker'].includes(initial))tab(initial);
+/* Prefill from an IHA booking: ?view=builder&name=&email=&phone=&address=&booking= */
+{const q=new URLSearchParams(location.search);if(q.get('booking')||q.get('name')){const set=(id,v)=>{if(v&&$(id))$(id).value=v};set('customer-name',q.get('name'));set('customer-email',q.get('email'));set('customer-phone',q.get('phone'));set('customer-address',q.get('address'));const n=document.querySelector('[name=internal_notes]');if(n&&q.get('booking')&&!n.value)n.value='From assessment booking '+q.get('booking');renderPreview();}}
 
 
 

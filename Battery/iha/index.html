@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="/assets/gs-favicon-96px.png"><title>Battery IHA Desk | Goldsure</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one page, two modes. "Assessor" = phone-first day route (map, stops, on-site checklist). "Office" = booking form that can start from an accepted battery quote. */
+:root{
+  --bg:#f3f4f6; --surface:#fff; --ink:#172b4d; --mute:#667085; --line:#dfe3e8;
+  --gold:#c99b2e; --gold-ink:#1a1405; --gold-soft:#faf1d9; --gold-text:#8a6410;
+  --ok:#067647; --ok-soft:#e3f5ea; --warn:#b42318; --warn-soft:#fde8e6; --blue:#1769e0;
+  --map:#e9edf2; --road:#fff;
+  --display:'Bricolage Grotesque',system-ui,sans-serif; --body:'Public Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1520;--surface:#18202e;--ink:#e8ebf2;--mute:#9aa4b6;--line:#2a3447;--gold:#e0b04a;--gold-ink:#1a1405;--gold-soft:#3a2f14;--gold-text:#e0b04a;--ok:#5fcf93;--ok-soft:#173326;--warn:#ff8a7d;--warn-soft:#3b1b18;--blue:#6ea8ff;--map:#202a3b;--road:#2c384d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1520;--surface:#18202e;--ink:#e8ebf2;--mute:#9aa4b6;--line:#2a3447;--gold:#e0b04a;--gold-ink:#1a1405;--gold-soft:#3a2f14;--gold-text:#e0b04a;--ok:#5fcf93;--ok-soft:#173326;--warn:#ff8a7d;--warn-soft:#3b1b18;--blue:#6ea8ff;--map:#202a3b;--road:#2c384d;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:560px;margin:0 auto}
+.wrap.wide{max-width:980px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.brand{font:700 13px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--gold-text)}
+.mode{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.mode button{border:0;background:none;color:var(--mute);font:600 13px var(--body);padding:7px 14px;border-radius:999px;cursor:pointer}
+.mode button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+h1{font:700 26px/1.1 var(--display);margin:0}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:0 0 6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
+.stat b{display:block;font:700 20px var(--display);font-variant-numeric:tabular-nums}.stat span{font:11px var(--mono);color:var(--mute);text-transform:uppercase}
+.map{width:100%;height:auto;display:block;border-radius:10px;background:var(--map)}
+.map text{font:600 11px var(--body);fill:var(--ink)}
+/* stops */
+.stop{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:0}
+.stop.current{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.stop.done{opacity:.65}
+.sh{display:flex;gap:12px;align-items:flex-start}
+.num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font:700 14px var(--display)}
+.stop.current .num{background:var(--gold);color:var(--gold-ink)}.stop.done .num{background:var(--ok);color:#fff}
+.sh>div{min-width:0;flex:1}
+.nm{font:600 17px var(--display)}
+.ad{color:var(--mute);font-size:14px;overflow-wrap:anywhere}
+.time{font:500 13px var(--mono);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:3px 9px;background:var(--line);color:var(--mute)}
+.pill.go{background:var(--gold-soft);color:var(--gold-text)}.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.leg{display:flex;align-items:center;gap:8px;margin:0 0 0 14px;padding:8px 0 8px 22px;border-left:2px dashed var(--line);font:12px var(--mono);color:var(--mute)}
+.warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:10px}
+.acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.b{display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px var(--body);padding:10px;cursor:pointer;text-decoration:none;text-align:center}
+.b.main{grid-column:1/-1;background:var(--gold);border-color:var(--gold);color:var(--gold-ink);min-height:54px;font-size:16px}
+.b.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.b:disabled{opacity:.45}
+.tel{font:500 13px var(--mono);color:var(--mute);grid-column:1/-1;text-align:center}
+/* form bits */
+label{display:block;font-weight:600;font-size:13px;margin:0 0 5px}
+input,select,textarea{width:100%;font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px 12px}
+textarea{min-height:70px;resize:vertical}
+.f{margin-bottom:14px;min-width:0}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{flex:1 1 auto;min-height:44px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;font:500 14px var(--body);padding:8px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.seg button.good[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.seg button.bad[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:#fff}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.photo{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+.photo button{border:0;background:var(--gold-soft);color:var(--gold-text);font:600 13px var(--body);padding:8px 12px;border-radius:8px;cursor:pointer}
+.photo.got{border-style:solid;border-color:var(--ok)}.photo.got button{background:var(--ok-soft);color:var(--ok)}
+.sug{margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.sug button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;font:14px var(--body);color:var(--ink);cursor:pointer}
+.sug button:last-child{border:0}.sug small{display:block;color:var(--mute)}
+.auto{background:var(--gold-soft);border-color:var(--gold)}
+.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.day{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 2px;text-align:center;cursor:pointer;color:var(--ink);font:inherit}
+.day b{display:block;font:700 17px var(--display)}.day span{font:10px var(--mono);color:var(--mute);text-transform:uppercase}
+.day[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft)}
+.slots{display:grid;gap:8px}
+.slot{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:10px 12px;color:var(--ink);cursor:pointer;font:inherit;min-height:48px}
+.slot b{font:600 15px var(--mono)}.slot small{color:var(--mute);font-size:12px;text-align:right}
+.slot[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft)}
+.slot.best small{color:var(--ok);font-weight:600}
+.sum{display:grid;gap:6px;border-top:1px dashed var(--line);margin-top:14px;padding-top:12px;font-size:14px}
+.sum div{display:flex;justify-content:space-between;gap:12px}.sum span:first-child{color:var(--mute)}.sum span:last-child{text-align:right;min-width:0;overflow-wrap:anywhere}
+.done-msg{background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:12px;font-weight:600;margin-top:12px}
+.desk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:760px){.desk{grid-template-columns:minmax(0,1fr)}}
+.note{color:var(--mute);font-size:13px}
+</style></head><body>
+<div class="wrap" id="wrap">
+<div class="warn" style="margin:0 0 10px">Design preview with sample customers. Nothing here is saved yet.</div>
+<div class="top"><span class="brand">Goldsure · Battery</span>
+  <div class="mode" role="tablist"><button id="m-iha" role="tab" aria-selected="true">Assessor (phone)</button><button id="m-off" role="tab" aria-selected="false">Office booking</button></div></div>
+
+<!-- ASSESSOR VIEW -->
+<main id="iha">
+  <p class="eyebrow" id="dateline">Wed 4 Nov · Daniel Kerr</p>
+  <h1>Today's route</h1>
+  <div class="stats"><div class="stat"><b id="s-stops">4</b><span>Stops</span></div><div class="stat"><b>71 km</b><span>Driving</span></div><div class="stat"><b id="s-first">8:30</b><span>First visit</span></div></div>
+  <div class="card" style="padding:8px"><svg class="map" viewBox="0 0 320 170" role="img" aria-label="Route map: base, then four stops in order">
+    <g stroke="var(--road)" stroke-width="7" fill="none" stroke-linecap="round"><path d="M0 120 C80 100 140 130 320 90"/><path d="M60 0 C70 60 110 110 120 170"/><path d="M200 0 C190 60 230 100 250 170"/></g>
+    <polyline id="route" points="" fill="none" stroke="var(--gold)" stroke-width="3.5" stroke-dasharray="1 0" stroke-linejoin="round" stroke-linecap="round"/>
+    <g id="pins"></g></svg></div>
+  <div id="stops"></div>
+</main>
+
+<!-- OFFICE VIEW -->
+<main id="off" hidden class="">
+  <p class="eyebrow">Office</p><h1>Book a battery assessment</h1>
+  <p class="note" style="margin:6px 0 14px">Start from an accepted quote, or type the customer in. The visit is 90 minutes plus 15 minutes of buffer.</p>
+  <div class="desk">
+    <div class="card">
+      <div class="f"><label for="q">Accepted battery quote</label>
+        <select id="q"><option value="">Choose a quote to fill the customer</option><option value="0">BAT-2026-000142 · Maria Papadopoulos · 13.5 kWh</option><option value="1">BAT-2026-000147 · Raj Singh · 10 kWh</option></select></div>
+      <div class="f"><label for="name">Full name</label><input id="name" autocomplete="off"></div>
+      <div class="two"><div class="f"><label for="phone">Mobile</label><input id="phone" inputmode="tel" placeholder="04XX XXX XXX"></div>
+        <div class="f"><label for="email">Email</label><input id="email" type="email"></div></div>
+      <div class="f"><label for="addr">Address</label><input id="addr" autocomplete="off" placeholder="Start typing the street address"><div class="sug" id="sug" hidden></div></div>
+      <div class="two"><div class="f"><label for="suburb">Suburb</label><input id="suburb" readonly></div>
+        <div class="two"><div class="f"><label for="state">State</label><input id="state" readonly></div><div class="f"><label for="pc">Postcode</label><input id="pc" readonly></div></div></div>
+      <div class="f"><label for="access">Access notes</label><textarea id="access" placeholder="Gate code, dogs, parking, who will be home"></textarea></div>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Day</p><div class="days" id="days"></div>
+      <p class="eyebrow">Time · assessor · added driving</p><div class="slots" id="slots"></div>
+      <div class="sum" id="sum"></div>
+      <button class="b main" id="book" style="width:100%;margin-top:14px" disabled>Book assessment</button>
+      <div class="done-msg" id="booked" hidden></div>
+      <p class="note" style="margin-top:10px">Slots are ranked by how little extra driving they add to the assessor's day.</p>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+/* ---------- Assessor view ---------- */
+const STOPS=[
+ {n:'Maria Papadopoulos',a:'12 Banksia Ave, Penrith NSW 2750',t:'8:30',p:'0412 345 678',e:'maria.p@example.com',ref:'IHA-2026-00042',q:'BAT-2026-000142 · 13.5 kWh + 8 kW inverter',note:'Dog in backyard. Switchboard is in the garage.',leg:'28 min · 24 km from base',pt:[160,40],dest:'12 Banksia Ave, Penrith NSW 2750'},
+ {n:'Jason Chen',a:'44 Kable St, Kingswood NSW 2747',t:'10:15',p:'0423 456 789',e:'jason.c@example.com',ref:'IHA-2026-00043',q:'BAT-2026-000139 · 10 kWh',note:'Call 10 min before. Tenant home, owner on phone.',leg:'9 min · 5 km',pt:[105,70]},
+ {n:'Raj Singh',a:'7 Ironbark Cl, Blacktown NSW 2148',t:'12:30',p:'0434 567 890',e:'raj.s@example.com',ref:'IHA-2026-00044',q:'BAT-2026-000147 · 10 kWh',note:'Gate code 4471.',leg:'22 min · 19 km',pt:[190,100]},
+ {n:'Sophie Walker',a:'3 Hume Pl, Seven Hills NSW 2147',t:'14:30',p:'0445 678 901',e:'sophie.w@example.com',ref:'IHA-2026-00045',q:'BAT-2026-000151 · 13.5 kWh',note:'',leg:'11 min · 8 km',pt:[250,70],warn:'Tight: the previous visit is booked to finish at 14:15 including travel.'}];
+const BASE=[60,130];
+const S=STOPS.map(()=>({state:'scheduled'}));let cur=0,form=false;
+const ST={scheduled:'Scheduled',enroute:'On the way',arrived:'Arrived',done:'Complete'};
+function renderMap(){
+  $('route').setAttribute('points',[BASE,...STOPS.map(s=>s.pt)].map(p=>p.join(',')).join(' '));
+  $('pins').innerHTML=`<g><rect x="${BASE[0]-9}" y="${BASE[1]-9}" width="18" height="18" rx="4" fill="var(--ink)"/><text x="${BASE[0]}" y="${BASE[1]+4}" text-anchor="middle" style="fill:var(--surface)">B</text></g>`+
+   STOPS.map((s,i)=>`<g><circle cx="${s.pt[0]}" cy="${s.pt[1]}" r="11" fill="${S[i].state==='done'?'var(--ok)':i===cur?'var(--gold)':'var(--ink)'}"/><text x="${s.pt[0]}" y="${s.pt[1]+4}" text-anchor="middle" style="fill:${i===cur&&S[i].state!=='done'?'#1a1405':'#fff'}">${i+1}</text></g>`).join('');
+}
+const chip=(k,opts,cls)=>`<div class="seg" data-k="${k}">${opts.map(o=>`<button type="button" aria-pressed="${A[k]===o[0]}" data-v="${o[0]}" class="${o[2]||''}">${o[1]}</button>`).join('')}</div>`;
+let A={phase:'',space:'',loc:'',outcome:''},photos={};
+const PH=['Switchboard (open)','Meter','Existing inverter','Proposed battery spot'];
+function formHTML(){return `<div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:14px">
+ <div class="f"><label>Supply</label>${chip('phase',[['single','Single phase'],['three','Three phase'],['unsure','Not sure']])}</div>
+ <div class="f"><label>Space in switchboard</label>${chip('space',[['yes','Yes'],['no','No']])}</div>
+ <div class="two"><div class="f"><label for="kw">Existing solar (kW)</label><input id="kw" inputmode="decimal" placeholder="6.6"></div>
+  <div class="f"><label for="inv">Inverter brand</label><select id="inv"><option>Select</option><option>Fronius</option><option>SMA</option><option>Sungrow</option><option>GoodWe</option><option>Other</option></select></div></div>
+ <div class="f"><label>Battery location</label>${chip('loc',[['garage','Garage'],['ext','External wall'],['int','Internal wall'],['other','Other']])}</div>
+ <div class="f"><label for="dist">Distance to switchboard (m)</label><input id="dist" inputmode="decimal" placeholder="4"></div>
+ <div class="f"><label>Photos</label>${PH.map((p,i)=>`<div class="photo ${photos[i]?'got':''}"><span>${p}</span><button type="button" data-p="${i}">${photos[i]?'Retake':'Take photo'}</button></div>`).join('')}</div>
+ <div class="f"><label>Outcome</label>${chip('outcome',[['ok','Suitable','good'],['work','Needs work'],['no','Not suitable','bad']])}</div>
+ <div class="f"><label for="nts">Notes</label><textarea id="nts" placeholder="Anything the installer or office should know"></textarea></div>
+ <button class="b main ok" id="submit" ${A.outcome&&A.phase?'':'disabled'}>Submit and finish visit</button></div>`}
+const quoteURL=s=>'/Battery/quotes/index.html?view=builder&'+new URLSearchParams({name:s.n,email:s.e||'',phone:s.p,address:s.a,booking:s.ref}).toString();
+function renderStops(){
+  $('stops').innerHTML=STOPS.map((s,i)=>{
+    const st=S[i].state,isCur=i===cur&&st!=='done';
+    const pill=st==='done'?'ok':isCur&&st!=='scheduled'?'go':'';
+    let acts='';
+    if(isCur){
+      const lbl={scheduled:'Start driving',enroute:'I have arrived',arrived:'Start assessment'}[st];
+      acts=`<div class="acts">
+        <a class="b" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(s.a)}">Navigate</a>
+        <button class="b" data-call="${i}">Call</button>
+        <div class="tel" id="tel${i}">${s.p}</div>
+        ${st==='arrived'?`<a class="b main" style="background:var(--ink);border-color:var(--ink);color:var(--surface)" target="_blank" rel="noopener" href="${quoteURL(s)}">Give quote</a>`:''}
+        ${form&&st==='arrived'?'':`<button class="b main" data-adv="${i}">${lbl}</button>`}</div>${form&&st==='arrived'?formHTML():''}`;
+    }
+    return `${i?`<div class="leg">↓ ${s.leg}</div>`:`<div class="leg" style="border-left-color:transparent">Base → ${s.leg}</div>`}
+    <div class="stop ${isCur?'current':''} ${st==='done'?'done':''}"><div class="sh"><div class="num">${st==='done'?'✓':i+1}</div>
+      <div><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="time">${s.t}</span><span class="pill ${pill}">${ST[st]}</span></div>
+      <div class="nm">${s.n}</div><div class="ad">${s.a}</div>
+      ${isCur?`<div class="ad" style="margin-top:6px">${s.q}</div>${s.note?`<div class="ad">Note: ${s.note}</div>`:''}${s.warn?`<div class="warn">${s.warn}</div>`:''}`:''}
+      </div></div>${acts}</div>`}).join('');
+  renderMap();
+}
+$('stops').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.adv!==undefined){const s=S[cur];
+    if(s.state==='scheduled')s.state='enroute';else if(s.state==='enroute')s.state='arrived';else if(s.state==='arrived'){form=true}
+    renderStops();return}
+  if(b.dataset.call!==undefined){$('tel'+b.dataset.call).style.color='var(--ink)';return}
+  if(b.dataset.p!==undefined){photos[b.dataset.p]=!photos[b.dataset.p];renderStops();return}
+  const seg=b.closest('.seg');if(seg){A[seg.dataset.k]=b.dataset.v;const ex=[$('kw')&&$('kw').value,$('dist')&&$('dist').value,$('nts')&&$('nts').value,$('inv')&&$('inv').value];renderStops();['kw','dist','nts','inv'].forEach((id,i)=>{if($(id)&&ex[i])$(id).value=ex[i]});return}
+  if(b.id==='submit'){S[cur].state='done';form=false;A={phase:'',space:'',loc:'',outcome:''};photos={};if(cur<STOPS.length-1)cur++;renderStops()}
+});
+/* ---------- Office view ---------- */
+const QUOTES=[{n:'Maria Papadopoulos',p:'0412 345 678',e:'maria.p@example.com',ad:{t:'12 Banksia Ave, Penrith NSW 2750',s:'Penrith',st:'NSW',pc:'2750'}},{n:'Raj Singh',p:'0434 567 890',e:'raj.s@example.com',ad:{t:'7 Ironbark Cl, Blacktown NSW 2148',s:'Blacktown',st:'NSW',pc:'2148'}}];
+const ADDR=[{t:'12 Banksia Ave, Penrith NSW 2750',s:'Penrith',st:'NSW',pc:'2750'},{t:'12 Banksia St, Blacktown NSW 2148',s:'Blacktown',st:'NSW',pc:'2148'},{t:'12 Banksia Rd, Caringbah NSW 2229',s:'Caringbah',st:'NSW',pc:'2229'}];
+const days=[];for(let d=new Date('2026-11-05T00:00:00');days.length<5;d.setDate(d.getDate()+1)){if(d.getDay()%6)days.push(new Date(d))}
+const SL=[['08:30','Daniel Kerr','+6 min','best'],['10:00','Priya Nair','+11 min','best'],['11:30','Daniel Kerr','+24 min',''],['13:00','Tom Hughes','+31 min',''],['14:30','Priya Nair','+18 min','']];
+const o={day:0,slot:null,addr:null};
+function offRender(){
+  $('days').innerHTML=days.map((d,i)=>`<button class="day" data-d="${i}" aria-pressed="${i===o.day}"><span>${d.toLocaleDateString('en-AU',{weekday:'short'})}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-AU',{month:'short'})}</span></button>`).join('');
+  $('slots').innerHTML=SL.map((s,i)=>`<button class="slot ${s[3]}" data-s="${i}" aria-pressed="${o.slot===i}"><b>${s[0]}</b><span>${s[1]}</span><small>${s[2]} driving${s[3]?' · best fit':''}</small></button>`).join('');
+  const s=SL[o.slot],rows=[['Customer',$('name').value||'—'],['Address',o.addr?o.addr.t:'—'],['When',s?days[o.day].toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+', '+s[0]:'—'],['Assessor',s?s[1]:'—']];
+  $('sum').innerHTML=rows.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  $('book').disabled=!($('name').value&&$('phone').value&&o.addr&&s);
+}
+function fillAddr(a){o.addr=a;$('addr').value=a.t;$('suburb').value=a.s;$('state').value=a.st;$('pc').value=a.pc;['suburb','state','pc'].forEach(i=>$(i).classList.add('auto'));$('sug').hidden=true}
+$('q').onchange=()=>{const q=QUOTES[$('q').value];if(!q)return;$('name').value=q.n;$('phone').value=q.p;$('email').value=q.e;fillAddr(q.ad);offRender()};
+$('addr').oninput=()=>{o.addr=null;['suburb','state','pc'].forEach(i=>{$(i).value='';$(i).classList.remove('auto')});const ok=$('addr').value.trim().length>=3;$('sug').hidden=!ok;
+  $('sug').innerHTML=ok?ADDR.map((a,i)=>`<button data-a="${i}">${a.t.split(',')[0]}<small>${a.s} ${a.st} ${a.pc}</small></button>`).join(''):'';offRender()};
+$('sug').onclick=e=>{const b=e.target.closest('[data-a]');if(b){fillAddr(ADDR[+b.dataset.a]);offRender()}};
+$('days').onclick=e=>{const d=e.target.closest('[data-d]');if(d){o.day=+d.dataset.d;o.slot=null;offRender()}};
+$('slots').onclick=e=>{const s=e.target.closest('[data-s]');if(s){o.slot=+s.dataset.s;offRender()}};
+['name','phone'].forEach(i=>$(i).oninput=offRender);
+$('book').onclick=()=>{$('booked').hidden=false;$('booked').textContent='Booked as IHA-2026-00042 (example). Confirmation SMS goes to '+$('phone').value+' and the stop appears in '+SL[o.slot][1]+"'s route.";$('book').disabled=true};
+/* mode */
+function mode(m){const i=m==='iha';$('iha').hidden=!i;$('off').hidden=i;$('m-iha').setAttribute('aria-selected',i);$('m-off').setAttribute('aria-selected',!i);$('wrap').classList.toggle('wide',!i)}
+$('m-iha').onclick=()=>mode('iha');$('m-off').onclick=()=>mode('off');
+renderStops();offRender();
+</script>
+</body></html>
