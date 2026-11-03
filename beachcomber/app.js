@@ -26,12 +26,13 @@
       <p><strong>Leave and call ${ZERO} if</strong> you see or smell smoke, you can’t find a harmless cause, or the source alarm still won’t go quiet. The manual says that can mean the smoke is too heavy and it could be dangerous.</p>
       <p class="note">Don’t remove the alarm, cover it, or switch off the power. You would lose your protection.</p>`,
     chirp: `<h3>This is a warning that the alarm needs replacing, not a fire alarm</h3>
-      <p>Count the chirps and the <strong>yellow</strong> flashes. They repeat every 54 seconds.</p>
+      <p><strong>Count the chirps.</strong> They repeat about once a minute (every 54 seconds).</p>
       <div class="signal-list">
-        ${sig('y', 1, '1 chirp and 1 yellow flash', 'Low battery')}
-        ${sig('y', 2, '2 chirps and 2 yellow flashes', 'Fault')}
-        ${sig('y', 3, '3 chirps and 3 yellow flashes', 'End of life')}
+        ${sig('y', 1, '1 chirp', 'Low battery')}
+        ${sig('y', 2, '2 chirps', 'Fault')}
+        ${sig('y', 3, '3 chirps', 'End of life')}
       </div>
+      <p class="note">The light flashes the same number of times. The manual’s indicator table says the light is <strong>yellow</strong>, but its troubleshooting page says <strong>red</strong> for low battery and fault. Go by the number of chirps, not the colour.</p>
       <p>The battery is sealed inside, so the whole alarm must be replaced. Don’t open it or try to change the battery. <strong>Report it on the next steps.</strong></p>
       <p class="note">To quieten it for now, quickly press Test/Hush once. The chirp stops for 12 hours (low battery or fault), or for about 24 hours for end of life. That only works in the first 30 days. Hushing doesn’t fix the alarm.</p>`,
     silent: `<h3>What the light means</h3>
@@ -40,7 +41,7 @@
         ${sig('g', 1, 'Green flash every 54 seconds', 'Normal. Running on battery power.')}
         ${sig('r', 1, 'Red flash every 10 seconds', 'Hushed. It checks again after about 10 minutes.')}
         ${sig('r', 1, 'Red flash every 20 seconds', '<strong>Alarm memory.</strong> <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Note which room it’s in, or photograph it, before pressing anything.')}
-        ${sig('y', 1, '1, 2 or 3 yellow flashes every 54 seconds', 'The alarm needs replacing. Report it.')}
+        ${sig('y', 1, '1, 2 or 3 flashes every 54 seconds, with chirps', 'The alarm needs replacing. Report it. The manual shows this light as yellow in one place and red in another, so count the chirps.')}
       </div>
       <p class="note">A normal light doesn’t prove an alarm is working properly.</p>`,
     other: `<h3>You don’t need to work it out yourself</h3>
