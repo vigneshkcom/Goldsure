@@ -553,6 +553,10 @@ function buildInstallSummaryHtml(po) {
 }
 
 export default async function handler(req, res) {
+  if (req.query?.beachcomber === '1') {
+    const { beachcomberReport } = await import('../../../lib/beachcomber-report.js');
+    return beachcomberReport(req, res);
+  }
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

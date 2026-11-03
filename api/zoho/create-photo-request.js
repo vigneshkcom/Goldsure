@@ -179,7 +179,7 @@ async function postGhlNoteWithRetry(phone, noteBody, attempts = 5) {
   return false;
 }
 
-async function getAccessToken() {
+export async function getAccessToken() {
   if (cachedAccessToken && Date.now() < cachedAccessTokenExpiresAt - ACCESS_TOKEN_EXPIRY_BUFFER_MS) {
     return cachedAccessToken;
   }
@@ -215,7 +215,7 @@ async function getAccessToken() {
 // a 400 back from Zoho — and the per-page maximum is 50.
 const PAGE_SIZE = 50;
 
-async function listChildren(accessToken, parentId, maxPages = 10) {
+export async function listChildren(accessToken, parentId, maxPages = 10) {
   const out = [];
   for (let page = 0; page < maxPages; page++) {
     const qs = `page%5Blimit%5D=${PAGE_SIZE}&page%5Boffset%5D=${page * PAGE_SIZE}`;
@@ -703,7 +703,7 @@ async function getFolderNotificationDetails(accessToken, folderId) {
   }
 }
 
-async function createFolder(accessToken, name, parentId) {
+export async function createFolder(accessToken, name, parentId) {
   const r = await fetch(`${API_BASE}/files`, {
     method: 'POST',
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
@@ -714,7 +714,7 @@ async function createFolder(accessToken, name, parentId) {
   return data.data.id;
 }
 
-async function uploadFile(accessToken, folderId, filename, buffer) {
+export async function uploadFile(accessToken, folderId, filename, buffer) {
   const form = new FormData();
   form.append('content', new Blob([buffer]), filename);
   form.append('filename', filename);
