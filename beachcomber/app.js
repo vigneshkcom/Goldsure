@@ -29,7 +29,7 @@
       </ol>
       <h3>Find the alarm that set it off</h3>
       <ol class="tight">
-        <li>Check the hallway. If you see or smell no smoke there, knock on the adjoining unit and ask if they’re cooking or showering.</li>
+        <li>Check the hallway. If you see or smell no smoke there, knock on the adjoining unit and ask if anyone has been cooking.</li>
         <li>That alarm needs a quick press of its Test/Hush button, and the air near it needs clearing (open a window or fan the air).</li>
         <li>Once the alarms stop, the one that started it flashes red <strong>once every 20 seconds</strong>. Note which one it is for your report.</li>
       </ol>
@@ -156,7 +156,7 @@
     const sound = $('input[name=sound]:checked')?.value;
     const box = $('#follow-up');
     if (outcome === 'ongoing' && (sound === 'loud' || sound === 'other')) {
-      box.innerHTML = `<strong>Still going, or came back?</strong><p>The alarm that set it off may be in the hallway or the adjoining unit. Check there and ask your neighbour if they’re cooking or showering. Call Goldsure on ${CALL} and we’ll troubleshoot it with you.</p><p><strong>If you see or smell smoke, can’t find a harmless cause, or the source alarm won’t go quiet, leave and call ${ZERO}.</strong> Don’t wait for a reply to this report.</p>`;
+      box.innerHTML = `<strong>Still going, or came back?</strong><p>The alarm that set it off may be in the hallway or the adjoining unit. Check there and ask your neighbour if anyone has been cooking. Call Goldsure on ${CALL} and we’ll troubleshoot it with you.</p><p><strong>If you see or smell smoke, can’t find a harmless cause, or the source alarm won’t go quiet, leave and call ${ZERO}.</strong> Don’t wait for a reply to this report.</p>`;
       box.hidden = false;
     } else if (outcome === 'ongoing' || outcome === 'fault') {
       box.innerHTML = `<strong>Please get help.</strong><p>Call Goldsure on ${CALL} and we’ll troubleshoot it with you. If danger is possible, leave and call ${ZERO}. Don’t wait for a reply to this report.</p>`;
