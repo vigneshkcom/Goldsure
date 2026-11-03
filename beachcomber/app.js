@@ -13,8 +13,15 @@
         <li>Check for smoke, fire or a burning smell. The alarm may have started in a connected room or the hallway, not the room you’re in.</li>
         <li><strong>If you see any sign of fire, or you’re not sure, leave and call ${ZERO}.</strong></li>
         <li>Only if you’re sure it is cooking fumes, steam or dust: <strong>quickly press and release</strong> the Test/Hush button. It goes quiet for up to 10 minutes and the red light flashes once every 10 seconds. Open a window or fan the air to clear it.</li>
-        <li><strong>If it won’t go quiet, or starts again after hushing,</strong> the manual says the smoke may be too heavy and it could be dangerous. Leave and call ${ZERO}.</li>
+        <li><strong>If it won’t go quiet, or starts again after hushing,</strong> it’s often because <strong>the alarm that set it off is somewhere else</strong>. The alarms are connected, so the source could be the hallway or the adjoining room or unit, for example a neighbour cooking or showering. Hushing your alarm may not stop it while that alarm still senses smoke or steam.</li>
       </ol>
+      <h3>Find the alarm that set it off</h3>
+      <ol class="tight">
+        <li>Check the hallway. If you see or smell no smoke there, knock on the adjoining unit and ask if they’re cooking or showering.</li>
+        <li>That alarm needs a quick press of its Test/Hush button, and the air near it needs clearing (open a window or fan the air).</li>
+        <li>Once the alarms stop, the one that started it flashes red <strong>once every 20 seconds</strong>. Note which one it is for your report.</li>
+      </ol>
+      <p><strong>Leave and call ${ZERO} if</strong> you see or smell smoke, you can’t find a harmless cause, or the source alarm still won’t go quiet. The manual says that can mean the smoke is too heavy and it could be dangerous.</p>
       <p class="note">Don’t remove the alarm, cover it, or switch off the power. You would lose your protection.</p>`,
     chirp: `<h3>This is a warning that the alarm needs replacing, not a fire alarm</h3>
       <p>Count the chirps. They repeat every 54 seconds.</p>
@@ -87,7 +94,7 @@
     const sound = $('input[name=sound]:checked')?.value;
     const box = $('#follow-up');
     if (outcome === 'ongoing' && (sound === 'loud' || sound === 'other')) {
-      box.innerHTML = `<strong>An alarm that won’t stop, or keeps coming back, can mean danger.</strong><p>If it won’t hush or sounds again after hushing, leave and call ${ZERO}. Contact resort management for help on site. Don’t wait for a reply to this report.</p>`;
+      box.innerHTML = `<strong>Still going, or came back?</strong><p>The alarm that set it off may be in the hallway or the adjoining unit. Check there, ask your neighbour if they’re cooking or showering, and contact resort management for help on site.</p><p><strong>If you see or smell smoke, can’t find a harmless cause, or the source alarm won’t go quiet, leave and call ${ZERO}.</strong> Don’t wait for a reply to this report.</p>`;
       box.hidden = false;
     } else if (outcome === 'ongoing' || outcome === 'fault') {
       box.innerHTML = `<strong>Please get help.</strong><p>Contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}. Don’t wait for a reply to this report.</p>`;
