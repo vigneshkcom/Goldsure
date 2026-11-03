@@ -1,14 +1,24 @@
 (() => {
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const CALL = '<a href="tel:0721461500">(07) 2146 1500</a>';
+  const CALL = '<a href="tel:0721455155">(07) 2145 5155</a>';
   const ZERO = '<a href="tel:000">000</a>';
   let safe = false, token = '', files = [], busy = false, submitted = false;
 
   // Every instruction below is taken from the Raptor RH638-AC-RF / RH638-B-RF user manual
   // (sections 1, 6, 7, 8, 10 and 11). Keep it in line with /beachcomber/raptor-manual.pdf.
-  // Visual LED indicator: colour g/r/y (+ "steady"), number of flashes, label, meaning.
-  const sig = (colour, count, label, meaning) => `<div class="signal"><span class="leds" aria-hidden="true">${('<i class="led led-' + colour.split(' ').join(' led-') + '"></i>').repeat(count)}</span><span><strong>${label}</strong><small>${meaning}</small></span></div>`;
+  // The Raptor alarm has ONE light (label on the alarm: Green = Power, Red = Alarm, Yellow = Fault).
+  // Draw one light, with a badge for how many times it flashes.
+  const led = (colour, badge) => `<span class="alarm-icon" aria-hidden="true"><i class="led led-${colour}"></i>${badge ? `<b>${badge}</b>` : ''}</span>`;
+  const sig = (colour, badge, label, meaning) => `<div class="signal">${led(colour, badge)}<span><strong>${label}</strong><small>${meaning}</small></span></div>`;
+  const counterHtml = `<div class="counter" data-counter>
+      <h3>Chirp counter</h3>
+      <p>Stand where you can hear the alarm. Tap the button <strong>every time it chirps</strong> (or the yellow light flashes). Chirps that come close together are counted as one group.</p>
+      <button type="button" class="btn btn-counter" data-tap>Tap on each chirp</button>
+      <div class="counter-result" data-result aria-live="polite">Waiting for the first chirp…</div>
+      <div class="counter-timer" data-timer hidden></div>
+      <button type="button" class="link-btn" data-reset>Reset counter</button>
+    </div>`;
   const guidance = {
     loud: `<h3>Treat it as a possible fire until you’ve checked</h3>
       <ol class="tight">
@@ -28,26 +38,71 @@
     chirp: `<h3>This is a warning that the alarm needs replacing, not a fire alarm</h3>
       <p><strong>Count the chirps.</strong> They repeat about once a minute (every 54 seconds).</p>
       <div class="signal-list">
-        ${sig('y', 1, '1 chirp', 'Low battery')}
-        ${sig('y', 2, '2 chirps', 'Fault')}
-        ${sig('y', 3, '3 chirps', 'End of life')}
+        ${sig('y', '×1', '1 chirp, 1 yellow flash', 'Low battery')}
+        ${sig('y', '×2', '2 chirps, 2 yellow flashes', 'Fault')}
+        ${sig('y', '×3', '3 chirps, 3 yellow flashes', 'End of life')}
       </div>
-      <p class="note">The light flashes the same number of times. The manual’s indicator table says the light is <strong>yellow</strong>, but its troubleshooting page says <strong>red</strong> for low battery and fault. Go by the number of chirps, not the colour.</p>
+            ${counterHtml}
       <p>The battery is sealed inside, so the whole alarm must be replaced. Don’t open it or try to change the battery. <strong>Report it on the next steps.</strong></p>
       <p class="note">To quieten it for now, quickly press Test/Hush once. The chirp stops for 12 hours (low battery or fault), or for about 24 hours for end of life. That only works in the first 30 days. Hushing doesn’t fix the alarm.</p>`,
     silent: `<h3>What the light means</h3>
       <div class="signal-list">
-        ${sig('g steady', 1, 'Steady green light', 'Normal. Running on mains power.')}
-        ${sig('g', 1, 'Green flash every 54 seconds', 'Normal. Running on battery power.')}
-        ${sig('r', 1, 'Red flash every 10 seconds', 'Hushed. It checks again after about 10 minutes.')}
-        ${sig('r', 1, 'Red flash every 20 seconds', '<strong>Alarm memory.</strong> <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Note which room it’s in, or photograph it, before pressing anything.')}
-        ${sig('y', 1, '1, 2 or 3 flashes every 54 seconds, with chirps', 'The alarm needs replacing. Report it. The manual shows this light as yellow in one place and red in another, so count the chirps.')}
+        ${sig('g', 'on', 'Steady green light', 'Normal. Running on mains power.')}
+        ${sig('g', '×1', 'Green flash every 54 seconds', 'Normal. Running on battery power.')}
+        ${sig('r', '×1', 'Red flash every 10 seconds', 'Hushed. It checks again after about 10 minutes.')}
+        ${sig('r', '×1', 'Red flash every 20 seconds', '<strong>Alarm memory.</strong> <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Note which room it’s in, or photograph it, before pressing anything.')}
+        ${sig('y', '×1–3', '1, 2 or 3 yellow flashes every 54 seconds', 'The alarm needs replacing. Report it.')}
       </div>
       <p class="note">A normal light doesn’t prove an alarm is working properly.</p>`,
     other: `<h3>You don’t need to work it out yourself</h3>
-      <p>Describe what you heard or saw in your report. If the alarm keeps going or you’re unsure, contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}.</p>
+      <p>Describe what you heard or saw in your report. If the alarm keeps going or you’re unsure, call Goldsure on ${CALL} and we’ll troubleshoot it with you. If danger is possible, leave and call ${ZERO}.</p>
       <p class="note">Never disable a smoke alarm.</p>`,
   };
+
+  // Tap-along chirp counter. Taps less than 2.5 s apart are one group.
+  // 1 = low battery, 2 = fault, 3 = end of life (Raptor manual section 6). Warnings repeat every 54 s.
+  const meaning = { 1: 'Low battery', 2: 'Fault', 3: 'End of life' };
+  let counterTick = null, counterSummary = '';
+  function stopCounter() { clearInterval(counterTick); counterTick = null; }
+  function startCounter(c) {
+    const GAP = 2500;
+    let group = 0, lastTap = 0, groupStart = 0, prevGroupStart = 0, settle = null;
+    const result = c.querySelector('[data-result]'), timer = c.querySelector('[data-timer]');
+    const fmt = ms => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    const finish = () => {
+      const n = group;
+      let html;
+      if (n >= 1 && n <= 3) {
+        html = `<span class="counter-big">${n}</span><strong>${n} chirp${n > 1 ? 's' : ''} = ${meaning[n]}</strong><small>The alarm needs replacing. Keep counting to confirm it repeats about every 54 seconds.</small>`;
+        counterSummary = `Chirp counter: ${n} chirp${n > 1 ? 's' : ''} (${meaning[n].toLowerCase()})`;
+      } else {
+        html = `<span class="counter-big counter-warn">${n}</span><strong>More than 3 beeps in a row</strong><small>That sounds like the loud smoke alarm, not a warning chirp. Check for danger. If you see or smell smoke, or you’re not sure, leave and call 000.</small>`;
+        counterSummary = `Chirp counter: more than 3 beeps in a row (${n})`;
+      }
+      if (prevGroupStart) { const gap = Math.round((groupStart - prevGroupStart) / 1000); html += `<small>Repeated after ${gap} seconds.</small>`; counterSummary += `, repeated after ${gap} s`; }
+      result.innerHTML = html;
+      result.className = 'counter-result counter-done';
+    };
+    c.querySelector('[data-tap]').onclick = () => {
+      const now = Date.now();
+      if (now - lastTap > GAP) { prevGroupStart = groupStart; groupStart = now; group = 0; }
+      group += 1; lastTap = now;
+      result.className = 'counter-result';
+      result.innerHTML = `<span class="counter-big">${group}</span><strong>Counting…</strong><small>Keep tapping if it chirps again straight away.</small>`;
+      clearTimeout(settle); settle = setTimeout(finish, GAP);
+      if (navigator.vibrate) navigator.vibrate(15);
+    };
+    c.querySelector('[data-reset]').onclick = () => {
+      clearTimeout(settle); group = 0; lastTap = 0; groupStart = 0; prevGroupStart = 0; counterSummary = '';
+      result.className = 'counter-result'; result.textContent = 'Waiting for the first chirp…'; timer.hidden = true;
+    };
+    counterTick = setInterval(() => {
+      if (!groupStart) return;
+      const since = Date.now() - groupStart;
+      timer.hidden = false;
+      timer.innerHTML = `<span>Since last chirp <strong>${fmt(since)}</strong></span><span>Next expected about <strong>${since < 54000 ? fmt(54000 - since) : 'now'}</strong></span><i style="width:${Math.min(100, since / 540)}%"></i>`;
+    }, 250);
+  }
 
   const labels = ['Safety first', 'What’s it doing?', 'Details', 'Send report'];
   function show(step) {
@@ -62,7 +117,7 @@
 
   async function session() {
     const r = await fetch('/api/beachcomber/report', { cache: 'no-store' });
-    const data = await r.json().catch(() => ({ error: 'Online reporting is temporarily unavailable. Please call Goldsure on (07) 2146 1500.' }));
+    const data = await r.json().catch(() => ({ error: 'Online reporting is temporarily unavailable. Please call Goldsure on (07) 2145 5155.' }));
     if (!r.ok) throw new Error(data.error || 'Reporting is unavailable. Please call Goldsure.');
     token = data.token;
   }
@@ -90,6 +145,9 @@
     g.className = `guidance guidance-${r.value}`;
     g.hidden = false;
     $('#sound-error').textContent = '';
+    stopCounter();
+    const c = g.querySelector('[data-counter]');
+    if (c) startCounter(c);
     setTimeout(() => g.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   });
 
@@ -98,10 +156,10 @@
     const sound = $('input[name=sound]:checked')?.value;
     const box = $('#follow-up');
     if (outcome === 'ongoing' && (sound === 'loud' || sound === 'other')) {
-      box.innerHTML = `<strong>Still going, or came back?</strong><p>The alarm that set it off may be in the hallway or the adjoining unit. Check there, ask your neighbour if they’re cooking or showering, and contact resort management for help on site.</p><p><strong>If you see or smell smoke, can’t find a harmless cause, or the source alarm won’t go quiet, leave and call ${ZERO}.</strong> Don’t wait for a reply to this report.</p>`;
+      box.innerHTML = `<strong>Still going, or came back?</strong><p>The alarm that set it off may be in the hallway or the adjoining unit. Check there and ask your neighbour if they’re cooking or showering. Call Goldsure on ${CALL} and we’ll troubleshoot it with you.</p><p><strong>If you see or smell smoke, can’t find a harmless cause, or the source alarm won’t go quiet, leave and call ${ZERO}.</strong> Don’t wait for a reply to this report.</p>`;
       box.hidden = false;
     } else if (outcome === 'ongoing' || outcome === 'fault') {
-      box.innerHTML = `<strong>Please get help.</strong><p>Contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}. Don’t wait for a reply to this report.</p>`;
+      box.innerHTML = `<strong>Please get help.</strong><p>Call Goldsure on ${CALL} and we’ll troubleshoot it with you. If danger is possible, leave and call ${ZERO}. Don’t wait for a reply to this report.</p>`;
       box.hidden = false;
     } else box.hidden = true;
   }
@@ -113,6 +171,8 @@
       return;
     }
     $('#check-error').textContent = '';
+    const notes = $('textarea[name=notes]');
+    if (counterSummary && !notes.value.trim()) notes.value = counterSummary + '. ';
     show(3);
     if (!token) session().catch(e => { $('#submit-error').textContent = e.message; });
   };
@@ -157,7 +217,7 @@
       if (!token) await session();
       const body = { ...Object.fromEntries(form), token, safe, sound: $('input[name=sound]:checked').value, trigger: $('input[name=trigger]:checked').value, outcome: $('input[name=outcome]:checked').value, files };
       const r = await fetch('/api/beachcomber/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const data = await r.json().catch(() => ({ error: 'We could not confirm delivery. Please try again or call Goldsure on (07) 2146 1500.' }));
+      const data = await r.json().catch(() => ({ error: 'We could not confirm delivery. Please try again or call Goldsure on (07) 2145 5155.' }));
       if (!r.ok || !data.ok) { if (data.saved) $('#submit-report').dataset.retry = '1'; throw new Error(data.error || 'We could not confirm delivery. Please try again or call Goldsure.'); }
       submitted = true;
       $$('.panel').forEach(p => p.hidden = p.id !== 'success');
