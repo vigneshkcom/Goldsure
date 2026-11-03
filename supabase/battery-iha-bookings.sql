@@ -198,3 +198,22 @@ grant all on public.battery_iha_assessors, public.battery_iha_settings, public.b
 grant usage, select on public.battery_iha_ref_seq to service_role;
 revoke all on function public.battery_iha_free_slots(uuid, date) from public, anon, authenticated;
 grant execute on function public.battery_iha_free_slots(uuid, date) to service_role;
+
+-- 10. Daily assessor emails (6:00 pm for tomorrow, 7:00 am for today) ----------------------------------------
+-- One row per (date, kind, assessor) stops a retry from sending the same email twice.
+create table if not exists public.battery_iha_digest_runs (
+ digest_date date not null,
+ kind text not null check (kind in ('evening','morning')),
+ assessor_id uuid not null references public.battery_iha_assessors(id) on delete cascade,
+ booking_count integer not null default 0,
+ sent_at timestamptz not null default now(),
+ primary key (digest_date, kind, assessor_id)
+);
+alter table public.battery_iha_digest_runs enable row level security;
+revoke all on public.battery_iha_digest_runs from anon, authenticated;
+grant all on public.battery_iha_digest_runs to service_role;
+
+-- The assessor
+insert into public.battery_iha_assessors (full_name, email)
+select 'Amit', 'amit@goldsure.com.au'
+where not exists (select 1 from public.battery_iha_assessors where email = 'amit@goldsure.com.au');
