@@ -7,6 +7,8 @@
 
   // Every instruction below is taken from the Raptor RH638-AC-RF / RH638-B-RF user manual
   // (sections 1, 6, 7, 8, 10 and 11). Keep it in line with /beachcomber/raptor-manual.pdf.
+  // Visual LED indicator: colour g/r/y (+ "steady"), number of flashes, label, meaning.
+  const sig = (colour, count, label, meaning) => `<div class="signal"><span class="leds" aria-hidden="true">${('<i class="led led-' + colour.split(' ').join(' led-') + '"></i>').repeat(count)}</span><span><strong>${label}</strong><small>${meaning}</small></span></div>`;
   const guidance = {
     loud: `<h3>Treat it as a possible fire until you’ve checked</h3>
       <ol class="tight">
@@ -24,21 +26,22 @@
       <p><strong>Leave and call ${ZERO} if</strong> you see or smell smoke, you can’t find a harmless cause, or the source alarm still won’t go quiet. The manual says that can mean the smoke is too heavy and it could be dangerous.</p>
       <p class="note">Don’t remove the alarm, cover it, or switch off the power. You would lose your protection.</p>`,
     chirp: `<h3>This is a warning that the alarm needs replacing, not a fire alarm</h3>
-      <p>Count the chirps. They repeat every 54 seconds.</p>
-      <ul class="tight">
-        <li><strong>1 chirp:</strong> low battery</li>
-        <li><strong>2 chirps:</strong> fault</li>
-        <li><strong>3 chirps:</strong> end of life</li>
-      </ul>
+      <p>Count the chirps and the <strong>yellow</strong> flashes. They repeat every 54 seconds.</p>
+      <div class="signal-list">
+        ${sig('y', 1, '1 chirp and 1 yellow flash', 'Low battery')}
+        ${sig('y', 2, '2 chirps and 2 yellow flashes', 'Fault')}
+        ${sig('y', 3, '3 chirps and 3 yellow flashes', 'End of life')}
+      </div>
       <p>The battery is sealed inside, so the whole alarm must be replaced. Don’t open it or try to change the battery. <strong>Report it on the next steps.</strong></p>
       <p class="note">To quieten it for now, quickly press Test/Hush once. The chirp stops for 12 hours (low battery or fault), or for about 24 hours for end of life. That only works in the first 30 days. Hushing doesn’t fix the alarm.</p>`,
     silent: `<h3>What the light means</h3>
-      <ul class="tight">
-        <li><strong>Steady green, or a green flash every 54 seconds:</strong> normal standby.</li>
-        <li><strong>Red flash every 10 seconds:</strong> hushed. It checks again after about 10 minutes.</li>
-        <li><strong>Red flash every 20 seconds:</strong> alarm memory. <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Please note which room it’s in, or photograph it, before pressing anything.</li>
-        <li><strong>Yellow flashes (1, 2 or 3) every 54 seconds:</strong> the alarm needs replacing. Report it.</li>
-      </ul>
+      <div class="signal-list">
+        ${sig('g steady', 1, 'Steady green light', 'Normal. Running on mains power.')}
+        ${sig('g', 1, 'Green flash every 54 seconds', 'Normal. Running on battery power.')}
+        ${sig('r', 1, 'Red flash every 10 seconds', 'Hushed. It checks again after about 10 minutes.')}
+        ${sig('r', 1, 'Red flash every 20 seconds', '<strong>Alarm memory.</strong> <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Note which room it’s in, or photograph it, before pressing anything.')}
+        ${sig('y', 1, '1, 2 or 3 yellow flashes every 54 seconds', 'The alarm needs replacing. Report it.')}
+      </div>
       <p class="note">A normal light doesn’t prove an alarm is working properly.</p>`,
     other: `<h3>You don’t need to work it out yourself</h3>
       <p>Describe what you heard or saw in your report. If the alarm keeps going or you’re unsure, contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}.</p>
