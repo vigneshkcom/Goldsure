@@ -1,67 +1,162 @@
 (() => {
   const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const CALL = '<a href="tel:0721461500">(07) 2146 1500</a>';
+  const ZERO = '<a href="tel:000">000</a>';
   let safe = false, token = '', files = [], busy = false, submitted = false;
+
+  // Every instruction below is taken from the Raptor RH638-AC-RF / RH638-B-RF user manual
+  // (sections 1, 6, 7, 8, 10 and 11). Keep it in line with /beachcomber/raptor-manual.pdf.
   const guidance = {
-    loud: '<strong>Check for danger first.</strong><p>A loud repeating alarm can indicate smoke. If there is smoke, fire, a burning smell, or any uncertainty, leave safely, follow the building emergency procedures and call 000 from a safe place.</p><p>Only for a clearly unwanted activation: press and release Test/Hush and, where safe, ventilate to clear fumes or steam. Hush lasts up to 10 minutes. If the loud alarm persists or returns, get assistance; don’t assume it is harmless.</p>',
-    chirp: '<strong>Short chirps are different from a smoke alarm.</strong><p>They may indicate a low battery, malfunction or end-of-life warning. Contact management or Goldsure for assessment. These are sealed-battery alarms: do not open them, remove the battery, or disable them.</p>',
-    silent: '<strong>A silent indicator may be normal or a memory of an earlier alarm.</strong><p>The manual describes a green flash every 54 seconds for normal battery operation, and a red flash every 20 seconds for alarm memory, retained for 12 hours. An indicator alone cannot confirm that an alarm is fault-free. Contact management if you are unsure.</p>',
-    other: '<strong>You don’t need to diagnose it yourself.</strong><p>Tell us what you noticed in your report. Contact management for assistance if the alarm continues or you are unsure. Never disable an alarm.</p>',
+    loud: `<h3>Treat it as a possible fire until you’ve checked</h3>
+      <ol class="tight">
+        <li>Check for smoke, fire or a burning smell. The alarm may have started in a connected room or the hallway, not the room you’re in.</li>
+        <li><strong>If you see any sign of fire, or you’re not sure, leave and call ${ZERO}.</strong></li>
+        <li>Only if you’re sure it is cooking fumes, steam or dust: <strong>quickly press and release</strong> the Test/Hush button. It goes quiet for up to 10 minutes and the red light flashes once every 10 seconds. Open a window or fan the air to clear it.</li>
+        <li><strong>If it won’t go quiet, or starts again after hushing,</strong> the manual says the smoke may be too heavy and it could be dangerous. Leave and call ${ZERO}.</li>
+      </ol>
+      <p class="note">Don’t remove the alarm, cover it, or switch off the power. You would lose your protection.</p>`,
+    chirp: `<h3>This is a warning that the alarm needs replacing, not a fire alarm</h3>
+      <p>Count the chirps. They repeat every 54 seconds.</p>
+      <ul class="tight">
+        <li><strong>1 chirp:</strong> low battery</li>
+        <li><strong>2 chirps:</strong> fault</li>
+        <li><strong>3 chirps:</strong> end of life</li>
+      </ul>
+      <p>The battery is sealed inside, so the whole alarm must be replaced. Don’t open it or try to change the battery. <strong>Report it on the next steps.</strong></p>
+      <p class="note">To quieten it for now, quickly press Test/Hush once. The chirp stops for 12 hours (low battery or fault), or for about 24 hours for end of life. That only works in the first 30 days. Hushing doesn’t fix the alarm.</p>`,
+    silent: `<h3>What the light means</h3>
+      <ul class="tight">
+        <li><strong>Steady green, or a green flash every 54 seconds:</strong> normal standby.</li>
+        <li><strong>Red flash every 10 seconds:</strong> hushed. It checks again after about 10 minutes.</li>
+        <li><strong>Red flash every 20 seconds:</strong> alarm memory. <em>This</em> alarm detected smoke earlier and has stopped. Only the alarm that started it shows this. Please note which room it’s in, or photograph it, before pressing anything.</li>
+        <li><strong>Yellow flashes (1, 2 or 3) every 54 seconds:</strong> the alarm needs replacing. Report it.</li>
+      </ul>
+      <p class="note">A normal light doesn’t prove an alarm is working properly.</p>`,
+    other: `<h3>You don’t need to work it out yourself</h3>
+      <p>Describe what you heard or saw in your report. If the alarm keeps going or you’re unsure, contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}.</p>
+      <p class="note">Never disable a smoke alarm.</p>`,
   };
+
+  const labels = ['Safety first', 'What’s it doing?', 'Details', 'Send report'];
   function show(step) {
-    document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== `step-${step}`);
-    document.querySelectorAll('.steps li').forEach((li,i)=>{li.classList.toggle('active',i===step);li.classList.toggle('done',i<step);if(i===step)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
-    $(`#heading-${step}`).focus({preventScroll:true});
-    $('.workspace').scrollIntoView({behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});
+    $$('.panel').forEach(p => p.hidden = p.id !== `step-${step}`);
+    $('#progress-label').textContent = `Step ${step + 1} of 4 · ${labels[step]}`;
+    $$('.progress li').forEach((li, i) => { li.classList.toggle('active', i === step); li.classList.toggle('done', i < step); });
+    $('.progress').hidden = false;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('.progress').scrollIntoView({ behavior: reduce ? 'instant' : 'smooth', block: 'start' });
+    $(`#heading-${step}`).focus({ preventScroll: true });
   }
+
   async function session() {
-    const r=await fetch('/api/beachcomber/report',{cache:'no-store'}), data=await r.json().catch(()=>({error:'Online reporting is temporarily unavailable. Please call Goldsure on (07) 2146 1500.'}));
-    if(!r.ok) throw new Error(data.error || 'Reporting is unavailable. Please call Goldsure.');
-    token=data.token;
+    const r = await fetch('/api/beachcomber/report', { cache: 'no-store' });
+    const data = await r.json().catch(() => ({ error: 'Online reporting is temporarily unavailable. Please call Goldsure on (07) 2146 1500.' }));
+    if (!r.ok) throw new Error(data.error || 'Reporting is unavailable. Please call Goldsure.');
+    token = data.token;
   }
-  $('#danger').onclick=()=>{$('#emergency-message').hidden=false;safe=false;$('#emergency-message').scrollIntoView({behavior:'smooth',block:'nearest'});};
-  $('#safe').onclick=()=>{safe=true;show(1);};
-  document.querySelectorAll('[data-next]').forEach(b=>b.onclick=()=>show(Number(b.dataset.next)));
-  document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>show(Number(b.dataset.back)));
-  document.querySelectorAll('input[name=sound]').forEach(r=>r.onchange=()=>{$('#sound-guidance').innerHTML=guidance[r.value];$('#sound-guidance').hidden=false;});
-  $('#outcome').onchange=()=>{$('#follow-up').hidden=!['ongoing','fault'].includes($('#outcome').value);};
-  $('#to-report').onclick=()=>{
-    if(!$('input[name=sound]:checked') || !$('input[name=trigger]:checked') || !$('#outcome').value){$('#check-error').textContent='Please choose a sound, possible trigger and outcome.';return;}
-    $('#check-error').textContent='';show(3);
-    if(!token)session().catch(e=>{$('#submit-error').textContent=e.message;});
+
+  $('#danger').onclick = () => {
+    safe = false;
+    const box = $('#emergency-message');
+    box.hidden = false;
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    box.focus({ preventScroll: true });
   };
+  $('#safe').onclick = () => { safe = true; show(1); };
+  $('#after-emergency').onclick = () => { safe = true; show(1); };
+
+  $$('[data-back]').forEach(b => b.onclick = () => show(Number(b.dataset.back)));
+  $('[data-next="2"]').onclick = () => {
+    if (!$('input[name=sound]:checked')) { $('#sound-error').textContent = 'Please choose what the alarm is doing.'; return; }
+    $('#sound-error').textContent = '';
+    show(2);
+  };
+
+  $$('input[name=sound]').forEach(r => r.onchange = () => {
+    const g = $('#sound-guidance');
+    g.innerHTML = guidance[r.value];
+    g.className = `guidance guidance-${r.value}`;
+    g.hidden = false;
+    $('#sound-error').textContent = '';
+    setTimeout(() => g.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  });
+
+  function followUp() {
+    const outcome = $('input[name=outcome]:checked')?.value;
+    const sound = $('input[name=sound]:checked')?.value;
+    const box = $('#follow-up');
+    if (outcome === 'ongoing' && (sound === 'loud' || sound === 'other')) {
+      box.innerHTML = `<strong>An alarm that won’t stop, or keeps coming back, can mean danger.</strong><p>If it won’t hush or sounds again after hushing, leave and call ${ZERO}. Contact resort management for help on site. Don’t wait for a reply to this report.</p>`;
+      box.hidden = false;
+    } else if (outcome === 'ongoing' || outcome === 'fault') {
+      box.innerHTML = `<strong>Please get help.</strong><p>Contact resort management or call Goldsure on ${CALL}. If danger is possible, leave and call ${ZERO}. Don’t wait for a reply to this report.</p>`;
+      box.hidden = false;
+    } else box.hidden = true;
+  }
+  $$('input[name=outcome]').forEach(r => r.onchange = () => { followUp(); $('#check-error').textContent = ''; });
+
+  $('#to-report').onclick = () => {
+    if (!$('input[name=trigger]:checked') || !$('input[name=outcome]:checked')) {
+      $('#check-error').textContent = 'Please answer both questions.';
+      return;
+    }
+    $('#check-error').textContent = '';
+    show(3);
+    if (!token) session().catch(e => { $('#submit-error').textContent = e.message; });
+  };
+
   async function compress(file) {
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Please choose JPG, PNG or WebP photos.');
-    if(file.size>12*1024*1024)throw new Error('Each original photo must be under 12 MB.');
-    const bitmap=await createImageBitmap(file);
-    const ratio=Math.min(1,1400/Math.max(bitmap.width,bitmap.height));
-    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
-    return {type:'image/jpeg',data:canvas.toDataURL('image/jpeg',.72).split(',')[1]};
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Please choose JPG, PNG or WebP photos.');
+    if (file.size > 12 * 1024 * 1024) throw new Error('Each photo must be under 12 MB.');
+    const bitmap = await createImageBitmap(file);
+    const ratio = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
+    canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+    return { type: 'image/jpeg', data: canvas.toDataURL('image/jpeg', .72).split(',')[1] };
   }
-  $('#photos').onchange=async()=>{
-    files=[];$('#submit-error').textContent='';$('#submit-report').disabled=true;
-    try{
-      const selected=[...$('#photos').files];if(selected.length>3)throw new Error('Please choose up to 3 photos.');
-      $('#photo-status').textContent=selected.length?'Preparing photos…':'';
-      const ready=await Promise.all(selected.map(compress));
-      if(ready.reduce((n,f)=>n+f.data.length*.75,0)>2*1024*1024)throw new Error('Photos are over 2 MB in total. Please select fewer photos.');
-      files=ready;$('#photo-status').textContent=ready.length?`${ready.length} photo${ready.length>1?'s':''} ready to send.`:'';
-    }catch(e){$('#photos').value='';$('#photo-status').textContent='';$('#submit-error').textContent=e.message;}
-    finally{$('#submit-report').disabled=false;}
+
+  $('#photos').onchange = async () => {
+    files = []; $('#submit-error').textContent = ''; $('#submit-report').disabled = true;
+    try {
+      const selected = [...$('#photos').files];
+      if (selected.length > 3) throw new Error('Please choose up to 3 photos.');
+      $('#photo-status').textContent = selected.length ? 'Preparing photos…' : '';
+      const ready = await Promise.all(selected.map(compress));
+      if (ready.reduce((n, f) => n + f.data.length * .75, 0) > 2 * 1024 * 1024) throw new Error('Those photos are too large together. Please choose fewer photos.');
+      files = ready;
+      $('#photo-status').textContent = ready.length ? `✓ ${ready.length} photo${ready.length > 1 ? 's' : ''} ready to send` : '';
+    } catch (e) { $('#photos').value = ''; $('#photo-status').textContent = ''; $('#submit-error').textContent = e.message; }
+    finally { $('#submit-report').disabled = false; }
   };
-  $('#report-form').onsubmit=async e=>{
-    e.preventDefault();if(busy||submitted)return;
-    const form=new FormData(e.target);if(!form.get('phone').trim()&&!form.get('email').trim()){$('#submit-error').textContent='Please provide a phone number or email.';return;}
-    busy=true;$('#submit-report').disabled=true;$('#submit-report').textContent='Sending your report…';$('#submit-error').textContent='';
-    try{
-      if(!token)await session();
-      const body={...Object.fromEntries(form),token,safe,sound:$('input[name=sound]:checked').value,trigger:$('input[name=trigger]:checked').value,outcome:$('#outcome').value,files};
-      const r=await fetch('/api/beachcomber/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      const data=await r.json().catch(()=>({error:'We could not confirm delivery. Please try again or call Goldsure on (07) 2146 1500.'}));
-      if(!r.ok || !data.ok){if(data.saved)$('#submit-report').dataset.retry='1';throw new Error(data.error || 'We could not confirm delivery. Please retry or call Goldsure.');}
-      submitted=true;document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!=='success');$('#reference').textContent=`Your reference: ${data.reference}`;$('#success-title').focus();
-    }catch(err){$('#submit-error').textContent=err.message;}
-    finally{busy=false;$('#submit-report').disabled=false;$('#submit-report').textContent=$('#submit-report').dataset.retry?'Retry notification →':'Send report to Goldsure ↗';}
+
+  $('#report-form').onsubmit = async e => {
+    e.preventDefault(); if (busy || submitted) return;
+    const form = new FormData(e.target);
+    const unit = String(form.get('unit') || '').replace(/\s/g, '');
+    if (!/^\d{1,4}(?:\/\d{1,4})?$/.test(unit)) { $('#submit-error').textContent = 'Please enter your unit number, for example 1005.'; e.target.unit.focus(); return; }
+    if (!String(form.get('name') || '').trim()) { $('#submit-error').textContent = 'Please enter your name.'; e.target.name.focus(); return; }
+    if (!String(form.get('phone') || '').trim() && !String(form.get('email') || '').trim()) { $('#submit-error').textContent = 'Please enter a phone number or email so we can contact you.'; e.target.phone.focus(); return; }
+    busy = true; $('#submit-report').disabled = true; $('#submit-report').textContent = 'Sending…'; $('#submit-error').textContent = '';
+    try {
+      if (!token) await session();
+      const body = { ...Object.fromEntries(form), token, safe, sound: $('input[name=sound]:checked').value, trigger: $('input[name=trigger]:checked').value, outcome: $('input[name=outcome]:checked').value, files };
+      const r = await fetch('/api/beachcomber/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await r.json().catch(() => ({ error: 'We could not confirm delivery. Please try again or call Goldsure on (07) 2146 1500.' }));
+      if (!r.ok || !data.ok) { if (data.saved) $('#submit-report').dataset.retry = '1'; throw new Error(data.error || 'We could not confirm delivery. Please try again or call Goldsure.'); }
+      submitted = true;
+      $$('.panel').forEach(p => p.hidden = p.id !== 'success');
+      $('.progress').hidden = true;
+      $('#reference').textContent = `Your reference: ${data.reference}`;
+      $('#success').scrollIntoView({ block: 'start' });
+      $('#success-title').focus({ preventScroll: true });
+    } catch (err) { $('#submit-error').textContent = err.message; }
+    finally { busy = false; $('#submit-report').disabled = false; $('#submit-report').textContent = $('#submit-report').dataset.retry ? 'Retry sending' : 'Send report'; }
   };
-  $('#start-again').onclick=()=>location.reload();
+
+  $('#start-again').onclick = () => location.reload();
 })();
