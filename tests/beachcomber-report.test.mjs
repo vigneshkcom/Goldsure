@@ -7,8 +7,16 @@ const body=()=>({safe:true,unit:'1005/1006',name:'Elena',email:'pm@example.com',
 const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(data){this.data=data;return this;}});
 function store({failMail=false,failUpload=false}={}) {
   const tree=new Map([['qld-parent',[]]]),states=[],uploads=[],mails=[];
+  const history=new Map(),counts=new Map();
   let id=0;
   return {states,uploads,mails, deps:{
+    reserveReport:async(session,unit,digest)=>{
+      let row=history.get(session.id);
+      if(row && (row.unit!==unit || row.payload_hash!==digest))throw new Error('This report was already submitted');
+      if(!row){const count=(counts.get(unit)||0)+1;counts.set(unit,count);row={unit,payload_hash:digest,reference:`${unit}-${count}`};history.set(session.id,row);}
+      return {...row};
+    },
+    updateReport:async(session,values)=>Object.assign(history.get(session.id),values),
     getAccessToken:async()=> 'token',
     listChildren:async(_,folder)=> tree.get(folder) || [],
     createFolder:async(_,name,parent)=>{const key=`folder-${++id}`;(tree.get(parent)||[]).push({id:key,attributes:{name,is_folder:true}});tree.set(key,[]);return key;},
@@ -37,6 +45,7 @@ test('attachments require real supported image bytes and strict total limits',()
 test('delivery saves readable and structured reports before emailing only Vignesh',async()=>{
   const s=store(), report=validateReport(body()), session=readSession(newSession());
   const result=await deliverReport(report,session,s.deps);
+  assert.equal(result.reference,'1005/1006-1');
   assert.equal(result.ok,true);assert.equal(s.uploads.length,2);
   assert.match(s.uploads[0].data.toString(),/1005\/1006[\s\S]*Cooking fumes[\s\S]*Stopped and returned to normal/);
   assert.deepEqual(s.mails[0].to,['vignesh@goldsure.com.au']);
@@ -51,7 +60,15 @@ test('email failure is reported as saved, and retry sends without another report
   const result=await deliverReport(report,session,s.deps);assert.equal(result.saved,true);assert.equal(result.ok,false);
   s.deps.send=async mail=>s.mails.push(mail);
   const retry=await deliverReport(report,session,s.deps);assert.equal(retry.ok,true);assert.equal(s.mails.length,1);
+  assert.equal(retry.reference,result.reference);
   assert.equal(new Set(s.uploads.map(x=>x.folder)).size,1);
+});
+test('new submissions increment per unit while another unit starts at one',async()=>{
+  const s=store();
+  for(const [unit,expected] of [['1005','1005-1'],['1805','1805-1'],['1005','1005-2']]){
+    const r=await deliverReport(validateReport({...body(),unit}),readSession(newSession()),s.deps);
+    assert.equal(r.reference,expected);assert.match(s.mails.at(-1).subject,new RegExp(expected));
+  }
 });
 test('storage failure never sends an email or reports success',async()=>{
   const s=store({failUpload:true});await assert.rejects(deliverReport(validateReport(body()),readSession(newSession()),s.deps));assert.equal(s.mails.length,0);
