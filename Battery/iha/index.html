@@ -467,8 +467,7 @@ $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-sa
   catch(err){$('b-err').textContent=err.message;$('b-err').hidden=false;refreshSlots()}
   finally{$('b-save').textContent='Book assessment';upd()}});
 /* ---- assessor phone view ---- */
-const P={assessor:null,date:null,form:false,A:{},photos:{}};
-const PH=['Switchboard (open)','Meter','Existing inverter','Proposed battery spot'];
+const P={assessor:null,date:null,form:false,A:{}};
 async function renderPhone(){
   const sel=$('p-assessor');if(!sel.options.length||sel.dataset.n!==String(S.data.assessors.length)){sel.replaceChildren(...S.data.assessors.map(a=>h('option',{value:a.id},a.full_name)));sel.dataset.n=S.data.assessors.length;P.assessor=P.assessor||sel.value}
   sel.value=P.assessor||sel.value;P.assessor=sel.value;P.date=P.date||S.today;$('p-day').textContent=shortDay(P.date)+(P.date===S.today?' · today':'');
@@ -511,12 +510,11 @@ function assessForm(b){
     h('div',{class:'two'},h('div',{class:'f'},h('label',{for:'kw'},'Existing solar (kW)'),h('input',{id:'kw',inputmode:'decimal'})),h('div',{class:'f'},h('label',{for:'inv'},'Inverter brand'),h('input',{id:'inv'}))),
     f('Battery location',seg('install_location',[['garage','Garage'],['external_wall','External wall'],['internal_wall','Internal wall'],['other','Other']])),
     h('div',{class:'f'},h('label',{for:'dist'},'Distance to switchboard (m)'),h('input',{id:'dist',inputmode:'decimal'})),
-    f('Photos',h('div',{},...PH.map((p,i)=>h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:9px;padding:8px 12px;margin-bottom:8px;font-size:14px'},h('span',{},p),h('label',{class:'btn alt',style:'margin:0;min-height:36px'},P.photos[i]?'Retake':'Take photo',h('input',{type:'file',accept:'image/*',capture:'environment',style:'display:none',onchange:ev=>{P.photos[i]=ev.target.files[0]?.name||true;keepForm()}})))))),
     f('Outcome',seg('outcome',[['suitable','Suitable'],['suitable_with_work','Needs work'],['not_suitable','Not suitable']])),
     h('div',{class:'f'},h('label',{for:'nts'},'Notes'),h('textarea',{id:'nts'})),
     h('button',{class:'pbtn main ok',type:'button',disabled:!(P.A.outcome&&P.A.supply_phase),onclick:async()=>{
-      try{await api('save-assessment',{method:'POST',body:{booking_id:b.id,assessment:{supply_phase:P.A.supply_phase,switchboard_has_space:P.A.space==='yes'?true:P.A.space==='no'?false:null,existing_solar_kw:$('kw').value,existing_inverter_brand:$('inv').value,install_location:P.A.install_location,install_distance_to_switchboard_m:$('dist').value,outcome:P.A.outcome,notes:$('nts').value,photos:Object.values(P.photos).filter(x=>typeof x==='string').map(n=>({label:n}))}}});
-        await api('update-status',{method:'POST',body:{id:b.id,status:'completed'}});P.form=false;P.A={};P.photos={};await load()}catch(e){msg(e.message)}}},'Submit and finish visit'));
+      try{await api('save-assessment',{method:'POST',body:{booking_id:b.id,assessment:{supply_phase:P.A.supply_phase,switchboard_has_space:P.A.space==='yes'?true:P.A.space==='no'?false:null,existing_solar_kw:$('kw').value,existing_inverter_brand:$('inv').value,install_location:P.A.install_location,install_distance_to_switchboard_m:$('dist').value,outcome:P.A.outcome,notes:$('nts').value}}});
+        await api('update-status',{method:'POST',body:{id:b.id,status:'completed'}});P.form=false;P.A={};await load()}catch(e){msg(e.message)}}},'Submit and finish visit'));
   return root}
 $('p-assessor').onchange=e=>{P.assessor=e.target.value;renderPhone()};
 /* day picker: month grid with the number of jobs on each day for the chosen assessor */
