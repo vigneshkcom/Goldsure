@@ -441,7 +441,7 @@ async function refreshSlots(){
 $('b-assessor').addEventListener('change',()=>{B.slot=null;refreshSlots()});$('b-date').addEventListener('change',()=>{B.slot=null;refreshSlots()});
 $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-save').disabled)return;$('b-save').disabled=true;$('b-save').textContent='Booking…';$('b-err').hidden=true;
   try{const d=await api('create-booking',{method:'POST',body:{assessor_id:$('b-assessor').value,date:$('b-date').value,time:B.slot,access_notes:$('b-access').value,customer:{name:$('c-name').value,phone:$('c-phone').value,email:$('c-email').value,address:B.addr,postcode:$('c-pc').value.trim(),place_id:B.placeId,ghl_contact_id:B.ghl}}});
-    const b=d.booking,p=parts(b.starts_at);$('book-form').hidden=true;$('b-done').hidden=false;$('b-done-msg').textContent='Booked'+(b.ghl_status==='synced'?' and noted in GHL.':b.ghl_status==='failed'?'. GHL note failed; the booking is saved.':'.');
+    const b=d.booking,p=parts(b.starts_at);$('book-form').hidden=true;$('b-done').hidden=false;$('b-done-msg').textContent='Booked'+(d.ghl_created?'. New customer added to GHL as Direct Call.':b.ghl_status==='synced'?' and noted in GHL.':b.ghl_status==='failed'?'. GHL could not be updated; the booking is saved and the quote step will retry.':'.');
     $('b-jobno').textContent=b.reference;$('b-done-kv').replaceChildren(h('dt',{},'Customer'),h('dd',{},b.customer.full_name),h('dt',{},'When'),h('dd',{},shortDay(p.date)+', '+t12(p.min)),h('dt',{},'Assessor'),h('dd',{},b.assessor?.full_name||''),h('dt',{},'Address'),h('dd',{},b.customer.formatted_address));
     S.date=p.date;if(S.view==='month')S.view='day';await load()}
   catch(err){$('b-err').textContent=err.message;$('b-err').hidden=false;refreshSlots()}

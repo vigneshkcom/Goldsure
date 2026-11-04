@@ -114,3 +114,23 @@ test('status updates stamp times; digest email lists the job number', async () =
   assert.match(mail.subject, /1 battery assessment booked for tomorrow/);
   assert.match(mail.text, /J1001/);
 });
+
+test('a customer who is not in GHL is created there as Direct Call and noted; GHL trouble does not stop the booking', async () => {
+  const made = [], notes = [];
+  const ok = createIhaHandler({ store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async c => { made.push(c); return { id: 'new1', created: true }; }, note: async (id, t) => notes.push([id, t]) } });
+  const noGhl = booking(); delete noGhl.body.customer.ghl_contact_id;
+  const a = await call(ok, noGhl);
+  assert.equal(a.status, 200);
+  assert.equal(a.ghl_created, true);
+  assert.equal(made.length, 1);
+  assert.equal(a.booking.customer.ghl_contact_id, 'new1');
+  assert.equal(notes[0][0], 'new1');
+  const bad = createIhaHandler({ store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async () => { throw new Error('GHL down'); }, note: async () => true } });
+  const b = await call(bad, (() => { const r = booking(); delete r.body.customer.ghl_contact_id; return r; })());
+  assert.equal(b.status, 200);
+  assert.equal(b.booking.ghl_status, 'failed');
+  // picking an existing GHL contact never creates another one
+  const again = await call(ok, booking({ time: '11:00' }));
+  assert.equal(made.length, 1);
+  assert.equal(again.ghl_created, false);
+});
