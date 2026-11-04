@@ -226,3 +226,6 @@ select a.id, d, '08:00', '16:00'
 from public.battery_iha_assessors a, generate_series(1, 5) d
 where a.email = 'amit@goldsure.com.au'
   and not exists (select 1 from public.battery_iha_availability v where v.assessor_id = a.id);
+
+-- Make the API see the new tables straight away
+notify pgrst, 'reload schema';

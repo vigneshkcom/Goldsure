@@ -212,7 +212,7 @@ const range=()=>{const d=S.date;if(S.view==='day')return[d,d];if(S.view==='3')re
   const f=d.slice(0,8)+'01',s=addDays(f,-((dow(f)+6)%7));return[s,addDays(s,41)]};
 async function load(){
   const[from,to]=range();
-  try{S.data=await api('bootstrap',{query:{from,to}});S.today=S.data.today;msg('')}catch(e){msg(e.message)}
+  try{S.data=await api('bootstrap',{query:{from,to}});S.today=S.data.today;S.loadErr='';msg('')}catch(e){S.loadErr=e.message;msg(e.message)}
   render();
 }
 function msg(t,ok){const m=$('msg');m.hidden=!t;m.textContent=t||'';m.className=ok?'okmsg':'err'}
@@ -298,7 +298,7 @@ function openBook(pref={}){
   const sel=$('b-assessor'),list=S.data.assessors;
   sel.replaceChildren(...(list.length?list.map(a=>h('option',{value:a.id},a.full_name)):[h('option',{value:''},'No assessors set up')]));
   const amit=list.find(a=>/^amit\b/i.test(a.full_name));sel.value=pref.assessor||amit?.id||list[0]?.id||'';
-  if(!list.length){$('b-err').textContent='No assessors found. Run supabase/battery-iha-bookings.sql (it adds Amit), or check the page loaded without an error at the top.';$('b-err').hidden=false}
+  if(!list.length){$('b-err').textContent=S.loadErr?'Could not load assessors. '+S.loadErr:'The page loaded, but there are no active assessors in battery_iha_assessors. Add Amit (full_name, email) with active = true.';$('b-err').hidden=false}
   $('b-date').value=pref.date||S.date||S.today;refreshSlots();upd();
   if(!$('book-dlg').open)$('book-dlg').showModal();
 }
