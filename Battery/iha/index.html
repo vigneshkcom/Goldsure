@@ -179,6 +179,19 @@ textarea{min-height:72px;resize:vertical}
 .afm{grid-column:1/-1;border-top:1px solid var(--line);margin-top:6px;padding-top:16px}
 .afm .f{margin-bottom:16px}.afm label{color:var(--ink);font-weight:600}
 /* quote sheet */
+.daybtn{width:100%;text-align:left;font:15px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line2);border-radius:6px;padding:10px 12px;min-height:42px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.daybtn::after{content:"";width:16px;height:16px;flex:none;background:currentColor;opacity:.6;-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M3 10h18M8 3v4M16 3v4'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M3 10h18M8 3v4M16 3v4'/></svg>") center/contain no-repeat}
+.calnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.calnav b{font:600 16px var(--sans)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal .dow{font:600 11px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--mute);text-align:center;padding:4px 0}
+.cal button{position:relative;aspect-ratio:1/1.05;min-height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;font:500 15px var(--sans);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px}
+.cal button:hover{border-color:var(--ink)}
+.cal button.out{color:var(--mute);background:var(--surface2);border-color:transparent}
+.cal button.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cal button.sel{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.cal .cnt{font:600 11px var(--mono);background:var(--st-book-bg);color:var(--st-book);border-radius:3px;padding:0 6px;min-width:20px}
+.cal button.busy .cnt{background:var(--gold);color:var(--gold-ink)}
+.cal button.sel .cnt{background:var(--gold);color:var(--gold-ink)}
 .qpk{display:grid;gap:8px;margin-bottom:14px}
 .qp{display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:8px;padding:12px 14px;cursor:pointer;font:inherit;min-height:60px}
 .qp:hover{border-color:var(--ink)}
@@ -209,7 +222,7 @@ textarea{min-height:72px;resize:vertical}
 </main>
 
 <main id="phone" hidden class="phone">
-  <div class="pctl" id="pctl"><div class="f"><label for="p-assessor">Assessor</label><select id="p-assessor"></select></div><div class="f"><label for="p-date">Day</label><input id="p-date" type="date"></div></div>
+  <div class="pctl" id="pctl"><div class="f"><label for="p-assessor">Assessor</label><select id="p-assessor"></select></div><div class="f"><label for="p-day">Day</label><button type="button" id="p-day" class="daybtn" aria-haspopup="dialog"></button></div></div>
   <div class="phead"><div><p class="eyebrow" id="p-eyebrow"></p><h1 id="p-title">Route</h1><p class="sub"><span id="p-stops">0</span> stops · first visit <span id="p-first">–</span></p></div>
     <a id="p-route" class="btn alt" target="_blank" rel="noopener">Route in Maps</a></div>
   <div id="p-list" class="rail"></div>
@@ -238,6 +251,13 @@ textarea{min-height:72px;resize:vertical}
 <dialog id="share-dlg"><div class="dl"><h2>Assessor app link</h2>
   <p class="note" style="margin-top:0">Send this link to the assessor. On an iPhone: open it in Safari, tap Share, then Add to Home Screen. On Android: open it in Chrome, then tap Install app.</p>
   <div id="share-rows"></div><div class="acts"><button class="btn" type="button" id="share-close">Done</button></div></div></dialog>
+
+<!-- Day picker with job counts -->
+<dialog id="cal-dlg"><div class="dl"><h2 id="cal-who">Choose a day</h2>
+  <div class="calnav"><button class="ib" type="button" id="cal-prev" aria-label="Previous month">‹</button><b id="cal-title"></b><button class="ib" type="button" id="cal-next" aria-label="Next month">›</button></div>
+  <div class="cal" id="cal"></div>
+  <p class="note" style="margin:12px 0 0">The number on a day is how many jobs are booked.</p>
+  <div class="acts"><button class="btn alt" type="button" id="cal-today">Today</button><button class="btn" type="button" id="cal-close">Close</button></div></div></dialog>
 
 <!-- Give quote -->
 <dialog id="quote-dlg"><div class="dl">
@@ -451,7 +471,7 @@ const P={assessor:null,date:null,form:false,A:{},photos:{}};
 const PH=['Switchboard (open)','Meter','Existing inverter','Proposed battery spot'];
 async function renderPhone(){
   const sel=$('p-assessor');if(!sel.options.length||sel.dataset.n!==String(S.data.assessors.length)){sel.replaceChildren(...S.data.assessors.map(a=>h('option',{value:a.id},a.full_name)));sel.dataset.n=S.data.assessors.length;P.assessor=P.assessor||sel.value}
-  sel.value=P.assessor||sel.value;P.assessor=sel.value;P.date=P.date||S.today;$('p-date').value=P.date;
+  sel.value=P.assessor||sel.value;P.assessor=sel.value;P.date=P.date||S.today;$('p-day').textContent=shortDay(P.date)+(P.date===S.today?' · today':'');
   let jobs=S.data.bookings;if(P.date<range()[0]||P.date>range()[1]){try{jobs=(await api('bootstrap',{query:{from:P.date,to:P.date}})).bookings}catch{}}
   const a=S.data.assessors.find(x=>x.id===P.assessor)||{full_name:'',base_address:''};
   const list=jobs.filter(b=>b.assessor_id===a.id&&live(b)&&parts(b.starts_at).date===P.date).sort((x,y)=>x.starts_at<y.starts_at?-1:1);
@@ -498,15 +518,33 @@ function assessForm(b){
       try{await api('save-assessment',{method:'POST',body:{booking_id:b.id,assessment:{supply_phase:P.A.supply_phase,switchboard_has_space:P.A.space==='yes'?true:P.A.space==='no'?false:null,existing_solar_kw:$('kw').value,existing_inverter_brand:$('inv').value,install_location:P.A.install_location,install_distance_to_switchboard_m:$('dist').value,outcome:P.A.outcome,notes:$('nts').value,photos:Object.values(P.photos).filter(x=>typeof x==='string').map(n=>({label:n}))}}});
         await api('update-status',{method:'POST',body:{id:b.id,status:'completed'}});P.form=false;P.A={};P.photos={};await load()}catch(e){msg(e.message)}}},'Submit and finish visit'));
   return root}
-$('p-assessor').onchange=e=>{P.assessor=e.target.value;renderPhone()};$('p-date').onchange=e=>{P.date=e.target.value||S.today;renderPhone()};
+$('p-assessor').onchange=e=>{P.assessor=e.target.value;renderPhone()};
+/* day picker: month grid with the number of jobs on each day for the chosen assessor */
+const C={month:null,jobs:[]};
+const monthStart=d=>d.slice(0,8)+'01';
+async function loadCal(){
+  const first=monthStart(C.month),start=addDays(first,-((dow(first)+6)%7)),end=addDays(start,41);
+  try{C.jobs=(await api('bootstrap',{query:{from:start,to:end}})).bookings}catch{C.jobs=S.data.bookings}
+  renderCal(start)}
+function renderCal(start){
+  const mon=C.month.slice(0,7),cal=$('cal');cal.replaceChildren(...['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>h('div',{class:'dow'},x)));
+  $('cal-title').textContent=new Date(C.month+'T00:00:00Z').toLocaleDateString('en-AU',{month:'long',year:'numeric',timeZone:'UTC'});
+  $('cal-who').textContent='Choose a day'+(S.data.assessors.find(a=>a.id===P.assessor)?' · '+S.data.assessors.find(a=>a.id===P.assessor).full_name:'');
+  for(let i=0;i<42;i++){const d=addDays(start,i),n=C.jobs.filter(b=>b.assessor_id===P.assessor&&live(b)&&parts(b.starts_at).date===d).length;
+    cal.append(h('button',{type:'button',class:(d.slice(0,7)===mon?'':'out ')+(d===S.today?'today ':'')+(d===P.date?'sel ':'')+(n?'busy':''),'aria-label':shortDay(d)+', '+(n?n+' job'+(n===1?'':'s'):'no jobs'),onclick:()=>{P.date=d;$('cal-dlg').close();renderPhone()}},String(+d.slice(8)),n?h('span',{class:'cnt'},String(n)):null))}}
+$('p-day').onclick=()=>{C.month=monthStart(P.date||S.today);$('cal').replaceChildren();$('cal-dlg').showModal();loadCal()};
+$('cal-prev').onclick=()=>{const d=new Date(C.month+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-1,1);C.month=d.toISOString().slice(0,10);loadCal()};
+$('cal-next').onclick=()=>{const d=new Date(C.month+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1,1);C.month=d.toISOString().slice(0,10);loadCal()};
+$('cal-today').onclick=()=>{P.date=S.today;$('cal-dlg').close();renderPhone()};$('cal-close').onclick=()=>$('cal-dlg').close();
+
 /* ---- mode ---- */
 function mode(m){S.mode=m;$('sched').hidden=m!=='sched';$('phone').hidden=m!=='phone';$('m-sched').setAttribute('aria-selected',m==='sched');$('m-phone').setAttribute('aria-selected',m==='phone');if(m==='phone')renderPhone()}
 $('m-sched').onclick=()=>mode('sched');$('m-phone').onclick=()=>mode('phone');
 /* ---- demo backend (?demo=1) ---- */
 let DB=null;
 function demoInit(){const t=nowSy().date,mk=(ref,aid,date,time,name,addr,phone,status='scheduled')=>{const s=new Date(Date.parse(`${date}T${time}:00Z`));return{id:'d'+ref,reference:'J'+ref,job_number:ref,assessor_id:aid,status,access_notes:ref===1001?'Dog in backyard. Switchboard is in the garage.':'',ghl_status:'synced',starts_at:demoUtc(date,time),ends_at:demoUtc(date,hm(+time.slice(0,2)*60+ +time.slice(3)+60)),customer:{full_name:name,phone,email:name.split(' ')[0].toLowerCase()+'@example.com',formatted_address:addr}}};
-  DB={next:1004,assessors:[{id:'a1',full_name:'Amit',base_address:'Parramatta NSW 2150',availability:[],email:'amit@goldsure.com.au'},{id:'a2',full_name:'Priya Nair',base_address:'',availability:[]}],
-    bookings:[mk(1001,'a1',t,'08:00','Maria Papadopoulos','12 Banksia Ave, Penrith NSW 2750','0412 345 678'),mk(1002,'a1',t,'10:00','Jason Chen','44 Kable St, Kingswood NSW 2747','0423 456 789'),mk(1003,'a2',t,'09:00','Raj Singh','7 Ironbark Cl, Blacktown NSW 2148','0434 567 890')]}}
+  DB={next:1008,assessors:[{id:'a1',full_name:'Amit',base_address:'Parramatta NSW 2150',availability:[],email:'amit@goldsure.com.au'},{id:'a2',full_name:'Priya Nair',base_address:'',availability:[]}],
+    bookings:[mk(1001,'a1',t,'08:00','Maria Papadopoulos','12 Banksia Ave, Penrith NSW 2750','0412 345 678'),mk(1002,'a1',t,'10:00','Jason Chen','44 Kable St, Kingswood NSW 2747','0423 456 789'),mk(1003,'a2',t,'09:00','Raj Singh','7 Ironbark Cl, Blacktown NSW 2148','0434 567 890'),mk(1004,'a1',addDays(t,1),'09:00','Sophie Walker','3 Hume Pl, Seven Hills NSW 2147','0445 678 901'),mk(1005,'a1',addDays(t,3),'08:00','Tom Reid','9 Gum Rd, Kellyville NSW 2155','0456 111 000'),mk(1006,'a1',addDays(t,3),'10:00','Lena Ko','2 Oak Cl, Castle Hill NSW 2154','0456 222 000'),mk(1007,'a1',addDays(t,3),'13:00','Ravi Patel','5 Elm St, Parramatta NSW 2150','0456 333 000')]}}
 function demoUtc(date,time){const[y,m,d]=date.split('-').map(Number),[hh,mm]=time.split(':').map(Number);const w=Date.UTC(y,m-1,d,hh,mm);let u=w;for(let i=0;i<3;i++){const p=parts(new Date(u).toISOString());u+=w-Date.parse(`${p.date}T${hm(p.min)}:00Z`)}return new Date(u).toISOString()}
 async function demoApi(action,b={},q={}){if(!DB)demoInit();
   if(action==='bootstrap'){const from=q.from||nowSy().date,to=q.to||from;return{today:nowSy().date,from,to,settings:{visit_minutes:60,buffer_minutes:0,slot_step_minutes:60},time_off:[],assessors:DB.assessors,bookings:DB.bookings.filter(x=>{const d=parts(x.starts_at).date;return d>=from&&d<=to})}}
