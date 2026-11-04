@@ -546,7 +546,7 @@ function renderQuote(){
 $('q-cancel').onclick=()=>$('quote-dlg').close();$('q-close').onclick=()=>$('quote-dlg').close();
 $('q-form').addEventListener('submit',async e=>{e.preventDefault();if($('q-send').disabled)return;const btn=$('q-send');btn.disabled=true;btn.textContent='Sending…';qmsg('');
   try{
-    if(!Q.pending){const d=await qapi('create-quote',{package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},customer_notes:$('q-notes').value,internal_notes:'From assessment booking '+Q.booking.reference,energy:{}});
+    if(!Q.pending){await qapi('precheck',{package_id:Q.sel.id});const d=await qapi('create-quote',{package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},customer_notes:$('q-notes').value,internal_notes:'From assessment booking '+Q.booking.reference,energy:{}});
       Q.pending=d.quote.id;try{await api('link-quote',{method:'POST',body:{booking_id:Q.booking.id,quote_id:Q.pending}})}catch{/* linking is a convenience; never block sending the quote */}}
     const r=await qapi('send',{id:Q.pending,send_sms:$('q-sms').checked});Q.pending=null;
     $('q-form').hidden=true;$('q-done').hidden=false;
@@ -555,7 +555,7 @@ $('q-form').addEventListener('submit',async e=>{e.preventDefault();if($('q-send'
   catch(err){qmsg('Quote not sent. '+err.message)}
   finally{btn.textContent='Send quote';if(Q.pkgs)renderQuote()}});
 async function demoQuote(action,b){if(action==='bootstrap')return{settings:{tax_treatment:'inclusive'},packages:[{id:'p1',active:true,capacity_kwh:13.5,battery_name:'Sigenergy SigenStor',inverter_kw:8,inverter_brand:'Sigenergy',phase:'Single Phase',oop:6990,stcs:129,pricing_version:1,gross_amount:12086.55,stc_deduction:5096.55,stc_rate:39.5},{id:'p2',active:true,capacity_kwh:10,battery_name:'Alpha ESS',inverter_kw:5,inverter_brand:'Alpha ESS',phase:'Single Phase',oop:5490,stcs:95,pricing_version:1,gross_amount:9242.5,stc_deduction:3752.5,stc_rate:39.5}]};
-  if(action==='create-quote')return{quote:{id:'q-demo',reference:'BAT-2026-000200'}};if(action==='send')return{success:true,sms:{status:'sent'},ghl_synced:true};return{}}
+  if(action==='precheck')return{ok:true};if(action==='create-quote')return{quote:{id:'q-demo',reference:'BAT-2026-000200'}};if(action==='send')return{success:true,sms:{status:'sent'},ghl_synced:true};return{}}
 /* ---- assessor app link, install help ---- */
 const QS=new URLSearchParams(location.search),APP=QS.get('app')==='assessor';
 const appLink=name=>location.origin+'/Battery/iha/?app=assessor&who='+encodeURIComponent(name);

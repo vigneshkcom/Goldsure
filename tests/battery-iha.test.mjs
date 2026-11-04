@@ -134,3 +134,17 @@ test('a customer who is not in GHL is created there as Direct Call and noted; GH
   assert.equal(made.length, 1);
   assert.equal(again.ghl_created, false);
 });
+
+test('quote precheck fails before any draft is created when GHL stages do not match', async () => {
+  const { createBatteryQuoteHandler } = await import('../lib/battery-quote-api.js');
+  let created = 0;
+  const pkg = { id: 'p1', active: true, document_ids: ['d1', 'd2'] };
+  const store = { listPackages: async () => [pkg], listDocuments: async () => [{ id: 'd1', kind: 'battery' }, { id: 'd2', kind: 'inverter' }], settings: async () => ({}), write: async () => { created++; } };
+  const { BatteryQuoteError } = await import('../lib/battery-quote-model.js');
+  const bad = createBatteryQuoteHandler({ preview: true, store, ghl: { preflight: async () => { throw new BatteryQuoteError('The configured Battery Proposal Sent or Quote Accepted stage changed. Review settings.', 409); } }, env: {} });
+  const r = await call(bad, { method: 'POST', query: { action: 'precheck' }, body: { package_id: 'p1' } });
+  assert.equal(r.status, 409);
+  assert.equal(created, 0);
+  const good = createBatteryQuoteHandler({ preview: true, store, ghl: { preflight: async () => true }, env: {} });
+  assert.equal((await call(good, { method: 'POST', query: { action: 'precheck' }, body: { package_id: 'p1' } })).ok, true);
+});
