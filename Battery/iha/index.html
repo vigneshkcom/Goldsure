@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" href="/assets/gs-favicon-96px.png"><title>Battery Assessments | Goldsure</title>
+<link rel="icon" href="/assets/gs-favicon-96px.png"><link rel="manifest" href="/Battery/iha/manifest.webmanifest"><link rel="apple-touch-icon" href="/assets/icon-512x512.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Assessor"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#000000"><title>Battery Assessments | Goldsure</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: Schedule = fieldworker board (day timeline, 3-day/week grid, month calendar) + booking dialog. Assessor = phone route list. */
@@ -14,12 +14,22 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1520;--surface:#18202e;--ink:#e8ebf2;--mute:#9aa4b6;--line:#2a3447;--row:#141b28;--blue:#6b95ee;--blue-ink:#0b1220;--gold:#e0b04a;--gold-ink:#1a1405;--gold-soft:#3a2f14;--gold-text:#e0b04a;--job:#2f7a46;--job-line:#3f9a5c;--job-ink:#fff;--job-go:#a37b1c;--job-done:#4b566b;--grid:#26324a;--free:#16261d;--ok:#5fcf93;--ok-soft:#173326;--warn:#ff8a7d;--warn-soft:#3b1b18;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0f1520;--surface:#18202e;--ink:#e8ebf2;--mute:#9aa4b6;--line:#2a3447;--row:#141b28;--blue:#6b95ee;--blue-ink:#0b1220;--gold:#e0b04a;--gold-ink:#1a1405;--gold-soft:#3a2f14;--gold-text:#e0b04a;--job:#2f7a46;--job-line:#3f9a5c;--job-ink:#fff;--job-go:#a37b1c;--job-done:#4b566b;--grid:#26324a;--free:#16261d;--ok:#5fcf93;--ok-soft:#173326;--warn:#ff8a7d;--warn-soft:#3b1b18;color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1200px;margin:0 auto}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 button{font-family:inherit}
 .top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
 .brand{font:700 13px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--gold-text)}
+.brandrow{display:flex;align-items:center;gap:12px}
+.logo{background:#fff;border:1px solid var(--line);border-radius:10px;padding:2px 8px;display:inline-flex}
+.logo img{display:block;height:40px;width:auto}
+.hero{background:#000;color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hero b{font:700 16px var(--display);background:linear-gradient(90deg,#f3d06a,#c99b2e);-webkit-background-clip:text;background-clip:text;color:transparent}
+.install{background:var(--gold-soft);color:var(--ink);border-radius:10px;padding:12px;margin-bottom:12px;font-size:14px}
+.install b{display:block;margin-bottom:4px}
+.linkrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:10px}
+.linkrow input{font-size:13px}
 .mode{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
 .mode button{border:0;background:none;color:var(--mute);font:600 13px var(--body);padding:7px 14px;border-radius:999px;cursor:pointer}
 .mode button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
@@ -122,8 +132,9 @@ textarea{min-height:64px;resize:vertical}
 .demo{background:var(--gold-soft);color:var(--gold-text);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px}
 </style></head><body>
 <div class="wrap">
-<div class="top"><span class="brand">Goldsure · Battery assessments</span>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><div class="mode" role="tablist"><button id="m-sched" role="tab" aria-selected="true">Schedule</button><button id="m-phone" role="tab" aria-selected="false">Assessor (phone)</button></div><button class="btn gold" id="new-btn">+ New booking</button></div></div>
+<div class="top"><div class="brandrow"><span class="logo"><img src="/assets/Goldsure-Horizontal-Logo-RGB-600px-w-72ppi.jpg" alt="Goldsure" width="104" height="40"></span><span class="brand">Battery assessments</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><div class="mode" role="tablist"><button id="m-sched" role="tab" aria-selected="true">Schedule</button><button id="m-phone" role="tab" aria-selected="false">Assessor (phone)</button></div><button class="btn alt" id="share-btn">Assessor app link</button><button class="btn gold" id="new-btn">+ New booking</button></div></div>
+<div id="install" class="install" hidden></div>
 <div id="demo" class="demo" hidden>Demo mode with sample data. Nothing is saved to Supabase or GHL.</div>
 <div id="msg" class="err" hidden></div>
 
@@ -135,6 +146,7 @@ textarea{min-height:64px;resize:vertical}
 </main>
 
 <main id="phone" hidden class="phone">
+  <div class="hero" id="hero" hidden><b>Goldsure Assessor</b><span class="note" style="color:#ccc" id="hero-who"></span></div>
   <div class="two" style="margin-bottom:8px"><div class="f" style="margin:0"><label for="p-assessor">Assessor</label><select id="p-assessor"></select></div><div class="f" style="margin:0"><label for="p-date">Day</label><input id="p-date" type="date"></div></div>
   <h1 id="p-title">Route</h1>
   <div class="stats"><div class="stat"><b id="p-stops">0</b><span>Stops</span></div><div class="stat"><b id="p-first">–</b><span>First visit</span></div><div class="stat"><a id="p-route" class="note" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">Open route in Maps</a><span></span></div></div>
@@ -158,6 +170,11 @@ textarea{min-height:64px;resize:vertical}
   </form>
   <div id="b-done" hidden><div class="okmsg" id="b-done-msg"></div><div class="jobno" id="b-jobno"></div><dl class="kv" id="b-done-kv"></dl><div class="acts"><button class="btn alt" type="button" id="b-another">Book another</button><button class="btn" type="button" id="b-close">Done</button></div></div>
 </div></dialog>
+
+<!-- Assessor app link -->
+<dialog id="share-dlg"><div class="dl"><h2>Assessor app link</h2>
+  <p class="note" style="margin-top:0">Send this link to the assessor. On an iPhone: open it in Safari, tap Share, then Add to Home Screen. On Android: open it in Chrome, then tap Install app.</p>
+  <div id="share-rows"></div><div class="acts"><button class="btn" type="button" id="share-close">Done</button></div></div></dialog>
 
 <!-- Job details -->
 <dialog id="job-dlg"><div class="dl"><div id="j-body"></div></div></dialog>
@@ -398,9 +415,28 @@ async function demoApi(action,b={},q={}){if(!DB)demoInit();
   if(action==='update-status'||action==='cancel'){const x=DB.bookings.find(y=>y.id===b.id);x.status=action==='cancel'?'cancelled':b.status;return{success:true,booking:x}}
   if(action==='save-assessment')return{success:true}
   throw new Error('Unknown action')}
+/* ---- assessor app link, install help ---- */
+const QS=new URLSearchParams(location.search),APP=QS.get('app')==='assessor';
+const appLink=name=>location.origin+'/Battery/iha/?app=assessor&who='+encodeURIComponent(name);
+$('share-btn').onclick=()=>{const rows=S.data.assessors.length?S.data.assessors:[{full_name:'Amit'}];
+  $('share-rows').replaceChildren(...rows.map(a=>{const url=appLink(a.full_name),inp=h('input',{readonly:true,value:url,'aria-label':'Link for '+a.full_name});
+    const copy=h('button',{class:'btn',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(url);copy.textContent='Copied'}catch{inp.select();copy.textContent='Select and copy'}}},'Copy');
+    return h('div',{class:'f'},h('label',{},a.full_name),h('div',{class:'linkrow'},inp,copy))}));$('share-dlg').showModal()};
+$('share-close').onclick=()=>$('share-dlg').close();
+function installHelp(){
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;if(!APP||standalone)return;
+  try{if(localStorage.getItem('iha-install-dismissed'))return}catch{}
+  const box=$('install'),dismiss=h('button',{class:'btn alt',style:'margin-top:8px',onclick:()=>{box.hidden=true;try{localStorage.setItem('iha-install-dismissed','1')}catch{}}},'Got it');
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent)){box.replaceChildren(h('b',{},'Save this as an app'),'Tap the Share button in Safari, then choose Add to Home Screen.',h('br'),dismiss);box.hidden=false}
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();box.replaceChildren(h('b',{},'Save this as an app'),h('button',{class:'btn gold',onclick:async()=>{e.prompt();box.hidden=true}},'Install app'),' ',dismiss);box.hidden=false})}
+function appMode(){
+  if(!APP)return;document.title='Goldsure Assessor';['m-sched','m-phone'].forEach(i=>$(i).parentElement.hidden=true);$('new-btn').hidden=true;$('share-btn').hidden=true;$('hero').hidden=false;
+  const who=QS.get('who')||'Amit',a=S.data.assessors.find(x=>x.full_name.toLowerCase().startsWith(who.toLowerCase()));
+  if(a){P.assessor=a.id;$('p-assessor').parentElement.hidden=true;$('hero-who').textContent=a.full_name}
+  mode('phone');installHelp()}
 /* ---- start ---- */
 (async()=>{if(DEMO)$('demo').hidden=false;
   try{const d=await api('bootstrap');S.today=d.today;S.date=d.today}catch(e){S.today=nowSy().date;S.date=S.today;msg(e.message)}
-  await load();
+  await load();appMode();
 })();
 </script></body></html>
