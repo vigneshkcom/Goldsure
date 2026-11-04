@@ -163,6 +163,7 @@ textarea{min-height:64px;resize:vertical}
     <div class="f"><label for="c-name">Full name</label><input id="c-name" required></div>
     <div class="two"><div class="f"><label for="c-phone">Mobile</label><input id="c-phone" inputmode="tel" required></div><div class="f"><label for="c-email">Email</label><input id="c-email" type="email"></div></div>
     <div class="f"><label for="c-addr">Address</label><input id="c-addr" placeholder="Start typing, then choose the address" required><div class="sug" id="addr-res" hidden></div><p class="note" id="addr-status" style="margin:4px 0 0">Choose the installation address from the suggestions.</p></div>
+    <div class="f" style="max-width:160px"><label for="c-pc">Postcode</label><input id="c-pc" inputmode="numeric" maxlength="4" placeholder="2750"></div>
     <div class="two"><div class="f"><label for="b-assessor">Assessor</label><select id="b-assessor"></select></div><div class="f"><label for="b-date">Date</label><input id="b-date" type="date" required></div></div>
     <div class="f"><label>Time</label><div class="slots" id="slots"></div><p class="note" id="slot-note" style="margin:6px 0 0"></p></div>
     <div class="f"><label for="b-access">Access notes</label><textarea id="b-access" placeholder="Gate code, dogs, parking, who will be home"></textarea></div>
@@ -302,8 +303,8 @@ function openBook(pref={}){
   if(!$('book-dlg').open)$('book-dlg').showModal();
 }
 $('new-btn').onclick=()=>openBook();$('b-cancel').onclick=()=>$('book-dlg').close();$('b-close').onclick=()=>$('book-dlg').close();$('b-another').onclick=()=>openBook({date:$('b-date').value});
-const upd=()=>{$('b-save').disabled=!($('c-name').value.trim()&&$('c-phone').value.trim()&&B.addr&&B.slot&&$('b-assessor').value&&$('b-date').value)};
-['c-name','c-phone'].forEach(i=>$(i).addEventListener('input',upd));
+const upd=()=>{$('b-save').disabled=!($('c-name').value.trim()&&$('c-phone').value.trim()&&B.addr&&/^\d{4}$/.test($('c-pc').value.trim())&&B.slot&&$('b-assessor').value&&$('b-date').value)};
+['c-name','c-phone','c-pc'].forEach(i=>$(i).addEventListener('input',upd));
 /* GHL search */
 $('ghl-q').addEventListener('input',()=>{clearTimeout(B.gt);const q=$('ghl-q').value.trim(),res=$('ghl-res');res.hidden=true;
   if(q.length<2){$('ghl-status').textContent='Type at least two characters.';return}
@@ -312,14 +313,14 @@ $('ghl-q').addEventListener('input',()=>{clearTimeout(B.gt);const q=$('ghl-q').v
     res.replaceChildren(...d.contacts.map(c=>h('button',{type:'button',onclick:()=>pickGhl(c)},c.name||c.email||c.phone,h('small',{},[c.phone,c.email,c.address].filter(Boolean).join(' · ')))));
     res.hidden=!d.contacts.length;$('ghl-status').textContent=d.contacts.length?'Choose the matching customer.':'No match in GHL. Enter the details below.'}catch(e){$('ghl-status').textContent=e.message}},300)});
 function pickGhl(c){B.ghl=c.id;$('c-name').value=c.name||'';$('c-phone').value=c.phone||'';$('c-email').value=c.email||'';$('ghl-q').value=c.name||'';$('ghl-res').hidden=true;
-  $('ghl-status').textContent='Customer filled from GHL. Now choose the installation address.';B.addr=null;$('c-addr').classList.remove('sel');$('c-addr').value=c.address||'';
+  $('ghl-status').textContent='Customer filled from GHL. Now choose the installation address.';B.addr=null;$('c-addr').classList.remove('sel');$('c-addr').value=c.address||'';$('c-pc').value=(c.address||'').match(/\b(\d{4})\s*$/)?.[1]||'';
   if(c.address)addrSearch(c.address);$('c-addr').focus();upd()}
 /* Address: Google Places (same key endpoint as the quote builder), manual fallback */
 let places=null,placesTried=false;
 async function placesService(){if(DEMO)return null;if(places||placesTried)return places;placesTried=true;
   try{if(!window.google?.maps?.places){const r=await fetch('/api/smoke-alarms/google-key');const{key}=await r.json();if(!key)throw 0;await new Promise((ok,no)=>{window.__ihaMaps=ok;const s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&libraries=places&callback=__ihaMaps';s.onerror=no;document.head.append(s)})}
     places=new google.maps.places.AutocompleteService()}catch{places=null}return places}
-const DEMO_ADDR=['12 Banksia Ave, Penrith NSW 2750, Australia','12 Banksia St, Blacktown NSW 2148, Australia','12 Banksia Rd, Caringbah NSW 2229, Australia'];
+const DEMO_PC={Penrith:'2750',Blacktown:'2148',Caringbah:'2229'},DEMO_ADDR=['12 Banksia Avenue, Penrith NSW, Australia','12 Banksia Street, Blacktown NSW, Australia','12 Banksia Road, Caringbah NSW, Australia'];
 async function addrSearch(q){const res=$('addr-res');q=q.trim();B.addr=null;$('c-addr').classList.remove('sel');upd();if(q.length<3){res.hidden=true;return}
   const svc=await placesService();let list=[];
   if(DEMO)list=DEMO_ADDR.map(d=>({description:d}));
@@ -327,9 +328,15 @@ async function addrSearch(q){const res=$('addr-res');q=q.trim();B.addr=null;$('c
   if($('c-addr').value.trim()!==q)return;
   if(!list.length){res.hidden=true;$('addr-status').textContent=svc||DEMO?'No match yet. Keep typing.':'Address lookup is unavailable. Type it as: 12 Banksia Ave, Penrith NSW 2750, then press Enter.';return}
   res.replaceChildren(...list.map(p=>h('button',{type:'button',onclick:()=>pickAddr(p)},p.description.replace(/, Australia$/,''))));res.hidden=false;$('addr-status').textContent='Choose the matching address.'}
-function pickAddr(p){B.addr=p.description.replace(/, Australia$/,'');B.placeId=p.place_id||null;$('c-addr').value=B.addr;$('c-addr').classList.add('sel');$('addr-res').hidden=true;$('addr-status').textContent='Address selected. Check any unit number.';upd()}
+async function pickAddr(p){B.addr=p.description.replace(/, Australia$/,'');B.placeId=p.place_id||null;$('c-addr').value=B.addr;$('c-addr').classList.add('sel');$('addr-res').hidden=true;
+  const inText=B.addr.match(/\b(\d{4})\b(?!.*\b\d{4}\b)/);$('c-pc').value=inText?inText[1]:'';
+  $('addr-status').textContent=inText?'Address selected. Check any unit number.':'Address selected. Finding the postcode…';upd();
+  if(!inText&&p.place_id&&places&&window.google){const pc=await new Promise(ok=>{try{new google.maps.places.PlacesService(document.createElement('div')).getDetails({placeId:p.place_id,fields:['address_components']},(r,st)=>ok(st==='OK'?(r.address_components||[]).find(c=>c.types.includes('postal_code'))?.long_name:null))}catch{ok(null)}});
+    if(B.addr===$('c-addr').value&&!$('c-pc').value){$('c-pc').value=pc||'';$('addr-status').textContent=pc?'Address selected. Check any unit number.':'Enter the 4-digit postcode.'}upd()}
+  else if(!inText&&DEMO){const sub=Object.keys(DEMO_PC).find(k=>B.addr.includes(k));$('c-pc').value=DEMO_PC[sub]||'';$('addr-status').textContent='Address selected. Check any unit number.';upd()}
+  else if(!inText)$('addr-status').textContent='Enter the 4-digit postcode.'}
 $('c-addr').addEventListener('input',()=>{clearTimeout(B.at);B.at=setTimeout(()=>addrSearch($('c-addr').value),250)});
-$('c-addr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=$('c-addr').value.trim();if(/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)[,\s]+\d{4}\b/i.test(v)){B.addr=v;$('addr-res').hidden=true;$('c-addr').classList.add('sel');upd()}}});
+$('c-addr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=$('c-addr').value.trim();if(/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)[,\s]+\d{4}\b/i.test(v)){B.addr=v;$('c-pc').value=v.match(/\b(\d{4})\b(?!.*\b\d{4}\b)/)?.[1]||$('c-pc').value;$('addr-res').hidden=true;$('c-addr').classList.add('sel');upd()}}});
 /* Slots */
 const dayOf=(a,d)=>{const rows=(S.data.assessors.find(x=>x.id===a)?.availability||[]).filter(r=>r.weekday===dow(d));return rows.length?rows.map(r=>[+r.start_time.slice(0,2)*60+ +r.start_time.slice(3,5),+r.end_time.slice(0,2)*60+ +r.end_time.slice(3,5)]):[[8*60,16*60]]};
 async function refreshSlots(){
@@ -346,7 +353,7 @@ async function refreshSlots(){
 }
 $('b-assessor').addEventListener('change',()=>{B.slot=null;refreshSlots()});$('b-date').addEventListener('change',()=>{B.slot=null;refreshSlots()});
 $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-save').disabled)return;$('b-save').disabled=true;$('b-save').textContent='Booking…';$('b-err').hidden=true;
-  try{const d=await api('create-booking',{method:'POST',body:{assessor_id:$('b-assessor').value,date:$('b-date').value,time:B.slot,access_notes:$('b-access').value,customer:{name:$('c-name').value,phone:$('c-phone').value,email:$('c-email').value,address:B.addr,place_id:B.placeId,ghl_contact_id:B.ghl}}});
+  try{const d=await api('create-booking',{method:'POST',body:{assessor_id:$('b-assessor').value,date:$('b-date').value,time:B.slot,access_notes:$('b-access').value,customer:{name:$('c-name').value,phone:$('c-phone').value,email:$('c-email').value,address:B.addr,postcode:$('c-pc').value.trim(),place_id:B.placeId,ghl_contact_id:B.ghl}}});
     const b=d.booking,p=parts(b.starts_at);$('book-form').hidden=true;$('b-done').hidden=false;$('b-done-msg').textContent='Booked'+(b.ghl_status==='synced'?' and noted in GHL.':b.ghl_status==='failed'?'. GHL note failed; the booking is saved.':'.');
     $('b-jobno').textContent=b.reference;$('b-done-kv').replaceChildren(h('dt',{},'Customer'),h('dd',{},b.customer.full_name),h('dt',{},'When'),h('dd',{},shortDay(p.date)+', '+t12(p.min)),h('dt',{},'Assessor'),h('dd',{},b.assessor?.full_name||''),h('dt',{},'Address'),h('dd',{},b.customer.formatted_address));
     S.date=p.date;if(S.view==='month')S.view='day';await load()}

@@ -49,6 +49,12 @@ test('time helpers handle Sydney daylight saving and addresses', () => {
   assert.equal(sydneyParts(new Date('2026-11-04T07:00:00Z')).hour, '18');
   assert.equal(parseAddress('12 Banksia Ave, Penrith NSW 2750, Australia').postcode, '2750');
   assert.equal(parseAddress('Penrith'), null);
+  // Google suggestions usually have no postcode; it is supplied separately
+  const g = parseAddress('12 Banksia Avenue, Penrith NSW, Australia', '2750');
+  assert.equal(g.postcode, '2750');
+  assert.equal(g.formatted_address, '12 Banksia Avenue, Penrith NSW 2750');
+  assert.equal(parseAddress('12 Banksia Avenue, Penrith NSW, Australia'), null);
+  assert.equal(parseAddress('Penrith Plaza, 585 High St, Penrith NSW, Australia', '2750').suburb, 'Penrith');
 });
 
 function fakeStore() {
@@ -72,7 +78,7 @@ function fakeStore() {
   });
 }
 const call = async (handler, req) => { let out; await handler({ headers: {}, query: {}, ...req }, { setHeader() {}, status(c) { this.c = c; return this; }, json(o) { out = { status: this.c, ...o }; } }); return out; };
-const booking = over => ({ method: 'POST', query: { action: 'create-booking' }, body: { assessor_id: '11111111-1111-4111-8111-111111111111', date: '2026-11-05', time: '08:30', customer: { name: 'Maria P', phone: '0412 345 678', email: 'm@example.com', address: '12 Banksia Ave, Penrith NSW 2750, Australia', ghl_contact_id: 'g1' }, ...over } });
+const booking = over => ({ method: 'POST', query: { action: 'create-booking' }, body: { assessor_id: '11111111-1111-4111-8111-111111111111', date: '2026-11-05', time: '08:30', customer: { name: 'Maria P', phone: '0412 345 678', email: 'm@example.com', address: '12 Banksia Ave, Penrith NSW, Australia', postcode: '2750', ghl_contact_id: 'g1' }, ...over } });
 
 test('create-booking assigns the next job number, notes GHL, and refuses a double booking', async () => {
   const store = fakeStore(), notes = [];
