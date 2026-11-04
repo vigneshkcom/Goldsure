@@ -283,6 +283,7 @@ textarea{min-height:72px;resize:vertical}
 <dialog id="job-dlg"><div class="dl"><div id="j-body"></div></div></dialog>
 
 <script type="module">
+import {assessorAppLink,linkedAssessor,scheduleDay} from '/Battery/iha/app-links.js';
 import {responseState} from '/Battery/quotes/lifecycle.js';
 import {batteryPricing,priceAdjustment} from '/Battery/quotes/pricing.js';
 const SY='Australia/Sydney',$=id=>document.getElementById(id);
@@ -630,9 +631,9 @@ async function demoQuote(action,b){if(action==='bootstrap')return{settings:{tax_
   if(action==='precheck')return{ok:true};if(action==='create-quote')return{quote:{id:'q-demo',reference:'BAT-2026-000200'}};if(action==='send'){const q=DB?.quotes?.find(q=>q.id===b.id);if(q)q.status='sent';return{success:true,sms:{status:'sent'},ghl_synced:true}};return{}}
 /* ---- assessor app link, install help ---- */
 const QS=new URLSearchParams(location.search),APP=QS.get('app')==='assessor';
-const appLink=name=>location.origin+'/Battery/iha/?app=assessor&who='+encodeURIComponent(name);
+const appLink=a=>assessorAppLink({origin:location.origin,assessorId:a.id,assessorName:a.full_name});
 $('share-btn').onclick=()=>{const rows=S.data.assessors.length?S.data.assessors:[{full_name:'Amit'}];
-  $('share-rows').replaceChildren(...rows.map(a=>{const url=appLink(a.full_name),inp=h('input',{readonly:true,value:url,'aria-label':'Link for '+a.full_name});
+  $('share-rows').replaceChildren(...rows.map(a=>{const url=appLink(a),inp=h('input',{readonly:true,value:url,'aria-label':'Link for '+a.full_name});
     const copy=h('button',{class:'btn',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(url);copy.textContent='Copied'}catch{inp.select();copy.textContent='Select and copy'}}},'Copy');
     return h('div',{class:'f'},h('label',{},a.full_name),h('div',{class:'linkrow'},inp,copy))}));$('share-dlg').showModal()};
 $('share-close').onclick=()=>$('share-dlg').close();
@@ -644,12 +645,14 @@ function installHelp(){
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();box.replaceChildren(h('b',{},'Save this as an app'),h('button',{class:'btn gold',onclick:async()=>{e.prompt();box.hidden=true}},'Install app'),' ',dismiss);box.hidden=false})}
 function appMode(){
   if(!APP)return;document.title='Goldsure Assessor';$('new-btn').hidden=true;$('share-btn').hidden=true;document.querySelector('.mode').hidden=true;
-  const who=QS.get('who')||'Amit',a=S.data.assessors.find(x=>x.full_name.toLowerCase().startsWith(who.toLowerCase()));
+  const a=linkedAssessor(QS,S.data.assessors);
+  P.date=scheduleDay(QS.get('day'))||S.today;
+  if(!a&&(QS.has('assessor')||QS.has('who')))msg('This assessor link no longer matches an active assessor. Choose the correct assessor below.');
   if(a){P.assessor=a.id;$('pctl').firstElementChild.hidden=true;$('pctl').style.gridTemplateColumns='1fr';$('hero-who').hidden=false;$('hero-who').replaceChildren(h('b',{},a.full_name))}
   mode('phone');installHelp()}
 /* ---- start ---- */
 (async()=>{if(DEMO)$('demo').hidden=false;
-  try{const d=await api('bootstrap');S.today=d.today;S.date=d.today}catch(e){S.today=nowSy().date;S.date=S.today;msg(e.message)}
+  try{const d=await api('bootstrap');S.today=d.today;S.date=scheduleDay(QS.get('day'))||d.today}catch(e){S.today=nowSy().date;S.date=S.today;msg(e.message)}
   await load();appMode();const job=new URLSearchParams(location.search).get('job');if(job){try{const d=await api('booking',{query:{id:job}});S.date=parts(d.booking.starts_at).date;await load();openJob(job)}catch(e){msg(e.message)}}
 })();
 </script></body></html>

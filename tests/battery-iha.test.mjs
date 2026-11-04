@@ -253,3 +253,22 @@ test('assessment quote preparation keeps explicit alternatives, saved contact an
  const another=await run({request_id:'22222222-2222-4222-8222-222222222222',customer_notes:'Includes the switchboard upgrade'});
  assert.equal(another.status,200);assert.equal(rows.size,2);
 });
+
+
+test('assessor emails link to the named assessor and exact schedule day in HTML and text',async()=>{
+ const {assessorAppLink,linkedAssessor,scheduleDay}=await import('../Battery/iha/app-links.js');
+ const id='11111111-1111-4111-8111-111111111111',name='Amit Singh';
+ for(const mode of ['morning','evening']){
+   const mail=buildEmail({mode,assessorName:name,assessorId:id,day:'2026-11-05',bookings:[]});
+   const url=new URL(assessorAppLink({assessorId:id,assessorName:name,day:'2026-11-05'}));
+   assert.equal(url.searchParams.get('day'),'2026-11-05');
+   assert.equal(url.searchParams.get('assessor'),id);
+   assert.equal(url.searchParams.get('app'),'assessor');
+   assert.ok(mail.text.includes(url.href));assert.ok(mail.html.includes(url.href.replaceAll('&','&amp;')));
+   assert.match(mail.html,/Open schedule on your phone/);
+   assert.equal(linkedAssessor(url.searchParams,[{id,full_name:name},{id:'other',full_name:'Amit Patel'}]).id,id);
+ }
+ assert.equal(scheduleDay('2026-02-30'),null);assert.equal(scheduleDay('2028-02-29'),'2028-02-29');
+ assert.equal(linkedAssessor(new URLSearchParams('who=Amit'),[{id:'1',full_name:'Amit Singh'},{id:'2',full_name:'Amit Patel'}]),null);
+ assert.equal(linkedAssessor(new URLSearchParams('assessor=missing&who=Amit'),[{id,full_name:name}]),null);
+});
