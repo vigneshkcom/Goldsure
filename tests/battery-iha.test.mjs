@@ -148,3 +148,35 @@ test('quote precheck fails before any draft is created when GHL stages do not ma
   const good = createBatteryQuoteHandler({ preview: true, store, ghl: { preflight: async () => true }, env: {} });
   assert.equal((await call(good, { method: 'POST', query: { action: 'precheck' }, body: { package_id: 'p1' } })).ok, true);
 });
+
+test('deleting quotes needs the PIN, is limited to 50 real ids, and the store keeps accepted quotes', async () => {
+  const { createBatteryQuoteHandler } = await import('../lib/battery-quote-api.js');
+  const seen = [];
+  const store = { deleteQuotes: async ids => { seen.push(ids); return { deleted: ['BAT-1'], blocked: [] }; } };
+  const h = createBatteryQuoteHandler({ preview: true, store, ghl: {}, env: {} });
+  const id = '11111111-1111-4111-8111-111111111111';
+  assert.equal((await call(h, { method: 'POST', query: { action: 'delete-quotes' }, body: { ids: [id], pin: '0000' } })).status, 403);
+  assert.equal((await call(h, { method: 'POST', query: { action: 'delete-quotes' }, body: { ids: [id] } })).status, 403);
+  assert.equal((await call(h, { method: 'POST', query: { action: 'delete-quotes' }, body: { ids: ['nope'], pin: '4321' } })).status, 400);
+  assert.equal(seen.length, 0);
+  const ok = await call(h, { method: 'POST', query: { action: 'delete-quotes' }, body: { ids: [id, id], pin: '4321' } });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(seen[0], [id]);
+  const custom = createBatteryQuoteHandler({ preview: true, store, ghl: {}, env: { BATTERY_QUOTE_DELETE_PIN: '9999' } });
+  assert.equal((await call(custom, { method: 'POST', query: { action: 'delete-quotes' }, body: { ids: [id], pin: '4321' } })).status, 403);
+});
+
+test('store.deleteQuotes skips accepted quotes and releases job links first', async () => {
+  const { BatteryQuoteStore } = await import('../lib/battery-quote-store.js');
+  const calls = [];
+  const fetchStub = async (url, o = {}) => {
+    calls.push(`${o.method || 'GET'} ${url.replace('https://x.test/rest/v1/', '').split('?')[0]}`);
+    if (!o.method) return { ok: true, json: async () => [{ id: 'a', reference: 'BAT-A', acceptance: null }, { id: 'b', reference: 'BAT-B', acceptance: { signer_name: 'X' } }] };
+    if (o.method === 'DELETE' && url.includes('battery_quotes?')) return { ok: true, json: async () => [{ reference: 'BAT-A' }] };
+    return { ok: true, json: async () => [] };
+  };
+  const store = new BatteryQuoteStore({ SUPABASE_URL: 'https://x.test', SUPABASE_SERVICE_ROLE_KEY: 'k' }, fetchStub);
+  const r = await store.deleteQuotes(['a', 'b']);
+  assert.deepEqual(r, { deleted: ['BAT-A'], blocked: ['BAT-B'] });
+  assert.ok(calls.indexOf('PATCH battery_iha_bookings') < calls.indexOf('DELETE battery_quotes'));
+});
