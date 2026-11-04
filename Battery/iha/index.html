@@ -218,11 +218,11 @@ async function load(){
 function msg(t,ok){const m=$('msg');m.hidden=!t;m.textContent=t||'';m.className=ok?'okmsg':'err'}
 /* ---- routes ---- */
 function dayJobs(a,d){return S.data.bookings.filter(b=>b.assessor_id===a.id&&live(b)&&parts(b.starts_at).date===d).sort((x,y)=>x.starts_at<y.starts_at?-1:1)}
+const START_ADDRESS='16 Sandpiper Way, South Morang VIC 3752';   // every day's route starts here
 function routeUrl(a,jobs){
   if(!jobs.length)return null;
   const addr=jobs.map(b=>b.customer.formatted_address),dest=addr[addr.length-1],way=addr.slice(0,-1).slice(0,9);
-  // With a home base the route starts there; without one Google Maps starts from the viewer's own location.
-  return MAPS(...(a.base_address?['origin='+encodeURIComponent(a.base_address)]:[]),'destination='+encodeURIComponent(dest),...(way.length?['waypoints='+encodeURIComponent(way.join('|'))]:[]));
+  return MAPS('origin='+encodeURIComponent(START_ADDRESS),'destination='+encodeURIComponent(dest),...(way.length?['waypoints='+encodeURIComponent(way.join('|'))]:[]));
 }
 const ARROW='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" fill="currentColor"/><path d="M8.5 15.5v-3.2c0-1 .7-1.8 1.8-1.8h3.2V8.2l3.2 3.3-3.2 3.3v-2.3h-2.7c-.3 0-.5.2-.5.5v2.5Z" fill="#fff"/></svg>';
 /* ---- schedule rendering ---- */
