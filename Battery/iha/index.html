@@ -123,6 +123,7 @@ textarea{min-height:64px;resize:vertical}
 .leg{margin:0 0 0 14px;padding:8px 0 8px 22px;border-left:2px dashed var(--line);font:12px var(--mono);color:var(--mute)}
 .pbtn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px var(--body);padding:10px;cursor:pointer;text-decoration:none;text-align:center}
 .pbtn.main{grid-column:1/-1;background:var(--gold);border-color:var(--gold);color:var(--gold-ink);min-height:54px;font-size:16px}
+.pbtn.gold{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
 .pbtn.dark{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .pbtn.ok{background:#2f7a46;border-color:#2f7a46;color:#fff}.pbtn:disabled{opacity:.45}
 .pa{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
@@ -375,10 +376,12 @@ async function renderPhone(){
     const acts=h('div',{class:'pa'});
     if(isCur){
       acts.append(h('a',{class:'pbtn',target:'_blank',rel:'noopener',href:MAPS('destination='+encodeURIComponent(c.formatted_address))},'Navigate'),h('a',{class:'pbtn',href:'tel:'+c.phone.replace(/[^\d+]/g,'')},'Call '+c.phone));
-      if(b.status==='arrived')acts.append(h('a',{class:'pbtn main dark',target:'_blank',rel:'noopener',href:quoteUrl(b)},'Give quote'));
-      if(b.status==='arrived'&&P.form)acts.append(assessForm(b));
-      else{const next={scheduled:['en_route','Start driving'],confirmed:['en_route','Start driving'],en_route:['arrived','I have arrived'],arrived:['form','Start assessment']}[b.status];
-        if(next)acts.append(h('button',{class:'pbtn main',onclick:async()=>{if(next[0]==='form'){P.form=true;renderPhone();return}try{await api('update-status',{method:'POST',body:{id:b.id,status:next[0]}});await load()}catch(e){msg(e.message)}}},next[1]))}
+      const quote=h('a',{class:'pbtn dark',target:'_blank',rel:'noopener',href:quoteUrl(b)},'Give quote');
+      const onSite=['en_route','arrived'].includes(b.status);
+      if(P.form&&onSite)acts.append(quote,assessForm(b));
+      else{
+        const step=onSite?['arrived','Start assessment']:['en_route','Start driving'];
+        acts.append(h('button',{class:'pbtn gold',onclick:async()=>{try{if(step[0]==='arrived'){if(b.status!=='arrived')await api('update-status',{method:'POST',body:{id:b.id,status:'arrived'}});P.form=true}else await api('update-status',{method:'POST',body:{id:b.id,status:'en_route'}});await load()}catch(e){msg(e.message)}}},step[1]),quote)}
     }
     box.append(h('div',{class:'stop'+(isCur?' current':'')+(done?' done':'')},h('div',{class:'sh'},h('div',{class:'num'},done?'✓':String(i+1)),h('div',{},
       h('div',{style:'display:flex;justify-content:space-between;gap:8px'},h('span',{class:'note',style:'font-family:var(--mono)'},t12(parts(b.starts_at).min)+' · '+b.reference),h('span',{class:'pill'},STATUS[b.status])),
