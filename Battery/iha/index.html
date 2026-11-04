@@ -148,13 +148,7 @@ textarea{min-height:72px;resize:vertical}
 .phead h1{margin:0;font:600 26px/1.15 var(--sans);letter-spacing:-.01em}
 .phead .sub{margin:4px 0 0;color:var(--mute);font-size:14px}
 .rail{display:flex;flex-direction:column}
-.step{display:grid;grid-template-columns:32px minmax(0,1fr);gap:14px;padding-bottom:14px}
-.rail-col{position:relative}
-.rail-col::after{content:"";position:absolute;left:15px;top:36px;bottom:-14px;width:2px;background:var(--line2)}
-.step:last-child .rail-col::after{display:none}
-.num{width:32px;height:32px;border-radius:50%;background:var(--surface);border:2px solid var(--line2);color:var(--mute);display:grid;place-items:center;font:600 13px var(--mono);position:relative;z-index:1}
-.step.cur .num{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
-.step.done .num{background:var(--st-book);border-color:var(--st-book);color:#fff}
+.step{min-width:0;padding-bottom:14px}
 .stop{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 .step.cur .stop{border-color:var(--line2);border-top:3px solid var(--gold);box-shadow:0 1px 0 var(--line),0 8px 24px #0001}
 .step.done .stop{background:var(--surface2)}
@@ -506,7 +500,6 @@ async function renderPhone(){
     }
     const tagCls=['en_route','arrived'].includes(b.status)?' go':done?' done':'';
     box.append(h('div',{class:'step'+(isCur?' cur':'')+(done?' done':'')},
-      h('div',{class:'rail-col'},h('div',{class:'num'},done?ic('check'):String(i+1))),
       h('div',{class:'stop'},
         h('div',{class:'stop-top'},h('span',{class:'time'},t12(parts(b.starts_at).min)+' · '+b.reference),h('span',{class:'tag'+tagCls},STATUS[b.status]||b.status)),
         h('div',{class:'nm2'},c.full_name),h('div',{class:'ad strong'},c.formatted_address),
