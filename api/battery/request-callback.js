@@ -94,6 +94,14 @@ function trackerEmailShell({ accent, kickerLabel, kickerBg, kickerFg, title, sub
 }
 
 export default async function handler(req, res) {
+  if (req.query?.module === 'iha') {
+    const { default: ihaHandler } = await import('../../lib/battery-iha-api.js');
+    return ihaHandler(req, res);
+  }
+  if (req.query?.module === 'iha-digest') {
+    const { default: digestHandler } = await import('../../lib/battery-iha-digest.js');
+    return digestHandler(req, res);
+  }
   if (req.query?.module === 'quotes') {
     const { default: batteryQuoteHandler } = await import('../../lib/battery-quote-api.js');
     return batteryQuoteHandler(req, res);

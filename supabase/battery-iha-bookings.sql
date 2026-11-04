@@ -3,7 +3,7 @@
 -- Every table is prefixed battery_iha_ so it sits beside the battery_quote_* tables.
 
 create extension if not exists btree_gist;
-create sequence if not exists public.battery_iha_ref_seq;
+create sequence if not exists public.battery_iha_job_seq start 1001 minvalue 1001;   -- job numbers J1001, J1002, ...
 
 -- 1. Assessors (the IHA guys) -------------------------------------------------------------
 create table if not exists public.battery_iha_assessors (
@@ -79,7 +79,8 @@ create index if not exists battery_iha_customers_phone_idx on public.battery_iha
 -- 5. Bookings -----------------------------------------------------------------------------------------
 create table if not exists public.battery_iha_bookings (
  id uuid primary key default gen_random_uuid(),
- reference text unique not null default ('IHA-' || to_char(now() at time zone 'Australia/Sydney','YYYY') || '-' || lpad(nextval('public.battery_iha_ref_seq')::text, 5, '0')),
+ job_number integer unique not null default nextval('public.battery_iha_job_seq'),
+ reference text generated always as ('J' || job_number::text) stored,   -- shown as J1001
  customer_id uuid not null references public.battery_iha_customers(id),
  assessor_id uuid not null references public.battery_iha_assessors(id),
  battery_quote_id uuid references public.battery_quotes(id),    -- the quote this visit is for (optional)
@@ -195,7 +196,7 @@ revoke all on public.battery_iha_assessors, public.battery_iha_settings, public.
  public.battery_iha_customers, public.battery_iha_bookings, public.battery_iha_assessments, public.battery_iha_events from anon, authenticated;
 grant all on public.battery_iha_assessors, public.battery_iha_settings, public.battery_iha_availability, public.battery_iha_time_off,
  public.battery_iha_customers, public.battery_iha_bookings, public.battery_iha_assessments, public.battery_iha_events to service_role;
-grant usage, select on public.battery_iha_ref_seq to service_role;
+grant usage, select on public.battery_iha_job_seq to service_role;
 revoke all on function public.battery_iha_free_slots(uuid, date) from public, anon, authenticated;
 grant execute on function public.battery_iha_free_slots(uuid, date) to service_role;
 
