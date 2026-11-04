@@ -277,7 +277,10 @@ const B={ghl:null,addr:null,slot:null,dayJobs:[],timer:0,placeId:null};
 function openBook(pref={}){
   $('book-form').reset();$('book-form').hidden=false;$('b-done').hidden=true;$('b-err').hidden=true;B.ghl=null;B.addr=null;B.slot=pref.time||null;
   ['ghl-res','addr-res'].forEach(i=>$(i).hidden=true);$('ghl-status').textContent='Type at least two characters.';$('addr-status').textContent='Choose the installation address from the suggestions.';$('c-addr').classList.remove('sel');
-  const sel=$('b-assessor');sel.replaceChildren(...S.data.assessors.map(a=>h('option',{value:a.id},a.full_name)));if(pref.assessor)sel.value=pref.assessor;
+  const sel=$('b-assessor'),list=S.data.assessors;
+  sel.replaceChildren(...(list.length?list.map(a=>h('option',{value:a.id},a.full_name)):[h('option',{value:''},'No assessors set up')]));
+  const amit=list.find(a=>/^amit\b/i.test(a.full_name));sel.value=pref.assessor||amit?.id||list[0]?.id||'';
+  if(!list.length){$('b-err').textContent='No assessors found. Run supabase/battery-iha-bookings.sql (it adds Amit), or check the page loaded without an error at the top.';$('b-err').hidden=false}
   $('b-date').value=pref.date||S.date||S.today;refreshSlots();upd();
   if(!$('book-dlg').open)$('book-dlg').showModal();
 }
