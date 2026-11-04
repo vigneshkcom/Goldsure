@@ -40,10 +40,10 @@ button{font-family:inherit}
 .okmsg{background:var(--ok-soft);color:var(--ok);border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;margin:0 0 12px}
 /* timeline */
 .scroll{overflow-x:auto}
-.tl{--hw:72px;position:relative;min-width:calc(150px + var(--hw)*12)}
-.tl-head,.tl-row{display:grid;grid-template-columns:150px calc(var(--hw)*12)}
+.tl{--hw:96px;--hn:9;position:relative;min-width:calc(150px + var(--hw)*var(--hn))}
+.tl-head,.tl-row{display:grid;grid-template-columns:150px calc(var(--hw)*var(--hn))}
 .tl-head{border-bottom:1px solid var(--line);background:var(--surface);font:500 12px var(--mono);color:var(--mute)}
-.tl-head .hours{display:grid;grid-template-columns:repeat(12,var(--hw))}
+.tl-head .hours{display:grid;grid-template-columns:repeat(var(--hn),var(--hw))}
 .tl-head .hours span{padding:8px 0 8px 6px;border-left:1px solid var(--grid)}
 .tl-name{padding:12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:8px;position:sticky;left:0;background:var(--surface);z-index:3}
 .tl-name b{font:600 15px var(--display)}
@@ -188,7 +188,7 @@ async function api(action,{method='GET',body,query={}}={}){
   return d;
 }
 /* ---- state ---- */
-const S={view:'day',date:null,today:null,data:{assessors:[],bookings:[],time_off:[],settings:{visit_minutes:90,buffer_minutes:15}},mode:'sched'};
+const S={view:'day',date:null,today:null,data:{assessors:[],bookings:[],time_off:[],settings:{visit_minutes:60,buffer_minutes:0,slot_step_minutes:60}},mode:'sched'};
 const live=b=>b.status!=='cancelled';
 const range=()=>{const d=S.date;if(S.view==='day')return[d,d];if(S.view==='3')return[d,addDays(d,2)];if(S.view==='week'){const s=addDays(d,-((dow(d)+6)%7));return[s,addDays(s,6)]}
   const f=d.slice(0,8)+'01',s=addDays(f,-((dow(f)+6)%7));return[s,addDays(s,41)]};
@@ -216,7 +216,7 @@ function render(){renderTitle();if(S.view==='day')renderDay();else if(S.view==='
 function renderTitle(){const[f,t]=range();$('title').textContent=S.view==='day'?longDay(S.date):S.view==='month'?new Date(S.date+'T00:00:00Z').toLocaleDateString('en-AU',{month:'long',year:'numeric',timeZone:'UTC'}).toUpperCase():`${shortDay(f)} – ${shortDay(S.view==='3'?addDays(S.date,2):t)}`.toUpperCase();
   $('board-title').textContent='Fieldworker schedule '+(S.view==='day'?longDay(S.date):'');
   $('board-count').textContent=S.data.bookings.filter(live).length+' jobs in view'}
-const START=7*60,HOURS=12,HW=72;
+const START=8*60,HOURS=9,HW=96;
 function renderDay(){
   const board=$('board');board.replaceChildren();
   if(!S.data.assessors.length){board.append(h('p',{class:'empty'},'No assessors yet. Add one in Supabase (battery_iha_assessors).'));return}
@@ -229,7 +229,7 @@ function renderDay(){
     for(const b of jobs){const p=parts(b.starts_at),e=parts(b.ends_at),left=(p.min-START)*HW/60,w=Math.max(60,(e.min-p.min)*HW/60-3);
       const cls='job'+(['en_route','arrived'].includes(b.status)?' go':b.status==='completed'?' done':'');
       lane.append(h('button',{class:cls,style:`left:${left}px;width:${w}px`,onclick:ev=>{ev.stopPropagation();openJob(b.id)}},h('b',{},b.reference),h('span',{},STATUS[b.status]||b.status),h('small',{},b.customer.full_name+' · '+b.customer.formatted_address.split(',')[0])))}
-    lane.addEventListener('click',ev=>{const x=ev.clientX-lane.getBoundingClientRect().left,min=Math.round((START+x/HW*60)/30)*30;openBook({assessor:a.id,date:S.date,time:hm(Math.min(min,17*60))})});
+    lane.addEventListener('click',ev=>{const x=ev.clientX-lane.getBoundingClientRect().left,min=Math.floor((START+x/HW*60)/60)*60;openBook({assessor:a.id,date:S.date,time:hm(Math.max(8*60,Math.min(min,15*60)))})});
     tl.append(h('div',{class:'tl-row'},h('div',{class:'tl-name'},h('div',{class:'row1'},h('b',{},a.full_name),arrow),h('span',{class:'pill'},jobs.length+' job'+(jobs.length===1?'':'s'))),lane));
   }
   board.append(tl);
@@ -314,18 +314,18 @@ function pickAddr(p){B.addr=p.description.replace(/, Australia$/,'');B.placeId=p
 $('c-addr').addEventListener('input',()=>{clearTimeout(B.at);B.at=setTimeout(()=>addrSearch($('c-addr').value),250)});
 $('c-addr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=$('c-addr').value.trim();if(/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)[,\s]+\d{4}\b/i.test(v)){B.addr=v;$('addr-res').hidden=true;$('c-addr').classList.add('sel');upd()}}});
 /* Slots */
-const dayOf=(a,d)=>{const rows=(S.data.assessors.find(x=>x.id===a)?.availability||[]).filter(r=>r.weekday===dow(d));return rows.length?rows.map(r=>[+r.start_time.slice(0,2)*60+ +r.start_time.slice(3,5),+r.end_time.slice(0,2)*60+ +r.end_time.slice(3,5)]):[[7*60,18*60]]};
+const dayOf=(a,d)=>{const rows=(S.data.assessors.find(x=>x.id===a)?.availability||[]).filter(r=>r.weekday===dow(d));return rows.length?rows.map(r=>[+r.start_time.slice(0,2)*60+ +r.start_time.slice(3,5),+r.end_time.slice(0,2)*60+ +r.end_time.slice(3,5)]):[[8*60,16*60]]};
 async function refreshSlots(){
   const a=$('b-assessor').value,d=$('b-date').value,box=$('slots');if(!a||!d){box.replaceChildren();return}
   let jobs=S.data.bookings;if(d<range()[0]||d>range()[1]){try{jobs=(await api('bootstrap',{query:{from:d,to:d}})).bookings}catch{}}
-  const st=S.data.settings,vm=st.visit_minutes||90,bm=st.buffer_minutes||0,nw=nowSy(),busy=jobs.filter(b=>b.assessor_id===a&&live(b)&&parts(b.starts_at).date===d).map(b=>[parts(b.starts_at).min,parts(b.ends_at).min]);
+  const st=S.data.settings,vm=st.visit_minutes||60,bm=st.buffer_minutes||0,step=st.slot_step_minutes||60,nw=nowSy(),busy=jobs.filter(b=>b.assessor_id===a&&live(b)&&parts(b.starts_at).date===d).map(b=>[parts(b.starts_at).min,parts(b.ends_at).min]);
   const off=(S.data.time_off||[]).filter(t=>t.assessor_id===a&&parts(t.starts_at).date<=d&&parts(t.ends_at).date>=d).map(t=>[parts(t.starts_at).date<d?0:parts(t.starts_at).min,parts(t.ends_at).date>d?1440:parts(t.ends_at).min]);
-  const opts=[];for(const[s,e]of dayOf(a,d))for(let m=s;m+vm<=e;m+=30)opts.push(m);
+  const opts=[];for(const[s,e]of dayOf(a,d))for(let m=s;m+vm<=e;m+=step)opts.push(m);
   box.replaceChildren(...opts.map(m=>{const clash=busy.some(([bs,be])=>m<be+0&&m+vm+bm>bs)||off.some(([os,oe])=>m<oe&&m+vm>os)||(d===nw.date&&m<nw.min)||d<nw.date;
-    return h('button',{type:'button',class:'slot',disabled:clash,'aria-pressed':String(B.slot===hm(m)),onclick:()=>{B.slot=hm(m);[...box.children].forEach(x=>x.setAttribute('aria-pressed',x.textContent===B.slot));upd()}},t12(m))}));
+    return h('button',{type:'button',class:'slot',disabled:clash,'aria-pressed':String(B.slot===hm(m)),onclick:()=>{B.slot=hm(m);[...box.children].forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.t===B.slot)));upd()}},t12(m))}));
   box.querySelectorAll('.slot').forEach((x,i)=>{x.dataset.t=hm(opts[i]);x.setAttribute('aria-pressed',String(x.dataset.t===B.slot&&!x.disabled))});
   if(B.slot&&[...box.children].some(x=>x.dataset.t===B.slot&&x.disabled))B.slot=null;
-  $('slot-note').textContent=`Each visit is ${vm} minutes, plus ${bm} minutes before the next job.`;upd();
+  $('slot-note').textContent=`One-hour visits, 8am to 4pm.`;upd();
 }
 $('b-assessor').addEventListener('change',()=>{B.slot=null;refreshSlots()});$('b-date').addEventListener('change',()=>{B.slot=null;refreshSlots()});
 $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-save').disabled)return;$('b-save').disabled=true;$('b-save').textContent='Booking…';$('b-err').hidden=true;
@@ -385,15 +385,15 @@ function mode(m){S.mode=m;$('sched').hidden=m!=='sched';$('phone').hidden=m!=='p
 $('m-sched').onclick=()=>mode('sched');$('m-phone').onclick=()=>mode('phone');
 /* ---- demo backend (?demo=1) ---- */
 let DB=null;
-function demoInit(){const t=nowSy().date,mk=(ref,aid,date,time,name,addr,phone,status='scheduled')=>{const s=new Date(Date.parse(`${date}T${time}:00Z`));return{id:'d'+ref,reference:'J'+ref,job_number:ref,assessor_id:aid,status,access_notes:ref===1001?'Dog in backyard. Switchboard is in the garage.':'',ghl_status:'synced',starts_at:demoUtc(date,time),ends_at:demoUtc(date,hm(+time.slice(0,2)*60+ +time.slice(3)+90)),customer:{full_name:name,phone,email:name.split(' ')[0].toLowerCase()+'@example.com',formatted_address:addr}}};
+function demoInit(){const t=nowSy().date,mk=(ref,aid,date,time,name,addr,phone,status='scheduled')=>{const s=new Date(Date.parse(`${date}T${time}:00Z`));return{id:'d'+ref,reference:'J'+ref,job_number:ref,assessor_id:aid,status,access_notes:ref===1001?'Dog in backyard. Switchboard is in the garage.':'',ghl_status:'synced',starts_at:demoUtc(date,time),ends_at:demoUtc(date,hm(+time.slice(0,2)*60+ +time.slice(3)+60)),customer:{full_name:name,phone,email:name.split(' ')[0].toLowerCase()+'@example.com',formatted_address:addr}}};
   DB={next:1004,assessors:[{id:'a1',full_name:'Amit',base_address:'Parramatta NSW 2150',availability:[],email:'amit@goldsure.com.au'},{id:'a2',full_name:'Priya Nair',base_address:'',availability:[]}],
-    bookings:[mk(1001,'a1',t,'08:30','Maria Papadopoulos','12 Banksia Ave, Penrith NSW 2750','0412 345 678'),mk(1002,'a1',t,'11:00','Jason Chen','44 Kable St, Kingswood NSW 2747','0423 456 789'),mk(1003,'a2',t,'09:30','Raj Singh','7 Ironbark Cl, Blacktown NSW 2148','0434 567 890')]}}
+    bookings:[mk(1001,'a1',t,'08:00','Maria Papadopoulos','12 Banksia Ave, Penrith NSW 2750','0412 345 678'),mk(1002,'a1',t,'10:00','Jason Chen','44 Kable St, Kingswood NSW 2747','0423 456 789'),mk(1003,'a2',t,'09:00','Raj Singh','7 Ironbark Cl, Blacktown NSW 2148','0434 567 890')]}}
 function demoUtc(date,time){const[y,m,d]=date.split('-').map(Number),[hh,mm]=time.split(':').map(Number);const w=Date.UTC(y,m-1,d,hh,mm);let u=w;for(let i=0;i<3;i++){const p=parts(new Date(u).toISOString());u+=w-Date.parse(`${p.date}T${hm(p.min)}:00Z`)}return new Date(u).toISOString()}
 async function demoApi(action,b={},q={}){if(!DB)demoInit();
-  if(action==='bootstrap'){const from=q.from||nowSy().date,to=q.to||from;return{today:nowSy().date,from,to,settings:{visit_minutes:90,buffer_minutes:15},time_off:[],assessors:DB.assessors,bookings:DB.bookings.filter(x=>{const d=parts(x.starts_at).date;return d>=from&&d<=to})}}
+  if(action==='bootstrap'){const from=q.from||nowSy().date,to=q.to||from;return{today:nowSy().date,from,to,settings:{visit_minutes:60,buffer_minutes:0,slot_step_minutes:60},time_off:[],assessors:DB.assessors,bookings:DB.bookings.filter(x=>{const d=parts(x.starts_at).date;return d>=from&&d<=to})}}
   if(action==='ghl-search'){const all=[{id:'g1',name:'Maria Papadopoulos',phone:'0412 345 678',email:'maria.p@example.com',address:'12 Banksia Ave, Penrith, NSW, 2750'},{id:'g2',name:'Mark Papas',phone:'0455 111 222',email:'mark@example.com',address:'8 Hume Pl, Seven Hills, NSW, 2147'},{id:'g3',name:'Raj Singh',phone:'0434 567 890',email:'raj.s@example.com',address:'7 Ironbark Cl, Blacktown, NSW, 2148'}];const s=(q.q||'').toLowerCase();return{contacts:all.filter(c=>(c.name+c.phone+c.email).toLowerCase().includes(s))}}
-  if(action==='create-booking'){const st=demoUtc(b.date,b.time),en=new Date(Date.parse(st)+90*6e4).toISOString();
-    if(DB.bookings.some(x=>x.assessor_id===b.assessor_id&&x.status!=='cancelled'&&x.starts_at<new Date(Date.parse(en)+15*6e4).toISOString()&&x.ends_at>st))throw new Error('That assessor already has a visit at that time. Choose another time.');
+  if(action==='create-booking'){const st=demoUtc(b.date,b.time),en=new Date(Date.parse(st)+60*6e4).toISOString();
+    if(DB.bookings.some(x=>x.assessor_id===b.assessor_id&&x.status!=='cancelled'&&x.starts_at<en&&x.ends_at>st))throw new Error('That assessor already has a visit at that time. Choose another time.');
     const n=DB.next++;const row={id:'d'+n,reference:'J'+n,job_number:n,assessor_id:b.assessor_id,status:'scheduled',access_notes:b.access_notes,ghl_status:b.customer.ghl_contact_id?'synced':'not_sent',starts_at:st,ends_at:en,customer:{full_name:b.customer.name,phone:b.customer.phone,email:b.customer.email,formatted_address:b.customer.address}};DB.bookings.push(row);return{success:true,booking:{...row,assessor:DB.assessors.find(a=>a.id===b.assessor_id)}}}
   if(action==='update-status'||action==='cancel'){const x=DB.bookings.find(y=>y.id===b.id);x.status=action==='cancel'?'cancelled':b.status;return{success:true,booking:x}}
   if(action==='save-assessment')return{success:true}

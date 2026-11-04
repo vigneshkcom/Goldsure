@@ -24,15 +24,16 @@ create table if not exists public.battery_iha_assessors (
 -- 2. Settings (single row) -------------------------------------------------------------------
 create table if not exists public.battery_iha_settings (
  id text primary key check (id = 'default'),
- visit_minutes integer not null default 90 check (visit_minutes > 0),
- buffer_minutes integer not null default 15 check (buffer_minutes >= 0),   -- notes/slack after each visit
- slot_step_minutes integer not null default 30 check (slot_step_minutes > 0),
+ visit_minutes integer not null default 60 check (visit_minutes > 0),
+ buffer_minutes integer not null default 0 check (buffer_minutes >= 0),   -- notes/slack after each visit
+ slot_step_minutes integer not null default 60 check (slot_step_minutes > 0),
  max_days_ahead integer not null default 21,
  ghl_pipeline_id text,
  ghl_booked_stage_id text,                                      -- move opportunity here when booked
  ghl_assessed_stage_id text                                     -- ...and here when assessment is completed
 );
-insert into public.battery_iha_settings (id) values ('default') on conflict (id) do nothing;
+insert into public.battery_iha_settings (id, visit_minutes, buffer_minutes, slot_step_minutes) values ('default', 60, 0, 60)
+ on conflict (id) do update set visit_minutes = 60, buffer_minutes = 0, slot_step_minutes = 60;   -- one-hour visits
 
 -- 3. Weekly hours and time off ------------------------------------------------------------------
 create table if not exists public.battery_iha_availability (
@@ -218,3 +219,10 @@ grant all on public.battery_iha_digest_runs to service_role;
 insert into public.battery_iha_assessors (full_name, email)
 select 'Amit', 'amit@goldsure.com.au'
 where not exists (select 1 from public.battery_iha_assessors where email = 'amit@goldsure.com.au');
+
+-- Amit works Monday to Friday, 8:00 am to 4:00 pm (one-hour slots from 8am; last visit starts 3pm)
+insert into public.battery_iha_availability (assessor_id, weekday, start_time, end_time)
+select a.id, d, '08:00', '16:00'
+from public.battery_iha_assessors a, generate_series(1, 5) d
+where a.email = 'amit@goldsure.com.au'
+  and not exists (select 1 from public.battery_iha_availability v where v.assessor_id = a.id);
