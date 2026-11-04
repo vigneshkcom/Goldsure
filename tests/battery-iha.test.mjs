@@ -62,10 +62,11 @@ function fakeStore() {
   const amit = { id: '11111111-1111-4111-8111-111111111111', full_name: 'Amit', email: 'amit@goldsure.com.au', active: true };
   let job = 1001;
   return Object.assign(s, {
-    assessors: async () => [amit], availability: async () => [], timeOff: async () => [], settings: async () => ({ visit_minutes: 90, buffer_minutes: 15 }),
+    assessors: async () => [amit], availability: async () => [{assessor_id:amit.id,weekday:4,start_time:'08:00',end_time:'17:00'}], timeOff: async () => [], settings: async () => ({ visit_minutes: 90, buffer_minutes: 15, slot_step_minutes:30 }),
     bookings: async () => s.rows.map(b => ({ ...b, customer: s.customers.find(c => c.id === b.customer_id) })),
     booking: async id => s.rows.find(b => b.id === id),
     findCustomer: async c => s.customers.find(x => x.phone === c.phone && x.formatted_address === c.formatted_address),
+    updateCustomer: async (id,c) => { const row=s.customers.find(x=>x.id===id);Object.assign(row,c);return row; },
     insertCustomer: async c => { const row = { id: `c${s.customers.length}`, ...c }; s.customers.push(row); return row; },
     insertBooking: async b => {
       const e = Date.parse(b.ends_at), st = Date.parse(b.starts_at);
@@ -82,7 +83,7 @@ const booking = over => ({ method: 'POST', query: { action: 'create-booking' }, 
 
 test('create-booking assigns the next job number, notes GHL, and refuses a double booking', async () => {
   const store = fakeStore(), notes = [];
-  const handler = createIhaHandler({ store, ghl: { search: async () => [], note: async (id, text) => notes.push([id, text]) }, env: {} });
+  const handler = createIhaHandler({ now:()=>new Date('2026-11-04T00:00:00Z'), store, ghl: { search: async () => [], note: async (id, text) => notes.push([id, text]) }, env: {} });
   const a = await call(handler, booking());
   assert.equal(a.status, 200);
   assert.equal(a.booking.reference, 'J1001');
@@ -96,7 +97,7 @@ test('create-booking assigns the next job number, notes GHL, and refuses a doubl
 
 test('create-booking validates input and survives a GHL failure', async () => {
   const store = fakeStore();
-  const handler = createIhaHandler({ store, ghl: { search: async () => [], note: async () => { throw new Error('down'); } }, env: {} });
+  const handler = createIhaHandler({ now:()=>new Date('2026-11-04T00:00:00Z'), store, ghl: { search: async () => [], note: async () => { throw new Error('down'); } }, env: {} });
   assert.equal((await call(handler, booking({ customer: { name: 'A', phone: '1', address: 'x' } }))).status, 400);
   assert.equal((await call(handler, booking({ customer: { name: 'Maria', phone: '0412345678', address: 'Penrith' } }))).status, 400);
   const ok = await call(handler, booking());
@@ -106,7 +107,7 @@ test('create-booking validates input and survives a GHL failure', async () => {
 
 test('status updates stamp times; digest email lists the job number', async () => {
   const store = fakeStore();
-  const handler = createIhaHandler({ store, ghl: { search: async () => [], note: async () => true }, env: {} });
+  const handler = createIhaHandler({ now:()=>new Date('2026-11-04T00:00:00Z'), store, ghl: { search: async () => [], note: async () => true }, env: {} });
   const made = await call(handler, booking());
   const upd = await call(handler, { method: 'POST', query: { action: 'update-status' }, body: { id: made.booking.id, status: 'arrived' } });
   assert.ok(upd.booking.arrived_at);
@@ -117,7 +118,7 @@ test('status updates stamp times; digest email lists the job number', async () =
 
 test('a customer who is not in GHL is created there as Direct Call and noted; GHL trouble does not stop the booking', async () => {
   const made = [], notes = [];
-  const ok = createIhaHandler({ store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async c => { made.push(c); return { id: 'new1', created: true }; }, note: async (id, t) => notes.push([id, t]) } });
+  const ok = createIhaHandler({ now:()=>new Date('2026-11-04T00:00:00Z'), store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async c => { made.push(c); return { id: 'new1', created: true }; }, note: async (id, t) => notes.push([id, t]) } });
   const noGhl = booking(); delete noGhl.body.customer.ghl_contact_id;
   const a = await call(ok, noGhl);
   assert.equal(a.status, 200);
@@ -125,7 +126,7 @@ test('a customer who is not in GHL is created there as Direct Call and noted; GH
   assert.equal(made.length, 1);
   assert.equal(a.booking.customer.ghl_contact_id, 'new1');
   assert.equal(notes[0][0], 'new1');
-  const bad = createIhaHandler({ store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async () => { throw new Error('GHL down'); }, note: async () => true } });
+  const bad = createIhaHandler({ now:()=>new Date('2026-11-04T00:00:00Z'), store: fakeStore(), env: {}, ghl: { search: async () => [], ensure: async () => { throw new Error('GHL down'); }, note: async () => true } });
   const b = await call(bad, (() => { const r = booking(); delete r.body.customer.ghl_contact_id; return r; })());
   assert.equal(b.status, 200);
   assert.equal(b.booking.ghl_status, 'failed');
@@ -179,4 +180,76 @@ test('store.deleteQuotes skips accepted quotes and releases job links first', as
   const r = await store.deleteQuotes(['a', 'b']);
   assert.deepEqual(r, { deleted: ['BAT-A'], blocked: ['BAT-B'] });
   assert.ok(calls.indexOf('PATCH battery_iha_bookings') < calls.indexOf('DELETE battery_quotes'));
+});
+
+
+test('booking rejects weekends, past appointments, and the previous visit travel buffer', async()=>{
+ const store=fakeStore(),h=createIhaHandler({store,ghl:{note:async()=>true},env:{},now:()=>new Date('2026-11-04T00:00:00Z')});
+ assert.equal((await call(h,booking({date:'2026-11-07',time:'08:00'}))).status,409);
+ assert.equal((await call(h,booking({date:'2026-11-03',time:'08:00'}))).status,400);
+ assert.equal((await call(h,booking())).status,200);
+ assert.equal((await call(h,booking({time:'10:00'}))).status,409);
+ assert.equal((await call(h,booking({time:'10:30'}))).status,200);
+});
+test('existing contact corrections are retained on a later booking',async()=>{
+ const store=fakeStore(),h=createIhaHandler({store,ghl:{note:async()=>true},env:{},now:()=>new Date('2026-11-04T00:00:00Z')});
+ await call(h,booking());const r=booking({time:'11:00'});r.body.customer.email='corrected@example.com';
+ assert.equal((await call(h,r)).booking.customer.email,'corrected@example.com');
+});
+test('completion requires an assessment; draft measurements and required notes are validated',async()=>{
+ const store=fakeStore();store.saveAssessment=async(row,complete)=>({ ...row, complete });
+ const h=createIhaHandler({store,ghl:{note:async()=>true},env:{},now:()=>new Date('2026-11-04T00:00:00Z')});
+ const made=await call(h,booking()),id=made.booking.id;
+ assert.equal((await call(h,{method:'POST',query:{action:'update-status'},body:{id,status:'completed'}})).status,400);
+ const save=assessment=>call(h,{method:'POST',query:{action:'save-assessment'},body:{booking_id:id,complete:true,assessment}});
+ assert.equal((await save({supply_phase:'single',outcome:'suitable_with_work'})).status,400);
+ assert.equal((await save({supply_phase:'single',outcome:'suitable',existing_solar_kw:-1})).status,400);
+ assert.equal((await save({supply_phase:'single',outcome:'suitable_with_work',notes:'Switchboard upgrade included'})).status,200);
+});
+
+test('SQL: alternative quotes survive together, retries reuse the quote, completion is atomic',async()=>{
+ const db=await setup();try{
+   await db.exec(await readFile(new URL('../supabase/battery-quotation-enhancements.sql',import.meta.url),'utf8'));
+   await db.exec(await readFile(new URL('../supabase/battery-quote-acceptance-routing.sql',import.meta.url),'utf8'));
+   await db.exec(await readFile(new URL('../supabase/migrations/20261104005016_battery_assessment_quote_workflow.sql',import.meta.url),'utf8'));
+   await db.exec(await readFile(new URL('../supabase/migrations/20261104010026_battery_assessment_quote_relation.sql',import.meta.url),'utf8'));
+   const aid=(await db.query('select id from battery_iha_assessors limit 1')).rows[0].id;
+   const cid=(await db.query("insert into battery_iha_customers(full_name,phone,formatted_address,suburb,state,postcode) values('Test','0400000000','1 Test St, Preston VIC 3072','Preston','VIC','3072') returning id")).rows[0].id;
+   const bid=(await db.query("insert into battery_iha_bookings(customer_id,assessor_id,starts_at,ends_at) values($1,$2,'2026-11-05T09:00+11','2026-11-05T10:00+11') returning id",[cid,aid])).rows[0].id;
+   const payload={id:'11111111-1111-4111-8111-111111111111',public_token:'22222222-2222-4222-8222-222222222222',assessment_booking_id:bid,customer:{name:'Test'},package_snapshot:{capacity_kwh:20},created_by:'Assessor'};
+   const make=async p=>(await db.query('select create_battery_assessment_quote($1::jsonb) as result',[JSON.stringify(p)])).rows[0].result;
+   assert.equal((await make(payload)).reused,false);
+   assert.equal((await make({...payload,package_snapshot:{capacity_kwh:40}})).quote.package_snapshot.capacity_kwh,20);
+   const second=await make({...payload,id:'33333333-3333-4333-8333-333333333333',public_token:'44444444-4444-4444-8444-444444444444',package_snapshot:{capacity_kwh:30}});
+   assert.equal(second.quote.package_snapshot.capacity_kwh,30);
+   assert.equal((await db.query('select count(*)::int as n from battery_quotes where assessment_booking_id=$1',[bid])).rows[0].n,2);
+   const row={booking_id:bid,supply_phase:'single',outcome:'suitable',notes:'Checked'};
+   await db.query('select save_battery_assessment($1::jsonb,false)',[JSON.stringify(row)]);
+   assert.equal((await db.query('select status from battery_iha_bookings where id=$1',[bid])).rows[0].status,'scheduled');
+   await assert.rejects(db.query('select save_battery_assessment($1::jsonb,true)',[JSON.stringify({...row,outcome:'not_suitable',notes:''})]));
+   assert.equal((await db.query('select status from battery_iha_bookings where id=$1',[bid])).rows[0].status,'scheduled');
+   await db.query('select save_battery_assessment($1::jsonb,true)',[JSON.stringify(row)]);
+   assert.equal((await db.query('select status from battery_iha_bookings where id=$1',[bid])).rows[0].status,'completed');
+ }finally{await db.close()}
+});
+
+
+test('assessment quote preparation keeps explicit alternatives, saved contact and site context',async()=>{
+ const store=fakeStore(),rows=new Map(),pkg={id:'P1',active:true,document_ids:[],phase:'Single Phase',capacity_kwh:20,inverter_kw:5,oop:6100,stcs:115};
+ const quotes={quote:async id=>rows.get(id),listPackages:async()=>[pkg],listDocuments:async()=>[],settings:async()=>({}),createAssessmentQuote:async row=>{rows.set(row.id,row);return{quote:row,reused:false}}};
+ const h=createIhaHandler({store,quotes,ghl:{note:async()=>true},env:{},now:()=>new Date('2026-11-04T00:00:00Z')});
+ const b=(await call(h,booking())).booking;store.rows[0].customer=b.customer;
+ const body={booking_id:b.id,request_id:'11111111-1111-4111-8111-111111111111',package_id:'P1',customer:{name:'Maria',phone:'0412345678',email:'m@example.com',address:'12 Example Street, Penrith NSW 2750'}};
+ const run=x=>call(h,{method:'POST',query:{action:'prepare-quote'},body:{...body,...x}});
+ store.rows[0].assessment={supply_phase:'three',outcome:'suitable'};
+ assert.equal((await run({})).status,400);
+ assert.equal((await run({override_reason:'Existing supply and inverter reviewed by installer'})).status,200);
+ assert.equal((await run({})).reused,true);
+ const row=rows.get(body.request_id);assert.equal(row.ghl_contact_id,'g1');assert.equal(row.assessment_snapshot.booking_reference,'J1001');
+ store.rows[0].assessment={supply_phase:'single',outcome:'not_suitable'};
+ assert.equal((await run({request_id:'22222222-2222-4222-8222-222222222222'})).status,400);
+ store.rows[0].assessment={supply_phase:'single',outcome:'suitable_with_work',notes:'Upgrade required'};
+ assert.equal((await run({request_id:'22222222-2222-4222-8222-222222222222'})).status,400);
+ const another=await run({request_id:'22222222-2222-4222-8222-222222222222',customer_notes:'Includes the switchboard upgrade'});
+ assert.equal(another.status,200);assert.equal(rows.size,2);
 });

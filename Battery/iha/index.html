@@ -262,7 +262,8 @@ textarea{min-height:72px;resize:vertical}
 <!-- Give quote -->
 <dialog id="quote-dlg"><div class="dl">
   <h2 id="q-title">Give quote</h2>
-  <form id="q-form" autocomplete="off">
+  <div id="q-history"></div><form id="q-form" autocomplete="off">
+    <p class="note" id="q-site"></p>
     <p class="eyebrow">Customer</p>
     <div class="f"><label for="q-name">Full name</label><input id="q-name" required></div>
     <div class="two"><div class="f"><label for="q-email">Email</label><input id="q-email" type="email" inputmode="email" required></div><div class="f"><label for="q-phone">Mobile</label><input id="q-phone" inputmode="tel" required></div></div>
@@ -271,7 +272,7 @@ textarea{min-height:72px;resize:vertical}
     <div class="f"><label for="q-price">Final price payable by customer (AUD)</label><input id="q-price" type="number" min="0" step="0.01" inputmode="decimal"><p class="note" style="margin:4px 0 0">Change this only if you have agreed a different price.</p></div>
     <div class="qsum" id="q-sum"></div>
     <div class="f"><label for="q-notes">Notes for the customer (optional)</label><textarea id="q-notes" maxlength="4000" placeholder="Only include confirmed, customer-specific information."></textarea></div>
-    <label class="checkrow"><input id="q-sms" type="checkbox" checked> Send an SMS with the quote link</label>
+    <div class="f" id="q-override-wrap" hidden><label for="q-override">Reason for a different supply-phase system</label><textarea id="q-override" maxlength="1000"></textarea></div><p class="note">Standard Goldsure online quote · valid for 21 days from first send · product brochures included as links · no PDF email attachment.</p><label class="checkrow"><input id="q-sms" type="checkbox" checked> Send an SMS with the quote link</label>
     <div id="q-msg" class="err" hidden role="alert"></div><p id="q-hint" class="note" style="margin:0"></p>
     <div class="acts"><button class="btn alt" type="button" id="q-cancel">Close</button><button class="btn gold" type="submit" id="q-send" disabled>Send quote</button></div>
   </form>
@@ -282,6 +283,7 @@ textarea{min-height:72px;resize:vertical}
 <dialog id="job-dlg"><div class="dl"><div id="j-body"></div></div></dialog>
 
 <script type="module">
+import {responseState} from '/Battery/quotes/lifecycle.js';
 import {batteryPricing,priceAdjustment} from '/Battery/quotes/pricing.js';
 const SY='Australia/Sydney',$=id=>document.getElementById(id);
 const DEMO=new URLSearchParams(location.search).has('demo');
@@ -304,7 +306,7 @@ async function api(action,{method='GET',body,query={}}={}){
   const qs=new URLSearchParams({action,...query}).toString();
   const r=await fetch(API+'&'+qs,{method,headers:{'Content-Type':'application/json','x-battery-session':''},body:body?JSON.stringify(body):undefined});
   let d={};try{d=await r.json()}catch{}
-  if(!r.ok)throw new Error(d.error||'Something went wrong. Refresh and try again.');
+  if(!r.ok){const e=new Error(d.error||'Something went wrong. Refresh and try again.');e.status=r.status;throw e;}
   return d;
 }
 /* ---- state ---- */
@@ -323,8 +325,8 @@ function dayJobs(a,d){return S.data.bookings.filter(b=>b.assessor_id===a.id&&liv
 const START_ADDRESS='16 Sandpiper Way, South Morang VIC 3752';   // every day's route starts here
 function routeUrl(a,jobs){
   if(!jobs.length)return null;
-  const addr=jobs.map(b=>b.customer.formatted_address),dest=addr[addr.length-1],way=addr.slice(0,-1).slice(0,9);
-  return MAPS('origin='+encodeURIComponent(START_ADDRESS),'destination='+encodeURIComponent(dest),...(way.length?['waypoints='+encodeURIComponent(way.join('|'))]:[]));
+  const addr=jobs.filter(b=>!['completed','no_show'].includes(b.status)).map(b=>b.customer.formatted_address),dest=addr[Math.min(addr.length-1,9)],way=addr.slice(0,Math.min(addr.length-1,9));if(!addr.length)return null;
+  return MAPS('origin='+encodeURIComponent(a.base_address||START_ADDRESS),'destination='+encodeURIComponent(dest),...(way.length?['waypoints='+encodeURIComponent(way.join('|'))]:[]));
 }
 const ICON={
  nav:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-8z"/></svg>',
@@ -383,11 +385,11 @@ function openJob(id){
   const b=S.data.bookings.find(x=>x.id===id);if(!b)return;const a=S.data.assessors.find(x=>x.id===b.assessor_id)||{full_name:''};const p=parts(b.starts_at),e=parts(b.ends_at);
   const body=$('j-body');body.replaceChildren(
     h('p',{class:'eyebrow'},STATUS[b.status]||b.status),h('div',{class:'jobno'},b.reference),
-    h('dl',{class:'kv'},h('dt',{},'Customer'),h('dd',{},b.customer.full_name),h('dt',{},'Mobile'),h('dd',{},b.customer.phone),h('dt',{},'Address'),h('dd',{},b.customer.formatted_address),h('dt',{},'When'),h('dd',{},shortDay(p.date)+', '+t12(p.min)+' – '+t12(e.min)),h('dt',{},'Assessor'),h('dd',{},a.full_name),b.access_notes?h('dt',{},'Access'):null,b.access_notes?h('dd',{},b.access_notes):null,b.ghl_status&&b.ghl_status!=='not_sent'?h('dt',{},'GHL'):null,b.ghl_status&&b.ghl_status!=='not_sent'?h('dd',{},b.ghl_status):null),
+    h('dl',{class:'kv'},h('dt',{},'Customer'),h('dd',{},b.customer.full_name),h('dt',{},'Mobile'),h('dd',{},b.customer.phone),h('dt',{},'Address'),h('dd',{},b.customer.formatted_address),h('dt',{},'When'),h('dd',{},shortDay(p.date)+', '+t12(p.min)+' – '+t12(e.min)),h('dt',{},'Assessor'),h('dd',{},a.full_name),b.access_notes?h('dt',{},'Access'):null,b.access_notes?h('dd',{},b.access_notes):null,b.ghl_status&&b.ghl_status!=='not_sent'?h('dt',{},'GHL booking note'):null,b.ghl_status&&b.ghl_status!=='not_sent'?h('dd',{},b.ghl_status):null),
     h('div',{class:'acts'},
       h('a',{class:'btn',target:'_blank',rel:'noopener',href:MAPS('destination='+encodeURIComponent(b.customer.formatted_address))},'Open in Maps'),
-      h('button',{class:'btn gold',onclick:()=>{$('job-dlg').close();openQuote(b)}},'Give quote')),
-    h('div',{class:'acts'},...['confirmed','en_route','arrived','completed'].filter(s=>s!==b.status).map(s=>h('button',{class:'btn alt',onclick:()=>setStatus(b.id,s)},STATUS[s])),
+      h('button',{class:'btn gold',onclick:()=>{$('job-dlg').close();openQuote(b)}},'Quotes / new option'),h('button',{class:'btn alt',onclick:()=>{P.assessor=b.assessor_id;P.date=parts(b.starts_at).date;P.active=b.id;P.form=true;$('job-dlg').close();mode('phone')}},'Assessment'),h('button',{class:'btn alt',onclick:()=>reschedule(b)},'Reschedule')),
+    h('div',{class:'acts'},...['confirmed','en_route','arrived','no_show'].filter(s=>s!==b.status).map(s=>h('button',{class:'btn alt',onclick:()=>setStatus(b.id,s)},STATUS[s])),
       b.status!=='cancelled'?h('button',{class:'btn alt',style:'color:var(--warn)',onclick:()=>cancelJob(b.id)},'Cancel job'):null),
     h('div',{class:'acts'},h('button',{class:'btn alt',onclick:()=>$('job-dlg').close()},'Close')));
   $('job-dlg').showModal();
@@ -396,6 +398,11 @@ async function setStatus(id,status){try{await api('update-status',{method:'POST'
 let cancelArm=null;
 async function cancelJob(id){if(cancelArm!==id){cancelArm=id;const btn=[...$('j-body').querySelectorAll('button')].find(x=>x.textContent==='Cancel job');btn.textContent='Tap again to cancel this job';return}
   cancelArm=null;try{await api('cancel',{method:'POST',body:{id,reason:'Cancelled from schedule'}});$('job-dlg').close();await load()}catch(e){alert_(e.message)}}
+function reschedule(b){
+  const d=h('dialog',{}),who=h('select',{},...S.data.assessors.map(a=>h('option',{value:a.id},a.full_name))),date=h('input',{type:'date',value:parts(b.starts_at).date}),time=h('input',{type:'time',value:hm(parts(b.starts_at).min)}),err=h('p',{class:'err',hidden:true});who.value=b.assessor_id;
+  const save=h('button',{class:'btn gold',onclick:async()=>{save.disabled=true;try{await api('reschedule',{method:'POST',body:{id:b.id,assessor_id:who.value,date:date.value,time:time.value}});d.close();$('job-dlg').close();S.date=date.value;await load()}catch(e){err.hidden=false;err.textContent=e.message}finally{save.disabled=false}}},'Save appointment');
+  d.append(h('div',{class:'dl'},h('h2',{},'Reschedule '+b.reference),h('label',{},'Assessor',who),h('label',{},'Date',date),h('label',{},'Start time',time),h('p',{class:'note'},'Working hours, leave and overlapping appointments are checked before saving.'),err,h('div',{class:'acts'},h('button',{class:'btn alt',onclick:()=>d.close()},'Cancel'),save)));document.body.append(d);d.addEventListener('close',()=>d.remove());d.showModal();
+}
 function alert_(t){const d=$('job-dlg').open?$('j-body'):null;if(d)d.prepend(h('div',{class:'err'},t));else msg(t)}
 /* ---- booking dialog ---- */
 const B={ghl:null,addr:null,slot:null,dayJobs:[],timer:0,placeId:null};
@@ -445,18 +452,18 @@ async function pickAddr(p){B.addr=p.description.replace(/, Australia$/,'');B.pla
 $('c-addr').addEventListener('input',()=>{clearTimeout(B.at);B.at=setTimeout(()=>addrSearch($('c-addr').value),250)});
 $('c-addr').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=$('c-addr').value.trim();if(/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)[,\s]+\d{4}\b/i.test(v)){B.addr=v;$('c-pc').value=v.match(/\b(\d{4})\b(?!.*\b\d{4}\b)/)?.[1]||$('c-pc').value;$('addr-res').hidden=true;$('c-addr').classList.add('sel');upd()}}});
 /* Slots */
-const dayOf=(a,d)=>{const rows=(S.data.assessors.find(x=>x.id===a)?.availability||[]).filter(r=>r.weekday===dow(d));return rows.length?rows.map(r=>[+r.start_time.slice(0,2)*60+ +r.start_time.slice(3,5),+r.end_time.slice(0,2)*60+ +r.end_time.slice(3,5)]):[[8*60,16*60]]};
+const dayOf=(a,d)=>{const rows=(S.data.assessors.find(x=>x.id===a)?.availability||[]).filter(r=>r.weekday===dow(d));return rows.length?rows.map(r=>[+r.start_time.slice(0,2)*60+ +r.start_time.slice(3,5),+r.end_time.slice(0,2)*60+ +r.end_time.slice(3,5)]):[]};
 async function refreshSlots(){
   const a=$('b-assessor').value,d=$('b-date').value,box=$('slots');if(!a||!d){box.replaceChildren();return}
-  let jobs=S.data.bookings;if(d<range()[0]||d>range()[1]){try{jobs=(await api('bootstrap',{query:{from:d,to:d}})).bookings}catch{}}
+  box.textContent='Checking availability…';let fresh;try{fresh=await api('bootstrap',{query:{from:d,to:d}})}catch(e){box.textContent=e.message;B.slot=null;upd();return}if(d!==$('b-date').value||a!==$('b-assessor').value)return;const jobs=fresh.bookings;
   const st=S.data.settings,vm=st.visit_minutes||60,bm=st.buffer_minutes||0,step=st.slot_step_minutes||60,nw=nowSy(),busy=jobs.filter(b=>b.assessor_id===a&&live(b)&&parts(b.starts_at).date===d).map(b=>[parts(b.starts_at).min,parts(b.ends_at).min]);
-  const off=(S.data.time_off||[]).filter(t=>t.assessor_id===a&&parts(t.starts_at).date<=d&&parts(t.ends_at).date>=d).map(t=>[parts(t.starts_at).date<d?0:parts(t.starts_at).min,parts(t.ends_at).date>d?1440:parts(t.ends_at).min]);
+  const off=(fresh.time_off||[]).filter(t=>t.assessor_id===a&&parts(t.starts_at).date<=d&&parts(t.ends_at).date>=d).map(t=>[parts(t.starts_at).date<d?0:parts(t.starts_at).min,parts(t.ends_at).date>d?1440:parts(t.ends_at).min]);
   const opts=[];for(const[s,e]of dayOf(a,d))for(let m=s;m+vm<=e;m+=step)opts.push(m);
-  box.replaceChildren(...opts.map(m=>{const clash=busy.some(([bs,be])=>m<be+0&&m+vm+bm>bs)||off.some(([os,oe])=>m<oe&&m+vm>os)||(d===nw.date&&m<nw.min)||d<nw.date;
+  box.replaceChildren(...opts.map(m=>{const clash=busy.some(([bs,be])=>m<be+bm&&m+vm+bm>bs)||off.some(([os,oe])=>m<oe&&m+vm>os)||(d===nw.date&&m<nw.min)||d<nw.date||d>addDays(nw.date,st.max_days_ahead||21);
     return h('button',{type:'button',class:'slot',disabled:clash,'aria-pressed':String(B.slot===hm(m)),onclick:()=>{B.slot=hm(m);[...box.children].forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.t===B.slot)));upd()}},t12(m))}));
   box.querySelectorAll('.slot').forEach((x,i)=>{x.dataset.t=hm(opts[i]);x.setAttribute('aria-pressed',String(x.dataset.t===B.slot&&!x.disabled))});
   if(B.slot&&[...box.children].some(x=>x.dataset.t===B.slot&&x.disabled))B.slot=null;
-  $('slot-note').textContent=`One-hour visits, 8am to 4pm.`;upd();
+  $('slot-note').textContent=opts.length?`${vm}-minute visits · ${bm}-minute travel buffer. Appointments up to ${st.max_days_ahead||21} days ahead.`:'No working hours for this assessor on this day.';upd();
 }
 $('b-assessor').addEventListener('change',()=>{B.slot=null;refreshSlots()});$('b-date').addEventListener('change',()=>{B.slot=null;refreshSlots()});
 $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-save').disabled)return;$('b-save').disabled=true;$('b-save').textContent='Booking…';$('b-err').hidden=true;
@@ -467,7 +474,12 @@ $('book-form').addEventListener('submit',async e=>{e.preventDefault();if($('b-sa
   catch(err){$('b-err').textContent=err.message;$('b-err').hidden=false;refreshSlots()}
   finally{$('b-save').textContent='Book assessment';upd()}});
 /* ---- assessor phone view ---- */
-const P={assessor:null,date:null,form:false,A:{}};
+const P={assessor:null,date:null,form:false,A:{},active:null,job:null};
+const draftKey=id=>'iha-assessment-draft:'+id;
+function cacheAssessment(){if(!P.job)return;for(const id of ['kw','inv','dist','nts'])if($(id))P.A[id]=$(id).value;try{localStorage.setItem(draftKey(P.job),JSON.stringify(P.A))}catch{}}
+function restoreAssessment(b){if(P.job===b.id)return;cacheAssessment();P.job=b.id;const a=Array.isArray(b.assessment)?b.assessment[0]:b.assessment;P.A={...(a||{}),space:a?.switchboard_has_space===true?'yes':a?.switchboard_has_space===false?'no':undefined,kw:a?.existing_solar_kw??'',inv:a?.existing_inverter_brand||'',dist:a?.install_distance_to_switchboard_m??'',nts:a?.notes||''};try{Object.assign(P.A,JSON.parse(localStorage.getItem(draftKey(b.id))||'{}'))}catch{}}
+async function saveAssessment(b,complete){cacheAssessment();const a=P.A;await api('save-assessment',{method:'POST',body:{booking_id:b.id,complete,assessment:{supply_phase:a.supply_phase,switchboard_has_space:a.space==='yes'?true:a.space==='no'?false:null,existing_solar_kw:a.kw,existing_inverter_brand:a.inv,install_location:a.install_location,install_distance_to_switchboard_m:a.dist,outcome:a.outcome,notes:a.nts}}});try{localStorage.removeItem(draftKey(b.id))}catch{}if(complete){P.form=false;P.job=null;P.A={}}await load();msg(complete?'Assessment saved and visit completed.':'Assessment draft saved.',true)}
+
 async function renderPhone(){
   const sel=$('p-assessor');if(!sel.options.length||sel.dataset.n!==String(S.data.assessors.length)){sel.replaceChildren(...S.data.assessors.map(a=>h('option',{value:a.id},a.full_name)));sel.dataset.n=S.data.assessors.length;P.assessor=P.assessor||sel.value}
   sel.value=P.assessor||sel.value;P.assessor=sel.value;P.date=P.date||S.today;$('p-day').textContent=shortDay(P.date)+(P.date===S.today?' · today':'');
@@ -476,18 +488,20 @@ async function renderPhone(){
   const list=jobs.filter(b=>b.assessor_id===a.id&&live(b)&&parts(b.starts_at).date===P.date).sort((x,y)=>x.starts_at<y.starts_at?-1:1);
   $('p-eyebrow').textContent=shortDay(P.date);$('p-title').textContent=P.date===S.today?"Today's route":'Route';$('p-stops').textContent=list.length;$('p-first').textContent=list.length?t12(parts(list[0].starts_at).min):'–';
   const url=routeUrl(a,list);$('p-route').href=url||'#';$('p-route').style.opacity=url?1:.4;$('p-route').style.pointerEvents=url?'auto':'none';
-  const cur=list.findIndex(b=>b.status!=='completed');const box=$('p-list');box.replaceChildren();
+  const cur=P.active&&list.some(b=>b.id===P.active)?list.findIndex(b=>b.id===P.active):list.findIndex(b=>!['completed','no_show'].includes(b.status));const box=$('p-list');box.replaceChildren();
+  if(list.filter(b=>!['completed','no_show'].includes(b.status)).length>10)box.append(h('p',{class:'note'},'Maps shows the next 10 stops. Use Navigate on later visits to continue.'));
   if(!list.length){box.append(h('p',{class:'empty'},'No assessments booked for this day.'));return}
   list.forEach((b,i)=>{const isCur=i===cur,done=b.status==='completed',c=b.customer;
-    const acts=h('div',{class:'pa'});
+    const acts=h('div',{class:'pa'});if(!isCur)acts.append(h('button',{class:'pbtn',onclick:()=>{cacheAssessment();P.active=b.id;P.form=false;renderPhone()}},'Open visit'));
     if(isCur){
+      acts.append(h('button',{class:'pbtn',onclick:()=>reschedule(b)},'Reschedule'),h('button',{class:'pbtn',onclick:async()=>{try{await api('update-status',{method:'POST',body:{id:b.id,status:'no_show'}});P.active=null;P.form=false;await load()}catch(e){msg(e.message)}}},'No show'));
       acts.append(h('a',{class:'pbtn',target:'_blank',rel:'noopener',href:MAPS('destination='+encodeURIComponent(c.formatted_address))},ic('nav'),'Navigate'),h('a',{class:'pbtn',href:'tel:'+c.phone.replace(/[^\d+]/g,'')},ic('phone'),'Call'));
-      const quote=h('button',{class:'pbtn dark',type:'button',onclick:()=>openQuote(b)},ic('quote'),'Give quote');
-      const onSite=['en_route','arrived'].includes(b.status);
-      if(P.form&&onSite)acts.append(quote,assessForm(b));
+      const quote=h('button',{class:'pbtn dark',type:'button',onclick:()=>openQuote(b)},ic('quote'),'Quotes / new option');
+      const onSite=['en_route','arrived','completed'].includes(b.status);
+      if(P.form)acts.append(quote,assessForm(b));
       else{
         const step=onSite?['arrived','Start assessment']:['en_route','Start driving'];
-        acts.append(h('button',{class:'pbtn gold',onclick:async()=>{try{if(step[0]==='arrived'){if(b.status!=='arrived')await api('update-status',{method:'POST',body:{id:b.id,status:'arrived'}});P.form=true}else await api('update-status',{method:'POST',body:{id:b.id,status:'en_route'}});await load()}catch(e){msg(e.message)}}},step[1]),quote)}
+        acts.append(h('button',{class:'pbtn gold',onclick:async()=>{try{if(step[0]==='arrived'){if(!['arrived','completed'].includes(b.status))await api('update-status',{method:'POST',body:{id:b.id,status:'arrived'}});P.form=true}else await api('update-status',{method:'POST',body:{id:b.id,status:'en_route'}});await load()}catch(e){msg(e.message)}}},step[1]),quote)}
     }
     const tagCls=['en_route','arrived'].includes(b.status)?' go':done?' done':'';
     box.append(h('div',{class:'step'+(isCur?' cur':'')+(done?' done':'')},
@@ -497,26 +511,26 @@ async function renderPhone(){
         h('div',{class:'nm2'},c.full_name),h('div',{class:'ad strong'},c.formatted_address),
         isCur?h('div',{class:'ad'},c.phone):null,
         isCur&&b.access_notes?h('div',{class:'ad'},'Access: '+b.access_notes):null,
-        b.quote?h('div',{class:'quoted'},ic('check'),'Quote '+b.quote.reference+(b.quote.sent_at?' sent':' saved')):null,
+        b.quote?h('div',{class:'quoted'},ic('check'),'Quote '+b.quote.reference+' · '+b.quote.status.replaceAll('_',' ')):null,
         acts)))});
 }
 function seg(k,opts){return h('div',{class:'seg'},...opts.map(([v,l])=>h('button',{type:'button','aria-pressed':String(P.A[k]===v),onclick:()=>{P.A[k]=v;keepForm()}},l)))}
-function keepForm(){const k=['kw','inv','dist','nts'].map(id=>$(id)?.value);renderPhone().then(()=>['kw','inv','dist','nts'].forEach((id,i)=>{if($(id)&&k[i])$(id).value=k[i]}))}
+function keepForm(){cacheAssessment();renderPhone()}
 function assessForm(b){
+  restoreAssessment(b);
   const f=(label,node)=>h('div',{class:'f',style:'grid-column:1/-1'},h('label',{},label),node);
   const root=h('div',{class:'afm'},
     f('Supply',seg('supply_phase',[['single','Single phase'],['three','Three phase'],['unsure','Not sure']])),
     f('Space in switchboard',seg('space',[['yes','Yes'],['no','No']])),
-    h('div',{class:'two'},h('div',{class:'f'},h('label',{for:'kw'},'Existing solar (kW)'),h('input',{id:'kw',inputmode:'decimal'})),h('div',{class:'f'},h('label',{for:'inv'},'Inverter brand'),h('input',{id:'inv'}))),
+    h('div',{class:'two'},h('div',{class:'f'},h('label',{for:'kw'},'Existing solar (kW)'),h('input',{id:'kw',type:'number',min:0,max:999,step:'any',inputmode:'decimal',value:P.A.kw})),h('div',{class:'f'},h('label',{for:'inv'},'Inverter brand'),h('input',{id:'inv',value:P.A.inv}))),
     f('Battery location',seg('install_location',[['garage','Garage'],['external_wall','External wall'],['internal_wall','Internal wall'],['other','Other']])),
-    h('div',{class:'f'},h('label',{for:'dist'},'Distance to switchboard (m)'),h('input',{id:'dist',inputmode:'decimal'})),
+    h('div',{class:'f'},h('label',{for:'dist'},'Distance to switchboard (m)'),h('input',{id:'dist',type:'number',min:0,max:999,step:'any',inputmode:'decimal',value:P.A.dist})),
     f('Outcome',seg('outcome',[['suitable','Suitable'],['suitable_with_work','Needs work'],['not_suitable','Not suitable']])),
-    h('div',{class:'f'},h('label',{for:'nts'},'Notes'),h('textarea',{id:'nts'})),
-    h('button',{class:'pbtn main ok',type:'button',disabled:!(P.A.outcome&&P.A.supply_phase),onclick:async()=>{
-      try{await api('save-assessment',{method:'POST',body:{booking_id:b.id,assessment:{supply_phase:P.A.supply_phase,switchboard_has_space:P.A.space==='yes'?true:P.A.space==='no'?false:null,existing_solar_kw:$('kw').value,existing_inverter_brand:$('inv').value,install_location:P.A.install_location,install_distance_to_switchboard_m:$('dist').value,outcome:P.A.outcome,notes:$('nts').value}}});
-        await api('update-status',{method:'POST',body:{id:b.id,status:'completed'}});P.form=false;P.A={};await load()}catch(e){msg(e.message)}}},'Submit and finish visit'));
-  return root}
-$('p-assessor').onchange=e=>{P.assessor=e.target.value;renderPhone()};
+    h('div',{class:'f'},h('label',{for:'nts'},'Notes'),h('textarea',{id:'nts'},P.A.nts||'')),
+    h('button',{class:'pbtn',type:'button',onclick:async e=>{const btn=e.currentTarget;btn.disabled=true;try{await saveAssessment(b,false)}catch(err){msg(err.message);btn.disabled=false}}},'Save draft'),
+    h('button',{class:'pbtn main ok',type:'button',disabled:!(P.A.outcome&&P.A.supply_phase),onclick:async e=>{const btn=e.currentTarget;btn.disabled=true;try{await saveAssessment(b,true)}catch(err){msg(err.message);btn.disabled=false}}},'Submit and finish visit'));
+  root.addEventListener('input',cacheAssessment);return root}
+$('p-assessor').onchange=e=>{cacheAssessment();P.active=null;P.form=false;P.assessor=e.target.value;renderPhone()};
 /* day picker: month grid with the number of jobs on each day for the chosen assessor */
 const C={month:null,jobs:[]};
 const monthStart=d=>d.slice(0,8)+'01';
@@ -529,11 +543,11 @@ function renderCal(start){
   $('cal-title').textContent=new Date(C.month+'T00:00:00Z').toLocaleDateString('en-AU',{month:'long',year:'numeric',timeZone:'UTC'});
   $('cal-who').textContent='Choose a day'+(S.data.assessors.find(a=>a.id===P.assessor)?' · '+S.data.assessors.find(a=>a.id===P.assessor).full_name:'');
   for(let i=0;i<42;i++){const d=addDays(start,i),n=C.jobs.filter(b=>b.assessor_id===P.assessor&&live(b)&&parts(b.starts_at).date===d).length;
-    cal.append(h('button',{type:'button',class:(d.slice(0,7)===mon?'':'out ')+(d===S.today?'today ':'')+(d===P.date?'sel ':'')+(n?'busy':''),'aria-label':shortDay(d)+', '+(n?n+' job'+(n===1?'':'s'):'no jobs'),onclick:()=>{P.date=d;$('cal-dlg').close();renderPhone()}},String(+d.slice(8)),n?h('span',{class:'cnt'},String(n)):null))}}
+    cal.append(h('button',{type:'button',class:(d.slice(0,7)===mon?'':'out ')+(d===S.today?'today ':'')+(d===P.date?'sel ':'')+(n?'busy':''),'aria-label':shortDay(d)+', '+(n?n+' job'+(n===1?'':'s'):'no jobs'),onclick:()=>{cacheAssessment();P.active=null;P.form=false;P.date=d;$('cal-dlg').close();renderPhone()}},String(+d.slice(8)),n?h('span',{class:'cnt'},String(n)):null))}}
 $('p-day').onclick=()=>{C.month=monthStart(P.date||S.today);$('cal').replaceChildren();$('cal-dlg').showModal();loadCal()};
 $('cal-prev').onclick=()=>{const d=new Date(C.month+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-1,1);C.month=d.toISOString().slice(0,10);loadCal()};
 $('cal-next').onclick=()=>{const d=new Date(C.month+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1,1);C.month=d.toISOString().slice(0,10);loadCal()};
-$('cal-today').onclick=()=>{P.date=S.today;$('cal-dlg').close();renderPhone()};$('cal-close').onclick=()=>$('cal-dlg').close();
+$('cal-today').onclick=()=>{cacheAssessment();P.active=null;P.form=false;P.date=S.today;$('cal-dlg').close();renderPhone()};$('cal-close').onclick=()=>$('cal-dlg').close();
 
 /* ---- mode ---- */
 function mode(m){S.mode=m;$('sched').hidden=m!=='sched';$('phone').hidden=m!=='phone';$('m-sched').setAttribute('aria-selected',m==='sched');$('m-phone').setAttribute('aria-selected',m==='phone');if(m==='phone')renderPhone()}
@@ -552,7 +566,9 @@ async function demoApi(action,b={},q={}){if(!DB)demoInit();
     const n=DB.next++;const row={id:'d'+n,reference:'J'+n,job_number:n,assessor_id:b.assessor_id,status:'scheduled',access_notes:b.access_notes,ghl_status:b.customer.ghl_contact_id?'synced':'not_sent',starts_at:st,ends_at:en,customer:{full_name:b.customer.name,phone:b.customer.phone,email:b.customer.email,formatted_address:b.customer.address}};DB.bookings.push(row);return{success:true,booking:{...row,assessor:DB.assessors.find(a=>a.id===b.assessor_id)}}}
   if(action==='update-status'||action==='cancel'){const x=DB.bookings.find(y=>y.id===b.id);x.status=action==='cancel'?'cancelled':b.status;return{success:true,booking:x}}
   if(action==='link-quote'){const x=DB.bookings.find(y=>y.id===b.booking_id);x.battery_quote_id=b.quote_id;x.quote={reference:'BAT-2026-000200',sent_at:new Date().toISOString()};return{success:true}}
-  if(action==='save-assessment')return{success:true}
+  if(action==='booking'){const booking=DB.bookings.find(x=>x.id===q.id);return{booking,quotes:(DB.quotes||[]).filter(x=>x.assessment_booking_id===q.id)}}
+  if(action==='prepare-quote'){DB.quotes||=[];const old=DB.quotes.find(x=>x.id===b.request_id);if(old)return{quote:old,reused:true};const pkg=(await demoQuote('bootstrap')).packages.find(x=>x.id===b.package_id);const quote={id:b.request_id,reference:'BAT-DEMO-'+(DB.quotes.length+1),status:'draft',assessment_booking_id:b.booking_id,package_snapshot:pkg};DB.quotes.push(quote);return{quote,reused:false}}
+  if(action==='save-assessment'){const x=DB.bookings.find(x=>x.id===b.booking_id);x.assessment=b.assessment;if(b.complete)x.status='completed';return{success:true}}
   throw new Error('Unknown action')}
 /* ---- give quote (same quote service as the quote builder) ---- */
 const money=n=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:2}).format(Number(n)||0);
@@ -562,36 +578,56 @@ async function qapi(action,body){
   const r=await fetch('/api/battery/request-callback?module=quotes&action='+encodeURIComponent(action),{method:body?'POST':'GET',headers:{'x-battery-session':'',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
   let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||'Could not complete this step.');return d}
 const qmsg=(t,ok)=>{const m=$('q-msg');m.hidden=!t;m.textContent=t||'';m.className=ok?'okmsg':'err';if(t)m.scrollIntoView({block:'center',behavior:'smooth'})};
+const quoteUrl=id=>'/Battery/quotes/index.html?view=tracker&quote='+encodeURIComponent(id);
+const requestKey=id=>'iha-pending-quote:'+id;
 async function openQuote(b){
-  Q.booking=b;Q.pending=null;Q.sel=null;$('q-form').hidden=false;$('q-done').hidden=true;qmsg('');
-  const c=b.customer;$('q-title').textContent='Give quote · '+b.reference;$('q-name').value=c.full_name||'';$('q-email').value=c.email||'';$('q-phone').value=c.phone||'';$('q-addr').value=c.formatted_address||'';$('q-notes').value='';$('q-price').value='';
-  $('quote-dlg').showModal();
-  if(!Q.pkgs){$('q-pkgs').replaceChildren(h('p',{class:'note'},'Loading systems…'));try{const d=await qapi('bootstrap');Q.pkgs=d.packages.filter(p=>p.active);Q.tax=d.settings?.tax_treatment}catch(e){qmsg(e.message);$('q-pkgs').replaceChildren();return}}
-  renderQuote()}
+  cacheAssessment();Q.booking=b;Q.pending=null;Q.sel=null;Q.busy=false;Q.attempted=false;Q.request=null;$('q-form').hidden=true;$('q-done').hidden=true;$('q-history').hidden=false;$('q-history').textContent='Loading quotes…';$('quote-dlg').showModal();
+  try{
+    if(P.job===b.id&&P.form)await saveAssessment(b,false);
+    const detail=await api('booking',{query:{id:b.id}});Q.booking=b=detail.booking;
+    const history=$('q-history');history.replaceChildren(h('h3',{},'Quotes for '+b.reference));
+    for(const q of detail.quotes)history.append(h('p',{},h('a',{href:quoteUrl(q.id),target:'_blank',rel:'noopener'},`${q.reference} · ${q.package_snapshot.capacity_kwh}kWh / ${q.package_snapshot.inverter_kw}kW · ${money(q.package_snapshot.oop)} · ${q.status.replaceAll('_',' ')}${q.sent_at?' / '+responseState(q):''}`)));
+    let pending;try{pending=JSON.parse(localStorage.getItem(requestKey(b.id))||'null')}catch{}
+    if(detail.quotes.some(q=>q.id===pending?.request_id)){try{localStorage.removeItem(requestKey(b.id))}catch{}pending=null}
+    if(pending){history.hidden=false;history.append(h('p',{class:'err'},'An earlier quote save was interrupted. Recover that quote before starting another option.'),h('button',{class:'btn',onclick:async()=>{try{await api('prepare-quote',{method:'POST',body:pending});localStorage.removeItem(requestKey(b.id));await openQuote(b)}catch(e){if([400,404,409].includes(e.status)){localStorage.removeItem(requestKey(b.id));await openQuote(b)}else history.append(h('p',{class:'err'},e.message))}}},'Recover saved quote'),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'));return}
+    const start=()=>{Q.request=crypto.randomUUID();Q.attempted=false;Q.pending=null;Q.sel=null;history.hidden=true;$('q-form').hidden=false;qmsg('');
+      const c=b.customer;$('q-title').textContent='New quote · '+b.reference;$('q-name').value=c.full_name||'';$('q-email').value=c.email||'';$('q-phone').value=c.phone||'';$('q-addr').value=c.formatted_address||'';$('q-notes').value='';$('q-price').value='';$('q-override').value='';
+      const a=Array.isArray(b.assessment)?b.assessment[0]:b.assessment;Q.assessment=a||{};$('q-site').textContent=a?`Site assessment: ${a.supply_phase||'phase not recorded'} · ${(a.outcome||'not completed').replaceAll('_',' ')}. ${a.notes||''}`:'Assessment not recorded yet. Confirm the system is suitable before sending.';renderQuote()};
+    const d=await qapi('bootstrap');Q.pkgs=d.packages.filter(p=>p.active);Q.tax=d.settings?.tax_treatment;
+    history.hidden=false;history.append(h('button',{class:'btn gold',onclick:start},detail.quotes.length?'Create another quote':'Create quote'),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'));
+    if(!detail.quotes.length)start();
+  }catch(e){$('q-history').replaceChildren(h('p',{class:'err'},e.message),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'))}
+}
 function renderQuote(){
-  $('q-pkgs').replaceChildren(...(Q.pkgs.length?Q.pkgs.map(p=>h('button',{type:'button',class:'qp','aria-pressed':String(Q.sel?.id===p.id),onclick:()=>{Q.sel=p;Q.pending=null;$('q-price').value=String(batteryPricing(p).oop);renderQuote()}},h('span',{},h('b',{},p.capacity_kwh+'kWh '+p.battery_name),h('small',{},`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase} · ${p.stcs} STCs`)),h('span',{class:'pr'},money(p.oop)))):[h('p',{class:'note'},'No active packages. Ask an administrator to add one.')]));
+  for(const input of $('q-form').querySelectorAll('input,textarea'))input.disabled=Boolean(Q.busy||Q.attempted);
+  $('q-pkgs').replaceChildren(...(Q.pkgs.length?Q.pkgs.map(p=>h('button',{type:'button',class:'qp','aria-pressed':String(Q.sel?.id===p.id),onclick:()=>{if(Q.busy||Q.attempted)return;Q.sel=p;$('q-price').value=String(batteryPricing(p).oop);renderQuote()}},h('span',{},h('b',{},p.capacity_kwh+'kWh '+p.battery_name),h('small',{},`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase} · ${p.stcs} STCs`)),h('span',{class:'pr'},money(p.oop)))):[h('p',{class:'note'},'No active packages. Ask an administrator to add one.')]));
   const sum=$('q-sum');sum.replaceChildren();let ok=false;
   if(Q.sel){const pr=batteryPricing(Q.sel),adj=priceAdjustment({gross_amount:pr.gross,stc_deduction:pr.deduction},{oop:$('q-price').value});
     if(adj.error)sum.append(h('div',{style:'color:var(--warn)'},adj.error));
     else{const gross=adj.gross_amount??pr.gross,oop=adj.oop??pr.oop;ok=true;
       sum.append(h('div',{},h('span',{},'System price'),h('span',{},money(gross))),h('div',{},h('span',{},`STC rebate (${Q.sel.stcs} × ${money(pr.rate)})`),h('span',{},'−'+money(pr.deduction))),h('div',{class:'tot'},h('span',{},'Customer pays'),h('span',{},money(oop))))}}
   else sum.append(h('span',{class:'note'},'Choose a system to see the price.'));
-  const need=[];if(!Q.sel)need.push('choose a system');if(Q.sel&&!ok)need.push('fix the price');if(!$('q-name').value.trim())need.push('enter the customer name');if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('q-email').value.trim()))need.push('enter a valid customer email');if($('q-phone').value.replace(/\D/g,'').length<8)need.push('enter a phone number');if($('q-addr').value.trim().length<8)need.push('enter the full address');
-  $('q-hint').textContent=need.length?'To send: '+need.join(', ')+'.':'';$('q-send').disabled=need.length>0}
-['q-name','q-email','q-phone','q-addr','q-price','q-notes'].forEach(i=>$(i).addEventListener('input',()=>{Q.pending=null;if(Q.pkgs)renderQuote()}));
+  const a=Q.assessment||{},mismatch=Q.sel&&a.supply_phase&&a.supply_phase!=='unsure'&&Q.sel.phase!==(a.supply_phase==='single'?'Single Phase':'Three Phase');$('q-override-wrap').hidden=!mismatch;
+  const need=[];if(a.outcome==='not_suitable')need.push('review the unsuitable assessment first');if(mismatch&&$('q-override').value.trim().length<10)need.push('explain the supply-phase override');if(a.outcome==='suitable_with_work'&&$('q-notes').value.trim().length<10)need.push('describe the required work and price inclusions');if(!Q.sel)need.push('choose a system');if(Q.sel&&!ok)need.push('fix the price');if(!$('q-name').value.trim())need.push('enter the customer name');if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('q-email').value.trim()))need.push('enter a valid customer email');if($('q-phone').value.replace(/\D/g,'').length<8)need.push('enter a phone number');if($('q-addr').value.trim().length<8)need.push('enter the full address');
+  $('q-hint').textContent=need.length?'To send: '+need.join(', ')+'.':'';$('q-send').disabled=need.length>0||Q.busy||Q.attempted;sum.append(h('p',{class:'note'},Q.tax==='inclusive'?'GST included':Q.tax==='exclusive'?'GST excluded':''))}
+['q-name','q-email','q-phone','q-addr','q-price','q-notes','q-override'].forEach(i=>$(i).addEventListener('input',()=>{if(Q.pkgs)renderQuote()}));
 $('q-cancel').onclick=()=>$('quote-dlg').close();$('q-close').onclick=()=>$('quote-dlg').close();
-$('q-form').addEventListener('submit',async e=>{e.preventDefault();if($('q-send').disabled)return;const btn=$('q-send');btn.disabled=true;btn.textContent='Sending…';qmsg('');
+$('q-form').addEventListener('submit',async e=>{e.preventDefault();if($('q-send').disabled)return;Q.busy=true;renderQuote();const btn=$('q-send');btn.textContent='Sending…';qmsg('');
   try{
-    if(!Q.pending){await qapi('precheck',{package_id:Q.sel.id});const d=await qapi('create-quote',{package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},customer_notes:$('q-notes').value,internal_notes:'From assessment booking '+Q.booking.reference,energy:{}});
-      Q.pending=d.quote.id;try{await api('link-quote',{method:'POST',body:{booking_id:Q.booking.id,quote_id:Q.pending}})}catch{/* linking is a convenience; never block sending the quote */}}
-    const r=await qapi('send',{id:Q.pending,send_sms:$('q-sms').checked});Q.pending=null;
-    $('q-form').hidden=true;$('q-done').hidden=false;
-    $('q-done-msg').textContent='Quote emailed to '+$('q-email').value+'. '+(r.sms?.status==='sent'?'SMS sent. ':r.sms?.status==='skipped'?'SMS skipped. ':r.sms?'SMS needs attention. ':'')+(r.ghl_synced?'GHL updated.':'GHL needs attention; the office can retry it in the quote tracker.');
-    await load()}
-  catch(err){qmsg('Quote not sent. '+err.message)}
-  finally{btn.textContent='Send quote';if(Q.pkgs)renderQuote()}});
+    await qapi('precheck',{package_id:Q.sel.id});
+    const payload={booking_id:Q.booking.id,request_id:Q.request,package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},customer_notes:$('q-notes').value,override_reason:$('q-override').value,energy:{}};
+    localStorage.setItem(requestKey(Q.booking.id),JSON.stringify(payload));Q.attempted=true;
+    const d=await api('prepare-quote',{method:'POST',body:payload});
+    Q.pending=d.quote.id;localStorage.removeItem(requestKey(Q.booking.id));
+    if(d.reused){qmsg('This quote is already saved. Open it in the tracker to check delivery before sending again.');return}
+    const r=await qapi('send',{id:Q.pending,send_sms:$('q-sms').checked});
+    $('q-form').hidden=true;$('q-done').hidden=false;$('q-history').hidden=false;$('q-history').replaceChildren(h('a',{class:'btn alt',href:quoteUrl(Q.pending),target:'_blank',rel:'noopener'},'Open '+d.quote.reference+' in tracker'),h('button',{class:'btn gold',onclick:()=>openQuote(Q.booking)},'Quotes / another option'));
+    $('q-done-msg').textContent=d.quote.reference+' emailed. '+(r.sms?.status==='sent'?'SMS sent. ':r.sms?.status==='skipped'?'SMS skipped: '+(r.sms.reason||'')+'. ':'SMS needs attention. ')+(r.ghl_synced?'GHL updated.':'GHL needs attention; retry it in the tracker.');await load();
+  }catch(err){if([400,404,409].includes(err.status)&&!Q.pending){localStorage.removeItem(requestKey(Q.booking.id));Q.attempted=false}qmsg(err.message+' Check the saved quotes before trying again.');
+    if(Q.attempted){$('q-history').hidden=false;$('q-history').replaceChildren(h('button',{class:'btn alt',onclick:()=>openQuote(Q.booking)},'Check saved quotes'));if(Q.pending)$('q-history').append(h('a',{class:'btn alt',href:quoteUrl(Q.pending),target:'_blank',rel:'noopener'},'Open saved quote'));}
+  }finally{Q.busy=false;btn.textContent='Send quote';if(Q.pkgs)renderQuote()}});
 async function demoQuote(action,b){if(action==='bootstrap')return{settings:{tax_treatment:'inclusive'},packages:[{id:'p1',active:true,capacity_kwh:13.5,battery_name:'Sigenergy SigenStor',inverter_kw:8,inverter_brand:'Sigenergy',phase:'Single Phase',oop:6990,stcs:129,pricing_version:1,gross_amount:12086.55,stc_deduction:5096.55,stc_rate:39.5},{id:'p2',active:true,capacity_kwh:10,battery_name:'Alpha ESS',inverter_kw:5,inverter_brand:'Alpha ESS',phase:'Single Phase',oop:5490,stcs:95,pricing_version:1,gross_amount:9242.5,stc_deduction:3752.5,stc_rate:39.5}]};
-  if(action==='precheck')return{ok:true};if(action==='create-quote')return{quote:{id:'q-demo',reference:'BAT-2026-000200'}};if(action==='send')return{success:true,sms:{status:'sent'},ghl_synced:true};return{}}
+  if(action==='precheck')return{ok:true};if(action==='create-quote')return{quote:{id:'q-demo',reference:'BAT-2026-000200'}};if(action==='send'){const q=DB?.quotes?.find(q=>q.id===b.id);if(q)q.status='sent';return{success:true,sms:{status:'sent'},ghl_synced:true}};return{}}
 /* ---- assessor app link, install help ---- */
 const QS=new URLSearchParams(location.search),APP=QS.get('app')==='assessor';
 const appLink=name=>location.origin+'/Battery/iha/?app=assessor&who='+encodeURIComponent(name);
@@ -614,6 +650,6 @@ function appMode(){
 /* ---- start ---- */
 (async()=>{if(DEMO)$('demo').hidden=false;
   try{const d=await api('bootstrap');S.today=d.today;S.date=d.today}catch(e){S.today=nowSy().date;S.date=S.today;msg(e.message)}
-  await load();appMode();
+  await load();appMode();const job=new URLSearchParams(location.search).get('job');if(job){try{const d=await api('booking',{query:{id:job}});S.date=parts(d.booking.starts_at).date;await load();openJob(job)}catch(e){msg(e.message)}}
 })();
 </script></body></html>
