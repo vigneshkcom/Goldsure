@@ -60,3 +60,6 @@ insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
  values('battery-quote-documents','battery-quote-documents',false,3145728,array['application/pdf']) on conflict(id) do nothing;
 -- Existing bucket visibility is deliberately not silently altered by rerunning this migration.
+-- Alpha ESS SMILE-M10-S-INV + 2x SMILE-M-BAT-13.9P (II, 27.98 kWh). Price is set per quote by staff (package OOP 0 is a placeholder); STCs are an estimate to confirm.
+insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_brand,inverter_kw,phase,oop,stcs) values
+ ('BAT-006','Alpha ESS SMILE-M-BAT-13.9P II Battery',27.98,'Alpha ESS SMILE-M10-S-INV',10,'Single Phase',0,146) on conflict(id) do nothing;
