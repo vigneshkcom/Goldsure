@@ -32,6 +32,8 @@ export const BASE_PRICE = {
 // models cannot drift apart when prices are updated later.
 const PRICE_EQUIVALENT_MODEL = {
   'EG-290FR': 'ECON-300RVW',
+  // EG-330FRE-WR is priced the same as EG-330FR.
+  'EG-330FRE-WR': 'EG-330FR',
 };
 
 export const EXISTING_SYSTEM_LABEL = {

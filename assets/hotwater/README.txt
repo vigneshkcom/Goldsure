@@ -3,3 +3,4 @@ Upload tank-model brochure PDFs here. Filenames must match the model codes exact
   ECON-300RVW-2.0E.pdf
   EG290-FR.pdf (used for model EG-290FR)
   EG-330FR.pdf
+  EG-330FRE-WR.pdf
