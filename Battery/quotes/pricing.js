@@ -14,11 +14,12 @@ export const BRIGHTE_GREEN_LOAN=Object.freeze({provider:'Brighte',product:'Brigh
 export function brighteFinance(amount){
  const principal=Math.round(Number(amount)*100)/100;
  if(!Number.isFinite(principal)||principal<=0)return null;
- const periods=BRIGHTE_GREEN_LOAN.term_months/12*26,rate=BRIGHTE_GREEN_LOAN.annual_rate_percent/100/26;
- const loanRepayment=principal*rate/(1-Math.pow(1+rate,-periods));
+ const amountFinanced=Math.round((principal+BRIGHTE_GREEN_LOAN.establishment_fee_from)*100)/100,periods=BRIGHTE_GREEN_LOAN.term_months/12*26,rate=BRIGHTE_GREEN_LOAN.annual_rate_percent/100/26;
+ const loanRepayment=amountFinanced*rate/(1-Math.pow(1+rate,-periods));
  const fortnightly=Math.round((loanRepayment+BRIGHTE_GREEN_LOAN.account_fee_weekly*2)*100)/100;
  const monthlyBeforeFees=Math.round((principal*(BRIGHTE_GREEN_LOAN.annual_rate_percent/100/12)/(1-Math.pow(1+BRIGHTE_GREEN_LOAN.annual_rate_percent/100/12,-BRIGHTE_GREEN_LOAN.term_months)))*100)/100;
- return {...BRIGHTE_GREEN_LOAN,principal,repayment_count:periods,estimated_fortnightly_repayment:fortnightly,estimated_monthly_before_fees:monthlyBeforeFees,estimate_only:true};
+ const total=Math.round(fortnightly*periods*100)/100;
+ return {...BRIGHTE_GREEN_LOAN,principal,amount_financed:amountFinanced,establishment_fee_assumed:BRIGHTE_GREEN_LOAN.establishment_fee_from,repayment_count:periods,estimated_fortnightly_repayment:fortnightly,estimated_total_repayments:total,estimated_finance_cost:Math.round((total-principal)*100)/100,estimated_monthly_before_fees:monthlyBeforeFees,estimate_only:true};
 }
 export function batteryPricing(pkg){
  if(pkg.pricing_version===1)return {gross:Number(pkg.gross_amount),deduction:Number(pkg.stc_deduction),rate:Number(pkg.stc_rate),oop:Number(pkg.oop),discount:Number(pkg.discount_amount||0),discountLabel:pkg.discount_label||'Goldsure discount'};
