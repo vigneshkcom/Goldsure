@@ -87,3 +87,14 @@ insert into public.battery_quote_packages(
  ('BAT-009','FoxESS CQ7 Battery','FoxESS','CQ7',4,27.84,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,151),
  ('BAT-010','FoxESS CQ7 Battery','FoxESS','CQ7',4,27.84,'FoxESS','FoxESS','H3-9.9-Smart',9.9,'Three Phase','LiFePO4',100,'IP65',0,151)
 on conflict(id) do nothing;
+-- GoodWe ESA combinations supplied by Goldsure. Marketing names use the rounded capacities shown by the supplier;
+-- technical capacity uses current GoodWe Australian usable-energy figures for STC calculations.
+insert into public.battery_quote_packages(
+ id,battery_name,battery_manufacturer,battery_model,battery_quantity,capacity_kwh,
+ inverter_brand,inverter_manufacturer,inverter_model,inverter_kw,phase,battery_chemistry,depth_of_discharge,ip_rating,oop,stcs
+) values
+ ('BAT-011','GoodWe ESA Battery','GoodWe','GW5.1-BAT-D-G20',3,15,'GoodWe','GoodWe','GW5K-EHA-G20',5,'Single Phase','LiFePO4',98,'IP66',5349,99),
+ ('BAT-012','GoodWe ESA Battery','GoodWe','GW6.0-BAT-D-G20',4,23.6,'GoodWe','GoodWe','GW9.999K-EHA-G20',9.999,'Single Phase','LiFePO4',98,'IP66',6485,134),
+ ('BAT-013','GoodWe ESA Battery','GoodWe','GW9.0-BAT-D-G20',3,26.55,'GoodWe','GoodWe','GW9.999K-EHA-G20',9.999,'Single Phase','LiFePO4',98,'IP66',8085,146),
+ ('BAT-014','GoodWe ESA Battery','GoodWe','GW9.0-BAT-D-G20',3,26.55,'GoodWe','GoodWe','GW15K-ETA-G20',15,'Three Phase','LiFePO4',98,'IP66',8095,146)
+on conflict(id) do nothing;

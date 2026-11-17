@@ -4,6 +4,7 @@ import {validatePackage,quoteSnapshot,publicQuote,issueSession,verifySession} fr
 import {createBatteryQuoteHandler} from '../lib/battery-quote-api.js';
 import {batteryQuotePdf,batteryQuoteEmail} from '../lib/battery-quote-render.js';
 import {BatteryQuoteGhl} from '../lib/battery-quote-ghl.js';
+import {bundledDocuments,attachBundledDocuments} from '../lib/battery-quote-documents.js';
 const seeds=JSON.parse(await readFile(new URL('../Battery/quotes/seed.json',import.meta.url)));
 const manifest=JSON.parse(await readFile(new URL('../Battery/quotes/documents.json',import.meta.url)));
 const customer={name:'Preview Customer',email:'preview@example.com',phone:'0412345678',address:'123 Preview Street, Melbourne VIC 3000'};
@@ -19,7 +20,7 @@ function memory(){const data={packages:structuredClone(seeds),documents:structur
 function harness({mailError,ghlError,preview=true}={}){const store=memory(),emails=[],crm=[];const handler=createBatteryQuoteHandler({store,preview,env:{BATTERY_QUOTES_STAFF_PASSWORD:'staff',DASHBOARD_PASSWORD:'admin',SUPABASE_SERVICE_ROLE_KEY:'test-secret'},pdf:async()=>Buffer.from('%PDF-test'),mail:async payload=>{emails.push(payload);if(mailError)throw mailError},ghl:{async preflight(){return true},async sync(q){crm.push(q);if(ghlError)throw Error('GHL unavailable');return {contactId:'contact',opportunityId:'opportunity'}}}});return {store,emails,crm,handler};}
 async function call(h,action,body={},headers={}){const res={statusCode:200,setHeader(){},status(c){this.statusCode=c;return this},json(data){this.body=data;return this},send(data){this.body=data;return this}};await h.handler({method:'POST',query:{action},headers,body},res);return res;}
 async function draft(h,package_id='BAT-001'){const r=await call(h,'create-quote',{package_id,customer,internal_notes:'INTERNAL SECRET',customer_notes:'Confirmed customer note'});assert.equal(r.statusCode,200);return r.body.quote;}
-test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146],['BAT-007',0,114],['BAT-008',0,114],['BAT-009',0,151],['BAT-010',0,151]]);});
+test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146],['BAT-007',0,114],['BAT-008',0,114],['BAT-009',0,151],['BAT-010',0,151],['BAT-011',5349,99],['BAT-012',6485,134],['BAT-013',8085,146],['BAT-014',8095,146]]);});
 
 test('AlphaESS uses the requested 28kWh marketing labels without changing the technical configuration',async()=>{
  const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
@@ -72,6 +73,39 @@ test('FoxESS generated quotation PDF shows the package, inverter, STCs and three
  const task=getDocument({data:new Uint8Array(pdfBytes),useSystemFonts:true});const pdf=await task.promise;let text='';for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){const page=await pdf.getPage(pageNumber);text+=(await page.getTextContent()).items.map(item=>item.str).join(' ');}
  for(const value of ['FoxESS 27.84kWh Battery','9.9kW FoxESS H3 Smart','151 certificates','FoxESS Battery Datasheet','FoxESS Inverter Datasheet','FoxESS Warranty Terms'])assert.match(text,new RegExp(value));await task.destroy();
 });
+test('GoodWe ESA packages use the supplied prices and correct single/three phase configurations',async()=>{
+ const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
+ const expected=[
+  ['BAT-011','GoodWe ESA 15kWh Battery','5kW GoodWe ESA · Single Phase','GW5.1-BAT-D-G20',3,15,'GW5K-EHA-G20',5,'Single Phase',5349,99],
+  ['BAT-012','GoodWe ESA 23kWh Battery','10kW GoodWe ESA · Single Phase','GW6.0-BAT-D-G20',4,23.6,'GW9.999K-EHA-G20',9.999,'Single Phase',6485,134],
+  ['BAT-013','GoodWe ESA 27kWh Battery','9.99kW GoodWe ESA · Single Phase','GW9.0-BAT-D-G20',3,26.55,'GW9.999K-EHA-G20',9.999,'Single Phase',8085,146],
+  ['BAT-014','GoodWe ESA 27kWh Battery','15kW GoodWe ESA · Three Phase','GW9.0-BAT-D-G20',3,26.55,'GW15K-ETA-G20',15,'Three Phase',8095,146]
+ ];
+ for(const [id,name,subtitle,model,quantity,capacity,inverterModel,inverterKw,phase,oop,stcs] of expected){
+  const p=seeds.find(p=>p.id===id);assert.equal(batteryPackageName(p),name);assert.equal(batteryPackageSubtitle(p),subtitle);
+  assert.deepEqual([p.battery_manufacturer,p.battery_model,p.battery_quantity,p.capacity_kwh],['GoodWe',model,quantity,capacity]);
+  assert.deepEqual([p.inverter_manufacturer,p.inverter_model,p.inverter_kw,p.phase],['GoodWe',inverterModel,inverterKw,phase]);
+  assert.deepEqual([p.battery_chemistry,p.depth_of_discharge,p.ip_rating,p.oop,p.stcs],['LiFePO4',98,'IP66',oop,stcs]);
+ }
+});
+test('GoodWe PDFs match the manifest and each package receives matching battery, inverter and warranty documents',async()=>{
+ const goodwe=bundledDocuments().filter(d=>d.path.includes('/goodwe/'));
+ assert.deepEqual(goodwe.map(d=>d.kind).sort(),['battery','general','general','inverter','inverter']);
+ for(const document of goodwe){const file=await readFile(new URL('..'+document.path,import.meta.url));assert.equal(file.length,document.bytes);assert.equal(createHash('sha256').update(file).digest('hex'),document.sha256);}
+ const attached=attachBundledDocuments(seeds);
+ for(const id of ['BAT-011','BAT-012','BAT-013','BAT-014']){assert.deepEqual(goodwe.filter(d=>d.package_ids.includes(id)).map(d=>d.kind).sort(),['battery','general','inverter']);assert.equal(attached.find(p=>p.id===id).document_ids.length,3);}
+});
+test('GoodWe starting prices remain editable while the package STCs stay fixed',()=>{
+ const p=seeds.find(p=>p.id==='BAT-014'),base=batteryPricing(p),adjusted=priceAdjustment(snapshotBatteryPricing(p),{oop:'9000'});
+ assert.equal(base.oop,8095);assert.equal(base.deduction,146*39.5);assert.equal(adjusted.oop,9000);assert.equal(adjusted.gross_amount,9000+146*39.5);
+});
+test('GoodWe quote output carries the matching brochures and supplied starting price',async()=>{
+ const pkg=structuredClone(seeds.find(p=>p.id==='BAT-014')),goodweDocs=['battery','inverter','general'].map((kind,index)=>({...docs[0],id:randomUUID(),kind,name:['GoodWe Lynx D G2 Battery Datasheet.pdf','GoodWe ESA 5-30kW Three Phase Datasheet.pdf','GoodWe ESA 5-30kW Australian Warranty Terms.pdf'][index]}));
+ pkg.document_ids=goodweDocs.map(d=>d.id);const snapshot=quoteSnapshot(pkg,customer,settings,goodweDocs),q={id:randomUUID(),public_token:randomUUID(),reference:'BAT-GOODWE',created_at:new Date().toISOString(),...snapshot};
+ assert.equal(q.package_snapshot.oop,8095);assert.equal(q.package_snapshot.documents.length,3);const html=batteryQuoteEmail(q);
+ for(const value of ['GoodWe ESA 27kWh Battery','15kW GoodWe ESA','GoodWe Battery Datasheet','GoodWe Inverter Datasheet','GoodWe Warranty Terms'])assert.match(html,new RegExp(value));
+ const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),pdfBytes=await batteryQuotePdf(q),task=getDocument({data:new Uint8Array(pdfBytes),useSystemFonts:true}),pdf=await task.promise;let text='';for(let i=1;i<=pdf.numPages;i++)text+=(await (await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ');for(const value of ['GoodWe ESA 27kWh Battery','15kW GoodWe ESA','$8,095.00','146 certificates','GoodWe Battery Datasheet','GoodWe Inverter Datasheet','GoodWe Warranty Terms'])assert.match(text,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));await task.destroy();
+});
 test('AlphaESS cannot send until warranty is present, then email includes only its three PDF download links',async()=>{
  const h=harness(),alpha=h.store.data.packages.find(p=>p.id==='BAT-006');
  alpha.document_ids=docs.map(d=>d.id);
@@ -117,7 +151,7 @@ test('GHL failure leaves email sent; retrying GHL never emails again',async()=>{
 test('public view denies drafts and never exposes internal notes after sending',async()=>{const h=harness(),q=await draft(h);assert.equal((await call(h,'public',{token:q.public_token})).statusCode,404);await call(h,'send',{id:q.id});const r=await call(h,'public',{token:q.public_token});assert.equal(r.statusCode,200);assert.doesNotMatch(JSON.stringify(r.body),/INTERNAL SECRET|object_path/);});
 test('GHL creates the exact Battery pipeline Proposal Sent with Direct Call source',async()=>{const calls=[];const ghl=new BatteryQuoteGhl({GHL_API_KEY:'test',GHL_LOCATION_ID:'location'},async(url,options={})=>{calls.push({url,options});if(url.includes('/pipelines?'))return new Response(JSON.stringify({pipelines:[{id:'battery-pipeline',name:'Battery Customers',stages:[{id:'new-lead',name:'New Lead'},{id:'proposal-sent',name:'Proposal Sent'},{id:'quote-accepted',name:'Quote Accepted'}]}]}));if(url.endsWith('/contacts/contact/notes'))return new Response(JSON.stringify(options.method==='POST'?{note:{id:'note'}}:{notes:[]}));if(url.includes('/contacts/?'))return new Response(JSON.stringify({contacts:[{id:'contact',phone:customer.phone,email:customer.email}]}));if(url.includes('/opportunities/search'))return new Response(JSON.stringify({opportunities:[]}));if(url.endsWith('/opportunities/'))return new Response(JSON.stringify({opportunity:{id:'new-lead-id'}}));throw Error('Unexpected GHL request');});const q={customer,reference:'BAT-TEST',package_snapshot:{...seeds[0],documents:[]}};await ghl.sync(q,settings);const body=JSON.parse(calls.find(c=>c.url.endsWith('/opportunities/')).options.body);assert.equal(body.pipelineId,settings.pipeline_id);assert.equal(body.pipelineStageId,settings.proposal_stage_id);assert.equal(body.source,'Direct Call');assert.equal(body.monetaryValue,6100);const note=JSON.parse(calls.find(c=>c.url.endsWith('/contacts/contact/notes')&&c.options.method==='POST').options.body).body;assert.doesNotMatch(note,/public-pdf/);assert.match(note,/View quote:/);});
 test('PDF is a readable single A4 page without internal notes or inferred GST',async()=>{const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const h=harness(),q=await draft(h);const bytes=await batteryQuotePdf(q);const task=getDocument({data:new Uint8Array(bytes),useSystemFonts:true});const pdf=await task.promise;assert.equal(pdf.numPages,1);const page=await pdf.getPage(1),text=(await page.getTextContent()).items.map(i=>i.str).join(' ');assert.match(text,/6,100.00/);assert.match(text,/115 certificates/);assert.doesNotMatch(text,/INTERNAL SECRET|GST included|GST excluded/);assert.match(text,/ABN 66 683 305 106/);await task.destroy();});
-import {batteryPricing,snapshotBatteryPricing,brighteFinance} from '../Battery/quotes/pricing.js';
+import {batteryPricing,snapshotBatteryPricing,priceAdjustment,brighteFinance} from '../Battery/quotes/pricing.js';
 test('confirmed STC calculation preserves $7,900 OOP with 154 STCs at $39.50',()=>{
  const p={oop:7900,stcs:154};assert.deepEqual(batteryPricing(p),{gross:13983,deduction:6083,rate:39.5,oop:7900,discount:0,discountLabel:''});
  const saved={...p,...snapshotBatteryPricing(p)};assert.equal(saved.stc_rate,39.5);assert.equal(saved.gross_amount,13983);assert.equal(saved.stc_deduction,6083);
