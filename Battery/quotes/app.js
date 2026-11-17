@@ -98,46 +98,6 @@ function resetPricing(){const p=state.selected;$('price-final').value=p?String(b
 $('price-reset').onclick=()=>{pendingQuote=null;resetPricing();renderPreview();};
 
 
-// Price administration reuses the existing save-package action, package row, and version guard.
-$('manage-alpha-price').onclick=()=>{
- const p=state.packages.find(item=>item.id==='BAT-006');
- if(!p){message('AlphaESS package BAT-006 is unavailable.',true);return;}
- $('alpha-package-price').value=String(p.oop);
- $('alpha-admin-name-label').hidden=Boolean(adminSessionToken);
- $('alpha-admin-password-label').hidden=Boolean(adminSessionToken);
- $('alpha-price-status').hidden=true;
- $('alpha-price-dialog').showModal();
-};
-$('alpha-price-form').onsubmit=async e=>{
- e.preventDefault();const button=$('alpha-price-save'),notice=$('alpha-price-status');
- notice.hidden=true;button.disabled=true;
- try{
-  const price=Number($('alpha-package-price').value);
-  if(!Number.isFinite(price)||price<0||price>1000000||Math.abs(price*100-Math.round(price*100))>0.0001)throw Error('Enter a valid amount with up to two decimal places.');
-  if(!adminSessionToken){
-   const agent=$('alpha-admin-name').value.trim(),password=$('alpha-admin-password').value;
-   if(!agent||!password)throw Error('Enter the administrator name and Goldsure portal password.');
-   const auth=await request('login',{agent,role:'admin',password});
-   if(auth.role!=='admin'||!auth.token)throw Error('Administrator sign-in was not confirmed.');
-   adminSessionToken=auth.token;
-   $('alpha-admin-password').value='';
-  }
-  const p=state.packages.find(item=>item.id==='BAT-006');
-  if(!p)throw Error('BAT-006 was not found. Refresh the page.');
-  // Keep all configuration fields, STCs and associated document IDs exactly as loaded.
-  const {package:updated}=await request('save-package',{package:{...p,oop:price},version:p.version});
-  const i=state.packages.findIndex(item=>item.id==='BAT-006');
-  state.packages[i]=updated;
-  if(state.selected?.id==='BAT-006'){state.selected=updated;pendingQuote=null;resetPricing();}
-  $('alpha-price-dialog').close();
-  renderPackages();renderPreview();
-  message('AlphaESS package price saved to the database: '+currency(updated.oop));
- }catch(error){
-  notice.textContent=error.message;notice.hidden=false;
-  if(/session expired|administrator access|sign in/i.test(error.message))adminSessionToken='';
- }finally{button.disabled=false;}
-};
-
 const sendSummary=result=>result.preview?'Preview send recorded. No customer email, SMS or live GHL lead was created.':`Quote emailed. ${result.sms?.status==='sent'?'SMS sent.':result.sms?.status==='skipped'?'SMS skipped: '+result.sms.reason:result.sms?'SMS needs attention: '+(result.sms.reason||result.sms.status):''} ${result.ghl_synced?'Battery lead synced to GHL.':'GHL needs attention; use Retry GHL sync in the tracker.'}`;
 
 $('quote-form').addEventListener('input',()=>{pendingQuote=null;const filled=[...document.querySelectorAll('[name^=energy_]')].some(input=>input.value!=='');$('preview-energy').hidden=!filled;$('preview-energy').textContent='Savings estimate not available — additional usage details required.';});
