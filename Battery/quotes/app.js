@@ -113,7 +113,7 @@ $('alpha-price-form').onsubmit=async e=>{
  notice.hidden=true;button.disabled=true;
  try{
   const price=Number($('alpha-package-price').value);
-  if(!Number.isFinite(price)||price<0||price>1000000||Math.round(price*100)!==price*100)throw Error('Enter a valid amount with up to two decimal places.');
+  if(!Number.isFinite(price)||price<0||price>1000000||Math.abs(price*100-Math.round(price*100))>0.0001)throw Error('Enter a valid amount with up to two decimal places.');
   if(!adminSessionToken){
    const agent=$('alpha-admin-name').value.trim(),password=$('alpha-admin-password').value;
    if(!agent||!password)throw Error('Enter the administrator name and password.');
