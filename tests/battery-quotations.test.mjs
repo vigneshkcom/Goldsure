@@ -22,6 +22,12 @@ async function call(h,action,body={},headers={}){const res={statusCode:200,setHe
 async function draft(h,package_id='BAT-001'){const r=await call(h,'create-quote',{package_id,customer,internal_notes:'INTERNAL SECRET',customer_notes:'Confirmed customer note'});assert.equal(r.statusCode,200);return r.body.quote;}
 test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146],['BAT-007',5429,114],['BAT-008',6129,114],['BAT-009',7649,151],['BAT-010',7669,151],['BAT-011',5349,99],['BAT-012',6485,134],['BAT-013',8085,146],['BAT-014',8095,146]]);});
 
+test('AlphaESS remains available for historical quotes but is excluded from active package choices',()=>{
+ const alpha=seeds.find(p=>p.id==='BAT-006');
+ assert.ok(alpha);assert.equal(alpha.active,false);
+ assert.equal(seeds.filter(p=>p.active).some(p=>p.id==='BAT-006'),false);
+});
+
 test('AlphaESS uses the requested 28kWh marketing labels without changing the technical configuration',async()=>{
  const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
  const p=seeds.find(p=>p.id==='BAT-006');
@@ -108,6 +114,7 @@ test('GoodWe quote output carries the matching brochures and supplied starting p
 });
 test('AlphaESS cannot send until warranty is present, then email includes only its three PDF download links',async()=>{
  const h=harness(),alpha=h.store.data.packages.find(p=>p.id==='BAT-006');
+ alpha.active=true;
  alpha.document_ids=docs.map(d=>d.id);
  const lacking=await draft(h,'BAT-006');
  assert.equal((await call(h,'send',{id:lacking.id})).statusCode,409);
@@ -130,6 +137,7 @@ test('administrator price edit saves BAT-006 while preserving its STCs and other
  const h=harness({preview:false}),env={DASHBOARD_PASSWORD:'admin',SUPABASE_SERVICE_ROLE_KEY:'test-secret'};
  const login=issueSession({agent:'Price Admin',role:'admin',password:'admin'},env);
  const p=h.store.data.packages.find(p=>p.id==='BAT-006'),other=h.store.data.packages[0].oop;
+ p.active=true;
  const updated=await call(h,'save-package',{package:{...p,oop:7999},version:p.version},{'x-battery-session':login.token});
  assert.equal(updated.statusCode,200);
  assert.equal(updated.body.package.oop,7999);assert.equal(updated.body.package.stcs,146);
