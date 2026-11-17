@@ -116,7 +116,7 @@ $('alpha-price-form').onsubmit=async e=>{
   if(!Number.isFinite(price)||price<0||price>1000000||Math.abs(price*100-Math.round(price*100))>0.0001)throw Error('Enter a valid amount with up to two decimal places.');
   if(!adminSessionToken){
    const agent=$('alpha-admin-name').value.trim(),password=$('alpha-admin-password').value;
-   if(!agent||!password)throw Error('Enter the administrator name and password.');
+   if(!agent||!password)throw Error('Enter the administrator name and Goldsure portal password.');
    const auth=await request('login',{agent,role:'admin',password});
    if(auth.role!=='admin'||!auth.token)throw Error('Administrator sign-in was not confirmed.');
    adminSessionToken=auth.token;
