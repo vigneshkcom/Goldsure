@@ -191,6 +191,8 @@ textarea{min-height:72px;resize:vertical}
 .qp:hover{border-color:var(--ink)}
 .qp[aria-pressed="true"]{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold);background:var(--gold-soft)}
 .qp b{display:block;font:600 15px var(--sans)}.qp small{color:var(--mute)}.qp .pr{font:600 16px var(--mono);white-space:nowrap}
+.qspec{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:12px 14px;margin:-6px 0 14px;font-size:13px;color:var(--mute)}
+.qspec b{color:var(--ink)}.qspec p{margin:0 0 8px}.qspec p:last-child{margin-bottom:0}.qspec a{color:var(--ink);font-weight:600;text-decoration:underline;margin-right:12px;display:inline-block}
 .qsum{border:1px solid var(--line);border-radius:8px;background:var(--surface2);padding:14px;margin-bottom:14px;display:grid;gap:6px;font-size:14px}
 .qsum div{display:flex;justify-content:space-between;gap:10px}.qsum div span:last-child{font-family:var(--mono)}
 .qsum .tot{border-top:1px solid var(--line2);margin-top:6px;padding-top:10px;font-weight:600;font-size:16px}
@@ -262,7 +264,7 @@ textarea{min-height:72px;resize:vertical}
     <div class="f"><label for="q-name">Full name</label><input id="q-name" required></div>
     <div class="two"><div class="f"><label for="q-email">Email</label><input id="q-email" type="email" inputmode="email" required></div><div class="f"><label for="q-phone">Mobile</label><input id="q-phone" inputmode="tel" required></div></div>
     <div class="f"><label for="q-addr">Installation address</label><input id="q-addr" required></div>
-    <p class="eyebrow">System</p><div id="q-pkgs" class="qpk"></div>
+    <p class="eyebrow">System</p><div id="q-pkgs" class="qpk"></div><div id="q-specs" class="qspec" hidden></div>
     <div class="f"><label for="q-price">Final price payable by customer (AUD)</label><input id="q-price" type="number" min="0" step="0.01" inputmode="decimal"><p class="note" style="margin:4px 0 0">Change this only if you have agreed a different price.</p></div>
     <div class="qsum" id="q-sum"></div>
     <div class="f"><label for="q-notes">Notes for the customer (optional)</label><textarea id="q-notes" maxlength="4000" placeholder="Only include confirmed, customer-specific information."></textarea></div>
@@ -279,7 +281,7 @@ textarea{min-height:72px;resize:vertical}
 <script type="module">
 import {assessorAppLink,linkedAssessor,scheduleDay} from '/Battery/iha/app-links.js';
 import {responseState} from '/Battery/quotes/lifecycle.js';
-import {batteryPricing,priceAdjustment} from '/Battery/quotes/pricing.js';
+import {batteryPricing,priceAdjustment,batteryPackageName,batteryPackageSubtitle,batteryDocumentLabel} from '/Battery/quotes/pricing.js';
 const SY='Australia/Sydney',$=id=>document.getElementById(id);
 const DEMO=new URLSearchParams(location.search).has('demo');
 const API='/api/battery/request-callback?module=iha';
@@ -566,7 +568,7 @@ async function demoApi(action,b={},q={}){if(!DB)demoInit();
   throw new Error('Unknown action')}
 /* ---- give quote (same quote service as the quote builder) ---- */
 const money=n=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:2}).format(Number(n)||0);
-const Q={pkgs:null,sel:null,booking:null,pending:null};
+const Q={pkgs:null,docs:[],sel:null,booking:null,pending:null};
 async function qapi(action,body){
   if(DEMO)return demoQuote(action,body);
   const r=await fetch('/api/battery/request-callback?module=quotes&action='+encodeURIComponent(action),{method:body?'POST':'GET',headers:{'x-battery-session':'',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
@@ -587,14 +589,16 @@ async function openQuote(b){
     const start=()=>{Q.request=crypto.randomUUID();Q.attempted=false;Q.pending=null;Q.sel=null;history.hidden=true;$('q-form').hidden=false;qmsg('');
       const c=b.customer;$('q-title').textContent='New quote · '+b.reference;$('q-name').value=c.full_name||'';$('q-email').value=c.email||'';$('q-phone').value=c.phone||'';$('q-addr').value=c.formatted_address||'';$('q-notes').value='';$('q-price').value='';$('q-override').value='';
       const a=Array.isArray(b.assessment)?b.assessment[0]:b.assessment;Q.assessment=a||{};$('q-site').textContent=a?`Site assessment: ${a.supply_phase||'phase not recorded'} · ${(a.outcome||'not completed').replaceAll('_',' ')}. ${a.notes||''}`:'Assessment not recorded yet. Confirm the system is suitable before sending.';renderQuote()};
-    const d=await qapi('bootstrap');Q.pkgs=d.packages.filter(p=>p.active);Q.tax=d.settings?.tax_treatment;
+    const d=await qapi('bootstrap');Q.pkgs=d.packages.filter(p=>p.active);Q.docs=d.documents||[];Q.tax=d.settings?.tax_treatment;
     history.hidden=false;history.append(h('button',{class:'btn gold',onclick:start},detail.quotes.length?'Create another quote':'Create quote'),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'));
     if(!detail.quotes.length)start();
   }catch(e){$('q-history').replaceChildren(h('p',{class:'err'},e.message),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'))}
 }
 function renderQuote(){
   for(const input of $('q-form').querySelectorAll('input,textarea'))input.disabled=Boolean(Q.busy||Q.attempted);
-  $('q-pkgs').replaceChildren(...(Q.pkgs.length?Q.pkgs.map(p=>h('button',{type:'button',class:'qp','aria-pressed':String(Q.sel?.id===p.id),onclick:()=>{if(Q.busy||Q.attempted)return;Q.sel=p;$('q-price').value=String(batteryPricing(p).oop);renderQuote()}},h('span',{},h('b',{},p.capacity_kwh+'kWh '+p.battery_name),h('small',{},`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase} · ${p.stcs} STCs`)),h('span',{class:'pr'},money(p.oop)))):[h('p',{class:'note'},'No active packages. Ask an administrator to add one.')]));
+  $('q-pkgs').replaceChildren(...(Q.pkgs.length?Q.pkgs.map(p=>h('button',{type:'button',class:'qp','aria-pressed':String(Q.sel?.id===p.id),onclick:()=>{if(Q.busy||Q.attempted)return;Q.sel=p;$('q-price').value=String(batteryPricing(p).oop);renderQuote()}},h('span',{},h('b',{},batteryPackageName(p)),h('small',{},`${batteryPackageSubtitle(p)} · ${p.stcs} STCs`)),h('span',{class:'pr'},money(p.oop)))):[h('p',{class:'note'},'No active packages. Ask an administrator to add one.')]));
+  const specs=$('q-specs');specs.replaceChildren();specs.hidden=!Q.sel;
+  if(Q.sel){const p=Q.sel,details=[];if(p.battery_quantity&&p.battery_model)details.push(`${p.battery_quantity} × ${p.battery_model}`);if(p.capacity_kwh)details.push(`${p.capacity_kwh}kWh usable`);if(p.battery_chemistry)details.push(p.battery_chemistry);if(p.depth_of_discharge)details.push(`${p.depth_of_discharge}% DoD`);if(p.ip_rating)details.push(p.ip_rating);if(details.length)specs.append(h('p',{},h('b',{},'Technical configuration: '),details.join(' · ')));const docs=(p.document_ids||[]).map(id=>Q.docs.find(d=>d.id===id)).filter(d=>d?.object_path?.startsWith('repo:'));if(docs.length)specs.append(h('p',{},h('b',{},'Documents: '),...docs.flatMap(d=>[h('a',{href:d.object_path.slice(5),target:'_blank',rel:'noopener'},batteryDocumentLabel(d)),document.createTextNode(' ')])))}
   const sum=$('q-sum');sum.replaceChildren();let ok=false;
   if(Q.sel){const pr=batteryPricing(Q.sel),adj=priceAdjustment({gross_amount:pr.gross,stc_deduction:pr.deduction},{oop:$('q-price').value});
     if(adj.error)sum.append(h('div',{style:'color:var(--warn)'},adj.error));

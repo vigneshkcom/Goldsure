@@ -8,6 +8,17 @@ import { buildEmail, sydneyParts } from '../lib/battery-iha-digest.js';
 
 const quoteSql = await readFile(new URL('../supabase/battery-quotations.sql', import.meta.url), 'utf8');
 const ihaSql = await readFile(new URL('../supabase/battery-iha-bookings.sql', import.meta.url), 'utf8');
+const ihaPage = await readFile(new URL('../Battery/iha/index.html', import.meta.url), 'utf8');
+
+test('assessor quote sheet uses shared package labels, technical fields and product documents', () => {
+  assert.match(ihaPage, /batteryPackageName\(p\)/);
+  assert.match(ihaPage, /batteryPackageSubtitle\(p\)/);
+  assert.match(ihaPage, /battery_quantity/);
+  assert.match(ihaPage, /battery_chemistry/);
+  assert.match(ihaPage, /depth_of_discharge/);
+  assert.match(ihaPage, /batteryDocumentLabel\(d\)/);
+  assert.match(ihaPage, /d\.object_path\.slice\(5\)/);
+});
 
 async function setup() {
   const db = new PGlite({ extensions: { btree_gist } });
