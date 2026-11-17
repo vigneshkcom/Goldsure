@@ -266,7 +266,7 @@ textarea{min-height:72px;resize:vertical}
     <div class="f"><label for="q-addr">Installation address</label><input id="q-addr" required></div>
     <p class="eyebrow">System</p><div id="q-pkgs" class="qpk"></div><div id="q-specs" class="qspec" hidden></div>
     <div class="f"><label for="q-price">Final price payable by customer (AUD)</label><input id="q-price" type="number" min="0" step="0.01" inputmode="decimal"><p class="note" style="margin:4px 0 0">Change this only if you have agreed a different price.</p></div>
-    <div class="qsum" id="q-sum"></div>
+    <div class="qsum" id="q-sum"></div><label class="checkrow"><input id="q-finance" type="checkbox"> Include a five-year Brighte Green Loan estimate</label><p id="q-finance-note" class="note" hidden></p>
     <div class="f"><label for="q-notes">Notes for the customer (optional)</label><textarea id="q-notes" maxlength="4000" placeholder="Only include confirmed, customer-specific information."></textarea></div>
     <div class="f" id="q-override-wrap" hidden><label for="q-override">Reason for a different supply-phase system</label><textarea id="q-override" maxlength="1000"></textarea></div><p class="note">Standard Goldsure online quote · valid for 21 days from first send · product brochures included as links · no PDF email attachment.</p><label class="checkrow"><input id="q-sms" type="checkbox" checked> Send an SMS with the quote link</label>
     <div id="q-msg" class="err" hidden role="alert"></div><p id="q-hint" class="note" style="margin:0"></p>
@@ -281,7 +281,7 @@ textarea{min-height:72px;resize:vertical}
 <script type="module">
 import {assessorAppLink,linkedAssessor,scheduleDay} from '/Battery/iha/app-links.js';
 import {responseState} from '/Battery/quotes/lifecycle.js';
-import {batteryPricing,priceAdjustment,batteryPackageName,batteryPackageSubtitle,batteryDocumentLabel} from '/Battery/quotes/pricing.js';
+import {batteryPricing,priceAdjustment,batteryPackageName,batteryPackageSubtitle,batteryDocumentLabel,brighteFinance} from '/Battery/quotes/pricing.js';
 const SY='Australia/Sydney',$=id=>document.getElementById(id);
 const DEMO=new URLSearchParams(location.search).has('demo');
 const API='/api/battery/request-callback?module=iha';
@@ -587,7 +587,7 @@ async function openQuote(b){
     if(detail.quotes.some(q=>q.id===pending?.request_id)){try{localStorage.removeItem(requestKey(b.id))}catch{}pending=null}
     if(pending){history.hidden=false;history.append(h('p',{class:'err'},'An earlier quote save was interrupted. Recover that quote before starting another option.'),h('button',{class:'btn',onclick:async()=>{try{await api('prepare-quote',{method:'POST',body:pending});localStorage.removeItem(requestKey(b.id));await openQuote(b)}catch(e){if([400,404,409].includes(e.status)){localStorage.removeItem(requestKey(b.id));await openQuote(b)}else history.append(h('p',{class:'err'},e.message))}}},'Recover saved quote'),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'));return}
     const start=()=>{Q.request=crypto.randomUUID();Q.attempted=false;Q.pending=null;Q.sel=null;history.hidden=true;$('q-form').hidden=false;qmsg('');
-      const c=b.customer;$('q-title').textContent='New quote · '+b.reference;$('q-name').value=c.full_name||'';$('q-email').value=c.email||'';$('q-phone').value=c.phone||'';$('q-addr').value=c.formatted_address||'';$('q-notes').value='';$('q-price').value='';$('q-override').value='';
+      const c=b.customer;$('q-title').textContent='New quote · '+b.reference;$('q-name').value=c.full_name||'';$('q-email').value=c.email||'';$('q-phone').value=c.phone||'';$('q-addr').value=c.formatted_address||'';$('q-notes').value='';$('q-price').value='';$('q-override').value='';$('q-finance').checked=false;
       const a=Array.isArray(b.assessment)?b.assessment[0]:b.assessment;Q.assessment=a||{};$('q-site').textContent=a?`Site assessment: ${a.supply_phase||'phase not recorded'} · ${(a.outcome||'not completed').replaceAll('_',' ')}. ${a.notes||''}`:'Assessment not recorded yet. Confirm the system is suitable before sending.';renderQuote()};
     const d=await qapi('bootstrap');Q.pkgs=d.packages.filter(p=>p.active);Q.docs=d.documents||[];Q.tax=d.settings?.tax_treatment;
     history.hidden=false;history.append(h('button',{class:'btn gold',onclick:start},detail.quotes.length?'Create another quote':'Create quote'),h('button',{class:'btn alt',onclick:()=>$('quote-dlg').close()},'Close'));
@@ -605,15 +605,16 @@ function renderQuote(){
     else{const gross=adj.gross_amount??pr.gross,oop=adj.oop??pr.oop;ok=true;
       sum.append(h('div',{},h('span',{},'System price'),h('span',{},money(gross))),h('div',{},h('span',{},`STC rebate (${Q.sel.stcs} × ${money(pr.rate)})`),h('span',{},'−'+money(pr.deduction))),h('div',{class:'tot'},h('span',{},'Customer pays'),h('span',{},money(oop))))}}
   else sum.append(h('span',{class:'note'},'Choose a system to see the price.'));
+  const finance=Q.sel&&ok&&$('q-finance').checked?brighteFinance($('q-price').value):null;$('q-finance-note').hidden=!finance;if(finance)$('q-finance-note').textContent=`Brighte Green Loan estimate: ${money(finance.estimated_fortnightly_repayment)} per fortnight for 5 years. From 9.99% p.a. fixed; final rate, repayment and establishment fee are subject to Brighte approval.`;
   const a=Q.assessment||{},mismatch=Q.sel&&a.supply_phase&&a.supply_phase!=='unsure'&&Q.sel.phase!==(a.supply_phase==='single'?'Single Phase':'Three Phase');$('q-override-wrap').hidden=!mismatch;
   const need=[];if(a.outcome==='not_suitable')need.push('review the unsuitable assessment first');if(mismatch&&$('q-override').value.trim().length<10)need.push('explain the supply-phase override');if(a.outcome==='suitable_with_work'&&$('q-notes').value.trim().length<10)need.push('describe the required work and price inclusions');if(!Q.sel)need.push('choose a system');if(Q.sel&&!ok)need.push('fix the price');if(!$('q-name').value.trim())need.push('enter the customer name');if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('q-email').value.trim()))need.push('enter a valid customer email');if($('q-phone').value.replace(/\D/g,'').length<8)need.push('enter a phone number');if($('q-addr').value.trim().length<8)need.push('enter the full address');
   $('q-hint').textContent=need.length?'To send: '+need.join(', ')+'.':'';$('q-send').disabled=need.length>0||Q.busy||Q.attempted;sum.append(h('p',{class:'note'},Q.tax==='inclusive'?'GST included':Q.tax==='exclusive'?'GST excluded':''))}
-['q-name','q-email','q-phone','q-addr','q-price','q-notes','q-override'].forEach(i=>$(i).addEventListener('input',()=>{if(Q.pkgs)renderQuote()}));
+['q-name','q-email','q-phone','q-addr','q-price','q-notes','q-override','q-finance'].forEach(i=>$(i).addEventListener('input',()=>{if(Q.pkgs)renderQuote()}));
 $('q-cancel').onclick=()=>$('quote-dlg').close();$('q-close').onclick=()=>$('quote-dlg').close();
 $('q-form').addEventListener('submit',async e=>{e.preventDefault();if($('q-send').disabled)return;Q.busy=true;renderQuote();const btn=$('q-send');btn.textContent='Sending…';qmsg('');
   try{
     await qapi('precheck',{package_id:Q.sel.id});
-    const payload={booking_id:Q.booking.id,request_id:Q.request,package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},customer_notes:$('q-notes').value,override_reason:$('q-override').value,energy:{}};
+    const payload={booking_id:Q.booking.id,request_id:Q.request,package_id:Q.sel.id,customer:{name:$('q-name').value,email:$('q-email').value,phone:$('q-phone').value,address:$('q-addr').value},pricing:{oop:$('q-price').value},finance:$('q-finance').checked?{type:'brighte_green_loan'}:null,customer_notes:$('q-notes').value,override_reason:$('q-override').value,energy:{}};
     localStorage.setItem(requestKey(Q.booking.id),JSON.stringify(payload));Q.attempted=true;
     const d=await api('prepare-quote',{method:'POST',body:payload});
     Q.pending=d.quote.id;localStorage.removeItem(requestKey(Q.booking.id));

@@ -10,6 +10,16 @@ export const batteryDocumentLabel=d=>{const brand=/^FoxESS\b/i.test(d?.name)?'Fo
 
 // Shared by the browser and server. Rates are quote assumptions, not a guaranteed market price.
 export const STC_RATE=39.50;
+export const BRIGHTE_GREEN_LOAN=Object.freeze({provider:'Brighte',product:'Brighte Green Loan',annual_rate_percent:9.99,comparison_rate_percent:11.70,term_months:60,repayment_frequency:'fortnightly',account_fee_weekly:2.99,establishment_fee_from:199,terms_current_as_at:'2026-10-01'});
+export function brighteFinance(amount){
+ const principal=Math.round(Number(amount)*100)/100;
+ if(!Number.isFinite(principal)||principal<=0)return null;
+ const periods=BRIGHTE_GREEN_LOAN.term_months/12*26,rate=BRIGHTE_GREEN_LOAN.annual_rate_percent/100/26;
+ const loanRepayment=principal*rate/(1-Math.pow(1+rate,-periods));
+ const fortnightly=Math.round((loanRepayment+BRIGHTE_GREEN_LOAN.account_fee_weekly*2)*100)/100;
+ const monthlyBeforeFees=Math.round((principal*(BRIGHTE_GREEN_LOAN.annual_rate_percent/100/12)/(1-Math.pow(1+BRIGHTE_GREEN_LOAN.annual_rate_percent/100/12,-BRIGHTE_GREEN_LOAN.term_months)))*100)/100;
+ return {...BRIGHTE_GREEN_LOAN,principal,repayment_count:periods,estimated_fortnightly_repayment:fortnightly,estimated_monthly_before_fees:monthlyBeforeFees,estimate_only:true};
+}
 export function batteryPricing(pkg){
  if(pkg.pricing_version===1)return {gross:Number(pkg.gross_amount),deduction:Number(pkg.stc_deduction),rate:Number(pkg.stc_rate),oop:Number(pkg.oop),discount:Number(pkg.discount_amount||0),discountLabel:pkg.discount_label||'Goldsure discount'};
  const rate=Number(pkg.stc_rate??STC_RATE),oopCents=Math.round(Number(pkg.oop)*100),discountCents=Number(pkg.stcs)*Math.round(rate*100);

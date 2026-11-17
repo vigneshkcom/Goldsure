@@ -18,6 +18,9 @@ test('assessor quote sheet uses shared package labels, technical fields and prod
   assert.match(ihaPage, /depth_of_discharge/);
   assert.match(ihaPage, /batteryDocumentLabel\(d\)/);
   assert.match(ihaPage, /d\.object_path\.slice\(5\)/);
+  assert.match(ihaPage, /q-finance/);
+  assert.match(ihaPage, /brighteFinance/);
+  assert.match(ihaPage, /finance:\$\('q-finance'\)\.checked/);
 });
 
 async function setup() {
