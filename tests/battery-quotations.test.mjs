@@ -19,6 +19,46 @@ function harness({mailError,ghlError,preview=true}={}){const store=memory(),emai
 async function call(h,action,body={},headers={}){const res={statusCode:200,setHeader(){},status(c){this.statusCode=c;return this},json(data){this.body=data;return this},send(data){this.body=data;return this}};await h.handler({method:'POST',query:{action},headers,body},res);return res;}
 async function draft(h,package_id='BAT-001'){const r=await call(h,'create-quote',{package_id,customer,internal_notes:'INTERNAL SECRET',customer_notes:'Confirmed customer note'});assert.equal(r.statusCode,200);return r.body.quote;}
 test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146]]);});
+
+test('AlphaESS uses the requested 28kWh marketing labels without changing the technical configuration',async()=>{
+ const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
+ const p=seeds.find(p=>p.id==='BAT-006');
+ assert.equal(batteryPackageName(p),'Alpha ESS 28kWh Battery');
+ assert.equal(batteryPackageSubtitle(p),'10kW Alpha ESS · Single Phase');
+ assert.equal(p.capacity_kwh,27.98);assert.equal(p.inverter_kw,10);assert.equal(p.stcs,146);assert.equal(p.oop,0);
+ assert.equal(p.inverter_brand,'Alpha ESS SMILE-M10-S-INV');
+});
+test('AlphaESS cannot send until warranty is present, then email includes only its three PDF download links',async()=>{
+ const h=harness(),alpha=h.store.data.packages.find(p=>p.id==='BAT-006');
+ alpha.document_ids=docs.map(d=>d.id);
+ const lacking=await draft(h,'BAT-006');
+ assert.equal((await call(h,'send',{id:lacking.id})).statusCode,409);
+ const warranty={...docs[0],id:randomUUID(),kind:'general',name:'AlphaESS Warranty Terms.pdf'};
+ h.store.data.documents.push(warranty);alpha.document_ids.push(warranty.id);
+ const complete=await draft(h,'BAT-006');
+ assert.equal((await call(h,'send',{id:complete.id})).statusCode,200);
+ const html=h.emails[0].html;
+ for(const label of ['Alpha ESS 28kWh Battery','10kW Alpha ESS','AlphaESS Battery Datasheet','AlphaESS Inverter Datasheet','AlphaESS Warranty Terms'])assert.match(html,new RegExp(label));
+ assert.equal((html.match(/action=public-document/g)||[]).length,3);
+ assert.deepEqual(h.emails[0].attachments,[]);
+ assert.equal((await call(h,'public-pdf',{token:complete.public_token})).statusCode,200);
+ const publicData=(await call(h,'public',{token:complete.public_token})).body.quote;
+ assert.equal(publicData.package_snapshot.documents.length,3);
+ const resent=await call(h,'send',{id:complete.id,confirm_resend:true});
+ assert.equal(resent.statusCode,200);
+ assert.equal(h.emails[1].html,h.emails[0].html);
+});
+test('administrator price edit saves BAT-006 while preserving its STCs and other package prices',async()=>{
+ const h=harness({preview:false}),env={BATTERY_QUOTES_ADMIN_PASSWORD:'admin',SUPABASE_SERVICE_ROLE_KEY:'test-secret'};
+ const login=issueSession({agent:'Price Admin',role:'admin',password:'admin'},env);
+ const p=h.store.data.packages.find(p=>p.id==='BAT-006'),other=h.store.data.packages[0].oop;
+ const updated=await call(h,'save-package',{package:{...p,oop:7999},version:p.version},{'x-battery-session':login.token});
+ assert.equal(updated.statusCode,200);
+ assert.equal(updated.body.package.oop,7999);assert.equal(updated.body.package.stcs,146);
+ assert.equal(h.store.data.packages[0].oop,other);
+ const q=await draft(h,'BAT-006');assert.equal(q.package_snapshot.oop,7999);
+});
+
 test('package validation rejects negative, fractional STCs and invalid prices',()=>{for(const patch of [{oop:-1},{oop:1.001},{stcs:3.5},{stcs:-1},{phase:'Other'}])assert.throws(()=>validatePackage({...seeds[0],...patch}));});
 test('saved quotes retain pricing, tax, documents and details after package changes',async()=>{const h=harness(),q=await draft(h);h.store.data.packages[0].oop=9999;h.store.data.packages[0].battery_name='Changed';h.store.data.settings.tax_treatment='inclusive';const newer=await draft(h);assert.equal(newer.package_snapshot.oop,9999);assert.equal(q.package_snapshot.oop,6100);assert.equal(q.package_snapshot.battery_name,'Dyness Battery');assert.equal(q.package_snapshot.tax_treatment,'unspecified');assert.equal(q.package_snapshot.documents.length,2);});
 test('internal notes and storage paths are absent from public quote and email',async()=>{const h=harness(),q=await draft(h);const data=JSON.stringify(publicQuote(q));assert.doesNotMatch(data,/INTERNAL SECRET|object_path|sha256/);const email=batteryQuoteEmail(q);assert.doesNotMatch(email,/INTERNAL SECRET|GST included|GST excluded/);assert.match(email,/View your quote/);});
