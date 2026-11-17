@@ -1,3 +1,8 @@
+// Marketing labels only. BAT-006 keeps its real technical battery/inverter models and database pricing.
+export const batteryPackageName=p=>p?.id==='BAT-006'?'Alpha ESS 28kWh Battery':`${p.capacity_kwh}kWh ${p.battery_name}`;
+export const batteryPackageSubtitle=p=>p?.id==='BAT-006'?'10kW Alpha ESS · Single Phase':`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase}`;
+export const batteryDocumentLabel=d=>({battery:'AlphaESS Battery Datasheet',inverter:'AlphaESS Inverter Datasheet'}[d.kind]||'AlphaESS Warranty Terms');
+
 // Shared by the browser and server. Rates are quote assumptions, not a guaranteed market price.
 export const STC_RATE=39.50;
 export function batteryPricing(pkg){
