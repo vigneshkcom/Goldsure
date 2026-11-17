@@ -28,3 +28,5 @@ After uploading original PDFs:
 - Run npm test before merging.
 
 Database migration: NONE expected. Existing BAT-006 package row and save-package action are reused.
+
+Admin configuration: the Goldsure Vercel project did not list BATTERY_QUOTES_ADMIN_PASSWORD on 17 Nov 2026. Configure a separate administrator password for production and preview before using the new BAT-006 price editor. Do not substitute or expose the server's Supabase service-role key.
