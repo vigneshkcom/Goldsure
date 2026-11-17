@@ -1,11 +1,23 @@
 -- Apply after reviewing the local preview. No existing quote tables are changed.
 create sequence if not exists public.battery_quote_reference_seq;
 create table if not exists public.battery_quote_packages (
- id text primary key, battery_name text not null, capacity_kwh numeric not null check(capacity_kwh>0),
- inverter_brand text not null, inverter_kw numeric not null check(inverter_kw>0), phase text not null check(phase in ('Single Phase','Three Phase')),
+ id text primary key, battery_name text not null, battery_manufacturer text, battery_model text,
+ battery_quantity integer check(battery_quantity>0), capacity_kwh numeric not null check(capacity_kwh>0),
+ inverter_brand text not null, inverter_manufacturer text, inverter_model text, inverter_kw numeric not null check(inverter_kw>0),
+ phase text not null check(phase in ('Single Phase','Three Phase')), battery_chemistry text,
+ depth_of_discharge numeric(5,2) check(depth_of_discharge>0 and depth_of_discharge<=100), ip_rating text,
  oop numeric(12,2) not null check(oop>=0), stcs integer not null check(stcs>=0), active boolean not null default true,
  document_ids uuid[] not null default '{}', version integer not null default 1, updated_at timestamptz not null default now()
 );
+alter table public.battery_quote_packages
+ add column if not exists battery_manufacturer text,
+ add column if not exists battery_model text,
+ add column if not exists battery_quantity integer check(battery_quantity>0),
+ add column if not exists inverter_manufacturer text,
+ add column if not exists inverter_model text,
+ add column if not exists battery_chemistry text,
+ add column if not exists depth_of_discharge numeric(5,2) check(depth_of_discharge>0 and depth_of_discharge<=100),
+ add column if not exists ip_rating text;
 create table if not exists public.battery_quote_settings (
  id text primary key check(id='default'),tax_treatment text not null default 'unspecified' check(tax_treatment in ('unspecified','inclusive','exclusive')),
  pipeline_id text not null, pipeline_name text not null, stage_id text not null, stage_name text not null
@@ -63,3 +75,12 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 -- Alpha ESS SMILE-M10-S-INV + 2x SMILE-M-BAT-13.9P (II, 27.98 kWh). Price is set per quote by staff (package OOP 0 is a placeholder); STCs are an estimate to confirm.
 insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_brand,inverter_kw,phase,oop,stcs) values
  ('BAT-006','Alpha ESS SMILE-M-BAT-13.9P II Battery',27.98,'Alpha ESS SMILE-M10-S-INV',10,'Single Phase',0,146) on conflict(id) do nothing;
+-- FoxESS EP11 usable capacities are 10.36 kWh per unit. For 1 May-31 December 2026,
+-- the 6.8 STC factor with statutory capacity tapering and whole-number round-down gives 122 and 155 STCs.
+insert into public.battery_quote_packages(
+ id,battery_name,battery_manufacturer,battery_model,battery_quantity,capacity_kwh,
+ inverter_brand,inverter_manufacturer,inverter_model,inverter_kw,phase,battery_chemistry,depth_of_discharge,ip_rating,oop,stcs
+) values
+ ('BAT-007','FoxESS EP11 Battery','FoxESS','EP11',2,20.72,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,122),
+ ('BAT-008','FoxESS EP11 Battery','FoxESS','EP11',3,31.08,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,155)
+on conflict(id) do nothing;

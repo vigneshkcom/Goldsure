@@ -5,6 +5,7 @@ import {createBatteryQuoteHandler} from '../lib/battery-quote-api.js';
 import {batteryQuotePdf,batteryQuoteEmail} from '../lib/battery-quote-render.js';
 import {BatteryQuoteGhl} from '../lib/battery-quote-ghl.js';
 const seeds=JSON.parse(await readFile(new URL('../Battery/quotes/seed.json',import.meta.url)));
+const manifest=JSON.parse(await readFile(new URL('../Battery/quotes/documents.json',import.meta.url)));
 const customer={name:'Preview Customer',email:'preview@example.com',phone:'0412345678',address:'123 Preview Street, Melbourne VIC 3000'};
 const settings={id:'default',tax_treatment:'unspecified',pipeline_id:'battery-pipeline',pipeline_name:'Battery Customers',stage_id:'new-lead',stage_name:'New Lead',proposal_stage_id:'proposal-sent',proposal_stage_name:'Proposal Sent',accepted_stage_id:'quote-accepted',accepted_stage_name:'Quote Accepted'};
 const bytes=Buffer.from('%PDF-1.4\npreview fixture document\n%%EOF');
@@ -18,7 +19,7 @@ function memory(){const data={packages:structuredClone(seeds),documents:structur
 function harness({mailError,ghlError,preview=true}={}){const store=memory(),emails=[],crm=[];const handler=createBatteryQuoteHandler({store,preview,env:{BATTERY_QUOTES_STAFF_PASSWORD:'staff',DASHBOARD_PASSWORD:'admin',SUPABASE_SERVICE_ROLE_KEY:'test-secret'},pdf:async()=>Buffer.from('%PDF-test'),mail:async payload=>{emails.push(payload);if(mailError)throw mailError},ghl:{async preflight(){return true},async sync(q){crm.push(q);if(ghlError)throw Error('GHL unavailable');return {contactId:'contact',opportunityId:'opportunity'}}}});return {store,emails,crm,handler};}
 async function call(h,action,body={},headers={}){const res={statusCode:200,setHeader(){},status(c){this.statusCode=c;return this},json(data){this.body=data;return this},send(data){this.body=data;return this}};await h.handler({method:'POST',query:{action},headers,body},res);return res;}
 async function draft(h,package_id='BAT-001'){const r=await call(h,'create-quote',{package_id,customer,internal_notes:'INTERNAL SECRET',customer_notes:'Confirmed customer note'});assert.equal(r.statusCode,200);return r.body.quote;}
-test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146]]);});
+test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146],['BAT-007',0,122],['BAT-008',0,155]]);});
 
 test('AlphaESS uses the requested 28kWh marketing labels without changing the technical configuration',async()=>{
  const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
@@ -27,6 +28,47 @@ test('AlphaESS uses the requested 28kWh marketing labels without changing the te
  assert.equal(batteryPackageSubtitle(p),'10kW Alpha ESS · Single Phase');
  assert.equal(p.capacity_kwh,27.98);assert.equal(p.inverter_kw,10);assert.equal(p.stcs,146);assert.equal(p.oop,0);
  assert.equal(p.inverter_brand,'Alpha ESS SMILE-M10-S-INV');
+});
+test('FoxESS packages preserve the verified EP11 and KH10 configurations and marketing labels',async()=>{
+ const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
+ const expected=[
+  ['BAT-007','FoxESS 20kWh Battery',2,20.72,122],
+  ['BAT-008','FoxESS 30kWh Battery',3,31.08,155]
+ ];
+ for(const [id,name,quantity,capacity,stcs] of expected){
+  const p=seeds.find(p=>p.id===id);
+  assert.equal(batteryPackageName(p),name);assert.equal(batteryPackageSubtitle(p),'10kW FoxESS · Single Phase');
+  assert.deepEqual([p.battery_manufacturer,p.battery_model,p.battery_quantity,p.capacity_kwh],['FoxESS','EP11',quantity,capacity]);
+  assert.deepEqual([p.inverter_manufacturer,p.inverter_model,p.inverter_kw,p.phase],['FoxESS','KH10',10,'Single Phase']);
+  assert.deepEqual([p.battery_chemistry,p.depth_of_discharge,p.ip_rating,p.oop,p.stcs],['LiFePO4',100,'IP65',0,stcs]);
+ }
+});
+test('FoxESS original PDFs match the manifest and are associated only with BAT-007 and BAT-008',async()=>{
+ const fox=manifest.filter(d=>d.path.includes('/foxess/'));
+ assert.deepEqual(fox.map(d=>d.kind).sort(),['battery','general','inverter']);
+ for(const document of fox){
+  assert.deepEqual(document.package_ids,['BAT-007','BAT-008']);
+  const file=await readFile(new URL('..'+document.path,import.meta.url));
+  assert.equal(file.length,document.bytes);assert.equal(createHash('sha256').update(file).digest('hex'),document.sha256);
+ }
+});
+test('FoxESS quotations snapshot all three documents and expose individual email and customer PDF links',async()=>{
+ const h=harness(),pkg=h.store.data.packages.find(p=>p.id==='BAT-007');
+ const foxDocs=['battery','inverter','general'].map((kind,index)=>({...docs[0],id:randomUUID(),kind,name:['FoxESS EP11 Battery Datasheet.pdf','FoxESS KH10 Inverter Datasheet.pdf','FoxESS Australian Warranty Terms.pdf'][index]}));
+ h.store.data.documents.push(...foxDocs);pkg.document_ids=foxDocs.map(d=>d.id);
+ const q=await draft(h,'BAT-007');assert.equal(q.package_snapshot.documents.length,3);assert.equal(q.package_snapshot.oop,0);assert.equal(q.package_snapshot.stcs,122);
+ assert.equal((await call(h,'send',{id:q.id})).statusCode,200);const html=h.emails[0].html;
+ for(const label of ['FoxESS 20kWh Battery','10kW FoxESS','FoxESS Battery Datasheet','FoxESS Inverter Datasheet','FoxESS Warranty Terms'])assert.match(html,new RegExp(label));
+ assert.equal((html.match(/action=public-document/g)||[]).length,3);assert.equal((await call(h,'public-pdf',{token:q.public_token})).statusCode,200);
+ pkg.oop=9999;pkg.document_ids=[];const saved=await h.store.quote(q.id);assert.equal(saved.package_snapshot.oop,0);assert.equal(saved.package_snapshot.documents.length,3);
+});
+test('FoxESS generated quotation PDF shows the package, inverter, STCs and three document links',async()=>{
+ const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const pkg=structuredClone(seeds.find(p=>p.id==='BAT-008'));
+ const foxDocs=['battery','inverter','general'].map((kind,index)=>({...docs[0],id:randomUUID(),kind,name:['FoxESS EP11 Battery Datasheet.pdf','FoxESS KH10 Inverter Datasheet.pdf','FoxESS Australian Warranty Terms.pdf'][index]}));
+ pkg.document_ids=foxDocs.map(d=>d.id);const snapshot=quoteSnapshot(pkg,customer,settings,foxDocs);
+ const pdfBytes=await batteryQuotePdf({id:randomUUID(),public_token:randomUUID(),reference:'BAT-FOX-PDF',created_at:new Date().toISOString(),...snapshot});
+ const task=getDocument({data:new Uint8Array(pdfBytes),useSystemFonts:true});const pdf=await task.promise;let text='';for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){const page=await pdf.getPage(pageNumber);text+=(await page.getTextContent()).items.map(item=>item.str).join(' ');}
+ for(const value of ['FoxESS 30kWh Battery','10kW FoxESS','155 certificates','FoxESS Battery Datasheet','FoxESS Inverter Datasheet','FoxESS Warranty Terms'])assert.match(text,new RegExp(value));await task.destroy();
 });
 test('AlphaESS cannot send until warranty is present, then email includes only its three PDF download links',async()=>{
  const h=harness(),alpha=h.store.data.packages.find(p=>p.id==='BAT-006');
@@ -78,7 +120,7 @@ test('confirmed STC calculation preserves $7,900 OOP with 154 STCs at $39.50',()
  const p={oop:7900,stcs:154};assert.deepEqual(batteryPricing(p),{gross:13983,deduction:6083,rate:39.5,oop:7900,discount:0,discountLabel:''});
  const saved={...p,...snapshotBatteryPricing(p)};assert.equal(saved.stc_rate,39.5);assert.equal(saved.gross_amount,13983);assert.equal(saved.stc_deduction,6083);
 });
-test('all five package OOP amounts survive STC gross-up and deduction',()=>{
+test('all package OOP amounts survive STC gross-up and deduction',()=>{
  for(const p of seeds){const b=batteryPricing(p);assert.equal(Math.round((b.gross-b.deduction)*100),Math.round(p.oop*100));assert.equal(b.deduction,p.stcs*39.5);}
 });
 test('saved quotes retain STC prices while the short email links to the interactive proposal',async()=>{const h=harness(),q=await draft(h,'BAT-004');assert.equal(q.package_snapshot.gross_amount,13983);assert.equal(q.package_snapshot.stc_deduction,6083);assert.equal(q.package_snapshot.oop,7900);assert.match(batteryQuoteEmail(q),/View your quote/);});
