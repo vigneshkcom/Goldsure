@@ -75,12 +75,15 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 -- Alpha ESS SMILE-M10-S-INV + 2x SMILE-M-BAT-13.9P (II, 27.98 kWh). Price is set per quote by staff (package OOP 0 is a placeholder); STCs are an estimate to confirm.
 insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_brand,inverter_kw,phase,oop,stcs) values
  ('BAT-006','Alpha ESS SMILE-M-BAT-13.9P II Battery',27.98,'Alpha ESS SMILE-M10-S-INV',10,'Single Phase',0,146) on conflict(id) do nothing;
--- FoxESS EP11 usable capacities are 10.36 kWh per unit. For 1 May-31 December 2026,
--- the 6.8 STC factor with statutory capacity tapering and whole-number round-down gives 122 and 155 STCs.
+-- FoxESS quotation options supplied by Goldsure. Package prices are entered per quote (OOP 0 placeholders).
+-- For 1 May-31 December 2026, the 6.8 STC factor with statutory capacity tapering
+-- and whole-number round-down gives 114 STCs at 18.64 kWh and 151 STCs at 27.84 kWh.
 insert into public.battery_quote_packages(
  id,battery_name,battery_manufacturer,battery_model,battery_quantity,capacity_kwh,
  inverter_brand,inverter_manufacturer,inverter_model,inverter_kw,phase,battery_chemistry,depth_of_discharge,ip_rating,oop,stcs
 ) values
- ('BAT-007','FoxESS EP11 Battery','FoxESS','EP11',2,20.72,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,122),
- ('BAT-008','FoxESS EP11 Battery','FoxESS','EP11',3,31.08,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,155)
+ ('BAT-007','FoxESS EQ4800 Battery','FoxESS','EQ4800',4,18.64,'FoxESS','FoxESS','H1-5.0-E-G2',5,'Single Phase','LiFePO4',100,'IP65',0,114),
+ ('BAT-008','FoxESS EQ4800 Battery','FoxESS','EQ4800',4,18.64,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,114),
+ ('BAT-009','FoxESS CQ7 Battery','FoxESS','CQ7',4,27.84,'FoxESS','FoxESS','KH10',10,'Single Phase','LiFePO4',100,'IP65',0,151),
+ ('BAT-010','FoxESS CQ7 Battery','FoxESS','CQ7',4,27.84,'FoxESS','FoxESS','H3-9.9-Smart',9.9,'Three Phase','LiFePO4',100,'IP65',0,151)
 on conflict(id) do nothing;

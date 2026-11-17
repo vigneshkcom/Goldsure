@@ -1,11 +1,19 @@
 // Marketing labels only. Technical configuration and pricing remain in the package record and quote snapshot.
 const foxNames={
- 'BAT-007':'FoxESS 20kWh Battery',
- 'BAT-008':'FoxESS 30kWh Battery'
+ 'BAT-007':'FoxESS 18.64kWh Battery',
+ 'BAT-008':'FoxESS 18.64kWh Battery',
+ 'BAT-009':'FoxESS 27.84kWh Battery',
+ 'BAT-010':'FoxESS 27.84kWh Battery'
 };
-export const hasSpecificationDocuments=p=>['BAT-006','BAT-007','BAT-008'].includes(p?.id);
+const foxSubtitles={
+ 'BAT-007':'5kW FoxESS H1-G2 · Single Phase',
+ 'BAT-008':'10kW FoxESS KH10 · Single Phase',
+ 'BAT-009':'10kW FoxESS KH10 · Single Phase',
+ 'BAT-010':'9.9kW FoxESS H3 Smart · Three Phase'
+};
+export const hasSpecificationDocuments=p=>p?.id==='BAT-006'||p?.battery_manufacturer==='FoxESS';
 export const batteryPackageName=p=>p?.id==='BAT-006'?'Alpha ESS 28kWh Battery':foxNames[p?.id]||`${p.capacity_kwh}kWh ${p.battery_name}`;
-export const batteryPackageSubtitle=p=>p?.id==='BAT-006'?'10kW Alpha ESS · Single Phase':foxNames[p?.id]?`10kW FoxESS · ${p.phase}`:`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase}`;
+export const batteryPackageSubtitle=p=>p?.id==='BAT-006'?'10kW Alpha ESS · Single Phase':foxSubtitles[p?.id]||`${p.inverter_kw}kW ${p.inverter_brand} · ${p.phase}`;
 export const batteryDocumentLabel=d=>{const brand=/^FoxESS\b/i.test(d?.name)?'FoxESS':'AlphaESS';return ({battery:`${brand} Battery Datasheet`,inverter:`${brand} Inverter Datasheet`}[d.kind]||`${brand} Warranty Terms`);};
 
 // Shared by the browser and server. Rates are quote assumptions, not a guaranteed market price.
