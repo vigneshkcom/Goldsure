@@ -20,14 +20,14 @@ function memory(){const data={packages:structuredClone(seeds),documents:structur
 function harness({mailError,ghlError,preview=true}={}){const store=memory(),emails=[],crm=[];const handler=createBatteryQuoteHandler({store,preview,env:{BATTERY_QUOTES_STAFF_PASSWORD:'staff',DASHBOARD_PASSWORD:'admin',SUPABASE_SERVICE_ROLE_KEY:'test-secret'},pdf:async()=>Buffer.from('%PDF-test'),mail:async payload=>{emails.push(payload);if(mailError)throw mailError},ghl:{async preflight(){return true},async sync(q){crm.push(q);if(ghlError)throw Error('GHL unavailable');return {contactId:'contact',opportunityId:'opportunity'}}}});return {store,emails,crm,handler};}
 async function call(h,action,body={},headers={}){const res={statusCode:200,setHeader(){},status(c){this.statusCode=c;return this},json(data){this.body=data;return this},send(data){this.body=data;return this}};await h.handler({method:'POST',query:{action},headers,body},res);return res;}
 async function draft(h,package_id='BAT-001'){const r=await call(h,'create-quote',{package_id,customer,internal_notes:'INTERNAL SECRET',customer_notes:'Confirmed customer note'});assert.equal(r.statusCode,200);return r.body.quote;}
-test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',0,146],['BAT-007',5429,114],['BAT-008',6129,114],['BAT-009',7649,151],['BAT-010',7669,151],['BAT-011',5349,99],['BAT-012',6485,134],['BAT-013',8085,146],['BAT-014',8095,146]]);});
+test('the exact supplied packages are preloaded as data',()=>{assert.deepEqual(seeds.map(p=>[p.id,p.oop,p.stcs]),[['BAT-001',6100,115],['BAT-002',6700,115],['BAT-003',7500,154],['BAT-004',7900,154],['BAT-005',9999,160],['BAT-006',6900,146],['BAT-007',5429,114],['BAT-008',6129,114],['BAT-009',7649,151],['BAT-010',7669,151],['BAT-011',5349,99],['BAT-012',6485,134],['BAT-013',8085,146],['BAT-014',8095,146]]);});
 
 test('AlphaESS uses the requested 28kWh marketing labels without changing the technical configuration',async()=>{
  const {batteryPackageName,batteryPackageSubtitle}=await import('../Battery/quotes/pricing.js');
  const p=seeds.find(p=>p.id==='BAT-006');
  assert.equal(batteryPackageName(p),'Alpha ESS 28kWh Battery');
  assert.equal(batteryPackageSubtitle(p),'10kW Alpha ESS · Single Phase');
- assert.equal(p.capacity_kwh,27.98);assert.equal(p.inverter_kw,10);assert.equal(p.stcs,146);assert.equal(p.oop,0);
+ assert.equal(p.capacity_kwh,27.98);assert.equal(p.inverter_kw,10);assert.equal(p.stcs,146);assert.equal(p.oop,6900);
  assert.equal(p.inverter_brand,'Alpha ESS SMILE-M10-S-INV');
 });
 test('FoxESS packages match the four supplied EQ4800 and CQ7 configurations',async()=>{

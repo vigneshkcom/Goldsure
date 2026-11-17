@@ -72,9 +72,9 @@ insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
  values('battery-quote-documents','battery-quote-documents',false,3145728,array['application/pdf']) on conflict(id) do nothing;
 -- Existing bucket visibility is deliberately not silently altered by rerunning this migration.
--- Alpha ESS SMILE-M10-S-INV + 2x SMILE-M-BAT-13.9P (II, 27.98 kWh). Price is set per quote by staff (package OOP 0 is a placeholder); STCs are an estimate to confirm.
+-- Alpha ESS SMILE-M10-S-INV + 2x SMILE-M-BAT-13.9P (II, 27.98 kWh). Staff may edit the $6,900 starting price per quote; STCs are an estimate to confirm.
 insert into public.battery_quote_packages(id,battery_name,capacity_kwh,inverter_brand,inverter_kw,phase,oop,stcs) values
- ('BAT-006','Alpha ESS SMILE-M-BAT-13.9P II Battery',27.98,'Alpha ESS SMILE-M10-S-INV',10,'Single Phase',0,146) on conflict(id) do nothing;
+ ('BAT-006','Alpha ESS SMILE-M-BAT-13.9P II Battery',27.98,'Alpha ESS SMILE-M10-S-INV',10,'Single Phase',6900,146) on conflict(id) do nothing;
 update public.battery_quote_packages set active=true where id='BAT-006';
 -- FoxESS quotation options and starting prices supplied by Goldsure. Staff may edit the price per quote.
 -- For 1 May-31 December 2026, the 6.8 STC factor with statutory capacity tapering
