@@ -134,7 +134,7 @@ a.bigbtn{text-decoration:none}
     <div class="toolbar"><span id="syncStatus" class="pill hidden"></span><button class="btn" id="staffBtn" type="button" title="Switch staff member">Select staff member</button><button class="btn" id="refresh">Refresh</button><button class="btn" id="export">Export CSV</button><a class="btn" href="/" title="Goldsure portal">Portal</a></div>
   </header>
     <div class="grid" id="capacityCards"></div>
-  <section class="panel filterbar"><input id="search" class="field search" placeholder="Search customer, job ID, suburb, phone…"><select class="field narrow" id="dateFilter"><option value="">All proposed dates</option><option value="2026-11-26">Thu 26/11/2026 · Alex</option><option value="2026-12-14">Mon 14/12/2026 · Mason</option><option value="2026-12-15">Tue 15/12/2026 · Mason</option><option value="2026-12-16">Wed 16/12/2026 · Mason</option></select><select class="field narrow" id="statusFilter"><option value="">All statuses</option><option value="pending">Not agreed</option><option value="agreed">Customer agreed</option><option value="moved">Moved in Dataforce</option><option value="unverified">Alarms unverified</option><option value="needs">Requires follow-up</option></select><span class="tiny right" id="resultCount">—</span></section>
+  <section class="panel filterbar"><input id="search" class="field search" placeholder="Search customer, job ID, suburb, phone…"><select class="field narrow" id="dateFilter"><option value="">All dates</option><option value="2026-11-26">Thu 26/11/2026 · Alex</option><option value="2026-12-14">Mon 14/12/2026 · Mason</option><option value="2026-12-15">Tue 15/12/2026 · Mason</option><option value="2026-12-16">Wed 16/12/2026 · Mason</option></select><select class="field narrow" id="statusFilter"><option value="">All statuses</option><option value="pending">Not agreed</option><option value="agreed">Customer agreed</option><option value="moved">Moved in Dataforce</option><option value="unverified">Alarms unverified</option><option value="needs">Requires follow-up</option></select><span class="tiny right" id="resultCount">—</span></section>
   <section class="panel tablewrap"><table><thead><tr><th>Job / original</th><th>Customer & address</th><th>Electrician / schedule</th><th>Contact outcome</th><th>Alarms</th><th>Dataforce</th><th>Actions</th></tr></thead><tbody id="jobsBody"><tr><td colspan="7" class="empty">Loading jobs…</td></tr></tbody></table></section>
   <section class="panel route-panel hidden" id="routePanel" tabindex="-1" aria-labelledby="routeHeading">
     <div class="route-head"><h2 id="routeHeading">Daily route</h2><select class="field" id="routeDate" aria-label="Choose route date"></select></div>
@@ -186,6 +186,7 @@ function liveState(j){
   const l=liveInfo(j);
   if(!l)return null;
   if(l.error)return{cls:'warn',label:'Dataforce unavailable'};
+  if(l.found&&!l.date&&/waiting/i.test(l.status||''))return{cls:'warn',label:'Waiting list'};
   if(!l.found||!l.date||!l.time)return{cls:'error',label:'No scheduled appointment'};
   const originalWorker=workerIds[j.original_electrician],liveWorker=Number(l.fieldworker_id);
   const moved=l.date!==j.original_date||
@@ -270,7 +271,7 @@ if(status==='moved'&&!isMoved(j))return false;
 if(status==='unverified'&&j.alarm_type!=='Unconfirmed')return false;
 if(status==='needs'&&!(j.follow_up_date||j.contact_status==='Called - no answer'||j.contact_status==='Callback requested'))return false;
 return true;});$('resultCount').textContent=`${visible.length} of ${jobs.length} bookings`;
-$('jobsBody').innerHTML=visible.map(j=>`<tr><td><div class="job">#${j.job_id}${j.is_existing?' <span class="tag" style="margin-left:6px">Protected</span>':''}</div><div class="tiny">${dtag(j.original_date)} · ${escape(j.original_time||'')}</div></td><td><div class="customer">${escape(j.customer_name)}</div><div class="addrline"><div class="address" title="${escape(j.street_address||'')}">${escape(j.suburb)} · ${escape(j.street_address||'')}</div>${mapLink(j)}</div><div class="tiny">${escape(j.mobile||'No phone')}${j.contact_review?' · <span style="color:var(--red);font-weight:700">Check contact details</span>':''}</div></td><td>${scheduleCell(j)}</td><td>${(()=>{const t=statusInfo(j);return `<div class="stat"><span class="dot ${t.cls}"></span><b>${escape(t.label)}</b></div><div class="tiny">${j.call_attempts||0} call${(j.call_attempts||0)===1?'':'s'} made${j.sms_sent?' · SMS sent':''}${j.email_sent?' · email sent':''}</div>`})()}</td><td><span class="tag ${j.alarm_type==='Unconfirmed'?'warn':''}">${escape(j.alarm_type||'')}</span></td><td>${(()=>{const t=liveState(j),l=liveInfo(j);if(!t)return `<span class="tag ${isMoved(j)?'success':'warn'}">${isMoved(j)?'Moved':'Not moved'}</span>`;return `<span class="tag ${t.cls}">${escape(t.label)}</span><div class="tiny">${l&&l.date?`<span class="dt">${dmy(l.date)}</span>${l.time?' · '+escape(l.time):''}`:''}</div>`})()}</td><td>${(()=>{const n=nextStep(j);return `<div class="nextcol"><button class="btn next ${n.cls}" data-act="${n.act}" data-id="${j.job_id}" ${n.disabled?'disabled':''}>${n.label}</button><button class="linkbtn" data-act="edit" data-id="${j.job_id}">Edit details</button>${n.act==='move'?`<button class="linkbtn" data-act="undo" data-id="${j.job_id}">Undo agreed</button>`:''}</div>`})()}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No jobs match these filters.</td></tr>';}
+$('jobsBody').innerHTML=visible.map(j=>`<tr><td><div class="job">#${j.job_id}${j.is_existing?' <span class="tag" style="margin-left:6px">Protected</span>':''}</div><div class="tiny">${j.original_date?`${dtag(j.original_date)} · ${escape(j.original_time||'')}`:'Waiting list'}</div></td><td><div class="customer">${escape(j.customer_name)}</div><div class="addrline"><div class="address" title="${escape(j.street_address||'')}">${escape(j.suburb)} · ${escape(j.street_address||'')}</div>${mapLink(j)}</div><div class="tiny">${escape(j.mobile||'No phone')}${j.contact_review?' · <span style="color:var(--red);font-weight:700">Check contact details</span>':''}</div></td><td>${scheduleCell(j)}</td><td>${(()=>{const t=statusInfo(j);return `<div class="stat"><span class="dot ${t.cls}"></span><b>${escape(t.label)}</b></div><div class="tiny">${j.call_attempts||0} call${(j.call_attempts||0)===1?'':'s'} made${j.sms_sent?' · SMS sent':''}${j.email_sent?' · email sent':''}</div>`})()}</td><td><span class="tag ${j.alarm_type==='Unconfirmed'?'warn':''}">${escape(j.alarm_type||'')}</span></td><td>${(()=>{const t=liveState(j),l=liveInfo(j);if(!t)return `<span class="tag ${isMoved(j)?'success':'warn'}">${isMoved(j)?'Moved':'Not moved'}</span>`;return `<span class="tag ${t.cls}">${escape(t.label)}</span><div class="tiny">${l&&l.date?`<span class="dt">${dmy(l.date)}</span>${l.time?' · '+escape(l.time):''}`:''}</div>`})()}</td><td>${(()=>{const n=nextStep(j);return `<div class="nextcol"><button class="btn next ${n.cls}" data-act="${n.act}" data-id="${j.job_id}" ${n.disabled?'disabled':''}>${n.label}</button><button class="linkbtn" data-act="edit" data-id="${j.job_id}">Edit details</button>${n.act==='move'?`<button class="linkbtn" data-act="undo" data-id="${j.job_id}">Undo agreed</button>`:''}</div>`})()}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No jobs match these filters.</td></tr>';}
 function scheduleCell(j){
   const {date,slot,worker,time}=displayedSchedule(j);
   const label=worker==='Alex Symonds'?'Alex':worker==='Mason Adams'?'Mason':worker;
@@ -280,7 +281,36 @@ function scheduleCell(j){
     (slot?' · <span class="slot">'+escape(slot)+'</span>':'')+'</div>'+
     '<div class="tiny">'+(time?'Dataforce · '+escape(time):'Route #'+(j.route_order||'—'))+'</div>';
 }
-function renderCapacity(){const verified=jobs.filter(j=>j.alarm_type!=='Unconfirmed').length,contacted=jobs.filter(j=>j.contact_status!=='Not contacted').length,moved=jobs.filter(j=>isMoved(j)).length;const cur=$('dateFilter').value;$('capacityCards').innerHTML=Object.entries(DAY).map(([date,d])=>{const c=capacity(date),pct=Math.round(c.total/c.max*100),free=Math.max(0,c.max-c.total),fr=sl=>Math.max(0,Math.min(5-c[sl],free)),on=cur===date,tone=free===0?'none':free<=2?'low':'ok';const btn=sl=>`<button type="button" class="slotbtn ${closedForOffers(date,sl)||fr(sl)===0?'full':''} ${on&&slotFilter===sl?'active':''}" data-date="${date}" data-slot="${sl}">${sl} · ${closedForOffers(date,sl)?'Closed':fr(sl)+' free'}<small>${c[sl]} booked${c['p'+sl]?` · ${c['p'+sl]} proposed`:''}</small></button>`;return `<div class="panel day ${on?'active':''}" data-date="${date}" role="button" tabindex="0" title="Show these jobs"><div class="day-head"><div><div class="day-date">${d.label.split(' ')[0]}<b>${dmy(date)}</b></div><div class="day-who">${escape(d.worker)}</div></div><div class="count ${tone}"><b>${free}</b><span>free of ${c.max}</span></div></div><div class="meter"><div class="fill ${free===0?'full':''}" style="width:${Math.min(100,pct)}%"></div></div><div class="metrics"><span class="tiny">${c.total} booked · ${c.proposed} proposed</span></div><div class="slots">${btn('AM')}${btn('PM')}</div><button type="button" class="btn small route-btn" data-route-day="${date}">View route</button></div>`}).join('');$('syncStatus').title=`${contacted} contacted, ${verified} alarm types confirmed, ${moved} jobs synced`;}
+function unallocated(c,slot){
+  const remaining=c.max-c.total-c.proposed;
+  return Math.max(0,slot?Math.min(remaining,5-c[slot]-c['p'+slot]):remaining);
+}
+function renderCapacity(){
+  const verified=jobs.filter(j=>j.alarm_type!=='Unconfirmed').length;
+  const contacted=jobs.filter(j=>j.contact_status!=='Not contacted').length;
+  const moved=jobs.filter(j=>isMoved(j)).length;
+  const cur=$('dateFilter').value;
+  $('capacityCards').innerHTML=Object.entries(DAY).map(([date,d])=>{
+    const c=capacity(date),free=unallocated(c),on=cur===date;
+    const pct=Math.min(100,Math.round((c.total+c.proposed)/c.max*100));
+    const tone=free===0?'none':free<=2?'low':'ok';
+    const slotButton=slot=>{
+      const open=unallocated(c,slot);
+      return `<button type="button" class="slotbtn ${open===0?'full':''} ${on&&slotFilter===slot?'active':''}" data-date="${date}" data-slot="${slot}">${slot} · ${open} unallocated<small>${c[slot]} booked · ${c['p'+slot]} proposed</small></button>`;
+    };
+    const offerNote=closedForOffers(date,'PM')?'Customer offers paused for this date':
+      closedForOffers(date,'AM')?'Morning offers paused':'';
+    return `<div class="panel day ${on?'active':''}" data-date="${date}" role="button" tabindex="0" title="Show these jobs">
+      <div class="day-head"><div><div class="day-date">${d.label.split(' ')[0]}<b>${dmy(date)}</b></div><div class="day-who">${escape(d.worker)}</div></div>
+      <div class="count ${tone}"><b>${free}</b><span>unallocated of ${c.max}</span></div></div>
+      <div class="meter"><div class="fill ${free===0?'full':''}" style="width:${pct}%"></div></div>
+      <div class="metrics"><span class="tiny">${c.total} booked · ${c.proposed} proposed</span></div>
+      <div class="slots">${slotButton('AM')}${slotButton('PM')}</div>
+      ${offerNote?`<div class="tiny" style="margin-top:7px">${offerNote}</div>`:''}
+      <button type="button" class="btn small route-btn" data-route-day="${date}">View route</button></div>`;
+  }).join('');
+  $('syncStatus').title=`${contacted} contacted, ${verified} alarm types confirmed, ${moved} jobs synced`;
+}
 function firstName(j){return(String(j.customer_name||'Customer').trim().split(/\s+/)[0]||'Customer');}
 function optionLabel(o){return `${dateLong(o.date)}, ${slotText(o.slot)}`;}
 function templates(j){
