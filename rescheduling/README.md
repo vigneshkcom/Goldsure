@@ -59,4 +59,4 @@ No changes to the existing Goldsure portal files or Dataforce appointments are i
 - each tracker job's active appointment (`/jobs/{id}/appointments`, cancelled ones ignored) gives the real date, time and status;
 - each worker/day (Alex 1009 on 26 Nov, Mason 1012 on 14-16 Dec) is read with `/appointments/search`, so the day boxes show real bookings including jobs outside the tracker.
 
-A job whose Dataforce date, worker, window and recorded start time match shows as **Moved** automatically; a different date shows **Changed in Dataforce**. Nothing is written to Dataforce or Supabase by this read.
+The portal compares the live Dataforce appointment with the original booking. A change to the date, time or fieldworker appears as **Moved**, and the job is listed under its live date. Saved proposals do not change. The live read does not write to Dataforce or Supabase.

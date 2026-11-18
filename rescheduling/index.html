@@ -128,7 +128,7 @@ a.bigbtn{text-decoration:none}
   </header>
     <div class="grid" id="capacityCards"></div>
   <section class="panel filterbar"><input id="search" class="field search" placeholder="Search customer, job ID, suburb, phone…"><select class="field narrow" id="dateFilter"><option value="">All proposed dates</option><option value="2026-11-26">Thu 26/11/2026 · Alex</option><option value="2026-12-14">Mon 14/12/2026 · Mason</option><option value="2026-12-15">Tue 15/12/2026 · Mason</option><option value="2026-12-16">Wed 16/12/2026 · Mason</option></select><select class="field narrow" id="statusFilter"><option value="">All statuses</option><option value="pending">Not agreed</option><option value="agreed">Customer agreed</option><option value="moved">Moved in Dataforce</option><option value="unverified">Alarms unverified</option><option value="needs">Requires follow-up</option></select><span class="tiny right" id="resultCount">—</span></section>
-  <section class="panel tablewrap"><table><thead><tr><th>Job / original</th><th>Customer & address</th><th>Electrician / proposed</th><th>Contact outcome</th><th>Alarms</th><th>Dataforce</th><th>Actions</th></tr></thead><tbody id="jobsBody"><tr><td colspan="7" class="empty">Loading jobs…</td></tr></tbody></table></section>
+  <section class="panel tablewrap"><table><thead><tr><th>Job / original</th><th>Customer & address</th><th>Electrician / schedule</th><th>Contact outcome</th><th>Alarms</th><th>Dataforce</th><th>Actions</th></tr></thead><tbody id="jobsBody"><tr><td colspan="7" class="empty">Loading jobs…</td></tr></tbody></table></section>
 </div>
 <div class="overlay hidden" id="authOverlay"><div class="panel authcard"><h2>Who are you?</h2><p>Your name is saved with every change.</p><div class="staffpick" id="staffPick"></div></div></div>
 <div class="overlay hidden" id="detailOverlay"><div class="modal"><div class="modalhead"><div><div id="detailTitle" class="modaltitle">Job</div><div id="detailSubtitle" class="sub" style="margin-top:4px"></div></div><button class="btn small" id="closeDetail">Close</button></div><div class="modalbody" id="detailBody"></div><div class="modalfoot"><span class="tiny right" id="saveInfo"></span><button class="btn" id="detailCancel">Cancel</button><button class="btn primary" id="detailSave">Save changes</button></div></div></div>
@@ -166,15 +166,43 @@ async function chooseStaff(n){if(!STAFF.includes(n))return;staff=n;try{sessionSt
 const dateLong=date=>date?new Date(date+'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Not allocated';
 const slotText=s=>s==='AM'?'AM (morning)':'PM (afternoon)';
 const liveInfo=j=>live?.jobs?.[j.job_id]||null;
-function liveState(j){const l=liveInfo(j);if(!l)return null;if(l.error)return{cls:'warn',label:'Dataforce unavailable'};if(!l.found)return{cls:'error',label:'No appointment found'};const confirmed=j.confirmed_start_time;
-if(l.date&&l.date===j.assignment_date&&Number(l.fieldworker_id)===(j.assigned_electrician==='Alex Symonds'?1009:1012)&&l.slot===j.assignment_slot&&(!confirmed||l.time===formatMoveTime(confirmed)))return{cls:'success',label:'Moved',moved:true};if(l.date&&l.date===j.original_date)return{cls:'warn',label:'Not moved'};return{cls:'warn',label:'Changed in Dataforce'};}
-const isMoved=j=>Boolean(j.dataforce_updated||liveState(j)?.moved);
+const workerIds={'Alex Symonds':1009,'Mason Adams':1012};
+const appointmentTime=t=>String(t||'').replace(/\s/g,'').replace(/^0/,'').toUpperCase();
+function liveState(j){
+  const l=liveInfo(j);
+  if(!l)return null;
+  if(l.error)return{cls:'warn',label:'Dataforce unavailable'};
+  if(!l.found||!l.date||!l.time)return{cls:'error',label:'No scheduled appointment'};
+  const originalWorker=workerIds[j.original_electrician],liveWorker=Number(l.fieldworker_id);
+  const moved=l.date!==j.original_date||
+    (Boolean(j.original_time)&&appointmentTime(l.time)!==appointmentTime(j.original_time))||
+    (Boolean(originalWorker&&liveWorker)&&liveWorker!==originalWorker);
+  return moved?{cls:'success',label:'Moved',moved:true}:{cls:'warn',label:'Not moved'};
+}
+function isMoved(j){
+  const l=liveInfo(j);
+  return l&&!l.error?Boolean(liveState(j)?.moved):Boolean(j.dataforce_updated);
+}
+function displayedSchedule(j){
+  const l=liveInfo(j);
+  if(!l?.found||!isMoved(j))return{date:j.assignment_date,slot:j.assignment_slot,worker:j.assigned_electrician};
+  const workerId=Number(l.fieldworker_id);
+  const worker=Object.keys(workerIds).find(name=>workerIds[name]===workerId)||(workerId?'Fieldworker #'+workerId:'Dataforce');
+  return{date:l.date,slot:l.slot,worker,time:l.time};
+}
 const isBooked=j=>Boolean(j.is_existing||isMoved(j)||j.customer_response==='Customer agreed');
-function capacity(d,excludeId=null){const day=DAY[d];if(!day)return{total:0,max:0,AM:0,PM:0,pAM:0,pPM:0,proposed:0};const js=jobs.filter(j=>j.job_id!==excludeId&&j.assignment_date===d),ld=live?.days?.[d];let booked;
-if(ld&&ld.ok){const inDf=new Set(ld.items.map(x=>x.job_id));booked=[...ld.items.filter(x=>x.job_id!==excludeId).map(x=>({slot:x.slot})),...js.filter(j=>isBooked(j)&&!inDf.has(j.job_id)).map(j=>({slot:j.assignment_slot}))];}
-else booked=js.filter(isBooked).map(j=>({slot:j.assignment_slot}));
-const p=js.filter(j=>!isBooked(j));
-return{total:booked.length,max:day.cap,AM:booked.filter(x=>x.slot==='AM').length,PM:booked.filter(x=>x.slot==='PM').length,proposed:p.length,pAM:p.filter(j=>j.assignment_slot==='AM').length,pPM:p.filter(j=>j.assignment_slot==='PM').length};}
+function capacity(d,excludeId=null){
+  const day=DAY[d];
+  if(!day)return{total:0,max:0,AM:0,PM:0,pAM:0,pPM:0,proposed:0};
+  const js=jobs.filter(j=>String(j.job_id)!==String(excludeId)).map(j=>({job:j,...displayedSchedule(j)}))
+    .filter(a=>a.date===d&&a.worker===day.worker);
+  const liveItems=(live?.days?.[d]?.ok?live.days[d].items:[]).filter(x=>String(x.job_id)!==String(excludeId));
+  const inDf=new Set(liveItems.map(x=>String(x.job_id)));
+  const booked=[...liveItems,...js.filter(a=>isBooked(a.job)&&!inDf.has(String(a.job.job_id)))];
+  const proposed=js.filter(a=>!isBooked(a.job)&&!inDf.has(String(a.job.job_id)));
+  const count=(entries,slot)=>entries.filter(a=>a.slot===slot).length;
+  return{total:booked.length,max:day.cap,AM:count(booked,'AM'),PM:count(booked,'PM'),proposed:proposed.length,pAM:count(proposed,'AM'),pPM:count(proposed,'PM')};
+}
 function optionsFor(j){const proposals=[{date:j.assignment_date,slot:j.assignment_slot},...(j.alternate_options||[])];const seen=new Set();return proposals.filter(x=>{if(!x?.date||!DAY[x.date]||!['AM','PM'].includes(x.slot))return false;const k=x.date+x.slot;if(seen.has(k))return false;seen.add(k);const cap=capacity(x.date,j.job_id);return cap.total<cap.max&&cap[x.slot]<5;}).slice(0,3);}
 function toast(t,isError=false){const el=$('toast');el.textContent=t;el.style.background=isError?'#a24349':'#273948';el.classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.add('hidden'),5000);}
 async function request(path='',method='GET',body){const r=await fetch(API+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{})},credentials:'same-origin',body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok){const err=new Error(data.error||'Request failed ('+r.status+')');err.status=r.status;err.data=data;throw err;}return data;}
@@ -210,16 +238,26 @@ async function verifyMoveEmail(action){
 async function loadLive(fresh){try{live=await request('/live'+(fresh?'?fresh=1':''));const t=new Date(live.fetched_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',timeZone:'Australia/Brisbane'});$('liveNote').textContent=' · Dataforce live, updated '+t;}catch(e){live=null;$('liveNote').textContent=e.status===503?' · Dataforce not connected':' · Dataforce unavailable';}}
 async function reload(fresh){if(refreshing)return;refreshing=true;try{const [x]=await Promise.all([request('/jobs'),loadLive(fresh===true)]);jobs=x.jobs||[];render();$('syncStatus').classList.add('hidden');}catch(e){$('syncStatus').textContent='● Connection problem';$('syncStatus').classList.remove('hidden');if(e.status===401){try{await request('/session','POST',{staff});}catch{}}toast(e.message,true);}finally{refreshing=false;}}
 function render(){renderCapacity();const q=$('search').value.trim().toLowerCase(),date=$('dateFilter').value,status=$('statusFilter').value;const visible=jobs.filter(j=>{
-if(date&&j.assignment_date!==date)return false;
-if(slotFilter&&j.assignment_slot!==slotFilter)return false;
+const schedule=displayedSchedule(j);
+if(date&&schedule.date!==date)return false;
+if(slotFilter&&schedule.slot!==slotFilter)return false;
 if(q&&!String([j.job_id,j.customer_name,j.suburb,j.mobile,j.street_address,j.email].join(' ')).toLowerCase().includes(q))return false;
-if(status==='pending'&&j.customer_response==='Customer agreed')return false;
+if(status==='pending'&&(j.customer_response==='Customer agreed'||isMoved(j)))return false;
 if(status==='agreed'&&j.customer_response!=='Customer agreed')return false;
 if(status==='moved'&&!isMoved(j))return false;
 if(status==='unverified'&&j.alarm_type!=='Unconfirmed')return false;
 if(status==='needs'&&!(j.follow_up_date||j.contact_status==='Called - no answer'||j.contact_status==='Callback requested'))return false;
 return true;});$('resultCount').textContent=`${visible.length} of ${jobs.length} bookings`;
-$('jobsBody').innerHTML=visible.map(j=>`<tr><td><div class="job">#${j.job_id}${j.is_existing?' <span class="tag" style="margin-left:6px">Protected</span>':''}</div><div class="tiny">${dtag(j.original_date)} · ${escape(j.original_time||'')}</div></td><td><div class="customer">${escape(j.customer_name)}</div><div class="addrline"><div class="address" title="${escape(j.street_address||'')}">${escape(j.suburb)} · ${escape(j.street_address||'')}</div>${mapLink(j)}</div><div class="tiny">${escape(j.mobile||'No phone')}${j.contact_review?' · <span style="color:var(--red);font-weight:700">Check contact details</span>':''}</div></td><td><span class="tag ${j.assigned_electrician==='Alex Symonds'?'alex':''}">${escape(j.assigned_electrician==='Alex Symonds'?'Alex':'Mason')}</span><div style="margin-top:6px;font-weight:750">${DAY[j.assignment_date]?`${escape(DAY[j.assignment_date].label.split(' ')[0])} ${dtag(j.assignment_date)}`:'Unallocated'} · <span class="slot">${escape(j.assignment_slot||'')}</span></div><div class="tiny">Route #${j.route_order||'—'}</div></td><td>${(()=>{const t=statusInfo(j);return `<div class="stat"><span class="dot ${t.cls}"></span><b>${escape(t.label)}</b></div><div class="tiny">${j.call_attempts||0} call${(j.call_attempts||0)===1?'':'s'} made${j.sms_sent?' · SMS sent':''}${j.email_sent?' · email sent':''}</div>`})()}</td><td><span class="tag ${j.alarm_type==='Unconfirmed'?'warn':''}">${escape(j.alarm_type||'')}</span></td><td>${(()=>{const t=liveState(j),l=liveInfo(j);if(!t)return `<span class="tag ${isMoved(j)?'success':'warn'}">${isMoved(j)?'Moved':'Not moved'}</span>`;return `<span class="tag ${t.cls}">${escape(t.label)}</span><div class="tiny">${l&&l.date?`<span class="dt">${dmy(l.date)}</span>${l.time?' · '+escape(l.time):''}`:''}</div>`})()}</td><td>${(()=>{const n=nextStep(j);return `<div class="nextcol"><button class="btn next ${n.cls}" data-act="${n.act}" data-id="${j.job_id}" ${n.disabled?'disabled':''}>${n.label}</button><button class="linkbtn" data-act="edit" data-id="${j.job_id}">Edit details</button>${n.act==='move'?`<button class="linkbtn" data-act="undo" data-id="${j.job_id}">Undo agreed</button>`:''}</div>`})()}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No jobs match these filters.</td></tr>';}
+$('jobsBody').innerHTML=visible.map(j=>`<tr><td><div class="job">#${j.job_id}${j.is_existing?' <span class="tag" style="margin-left:6px">Protected</span>':''}</div><div class="tiny">${dtag(j.original_date)} · ${escape(j.original_time||'')}</div></td><td><div class="customer">${escape(j.customer_name)}</div><div class="addrline"><div class="address" title="${escape(j.street_address||'')}">${escape(j.suburb)} · ${escape(j.street_address||'')}</div>${mapLink(j)}</div><div class="tiny">${escape(j.mobile||'No phone')}${j.contact_review?' · <span style="color:var(--red);font-weight:700">Check contact details</span>':''}</div></td><td>${scheduleCell(j)}</td><td>${(()=>{const t=statusInfo(j);return `<div class="stat"><span class="dot ${t.cls}"></span><b>${escape(t.label)}</b></div><div class="tiny">${j.call_attempts||0} call${(j.call_attempts||0)===1?'':'s'} made${j.sms_sent?' · SMS sent':''}${j.email_sent?' · email sent':''}</div>`})()}</td><td><span class="tag ${j.alarm_type==='Unconfirmed'?'warn':''}">${escape(j.alarm_type||'')}</span></td><td>${(()=>{const t=liveState(j),l=liveInfo(j);if(!t)return `<span class="tag ${isMoved(j)?'success':'warn'}">${isMoved(j)?'Moved':'Not moved'}</span>`;return `<span class="tag ${t.cls}">${escape(t.label)}</span><div class="tiny">${l&&l.date?`<span class="dt">${dmy(l.date)}</span>${l.time?' · '+escape(l.time):''}`:''}</div>`})()}</td><td>${(()=>{const n=nextStep(j);return `<div class="nextcol"><button class="btn next ${n.cls}" data-act="${n.act}" data-id="${j.job_id}" ${n.disabled?'disabled':''}>${n.label}</button><button class="linkbtn" data-act="edit" data-id="${j.job_id}">Edit details</button>${n.act==='move'?`<button class="linkbtn" data-act="undo" data-id="${j.job_id}">Undo agreed</button>`:''}</div>`})()}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No jobs match these filters.</td></tr>';}
+function scheduleCell(j){
+  const {date,slot,worker,time}=displayedSchedule(j);
+  const label=worker==='Alex Symonds'?'Alex':worker==='Mason Adams'?'Mason':worker;
+  const weekday=date?new Date(date+'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',weekday:'short'}):'';
+  return '<span class="tag '+(label==='Alex'?'alex':'')+'">'+escape(label||'Unassigned')+'</span>'+
+    '<div style="margin-top:6px;font-weight:750">'+(date?escape(weekday)+' '+dtag(date):'Unallocated')+
+    (slot?' · <span class="slot">'+escape(slot)+'</span>':'')+'</div>'+
+    '<div class="tiny">'+(time?'Dataforce · '+escape(time):'Route #'+(j.route_order||'—'))+'</div>';
+}
 function renderCapacity(){const verified=jobs.filter(j=>j.alarm_type!=='Unconfirmed').length,contacted=jobs.filter(j=>j.contact_status!=='Not contacted').length,moved=jobs.filter(j=>isMoved(j)).length;const cur=$('dateFilter').value;$('capacityCards').innerHTML=Object.entries(DAY).map(([date,d])=>{const c=capacity(date),pct=Math.round(c.total/c.max*100),free=Math.max(0,c.max-c.total),fr=sl=>Math.max(0,Math.min(5-c[sl],free)),on=cur===date,tone=free===0?'none':free<=2?'low':'ok';const btn=sl=>`<button type="button" class="slotbtn ${fr(sl)===0?'full':''} ${on&&slotFilter===sl?'active':''}" data-date="${date}" data-slot="${sl}">${sl} · ${fr(sl)} free<small>${c[sl]} booked${c['p'+sl]?` · ${c['p'+sl]} proposed`:''}</small></button>`;return `<div class="panel day ${on?'active':''}" data-date="${date}" role="button" tabindex="0" title="Show these jobs"><div class="day-head"><div><div class="day-date">${d.label.split(' ')[0]}<b>${dmy(date)}</b></div><div class="day-who">${escape(d.worker)}</div></div><div class="count ${tone}"><b>${free}</b><span>free of ${c.max}</span></div></div><div class="meter"><div class="fill ${free===0?'full':''}" style="width:${Math.min(100,pct)}%"></div></div><div class="metrics"><span class="tiny">${c.total} booked · ${c.proposed} proposed</span></div><div class="slots">${btn('AM')}${btn('PM')}</div></div>`}).join('');$('syncStatus').title=`${contacted} contacted, ${verified} alarm types confirmed, ${moved} jobs synced`;}
 function firstName(j){return(String(j.customer_name||'Customer').trim().split(/\s+/)[0]||'Customer');}
 function optionLabel(o){return `${dateLong(o.date)}, ${slotText(o.slot)}`;}
@@ -288,7 +326,6 @@ function closeDetail(){$('detailOverlay').classList.add('hidden');selected=null;
 async function save(){const j=selected;if(!j)return;if(!actor())return toast('Choose your staff name first.',true);const date=$('editDate').value,slot=$('editSlot').value,rem=DAY[date];const patch={assigned_electrician:rem.worker,assignment_date:date,assignment_slot:slot,route_order:Number($('editRoute').value),contact_status:$('editStatus').value,customer_response:$('editResponse').value,call_attempts:Number($('editCalls').value),alarm_type:$('editAlarm').value,follow_up_date:$('editFollow').value||null,sms_sent:$('editSms').value==='Yes',email_sent:$('editEmail').value==='Yes',notes:$('editNotes').value};$('detailSave').disabled=true;try{const result=await request('/jobs','PATCH',{job_id:j.job_id,expected_version:j.version,actor:actor(),patch});jobs=jobs.map(x=>x.job_id===j.job_id?result.job:x);closeDetail();render();toast('Saved. Supabase history updated.');}catch(e){toast(e.message,true);$('saveInfo').textContent='Not saved: '+e.message;}finally{$('detailSave').disabled=false;}}
 let moveChoice=null;
 function moveOptions(j){const seen=new Set(),out=[];const add=(date,slot,saved)=>{if(!date||!DAY[date]||!['AM','PM'].includes(slot))return;const key=date+slot;if(seen.has(key))return;seen.add(key);const c=capacity(date,j.job_id);out.push({date,slot,saved,left:Math.max(0,Math.min(5-c[slot],c.max-c.total))});};add(j.assignment_date,j.assignment_slot,true);for(const o of (j.alternate_options||[]))add(o.date,o.slot,false);for(const o of optionsFor(j))add(o.date,o.slot,false);return out;}
-function formatMoveTime(time){const [h,m]=time.split(':');return ((Number(h)+11)%12+1)+':'+m+(Number(h)>=12?'PM':'AM');}
 function timesFor(slot){return slot==='AM'?['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30']:['12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00'];}
 function renderMoveChoice(j){const o=moveChoice;$('moveSummary').textContent=`${j.customer_name} · ${j.suburb} · ${DAY[o.date].worker}`;const keep=$('confirmedTime').value;$('confirmedTime').innerHTML='<option value="">Choose a start time</option>'+timesFor(o.slot).map(x=>optionTag(x,keep||j.confirmed_start_time)).join('');}
 function openMove(j){if(!actor())return toast('Choose your staff name first.',true);if(j.is_existing||isMoved(j))return toast('Existing or already moved booking is protected.',true);moveSelected=j;const opts=moveOptions(j);moveChoice=opts[0]||null;if(!moveChoice)return toast('No date options for this job. Set a date in Edit details first.',true);$('moveTitle').textContent=`Book job #${j.job_id}`;$('moveChoices').innerHTML=opts.map((o,i)=>`<label class="choice ${i===0?'on':''}"><input type="radio" name="moveopt" value="${i}" ${i===0?'checked':''}><div><b>${dmy(o.date)}</b> · ${escape(DAY[o.date].label.split(' ')[0])} · ${o.slot==='AM'?'Morning (AM)':'Afternoon (PM)'}<small>${escape(DAY[o.date].worker)} · ${o.left} spot${o.left===1?'':'s'} left${o.saved?' · currently saved':''}</small></div></label>`).join('');$('moveChoices').onchange=e=>{const i=Number(e.target.value);moveChoice=opts[i];$('moveChoices').querySelectorAll('.choice').forEach((el,n)=>el.classList.toggle('on',n===i));$('confirmedTime').value='';renderMoveChoice(j);};$('customerReply').value=j.approved_customer_reply||'';$('agreementCheck').checked=false;$('moveResult').innerHTML='';$('confirmedTime').innerHTML='';renderMoveChoice(j);$('doMove').disabled=false;$('manualMove').disabled=false;$('moveOverlay').classList.remove('hidden');}
