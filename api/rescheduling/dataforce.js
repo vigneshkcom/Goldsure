@@ -54,7 +54,7 @@ export default async function handler(req,res){
       assigned_electrician:DAYS[chosenDate],assignment_date:chosenDate,assignment_slot:chosenSlot,
       approved_customer_reply:reply,approved_by:actor,approved_at:new Date().toISOString(),
       confirmed_start_time:start,customer_response:'Customer agreed',contact_status:'Spoke - agreed',
-      dataforce_status:manual?'Agreement recorded - Dataforce move pending':MOVE_IN_PROGRESS,
+      dataforce_status:manual?'Agreement recorded — Dataforce move pending':MOVE_IN_PROGRESS,
       dataforce_error:null,
     });
     if (!saved) return json(res,409,{error:'Another agent changed this job. Refresh and retry.'});
@@ -71,7 +71,7 @@ export default async function handler(req,res){
     const detail = error.message;
     let updated;
     try {
-      updated = await patch(saved.version,{dataforce_status:'Agreement recorded - check Dataforce',dataforce_error:detail});
+      updated = await patch(saved.version,{dataforce_status:'Agreement recorded — check Dataforce',dataforce_error:detail});
     } catch {
       // The approval is already saved. The move lock expires if this update fails.
     }
