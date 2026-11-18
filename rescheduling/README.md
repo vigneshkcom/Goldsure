@@ -49,3 +49,12 @@ The repository and Goldsure Vercel already have Dataforce OAuth credentials and 
 - `plan_summary.json`: booking IDs and planned dates (no personal details)
 
 No changes to the existing Goldsure portal files or Dataforce appointments are included in this package.
+
+## Live Dataforce read
+
+`/api/rescheduling/live` (read-only, session required, cached 20 s) reads Dataforce with the existing `DATAFORCE_CLIENT_ID` / `DATAFORCE_CLIENT_SECRET`:
+
+- each tracker job's active appointment (`/jobs/{id}/appointments`, cancelled ones ignored) gives the real date, time and status;
+- each worker/day (Alex 1009 on 26 Nov, Mason 1012 on 14-16 Dec) is read with `/appointments/search`, so the day boxes show real bookings including jobs outside the tracker.
+
+A job whose Dataforce date equals its proposed date shows as **Moved** automatically; a different date shows **Changed in Dataforce**. Nothing is written to Dataforce or Supabase by this read.
