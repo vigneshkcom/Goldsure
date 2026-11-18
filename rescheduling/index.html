@@ -221,7 +221,7 @@ const mondayPM={date:'2026-12-14',slot:'PM'};
 const closedForOffers=(date,slot)=>date==='2026-12-15'||(date==='2026-12-16'&&slot==='AM');
 const mondayOnly=j=>j.assignment_date==='2026-12-15'&&!j.is_existing&&!isMoved(j);
 function mondaySpots(jobId){
-  if(!live?.days?.[mondayPM.date]?.ok)return 0;
+  if(!live?.days?.[mondayPM.date]?.ok)return null;
   const c=capacity(mondayPM.date,jobId);
   return Math.max(0,Math.min(c.max-c.total-c.proposed,5-c.PM-c.pPM));
 }
@@ -319,7 +319,9 @@ function mondayTemplates(j,property,opts){
     :'We’re arranging a new date for your installation.';
   const offer=opts.length
     ?'The only window we can currently offer in your area is Monday 14 December in the afternoon. Please reply if that suits and we’ll confirm your booking if a spot is still available.'
-    :'We have no further appointment windows available in your area at the moment. Please reply if you’d like us to let you know when a spot opens up.';
+    :mondaySpots(j.job_id)===null
+      ?'Monday 14 December in the afternoon is the only window we’re scheduling in your area. Please reply if that suits and we’ll check availability before confirming.'
+      :'We have no further appointment windows available in your area at the moment. Please reply if you’d like us to let you know when a spot opens up.';
   const sms='Hi '+firstName(j)+', it’s Goldsure about your smoke alarm installation (Job #'+j.job_id+'). '+intro+' '+offer+' Goldsure | 07 2145 5155';
   const subject=(contacted?'Updated appointment options':'New appointment for your smoke alarm installation')+' (Job #'+j.job_id+')';
   const email='Subject: '+subject+'\n\nHi '+firstName(j)+',\n\nI’m contacting you about your smoke alarm installation at '+property+'.\n\n'+intro+'\n\n'+offer+(contacted?'\n\nThank you for your patience.':'')+'\n\nKind regards,\nGoldsure Scheduling Team\n07 2145 5155';
@@ -394,7 +396,7 @@ function closeContact(){$('contactOverlay').classList.add('hidden');contactSel=n
 function renderContact(){const j=contactSel;if(!j)return;const t=templates(j),st=statusInfo(j);
 $('contactTitle').textContent=`#${j.job_id} · ${j.customer_name}`;
 $('contactSub').innerHTML=`<span class="addrline" style="display:inline-flex">${escape(j.mobile||'No phone number')} · ${escape(j.street_address||'')}, ${escape(j.suburb||'')}${addressLink(j,'Map')}</span>`;
-$('contactBody').innerHTML=`<div class="bigdate">Proposed: ${dtag(j.assignment_date)} · <b>${j.assignment_slot==='AM'?'Morning (AM)':'Afternoon (PM)'}</b></div>${j.contact_review?'<div class="notice" style="margin-bottom:10px">Check the phone number and email before contacting this customer.</div>':''}
+$('contactBody').innerHTML=`<div class="bigdate">${mondayOnly(j)?(mondaySpots(j.job_id)===0?'Monday afternoon is full':'Only offer: Monday 14 December afternoon'):`Proposed: ${dtag(j.assignment_date)} · <b>${j.assignment_slot==='AM'?'Morning (AM)':'Afternoon (PM)'}</b>`}</div>${j.contact_review?'<div class="notice" style="margin-bottom:10px">Check the phone number and email before contacting this customer.</div>':''}
 <div class="cstep"><div class="cnum">1</div><div class="cmain"><div class="stept">Reach the customer</div><div class="stephint">Call opens RingCentral. Send SMS and Send email open with the message filled in.</div>
 <div class="bigbtns"><a class="bigbtn callbtn" href="${callHref(j.mobile)}">Call</a><button class="bigbtn smsbtn" data-do="opensms">Send SMS</button><button class="bigbtn" data-do="sendemail">Send email</button><button class="bigbtn ${j.sms_sent?'ticked':''}" data-do="sentsms">Sent SMS</button><button class="bigbtn ${j.email_sent?'ticked':''}" data-do="sentemail">Sent Email</button></div>
 <details class="prev"><summary>See the message</summary><pre>${escape(t.sms)}</pre></details></div></div>
@@ -408,7 +410,7 @@ if(a==='sentsms')return patchJob(j,{sms_sent:true,contact_status:'SMS sent - awa
 if(a==='sentemail')return patchJob(j,{email_sent:true,contact_status:'Email sent - awaiting reply',customer_response:'Awaiting customer reply'},'Saved: email sent');
 if(a==='noanswer')return patchJob(j,{contact_status:'Called - no answer',call_attempts:calls},'Saved: no answer');
 if(a==='voicemail')return patchJob(j,{contact_status:'Left voicemail',call_attempts:calls,customer_response:'Awaiting customer reply'},'Saved: voicemail left');
-if(a==='agreed'&&mondayOnly(j)){if(!mondaySpots(j.job_id))return toast('Monday afternoon has no spots available.',true);closeContact();openMove(j);return;}
+if(a==='agreed'&&mondayOnly(j)){if(!mondaySpots(j.job_id))return toast(mondaySpots(j.job_id)===null?'Refresh to check Monday availability before confirming.':'Monday afternoon has no spots available.',true);closeContact();openMove(j);return;}
 if(a==='agreed'){const u=await patchJob(j,{contact_status:'Spoke - agreed',customer_response:'Customer agreed'},'Customer agreed. Now move it in Dataforce.');if(u){closeContact();openMove(u);}return;}
 if(a==='other'){const u=await patchJob(j,{contact_status:'Spoke - considering',customer_response:'Customer wants another date'},'Saved. Use “Pick another day” on the job.');if(u)closeContact();}}
 function copyDraft(kind){if(!selected)return;if($('editDate').value!==selected.assignment_date||$('editSlot').value!==selected.assignment_slot)return toast('Save your proposed date/slot first so it is recorded before you contact the customer.',true);if(kind==='email'&&selected.contact_review)return toast('Verify the customer email before copying: this contact is shared in the booking CSV.',true);return copy(templates(selected)[kind]);}

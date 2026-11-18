@@ -76,6 +76,30 @@ export function activeAppointment(list) {
 
 export async function readLive({ jobIds, appointmentIds = {}, fetchImpl = fetch, env = process.env }) {
   const tk = await token(fetchImpl, env);
+  // Real load on each worker/day (every appointment, including jobs not in the tracker).
+  const days = {};
+  await Promise.all(Object.entries(DAYS).map(async ([date, worker]) => {
+    try {
+      const items = []; let after = 0;
+      for (let page = 0; page < 5; page++) {
+        const r = await call(fetchImpl, tk, '/appointments/search', {
+          method: 'POST',
+          body: JSON.stringify({
+            filterGroups: [{ filters: [
+              { propertyName: 'fieldworkerId', value: String(WORKERS[worker]), operator: 'EQ' },
+              { propertyName: 'scheduledDate', value: `${date}T00:00:00`, operator: 'GTE' },
+              { propertyName: 'scheduledDate', value: `${nextDay(date)}T00:00:00`, operator: 'LT' },
+            ] }],
+            sorts: [{ propertyName: 'appointmentId', direction: 'asc' }], limit: 100, after,
+          }),
+        });
+        const rows = r?.records || [];
+        items.push(...rows); after += rows.length;
+        if (rows.length < 100) break;
+      }
+      days[date] = { worker, ok: true, items: items.filter(a => !cancelled(a)).map(a => ({ job_id: a.jobId ?? null, slot: slotOf(a.scheduledDate), time: timeLabel(a.scheduledDate), status: text(a.completionStatusDescription) })) };
+    } catch (e) { days[date] = { worker, ok: false, error: e.message }; }
+  }));
   const jobs = {};
   const jobResults = await pool(jobIds, 6, async id => {
     try {
@@ -97,30 +121,6 @@ export async function readLive({ jobIds, appointmentIds = {}, fetchImpl = fetch,
       fieldworker_id: a.fieldworkerId ?? null, status: text(a.completionStatusDescription),
     };
   }
-  // Real load on each worker/day (every appointment, including jobs not in the tracker).
-  const days = {};
-  await Promise.all(Object.entries(DAYS).map(async ([date, worker]) => {
-    try {
-      const items = []; let after = 0;
-      for (let page = 0; page < 5; page++) {
-        const r = await call(fetchImpl, tk, '/appointments/search', {
-          method: 'POST',
-          body: JSON.stringify({
-            filterGroups: [{ filters: [
-              { propertyName: 'fieldworkerId', value: String(WORKERS[worker]), operator: 'EQ' },
-              { propertyName: 'scheduledDate', value: `${date}T00:00:00`, operator: 'GTE' },
-              { propertyName: 'scheduledDate', value: `${nextDay(date)}T00:00:00`, operator: 'LT' },
-            ] }],
-            sorts: [{ propertyName: 'appointmentId', direction: 'asc' }], limit: 100, after,
-          }),
-        });
-        const rows = r?.records || [];
-        items.push(...rows); after += rows.length;
-        if (!rows.length) break;
-      }
-      days[date] = { worker, ok: true, items: items.filter(a => !cancelled(a)).map(a => ({ job_id: a.jobId ?? null, slot: slotOf(a.scheduledDate), time: timeLabel(a.scheduledDate), status: text(a.completionStatusDescription) })) };
-    } catch (e) { days[date] = { worker, ok: false, error: e.message }; }
-  }));
   return { jobs, days, fetched_at: new Date().toISOString() };
 }
 
