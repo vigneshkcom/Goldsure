@@ -125,6 +125,7 @@ a.bigbtn{text-decoration:none}
 .route-stop{padding:10px 0;border-top:1px solid var(--line)}
 .route-stop .stop-address{flex:1;min-width:0}.route-stop.chosen{background:var(--gold-soft)}
 .route-btn{width:100%;justify-content:center;margin-top:10px}
+.meter{display:flex}.fill.prop{background:#d9cfae;border-radius:0}
 </style>
 </head>
 <body>
@@ -282,8 +283,9 @@ function scheduleCell(j){
     '<div class="tiny">'+(time?'Dataforce · '+escape(time):'Route #'+(j.route_order||'—'))+'</div>';
 }
 function unallocated(c,slot){
-  const remaining=c.max-c.total-c.proposed;
-  return Math.max(0,slot?Math.min(remaining,5-c[slot]-c['p'+slot]):remaining);
+  // Free spots = capacity minus confirmed bookings. Proposed jobs are tentative and do not use a spot.
+  const remaining=c.max-c.total;
+  return Math.max(0,slot?Math.min(remaining,5-c[slot]):remaining);
 }
 function renderCapacity(){
   const verified=jobs.filter(j=>j.alarm_type!=='Unconfirmed').length;
@@ -292,18 +294,18 @@ function renderCapacity(){
   const cur=$('dateFilter').value;
   $('capacityCards').innerHTML=Object.entries(DAY).map(([date,d])=>{
     const c=capacity(date),free=unallocated(c),on=cur===date;
-    const pct=Math.min(100,Math.round((c.total+c.proposed)/c.max*100));
+    const pct=Math.min(100,Math.round(c.total/c.max*100)),ppct=Math.min(100-pct,Math.round(c.proposed/c.max*100));
     const tone=free===0?'none':free<=2?'low':'ok';
     const slotButton=slot=>{
       const open=unallocated(c,slot);
-      return `<button type="button" class="slotbtn ${open===0?'full':''} ${on&&slotFilter===slot?'active':''}" data-date="${date}" data-slot="${slot}">${slot} · ${open} unallocated<small>${c[slot]} booked · ${c['p'+slot]} proposed</small></button>`;
+      return `<button type="button" class="slotbtn ${open===0?'full':''} ${on&&slotFilter===slot?'active':''}" data-date="${date}" data-slot="${slot}">${slot} · ${open} free<small>${c[slot]} booked · ${c['p'+slot]} proposed</small></button>`;
     };
     const offerNote=closedForOffers(date,'PM')?'Customer offers paused for this date':
       closedForOffers(date,'AM')?'Morning offers paused':'';
     return `<div class="panel day ${on?'active':''}" data-date="${date}" role="button" tabindex="0" title="Show these jobs">
       <div class="day-head"><div><div class="day-date">${d.label.split(' ')[0]}<b>${dmy(date)}</b></div><div class="day-who">${escape(d.worker)}</div></div>
-      <div class="count ${tone}"><b>${free}</b><span>unallocated of ${c.max}</span></div></div>
-      <div class="meter"><div class="fill ${free===0?'full':''}" style="width:${pct}%"></div></div>
+      <div class="count ${tone}"><b>${free}</b><span>free of ${c.max}</span></div></div>
+      <div class="meter"><div class="fill ${free===0?'full':''}" style="width:${pct}%"></div><div class="fill prop" style="width:${ppct}%"></div></div>
       <div class="metrics"><span class="tiny">${c.total} booked · ${c.proposed} proposed</span></div>
       <div class="slots">${slotButton('AM')}${slotButton('PM')}</div>
       ${offerNote?`<div class="tiny" style="margin-top:7px">${offerNote}</div>`:''}
