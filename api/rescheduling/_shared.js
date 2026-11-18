@@ -44,16 +44,10 @@ export function validSession(req){
   const signature=sign(parts[0]+'.'+parts[1]);
   return !!signature&&crypto.timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(parts[2],'hex'));
 }
-export function validPin(input){
-  const secret=process.env.DASHBOARD_PASSWORD;
-  if(!secret||secret.length<8||typeof input!=='string')return false;
-  return crypto.timingSafeEqual(
-    crypto.createHash('sha256').update(input).digest(),
-    crypto.createHash('sha256').update(secret).digest()
-  );
-}
+export const STAFF=['Vignesh','David','Shanira','Alda','Amit'];
+export function validStaff(name){return typeof name==='string'&&STAFF.includes(name);}
 export function configured(){
-  return Boolean(process.env.DASHBOARD_PASSWORD?.length>=8&&process.env.GOLDSURE_REBOOKING_SESSION_SECRET?.length>=32);
+  return Boolean(process.env.GOLDSURE_REBOOKING_SESSION_SECRET?.length>=32);
 }
 export async function db(path,method='GET',body=undefined,extraHeaders={}){
   const url=process.env.SUPABASE_URL||'https://yxgdixwneprhjxzdlaqw.supabase.co';
