@@ -1676,6 +1676,27 @@
   }
   loadContacts();
 
+  // ── Draft hand-off from other Goldsure pages (e.g. /rescheduling/) ─────────
+  // The sending page stores {phone,name,text,t} in localStorage and opens /sms/.
+  // We open that customer's thread and pre-fill the message box. Nothing is sent
+  // until staff press Send. Kept out of the URL so customer details aren't logged.
+  (async function applyHandoffDraft() {
+    let d = null;
+    try {
+      const raw = localStorage.getItem('goldsureSmsDraft');
+      if (!raw) return;
+      localStorage.removeItem('goldsureSmsDraft');
+      d = JSON.parse(raw);
+    } catch { return; }
+    if (!d || !d.phone || !d.t || Date.now() - d.t > 2 * 60 * 1000) return;
+    const phone = normalisePhone(d.phone);
+    if (!phone) return;
+    if (d.name) saveGhlName(phone, String(d.name).slice(0, 80));
+    await selectChat(phone);
+    const box = document.getElementById('msgInput');
+    if (box && d.text) { box.value = String(d.text).slice(0, 2000); onInputChange(box); box.focus(); }
+  })();
+
   // Close GHL dropdown when clicking outside the panel
   document.addEventListener('click', e => {
     if (!e.target.closest('#newPanel')) closeGhlDropdown();
