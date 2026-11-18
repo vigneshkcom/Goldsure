@@ -321,6 +321,7 @@ const opts=isEarlier?[{date:j.assignment_date,slot:j.assignment_slot}]:optionsFo
 const primary=opts[0]||{date:j.assignment_date,slot:j.assignment_slot};
 const property=[j.street_address,j.suburb].filter(Boolean).join(', ');
 if(mondayOnly(j))return mondayTemplates(j,property,opts);
+if(isFollowUp(j)){const w=availableWindows(j);return w.length?followupTemplates(j,property,w):waitlistTemplates(j,property);}
 if(!opts.length)return waitlistTemplates(j,property);
 if(isEarlier){
   const offered=optionLabel(primary);
@@ -336,6 +337,33 @@ const body=`We wanted to let you know that, due to unexpectedly high demand, our
 const sms=`Hi ${firstName(j)}, this is Goldsure regarding your upcoming smoke alarm installation at ${property} (Job #${j.job_id}).\n\n${body}\n\nGoldsure | 07 2145 5155`;
 const email=`Subject: Important Update: Your Smoke Alarm Installation – Job #${j.job_id}\n\nHi ${firstName(j)},\n\nWe are contacting you regarding your upcoming smoke alarm installation at ${property} (Job #${j.job_id}).\n\n${body}\n\nKind regards,\nGoldsure Scheduling Team\n07 2145 5155\nwww.goldsure.com.au`;
 return {sms,email,opts};}
+// A customer we have already contacted who has not replied yet gets an update message.
+const isFollowUp=j=>!j.is_existing&&!isMoved(j)&&!['Customer agreed','Customer wants another date','Customer declined'].includes(j.customer_response)&&Boolean(j.sms_sent||j.email_sent||j.customer_response==='Awaiting customer reply');
+// Every window that is open right now for this customer's electrician, earliest first (max 3).
+function availableWindows(j){
+  const worker=j.assignment_date?DAY[j.assignment_date]?.worker:null;if(!worker)return[];
+  const out=[];
+  for(const date of Object.keys(DAY).sort()){
+    if(DAY[date].worker!==worker)continue;
+    if(j.assignment_date==='2026-11-26'&&date!=='2026-11-26')continue;
+    for(const slot of ['AM','PM']){
+      if(closedForOffers(date,slot))continue;
+      const c=capacity(date,j.job_id);
+      if(c.total<c.max&&c[slot]<5)out.push({date,slot});
+    }
+  }
+  return out.slice(0,3);
+}
+function followupTemplates(j,property,windows){
+  const short=o=>new Date(o.date+'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',weekday:'long',day:'numeric',month:'long'})+' – '+(o.slot==='AM'?'Morning':'Afternoon');
+  const list=windows.map((o,i)=>`${i+1}. ${short(o)}`).join('\n');
+  const body=`Appointments are filling up fast. These are the windows still available for you right now:\n\n${list}\n\nThe sooner you reply with your preferred option, the better the chance we can secure it for you, as availability is changing quickly.\n\nIf our shipment arrives sooner and an earlier appointment becomes available in your area, we'll be happy to offer it to you.\n\nSorry for the hassle and thank you for your patience.`;
+  return{
+    sms:`Hi ${firstName(j)}, this is Goldsure with a quick update on your smoke alarm installation at ${property} (Job #${j.job_id}).\n\n${body}\n\nGoldsure | 07 2145 5155`,
+    email:`Subject: Update: Your Smoke Alarm Installation – Job #${j.job_id}\n\nHi ${firstName(j)},\n\nWe wanted to give you a quick update on your smoke alarm installation at ${property} (Job #${j.job_id}).\n\n${body}\n\nKind regards,\nGoldsure Scheduling Team\n07 2145 5155\nwww.goldsure.com.au`,
+    opts:windows
+  };
+}
 function waitlistTemplates(j,property){
   const text='We don’t have an appointment window available in your area at the moment. Please reply if you’d like us to let you know when a spot opens up.';
   return{
@@ -429,7 +457,7 @@ function renderContact(){const j=contactSel;if(!j)return;const t=templates(j),st
 $('contactTitle').textContent=`#${j.job_id} · ${j.customer_name}`;
 $('contactSub').innerHTML=`<span class="addrline" style="display:inline-flex">${escape(j.mobile||'No phone number')} · ${escape(j.street_address||'')}, ${escape(j.suburb||'')}${addressLink(j,'Map')}</span>`;
 $('contactBody').innerHTML=`<div class="bigdate">${mondayOnly(j)?(mondaySpots(j.job_id)===0?'Monday afternoon is full':'Only offer: Monday 14 December afternoon'):`Proposed: ${dtag(j.assignment_date)} · <b>${j.assignment_slot==='AM'?'Morning (AM)':'Afternoon (PM)'}</b>`}</div>${j.contact_review?'<div class="notice" style="margin-bottom:10px">Check the phone number and email before contacting this customer.</div>':''}
-<div class="cstep"><div class="cnum">1</div><div class="cmain"><div class="stept">Reach the customer</div><div class="stephint">Call opens RingCentral. Send SMS and Send email open with the message filled in.</div>
+<div class="cstep"><div class="cnum">1</div><div class="cmain"><div class="stept">Reach the customer</div>${isFollowUp(j)?'<div class="notice" style="margin:8px 0">Already contacted: the message is an update that lists the windows open right now.</div>':''}<div class="stephint">Call opens RingCentral. Send SMS and Send email open with the message filled in.</div>
 <div class="bigbtns"><a class="bigbtn callbtn" href="${callHref(j.mobile)}">Call</a><button class="bigbtn smsbtn" data-do="opensms">Send SMS</button><button class="bigbtn" data-do="sendemail">Send email</button><button class="bigbtn ${j.sms_sent?'ticked':''}" data-do="sentsms">Sent SMS</button><button class="bigbtn ${j.email_sent?'ticked':''}" data-do="sentemail">Sent Email</button></div>
 <details class="prev"><summary>See the message</summary><pre>${escape(t.sms)}</pre></details></div></div>
 <div class="cstep"><div class="cnum">2</div><div class="cmain"><div class="stept">What happened?</div><div class="stephint">Tap one after the call or reply. Now: <span class="dot ${st.cls}"></span><b>${escape(st.label)}</b></div>
