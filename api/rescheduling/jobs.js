@@ -1,4 +1,5 @@
 import {json,goodOrigin,validSession,db} from './_shared.js';
+import {MOVE_IN_PROGRESS,MOVE_LOCK_MS} from './_dataforce.js';
 
 const allowed = new Set([
   'assigned_electrician','assignment_date','assignment_slot','route_order','alternate_options',
@@ -58,8 +59,10 @@ export default async function handler(req,res){
       if(!('assignment_date' in patch)||!('assigned_electrician' in patch)) throw Error('Choose date and electrician together');
       if(patch.assignment_date===null ? patch.assigned_electrician!==null : !((patch.assignment_date==='2026-11-26'&&patch.assigned_electrician==='Alex Symonds')||(patch.assignment_date!=='2026-11-26'&&patch.assigned_electrician==='Mason Adams'))) throw Error('Invalid date/electrician pairing');
     }
-    const updated=await db(`goldsure_rebooking_jobs?job_id=eq.${id}&version=eq.${version}&select=*`,'PATCH',{...patch,updated_by:actor},{Prefer:'return=representation'});
-    if(!updated?.length) return json(res,409,{error:'Another agent changed this job. Refresh to see the latest version.'});
+    const stale=new Date(Date.now()-MOVE_LOCK_MS).toISOString();
+    const unlocked=`or=(dataforce_status.is.null,dataforce_status.neq.${encodeURIComponent(MOVE_IN_PROGRESS)},approved_at.lt.${stale})`;
+    const updated=await db(`goldsure_rebooking_jobs?job_id=eq.${id}&version=eq.${version}&${unlocked}&select=*`,'PATCH',{...patch,updated_by:actor},{Prefer:'return=representation'});
+    if(!updated?.length) return json(res,409,{error:'This job changed or a Dataforce move is in progress. Refresh to see the latest version.'});
     return json(res,200,{job:updated[0]});
   }catch(e){
     if(/capacity exceeded/i.test(e?.message)) return json(res,409,{error:'Capacity reached. Please choose another date/slot.'});
