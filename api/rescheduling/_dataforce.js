@@ -1,13 +1,19 @@
-// Read-only Dataforce lookups for the rescheduling page.
-// Uses the same OAuth client and endpoints as the rest of the portal. Never writes.
+// Dataforce appointment and schedule access for the rescheduling page.
 const BASE = 'https://asap-api.dataforce.com.au';
 const INSTANCE = 'GOLDSURE_ASAP';
-const WORKERS = { 'Alex Symonds': 1009, 'Mason Adams': 1012 };
+export const WORKERS = { 'Alex Symonds': 1009, 'Mason Adams': 1012 };
 export const DAYS = { '2026-11-26': 'Alex Symonds', '2026-12-14': 'Mason Adams', '2026-12-15': 'Mason Adams', '2026-12-16': 'Mason Adams' };
 
 const text = v => String(v ?? '').trim();
+// API timestamps with offsets represent instants; unzoned values are Brisbane wall time.
+function brisbaneDateTime(value) {
+  const raw = text(value);
+  if (!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(raw)) return raw;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? new Date(ms + 10 * 60 * 60 * 1000).toISOString() : '';
+}
 export function dateKey(value) {
-  const t = text(value);
+  const t = brisbaneDateTime(value);
   const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const df = t.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
@@ -16,7 +22,7 @@ export function dateKey(value) {
   return m < 0 ? '' : `${df[3]}-${String(m + 1).padStart(2, '0')}-${String(df[1]).padStart(2, '0')}`;
 }
 export function hourOf(value) {
-  const t = text(value);
+  const t = brisbaneDateTime(value);
   const iso = t.match(/T(\d{1,2}):(\d{2})/);
   if (iso) return Number(iso[1]);
   const df = t.match(/\s(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -30,7 +36,7 @@ export function hourOf(value) {
 export function timeLabel(value) {
   const h = hourOf(value);
   if (h === null) return '';
-  const m = (text(value).match(/(?:T|\s)\d{1,2}:(\d{2})/) || [])[1] || '00';
+  const m = (brisbaneDateTime(value).match(/(?:T|\s)\d{1,2}:(\d{2})/) || [])[1] || '00';
   return `${((h + 11) % 12) + 1}:${m}${h >= 12 ? 'PM' : 'AM'}`;
 }
 const cancelled = a => /cancel/i.test(text(a?.completionStatusDescription));
@@ -75,14 +81,18 @@ export function activeAppointment(list) {
   return live.slice().sort((a, b) => text(b.scheduledDate).localeCompare(text(a.scheduledDate)))[0];
 }
 
-export async function readLive({ jobIds, fetchImpl = fetch, env = process.env }) {
+export async function readLive({ jobIds, appointmentIds = {}, fetchImpl = fetch, env = process.env }) {
   const tk = await token(fetchImpl, env);
   const jobs = {};
   const jobResults = await pool(jobIds, 6, async id => {
     try {
       const payload = await call(fetchImpl, tk, `/jobs/${encodeURIComponent(id)}/appointments`);
       const list = Array.isArray(payload) ? payload : (payload?.records || []);
-      return [id, activeAppointment(list), list.length, null];
+      const appointmentId = appointmentIds[id];
+      const active = appointmentId
+        ? list.find(a => a && !cancelled(a) && Number(a.appointmentId) === Number(appointmentId))
+        : activeAppointment(list);
+      return [id, active, list.length, null];
     } catch (e) { return [id, null, 0, e.message]; }
   });
   for (const [id, a, n, err] of jobResults) {
@@ -119,4 +129,55 @@ export async function readLive({ jobIds, fetchImpl = fetch, env = process.env })
     } catch (e) { days[date] = { worker, ok: false, error: e.message }; }
   }));
   return { jobs, days, fetched_at: new Date().toISOString() };
+}
+
+export const MOVE_IN_PROGRESS = 'Dataforce move in progress';
+export const MOVE_LOCK_MS = 90_000;
+
+export async function moveAppointment({ job, date, start, worker, fetchImpl = fetch, env = process.env }) {
+  const id = Number(job.app_id);
+  const fieldworkerId = WORKERS[worker];
+  if (!Number.isSafeInteger(id) || id < 1 || !fieldworkerId) {
+    throw new Error('The Dataforce appointment or electrician could not be identified.');
+  }
+
+  const tk = await token(fetchImpl, env);
+  const path = `/appointments/${id}`;
+  const read = () => call(fetchImpl, tk, path);
+  const matchesBooking = a => Number(a?.appointmentId) === id &&
+    Number(a?.jobId) === Number(job.job_id) && !cancelled(a);
+  const scheduledDate = new Date(`${date}T${start}:00+10:00`).toISOString();
+  const targetTime = timeLabel(scheduledDate);
+  const matchesTarget = a => matchesBooking(a) && dateKey(a.scheduledDate) === date &&
+    timeLabel(a.scheduledDate) === targetTime && Number(a.fieldworkerId) === fieldworkerId;
+
+  const current = await read();
+  if (matchesTarget(current)) return;
+  if (!matchesBooking(current)) throw new Error('Dataforce could not confirm the original appointment for this job.');
+  if (dateKey(current.scheduledDate) !== job.original_date ||
+      timeLabel(current.scheduledDate) !== text(job.original_time).replace(/\s/g, '').replace(/^0/, '').toUpperCase()) {
+    throw new Error('The appointment has changed in Dataforce. Check the live booking before moving it.');
+  }
+  const duration = Number(current.duration);
+  if (!Number.isInteger(duration) || duration < 1) throw new Error('Dataforce did not provide a valid appointment duration.');
+
+  let writeError;
+  try {
+    const result = await call(fetchImpl, tk, `${path}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify({ scheduledDate, duration, fieldworkerId, triggerEmailEvents: false }),
+    });
+    if (!result) writeError = new Error('Dataforce could not find the appointment to reschedule.');
+  } catch (error) {
+    writeError = error;
+  }
+  // A request can time out after Dataforce applied it. Always check before offering a retry.
+  let updated;
+  try {
+    updated = await read();
+  } catch {
+    throw new Error('Dataforce did not confirm the new booking. Check the live appointment before retrying.');
+  }
+  if (matchesTarget(updated)) return;
+  throw writeError || new Error('Dataforce returned a different booking to the selected date, time or electrician.');
 }

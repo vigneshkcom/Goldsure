@@ -74,7 +74,7 @@ tbody tr:hover{background:#fcfbf7}
 .modalhead{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .modaltitle{font-size:20px;font-weight:800;letter-spacing:-.3px}
 .modalbody{padding:20px 24px;overflow:auto}
-.modalfoot{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;align-items:center;background:#faf8f3;border-radius:0 0 18px 18px}
+.modalfoot{padding:14px 24px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;align-items:center;background:#faf8f3;border-radius:0 0 18px 18px}
 .formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .formgrid.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.formgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .control label{display:block;font-weight:700;font-size:12px;margin-bottom:6px;color:#4d5864}
@@ -132,13 +132,14 @@ a.bigbtn{text-decoration:none}
 </div>
 <div class="overlay hidden" id="authOverlay"><div class="panel authcard"><h2>Who are you?</h2><p>Your name is saved with every change.</p><div class="staffpick" id="staffPick"></div></div></div>
 <div class="overlay hidden" id="detailOverlay"><div class="modal"><div class="modalhead"><div><div id="detailTitle" class="modaltitle">Job</div><div id="detailSubtitle" class="sub" style="margin-top:4px"></div></div><button class="btn small" id="closeDetail">Close</button></div><div class="modalbody" id="detailBody"></div><div class="modalfoot"><span class="tiny right" id="saveInfo"></span><button class="btn" id="detailCancel">Cancel</button><button class="btn primary" id="detailSave">Save changes</button></div></div></div>
-<div class="overlay hidden" id="moveOverlay"><div class="modal narrow-modal"><div class="modalhead"><div><div id="moveTitle" class="modaltitle">Move directly in Dataforce</div><div class="sub" style="margin-top:4px">Saves the customer's choice, then opens the job in Dataforce</div></div><button class="btn small" id="closeMove">Close</button></div><div class="modalbody">
+<div class="overlay hidden" id="moveOverlay"><div class="modal narrow-modal"><div class="modalhead"><div><div id="moveTitle" class="modaltitle">Move directly in Dataforce</div><div class="sub" style="margin-top:4px">Requires explicit customer agreement</div></div><button class="btn small" id="closeMove">Close</button></div><div class="modalbody">
 <div id="moveSummary" class="notice"></div><div class="control" style="margin-top:14px"><label>Which date did the customer choose?</label><div id="moveChoices" class="choices"></div></div><p class="helper" style="margin-top:14px">Paste the customer's reply that agrees to this date. It is saved as proof.</p>
 <div class="control"><label>Customer's reply (required)</label><textarea id="customerReply" rows="5" placeholder="Paste the customer's SMS or email confirming the proposed date and AM/PM slot…"></textarea></div>
 <div class="control" style="margin-top:13px"><label>Start time to enter in Dataforce</label><select id="confirmedTime"><option value="">Choose a start time</option></select></div>
 <label class="check" style="margin-top:13px"><input type="checkbox" id="agreementCheck">The customer's reply agrees to the date selected above, and I have checked the alarm type and stock.</label>
-<div id="moveResult" style="margin-top:12px"></div>
-</div><div class="modalfoot"><button class="btn" id="cancelMove">Cancel</button><button class="btn gold" id="doMove">Save and open in Dataforce</button></div></div></div>
+<div class="control hidden" id="movePasswordField" style="margin-top:13px"><label for="movePassword">Dataforce move password</label><input type="password" id="movePassword" autocomplete="off"></div>
+<div id="moveResult" role="status" style="margin-top:12px"></div>
+</div><div class="modalfoot"><button class="btn" id="cancelMove">Cancel</button><button class="btn" id="manualMove">Save for manual move</button><button class="btn gold hidden" id="doMove">Move directly in Dataforce</button></div></div></div>
 <div class="overlay hidden" id="contactOverlay"><div class="modal narrow-modal"><div class="modalhead"><div><div id="contactTitle" class="modaltitle">Job</div><div id="contactSub" class="sub" style="margin-top:4px"></div></div><button class="btn small" id="closeContact">Close</button></div><div class="modalbody" id="contactBody"></div></div></div>
 <div id="toast" class="toast hidden" role="status"></div>
 <script>
@@ -148,7 +149,7 @@ const DAY={"2026-11-26":{label:'Thu 26 Nov',worker:'Alex Symonds',cap:10},"2026-
 const STATUS=['Not contacted','Called - no answer','Left voicemail','SMS sent - awaiting reply','Email sent - awaiting reply','Spoke - considering','Spoke - agreed','Callback requested','Invalid contact'];
 const RESPONSE=['Awaiting contact','Awaiting customer reply','Customer agreed','Customer wants another date','Customer declined'];
 const ALARM=['Unconfirmed','Existing hardwired','Existing battery','Mixed hardwired/battery','No existing alarms'];
-let slotFilter='';let live=null;let jobs=[],selected=null,moveSelected=null,refreshing=false;const $=id=>document.getElementById(id),escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let directMoveAvailable=false,movePending=false;let slotFilter='';let live=null;let jobs=[],selected=null,moveSelected=null,refreshing=false;const $=id=>document.getElementById(id),escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const STAFF=['Vignesh','David','Shanira','Alda','Amit'];
 let staff='';try{const s=(sessionStorage.getItem('smsStaffName')||'').trim();if(STAFF.includes(s))staff=s;}catch{}
 const actor=()=>staff;
@@ -160,7 +161,8 @@ async function chooseStaff(n){if(!STAFF.includes(n))return;staff=n;try{sessionSt
 const dateLong=date=>date?new Date(date+'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Not allocated';
 const slotText=s=>s==='AM'?'AM (morning)':'PM (afternoon)';
 const liveInfo=j=>live?.jobs?.[j.job_id]||null;
-function liveState(j){const l=liveInfo(j);if(!l)return null;if(l.error)return{cls:'warn',label:'Dataforce unavailable'};if(!l.found)return{cls:'error',label:'No appointment found'};if(l.date&&l.date===j.assignment_date)return{cls:'success',label:'Moved',moved:true};if(l.date&&l.date===j.original_date)return{cls:'warn',label:'Not moved'};return{cls:'warn',label:'Changed in Dataforce'};}
+function liveState(j){const l=liveInfo(j);if(!l)return null;if(l.error)return{cls:'warn',label:'Dataforce unavailable'};if(!l.found)return{cls:'error',label:'No appointment found'};const confirmed=j.confirmed_start_time;
+if(l.date&&l.date===j.assignment_date&&Number(l.fieldworker_id)===(j.assigned_electrician==='Alex Symonds'?1009:1012)&&l.slot===j.assignment_slot&&(!confirmed||l.time===formatMoveTime(confirmed)))return{cls:'success',label:'Moved',moved:true};if(l.date&&l.date===j.original_date)return{cls:'warn',label:'Not moved'};return{cls:'warn',label:'Changed in Dataforce'};}
 const isMoved=j=>Boolean(j.dataforce_updated||liveState(j)?.moved);
 const isBooked=j=>Boolean(j.is_existing||isMoved(j)||j.customer_response==='Customer agreed');
 function capacity(d,excludeId=null){const day=DAY[d];if(!day)return{total:0,max:0,AM:0,PM:0,pAM:0,pPM:0,proposed:0};const js=jobs.filter(j=>j.job_id!==excludeId&&j.assignment_date===d),ld=live?.days?.[d];let booked;
@@ -171,7 +173,13 @@ return{total:booked.length,max:day.cap,AM:booked.filter(x=>x.slot==='AM').length
 function optionsFor(j){const proposals=[{date:j.assignment_date,slot:j.assignment_slot},...(j.alternate_options||[])];const seen=new Set();return proposals.filter(x=>{if(!x?.date||!DAY[x.date]||!['AM','PM'].includes(x.slot))return false;const k=x.date+x.slot;if(seen.has(k))return false;seen.add(k);const cap=capacity(x.date,j.job_id);return cap.total<cap.max&&cap[x.slot]<5;}).slice(0,3);}
 function toast(t,isError=false){const el=$('toast');el.textContent=t;el.style.background=isError?'#a24349':'#273948';el.classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.add('hidden'),5000);}
 async function request(path='',method='GET',body){const r=await fetch(API+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{})},credentials:'same-origin',body:body?JSON.stringify(body):undefined,cache:'no-store'});let data={};try{data=await r.json()}catch{}if(!r.ok){const err=new Error(data.error||'Request failed ('+r.status+')');err.status=r.status;err.data=data;throw err;}return data;}
-async function begin(){setStaffBtn();if(!staff){pickStaffUI();return;}try{try{await request('/session');}catch(e){if(e.status!==401)throw e;await request('/session','POST',{staff});}await reload();}catch(e){$('syncStatus').textContent='Connection error';$('syncStatus').classList.remove('hidden');toast(e.message,true);}}
+async function begin(){setStaffBtn();if(!staff){pickStaffUI();return;}try{try{await request('/session');}catch(e){if(e.status!==401)throw e;await request('/session','POST',{staff});}await Promise.all([reload(),loadMoveAvailability()]);}catch(e){$('syncStatus').textContent='Connection error';$('syncStatus').classList.remove('hidden');toast(e.message,true);}}
+async function loadMoveAvailability(){
+  try{directMoveAvailable=(await request('/dataforce')).connected===true;}catch{directMoveAvailable=false;}
+  $('movePasswordField').classList.toggle('hidden',!directMoveAvailable);
+  $('doMove').classList.toggle('hidden',!directMoveAvailable);
+  $('manualMove').classList.toggle('gold',!directMoveAvailable);
+}
 async function loadLive(fresh){try{live=await request('/live'+(fresh?'?fresh=1':''));const t=new Date(live.fetched_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit',timeZone:'Australia/Brisbane'});$('liveNote').textContent=' · Dataforce live, updated '+t;}catch(e){live=null;$('liveNote').textContent=e.status===503?' · Dataforce not connected':' · Dataforce unavailable';}}
 async function reload(fresh){if(refreshing)return;refreshing=true;try{const [x]=await Promise.all([request('/jobs'),loadLive(fresh===true)]);jobs=x.jobs||[];render();$('syncStatus').classList.add('hidden');}catch(e){$('syncStatus').textContent='● Connection problem';$('syncStatus').classList.remove('hidden');if(e.status===401){try{await request('/session','POST',{staff});}catch{}}toast(e.message,true);}finally{refreshing=false;}}
 function render(){renderCapacity();const q=$('search').value.trim().toLowerCase(),date=$('dateFilter').value,status=$('statusFilter').value;const visible=jobs.filter(j=>{
@@ -253,11 +261,54 @@ function closeDetail(){$('detailOverlay').classList.add('hidden');selected=null;
 async function save(){const j=selected;if(!j)return;if(!actor())return toast('Choose your staff name first.',true);const date=$('editDate').value,slot=$('editSlot').value,rem=DAY[date];const patch={assigned_electrician:rem.worker,assignment_date:date,assignment_slot:slot,route_order:Number($('editRoute').value),contact_status:$('editStatus').value,customer_response:$('editResponse').value,call_attempts:Number($('editCalls').value),alarm_type:$('editAlarm').value,follow_up_date:$('editFollow').value||null,sms_sent:$('editSms').value==='Yes',email_sent:$('editEmail').value==='Yes',notes:$('editNotes').value};$('detailSave').disabled=true;try{const result=await request('/jobs','PATCH',{job_id:j.job_id,expected_version:j.version,actor:actor(),patch});jobs=jobs.map(x=>x.job_id===j.job_id?result.job:x);closeDetail();render();toast('Saved. Supabase history updated.');}catch(e){toast(e.message,true);$('saveInfo').textContent='Not saved: '+e.message;}finally{$('detailSave').disabled=false;}}
 let moveChoice=null;
 function moveOptions(j){const seen=new Set(),out=[];const add=(date,slot,saved)=>{if(!date||!DAY[date]||!['AM','PM'].includes(slot))return;const key=date+slot;if(seen.has(key))return;seen.add(key);const c=capacity(date,j.job_id);out.push({date,slot,saved,left:Math.max(0,Math.min(5-c[slot],c.max-c.total))});};add(j.assignment_date,j.assignment_slot,true);for(const o of (j.alternate_options||[]))add(o.date,o.slot,false);for(const o of optionsFor(j))add(o.date,o.slot,false);return out;}
+function formatMoveTime(time){const [h,m]=time.split(':');return ((Number(h)+11)%12+1)+':'+m+(Number(h)>=12?'PM':'AM');}
 function timesFor(slot){return slot==='AM'?['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30']:['12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00'];}
 function renderMoveChoice(j){const o=moveChoice;$('moveSummary').textContent=`${j.customer_name} · ${j.suburb} · ${DAY[o.date].worker}`;const keep=$('confirmedTime').value;$('confirmedTime').innerHTML='<option value="">Choose a start time</option>'+timesFor(o.slot).map(x=>optionTag(x,keep||j.confirmed_start_time)).join('');}
-function openMove(j){if(!actor())return toast('Choose your staff name first.',true);if(j.is_existing||isMoved(j))return toast('Existing or already moved booking is protected.',true);moveSelected=j;const opts=moveOptions(j);moveChoice=opts[0]||null;if(!moveChoice)return toast('No date options for this job. Set a date in Edit details first.',true);$('moveTitle').textContent=`Book job #${j.job_id}`;$('moveChoices').innerHTML=opts.map((o,i)=>`<label class="choice ${i===0?'on':''}"><input type="radio" name="moveopt" value="${i}" ${i===0?'checked':''}><div><b>${dmy(o.date)}</b> · ${escape(DAY[o.date].label.split(' ')[0])} · ${o.slot==='AM'?'Morning (AM)':'Afternoon (PM)'}<small>${escape(DAY[o.date].worker)} · ${o.left} spot${o.left===1?'':'s'} left${o.saved?' · currently saved':''}</small></div></label>`).join('');$('moveChoices').onchange=e=>{const i=Number(e.target.value);moveChoice=opts[i];$('moveChoices').querySelectorAll('.choice').forEach((el,n)=>el.classList.toggle('on',n===i));$('confirmedTime').value='';renderMoveChoice(j);};$('customerReply').value=j.approved_customer_reply||'';$('agreementCheck').checked=false;$('moveResult').innerHTML='';$('confirmedTime').innerHTML='';renderMoveChoice(j);$('moveOverlay').classList.remove('hidden');}
-function closeMove(){$('moveOverlay').classList.add('hidden');moveSelected=null;}
-async function submitMove(){const j=moveSelected;if(!j)return;if(!moveChoice)return;const body={job_id:j.job_id,expected_version:j.version,actor:actor(),chosen_date:moveChoice.date,chosen_slot:moveChoice.slot,customer_reply:$('customerReply').value.trim(),confirmed_start_time:$('confirmedTime').value,confirmed_agreement:$('agreementCheck').checked};$('doMove').disabled=true;$('moveResult').innerHTML='<div class="helper">Saving approval and checking Dataforce…</div>';try{const x=await request('/dataforce','POST',body);if(x.job)jobs=jobs.map(t=>t.job_id===j.job_id?x.job:t);render();$('moveResult').innerHTML=`<div class="notice successnote">${escape(x.message||'Dataforce confirmed the appointment change.')}</div>`;}catch(e){if(e.data?.job){jobs=jobs.map(t=>t.job_id===j.job_id?e.data.job:t);render();}const link=e.data?.dataforce_url;if(e.status===501&&link){const o=moveChoice,t=$('confirmedTime').value;$('moveResult').innerHTML=`<div class="notice successnote"><b>Saved.</b> The customer's choice and reply are recorded. Now set this in Dataforce:<div style="margin:10px 0;font-size:15px"><b>${dmy(o.date)}</b> · ${escape(DAY[o.date].label.split(' ')[0])} · <b>${escape(t)}</b> · ${escape(DAY[o.date].worker)}</div><a class="btn gold" href="${escape(link)}" target="_blank" rel="noopener">Open job #${j.job_id} in Dataforce</a><div class="tiny" style="margin-top:9px">Once it is set there, this page shows it as Moved within a minute.</div></div>`;$('moveResult').scrollIntoView({block:'nearest',behavior:'smooth'});try{window.open(link,'_blank','noopener');}catch{}}else{$('moveResult').innerHTML=`<div class="notice alertnote">${escape(e.message)}</div>`;}}finally{$('doMove').disabled=false;}}
+function openMove(j){if(!actor())return toast('Choose your staff name first.',true);if(j.is_existing||isMoved(j))return toast('Existing or already moved booking is protected.',true);moveSelected=j;const opts=moveOptions(j);moveChoice=opts[0]||null;if(!moveChoice)return toast('No date options for this job. Set a date in Edit details first.',true);$('moveTitle').textContent=`Book job #${j.job_id}`;$('moveChoices').innerHTML=opts.map((o,i)=>`<label class="choice ${i===0?'on':''}"><input type="radio" name="moveopt" value="${i}" ${i===0?'checked':''}><div><b>${dmy(o.date)}</b> · ${escape(DAY[o.date].label.split(' ')[0])} · ${o.slot==='AM'?'Morning (AM)':'Afternoon (PM)'}<small>${escape(DAY[o.date].worker)} · ${o.left} spot${o.left===1?'':'s'} left${o.saved?' · currently saved':''}</small></div></label>`).join('');$('moveChoices').onchange=e=>{const i=Number(e.target.value);moveChoice=opts[i];$('moveChoices').querySelectorAll('.choice').forEach((el,n)=>el.classList.toggle('on',n===i));$('confirmedTime').value='';renderMoveChoice(j);};$('movePassword').value='';$('customerReply').value=j.approved_customer_reply||'';$('agreementCheck').checked=false;$('moveResult').innerHTML='';$('confirmedTime').innerHTML='';renderMoveChoice(j);$('doMove').disabled=false;$('manualMove').disabled=false;$('moveOverlay').classList.remove('hidden');}
+function closeMove(){if(movePending)return;$('movePassword').value='';$('moveOverlay').classList.add('hidden');moveSelected=null;}
+async function submitMove(manual){
+  const j=moveSelected,o=moveChoice;
+  if(!j||!o||movePending||(!manual&&!directMoveAvailable))return;
+  const body={
+    job_id:j.job_id,expected_version:j.version,actor:actor(),chosen_date:o.date,chosen_slot:o.slot,
+    customer_reply:$('customerReply').value.trim(),confirmed_start_time:$('confirmedTime').value,
+    confirmed_agreement:$('agreementCheck').checked,manual,
+  };
+  if(!manual)body.move_password=$('movePassword').value;
+  const controls=$('moveOverlay').querySelectorAll('button,input,textarea,select');
+  movePending=true;
+  controls.forEach(el=>el.disabled=true);
+  $('moveResult').textContent=manual?'Saving customer approval…':'Saving approval and checking Dataforce…';
+  const updateJob=job=>{
+    if(!job)return;
+    moveSelected=job;
+    jobs=jobs.map(t=>t.job_id===j.job_id?job:t);
+    render();
+  };
+  const jobLink=link=>link?`<div style="margin-top:9px"><a class="btn" href="${escape(link)}" target="_blank" rel="noopener">Open job #${j.job_id} in Dataforce</a></div>`:'';
+  let finished=false;
+  try{
+    const x=await request('/dataforce','POST',body);
+    updateJob(x.job);
+    if(x.moved){
+      finished=true;
+      $('moveResult').innerHTML=`<div class="notice successnote">${escape(x.message)}</div>`;
+      void reload(true);
+    }else{
+      $('moveResult').innerHTML=`<div class="notice successnote">Customer approval saved. Enter <b>${dmy(o.date)} at ${escape(body.confirmed_start_time)}</b> with ${escape(DAY[o.date].worker)} in Dataforce.${jobLink(x.dataforce_url)}</div>`;
+    }
+  }catch(e){
+    updateJob(e.data?.job);
+    $('moveResult').innerHTML=`<div class="notice alertnote">${escape(e.message)}${jobLink(e.data?.dataforce_url)}</div>`;
+  }finally{
+    $('movePassword').value='';
+    controls.forEach(el=>el.disabled=false);
+    $('doMove').disabled=finished;
+    $('manualMove').disabled=finished;
+    movePending=false;
+    $('moveResult').scrollIntoView({block:'nearest'});
+  }
+}
 async function quick(j,kind){if(!actor())return toast('Choose your staff name first.',true);if(kind==='sms'||kind==='email'){if(kind==='email'&&j.contact_review)return toast("Verify this customer's contact details before copying an email.",true);await copy(templates(j)[kind]);return;} }
 function toCSV(){const cols=['job_id','customer_name','mobile','email','suburb','original_date','original_time','assigned_electrician','assignment_date','assignment_slot','route_order','contact_status','call_attempts','sms_sent','email_sent','customer_response','alarm_type','follow_up_date','dataforce_status','updated_by','updated_at'];const escapeCsv=x=>'"'+String(x??'').replaceAll('"','""')+'"';const txt=[cols.join(','),...jobs.map(j=>cols.map(k=>escapeCsv(j[k])).join(','))].join('\r\n');const url=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='goldsure-rescheduling-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(url);}
 $('staffPick').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(b)chooseStaff(b.dataset.n);});$('staffBtn').addEventListener('click',pickStaffUI);
@@ -267,7 +318,7 @@ $('refresh').addEventListener('click',()=>reload(true));$('export').addEventList
 for(const id of ['search','dateFilter','statusFilter'])$(id).addEventListener(id==='search'?'input':'change',render);
 $('jobsBody').addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(!b)return;const j=jobs.find(j=>j.job_id===Number(b.dataset.id));if(!j)return;const a=b.dataset.act;if(a==='edit')detail(j);else if(a==='move')openMove(j);else if(a==='contact')openContact(j);else if(a==='undo')undoAgreed(j);else quick(j,a);});
 $('closeContact').addEventListener('click',closeContact);$('contactOverlay').addEventListener('click',e=>{if(e.target===$('contactOverlay'))closeContact();const b=e.target.closest('[data-do]');if(b)contactDo(b.dataset.do);});
-$('closeDetail').addEventListener('click',closeDetail);$('detailCancel').addEventListener('click',closeDetail);$('detailSave').addEventListener('click',save);$('closeMove').addEventListener('click',closeMove);$('cancelMove').addEventListener('click',closeMove);$('doMove').addEventListener('click',submitMove);
+$('closeDetail').addEventListener('click',closeDetail);$('detailCancel').addEventListener('click',closeDetail);$('detailSave').addEventListener('click',save);$('closeMove').addEventListener('click',closeMove);$('cancelMove').addEventListener('click',closeMove);$('doMove').addEventListener('click',()=>submitMove(false));$('manualMove').addEventListener('click',()=>submitMove(true));
 $('detailOverlay').addEventListener('click',e=>{if(e.target===$('detailOverlay'))closeDetail();});$('moveOverlay').addEventListener('click',e=>{if(e.target===$('moveOverlay'))closeMove();});
 setInterval(()=>{if($('contactOverlay').classList.contains('hidden')&&$('detailOverlay').classList.contains('hidden')&&$('moveOverlay').classList.contains('hidden')&&$('authOverlay').classList.contains('hidden'))reload();},45000);
 begin();
