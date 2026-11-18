@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
   if (cache && Date.now() - cache.at < TTL_MS && !req.query?.fresh) return json(res, 200, cache.data);
   try {
-    const rows = await db('goldsure_rebooking_jobs?select=job_id,app_id&limit=100');
+    const rows = await db('goldsure_rebooking_jobs?withdrawn_at=is.null&select=job_id,app_id&limit=100');
     const jobs = rows || [];
     const data = await readLive({
       jobIds: jobs.map(r => r.job_id),

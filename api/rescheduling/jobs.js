@@ -44,7 +44,7 @@ export default async function handler(req,res){
         const history=await db(`goldsure_rebooking_history?job_id=eq.${id}&select=id,job_id,actor,changed_at,changes&order=changed_at.desc&limit=100`);
         return json(res,200,{history});
       }
-      const jobs=await db('goldsure_rebooking_jobs?select=*&order=assignment_date.asc,assignment_slot.asc,route_order.asc&limit=100');
+      const jobs=await db('goldsure_rebooking_jobs?withdrawn_at=is.null&select=*&order=assignment_date.asc,assignment_slot.asc,route_order.asc&limit=100');
       return json(res,200,{jobs,server_time:new Date().toISOString()});
     }catch(e){return json(res,503,{error:'Could not load tracker from Supabase. Verify database configuration.'});}
   }
@@ -61,7 +61,7 @@ export default async function handler(req,res){
     }
     const stale=new Date(Date.now()-MOVE_LOCK_MS).toISOString();
     const unlocked=`or=(dataforce_status.is.null,dataforce_status.neq.${encodeURIComponent(MOVE_IN_PROGRESS)},approved_at.lt.${stale})`;
-    const updated=await db(`goldsure_rebooking_jobs?job_id=eq.${id}&version=eq.${version}&${unlocked}&select=*`,'PATCH',{...patch,updated_by:actor},{Prefer:'return=representation'});
+    const updated=await db(`goldsure_rebooking_jobs?job_id=eq.${id}&version=eq.${version}&withdrawn_at=is.null&${unlocked}&select=*`,'PATCH',{...patch,updated_by:actor},{Prefer:'return=representation'});
     if(!updated?.length) return json(res,409,{error:'This job changed or a Dataforce move is in progress. Refresh to see the latest version.'});
     return json(res,200,{job:updated[0]});
   }catch(e){
