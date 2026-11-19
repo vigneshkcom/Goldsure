@@ -14,7 +14,7 @@ running. Reopening `/time/` reads the open shift back and shows a live timer
 computed from the stored start time. **No tab needs to stay open.**
 
 On open, a **"Who's clocking in?"** picker asks the agent to select their name
-(**David** or **Shanira**); the choice is remembered per browser and the top-bar
+(**David**, **Shanira**, **Alda** or **Bharath**); the choice is remembered per browser and the top-bar
 chip switches agents. An open shift counts up to "now". Billable hours are calculated
 from `clock_out − clock_in − unpaid time`, then counted in 15-minute slots: a final
 remainder of 10 minutes or more counts as another 15 minutes, while 0–9 minutes does
@@ -80,7 +80,7 @@ Every request also carries a `pin` (the agent's or the manager's).
 
 ## Pay rates & manager emails
 
-Rates are **$13.54/hr** (David), **$32/hr** (Shanira) and **$10.4175/hr** (Alda Amonaki),
+Rates are **$13.54/hr** (David), **$32/hr** (Shanira) and **$10.4175/hr** (Alda Amonaki) and **$9/hr** (Bharath, weekly),
 baked into the handler; override with a `TIME_RATES` env var
 (JSON, e.g. `{"David":13.54,"Shanira":32,"Alda Amonaki":10.4175}`).
 Earnings = rounded billable hours × rate. **Pay is manager-only** — agents never see any dollar figures.
