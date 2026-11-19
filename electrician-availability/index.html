@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-AU">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -32,6 +32,22 @@
   @media(max-width:900px){.months{grid-template-columns:1fr}}
   @media(max-width:520px){body{padding:12px}.day{min-height:64px;padding:3px}.day .chip{font-size:9px;padding:1px 3px}.grid{gap:3px}}
   @media print{body{background:#fff;padding:8px}.months{grid-template-columns:1fr 1fr;gap:12px}.day{min-height:70px}}
+
+  .checker{margin:0 0 20px;padding:16px;background:var(--cell);border:1px solid var(--line);border-radius:8px}
+  .checker h2{font-size:16px;margin:0 0 12px}
+  .fields{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+  .fields label{display:grid;gap:4px;font-size:14px;font-weight:600}
+  .fields input,.fields button{min-height:40px;padding:7px 10px;border:1px solid #b1b7c2;border-radius:5px;background:#fff;color:var(--text);font:inherit}
+  .fields button{background:#2f4bc4;border-color:#2f4bc4;color:#fff;cursor:pointer}
+  .fields button:disabled{opacity:.65}
+  .status{margin:8px 0;color:#555d6a;font-size:14px}
+  .status:empty{display:none}
+  .results{width:100%;margin-top:12px;border-collapse:collapse;font-size:14px}
+  .results th,.results td{padding:8px;text-align:left;border-bottom:1px solid var(--line)}
+  .day .chip{display:flex;justify-content:space-between;gap:2px}
+  .chip-name{overflow:hidden;text-overflow:ellipsis}
+  .chip-count{flex:none;font-variant-numeric:tabular-nums}
+  @media print{.checker{display:none}}
 </style>
 </head>
 <body>
@@ -42,67 +58,172 @@
     <span class="chip Gurdip">Gurdip</span><span class="chip Josh">Josh</span>
     <span class="chip Alex">Alex</span><span class="chip Mason">Mason</span>
   </div>
+
+  <section class="checker" aria-labelledby="checker-heading">
+    <h2 id="checker-heading">Check an area or date</h2>
+    <form id="checker-form" class="fields">
+      <label>Suburb or postcode
+        <input type="search" id="area" maxlength="100" placeholder="e.g. Coombabah or 4216">
+      </label>
+      <label>Date
+        <input type="date" id="date">
+      </label>
+      <button id="check-button" type="submit">Check availability</button>
+    </form>
+    <p id="checker-status" class="status" role="status"></p>
+    <table id="results" class="results" hidden>
+      <thead><tr><th>Date</th><th>Electrician</th><th>Jobs booked that day</th><th id="area-heading">Area on the route</th></tr></thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </section>
+  <p id="counts-status" class="status" role="status"></p>
   <div class="months" id="months"></div>
 </div>
-<script>
-// key = "M-D" (month 11 or 12) -> people. "TBC" and "Closed" handled as special values.
-const A = {
-  // November
-  "11-23":["Gurdip"],
-  "11-24":["Gurdip","Alex"],
-  "11-25":["Gurdip"],
-  "11-26":["Gurdip","Alex","Josh"],
-  "11-27":["Gurdip","Josh"],
-  "11-30":["Gurdip","Mason"],
-  // December
-  "12-1":["Gurdip","Mason"],
-  "12-2":["Gurdip"],
-  "12-3":["Gurdip","Alex"],
-  "12-4":["Gurdip"],
-  "12-7":["Gurdip","Alex","Mason"],
-  "12-8":["Gurdip","Alex","Mason"],
-  "12-9":["Gurdip"],
-  "12-10":["Gurdip"],
-  "12-11":["Gurdip","Alex"],
-  "12-12":"TBC",
-  "12-14":["Gurdip","Alex","Mason"],
-  "12-15":["Gurdip","Mason"],
-  "12-16":["Gurdip","Mason"],
-  "12-17":["Gurdip"],
-  "12-18":["Gurdip","Alex"],
-  "12-19":"TBC",
-  "12-21":"TBC","12-22":"TBC","12-23":"TBC","12-24":"TBC",
-  "12-25":"Closed","12-26":"Closed",
-  "12-28":"TBC","12-29":"TBC","12-30":"TBC","12-31":"TBC"
-};
-const months = [
-  {name:"November 2026", m:11, days:30, startDay:1},
-  {name:"December 2026", m:12, days:31, startDay:1}
-];
-const dows = ["M","T","W","T","F","S","S"];
-const root = document.getElementById("months");
+<script type="module">
+import { availability, months, year, dateKey } from '/electrician-availability/availability.js';
 
-months.forEach(({name,m,days,startDay})=>{
-  const el = document.createElement("div");
-  el.className = "month";
-  let html = `<h2>${name}</h2><div class="grid">` + dows.map(d=>`<div class="dow">${d}</div>`).join("");
-  // Monday-based weekday of first shown day
-  const first = new Date(2026, m-1, startDay);
-  const lead = (first.getDay()+6)%7;
-  for(let i=0;i<lead;i++) html += `<div class="day empty"></div>`;
-  for(let d=startDay; d<=days; d++){
-    const v = A[`${m}-${d}`];
-    let inner = "", cls = "day";
-    if(Array.isArray(v)) inner = v.map(p=>`<span class="chip ${p}">${p}</span>`).join("");
-    else if(v==="Closed") inner = `<span class="chip Closed">Closed</span>`;
-    else if(v==="TBC") inner = `<span class="tbc">TBC</span>`;
-    else cls += " off";
-    html += `<div class="${cls}"><span class="n">${d}</span>${inner}</div>`;
-  }
-  html += `</div>`;
-  el.innerHTML = html;
-  root.appendChild(el);
+const $ = id => document.getElementById(id);
+const monthsRoot = $('months');
+const countsStatus = $('counts-status');
+const checkerStatus = $('checker-status');
+const resultsTable = $('results');
+const resultsBody = $('results-body');
+const dateInput = $('date');
+const areaInput = $('area');
+const checkButton = $('check-button');
+const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const dateFormatter = new Intl.DateTimeFormat('en-AU', {
+  weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC'
 });
+
+dateInput.min = dateKey(months[0].month, 1);
+dateInput.max = dateKey(months.at(-1).month, months.at(-1).days);
+
+function createElement(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function setCount(element, count) {
+  element.textContent = count ?? '–';
+  element.title = count == null ? 'Booked-job count unavailable' : count + ' jobs booked';
+  element.setAttribute('aria-label', element.title);
+}
+
+const countElements = new Map();
+function renderCalendar() {
+  for (const { name, month, days } of months) {
+    const panel = createElement('div', 'month');
+    const grid = createElement('div', 'grid');
+    panel.append(createElement('h2', '', name), grid);
+    weekdayLabels.forEach(label => grid.appendChild(createElement('div', 'dow', label)));
+    const leadingDays = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+    for (let i = 0; i < leadingDays; i++) grid.appendChild(createElement('div', 'day empty'));
+    for (let day = 1; day <= days; day++) {
+      const workers = availability[month + '-' + day];
+      const cell = createElement('div', workers ? 'day' : 'day off');
+      cell.appendChild(createElement('span', 'n', day));
+      if (Array.isArray(workers)) {
+        for (const worker of workers) {
+          const chip = createElement('span', 'chip ' + worker);
+          const count = createElement('span', 'chip-count');
+          setCount(count, null);
+          countElements.set(dateKey(month, day) + '/' + worker, count);
+          chip.append(createElement('span', 'chip-name', worker), count);
+          cell.appendChild(chip);
+        }
+      } else if (workers === 'Closed') {
+        cell.appendChild(createElement('span', 'chip Closed', workers));
+      } else if (workers === 'TBC') {
+        cell.appendChild(createElement('span', 'tbc', workers));
+      }
+      grid.appendChild(cell);
+    }
+    monthsRoot.appendChild(panel);
+  }
+}
+
+async function lookup(date = '', area = '') {
+  const response = await fetch('/api/electrician-availability', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, area })
+  });
+  const data = await response.json();
+  if (!response.ok || !Array.isArray(data.matches)) throw new Error('Dataforce is unavailable.');
+  return data;
+}
+
+function renderCounts(matches) {
+  for (const { date, name, jobCount } of matches) {
+    const element = countElements.get(date + '/' + name);
+    if (element) setCount(element, jobCount);
+  }
+}
+
+async function loadCounts() {
+  countsStatus.textContent = 'Loading booked jobs from Dataforce…';
+  try {
+    const data = await lookup();
+    renderCounts(data.matches);
+    countsStatus.textContent = data.incomplete
+      ? 'Some booked-job counts are unavailable. A dash means the count could not be retrieved.'
+      : 'Numbers show jobs booked in Dataforce.';
+  } catch {
+    countsStatus.textContent = 'Booked-job counts could not be loaded. Refresh the page to try again.';
+  }
+}
+
+$('checker-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const date = dateInput.value;
+  const area = areaInput.value.trim();
+  resultsTable.hidden = true;
+  resultsBody.replaceChildren();
+  if (!date && !area) {
+    checkerStatus.textContent = 'Enter a suburb or postcode, or choose a date.';
+    areaInput.focus();
+    return;
+  }
+  if (/^\d+$/.test(area) && !/^\d{4}$/.test(area)) {
+    checkerStatus.textContent = 'Enter a four-digit postcode.';
+    areaInput.focus();
+    return;
+  }
+  checkButton.disabled = true;
+  checkerStatus.textContent = 'Checking availability…';
+  try {
+    const { matches, incomplete } = await lookup(date, area);
+    renderCounts(matches);
+    $('area-heading').hidden = !area;
+    for (const match of matches) {
+      const row = createElement('tr');
+      const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
+      row.append(createElement('td', '', day), createElement('td', '', match.name),
+        createElement('td', '', match.jobCount ?? 'Unavailable'));
+      if (area) row.appendChild(createElement('td', '', match.areas.join(', ')));
+      resultsBody.appendChild(row);
+    }
+    resultsTable.hidden = !matches.length;
+    if (area) {
+      checkerStatus.textContent = matches.length
+        ? 'These electricians have a booked stop in the area.'
+        : 'No booked routes matched this area within the selected dates.';
+      if (incomplete) checkerStatus.textContent += ' Some route details were unavailable.';
+    } else {
+      checkerStatus.textContent = matches.length ? '' : 'No electricians are listed as available on this date.';
+    }
+  } catch {
+    checkerStatus.textContent = 'Availability could not be checked. Please try again.';
+  } finally {
+    checkButton.disabled = false;
+  }
+});
+
+renderCalendar();
+loadCounts();
 </script>
 </body>
 </html>
