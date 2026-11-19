@@ -742,7 +742,7 @@ export default async function handler(req, res) {
     // them without a code change. Validated server-side; never sent to the browser.
     const managerPin = String(process.env.TIME_MANAGER_PIN || '4895');
     let agentPins = { David: '1018', Shanira: '5220', 'Alda Amonaki': '7902', Bharath: '1992' };
-    try { if (process.env.TIME_AGENT_PINS) agentPins = JSON.parse(process.env.TIME_AGENT_PINS); } catch { /* keep the built-in defaults */ }
+    try { if (process.env.TIME_AGENT_PINS) agentPins = { ...agentPins, ...JSON.parse(process.env.TIME_AGENT_PINS) }; } catch { /* keep the built-in defaults */ }
     const pinsOn = managerPin !== '' || Object.keys(agentPins).length > 0;
     const pin = String(t.pin || '');
     const isManager = pinsOn && managerPin !== '' && pin === managerPin;
@@ -751,7 +751,7 @@ export default async function handler(req, res) {
 
     // Pay rates ($/hr) — defaults baked in; override with TIME_RATES env (JSON).
     let rates = { David: 13.54, Shanira: 32, 'Alda Amonaki': 10.4175, Bharath: 9 };
-    try { if (process.env.TIME_RATES) rates = JSON.parse(process.env.TIME_RATES); } catch { /* keep defaults */ }
+    try { if (process.env.TIME_RATES) rates = { ...rates, ...JSON.parse(process.env.TIME_RATES) }; } catch { /* keep defaults */ }
     const rateFor = (a) => Number(rates[a]) || 0;
 
     // Per-agent billing details for the manager invoice PDF. Sent ONLY to the
