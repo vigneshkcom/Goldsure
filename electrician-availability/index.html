@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Electrician availability – Nov &amp; Dec 2026</title>
+<title>Electrician availability – December 2026</title>
 <style>
   :root{--bg:#f6f7f9;--cell:#fff;--line:#e2e5ea;--text:#1f2430;--muted:#8a909c}
   *{box-sizing:border-box}
   body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .wrap{max-width:1200px;margin:0 auto}
   h1{font-size:20px;margin:0 0 4px}
-  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
   .legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
   .chip{font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;display:block;white-space:nowrap}
   .Gurdip{background:#dbe4ff;color:#2f4bc4}
@@ -18,7 +17,6 @@
   .Alex{background:#ead9fb;color:#7a2fc4}
   .Mason{background:#fdefc2;color:#8a5a00}
   .Closed{background:#fbd9d9;color:#b02a2a}
-  .months{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
   .month h2{text-align:center;font-size:17px;margin:0 0 10px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
   .dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:4px 0}
@@ -29,9 +27,8 @@
   .day.off .n{color:var(--muted)}
   .day .chip{font-size:10.5px;padding:2px 6px;border-radius:4px;overflow:hidden;text-overflow:ellipsis}
   .tbc{font-size:10.5px;color:var(--muted)}
-  @media(max-width:900px){.months{grid-template-columns:1fr}}
   @media(max-width:520px){body{padding:12px}.day{min-height:64px;padding:3px}.day .chip{font-size:9px;padding:1px 3px}.grid{gap:3px}}
-  @media print{body{background:#fff;padding:8px}.months{grid-template-columns:1fr 1fr;gap:12px}.day{min-height:70px}}
+  @media print{body{background:#fff;padding:8px}.day{min-height:70px}}
 
   .checker{margin:0 0 20px;padding:16px;background:var(--cell);border:1px solid var(--line);border-radius:8px}
   .checker h2{font-size:16px;margin:0 0 12px}
@@ -47,32 +44,30 @@
   .day .chip{display:flex;justify-content:space-between;gap:2px}
   .chip-name{overflow:hidden;text-overflow:ellipsis}
   .chip-count{flex:none;font-variant-numeric:tabular-nums}
+  .day .chip.full{box-shadow:inset 0 0 0 1px currentColor}
+  .day .chip.full .chip-count{font-weight:800}
   @media print{.checker{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Electrician availability</h1>
-  <div class="sub">November – December 2026 · Updated 20 Nov 2026</div>
   <div class="legend">
-    <span class="chip Gurdip">Gurdip</span><span class="chip Josh">Josh</span>
+    <span class="chip Gurdip">Gurdip</span>
     <span class="chip Alex">Alex</span><span class="chip Mason">Mason</span>
   </div>
 
   <section class="checker" aria-labelledby="checker-heading">
-    <h2 id="checker-heading">Check an area or date</h2>
+    <h2 id="checker-heading">Find electricians by area</h2>
     <form id="checker-form" class="fields">
       <label>Suburb or postcode
         <input type="search" id="area" maxlength="100" placeholder="e.g. Coombabah or 4216">
       </label>
-      <label>Date
-        <input type="date" id="date">
-      </label>
-      <button id="check-button" type="submit">Check availability</button>
+      <button id="check-button" type="submit">Find electricians</button>
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician</th><th>Jobs booked that day</th><th id="area-heading">Area on the route</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -80,7 +75,7 @@
   <div class="months" id="months"></div>
 </div>
 <script type="module">
-import { availability, months, year, dateKey } from '/electrician-availability/availability.js';
+import { availability, months, year, dateKey, dailyLimits } from '/electrician-availability/availability.js';
 
 const $ = id => document.getElementById(id);
 const monthsRoot = $('months');
@@ -88,16 +83,12 @@ const countsStatus = $('counts-status');
 const checkerStatus = $('checker-status');
 const resultsTable = $('results');
 const resultsBody = $('results-body');
-const dateInput = $('date');
 const areaInput = $('area');
 const checkButton = $('check-button');
 const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const dateFormatter = new Intl.DateTimeFormat('en-AU', {
   weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC'
 });
-
-dateInput.min = dateKey(months[0].month, 1);
-dateInput.max = dateKey(months.at(-1).month, months.at(-1).days);
 
 function createElement(tag, className, text) {
   const element = document.createElement(tag);
@@ -106,10 +97,14 @@ function createElement(tag, className, text) {
   return element;
 }
 
-function setCount(element, count) {
-  element.textContent = count ?? '–';
+function setCount(element, count, name) {
+  const limit = dailyLimits[name];
+  element.textContent = limit ? (count ?? '–') + '/' + limit : count ?? '–';
+  const full = Number.isInteger(count) && limit != null && count >= limit;
   element.title = count == null ? 'Booked-job count unavailable' : count + ' jobs booked';
+  if (limit) element.title += ' out of ' + limit + (full ? ' · Full' : '');
   element.setAttribute('aria-label', element.title);
+  element.parentElement.classList.toggle('full', full);
 }
 
 const countElements = new Map();
@@ -129,9 +124,9 @@ function renderCalendar() {
         for (const worker of workers) {
           const chip = createElement('span', 'chip ' + worker);
           const count = createElement('span', 'chip-count');
-          setCount(count, null);
           countElements.set(dateKey(month, day) + '/' + worker, count);
           chip.append(createElement('span', 'chip-name', worker), count);
+          setCount(count, null, worker);
           cell.appendChild(chip);
         }
       } else if (workers === 'Closed') {
@@ -145,11 +140,11 @@ function renderCalendar() {
   }
 }
 
-async function lookup(date = '', area = '') {
+async function lookup(area = '') {
   const response = await fetch('/api/electrician-availability', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date, area })
+    body: JSON.stringify({ area })
   });
   const data = await response.json();
   if (!response.ok || !Array.isArray(data.matches)) throw new Error('Dataforce is unavailable.');
@@ -159,7 +154,7 @@ async function lookup(date = '', area = '') {
 function renderCounts(matches) {
   for (const { date, name, jobCount } of matches) {
     const element = countElements.get(date + '/' + name);
-    if (element) setCount(element, jobCount);
+    if (element) setCount(element, jobCount, name);
   }
 }
 
@@ -169,8 +164,8 @@ async function loadCounts() {
     const data = await lookup();
     renderCounts(data.matches);
     countsStatus.textContent = data.incomplete
-      ? 'Some booked-job counts are unavailable. A dash means the count could not be retrieved.'
-      : 'Numbers show jobs booked in Dataforce.';
+      ? 'Some booked-job counts could not be retrieved. Numbers are jobs booked / daily limit.'
+      : 'Jobs booked / daily limit';
   } catch {
     countsStatus.textContent = 'Booked-job counts could not be loaded. Refresh the page to try again.';
   }
@@ -178,12 +173,11 @@ async function loadCounts() {
 
 $('checker-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const date = dateInput.value;
   const area = areaInput.value.trim();
   resultsTable.hidden = true;
   resultsBody.replaceChildren();
-  if (!date && !area) {
-    checkerStatus.textContent = 'Enter a suburb or postcode, or choose a date.';
+  if (!area) {
+    checkerStatus.textContent = 'Enter a suburb or postcode.';
     areaInput.focus();
     return;
   }
@@ -193,27 +187,20 @@ $('checker-form').addEventListener('submit', async event => {
     return;
   }
   checkButton.disabled = true;
-  checkerStatus.textContent = 'Checking availability…';
+  checkerStatus.textContent = 'Checking booked routes…';
   try {
-    const { matches, incomplete } = await lookup(date, area);
-    renderCounts(matches);
-    $('area-heading').hidden = !area;
+    const { matches, incomplete } = await lookup(area);
     for (const match of matches) {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
-      row.append(createElement('td', '', day), createElement('td', '', match.name),
-        createElement('td', '', match.jobCount ?? 'Unavailable'));
-      if (area) row.appendChild(createElement('td', '', match.areas.join(', ')));
+      row.append(createElement('td', '', day), createElement('td', '', match.name));
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
-    if (area) {
-      checkerStatus.textContent = matches.length
-        ? 'These electricians have a booked stop in the area.'
-        : 'No booked routes matched this area within the selected dates.';
-      if (incomplete) checkerStatus.textContent += ' Some route details were unavailable.';
-    } else {
-      checkerStatus.textContent = matches.length ? '' : 'No electricians are listed as available on this date.';
+    checkerStatus.textContent = matches.length ? '' : 'No upcoming booked routes match this area.';
+    if (incomplete) {
+      checkerStatus.textContent = [checkerStatus.textContent, 'Some route details were unavailable.']
+        .filter(Boolean).join(' ');
     }
   } catch {
     checkerStatus.textContent = 'Availability could not be checked. Please try again.';

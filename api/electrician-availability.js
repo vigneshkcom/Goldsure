@@ -7,6 +7,9 @@ const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const workerIds = new Map([['Alex', 1009], ['Gurdip', 1011], ['Mason', 1012]]);
 const cache = new Map();
 const CACHE_TTL_MS = 2 * 60 * 1000;
+const brisbaneDate = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit'
+});
 const requestLimits = new Map();
 
 function dataforceConfig() {
@@ -140,7 +143,7 @@ function enforceRateLimit(req) {
     return;
   }
   current.count += 1;
-  if (current.count > 20) throw Object.assign(new Error('Too many date checks. Please wait a minute and try again.'), { status: 429 });
+  if (current.count > 20) throw Object.assign(new Error('Too many availability checks. Please wait a minute and try again.'), { status: 429 });
 }
 
 async function mapWithConcurrency(items, limit, worker) {
@@ -171,13 +174,15 @@ async function availabilitySchedule() {
   const start = availableDates[0].date;
   const end = nextDate(availableDates.at(-1).date);
   const electricians = [...new Set(availableDates.flatMap(day => day.electricians))];
-  const josh = await dataforceOptionalFetch(token, '/' + encodeURIComponent(instance) + '/fieldworkers')
-    .then(payload => listFromPayload(payload, ['fieldworkers', 'workers'])
-      .map(normaliseFieldworker)
-      .filter(worker => worker.id > 0 && /\bJosh(?:ua)? Brindley\b/i.test(worker.name)))
-    .catch(() => []);
   const workers = new Map(workerIds);
-  if (josh.length === 1) workers.set('Josh', josh[0].id);
+  if (electricians.includes('Josh')) {
+    const josh = await dataforceOptionalFetch(token, '/' + encodeURIComponent(instance) + '/fieldworkers')
+      .then(payload => listFromPayload(payload, ['fieldworkers', 'workers'])
+        .map(normaliseFieldworker)
+        .filter(worker => worker.id > 0 && /\bJosh(?:ua)? Brindley\b/i.test(worker.name)))
+      .catch(() => []);
+    if (josh.length === 1) workers.set('Josh', josh[0].id);
+  }
 
   const appointmentsByWorker = new Map(await Promise.all(electricians.map(async name => {
     const id = workers.get(name);
@@ -203,9 +208,8 @@ async function availabilitySchedule() {
   }));
 }
 
-async function availabilityAreas(schedule, date) {
-  const rows = schedule.filter(row => !date || row.date === date);
-  const ids = [...new Set(rows.flatMap(row => (row.appointments || [])
+async function availabilityAreas(schedule) {
+  const ids = [...new Set(schedule.flatMap(row => (row.appointments || [])
     .map(appointment => appointment.customerId)).filter(Boolean))];
   if (!ids.length) return new Map();
 
@@ -222,30 +226,30 @@ async function availabilityAreas(schedule, date) {
   return new Map(entries);
 }
 
-function availabilityResults(schedule, date, area, locations) {
+function areaResults(schedule, area, locations) {
   const normalise = value => value.toLowerCase().replace(/\s+/g, ' ').trim();
-  const isPostcode = /^\d{4}$/.test(area);
+  const query = area.match(/^(?:(.*?)\s*[, ]\s*)?(\d{4})$/);
+  const suburb = normalise(query ? query[1] || '' : area);
+  const postcode = query ? query[2] : '';
   const matches = [];
   let incomplete = false;
-  for (const { date: day, name, appointments } of schedule) {
-    if (date && date !== day) continue;
+
+  for (const { date, name, appointments } of schedule) {
     if (appointments === null) incomplete = true;
-    const jobCount = appointments?.length ?? null;
-    if (!area) {
-      matches.push({ date: day, name, jobCount });
-      continue;
-    }
-    const areas = new Set();
+    let found = false;
     for (const appointment of appointments || []) {
       const place = locations.get(appointment.customerId);
-      const field = isPostcode ? place?.postcode : place?.suburb;
-      if (!field) {
+      if ((suburb && !place?.suburb) || (postcode && !place?.postcode)) {
         incomplete = true;
-      } else if (normalise(field) === normalise(area)) {
-        areas.add([place.suburb, place.postcode].filter(Boolean).join(' '));
+        continue;
+      }
+      if ((!suburb || normalise(place.suburb) === suburb)
+          && (!postcode || place.postcode === postcode)) {
+        found = true;
+        break;
       }
     }
-    if (areas.size) matches.push({ date: day, name, jobCount, areas: [...areas].sort() });
+    if (found) matches.push({ date, name });
   }
   return { matches, incomplete };
 }
@@ -253,11 +257,7 @@ function availabilityResults(schedule, date, area, locations) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
-  const { date = '', area: rawArea = '' } = req.body || {};
-  const area = String(rawArea).trim();
-  if (date && !availableDates.some(day => day.date === date)) {
-    return res.status(200).json({ matches: [], incomplete: false });
-  }
+  const area = String(req.body?.area || '').trim();
   if (area.length > 100 || (/^\d+$/.test(area) && !/^\d{4}$/.test(area))) {
     return res.status(400).json({ error: 'Enter a suburb name or a four-digit postcode.' });
   }
@@ -265,10 +265,17 @@ export default async function handler(req, res) {
   try {
     enforceRateLimit(req);
     const schedule = await cached('schedule', availabilitySchedule);
-    const locations = area
-      ? await cached('areas:' + (date || 'all'), () => availabilityAreas(schedule, date))
-      : null;
-    return res.status(200).json(availabilityResults(schedule, date, area, locations));
+    if (!area) {
+      const matches = schedule.map(({ date, name, appointments }) => ({
+        date, name, jobCount: appointments?.length ?? null
+      }));
+      return res.status(200).json({ matches, incomplete: matches.some(row => row.jobCount === null) });
+    }
+
+    const today = brisbaneDate.format(new Date());
+    const upcoming = schedule.filter(row => row.date >= today);
+    const locations = await cached('areas:' + today, () => availabilityAreas(upcoming));
+    return res.status(200).json(areaResults(upcoming, area, locations));
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });

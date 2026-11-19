@@ -1,18 +1,11 @@
 export const year = 2026;
 export const months = [
-  { name: "November 2026", month: 11, days: 30 },
   { name: "December 2026", month: 12, days: 31 }
 ];
 
+export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 9 };
+
 export const availability = {
-  // November
-  "11-23":["Gurdip"],
-  "11-24":["Gurdip","Alex"],
-  "11-25":["Gurdip"],
-  "11-26":["Gurdip","Alex","Josh"],
-  "11-27":["Gurdip","Josh"],
-  "11-30":["Gurdip","Mason"],
-  // December
   "12-1":["Gurdip","Mason"],
   "12-2":["Gurdip"],
   "12-3":["Gurdip","Alex"],
