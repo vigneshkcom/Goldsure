@@ -1,6 +1,6 @@
 (function () {
   const API = '/api/ghl/opportunity-notes';
-  const STAFF = ['David', 'Vignesh', 'Amit', 'Shanira', 'Alda'];
+  const STAFF = ['David', 'Vignesh', 'Amit', 'Shanira', 'Alda', 'Bharath'];
   let dialog, current, canSave = false;
   const el = id => dialog.querySelector(`#${id}`);
 

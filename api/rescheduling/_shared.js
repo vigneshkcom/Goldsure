@@ -44,7 +44,7 @@ export function validSession(req){
   const signature=sign(parts[0]+'.'+parts[1]);
   return !!signature&&crypto.timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(parts[2],'hex'));
 }
-export const STAFF=['Vignesh','David','Shanira','Alda','Amit'];
+export const STAFF=['Vignesh','David','Shanira','Alda','Amit','Bharath'];
 export function validStaff(name){return typeof name==='string'&&STAFF.includes(name);}
 export function configured(){
   return Boolean(process.env.GOLDSURE_REBOOKING_SESSION_SECRET?.length>=32);
