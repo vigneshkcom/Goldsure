@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electrician availability – Nov &amp; Dec 2026</title>
+<style>
+  :root{--bg:#f6f7f9;--cell:#fff;--line:#e2e5ea;--text:#1f2430;--muted:#8a909c}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1200px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+  .chip{font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;display:block;white-space:nowrap}
+  .Gurdip{background:#dbe4ff;color:#2f4bc4}
+  .Josh{background:#d9f5e1;color:#1f7a3a}
+  .Alex{background:#ead9fb;color:#7a2fc4}
+  .Mason{background:#fdefc2;color:#8a5a00}
+  .Closed{background:#fbd9d9;color:#b02a2a}
+  .months{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  .month h2{text-align:center;font-size:17px;margin:0 0 10px}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .dow{text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:4px 0}
+  .day{background:var(--cell);border:1px solid var(--line);border-radius:6px;min-height:84px;padding:5px;display:flex;flex-direction:column;gap:3px}
+  .day.off{background:#eceef2;border-color:#e6e8ec}
+  .day.empty{visibility:hidden}
+  .n{font-size:11px;font-weight:600;color:#555}
+  .day.off .n{color:var(--muted)}
+  .day .chip{font-size:10.5px;padding:2px 6px;border-radius:4px;overflow:hidden;text-overflow:ellipsis}
+  .tbc{font-size:10.5px;color:var(--muted)}
+  @media(max-width:900px){.months{grid-template-columns:1fr}}
+  @media(max-width:520px){body{padding:12px}.day{min-height:64px;padding:3px}.day .chip{font-size:9px;padding:1px 3px}.grid{gap:3px}}
+  @media print{body{background:#fff;padding:8px}.months{grid-template-columns:1fr 1fr;gap:12px}.day{min-height:70px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Electrician availability</h1>
+  <div class="sub">November – December 2026 · Updated 20 Nov 2026</div>
+  <div class="legend">
+    <span class="chip Gurdip">Gurdip</span><span class="chip Josh">Josh</span>
+    <span class="chip Alex">Alex</span><span class="chip Mason">Mason</span>
+  </div>
+  <div class="months" id="months"></div>
+</div>
+<script>
+// key = "M-D" (month 11 or 12) -> people. "TBC" and "Closed" handled as special values.
+const A = {
+  // November
+  "11-23":["Gurdip"],
+  "11-24":["Gurdip","Alex"],
+  "11-25":["Gurdip"],
+  "11-26":["Gurdip","Alex","Josh"],
+  "11-27":["Gurdip","Josh"],
+  "11-30":["Gurdip","Mason"],
+  // December
+  "12-1":["Gurdip","Mason"],
+  "12-2":["Gurdip"],
+  "12-3":["Gurdip","Alex"],
+  "12-4":["Gurdip"],
+  "12-7":["Gurdip","Alex","Mason"],
+  "12-8":["Gurdip","Alex","Mason"],
+  "12-9":["Gurdip"],
+  "12-10":["Gurdip"],
+  "12-11":["Gurdip","Alex"],
+  "12-12":"TBC",
+  "12-14":["Gurdip","Alex","Mason"],
+  "12-15":["Gurdip","Mason"],
+  "12-16":["Gurdip","Mason"],
+  "12-17":["Gurdip"],
+  "12-18":["Gurdip","Alex"],
+  "12-19":"TBC",
+  "12-21":"TBC","12-22":"TBC","12-23":"TBC","12-24":"TBC",
+  "12-25":"Closed","12-26":"Closed",
+  "12-28":"TBC","12-29":"TBC","12-30":"TBC","12-31":"TBC"
+};
+const months = [
+  {name:"November 2026", m:11, days:30, startDay:1},
+  {name:"December 2026", m:12, days:31, startDay:1}
+];
+const dows = ["M","T","W","T","F","S","S"];
+const root = document.getElementById("months");
+
+months.forEach(({name,m,days,startDay})=>{
+  const el = document.createElement("div");
+  el.className = "month";
+  let html = `<h2>${name}</h2><div class="grid">` + dows.map(d=>`<div class="dow">${d}</div>`).join("");
+  // Monday-based weekday of first shown day
+  const first = new Date(2026, m-1, startDay);
+  const lead = (first.getDay()+6)%7;
+  for(let i=0;i<lead;i++) html += `<div class="day empty"></div>`;
+  for(let d=startDay; d<=days; d++){
+    const v = A[`${m}-${d}`];
+    let inner = "", cls = "day";
+    if(Array.isArray(v)) inner = v.map(p=>`<span class="chip ${p}">${p}</span>`).join("");
+    else if(v==="Closed") inner = `<span class="chip Closed">Closed</span>`;
+    else if(v==="TBC") inner = `<span class="tbc">TBC</span>`;
+    else cls += " off";
+    html += `<div class="${cls}"><span class="n">${d}</span>${inner}</div>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+  root.appendChild(el);
+});
+</script>
+</body>
+</html>
