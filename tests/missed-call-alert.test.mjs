@@ -86,10 +86,10 @@ test('callback attempt and answered inbound clear a miss; later miss reopens it'
   assert.equal(outstandingCallbacks([call('01:00', 'Inbound', 'Missed', { from: { phoneNumber: '101' } })]).length, 0);
 });
 
-test('mail contains requested wording, four recipients, name, number and escaped HTML', () => {
+test('mail contains requested wording, five recipients, name, number and escaped HTML', () => {
   const mail = callbackEmail(outstandingCallbacks([call('01:00')]), new Date('2026-10-28T02:00:00Z'));
   assert.deepEqual(mail.to, callbackRecipients);
-  assert.equal(mail.to.length, 4);
+  assert.equal(mail.to.length, 5);
   assert.match(mail.text, /Hi team,[\s\S]*These customers have not been called back.[\s\S]*ASAP/);
   assert.match(mail.text, /Customer <A>.*\+61412345678.*12:00/);
   assert.match(mail.html, /Customer &lt;A&gt;/);
