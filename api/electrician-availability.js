@@ -1,4 +1,4 @@
-import { availableDates } from '../electrician-availability/availability.js';
+import { availableDates, areaSearchStartDate } from '../electrician-availability/availability.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
@@ -273,8 +273,9 @@ export default async function handler(req, res) {
     }
 
     const today = brisbaneDate.format(new Date());
-    const upcoming = schedule.filter(row => row.date >= today);
-    const locations = await cached('areas:' + today, () => availabilityAreas(upcoming));
+    const start = today > areaSearchStartDate ? today : areaSearchStartDate;
+    const upcoming = schedule.filter(row => row.date >= start);
+    const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
     return res.status(200).json(areaResults(upcoming, area, locations));
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
