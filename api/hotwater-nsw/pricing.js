@@ -59,7 +59,8 @@ export const BACK_TO_BACK_FLAT = 460;
 export const CABLE_INCLUDED_METRES = 15; // included in the gas base price
 export const CABLE_PER_METRE = 20;
 export const FINANCE_TERM_YEARS = [1, 2, 3, 5, 7, 10];
-export const INCOME_THRESHOLD = 210000;
+export const INCOME_THRESHOLD = 150000;
+const GAS_TWO_STOREY_CHARGE = 500;
 // Quotes paid upfront keep their normal payment arrangement. A Home Energy
 // Saver loan by Brighte is available only when at least $2,000 is financed.
 export const UPFRONT_PAYMENT_AMOUNT = 0;
@@ -77,7 +78,7 @@ export function getBasePrice(existingSystem, heatPumpModel) {
 // Recomputes every derived pricing/finance figure from raw inputs. Never
 // trusts numbers sent from the client — always the source of truth for what
 // gets saved and what gets quoted to the customer.
-export function calculateQuote(input = {}) {
+export function calculateQuote(input = {}, { standardQuote = false } = {}) {
   const existingSystem = input.existing_system;
   const listBasePrice = getBasePrice(existingSystem, input.heat_pump_model);
   let basePrice = listBasePrice;
@@ -96,15 +97,22 @@ export function calculateQuote(input = {}) {
   const cableChargeableMetres = Math.max(0, cableMetres - CABLE_INCLUDED_METRES);
   const cableCharge = round2(cableChargeableMetres * CABLE_PER_METRE);
 
-  const otherExtras = Array.isArray(input.other_extras) ? input.other_extras : [];
+  const extras = Array.isArray(input.other_extras) ? input.other_extras : [];
+  const otherExtras = standardQuote
+    ? extras.filter(e => e && Number.isFinite(Number(e.amount)) && Number(e.amount) >= 0)
+      .map(e => ({ label: e.label, amount: round2(Number(e.amount)) }))
+    : extras;
+  if (standardQuote && existingSystem === 'gas' && input.gas_two_storey === true) {
+    otherExtras.unshift({ label: 'Two-storey gas conversion', amount: GAS_TWO_STOREY_CHARGE });
+  }
   const otherExtrasTotal = round2(otherExtras.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 
   const totalExtras = round2(relocationCharge + backToBackCharge + cableCharge + otherExtrasTotal);
 
-  // An agent can deliberately apply a discretionary Goldsure discount and
+  // Historical offer calculations may apply a discretionary discount and
   // choose its amount, but a loan quote must still satisfy Brighte's $2,000
   // minimum finance amount.
-  const applyNoFinanceDiscount = input.apply_no_finance_discount === true;
+  const applyNoFinanceDiscount = !standardQuote && input.apply_no_finance_discount === true;
   const requestedNoFinanceDiscount = round2(Math.max(0, Number(input.no_finance_discount_amount) || 0));
   let noFinanceDiscount = applyNoFinanceDiscount
     ? Math.min(requestedNoFinanceDiscount, basePrice + totalExtras)
@@ -121,9 +129,9 @@ export function calculateQuote(input = {}) {
     : NaN;
   if (Number.isFinite(priceOverride) && priceOverride > 0) {
     const beforeDiscount = round2(basePrice + totalExtras);
-    if (priceOverride <= beforeDiscount) {
+    if (priceOverride < beforeDiscount && !standardQuote) {
       noFinanceDiscount = round2(beforeDiscount - priceOverride);
-    } else {
+    } else if (priceOverride >= beforeDiscount) {
       noFinanceDiscount = 0;
       basePrice = round2(basePrice + priceOverride - beforeDiscount);
     }

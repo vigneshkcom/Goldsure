@@ -10,7 +10,7 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { findOrCreateGhlContact } from '../../lib/ghl-contact.js';
 import { ensureOpportunityInStage } from '../../lib/ghl-opportunity.js';
-import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL } from './pricing.js';
+import { calculateQuote, HEAT_PUMP_LABEL, EXISTING_SYSTEM_LABEL, INCOME_THRESHOLD } from './pricing.js';
 import { nswQuotePricingRecord } from '../../lib/nsw-hws-quote-record.js';
 import {
   SEPTEMBER_OFFER_CAMPAIGN,
@@ -150,7 +150,7 @@ function buildEmailHtml(q, calc, quoteUrl, acceptUrl, emailBody) {
         </table>
         <div style="font-size:11px;color:#8b7c56;margin-top:12px;line-height:1.6;">${hasUpfrontPayment
           ? `Home Energy Saver loan by Brighte. Repayments are calculated on the amount financed after your ${money(calc.deposit_amount)} deposit.`
-          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Household taxable income must not exceed $210,000 per year.</div>
+          : 'Home Energy Saver loan by Brighte. The full installed price can be financed with no upfront payment.'} 0% interest with no establishment, account-keeping or introducer fees, and no early repayment fee. Estimate only. Subject to Brighte credit approval; eligibility criteria and approved upgrade requirements apply. Combined taxable household income for new applications must be $${INCOME_THRESHOLD.toLocaleString('en-AU')} a year or less.</div>
       </td></tr></table>
     </td></tr>` : '';
 
@@ -593,7 +593,8 @@ export default async function handler(req, res) {
     return handleDiscountOffer(requestBody, res, SUPABASE_URL, SUPABASE_KEY, HEADERS);
   }
 
-  if (requestBody.action === 'preview-september-offer' || requestBody.action === 'send-september-offer') {
+  const isSeptemberOfferRequest = requestBody.action === 'send-september-offer';
+  if (requestBody.action === 'preview-september-offer' || isSeptemberOfferRequest) {
     let resolved;
     try {
       resolved = await resolveSeptemberOfferSource(requestBody.source_quote_token, SUPABASE_URL, HEADERS);
@@ -646,7 +647,11 @@ export default async function handler(req, res) {
   if (!body.existing_system) return res.status(400).json({ error: 'Select the existing hot water system.' });
   if (!body.heat_pump_model) return res.status(400).json({ error: 'Select the heat pump being quoted.' });
 
-  const calc = calculateQuote(body);
+  const standardQuote = !isSeptemberOfferRequest;
+  if (standardQuote && body.existing_system === 'gas' && typeof body.gas_two_storey !== 'boolean') {
+    return res.status(400).json({ error: 'Confirm whether the property is two storeys or more for the gas conversion.' });
+  }
+  const calc = calculateQuote(body, { standardQuote });
   if (calc.finance_requested && !calc.finance_available) {
     return res.status(400).json({ error: 'The Home Energy Saver loan requires at least $2,000 to be financed.' });
   }
