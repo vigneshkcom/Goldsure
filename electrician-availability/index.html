@@ -69,7 +69,7 @@
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician</th><th>Suggested window</th><th>Booked area</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -149,7 +149,8 @@ async function lookup(area = '') {
     body: JSON.stringify({ area })
   });
   const data = await response.json();
-  if (!response.ok || !Array.isArray(data.matches)) throw new Error('Dataforce is unavailable.');
+  if (response.status === 400) throw new Error('Enter a suburb name, a four-digit postcode, or both.');
+  if (!response.ok || !Array.isArray(data.matches)) throw new Error('Availability could not be checked. Please try again.');
   return data;
 }
 
@@ -195,17 +196,19 @@ $('checker-form').addEventListener('submit', async event => {
     for (const match of matches) {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
-      row.append(createElement('td', '', day), createElement('td', '', match.name));
+      row.append(createElement('td', '', day), createElement('td', '', match.name),
+        createElement('td', '', match.window), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
-    checkerStatus.textContent = matches.length ? '' : 'No upcoming booked routes match this area.';
+    checkerStatus.textContent = matches.length ? 'Estimated windows based on distances between suburbs.'
+      : 'No upcoming routes with room matched this area.';
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some route details were unavailable.']
         .filter(Boolean).join(' ');
     }
-  } catch {
-    checkerStatus.textContent = 'Availability could not be checked. Please try again.';
+  } catch (error) {
+    checkerStatus.textContent = error.message;
   } finally {
     checkButton.disabled = false;
   }

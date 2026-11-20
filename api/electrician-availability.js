@@ -1,4 +1,5 @@
-import { availableDates, areaSearchStartDate } from '../electrician-availability/availability.js';
+import { availableDates, areaSearchStartDate, dailyLimits } from '../electrician-availability/availability.js';
+import { lookupArea, suggestRoutes } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
@@ -226,39 +227,12 @@ async function availabilityAreas(schedule) {
   return new Map(entries);
 }
 
-function areaResults(schedule, area, locations) {
-  const normalise = value => value.toLowerCase().replace(/\s+/g, ' ').trim();
-  const query = area.match(/^(?:(.*?)\s*[, ]\s*)?(\d{4})$/);
-  const suburb = normalise(query ? query[1] || '' : area);
-  const postcode = query ? query[2] : '';
-  const matches = [];
-  let incomplete = false;
-
-  for (const { date, name, appointments } of schedule) {
-    if (appointments === null) incomplete = true;
-    let found = false;
-    for (const appointment of appointments || []) {
-      const place = locations.get(appointment.customerId);
-      if ((suburb && !place?.suburb) || (postcode && !place?.postcode)) {
-        incomplete = true;
-        continue;
-      }
-      if ((!suburb || normalise(place.suburb) === suburb)
-          && (!postcode || place.postcode === postcode)) {
-        found = true;
-        break;
-      }
-    }
-    if (found) matches.push({ date, name });
-  }
-  return { matches, incomplete };
-}
-
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
   const area = String(req.body?.area || '').trim();
-  if (area.length > 100 || (/^\d+$/.test(area) && !/^\d{4}$/.test(area))) {
+  const target = area ? lookupArea(area) : null;
+  if (area && (area.length > 100 || !target)) {
     return res.status(400).json({ error: 'Enter a suburb name or a four-digit postcode.' });
   }
 
@@ -274,9 +248,12 @@ export default async function handler(req, res) {
 
     const today = brisbaneDate.format(new Date());
     const start = today > areaSearchStartDate ? today : areaSearchStartDate;
-    const upcoming = schedule.filter(row => row.date >= start);
+    const upcoming = schedule.filter(row => row.date >= start && (
+      row.appointments === null || (dailyLimits[row.name] != null
+        && row.appointments.length > 0 && row.appointments.length < dailyLimits[row.name])
+    ));
     const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
-    return res.status(200).json(areaResults(upcoming, area, locations));
+    return res.status(200).json(suggestRoutes(upcoming, target, locations, dailyLimits));
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });
