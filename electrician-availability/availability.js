@@ -17,8 +17,8 @@ export const availability = {
   "11-27":["Gurdip","Josh"],
   "11-30":["Gurdip","Mason"],
   // December
-  "12-1":["Gurdip","Mason"],
-  "12-2":["Gurdip"],
+  "12-1":["Gurdip"],
+  "12-2":["Gurdip","Mason"],
   "12-3":["Gurdip","Alex"],
   "12-4":["Gurdip"],
   "12-7":["Gurdip","Alex","Mason"],
