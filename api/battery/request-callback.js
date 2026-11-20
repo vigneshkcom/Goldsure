@@ -1706,6 +1706,7 @@ export default async function handler(req, res) {
       'EG290-FR':         `${SITE}/assets/hotwater/EG290-FR.pdf`,
       'ECON-300RVW':      `${SITE}/assets/hotwater/ECON-300RVW.pdf`,
       'ECON-300RVW-2.0E': `${SITE}/assets/hotwater/ECON-300RVW-2.0E.pdf`,
+      'EG-330FR':         `${SITE}/assets/hotwater/EG-330FR.pdf`,
       'EG-330FRE-WR':     `${SITE}/assets/hotwater/EG-330FRE-WR.pdf`,
       // EG-300FRE-W reuses the EG-330FRE-WR datasheet; the attachment is named
       // "EG-300FRE-W Brochure.pdf" automatically (filename uses tank_model).
