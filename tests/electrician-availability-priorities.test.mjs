@@ -60,6 +60,7 @@ test('northern Gold Coast is not offered the reserved Mason slots', () => {
   assert.equal(isSouthGoldCoast(lookupArea('Burleigh Heads 4220')), true);
   assert.equal(isSouthGoldCoast(lookupArea('Coolangatta 4225')), true);
   assert.equal(isSouthGoldCoast(lookupArea('Robina 4226')), true);
+  assert.equal(isSouthGoldCoast(lookupArea('4226')), true);
   assert.deepEqual(search([row('2026-12-02', 'Mason', 0)], 'Coombabah 4216').matches, []);
 });
 test('ordinary nearby-route suggestions continue after priorities are full', () => {
