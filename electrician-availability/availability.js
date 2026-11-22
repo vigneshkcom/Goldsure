@@ -4,9 +4,21 @@ export const months = [
   { name: "December 2026", month: 12, days: 31 }
 ];
 
-export const areaSearchStartDate = '2026-12-01';
+export const areaSearchStartDate = '2026-11-23';
 
 export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 9 };
+
+// Mason has three bookings on 30 November: offer one more before 2 December.
+export const bookingPriorities = {
+  '2026-11-30/Mason': { rank: 0, limit: 4, southGoldCoast: true },
+  '2026-12-02/Mason': { rank: 1, limit: 9, southGoldCoast: true },
+  '2026-11-26/Josh': { rank: 2, limit: 5, batteryOnly: true },
+  '2026-11-26/Gurdip': { rank: 3, batteryOnly: true },
+  '2026-11-27/Gurdip': { rank: 4, batteryOnly: true }
+};
+
+export const bookingRule = (date, name) => bookingPriorities[date + '/' + name];
+export const bookingLimit = (date, name) => bookingRule(date, name)?.limit ?? dailyLimits[name];
 
 export const availability = {
   // November
@@ -45,3 +57,4 @@ export const availableDates = Object.entries(availability)
   .filter(([, electricians]) => Array.isArray(electricians))
   .map(([day, electricians]) => ({ date: dateKey(...day.split('-')), electricians }))
   .sort((a, b) => a.date.localeCompare(b.date));
+

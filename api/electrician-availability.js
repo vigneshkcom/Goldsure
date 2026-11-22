@@ -1,4 +1,4 @@
-import { availableDates, areaSearchStartDate, dailyLimits } from '../electrician-availability/availability.js';
+import { availableDates, areaSearchStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
 import { lookupArea, suggestRoutes } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
 
@@ -249,8 +249,9 @@ export default async function handler(req, res) {
     const today = brisbaneDate.format(new Date());
     const start = today > areaSearchStartDate ? today : areaSearchStartDate;
     const upcoming = schedule.filter(row => row.date >= start && (
-      row.appointments === null || (dailyLimits[row.name] != null
-        && row.appointments.length > 0 && row.appointments.length < dailyLimits[row.name])
+      row.appointments === null || (bookingLimit(row.date, row.name) != null
+        && (row.appointments.length > 0 || bookingRule(row.date, row.name))
+        && row.appointments.length < bookingLimit(row.date, row.name))
     ));
     const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
     return res.status(200).json(suggestRoutes(upcoming, target, locations, dailyLimits));
@@ -259,3 +260,4 @@ export default async function handler(req, res) {
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });
   }
 }
+

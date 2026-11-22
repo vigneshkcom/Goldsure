@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Electrician availability – Nov &amp; Dec 2026</title>
+<title>Electrician availability - Nov &amp; Dec 2026</title>
 <style>
   :root{--bg:#f6f7f9;--cell:#fff;--line:#e2e5ea;--text:#1f2430;--muted:#8a909c}
   *{box-sizing:border-box}
@@ -46,6 +46,10 @@
   .day .chip{display:flex;justify-content:space-between;gap:2px}
   .chip-name{overflow:hidden;text-overflow:ellipsis}
   .chip-count{flex:none;font-variant-numeric:tabular-nums}
+  .battery-note{display:block;font-size:10px;font-weight:700;white-space:normal}
+  .day .chip{flex-wrap:wrap}
+  .battery-note{flex-basis:100%}
+  .restriction{display:block;color:#9a3412;font-weight:700}
   .day .chip.full{box-shadow:inset 0 0 0 1px currentColor}
   .day .chip.full .chip-count{font-weight:800}
   @media print{.checker{display:none}}
@@ -69,7 +73,7 @@
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician</th><th>Suggested window</th><th>Booked area</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Suggested window</th><th>Booked area</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -77,7 +81,7 @@
   <div class="months" id="months"></div>
 </div>
 <script type="module">
-import { availability, months, year, dateKey, dailyLimits } from '/electrician-availability/availability.js';
+import { availability, months, year, dateKey, bookingLimit, bookingRule } from '/electrician-availability/availability.js';
 
 const $ = id => document.getElementById(id);
 const monthsRoot = $('months');
@@ -100,11 +104,12 @@ function createElement(tag, className, text) {
 }
 
 function setCount(element, count, name) {
-  const limit = dailyLimits[name];
-  element.textContent = limit ? (count ?? '–') + '/' + limit : count ?? '–';
+  const date = element.dataset.date;
+  const limit = bookingLimit(date, name);
+  element.textContent = limit ? (count ?? '-') + '/' + limit : count ?? '-';
   const full = Number.isInteger(count) && limit != null && count >= limit;
   element.title = count == null ? 'Booked-job count unavailable' : count + ' jobs booked';
-  if (limit) element.title += ' out of ' + limit + (full ? ' · Full' : '');
+  if (limit) element.title += ' out of ' + limit + (full ? ' � Full' : '');
   element.setAttribute('aria-label', element.title);
   element.parentElement.classList.toggle('full', full);
 }
@@ -126,8 +131,12 @@ function renderCalendar() {
         for (const worker of workers) {
           const chip = createElement('span', 'chip ' + worker);
           const count = createElement('span', 'chip-count');
+          count.dataset.date = dateKey(month, day);
           countElements.set(dateKey(month, day) + '/' + worker, count);
           chip.append(createElement('span', 'chip-name', worker), count);
+          const rule = bookingRule(dateKey(month, day), worker);
+          if (rule?.batteryOnly) chip.appendChild(createElement('span', 'battery-note', 'Battery alarms only'));
+          if (rule) chip.title = rule.southGoldCoast ? 'Priority: South Gold Coast' : 'Priority: battery alarms only';
           setCount(count, null, worker);
           cell.appendChild(chip);
         }
@@ -162,7 +171,7 @@ function renderCounts(matches) {
 }
 
 async function loadCounts() {
-  countsStatus.textContent = 'Loading booked jobs from Dataforce…';
+  countsStatus.textContent = 'Loading booked jobs from Dataforce.';
   try {
     const data = await lookup();
     renderCounts(data.matches);
@@ -190,7 +199,7 @@ $('checker-form').addEventListener('submit', async event => {
     return;
   }
   checkButton.disabled = true;
-  checkerStatus.textContent = 'Checking booked routes…';
+  checkerStatus.textContent = 'Checking booked routes.';
   try {
     const { matches, incomplete } = await lookup(area);
     for (const match of matches) {
@@ -198,10 +207,14 @@ $('checker-form').addEventListener('submit', async event => {
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
       row.append(createElement('td', '', day), createElement('td', '', match.name),
         createElement('td', '', match.window), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
+      if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
+      if (match.priority) row.children[0].appendChild(createElement('span', '', 'Priority � ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
-    checkerStatus.textContent = matches.length ? 'Estimated windows based on distances between suburbs.'
+    checkerStatus.textContent = matches.some(match => match.priority)
+      ? 'Fill this priority date before offering later dates. Battery-only slots cannot take hardwired alarm jobs.'
+      : matches.length ? 'Estimated windows based on distances between suburbs.'
       : 'No upcoming routes with room matched this area.';
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some route details were unavailable.']
@@ -219,3 +232,4 @@ loadCounts();
 </script>
 </body>
 </html>
+
