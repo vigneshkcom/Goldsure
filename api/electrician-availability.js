@@ -231,6 +231,10 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
   const area = String(req.body?.area || '').trim();
+  const alarmType = req.body?.alarmType ?? 'battery';
+  if (!['battery', 'hardwired'].includes(alarmType)) {
+    return res.status(400).json({ error: 'Select battery-only or hardwired / mixed alarms.' });
+  }
   const target = area ? lookupArea(area) : null;
   if (area && (area.length > 100 || !target)) {
     return res.status(400).json({ error: 'Enter a suburb name or a four-digit postcode.' });
@@ -247,14 +251,15 @@ export default async function handler(req, res) {
     }
 
     const today = brisbaneDate.format(new Date());
-    const start = today > areaSearchStartDate ? today : areaSearchStartDate;
+    const firstDate = alarmType === 'hardwired' ? '2026-12-01' : areaSearchStartDate;
+    const start = today > firstDate ? today : firstDate;
     const upcoming = schedule.filter(row => row.date >= start && (
       row.appointments === null || (bookingLimit(row.date, row.name) != null
         && (row.appointments.length > 0 || bookingRule(row.date, row.name))
         && row.appointments.length < bookingLimit(row.date, row.name))
     ));
     const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
-    return res.status(200).json(suggestRoutes(upcoming, target, locations, dailyLimits));
+    return res.status(200).json(suggestRoutes(upcoming, target, locations, dailyLimits, { alarmType }));
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });
