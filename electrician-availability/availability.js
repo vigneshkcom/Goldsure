@@ -6,12 +6,12 @@ export const months = [
 
 export const areaSearchStartDate = '2026-11-23';
 
-export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 9 };
+export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 11 };
 
 // Mason has three bookings on 30 November: offer one more before 2 December.
 export const bookingPriorities = {
   '2026-11-30/Mason': { rank: 0, limit: 4, southGoldCoast: true },
-  '2026-12-02/Mason': { rank: 1, limit: 9, southGoldCoast: true },
+  '2026-12-02/Mason': { rank: 1, southGoldCoast: true },
   '2026-11-26/Josh': { rank: 2, limit: 5, batteryOnly: true },
   '2026-11-26/Gurdip': { rank: 3, batteryOnly: true },
   '2026-11-27/Gurdip': { rank: 4, batteryOnly: true }

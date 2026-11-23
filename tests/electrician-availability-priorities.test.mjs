@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { suggestRoutes, lookupArea, isSouthGoldCoast } from '../lib/electrician-route-suggestions.js';
 
-const limits = { Gurdip: 6, Alex: 13, Mason: 9 };
+const limits = { Gurdip: 6, Alex: 13, Mason: 11 };
 const locations = new Map([
   [1, { suburb: 'Elanora', postcode: '4221' }],
   [2, { suburb: 'Bray Park', postcode: '4500' }],
@@ -14,16 +14,16 @@ const search = (schedule, area = 'Elanora 4221') => suggestRoutes(schedule, look
 
 test('South Gold Coast lists Mason November, Mason December, and Alex Thursday in order', () => {
   const result = search([row('2026-11-30', 'Mason', 3), row('2026-12-02', 'Mason', 0), row('2026-12-03', 'Alex', 2)]);
-  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining]), [['Mason', '2026-11-30', 1], ['Mason', '2026-12-02', 9], ['Alex', '2026-12-03', 11]]);
+  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining]), [['Mason', '2026-11-30', 1], ['Mason', '2026-12-02', 11], ['Alex', '2026-12-03', 11]]);
 });
 test('after November target is met, Mason can fill an empty December day', () => {
   const result = search([row('2026-11-30', 'Mason', 4), row('2026-12-02', 'Mason', 0), row('2026-12-03', 'Alex', 2)]);
-  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining]), [['Mason', '2026-12-02', 9], ['Alex', '2026-12-03', 11]]);
+  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining]), [['Mason', '2026-12-02', 11], ['Alex', '2026-12-03', 11]]);
 });
-test('December priority ranks first at eight jobs and disappears at nine', () => {
-  const schedule = [row('2026-12-02', 'Mason', 8), row('2026-12-03', 'Alex', 2)];
+test('December priority ranks first at ten jobs and disappears at eleven', () => {
+  const schedule = [row('2026-12-02', 'Mason', 10), row('2026-12-03', 'Alex', 2)];
   assert.equal(search(schedule).matches[0].name, 'Mason');
-  schedule[0] = row('2026-12-02', 'Mason', 9);
+  schedule[0] = row('2026-12-02', 'Mason', 11);
   assert.equal(search(schedule).matches[0].name, 'Alex');
 });
 test('missing Mason counts keep other verified dates visible with an incomplete flag', () => {
