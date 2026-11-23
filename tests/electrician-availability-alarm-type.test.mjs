@@ -32,3 +32,19 @@ test('hardwired dates still exclude full days and do not invent six if fewer qua
 test('Brisbane priority does not extend Josh to the Gold Coast', () => {
   assert.deepEqual(search([row('2026-11-26','Josh',0)],'battery','4224').matches,[]);
 });
+
+test('combined dates fill the closest booked area first, then neighbouring suburbs, with route windows', () => {
+  const places = new Map([
+    [1, { suburb: 'Yeronga', postcode: '4104' }],
+    [2, { suburb: 'Moorooka', postcode: '4105' }],
+    [3, { suburb: 'Paddington', postcode: '4064' }]
+  ]);
+  const schedules = [row('2026-12-03','Gurdip',1),row('2026-12-07','Gurdip',1),row('2026-12-09','Gurdip',5),row('2026-12-11','Gurdip',1)];
+  schedules[0].appointments[0].customerId = 2;
+  schedules[0].appointments[0].scheduledDate = '2026-12-03T14:00:00';
+  schedules[3].appointments[0].customerId = 3;
+  const result = suggestRoutes(schedules,lookupArea('4104'),places,limits);
+  assert.deepEqual(result.matches.map(x=>x.date),['2026-12-09','2026-12-07','2026-12-03','2026-12-11']);
+  assert.equal(result.matches[2].window,'PM');
+  assert.equal(result.matches[0].window,'AM');
+});
