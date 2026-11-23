@@ -49,6 +49,7 @@
   .battery-note{display:block;font-size:10px;font-weight:700;white-space:normal}
   .day .chip{flex-wrap:wrap}
   .battery-note{flex-basis:100%}
+  .priority-note{display:block;margin-top:4px;font-size:12px;color:#555d6a}
   .restriction{display:block;color:#9a3412;font-weight:700}
   .day .chip.full{box-shadow:inset 0 0 0 1px currentColor}
   .day .chip.full .chip-count{font-weight:800}
@@ -208,12 +209,12 @@ $('checker-form').addEventListener('submit', async event => {
       row.append(createElement('td', '', day), createElement('td', '', match.name),
         createElement('td', '', match.window), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
       if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
-      if (match.priority) row.children[0].appendChild(createElement('span', '', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
+      if (match.priority) row.children[0].appendChild(createElement('span', 'priority-note', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
     checkerStatus.textContent = matches.some(match => match.priority)
-      ? 'Fill this priority date before offering later dates. Battery-only slots cannot take hardwired alarm jobs.'
+      ? 'Priority dates are listed first, followed by other suitable dates. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
       : matches.length ? 'Estimated windows based on distances between suburbs.'
       : 'No upcoming routes with room matched this area.';
     if (incomplete) {

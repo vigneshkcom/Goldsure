@@ -28,7 +28,7 @@ test('API includes November, resolves Josh, and offers an empty priority day', a
     await handler({ method: 'POST', headers: {}, body: { area: 'Bray Park 4500' } }, res);
     assert.equal(res.code, 200);
     assert.ok(requestedWorkers.includes('1013'));
-    assert.deepEqual(res.body.matches.map(x => [x.name, x.date, x.batteryOnly, x.remaining]), [['Josh', '2026-11-26', true, 5]]);
+    assert.deepEqual(res.body.matches.map(x => [x.name, x.date, x.batteryOnly, x.remaining]), [['Josh', '2026-11-26', true, 5], ['Gurdip', '2026-11-27', true, 6]]);
   } finally {
     global.fetch = originalFetch;
     global.Date = RealDate;
