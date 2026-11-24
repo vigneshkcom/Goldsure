@@ -1,4 +1,4 @@
-import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+import { queueAcceptanceEmail } from '../../lib/smoke-acceptance-notifications.js';
 import { syncAcceptedSmokeAlarmStage, verifyCustomerAcceptedQuote, getQuoteCustomerSource } from '../../lib/ghl-smoke-alarm-stage.js';
 import { syncAcceptedSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
 import { bookingFeeNotice, hasReceivedBookingFee } from '../../lib/smoke-booking-notice.js';
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
             </table>
 
             <!-- Divider -->
-            ${bookingFeeNotice({ received: bookingFeeReceived, payingOnline })}
+            <!-- BOOKING_PAYMENT_STATUS -->${bookingFeeNotice({ received: bookingFeeReceived, payingOnline })}<!-- /BOOKING_PAYMENT_STATUS -->
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
               <tr><td style="height:1px;background:#e3e7ef;font-size:1px;line-height:1px;">&nbsp;</td></tr>
             </table>
@@ -287,11 +287,11 @@ export default async function handler(req, res) {
               <tr>
                 <td style="padding:12px 16px;background:#fef7e7;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;">
                   <p style="margin:0;font-size:13px;color:#7a6020;line-height:1.6;">
-                    ${bookingFeeReceived
+                    <!-- BOOKING_NEXT_STEP -->${bookingFeeReceived
                       ? `<strong style="color:#14532d;">$33 RECEIVED.</strong> Call ${escapeHtml(customer_name)} to agree installation dates. Do not collect the booking fee again.`
                       : payingOnline
                       ? `<strong style="color:#141c2e;">Customer chose to PAY ONLINE ($33.00 via Stripe).</strong> You will get a separate "PAID" email once payment completes. Then call ${escapeHtml(customer_name)} to agree installation dates. If no payment email arrives, call them to take the fee.`
-                      : `<strong style="color:#141c2e;">Customer requested a call.</strong> Call ${escapeHtml(customer_name)} to confirm the booking date and take the $33.00 booking fee over the phone.`}
+                      : `<strong style="color:#141c2e;">Customer requested a call.</strong> Call ${escapeHtml(customer_name)} to confirm the booking date and take the $33.00 booking fee over the phone.`}<!-- /BOOKING_NEXT_STEP -->
                   </p>
                 </td>
               </tr>
@@ -316,7 +316,6 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
-  const subject = `Quote Accepted | ${bookingFeeReceived ? '$33 RECEIVED' : payingOnline ? 'PAYMENT PENDING' : 'BOOKING FEE UNPAID'} | ${customer_name} | ${grand_total}`;
 
   // Only a quote token that now resolves to an accepted tracker row may move
   // a GHL opportunity. The move is best-effort so a temporary GHL outage does
@@ -342,51 +341,11 @@ export default async function handler(req, res) {
     console.error('[Smoke accept] GHL stage move failed (non-fatal):', ghlErr.message);
   }
 
-  // Notify the team via Hostinger (from info@goldsure.com.au); fall back to
-  // Resend so a provider hiccup never drops an accepted-quote notification.
-  // Accepted-quote notifications go to a fixed list of staff (not info@).
-  const toList = [
-    'shanira@goldsure.com.au',
-    'david@goldsure.com.au',
-    'alda@goldsure.com.au',
-    'vignesh@goldsure.com.au',
-  ];
-
-  let sent = false;
-  try {
-    await sendHostingerMail({ to: toList, displayName: 'Goldsure Quotes', subject, html });
-    sent = true;
-  } catch (hostErr) {
-    console.error('[Smoke accept] Hostinger failed, falling back to Resend:', hostErr.message);
-  }
-
-  if (!sent) {
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Goldsure Quotes <info@goldsure.com.au>',
-          to: toList,
-          subject,
-          html,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        console.error('Resend error:', error);
-        return res.status(500).json({ error: 'Failed to send notification.', detail: error });
-      }
-    } catch (err) {
-      console.error('Server error:', err);
-      return res.status(500).json({ error: 'Internal server error.' });
-    }
-  }
-
+  // One durable notification, sent after the payment window has elapsed.
+  await queueAcceptanceEmail({
+    quoteToken: quote_token, acceptedAt: acceptance.quote.accepted_at,
+    html, customerName: customer_name, total: grand_total,
+  });
   return res.status(200).json({
     success: true,
     ghl_stage_moved: ghlStage.moved,

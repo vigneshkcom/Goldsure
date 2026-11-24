@@ -1,21 +1,10 @@
-import { sendHostingerMail } from '../../lib/hostinger-mail.js';
+
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
-import { bookingFeeNotice } from '../../lib/smoke-booking-notice.js';
+
 import { syncSmokeBookingPaymentNote } from '../../lib/ghl-smoke-alarm-stage.js';
 
 // Stripe needs the exact raw body to verify the signature.
 export const config = { api: { bodyParser: false } };
-
-const STAFF = [
-  'shanira@goldsure.com.au',
-  'david@goldsure.com.au',
-  'alda@goldsure.com.au',
-  'vignesh@goldsure.com.au',
-];
-
-const escapeHtml = value => String(value ?? '')
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 async function readRawBody(req) {
   if (typeof req.body === 'string') return req.body;
@@ -56,13 +45,10 @@ export default async function handler(req, res) {
   const headers = base && key ? { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } : null;
   const rowUrl = headers ? `${base}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}` : '';
 
-  let quote = null;
-  let firstNotification = true;
+  if (!headers) return res.status(503).json({ error: 'Payment database is not configured.' });
   try {
     if (headers) {
-      const lookup = await fetch(`${rowUrl}&select=*&limit=1`, { headers });
-      if (lookup.ok) [quote] = await lookup.json();
-      // Dedupe Stripe retries: only the first write that finds no paid stamp notifies staff.
+      // Preserve the first confirmed payment stamp across Stripe retries.
       // Needs the columns from supabase/migrations/20261124000000_smoke_booking_fee_payment.sql.
       const mark = await fetch(`${rowUrl}&booking_fee_paid_at=is.null`, {
         method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' },
@@ -73,15 +59,16 @@ export default async function handler(req, res) {
           stripe_payment_intent_id: session.payment_intent || null,
         }),
       });
-      if (mark.ok) firstNotification = (await mark.json()).length > 0;
-      else console.error('[Smoke Stripe] Could not record payment on quote', mark.status);
+      if (!mark.ok) throw new Error(`Could not record payment (${mark.status})`);
     }
   } catch (error) {
     console.error('[Smoke Stripe] Quote update failed', error.message);
+    return res.status(500).json({ error: 'Could not record payment; retry required.' });
   }
 
   // Retry the GHL payment note even when an earlier delivery already recorded
-  // the payment and emailed staff. The note helper dedupes by checkout session.
+  // the payment. The note helper dedupes by checkout session. Staff receive
+  // only the delayed acceptance email, never a second email from this webhook.
   let paymentNote;
   try {
     paymentNote = await syncSmokeBookingPaymentNote({ quoteToken: token, checkoutSessionId: session.id });
@@ -90,43 +77,6 @@ export default async function handler(req, res) {
     paymentNote = { synced: false, reason: 'ghl-note-failed-network' };
   }
 
-  if (firstNotification) {
-    const name = quote?.customer_name || session.metadata?.customer_name || session.customer_details?.name || 'Customer';
-    const phone = quote?.customer_phone || session.customer_details?.phone || '—';
-    const email = quote?.customer_email || session.customer_details?.email || '—';
-    const subject = `Quote Accepted | $33 RECEIVED | ${name}`;
-    const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#141c2e;max-width:560px">
-  ${bookingFeeNotice({ received: true })}
-  <h2 style="margin:0 0 12px">Quote accepted: ${escapeHtml(name)}</h2>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.6">Smoke alarm booking fee received online via Stripe. <strong>Call the customer to agree installation dates.</strong></p>
-  <table cellpadding="8" style="border:1px solid #e3e7ef;border-collapse:collapse;font-size:13px">
-    <tr><td style="background:#f0f2f5">Customer</td><td>${escapeHtml(name)}</td></tr>
-    <tr><td style="background:#f0f2f5">Phone</td><td>${escapeHtml(phone)}</td></tr>
-    <tr><td style="background:#f0f2f5">Email</td><td>${escapeHtml(email)}</td></tr>
-    <tr><td style="background:#f0f2f5">Address</td><td>${escapeHtml(quote?.customer_address || '—')}</td></tr>
-    <tr><td style="background:#f0f2f5">Alarms</td><td>${escapeHtml(quote?.alarm_qty ?? '—')}</td></tr>
-    <tr><td style="background:#f0f2f5">Quote total</td><td>${escapeHtml(quote?.grand_total_numeric ?? quote?.grand_total ?? '—')}</td></tr>
-    <tr><td style="background:#f0f2f5">Amount paid</td><td><strong>$33.00 AUD</strong></td></tr>
-    <tr><td style="background:#f0f2f5">Stripe payment</td><td>${escapeHtml(session.payment_intent || session.id)}</td></tr>
-  </table></div>`;
-    try {
-      await sendHostingerMail({ to: STAFF, displayName: 'Goldsure Quotes', subject, html });
-    } catch (hostErr) {
-      console.error('[Smoke Stripe] Hostinger failed, falling back to Resend:', hostErr.message);
-      const fallback = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Goldsure Quotes <info@goldsure.com.au>', to: STAFF, subject, html }),
-      }).catch(() => null);
-      if (!fallback?.ok) {
-        // Clear the paid stamp so Stripe's retry (triggered by the 500) notifies staff.
-        if (headers) {
-          await fetch(rowUrl, { method: 'PATCH', headers, body: JSON.stringify({ booking_fee_paid_at: null }) }).catch(() => null);
-        }
-        return res.status(500).json({ error: 'Notification failed.' });
-      }
-    }
-  }
   if (!paymentNote.synced) {
     console.error('[Smoke Stripe] GHL payment note needs retry', paymentNote.reason);
     return res.status(500).json({ error: 'Payment recorded; GHL payment note needs retry.' });

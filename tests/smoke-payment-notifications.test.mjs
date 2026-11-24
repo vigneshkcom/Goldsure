@@ -66,7 +66,7 @@ test('a confirmed stored payment shows received on the return page', async () =>
   assert.equal(elements.get('feeStepTitle').textContent, 'Booking fee paid - $33.00');
 });
 
-test('signed paid checkout sends highlighted receipt; unpaid and invalid events send none', async t => {
+test('Stripe records payment and GHL notes without sending any staff email', async t => {
   const sent = [];
   const notes = [];
   let paymentNoteFailures = 1;
@@ -121,13 +121,9 @@ test('signed paid checkout sends highlighted receipt; unpaid and invalid events 
   assert.equal((await invoke(unpaid)).body.ignored, true);
   assert.equal(sent.length, 0);
   assert.equal((await invoke(event)).code, 500, 'GHL failures must ask Stripe to retry');
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].subject, 'Quote Accepted | $33 RECEIVED | Example Customer');
-  assert.match(sent[0].html, /font-size:28px[\s\S]*\$33 RECEIVED/);
-  assert.match(sent[0].html, /background:#dcfce7/);
-  assert.match(sent[0].html, /Do not collect the booking fee again/);
+  assert.equal(sent.length, 0);
   assert.equal((await invoke(event)).code, 200);
-  assert.equal(sent.length, 1, 'Stripe retries must not send another receipt');
+  assert.equal(sent.length, 0, 'Only the delayed queue may send staff email');
   assert.equal(notes.length, 2);
   assert.match(notes[0].body, /^Smoke alarm quote accepted/);
   assert.match(notes[1].body, /^\$33 paid via Stripe/);
