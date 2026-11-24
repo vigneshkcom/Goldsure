@@ -1,6 +1,7 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { syncAcceptedSmokeAlarmStage, verifyCustomerAcceptedQuote, getQuoteCustomerSource } from '../../lib/ghl-smoke-alarm-stage.js';
 import { syncAcceptedSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
+import { bookingFeeNotice, hasReceivedBookingFee } from '../../lib/smoke-booking-notice.js';
 
 const escapeHtml = value => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -68,6 +69,7 @@ export default async function handler(req, res) {
   }
 
   const customerSource = await getQuoteCustomerSource({ quote: acceptance.quote });
+  const bookingFeeReceived = hasReceivedBookingFee(acceptance.quote);
   const hasControllers = parseInt(ctrl_qty) > 0;
   const alarmQtyNumeric = parseInt(alarm_qty, 10) || 0;
   const hasConcreteCeiling = Number(alarm_unit_price) > 98.005;
@@ -151,6 +153,7 @@ export default async function handler(req, res) {
             </table>
 
             <!-- Divider -->
+            ${bookingFeeNotice({ received: bookingFeeReceived, payingOnline })}
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
               <tr><td style="height:1px;background:#e3e7ef;font-size:1px;line-height:1px;">&nbsp;</td></tr>
             </table>
@@ -284,7 +287,9 @@ export default async function handler(req, res) {
               <tr>
                 <td style="padding:12px 16px;background:#fef7e7;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;">
                   <p style="margin:0;font-size:13px;color:#7a6020;line-height:1.6;">
-                    ${payingOnline
+                    ${bookingFeeReceived
+                      ? `<strong style="color:#14532d;">$33 RECEIVED.</strong> Call ${escapeHtml(customer_name)} to agree installation dates. Do not collect the booking fee again.`
+                      : payingOnline
                       ? `<strong style="color:#141c2e;">Customer chose to PAY ONLINE ($33.00 via Stripe).</strong> You will get a separate "PAID" email once payment completes. Then call ${escapeHtml(customer_name)} to agree installation dates. If no payment email arrives, call them to take the fee.`
                       : `<strong style="color:#141c2e;">Customer requested a call.</strong> Call ${escapeHtml(customer_name)} to confirm the booking date and take the $33.00 booking fee over the phone.`}
                   </p>
@@ -311,7 +316,7 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
-  const subject = `Quote Accepted (${payingOnline ? 'paying online' : 'call requested'}) – ${customer_name} – ${grand_total}`;
+  const subject = `Quote Accepted | ${bookingFeeReceived ? '$33 RECEIVED' : payingOnline ? 'PAYMENT PENDING' : 'BOOKING FEE UNPAID'} | ${customer_name} | ${grand_total}`;
 
   // Only a quote token that now resolves to an accepted tracker row may move
   // a GHL opportunity. The move is best-effort so a temporary GHL outage does
@@ -398,3 +403,4 @@ export default async function handler(req, res) {
     dataforce_waiting: dataforceJob.waiting === true,
   });
 }
+

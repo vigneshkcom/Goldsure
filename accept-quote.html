@@ -520,15 +520,25 @@ async function processAcceptance() {
       return;
     }
 
-    const row = rows[0];
+    let row = rows[0];
 
     // Only the customer-facing acceptance flow stamps accepted_at. An internal
     // tracker status of "accepted" must not tell the customer they accepted it.
     if (row.accepted_at) {
-      // Returning from Stripe Checkout: the webhook records the payment, this is only the message.
-      if (params.get('paid') === '1') {
+      // A return URL is not proof of payment. Allow time for the signed webhook
+      // to record the payment, then show only the status stored on the quote.
+      if (params.get('paid') === '1' && !bookingFeeReceived(row)) {
+        for (let attempt = 0; attempt < 5 && !bookingFeeReceived(row); attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const refresh = await fetch(`${SUPABASE_URL}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`, {
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }, cache: 'no-store',
+          });
+          if (refresh.ok) row = (await refresh.json())[0] || row;
+        }
+      }
+      if (bookingFeeReceived(row) || params.get('paid') === '1') {
         buildQuoteInfo(row, row.accepted_at);
-        showSuccessMessage('paid');
+        showSuccessMessage(bookingFeeReceived(row) ? 'paid' : 'pending');
         showState('stateSuccess');
         return;
       }
@@ -652,6 +662,10 @@ async function submitAcceptance(event) {
   }
 }
 
+function bookingFeeReceived(row) {
+  return Boolean(row?.booking_fee_paid_at && Number.isFinite(Date.parse(row.booking_fee_paid_at)) && Number(row.booking_fee_amount) === 33);
+}
+
 function showSuccessMessage(kind) {
   const subtitle = document.getElementById('successSubtitle');
   const title = document.getElementById('feeStepTitle');
@@ -660,6 +674,10 @@ function showSuccessMessage(kind) {
     subtitle.innerHTML = 'Thank you! Your $33.00 booking fee has been paid and your quote is accepted.<br>Our team will call you shortly to arrange your installation dates.';
     title.textContent = 'Booking fee paid - $33.00';
     text.textContent = 'Your payment is recorded and will be deducted from your final total. On the call we can also discuss any changes, like adding a remote controller or adjusting alarm quantities.';
+  } else if (kind === 'pending') {
+    subtitle.innerHTML = 'Your quote is accepted. We are waiting for payment confirmation.<br>If you completed payment, please do not pay again. Our team will confirm receipt and call you to arrange installation.';
+    title.textContent = 'Payment confirmation pending';
+    text.textContent = 'Your booking fee will be marked as received only after Stripe confirms payment. Refresh this page shortly or call us if you need help.';
   } else if (kind === 'cancelled') {
     subtitle.innerHTML = 'Your quote is accepted, but the online payment was not completed.<br>No problem - our team will call you to book a date and take the booking fee over the phone.';
   } else if (kind === 'checkout-failed') {
@@ -681,3 +699,4 @@ processAcceptance();
 
 </body>
 </html>
+

@@ -1,5 +1,6 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
+import { bookingFeeNotice } from '../../lib/smoke-booking-notice.js';
 
 // Stripe needs the exact raw body to verify the signature.
 export const config = { api: { bodyParser: false } };
@@ -82,9 +83,10 @@ export default async function handler(req, res) {
     const name = quote?.customer_name || session.metadata?.customer_name || session.customer_details?.name || 'Customer';
     const phone = quote?.customer_phone || session.customer_details?.phone || '—';
     const email = quote?.customer_email || session.customer_details?.email || '—';
-    const subject = `PAID $33.00 booking fee – ${name}`;
+    const subject = `Quote Accepted | $33 RECEIVED | ${name}`;
     const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#141c2e;max-width:560px">
-  <h2 style="margin:0 0 12px">${escapeHtml(name)} has paid $33.00</h2>
+  ${bookingFeeNotice({ received: true })}
+  <h2 style="margin:0 0 12px">Quote accepted: ${escapeHtml(name)}</h2>
   <p style="margin:0 0 16px;font-size:14px;line-height:1.6">Smoke alarm booking fee received online via Stripe. <strong>Call the customer to agree installation dates.</strong></p>
   <table cellpadding="8" style="border:1px solid #e3e7ef;border-collapse:collapse;font-size:13px">
     <tr><td style="background:#f0f2f5">Customer</td><td>${escapeHtml(name)}</td></tr>
@@ -116,3 +118,4 @@ export default async function handler(req, res) {
   }
   return res.status(200).json({ received: true });
 }
+
