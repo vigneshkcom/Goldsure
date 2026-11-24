@@ -1,6 +1,7 @@
 import acceptHandler from './accept.js';
 import { adjustSmokeQuote } from '../../lib/smoke-quote-adjustment.js';
 import { parseAcceptedPropertyAddress, pushStaffSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
+import { createBookingFeeCheckout, isValidQuoteToken } from '../../lib/smoke-stripe.js';
 
 // Customer-facing quote support actions.
 // POST { action: 'record-view', token } atomically records a genuine online open.
@@ -11,6 +12,7 @@ export default async function handler(req, res) {
   const { action, token } = req.body || {};
   if (action === 'staff-push-dataforce') return pushStaffQuote(req, res);
   if (action === 'accept-customer') return acceptCustomer(req, res);
+  if (action === 'create-checkout') return createCheckout(req, res);
   if (action !== 'record-view') return res.status(400).json({ error: 'Unknown action.' });
   if (!token) return res.status(400).json({ error: 'token is required.' });
 
@@ -46,6 +48,7 @@ export default async function handler(req, res) {
 // Persist quantities, price and customer acceptance together before integrations.
 async function acceptCustomer(req, res) {
   const { token, alarm_qty, customer_address } = req.body || {};
+  const bookingOption = req.body?.booking_option === 'pay-online' ? 'pay-online' : 'request-call';
   const address = parseAcceptedPropertyAddress(customer_address);
   if (!token || !address) return res.status(400).json({ error: 'Enter the full Queensland installation address.' });
   const base = process.env.SUPABASE_URL;
@@ -87,6 +90,7 @@ async function acceptCustomer(req, res) {
         fee_amount: `$${Number(quote.fee_amount||0).toFixed(2)}`,
         grand_total: `$${Number(quote.grand_total_numeric??quote.grand_total).toFixed(2)}`,
         customer_address: address.formatted,
+        booking_option: bookingOption,
         property_street: address.street, property_suburb: address.suburb,
         property_state: address.state, property_postcode: address.postcode,
         original_alarm_qty: original.alarm_qty,
@@ -100,6 +104,29 @@ async function acceptCustomer(req, res) {
   } catch (error) {
     console.error('[Smoke acceptance] Save failed', error.message);
     return res.status(502).json({ error: 'We could not confirm your quote. Please try again or contact Goldsure.' });
+  }
+}
+
+// Starts Stripe Checkout for the $33 booking fee. Only an accepted, unpaid quote qualifies.
+async function createCheckout(req, res) {
+  const { token } = req.body || {};
+  if (!isValidQuoteToken(token)) return res.status(400).json({ error: 'Invalid quote link.' });
+  const base = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!base || !key) return res.status(503).json({ error: 'Quote service is unavailable.' });
+  try {
+    const lookup = await fetch(`${base}/rest/v1/quote_emails?quote_token=eq.${encodeURIComponent(token)}&select=*&limit=1`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    if (!lookup.ok) throw new Error('Quote lookup failed');
+    const [quote] = await lookup.json();
+    if (!quote) return res.status(404).json({ error: 'Quote not found.' });
+    if (!quote.accepted_at) return res.status(409).json({ error: 'Please accept your quote first.' });
+    if (quote.booking_fee_paid_at) return res.status(409).json({ error: 'The booking fee has already been paid.', already_paid: true });
+    const checkout = await createBookingFeeCheckout({ quote, quoteToken: token });
+    return res.status(200).json({ success: true, url: checkout.url });
+  } catch (error) {
+    console.error('[Smoke checkout] failed', error.message, error.stripeDetails || '');
+    return res.status(502).json({ error: 'We could not start online payment. Our team will call you to take the booking fee.' });
   }
 }
 

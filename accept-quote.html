@@ -203,7 +203,11 @@ footer a { color: var(--gold); text-decoration: none; }
         <input id="propertyState" name="propertyState" type="hidden" value="QLD">
         <p class="field-help" id="addressHelp">Start typing and select your Queensland address from Google.</p>
         <p class="field-error" id="addressError" role="alert"></p>
-        <button class="accept-button" id="acceptButton" type="submit">Accept quote</button>
+        <button class="accept-button" id="acceptButton" type="submit" value="pay-online">Accept &amp; pay $33 booking fee online</button>
+        <p class="field-help" style="text-align:center;margin:6px 0 0">Secure payment by card through Stripe. Then we call you to arrange your dates.</p>
+        <button class="accept-button" id="callButton" type="submit" value="request-call"
+                style="background:#fff;border:2px solid var(--gold)">Accept &amp; request a call</button>
+        <p class="field-help" style="text-align:center;margin:6px 0 0">We'll call you to book a date and take the $33 booking fee over the phone.</p>
       </form>
     </div>
 
@@ -211,7 +215,7 @@ footer a { color: var(--gold); text-decoration: none; }
     <div class="state-success" id="stateSuccess">
       <div class="icon-wrap">✅</div>
       <h2>Quote Accepted!</h2>
-      <p class="subtitle">Thank you for accepting your Goldsure smoke alarm quote.<br>Our team will be in touch shortly to confirm your booking.</p>
+      <p class="subtitle" id="successSubtitle">Thank you for accepting your Goldsure smoke alarm quote.<br>Our team will be in touch shortly to confirm your booking.</p>
 
       <div class="info-block" id="quoteInfoBlock">
         <div class="info-block-title">Your Quote Summary</div>
@@ -240,8 +244,8 @@ footer a { color: var(--gold); text-decoration: none; }
             </svg>
           </div>
           <div class="step-body">
-            <strong>We'll take your $33.00 booking fee</strong>
-            <p>To secure your electrician, we'll collect the $33.00 booking fee over the phone or via bank transfer. On the same call, we can discuss any changes - like adding a remote controller or adjusting alarm quantities - before we book you in.</p>
+            <strong id="feeStepTitle">We'll take your $33.00 booking fee</strong>
+            <p id="feeStepText">To secure your electrician, we'll take the $33.00 booking fee over the phone. On the same call, we can discuss any changes - like adding a remote controller or adjusting alarm quantities - before we book you in.</p>
           </div>
         </div>
       </div>
@@ -521,6 +525,19 @@ async function processAcceptance() {
     // Only the customer-facing acceptance flow stamps accepted_at. An internal
     // tracker status of "accepted" must not tell the customer they accepted it.
     if (row.accepted_at) {
+      // Returning from Stripe Checkout: the webhook records the payment, this is only the message.
+      if (params.get('paid') === '1') {
+        buildQuoteInfo(row, row.accepted_at);
+        showSuccessMessage('paid');
+        showState('stateSuccess');
+        return;
+      }
+      if (params.get('paid') === '0' && !row.booking_fee_paid_at) {
+        buildQuoteInfo(row, row.accepted_at);
+        showSuccessMessage('cancelled');
+        showState('stateSuccess');
+        return;
+      }
       showState('stateAlready');
       return;
     }
@@ -577,9 +594,13 @@ async function submitAcceptance(event) {
   const propertyAddress = `${propertyStreet}, ${propertySuburb} QLD ${propertyPostcode}`;
 
   showAddressError('');
+  const payOnline = event.submitter?.value !== 'request-call';
   const acceptButton = document.getElementById('acceptButton');
+  const callButton = document.getElementById('callButton');
+  const buttonLabels = [acceptButton.innerHTML, callButton.innerHTML];
   acceptButton.disabled = true;
-  acceptButton.textContent = 'Accepting quote…';
+  callButton.disabled = true;
+  (payOnline ? acceptButton : callButton).textContent = 'Accepting quote…';
 
   try {
     const row = currentQuoteRow;
@@ -591,6 +612,7 @@ async function submitAcceptance(event) {
         customer_address: propertyAddress,
         property_street: propertyStreet, property_suburb:propertySuburb,
         property_state: propertyState, property_postcode:propertyPostcode,
+        booking_option: payOnline ? 'pay-online' : 'request-call',
       }),
     });
     const result=await acceptResp.json();
@@ -601,12 +623,47 @@ async function submitAcceptance(event) {
     if(result.already_accepted){showState('stateAlready');return;}
 
     buildQuoteInfo({ ...row, ...updatedRow, customer_address: propertyAddress }, acceptedAt);
+
+    if (payOnline) {
+      // Quote is accepted and staff are notified; now send the customer to Stripe Checkout.
+      try {
+        const checkoutResp = await fetch('/api/smoke-alarms/quotes', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create-checkout', token }),
+        });
+        const checkout = await checkoutResp.json();
+        if (checkoutResp.ok && checkout.url) { window.location.href = checkout.url; return; }
+        console.error('[accept-quote] Checkout unavailable:', checkout.error);
+      } catch (checkoutErr) {
+        console.error('[accept-quote] Checkout error:', checkoutErr);
+      }
+      showSuccessMessage('checkout-failed');
+    } else {
+      showSuccessMessage('call');
+    }
     showState('stateSuccess');
   } catch (err) {
     console.error('[accept-quote] Error:', err);
     showAddressError('We could not confirm your quote. Please try again or call us on (07) 2145 5155.');
     acceptButton.disabled = false;
-    acceptButton.textContent = 'Accept quote';
+    callButton.disabled = false;
+    acceptButton.innerHTML = buttonLabels[0];
+    callButton.innerHTML = buttonLabels[1];
+  }
+}
+
+function showSuccessMessage(kind) {
+  const subtitle = document.getElementById('successSubtitle');
+  const title = document.getElementById('feeStepTitle');
+  const text = document.getElementById('feeStepText');
+  if (kind === 'paid') {
+    subtitle.innerHTML = 'Thank you! Your $33.00 booking fee has been paid and your quote is accepted.<br>Our team will call you shortly to arrange your installation dates.';
+    title.textContent = 'Booking fee paid - $33.00';
+    text.textContent = 'Your payment is recorded and will be deducted from your final total. On the call we can also discuss any changes, like adding a remote controller or adjusting alarm quantities.';
+  } else if (kind === 'cancelled') {
+    subtitle.innerHTML = 'Your quote is accepted, but the online payment was not completed.<br>No problem - our team will call you to book a date and take the booking fee over the phone.';
+  } else if (kind === 'checkout-failed') {
+    subtitle.innerHTML = 'Your quote is accepted, but we could not start online payment.<br>Our team will call you shortly to book a date and take the booking fee over the phone.';
   }
 }
 

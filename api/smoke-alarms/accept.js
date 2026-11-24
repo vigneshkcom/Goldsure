@@ -37,7 +37,9 @@ export default async function handler(req, res) {
     accepted_at,
     original_alarm_qty,
     original_grand_total,
+    booking_option,
   } = req.body;
+  const payingOnline = booking_option === 'pay-online';
 
   const clean = value => String(value || '').trim().replace(/\s+/g, ' ');
   const legacyAddress = clean(customer_address).replace(/,\s*Australia$/i, '')
@@ -282,7 +284,9 @@ export default async function handler(req, res) {
               <tr>
                 <td style="padding:12px 16px;background:#fef7e7;border-left:3px solid #b08d2e;border-radius:0 4px 4px 0;">
                   <p style="margin:0;font-size:13px;color:#7a6020;line-height:1.6;">
-                    <strong style="color:#141c2e;">Next step:</strong> Follow up with ${customer_name} to confirm the booking date and collect the $33.00 booking fee.
+                    ${payingOnline
+                      ? `<strong style="color:#141c2e;">Customer chose to PAY ONLINE ($33.00 via Stripe).</strong> You will get a separate "PAID" email once payment completes. Then call ${escapeHtml(customer_name)} to agree installation dates. If no payment email arrives, call them to take the fee.`
+                      : `<strong style="color:#141c2e;">Customer requested a call.</strong> Call ${escapeHtml(customer_name)} to confirm the booking date and take the $33.00 booking fee over the phone.`}
                   </p>
                 </td>
               </tr>
@@ -307,7 +311,7 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
-  const subject = `Quote Accepted – ${customer_name} – ${grand_total}`;
+  const subject = `Quote Accepted (${payingOnline ? 'paying online' : 'call requested'}) – ${customer_name} – ${grand_total}`;
 
   // Only a quote token that now resolves to an accepted tracker row may move
   // a GHL opportunity. The move is best-effort so a temporary GHL outage does
