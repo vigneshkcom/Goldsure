@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { queueAcceptanceEmail, dispatchAcceptanceEmails, renderAcceptanceEmail, ACCEPTANCE_EMAIL_DELAY_MS } from '../lib/smoke-acceptance-notifications.js';
+import { queueAcceptanceEmail, dispatchAcceptanceEmails, renderAcceptanceEmail, queuePaymentCorrection, ACCEPTANCE_EMAIL_DELAY_MS } from '../lib/smoke-acceptance-notifications.js';
 import { bookingFeeNotice, hasReceivedBookingFee } from '../lib/smoke-booking-notice.js';
 import cronHandler from '../api/smoke-alarms/acceptance-notifications.js';
 
@@ -53,31 +53,31 @@ function fixture() {
   return state;
 }
 
-test('acceptance is queued for three minutes and repeated acceptance does not create another email', async () => {
+test('acceptance is queued for five minutes and repeated acceptance does not create another email', async () => {
   const state = fixture();
   await state.queue(); await state.queue();
-  assert.equal(ACCEPTANCE_EMAIL_DELAY_MS, 180000);
+  assert.equal(ACCEPTANCE_EMAIL_DELAY_MS, 300000);
   assert.equal(state.rows.size, 1);
-  assert.equal([...state.rows.values()][0].due_at, '2026-11-24T05:03:00.000Z');
-  assert.equal((await state.run(179)).sent, 0);
+  assert.equal([...state.rows.values()][0].due_at, '2026-11-24T05:05:00.000Z');
+  assert.equal((await state.run(299)).sent, 0);
   assert.equal(state.sends.size, 0);
 });
 
 test('payment during the waiting period produces one green received email', async () => {
   const state = fixture(); await state.queue();
   state.quote.booking_fee_paid_at = '2026-11-24T05:02:00.000Z'; state.quote.booking_fee_amount = 33;
-  assert.equal((await state.run(181)).sent, 1);
+  assert.equal((await state.run(301)).sent, 1);
   const mail = [...state.sends.values()][0];
   assert.match(mail.subject, /Quote Accepted \| \$33 RECEIVED/);
   assert.match(mail.html, /background:#dcfce7/);
   assert.doesNotMatch(mail.html, /Wait for a second email/);
   assert.match(mail.html, /Manually record the payment in DataForce/);
-  await state.run(240); assert.equal(state.sends.size, 1);
+  await state.run(360); assert.equal(state.sends.size, 1);
 });
 
 test('one unpaid email is sent after the window; a later payment does not trigger another email', async () => {
   const state = fixture(); await state.queue();
-  await state.run(180);
+  await state.run(300);
   const mail = [...state.sends.values()][0];
   assert.match(mail.subject, /\$33 NOT RECEIVED/);
   assert.match(mail.html, /BOOKING FEE NOT RECEIVED/);
@@ -89,16 +89,48 @@ test('one unpaid email is sent after the window; a later payment does not trigge
 test('an overlapping worker respects the database lease', async () => {
   const state = fixture(); await state.queue();
   const row = state.rows.get(token); row.locked_until = '2026-11-24T05:07:00.000Z';
-  assert.equal((await state.run(180)).sent, 0);
+  assert.equal((await state.run(300)).sent, 0);
   assert.equal(state.sends.size, 0);
+});
+
+test('late verified payment sends one correction across repeated webhook events and workers', async () => {
+  const state = fixture(); await state.queue(); await state.run(300);
+  state.quote.booking_fee_paid_at = '2026-11-24T05:06:00.000Z'; state.quote.booking_fee_amount = 33;
+  const correction = () => queuePaymentCorrection({ quoteToken: token, env, fetchImpl: state.fetchImpl });
+  await correction(); await correction();
+  assert.equal((await state.run(361)).sent, 1);
+  await correction(); await state.run(420);
+  assert.equal(state.sends.size, 2);
+  const mail = [...state.sends.values()][1];
+  assert.match(mail.subject, /Payment Update \| \$33 RECEIVED/);
+  assert.match(mail.html, /replaces the earlier unpaid status/);
+  assert.doesNotMatch(mail.html, /Call requested|BOOKING FEE NOT RECEIVED/);
+});
+
+test('payment before the original notification suppresses the redundant correction', async () => {
+  const state = fixture(); await state.queue();
+  state.quote.booking_fee_paid_at = '2026-11-24T05:02:00.000Z'; state.quote.booking_fee_amount = 33;
+  await queuePaymentCorrection({ quoteToken: token, env, fetchImpl: state.fetchImpl });
+  await state.run(300); await state.run(360);
+  assert.equal(state.sends.size, 1);
+  assert.match([...state.sends.values()][0].subject, /\$33 RECEIVED/);
+});
+
+test('online payment pending never claims a call was requested, including older queued templates', () => {
+  for (const extra of [{ paying_online: true }, { html: html + 'Customer chose to PAY ONLINE' }]) {
+    const mail = renderAcceptanceEmail({ ...payload, ...extra }, {});
+    assert.match(mail.subject, /PAYMENT PENDING/);
+    assert.match(mail.html, /may still complete payment/);
+    assert.doesNotMatch(mail.html, /Call requested|BOOKING FEE NOT RECEIVED/);
+  }
 });
 
 test('provider acceptance followed by a database failure retries without a second email', async () => {
   const state = fixture(); await state.queue(); state.stampFailures = 1;
-  assert.equal((await state.run(180)).failed, 1);
+  assert.equal((await state.run(300)).failed, 1);
   assert.equal(state.sends.size, 1);
   state.quote.booking_fee_paid_at = '2026-11-24T05:04:00.000Z'; state.quote.booking_fee_amount = 33;
-  assert.equal((await state.run(300)).sent, 1);
+  assert.equal((await state.run(600)).sent, 1);
   assert.equal(state.sends.size, 1);
 });
 

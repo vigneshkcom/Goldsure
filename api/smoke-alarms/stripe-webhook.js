@@ -2,6 +2,7 @@
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
 
 import { syncSmokeBookingPaymentNote } from '../../lib/ghl-smoke-alarm-stage.js';
+import { queuePaymentCorrection } from '../../lib/smoke-acceptance-notifications.js';
 
 // Stripe needs the exact raw body to verify the signature.
 export const config = { api: { bodyParser: false } };
@@ -66,9 +67,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Could not record payment; retry required.' });
   }
 
-  // Retry the GHL payment note even when an earlier delivery already recorded
-  // the payment. The note helper dedupes by checkout session. Staff receive
-  // only the delayed acceptance email, never a second email from this webhook.
+  // The durable worker sends a correction only if the original email was unpaid.
+  try {
+    await queuePaymentCorrection({ quoteToken: token });
+  } catch (error) {
+    console.error('[Smoke Stripe] Payment correction queue failed', error.message);
+    return res.status(500).json({ error: 'Payment recorded; notification queue needs retry.' });
+  }
+
+  // Retry the GHL payment note even when an earlier delivery recorded payment.
   let paymentNote;
   try {
     paymentNote = await syncSmokeBookingPaymentNote({ quoteToken: token, checkoutSessionId: session.id });

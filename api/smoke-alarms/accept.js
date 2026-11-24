@@ -344,7 +344,7 @@ export default async function handler(req, res) {
   // One durable notification, sent after the payment window has elapsed.
   await queueAcceptanceEmail({
     quoteToken: quote_token, acceptedAt: acceptance.quote.accepted_at,
-    html, customerName: customer_name, total: grand_total,
+    html, customerName: customer_name, total: grand_total, payingOnline,
   });
   return res.status(200).json({
     success: true,

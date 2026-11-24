@@ -16,7 +16,7 @@ test('only a confirmed full booking fee earns the green received banner', () => 
   assert.equal(hasReceivedBookingFee({ booking_fee_paid_at: new Date().toISOString(), booking_fee_amount: '33.00' }), true);
   assert.match(bookingFeeNotice({ received: true }), /\$33 RECEIVED/);
   assert.match(bookingFeeNotice({ received: true }), /background:#dcfce7/);
-  assert.match(bookingFeeNotice({ payingOnline: true }), /Payment pending/);
+  assert.match(bookingFeeNotice({ payingOnline: true }), /PAYMENT PENDING/);
   assert.doesNotMatch(bookingFeeNotice({}), />\$33 RECEIVED</);
 });
 
@@ -82,6 +82,7 @@ test('Stripe records payment and GHL notes without sending any staff email', asy
   process.env.GHL_LOCATION_ID = 'location-fixture';
   let paid = false;
   global.fetch = async (url, init = {}) => {
+    if (String(url).includes('/rest/v1/smoke_acceptance_notifications')) return new Response(JSON.stringify(init.method === 'POST' ? [] : [{ quote_token: token, due_at: new Date().toISOString(), payload: {} }]));
     if (String(url).includes('/rest/v1/quote_emails')) {
       if (init.method === 'PATCH') {
         const rows = paid ? [] : [{ customer_name: 'Example Customer' }]; paid = true;
