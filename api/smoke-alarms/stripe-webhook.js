@@ -1,6 +1,7 @@
 import { sendHostingerMail } from '../../lib/hostinger-mail.js';
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
 import { bookingFeeNotice } from '../../lib/smoke-booking-notice.js';
+import { syncSmokeBookingPaymentNote } from '../../lib/ghl-smoke-alarm-stage.js';
 
 // Stripe needs the exact raw body to verify the signature.
 export const config = { api: { bodyParser: false } };
@@ -79,6 +80,16 @@ export default async function handler(req, res) {
     console.error('[Smoke Stripe] Quote update failed', error.message);
   }
 
+  // Retry the GHL payment note even when an earlier delivery already recorded
+  // the payment and emailed staff. The note helper dedupes by checkout session.
+  let paymentNote;
+  try {
+    paymentNote = await syncSmokeBookingPaymentNote({ quoteToken: token, checkoutSessionId: session.id });
+  } catch (error) {
+    console.error('[Smoke Stripe] GHL payment note failed', error.message);
+    paymentNote = { synced: false, reason: 'ghl-note-failed-network' };
+  }
+
   if (firstNotification) {
     const name = quote?.customer_name || session.metadata?.customer_name || session.customer_details?.name || 'Customer';
     const phone = quote?.customer_phone || session.customer_details?.phone || '—';
@@ -116,6 +127,10 @@ export default async function handler(req, res) {
       }
     }
   }
-  return res.status(200).json({ received: true });
+  if (!paymentNote.synced) {
+    console.error('[Smoke Stripe] GHL payment note needs retry', paymentNote.reason);
+    return res.status(500).json({ error: 'Payment recorded; GHL payment note needs retry.' });
+  }
+  return res.status(200).json({ received: true, ghl_payment_note_synced: true });
 }
 

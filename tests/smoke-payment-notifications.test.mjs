@@ -68,6 +68,8 @@ test('a confirmed stored payment shows received on the return page', async () =>
 
 test('signed paid checkout sends highlighted receipt; unpaid and invalid events send none', async t => {
   const sent = [];
+  const notes = [];
+  let paymentNoteFailures = 1;
   const envBefore = { ...process.env };
   const originalFetch = global.fetch;
   t.after(() => { global.fetch = originalFetch; for (const k of Object.keys(process.env)) if (!(k in envBefore)) delete process.env[k]; Object.assign(process.env, envBefore); });
@@ -76,6 +78,8 @@ test('signed paid checkout sends highlighted receipt; unpaid and invalid events 
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'fixture';
   process.env.HOSTINGER_MAILBOX_RESOURCE_ID = 'fixture';
   process.env.HOSTINGER_MAIL_API_TOKEN = 'fixture';
+  process.env.GHL_API_KEY = 'ghl-fixture';
+  process.env.GHL_LOCATION_ID = 'location-fixture';
   let paid = false;
   global.fetch = async (url, init = {}) => {
     if (String(url).includes('/rest/v1/quote_emails')) {
@@ -83,7 +87,22 @@ test('signed paid checkout sends highlighted receipt; unpaid and invalid events 
         const rows = paid ? [] : [{ customer_name: 'Example Customer' }]; paid = true;
         return new Response(JSON.stringify(rows));
       }
-      return new Response(JSON.stringify([{ customer_name: 'Example Customer', customer_email: 'example@example.com' }]));
+      return new Response(JSON.stringify([{
+        customer_name: 'Example Customer', customer_email: 'example@example.com',
+        customer_address: '12 Example Street, Brisbane QLD 4000',
+        accepted_at: new Date().toISOString(),
+        ...(paid ? { booking_fee_paid_at: new Date().toISOString(), booking_fee_amount: 33, stripe_checkout_session_id: 'cs_fixture' } : {}),
+      }]));
+    }
+    if (String(url).includes('/contacts/?')) return new Response(JSON.stringify({ contacts: [{ id: 'contact-fixture', email: 'example@example.com' }] }));
+    if (String(url).endsWith('/contacts/contact-fixture/notes')) {
+      if (init.method === 'POST') {
+        const note = JSON.parse(init.body);
+        if (note.body.startsWith('$33 paid via Stripe') && paymentNoteFailures-- > 0) return new Response('{}', { status: 503 });
+        notes.push(note);
+        return new Response(JSON.stringify({ note: { id: `note-${notes.length}` } }));
+      }
+      return new Response(JSON.stringify({ notes }));
     }
     if (String(url).startsWith('https://api.mail.hostinger.com/')) { sent.push(JSON.parse(init.body)); return new Response('{}'); }
     throw new Error(`Unexpected request ${url}`);
@@ -101,7 +120,7 @@ test('signed paid checkout sends highlighted receipt; unpaid and invalid events 
   const unpaid = structuredClone(event); unpaid.data.object.payment_status = 'unpaid';
   assert.equal((await invoke(unpaid)).body.ignored, true);
   assert.equal(sent.length, 0);
-  assert.equal((await invoke(event)).code, 200);
+  assert.equal((await invoke(event)).code, 500, 'GHL failures must ask Stripe to retry');
   assert.equal(sent.length, 1);
   assert.equal(sent[0].subject, 'Quote Accepted | $33 RECEIVED | Example Customer');
   assert.match(sent[0].html, /font-size:28px[\s\S]*\$33 RECEIVED/);
@@ -109,4 +128,10 @@ test('signed paid checkout sends highlighted receipt; unpaid and invalid events 
   assert.match(sent[0].html, /Do not collect the booking fee again/);
   assert.equal((await invoke(event)).code, 200);
   assert.equal(sent.length, 1, 'Stripe retries must not send another receipt');
+  assert.equal(notes.length, 2);
+  assert.match(notes[0].body, /^Smoke alarm quote accepted/);
+  assert.match(notes[1].body, /^\$33 paid via Stripe/);
+  assert.match(notes[1].body, /Stripe checkout: cs_fixture/);
+  assert.equal((await invoke(event)).code, 200);
+  assert.equal(notes.length, 2, 'Stripe retries must not add a second payment note');
 });
