@@ -10,7 +10,7 @@ const acceptedAt = '2026-11-24T05:00:00.000Z';
 const token = '123e4567-e89b-12d3-a456-426614174000';
 const html = '<h1>Example Customer</h1><!-- BOOKING_PAYMENT_STATUS -->pending<!-- /BOOKING_PAYMENT_STATUS --><p><!-- BOOKING_NEXT_STEP -->Wait for a second email<!-- /BOOKING_NEXT_STEP --></p>';
 const payload = { html, customer_name: 'Example Customer', total: '$719.00' };
-const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'fixture', RESEND_API_KEY: 'fixture' };
+const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'fixture' };
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status });
 
 function fixture() {
@@ -20,12 +20,6 @@ function fixture() {
   state.fetchImpl = async (url, init = {}) => {
     const parsed = new URL(url), p = parsed.searchParams;
     const body = init.body ? JSON.parse(init.body) : {};
-    if (parsed.pathname === '/emails') {
-      const key = init.headers['Idempotency-Key'];
-      if (sends.has(key)) assert.deepEqual(sends.get(key), body, 'Retries must preserve the exact email payload');
-      else sends.set(key, body);
-      return json({ id: 'email-fixture' });
-    }
     if (parsed.pathname.endsWith('/quote_emails')) return json([quote]);
     if (!parsed.pathname.endsWith('/smoke_acceptance_notifications')) throw Error(`Unexpected URL ${url}`);
     if (init.method === 'POST') {
@@ -49,7 +43,9 @@ function fixture() {
     return json([...rows.values()].filter(matches));
   };
   state.queue = () => queueAcceptanceEmail({ quoteToken: token, acceptedAt, html, customerName: payload.customer_name, total: payload.total, env, fetchImpl: state.fetchImpl });
-  state.run = seconds => dispatchAcceptanceEmails({ env, fetchImpl: state.fetchImpl, now: new Date(Date.parse(acceptedAt) + seconds * 1000) });
+  let n = 0;
+  state.mail = async mail => { sends.set(`send-${++n}`, mail); return { status: 200 }; };
+  state.run = seconds => dispatchAcceptanceEmails({ env, fetchImpl: state.fetchImpl, mail: state.mail, now: new Date(Date.parse(acceptedAt) + seconds * 1000) });
   return state;
 }
 
@@ -125,13 +121,16 @@ test('online payment pending never claims a call was requested, including older 
   }
 });
 
-test('provider acceptance followed by a database failure retries without a second email', async () => {
+test('mail accepted followed by a database failure retries with the exact frozen payload', async () => {
   const state = fixture(); await state.queue(); state.stampFailures = 1;
   assert.equal((await state.run(300)).failed, 1);
   assert.equal(state.sends.size, 1);
   state.quote.booking_fee_paid_at = '2026-11-24T05:04:00.000Z'; state.quote.booking_fee_amount = 33;
   assert.equal((await state.run(600)).sent, 1);
-  assert.equal(state.sends.size, 1);
+  // Hostinger has no idempotency key, so a rare stamp failure resends, but never with changed content.
+  const [first, second] = [...state.sends.values()];
+  assert.deepEqual(second, first);
+  assert.match(second.subject, /NOT RECEIVED/);
 });
 
 test('cron endpoint rejects unauthenticated requests', async () => {
@@ -169,7 +168,7 @@ test('older accepted quotes without an acceptance queue still deliver one staff 
   await queue(); await queue();
   assert.equal(state.rows.size, 1);
   assert.equal(state.rows.get(token + ':paid').payload.kind, 'payment-receipt');
-  const run = () => dispatchAcceptanceEmails({ env, fetchImpl: state.fetchImpl, now: new Date(Date.now() + 60000) });
+  const run = () => dispatchAcceptanceEmails({ env, fetchImpl: state.fetchImpl, mail: state.mail, now: new Date(Date.now() + 60000) });
   assert.equal((await run()).sent, 1);
   assert.equal((await run()).sent, 0);
   const mail = [...state.sends.values()][0];
