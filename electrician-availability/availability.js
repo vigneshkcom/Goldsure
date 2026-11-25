@@ -45,9 +45,9 @@ export const availability = {
   "12-17":["Gurdip"],
   "12-18":["Gurdip","Alex"],
   "12-19":"TBC",
-  "12-21":"TBC","12-22":"TBC","12-23":"TBC","12-24":"TBC",
+  "12-21":["Gurdip"],"12-22":["Gurdip"],"12-23":["Gurdip"],"12-24":"TBC",
   "12-25":"Closed","12-26":"Closed",
-  "12-28":"TBC","12-29":"TBC","12-30":"TBC","12-31":"TBC"
+  "12-28":["Gurdip"],"12-29":["Gurdip"],"12-30":["Gurdip"],"12-31":"TBC"
 };
 
 export const dateKey = (month, day) =>
