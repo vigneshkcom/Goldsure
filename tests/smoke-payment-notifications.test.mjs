@@ -66,10 +66,14 @@ test('a confirmed stored payment shows received on the return page', async () =>
   assert.equal(elements.get('feeStepTitle').textContent, 'Booking fee paid - $33.00');
 });
 
-test('Stripe records payment and GHL notes without sending any staff email', async t => {
+test('Stripe queues staff email, records GHL payment note, and restores Quote Accepted with retries', async t => {
   const sent = [];
   const notes = [];
   let paymentNoteFailures = 1;
+  let stageFailures = 1;
+  let opportunityStage = 'not-interested';
+  let stageUpdates = 0;
+  const queued = [];
   const envBefore = { ...process.env };
   const originalFetch = global.fetch;
   t.after(() => { global.fetch = originalFetch; for (const k of Object.keys(process.env)) if (!(k in envBefore)) delete process.env[k]; Object.assign(process.env, envBefore); });
@@ -82,7 +86,10 @@ test('Stripe records payment and GHL notes without sending any staff email', asy
   process.env.GHL_LOCATION_ID = 'location-fixture';
   let paid = false;
   global.fetch = async (url, init = {}) => {
-    if (String(url).includes('/rest/v1/smoke_acceptance_notifications')) return new Response(JSON.stringify(init.method === 'POST' ? [] : [{ quote_token: token, due_at: new Date().toISOString(), payload: {} }]));
+    if (String(url).includes('/rest/v1/smoke_acceptance_notifications')) {
+      if (init.method === 'POST') queued.push(JSON.parse(init.body));
+      return new Response(JSON.stringify(init.method === 'POST' ? [] : [{ quote_token: token, due_at: new Date().toISOString(), payload: {} }]));
+    }
     if (String(url).includes('/rest/v1/quote_emails')) {
       if (init.method === 'PATCH') {
         const rows = paid ? [] : [{ customer_name: 'Example Customer' }]; paid = true;
@@ -91,7 +98,7 @@ test('Stripe records payment and GHL notes without sending any staff email', asy
       return new Response(JSON.stringify([{
         customer_name: 'Example Customer', customer_email: 'example@example.com',
         customer_address: '12 Example Street, Brisbane QLD 4000',
-        accepted_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(), accepted: true, status: 'accepted',
         ...(paid ? { booking_fee_paid_at: new Date().toISOString(), booking_fee_amount: 33, stripe_checkout_session_id: 'cs_fixture' } : {}),
       }]));
     }
@@ -104,6 +111,14 @@ test('Stripe records payment and GHL notes without sending any staff email', asy
         return new Response(JSON.stringify({ note: { id: `note-${notes.length}` } }));
       }
       return new Response(JSON.stringify({ notes }));
+    }
+    if (String(url).includes('/opportunities/pipelines?')) return new Response(JSON.stringify({ pipelines: [{ id: 'smoke-pipeline', name: 'Smoke Alarms', stages: [{ id: 'quote-accepted', name: 'Quote Accepted' }] }] }));
+    if (String(url).includes('/opportunities/search?')) return new Response(JSON.stringify({ opportunities: [{ id: 'opportunity', pipelineId: 'smoke-pipeline', pipelineStageId: opportunityStage, status: 'open' }] }));
+    if (String(url).endsWith('/opportunities/opportunity') && init.method === 'PUT') {
+      if (stageFailures-- > 0) return new Response('{}', { status: 503 });
+      assert.deepEqual(JSON.parse(init.body), { pipelineStageId: 'quote-accepted' });
+      opportunityStage = 'quote-accepted'; stageUpdates++;
+      return new Response('{}');
     }
     if (String(url).startsWith('https://api.mail.hostinger.com/')) { sent.push(JSON.parse(init.body)); return new Response('{}'); }
     throw new Error(`Unexpected request ${url}`);
@@ -123,12 +138,19 @@ test('Stripe records payment and GHL notes without sending any staff email', asy
   assert.equal(sent.length, 0);
   assert.equal((await invoke(event)).code, 500, 'GHL failures must ask Stripe to retry');
   assert.equal(sent.length, 0);
-  assert.equal((await invoke(event)).code, 200);
-  assert.equal(sent.length, 0, 'Only the delayed queue may send staff email');
+  assert.equal((await invoke(event)).code, 500, 'Stage failures must also ask Stripe to retry');
+  const complete = await invoke(event);
+  assert.equal(complete.code, 200);
+  assert.equal(complete.body.ghl_quote_accepted_synced, true);
+  assert.equal(opportunityStage, 'quote-accepted');
+  assert.equal(stageUpdates, 1);
+  assert.ok(queued.some(item => item.quote_token === token + ':paid'), 'Queue a staff payment confirmation');
+  assert.equal(sent.length, 0, 'Only the durable queue may send staff email');
   assert.equal(notes.length, 2);
   assert.match(notes[0].body, /^Smoke alarm quote accepted/);
   assert.match(notes[1].body, /^\$33 paid via Stripe/);
   assert.match(notes[1].body, /Stripe checkout: cs_fixture/);
   assert.equal((await invoke(event)).code, 200);
   assert.equal(notes.length, 2, 'Stripe retries must not add a second payment note');
+  assert.equal(stageUpdates, 1, 'Do not update an opportunity already in Quote Accepted');
 });

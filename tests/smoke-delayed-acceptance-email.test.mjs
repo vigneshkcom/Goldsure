@@ -161,3 +161,27 @@ test('acceptance handler queues its full email and does not send it immediately'
   assert.match(paid.html, /\$33 RECEIVED/);
   assert.doesNotMatch(paid.html, /separate "PAID" email|Wait for the \$33 RECEIVED|take the \$33.00 booking fee over the phone/);
 });
+
+test('older accepted quotes without an acceptance queue still deliver one staff payment receipt', async () => {
+  const state = fixture();
+  Object.assign(state.quote, { customer_name: 'Pamela Whitehouse', grand_total: 572, booking_fee_paid_at: '2026-11-25T00:00:00Z', booking_fee_amount: 33 });
+  const queue = () => queuePaymentCorrection({ quoteToken: token, env, fetchImpl: state.fetchImpl });
+  await queue(); await queue();
+  assert.equal(state.rows.size, 1);
+  assert.equal(state.rows.get(token + ':paid').payload.kind, 'payment-receipt');
+  const run = () => dispatchAcceptanceEmails({ env, fetchImpl: state.fetchImpl, now: new Date(Date.now() + 60000) });
+  assert.equal((await run()).sent, 1);
+  assert.equal((await run()).sent, 0);
+  const mail = [...state.sends.values()][0];
+  assert.match(mail.subject, /Payment Received \| \$33 RECEIVED \| Pamela Whitehouse/);
+  assert.match(mail.html, /customer has paid their \$33 booking fee via Stripe/);
+  assert.ok(mail.to.includes('vignesh@goldsure.com.au'));
+  assert.equal(state.sends.size, 1);
+});
+
+test('old quotes cannot queue a receipt without verified stored payment', async () => {
+  const state = fixture();
+  await assert.rejects(queuePaymentCorrection({ quoteToken: token, env, fetchImpl: state.fetchImpl }), /requires verified payment/);
+  assert.equal(state.rows.size, 0);
+  assert.equal(state.sends.size, 0);
+});

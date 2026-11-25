@@ -1,7 +1,7 @@
 
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
 
-import { syncSmokeBookingPaymentNote } from '../../lib/ghl-smoke-alarm-stage.js';
+import { syncSmokeBookingPaymentNote, syncAcceptedQuoteStage } from '../../lib/ghl-smoke-alarm-stage.js';
 import { queuePaymentCorrection } from '../../lib/smoke-acceptance-notifications.js';
 
 // Stripe needs the exact raw body to verify the signature.
@@ -88,6 +88,23 @@ export default async function handler(req, res) {
     console.error('[Smoke Stripe] GHL payment note needs retry', paymentNote.reason);
     return res.status(500).json({ error: 'Payment recorded; GHL payment note needs retry.' });
   }
-  return res.status(200).json({ received: true, ghl_payment_note_synced: true });
+  // Recheck the opportunity after payment, including customers who paid later
+  // through a reminder link. Reuse the stage-only sync to avoid duplicate notes.
+  let paymentStage;
+  try {
+    paymentStage = await syncAcceptedQuoteStage({
+      quoteToken: token, quoteTable: 'quote_emails', pipelineNames: ['Smoke Alarms'],
+      pipelineId: process.env.SMOKE_ALARMS_PIPELINE_ID,
+      stageId: process.env.SMOKE_ALARMS_QUOTE_ACCEPTED_STAGE_ID,
+    });
+  } catch (error) {
+    console.error('[Smoke Stripe] GHL paid stage failed', error.message);
+    paymentStage = { moved: false, reason: 'ghl-stage-failed-network' };
+  }
+  if (!paymentStage.moved && paymentStage.reason !== 'already-in-quote-accepted') {
+    console.error('[Smoke Stripe] GHL paid stage needs retry', paymentStage.reason);
+    return res.status(500).json({ error: 'Payment recorded; GHL Quote Accepted stage needs retry.' });
+  }
+  return res.status(200).json({ received: true, ghl_payment_note_synced: true, ghl_quote_accepted_synced: true });
 }
 
