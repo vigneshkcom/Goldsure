@@ -216,6 +216,7 @@ footer a { color: var(--gold); text-decoration: none; }
       <div class="icon-wrap">✅</div>
       <h2>Quote Accepted!</h2>
       <p class="subtitle" id="successSubtitle">Thank you for accepting your Goldsure smoke alarm quote.<br>Our team will be in touch shortly to confirm your booking.</p>
+      <button class="accept-button" type="button" id="successPaymentButton" onclick="resumeBookingPayment(this)" style="display:none">Pay $33 Booking Fee</button>
 
       <div class="info-block" id="quoteInfoBlock">
         <div class="info-block-title">Your Quote Summary</div>
@@ -278,8 +279,11 @@ footer a { color: var(--gold); text-decoration: none; }
     <!-- ALREADY ACCEPTED -->
     <div class="state-already" id="stateAlready">
       <div class="icon-wrap">ℹ️</div>
-      <h2>Already Accepted</h2>
-      <p>This quote has already been accepted. Our team will be in touch if they haven't already.<br><br>Questions? Call us on <a href="tel:0721455155" style="color:var(--gold);font-weight:600;">(07) 2145 5155</a>.</p>
+      <h2>Quote Accepted</h2>
+      <p>Your quote is accepted. Your <strong>$33 booking fee is pending</strong>. Please pay securely online so we can secure your booking, or call our team for assistance.</p>
+      <button class="accept-button" type="button" id="resumePaymentButton" onclick="resumeBookingPayment()">Pay $33 Booking Fee</button>
+      <p id="resumePaymentError" role="status" style="margin-top:12px"></p>
+      <p style="margin-top:16px">Prefer to pay over the phone? <a href="tel:0721455155" style="color:var(--gold);font-weight:600;">Call (07) 2145 5155</a>.</p>
     </div>
 
     <div class="state-expired" id="stateExpired">
@@ -542,13 +546,7 @@ async function processAcceptance() {
         showState('stateSuccess');
         return;
       }
-      if (params.get('paid') === '0' && !row.booking_fee_paid_at) {
-        buildQuoteInfo(row, row.accepted_at);
-        showSuccessMessage('cancelled');
-        showState('stateSuccess');
-        return;
-      }
-      showState('stateAlready');
+      showAcceptedPayment(row);
       return;
     }
 
@@ -630,7 +628,7 @@ async function submitAcceptance(event) {
     const updatedRow=result.quote;
     if(!updatedRow?.accepted_at)throw new Error('Acceptance was not saved');
     const acceptedAt=updatedRow.accepted_at;
-    if(result.already_accepted){showState('stateAlready');return;}
+    if(result.already_accepted){showAcceptedPayment(updatedRow);return;}
 
     buildQuoteInfo({ ...row, ...updatedRow, customer_address: propertyAddress }, acceptedAt);
 
@@ -662,11 +660,49 @@ async function submitAcceptance(event) {
   }
 }
 
+function showAcceptedPayment(row) {
+  if (bookingFeeReceived(row)) {
+    buildQuoteInfo(row, row.accepted_at);
+    showSuccessMessage('paid');
+    showState('stateSuccess');
+    return;
+  }
+  if (['rejected', 'expired', 'installed'].includes(String(row.status || '').toLowerCase())) {
+    showState('stateError');
+    document.getElementById('errorMsg').textContent = 'Online booking fee payment is unavailable for this quote. Please call us on (07) 2145 5155.';
+    return;
+  }
+  showState('stateAlready');
+}
+async function resumeBookingPayment(button = document.getElementById('resumePaymentButton')) {
+  const error = document.getElementById('resumePaymentError');
+  button.disabled = true;
+  button.textContent = 'Opening secure payment...';
+  error.textContent = '';
+  try {
+    const response = await fetch('/api/smoke-alarms/quotes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create-checkout', token: new URLSearchParams(location.search).get('token') }),
+    });
+    const data = await response.json();
+    if (data.already_paid) { await processAcceptance(); return; }
+    if (!response.ok || !data.url) throw new Error(data.error || 'We could not open secure payment. Please try again or call (07) 2145 5155.');
+    window.location.href = data.url;
+  } catch (err) {
+    error.textContent = err.message;
+    if (button.id === 'successPaymentButton') alert(err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Pay $33 Booking Fee';
+  }
+}
+
 function bookingFeeReceived(row) {
   return Boolean(row?.booking_fee_paid_at && Number.isFinite(Date.parse(row.booking_fee_paid_at)) && Number(row.booking_fee_amount) === 33);
 }
 
 function showSuccessMessage(kind) {
+  document.getElementById('successPaymentButton').style.display = ['paid', 'pending'].includes(kind) ? 'none' : 'block';
   const subtitle = document.getElementById('successSubtitle');
   const title = document.getElementById('feeStepTitle');
   const text = document.getElementById('feeStepText');

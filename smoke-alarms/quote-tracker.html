@@ -426,6 +426,7 @@ td { padding: 9px 14px; font-size: 13px; color: var(--text); vertical-align: mid
 </main>
 <div class="toast" id="toast"></div>
 
+<script src="/assets/smoke-booking-fee.js"></script>
 <script data-cfasync="false">
 const SUPABASE_URL = 'https://yxgdixwneprhjxzdlaqw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_94nQfItNfgNZZc2P1Slb1Q_ECjCmu47';
@@ -816,6 +817,31 @@ function renderDaysPill(days, staleAfter = 3) {
   return `<span class="${cls}">${days === 0 ? 'Today' : `${days}d`}</span>`;
 }
 
+function renderBookingFee(q) {
+  if (!q.accepted_at) return '';
+  if (GoldsureBookingFee.received(q)) return '<div style="margin-top:8px;color:#14532d;font-size:12px">Booking fee $33 paid<br>' + esc(new Date(q.booking_fee_paid_at).toLocaleDateString('en-AU', { timeZone: 'Australia/Brisbane' })) + '</div>';
+  if (!GoldsureBookingFee.eligible(q)) return '';
+  return `<div style="margin-top:8px;color:#9a3412;font-size:12px">Booking fee $33 pending</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">
+    <a class="view-btn" href="${GoldsureBookingFee.url(q)}" target="_blank" rel="noopener">Pay $33 ↗</a>
+    <button class="reminder-btn" onclick="trackerBookingFee(this, '${q.id}', 'copy')">Copy link</button>
+    ${q.customer_email ? `<button class="reminder-btn" onclick="trackerBookingFee(this, '${q.id}', 'email')">Email fee reminder</button>` : ''}</div>`;
+}
+async function trackerBookingFee(button, id, action) {
+  const q = allQuotes.find(item => String(item.id) === String(id));
+  if (!q) return;
+  button.disabled = true;
+  try {
+    if (action === 'copy') { await GoldsureBookingFee.copy(q); showToast('Payment link copied'); }
+    else {
+      if (!confirm(`Send the $33 booking fee reminder email to ${q.customer_email}?`)) return;
+      const result = await GoldsureBookingFee.email(q);
+      showToast(result.warning || 'Booking fee reminder email sent');
+    }
+  } catch (error) { showToast(error.message); }
+  finally { button.disabled = false; }
+}
+
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (!filtered.length) {
@@ -857,7 +883,7 @@ function renderTable() {
       <td>${renderViewStat(q)}</td>
       <td><button class="status-btn" onclick="toggleMenu(event,this)" title="Change status"><span class="badge ${statusClass}">${statusLabel}</span><div class="status-menu">${menuItems}</div></button></td>
       <td><button class="ghl-stage-btn status-btn" onclick="toggleGhlMenu(event,this,'${q.id}')" data-email="${esc((q.customer_email||'').toLowerCase().trim())}" title="Change GHL pipeline stage"><span id="ghl-${q.id}" class="${ghlBadgeCls}">${esc(ghlBadgeText)}</span><div class="status-menu ghl-stage-menu" id="ghl-menu-${q.id}"></div></button><br><button class="ghln-link" onclick="openQuoteGhlNotes('${q.id}')">View GHL notes</button></td>
-      <td><a class="view-btn" href="/smoke-alarms/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a></td>
+      <td><a class="view-btn" href="/smoke-alarms/quote.html?token=${encodeURIComponent(q.quote_token)}&source=tracker" target="_blank">View</a>${renderBookingFee(q)}</td>
       <td><div class="row-actions"><button class="reminder-btn" onclick="sendReminder('${q.id}')" ${canRemind && !q._reminderSending ? '' : 'disabled'}>${q._reminderSending ? 'Sending…' : 'Remind'}</button></div></td>
       <td>${renderDaysPill(reminderAgeDays, 2)}</td>
       <td><span class="count-badge${reminderCount > 0 ? ' has-reminders' : ''}">${reminderCount}</span></td>

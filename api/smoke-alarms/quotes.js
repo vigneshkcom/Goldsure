@@ -1,4 +1,5 @@
 import acceptHandler from './accept.js';
+import { sendBookingFeeReminder } from '../../lib/smoke-booking-reminder.js';
 import { adjustSmokeQuote } from '../../lib/smoke-quote-adjustment.js';
 import { parseAcceptedPropertyAddress, pushStaffSmokeQuoteToDataforce } from '../../lib/dataforce-smoke-quote.js';
 import { createBookingFeeCheckout, isValidQuoteToken } from '../../lib/smoke-stripe.js';
@@ -13,6 +14,7 @@ export default async function handler(req, res) {
   if (action === 'staff-push-dataforce') return pushStaffQuote(req, res);
   if (action === 'accept-customer') return acceptCustomer(req, res);
   if (action === 'create-checkout') return createCheckout(req, res);
+  if (action === 'send-booking-reminder') return sendBookingFeeReminder(req, res);
   if (action !== 'record-view') return res.status(400).json({ error: 'Unknown action.' });
   if (!token) return res.status(400).json({ error: 'token is required.' });
 
@@ -121,6 +123,7 @@ async function createCheckout(req, res) {
     const [quote] = await lookup.json();
     if (!quote) return res.status(404).json({ error: 'Quote not found.' });
     if (!quote.accepted_at) return res.status(409).json({ error: 'Please accept your quote first.' });
+    if (['rejected', 'expired', 'installed'].includes(String(quote.status || '').toLowerCase())) return res.status(409).json({ error: 'Online booking fee payment is unavailable for this quote. Please call (07) 2145 5155.' });
     if (quote.booking_fee_paid_at) return res.status(409).json({ error: 'The booking fee has already been paid.', already_paid: true });
     const checkout = await createBookingFeeCheckout({ quote, quoteToken: token });
     return res.status(200).json({ success: true, url: checkout.url });

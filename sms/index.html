@@ -1233,6 +1233,7 @@
 </dialog>
 <div class="task-created-toast" id="taskCreatedToast"></div>
 
+<script src="/assets/smoke-booking-fee.js"></script>
 <script>
   const API = '/api/battery/request-callback';
   const AGENT_NAME = 'Goldsure';
@@ -1558,6 +1559,7 @@
         <div class="q-actions">
           <a class="q-view" href="${esc(q.url)}" target="_blank" rel="noopener" title="Open the quote the customer received">Quote <span aria-hidden="true">↗</span></a>
           <a class="q-view" href="${esc(q.tracker)}?search=${encodeURIComponent(trackerSearch(phone) || q.customerName)}" target="_blank" rel="noopener" title="Open the ${esc(q.label)} quote tracker, filtered to this customer">Tracker <span aria-hidden="true">↗</span></a>
+          ${renderBookingFeeActions(q, i)}
           <label class="q-status st-${esc(q.status)}" title="Change quote status">
             <select data-i="${i}" onchange="changeQuoteStatus(this)" aria-label="Quote status">
               ${statuses.map(s => `<option value="${esc(s)}" ${s === q.status ? 'selected' : ''}>${esc(statusLabel(s))}</option>`).join('')}
@@ -1588,6 +1590,67 @@
       </div>`;
     }).join('');
     el.innerHTML = `<div class="quotes-title">Quotes &amp; photos</div><div class="quotes-list">${quoteCards}${photoCards}</div>`;
+  }
+
+  function bookingQuote(q) {
+    return { quote_token: q.token, accepted_at: q.acceptedAt, status: q.status,
+      booking_fee_paid_at: q.bookingFeePaidAt, booking_fee_amount: q.bookingFeeAmount,
+      customer_name: q.customerName };
+  }
+  function renderBookingFeeActions(q, i) {
+    if (q.product !== 'smoke' || !q.acceptedAt) return '';
+    const quote = bookingQuote(q);
+    if (GoldsureBookingFee.received(quote)) {
+      const date = new Date(q.bookingFeePaidAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Brisbane' });
+      return '<span class="q-view" style="background:#dcfce7;color:#14532d">Booking fee $33 paid · ' + esc(date) + '</span>';
+    }
+    if (!GoldsureBookingFee.eligible(quote)) return '';
+    return `<span class="q-view" style="background:#fff7ed;color:#9a3412">Booking fee $33 pending</span>
+      <a class="q-view" href="${esc(GoldsureBookingFee.url(quote))}" target="_blank" rel="noopener">Pay $33 ↗</a>
+      <button type="button" class="q-view" onclick="bookingFeeAction(this, ${i}, 'copy')">Copy payment link</button>
+      <button type="button" class="q-view" onclick="bookingFeeAction(this, ${i}, 'sms')">Draft payment SMS</button>
+      ${q.customerEmail ? `<button type="button" class="q-view" onclick="bookingFeeAction(this, ${i}, 'email')">Email fee reminder</button>` : ''}`;
+  }
+  async function bookingFeeAction(button, index, action) {
+    const phone = activePhone;
+    const q = (quotesByPhone[phone] || [])[index];
+    if (!q) return;
+    // Refresh the quote before preparing a reminder, in case payment just arrived.
+    button.disabled = true;
+    const label = button.textContent;
+    try {
+      const response = await fetch(`${API}?action=contact-quotes&phone=${encodeURIComponent(phone)}`);
+      if (!response.ok) throw new Error('Could not check the latest payment status. Please try again.');
+      const data = await response.json();
+      const latest = (data.quotes || []).find(item => item.product === 'smoke' && item.id === q.id);
+      if (!latest || !GoldsureBookingFee.eligible(bookingQuote(latest))) {
+        await loadContactQuotes(phone);
+        alert('This quote no longer needs a booking fee reminder. Please check its latest status.');
+        return;
+      }
+      if (phone !== activePhone) return;
+      const quote = bookingQuote(latest);
+      if (action === 'copy') {
+        await GoldsureBookingFee.copy(quote);
+        button.textContent = 'Link copied';
+      } else if (action === 'sms') {
+        const input = document.getElementById('msgInput');
+        if (input.value.trim() && !confirm('Replace the current draft with the booking fee reminder?')) return;
+        if (noteMode) toggleNoteMode();
+        if (schedBarOpen) toggleSchedule();
+        input.value = GoldsureBookingFee.sms(quote);
+        autoResize(input); updateCharCount(input.value); updatePhonePreview(); input.focus();
+      } else if (action === 'email') {
+        if (!confirm(`Send the $33 booking fee reminder email to ${latest.customerEmail}?`)) return;
+        const result = await GoldsureBookingFee.email(quote);
+        button.textContent = 'Email sent';
+        if (result.warning) alert(result.warning);
+      }
+    } catch (error) { alert(error.message); }
+    finally {
+      button.disabled = false;
+      if (button.textContent === label) button.textContent = label;
+    }
   }
 
   async function changeQuoteStatus(sel) {
