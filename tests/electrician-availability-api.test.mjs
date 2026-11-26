@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/electrician-availability.js';
 
-test('API shows only December onward and hides past dates even with a cached schedule', async () => {
+test('API shows the extra Saturday and December onward and hides past dates even with a cached schedule', async () => {
   const originalFetch = global.fetch;
   const originalId = process.env.DATAFORCE_CLIENT_ID;
   const originalSecret = process.env.DATAFORCE_CLIENT_SECRET;
@@ -18,7 +18,7 @@ test('API shows only December onward and hides past dates even with a cached sch
     else if (url.endsWith('/appointments/search')) {
       const body = JSON.parse(init.body);
       requestedWorkers.push(body.filterGroups[0].filters[0].value);
-      assert.equal(body.filterGroups[0].filters[1].value, '2026-12-01T00:00:00');
+      assert.equal(body.filterGroups[0].filters[1].value, '2026-11-28T00:00:00');
       payload = { records: [] };
     } else throw new Error('Unexpected URL ' + url);
     return { ok: true, status: 200, json: async () => payload };
@@ -35,7 +35,7 @@ test('API shows only December onward and hides past dates even with a cached sch
     await handler({ method: 'POST', headers: {}, body: {} }, res);
     assert.equal(res.code, 200);
     assert.ok(res.body.matches.length > 0);
-    assert.ok(res.body.matches.every(row => row.date >= '2026-12-01'));
+    assert.deepEqual(res.body.matches.filter(row => row.date < '2026-12-01').map(row => [row.date,row.name]), [['2026-11-28','Gurdip']]);
     global.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : ['2026-12-07T14:30:00Z'])); } };
     await handler({ method: 'POST', headers: {}, body: {} }, res);
     assert.ok(res.body.matches.length > 0);

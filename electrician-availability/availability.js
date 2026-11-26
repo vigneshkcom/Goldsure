@@ -1,16 +1,19 @@
 export const year = 2026;
 export const months = [
+  { name: "November 2026", month: 11, firstDay: 28, days: 28 },
   { name: "December 2026", month: 12, days: 31 }
 ];
 
 export const areaSearchStartDate = '2026-12-01';
 
+const extraSaturday = '2026-11-28';
 const brisbaneDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit'
 });
 
 export function getAvailabilityStartDate(now = new Date()) {
   const today = brisbaneDate.format(now);
+  if (today <= extraSaturday) return extraSaturday;
   return today > areaSearchStartDate ? today : areaSearchStartDate;
 }
 
@@ -46,18 +49,20 @@ export const availability = {
   "11-25":["Gurdip"],
   "11-26":["Gurdip","Alex","Josh"],
   "11-27":["Gurdip","Josh"],
+  "11-28":["Gurdip"],
   "11-30":["Gurdip","Mason"],
   // December
   "12-1":["Gurdip"],
   "12-2":["Gurdip","Mason"],
   "12-3":["Gurdip","Alex"],
   "12-4":["Gurdip"],
+  "12-5":["Gurdip"],
   "12-7":["Gurdip","Alex","Mason"],
   "12-8":["Gurdip","Alex","Mason"],
   "12-9":["Gurdip"],
   "12-10":["Gurdip"],
   "12-11":["Gurdip","Alex"],
-  "12-12":["Mason"],
+  "12-12":["Mason","Gurdip"],
   "12-14":["Gurdip","Alex","Mason"],
   "12-15":["Gurdip","Mason"],
   "12-16":["Gurdip","Mason"],
@@ -75,6 +80,6 @@ export const dateKey = (month, day) =>
 export const availableDates = Object.entries(availability)
   .filter(([, electricians]) => Array.isArray(electricians))
   .map(([day, electricians]) => ({ date: dateKey(...day.split('-')), electricians }))
-  .filter(({ date }) => date >= areaSearchStartDate)
+  .filter(({ date }) => date === extraSaturday || date >= areaSearchStartDate)
   .sort((a, b) => a.date.localeCompare(b.date));
 

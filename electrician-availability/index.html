@@ -133,15 +133,15 @@ function setCount(element, count, name, windowCounts) {
 const countElements = new Map();
 function renderCalendar() {
   const start = getAvailabilityStartDate();
-  for (const { name, month, days } of months) {
+  for (const { name, month, days, firstDay = 1 } of months) {
     if (dateKey(month, days) < start) continue;
     const panel = createElement('div', 'month');
     const grid = createElement('div', 'grid');
     panel.append(createElement('h2', '', name), grid);
     weekdayLabels.forEach(label => grid.appendChild(createElement('div', 'dow', label)));
-    const leadingDays = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+    const leadingDays = (new Date(year, month - 1, firstDay).getDay() + 6) % 7;
     for (let i = 0; i < leadingDays; i++) grid.appendChild(createElement('div', 'day empty'));
-    for (let day = 1; day <= days; day++) {
+    for (let day = firstDay; day <= days; day++) {
       if (dateKey(month, day) < start) {
         grid.appendChild(createElement('div', 'day empty'));
         continue;
