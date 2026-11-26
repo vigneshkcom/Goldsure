@@ -163,11 +163,27 @@ function renderCalendar() {
   }
 }
 
+let resultsExpiry;
+function clearResults(message = '') {
+  clearTimeout(resultsExpiry);
+  resultsTable.hidden = true;
+  resultsBody.replaceChildren();
+  checkerStatus.textContent = message;
+}
+areaInput.addEventListener('input', () => clearResults());
+window.addEventListener('pageshow', event => {
+  if (event.persisted) clearResults('Check availability again for current spaces.');
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearResults('Check availability again for current spaces.');
+});
+
 let countsRevision = 0;
 async function lookup(area = '') {
   const revision = ++countsRevision;
-  const response = await fetch('/api/electrician-availability', {
+  const response = await fetch('/api/electrician-availability?checked=' + Date.now(), {
     method: 'POST',
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ area })
   });
@@ -200,8 +216,7 @@ async function loadCounts() {
 $('checker-form').addEventListener('submit', async event => {
   event.preventDefault();
   const area = areaInput.value.trim();
-  resultsTable.hidden = true;
-  resultsBody.replaceChildren();
+  clearResults();
   if (!area) {
     checkerStatus.textContent = 'Enter a suburb or postcode.';
     areaInput.focus();
@@ -216,6 +231,7 @@ $('checker-form').addEventListener('submit', async event => {
   checkerStatus.textContent = 'Checking booked routes.';
   try {
     const { matches, incomplete } = await lookup(area);
+    if (areaInput.value.trim() !== area || document.hidden) return;
     for (const match of matches) {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
@@ -226,6 +242,9 @@ $('checker-form').addEventListener('submit', async event => {
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
+    if (matches.length) {
+      resultsExpiry = setTimeout(() => clearResults('Availability has expired. Find electricians again for current spaces.'), 60 * 1000);
+    }
     checkerStatus.textContent = matches.some(match => match.priority)
       ? 'Priority dates are listed first, then the closest booked areas. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
       : matches.length ? 'Suggested windows match the booked route and available AM/PM capacity.'
