@@ -3,6 +3,7 @@ export function withSmokeProductApi(fetchImpl) {
  let saved={answers:[],blockAnswers:[]};
  return async (url,options={})=>{
   const path=new URL(url).pathname;
+  if(/\/jobs\/\d+$/.test(path))return new Response(JSON.stringify({customerId:91}),{status:200});
   if(/\/jobs\/\d+\/questions$/.test(path)){
    if(options.method==='POST')saved=JSON.parse(options.body);
    return new Response(JSON.stringify(saved),{status:200});
@@ -18,3 +19,4 @@ export function withSmokeProductApi(fetchImpl) {
   return fetchImpl(url,options);
  };
 }
+
