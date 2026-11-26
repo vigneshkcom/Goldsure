@@ -91,7 +91,7 @@
 </div>
 <script type="module">
 import { verifyRouteCandidates } from '/electrician-availability/route-check.js';
-import { availability, months, year, dateKey, bookingLimit, bookingRule, bookingWindowLimits, getAvailabilityStartDate } from '/electrician-availability/availability.js';
+import { availability, months, year, dateKey, shiftFor, bookingLimit, bookingRule, bookingWindowLimits, getAvailabilityStartDate } from '/electrician-availability/availability.js';
 
 const $ = id => document.getElementById(id);
 const monthsRoot = $('months');
@@ -157,6 +157,8 @@ function renderCalendar() {
           countElements.set(dateKey(month, day) + '/' + worker, count);
           chip.append(createElement('span', 'chip-name', worker), count);
           const rule = bookingRule(dateKey(month, day), worker);
+          const shift = shiftFor(dateKey(month, day), worker);
+          if (shift?.startHour) chip.appendChild(createElement('span', 'battery-note', shift.startHour + ' am start'));
           if (rule?.batteryOnly) chip.appendChild(createElement('span', 'battery-note', 'Battery alarms only'));
           if (rule) chip.title = rule.southGoldCoast ? 'Priority: South Gold Coast' : 'Priority: battery alarms only';
           setCount(count, null, worker);

@@ -26,7 +26,12 @@ export const bookingPriorities = {
 };
 
 export const bookingRule = (date, name) => bookingPriorities[date + '/' + name];
-export const bookingLimit = (date, name) => bookingRule(date, name)?.limit ?? dailyLimits[name];
+const shifts = {
+  '2026-12-12/Mason': { limit: 6 },
+  '2026-12-22/Mason': { startHour: 7 }
+};
+export const shiftFor = (date, name) => shifts[date + '/' + name];
+export const bookingLimit = (date, name) => shiftFor(date, name)?.limit ?? bookingRule(date, name)?.limit ?? dailyLimits[name];
 
 // The extra job on an odd-capacity day belongs to the morning.
 export function bookingWindowLimits(date, name) {
@@ -52,14 +57,14 @@ export const availability = {
   "12-9":["Gurdip"],
   "12-10":["Gurdip"],
   "12-11":["Gurdip","Alex"],
-  "12-12":"TBC",
+  "12-12":["Mason"],
   "12-14":["Gurdip","Alex","Mason"],
   "12-15":["Gurdip","Mason"],
   "12-16":["Gurdip","Mason"],
   "12-17":["Gurdip"],
   "12-18":["Gurdip","Alex"],
   "12-19":"TBC",
-  "12-21":["Gurdip"],"12-22":["Gurdip"],"12-23":["Gurdip"],"12-24":"TBC",
+  "12-21":["Gurdip"],"12-22":["Gurdip","Mason"],"12-23":["Gurdip"],"12-24":"TBC",
   "12-25":"Closed","12-26":"Closed",
   "12-28":["Gurdip"],"12-29":["Gurdip"],"12-30":["Gurdip"],"12-31":"TBC"
 };
