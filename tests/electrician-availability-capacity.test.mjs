@@ -46,16 +46,18 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
   };
   try {
     let result = await request();
-    assert.equal(result.matches.find(row => row.name === 'Gurdip')?.remaining, 1);
+    assert.deepEqual(result.matches, [], 'unverified candidates are never exposed as available matches');
+    assert.equal(result.routeVerificationRequired, true);
+    assert.equal(result.candidates.find(row => row.name === 'Gurdip')?.remaining, 1);
     assert.equal(result.counts.find(row => row.name === 'Gurdip' && row.date === '2026-12-02').jobCount, 5);
     for (count of [6, 7]) {
       result = await request();
-      assert.ok(result.matches.every(row => row.name !== 'Gurdip'));
+      assert.ok((result.candidates || []).every(row => row.name !== 'Gurdip'));
       assert.equal(result.counts.find(row => row.name === 'Gurdip' && row.date === '2026-12-02').jobCount, count);
     }
     assert.equal(workerRequests, 3, 'each search fetches fresh bookings');
     const cornubia = await request({area:'4130'});
-    assert.ok(cornubia.matches.every(row => row.name !== 'Alex' || row.date !== '2026-12-03'), 'Dataforce six PM bookings exclude Alex despite four daily spaces');
+    assert.ok(cornubia.candidates.every(row => row.name !== 'Alex' || row.date !== '2026-12-03'), 'Dataforce six PM bookings exclude Alex despite four daily spaces');
     fail = true;
     result = await request();
     assert.ok(result.matches.every(row => row.name !== 'Gurdip'));

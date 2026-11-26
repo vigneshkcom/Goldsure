@@ -1,4 +1,3 @@
-import { verifyInsertion } from '../lib/electrician-route-fit.js';
 import { availableDates, getAvailabilityStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
 import { lookupArea, suggestRoutes, appointmentWindow } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
@@ -277,26 +276,12 @@ export default async function handler(req, res) {
     const suggestions = suggestRoutes(upcoming, target, locations, dailyLimits, {
       alarmType, durationMinutes, maxOptions: 18
     });
-    let incomplete = suggestions.incomplete;
-    const verificationDeadline = Date.now() + 20000;
-    const verified = await mapWithConcurrency(suggestions.matches, 4, async match => {
-      const { routePlans = [], ...publicMatch } = match;
-      for (const plan of routePlans) {
-        if (Date.now() > verificationDeadline) { incomplete = true; return null; }
-        try {
-          const timing = await verifyInsertion(plan, {
-            apiKey: process.env.GOOGLE_MAPS_ROUTES_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-          });
-          if (timing) return { ...publicMatch, windowRemaining: 1, routeChecked: true, durationMinutes };
-        } catch (error) {
-          incomplete = true;
-          console.error('Availability driving verification failed:', error.message);
-          return null;
-        }
-      }
-      return null;
+    // Only the configured browser Maps key can verify driving routes.
+    // Candidates remain explicitly unverified until the page checks both legs.
+    return res.status(200).json({
+      matches: [], candidates: suggestions.matches, routeVerificationRequired: true,
+      incomplete: suggestions.incomplete, counts
     });
-    return res.status(200).json({ matches: verified.filter(Boolean).slice(0,6), incomplete, counts });
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });
