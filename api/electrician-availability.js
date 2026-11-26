@@ -7,7 +7,25 @@ const DATAFORCE_INSTANCE = 'GOLDSURE_ASAP';
 const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const workerIds = new Map([['Alex', 1009], ['Gurdip', 1011], ['Mason', 1012]]);
 const cache = new Map();
-const CACHE_TTL_MS = 2 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 1000;
+let requestQueue = Promise.resolve();
+async function limitedFetch(url, init) {
+  const run = async () => {
+    let response;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch(url, init);
+      if (response.status !== 429) break;
+      const retry = Number(response.headers?.get?.('retry-after'));
+      const delay = retry > 0 ? Math.min(retry * 1000, 8000) : (attempt + 1) * 1500;
+      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    await new Promise(resolve => setTimeout(resolve, 120));
+    return response;
+  };
+  const pending = requestQueue.then(run, run);
+  requestQueue = pending.then(() => {}, () => {});
+  return pending;
+}
 const requestLimits = new Map();
 
 function dataforceConfig() {
@@ -20,12 +38,16 @@ function dataforceConfig() {
 }
 
 async function dataforceToken() {
+  return cached('token', loadDataforceToken);
+}
+
+async function loadDataforceToken() {
   const { clientId, clientSecret } = dataforceConfig();
   const body = new URLSearchParams({
     grant_type: DATAFORCE_GRANT_TYPE,
     scope: 'appointment customer fieldworker job'
   });
-  const response = await fetch(`${DATAFORCE_BASE_URL}/authorization/token`, {
+  const response = await limitedFetch(`${DATAFORCE_BASE_URL}/authorization/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
@@ -41,7 +63,7 @@ async function dataforceToken() {
 }
 
 async function dataforceFetch(token, path, init = {}) {
-  const response = await fetch(`${DATAFORCE_BASE_URL}${path}`, {
+  const response = await limitedFetch(`${DATAFORCE_BASE_URL}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -55,7 +77,7 @@ async function dataforceFetch(token, path, init = {}) {
 }
 
 async function dataforceOptionalFetch(token, path) {
-  const response = await fetch(`${DATAFORCE_BASE_URL}${path}`, {
+  const response = await limitedFetch(`${DATAFORCE_BASE_URL}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
   if (response.status === 404) return null;
@@ -112,13 +134,7 @@ async function dataforceWorkerAppointments(token, fieldworkerId, startDate, endD
     if (page.length < 100) break;
   }
 
-  return mapWithConcurrency(appointments.filter(appointmentIsBooked), 8, async appointment => {
-    if (Number.isFinite(Number(appointment.duration)) && Number(appointment.duration) > 0) return appointment;
-    if (!appointment.appointmentId) return appointment;
-    const details = await dataforceOptionalFetch(token, '/' + encodeURIComponent(instance)
-      + '/appointments/' + encodeURIComponent(appointment.appointmentId)).catch(() => null);
-    return { ...appointment, duration: details?.duration };
-  });
+  return appointments.filter(appointmentIsBooked);
 }
 
 async function cached(key, load) {
@@ -173,7 +189,15 @@ function listFromPayload(payload, keys = []) {
   return [];
 }
 
-async function availabilitySchedule() {
+async function availabilitySchedule(fresh = false) {
+  if (fresh) return loadAvailabilitySchedule();
+  return cached('schedule', async () => {
+    const rows = await loadAvailabilitySchedule();
+    if (rows.some(row => row.appointments === null)) cache.delete('schedule');
+    return rows;
+  });
+}
+async function loadAvailabilitySchedule() {
   const token = await dataforceToken();
   const { instance } = dataforceConfig();
   const start = availableDates[0].date;
@@ -214,15 +238,25 @@ async function availabilitySchedule() {
 }
 
 async function availabilityAreas(schedule) {
+  const missingDurations = schedule.flatMap(row => row.appointments || []).filter(appointment =>
+    !(Number(appointment.duration) > 0) && appointment.appointmentId);
+  if (missingDurations.length) {
+    const token = await dataforceToken();
+    await mapWithConcurrency(missingDurations, 2, async appointment => {
+      const details = await cached('appointment/' + appointment.appointmentId, () =>
+        dataforceOptionalFetch(token, '/' + DATAFORCE_INSTANCE + '/appointments/' + appointment.appointmentId)).catch(() => null);
+      appointment.duration = details?.duration;
+    });
+  }
   const ids = [...new Set(schedule.flatMap(row => (row.appointments || [])
     .map(appointment => appointment.customerId)).filter(Boolean))];
   if (!ids.length) return new Map();
 
   const token = await dataforceToken();
   const { instance } = dataforceConfig();
-  const entries = await mapWithConcurrency(ids, 8, async id => {
-    const customer = await dataforceOptionalFetch(token, '/' + encodeURIComponent(instance)
-      + '/customers/id/' + encodeURIComponent(id)).catch(() => null);
+  const entries = await mapWithConcurrency(ids, 2, async id => {
+    const customer = await cached('customer/' + id, () => dataforceOptionalFetch(token, '/' + encodeURIComponent(instance)
+      + '/customers/id/' + encodeURIComponent(id))).catch(() => null);
     return [id, {
       suburb: String(customer?.suburb || '').trim(),
       postcode: String(customer?.postCode || '').trim()
@@ -252,7 +286,7 @@ export default async function handler(req, res) {
     if (!availableDates.some(day => day.date >= start)) {
       return res.status(200).json({ matches: [], incomplete: false });
     }
-    const schedule = (await availabilitySchedule())
+    const schedule = (await availabilitySchedule(Boolean(area)))
       .filter(row => row.date >= start);
     // Counts and suggestions must come from the same fresh Dataforce snapshot.
     const counts = schedule.map(({ date, name, appointments }) => ({
