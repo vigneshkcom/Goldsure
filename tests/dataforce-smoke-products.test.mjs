@@ -33,6 +33,6 @@ test('concrete ceiling quantities follow the selected alarm count',()=>{
 });
 test('does not report quantities as saved just because the POST succeeded',async()=>{
  const request=async(path,options={})=>path.endsWith('/quote')?{productLines:[]}:{answers:[],blockAnswers:[]};
- await assert.rejects(syncSmokeJobProducts({request,jobId:601,quote}),/did not persist/);
+ await assert.rejects(syncSmokeJobProducts({request,jobId:601,quote,customerId:91}),/did not persist/);
  assert.throws(()=>verifySmokeProductLines({productLines:[{productId:3431,lineQty:5}]},quote),/did not confirm/);
 });
