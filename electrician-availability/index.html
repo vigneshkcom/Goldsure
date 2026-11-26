@@ -239,7 +239,7 @@ $('checker-form').addEventListener('submit', async event => {
   checkButton.disabled = true;
   checkerStatus.textContent = 'Checking booked routes.';
   try {
-    const { matches, incomplete } = await lookup(area);
+    const { matches, incomplete, bookedRoutes = [] } = await lookup(area);
     if (areaInput.value.trim() !== area || document.hidden) return;
     for (const match of matches) {
       const row = createElement('tr');
@@ -255,6 +255,15 @@ $('checker-form').addEventListener('submit', async event => {
       ? 'Priority dates are listed first, then the closest booked areas. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
       : matches.length ? 'Each result fits one additional job without moving existing appointments. Driving times use suburb-level estimates.'
       : 'No upcoming routes with room matched this area.';
+    const bookedOnly = bookedRoutes.filter(route => !matches.some(match =>
+      match.name === route.name && match.date === route.date && match.window === route.window));
+    if (bookedOnly.length) {
+      const routes = bookedOnly.map(route => route.name + ', ' +
+        dateFormatter.format(new Date(route.date + 'T00:00:00Z')) + ' ' + route.window);
+      const detail = 'Already booked in this area: ' + routes.join('; ') +
+        '. No additional ' + durationInput.value + '-minute slot verified on those routes.';
+      checkerStatus.textContent = matches.length ? checkerStatus.textContent + ' ' + detail : detail;
+    }
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some dates could not be verified against the complete route.']
         .filter(Boolean).join(' ');

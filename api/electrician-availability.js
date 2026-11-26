@@ -272,13 +272,24 @@ export default async function handler(req, res) {
         && (row.appointments.length > 0 || bookingRule(row.date, row.name))
         && row.appointments.length < bookingLimit(row.date, row.name))
     ));
-    const locations = await availabilityAreas(upcoming);
+    const locations = await availabilityAreas(schedule);
     const suggestions = suggestRoutes(upcoming, target, locations, dailyLimits, {
       alarmType, durationMinutes, maxOptions: 18
     });
     // Only the configured browser Maps key can verify driving routes.
     // Candidates remain explicitly unverified until the page checks both legs.
     return res.status(200).json({
+      bookedRoutes: schedule.flatMap(row => {
+        const windows = new Set();
+        for (const appointment of row.appointments || []) {
+          const place = locations.get(appointment.customerId);
+          if (!place || (target.postcode && place.postcode !== target.postcode)) continue;
+          if (target.suburb && lookupArea(place.suburb)?.suburb !== target.suburb) continue;
+          const window = appointmentWindow(appointment.scheduledDate);
+          if (window) windows.add(window);
+        }
+        return [...windows].map(window => ({name:row.name,date:row.date,window}));
+      }),
       matches: [], candidates: suggestions.matches, routeVerificationRequired: true,
       incomplete: suggestions.incomplete, counts
     });
