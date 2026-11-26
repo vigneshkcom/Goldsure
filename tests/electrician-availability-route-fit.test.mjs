@@ -48,3 +48,12 @@ test('clock minutes preserve Dataforce 12 hour and ISO ordering',()=>{
   assert.equal(appointmentMinutes('11-Dec-2026 01:30:00 PM'),810);
   assert.equal(appointmentMinutes('2026-12-11T09:30:00'),570);
 });
+
+test('a morning arrival can finish after noon if the drive to the afternoon booking fits', async()=>{
+  const plans=insertionCandidates([stop(480,60),stop(540,60),stop(600,60),stop(840,60)],point,point,'AM',60,true);
+  assert.equal(plans.length,1);
+  const timing=await verifyInsertion(plans[0],{apiKey:'test',fetchImpl:drive(20)});
+  assert.equal(timing.startMinute,685);
+  assert.equal(timing.endMinute,745);
+  assert.equal(await verifyInsertion(plans[0],{apiKey:'test',fetchImpl:drive(60)}),null);
+});
