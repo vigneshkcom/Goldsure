@@ -28,6 +28,12 @@ export const bookingPriorities = {
 export const bookingRule = (date, name) => bookingPriorities[date + '/' + name];
 export const bookingLimit = (date, name) => bookingRule(date, name)?.limit ?? dailyLimits[name];
 
+// The extra job on an odd-capacity day belongs to the morning.
+export function bookingWindowLimits(date, name) {
+  const total = bookingLimit(date, name);
+  return total == null ? null : { AM: Math.ceil(total / 2), PM: Math.floor(total / 2) };
+}
+
 export const availability = {
   // November
   "11-23":["Gurdip"],

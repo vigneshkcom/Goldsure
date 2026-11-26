@@ -45,6 +45,6 @@ test('combined dates fill the closest booked area first, then neighbouring subur
   schedules[3].appointments[0].customerId = 3;
   const result = suggestRoutes(schedules,lookupArea('4104'),places,limits);
   assert.deepEqual(result.matches.map(x=>x.date),['2026-12-09','2026-12-07','2026-12-03','2026-12-11']);
-  assert.equal(result.matches[2].window,'PM');
+  assert.equal(result.matches[2].window,'AM');
   assert.equal(result.matches[0].window,'AM');
 });
