@@ -215,7 +215,7 @@ $('checker-form').addEventListener('submit', async event => {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
       row.append(createElement('td', '', day), createElement('td', '', match.name), createElement('td', '', match.remaining),
-        createElement('td', '', match.window), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
+        createElement('td', '', match.window + (match.windowRemaining != null ? ' (' + match.windowRemaining + ' left)' : '')), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
       if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
       if (match.priority) row.children[0].appendChild(createElement('span', 'priority-note', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
       resultsBody.appendChild(row);
@@ -223,7 +223,7 @@ $('checker-form').addEventListener('submit', async event => {
     resultsTable.hidden = !matches.length;
     checkerStatus.textContent = matches.some(match => match.priority)
       ? 'Priority dates are listed first, then the closest booked areas. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
-      : matches.length ? 'Suggested windows follow the route from furthest to nearest home: Alex 7 AM / 6 PM; Gurdip 3 AM / 3 PM; Mason 6 AM / 5 PM.'
+      : matches.length ? 'Suggested windows match the booked route and available AM/PM capacity.'
       : 'No upcoming routes with room matched this area.';
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some route details were unavailable.']

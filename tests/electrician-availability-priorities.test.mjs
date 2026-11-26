@@ -38,10 +38,10 @@ test('Josh can start his empty priority day with battery-only jobs', () => {
   assert.equal(result.matches[0].remaining, 5);
   assert.equal(result.matches[0].batteryOnly, true);
 });
-test('after Josh reaches five, fill Gurdip 26th then 27th with battery alarms', () => {
+test('battery priorities still require route space in the offered window', () => {
   const schedule = [row('2026-11-26', 'Josh', 5, 2), row('2026-11-26', 'Gurdip', 3, 2), row('2026-11-27', 'Gurdip', 4, 2)];
   let result = search(schedule, 'Bray Park 4500');
-  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining, x.batteryOnly]), [['Gurdip', '2026-11-26', 3, true], ['Gurdip', '2026-11-27', 2, true]]);
+  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining, x.batteryOnly]), [['Gurdip', '2026-11-27', 2, true]]);
   schedule[1] = row('2026-11-26', 'Gurdip', 6, 2);
   result = search(schedule, 'Bray Park 4500');
   assert.deepEqual(result.matches.map(x => [x.date, x.remaining, x.batteryOnly]), [['2026-11-27', 2, true]]);

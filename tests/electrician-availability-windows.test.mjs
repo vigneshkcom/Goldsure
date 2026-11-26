@@ -17,22 +17,33 @@ test('daily capacity splits round the extra job into AM', () => {
   assert.deepEqual(bookingWindowLimits('2026-12-03','Gurdip'), { AM:3, PM:3 });
   assert.deepEqual(bookingWindowLimits('2026-12-03','Mason'), { AM:6, PM:5 });
 });
-test('Alex Cornubia 4130 is AM even when Dataforce times are in the afternoon', () => {
-  const result = search('Alex',[1,1,1,1,1,1,1,2,2],'4130');
-  assert.equal(result.matches[0].window,'AM');
+test('Alex stays on the Gold Coast in AM and offers Cornubia only in PM', () => {
+  const result = search('Alex',[3,3,3,3,3,3,3,1,1],'4130');
+  assert.equal(result.matches[0].window,'PM');
+  assert.equal(result.matches[0].windowRemaining,4);
   assert.equal(result.matches[0].remaining,4);
+  assert.deepEqual(search('Alex',[3,3,3,3,3,3,3,1,1],'4221').matches,[]);
 });
-test('Alex route position seven is AM and position eight is PM', () => {
-  assert.equal(search('Alex',[1,1,1,1,1,1,2],'4509').matches[0].window,'AM');
-  assert.equal(search('Alex',[1,1,1,1,1,1,1,2],'4509').matches[0].window,'PM');
+test('each electrician keeps their morning group full and offers space on the afternoon route', () => {
+  for (const [name, am, expected] of [['Alex',7,5],['Gurdip',3,2],['Mason',6,4]]) {
+    const far = name === 'Mason' ? 2 : 3;
+    const ids = [...Array(am).fill(far),1];
+    const result = search(name,ids,'4130');
+    assert.equal(result.matches[0].window,'PM');
+    assert.equal(result.matches[0].windowRemaining,expected);
+  }
 });
-test('Gurdip route position three is AM and position four is PM', () => {
-  assert.equal(search('Gurdip',[1,1,2],'4509').matches[0].window,'AM');
-  assert.equal(search('Gurdip',[1,1,1,2],'4509').matches[0].window,'PM');
+test('a morning enquiry cannot spill into a distant afternoon route', () => {
+  assert.deepEqual(search('Gurdip',[3,3,3,1],'4221').matches,[]);
 });
-test('Mason route position six is AM and position seven is PM', () => {
-  assert.equal(search('Mason',[1,1,1,1,1,3],'4221').matches[0].window,'AM');
-  assert.equal(search('Mason',[1,1,1,1,1,1,3],'4221').matches[0].window,'PM');
+test('a nearby enquiry joins the available afternoon route without moving AM jobs', () => {
+  const result = search('Alex',[3,3,3,3,3,3,3,1],'Mount Cotton 4165');
+  assert.equal(result.matches[0].window,'PM');
+});
+test('AM remains available when its route has fewer than the morning limit', () => {
+  const result = search('Alex',[3,3,1],'4221');
+  assert.equal(result.matches[0].window,'AM');
+  assert.equal(result.matches[0].windowRemaining,4);
 });
 test('full days remain excluded for all three electricians', () => {
   for (const [name, limit] of Object.entries(limits)) {
