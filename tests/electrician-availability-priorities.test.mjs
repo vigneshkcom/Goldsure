@@ -9,7 +9,7 @@ const locations = new Map([
   [3, { suburb: 'Mango Hill', postcode: '4509' }]
 ]);
 const row = (date, name, count, customerId = 1) => ({ date, name,
-  appointments: count === null ? null : Array.from({ length: count }, () => ({ customerId, scheduledDate: date + 'T09:00:00' })) });
+  appointments: count === null ? null : Array.from({ length: count }, (_, i) => ({ customerId, scheduledDate: date + (i < 3 ? 'T09:00:00' : 'T14:00:00') })) });
 const search = (schedule, area = 'Elanora 4221') => suggestRoutes(schedule, lookupArea(area), locations, limits);
 
 test('South Gold Coast lists Mason November, Mason December, and Alex Thursday in order', () => {

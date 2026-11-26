@@ -74,7 +74,7 @@
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Spaces left</th><th>Suggested window</th><th>Booked area</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Spaces in window</th><th>Suggested window</th><th>Booked area</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -82,7 +82,7 @@
   <div class="months" id="months"></div>
 </div>
 <script type="module">
-import { availability, months, year, dateKey, bookingLimit, bookingRule, getAvailabilityStartDate } from '/electrician-availability/availability.js';
+import { availability, months, year, dateKey, bookingLimit, bookingRule, bookingWindowLimits, getAvailabilityStartDate } from '/electrician-availability/availability.js';
 
 const $ = id => document.getElementById(id);
 const monthsRoot = $('months');
@@ -104,13 +104,18 @@ function createElement(tag, className, text) {
   return element;
 }
 
-function setCount(element, count, name) {
+function setCount(element, count, name, windowCounts) {
   const date = element.dataset.date;
   const limit = bookingLimit(date, name);
   const full = Number.isInteger(count) && limit != null && count >= limit;
   element.textContent = (limit ? (count ?? '-') + '/' + limit : count ?? '-') + (full ? ' Full' : '');
   element.title = count == null ? 'Booked-job count unavailable' : count + ' jobs booked';
   if (limit) element.title += ' out of ' + limit + (full ? ' - Full' : '');
+  const windows = bookingWindowLimits(date, name);
+  if (windowCounts && windows) {
+    element.title += '; AM ' + windowCounts.AM + '/' + windows.AM + '; PM ' + windowCounts.PM + '/' + windows.PM;
+    if (windowCounts.unknown) element.title += '; ' + windowCounts.unknown + ' booking times unknown';
+  }
   element.setAttribute('aria-label', element.title);
   element.parentElement.classList.toggle('full', full);
 }
@@ -174,9 +179,9 @@ async function lookup(area = '') {
 }
 
 function renderCounts(matches) {
-  for (const { date, name, jobCount } of matches) {
+  for (const { date, name, jobCount, windowCounts } of matches) {
     const element = countElements.get(date + '/' + name);
-    if (element) setCount(element, jobCount, name);
+    if (element) setCount(element, jobCount, name, windowCounts);
   }
 }
 
@@ -214,7 +219,7 @@ $('checker-form').addEventListener('submit', async event => {
     for (const match of matches) {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
-      row.append(createElement('td', '', day), createElement('td', '', match.name), createElement('td', '', match.remaining),
+      row.append(createElement('td', '', day), createElement('td', '', match.name), createElement('td', '', match.windowRemaining ?? match.remaining),
         createElement('td', '', match.window + (match.windowRemaining != null ? ' (' + match.windowRemaining + ' left)' : '')), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
       if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
       if (match.priority) row.children[0].appendChild(createElement('span', 'priority-note', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));

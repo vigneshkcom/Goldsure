@@ -1,5 +1,5 @@
 import { availableDates, getAvailabilityStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
-import { lookupArea, suggestRoutes } from '../lib/electrician-route-suggestions.js';
+import { lookupArea, suggestRoutes, appointmentWindow } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
 
 const DATAFORCE_BASE_URL = 'https://asap-api.dataforce.com.au';
@@ -247,7 +247,12 @@ export default async function handler(req, res) {
       .filter(row => row.date >= start);
     // Counts and suggestions must come from the same fresh Dataforce snapshot.
     const counts = schedule.map(({ date, name, appointments }) => ({
-      date, name, jobCount: appointments?.length ?? null
+      date, name, jobCount: appointments?.length ?? null,
+      windowCounts: appointments ? {
+        AM: appointments.filter(item => appointmentWindow(item.scheduledDate) === 'AM').length,
+        PM: appointments.filter(item => appointmentWindow(item.scheduledDate) === 'PM').length,
+        unknown: appointments.filter(item => !appointmentWindow(item.scheduledDate)).length
+      } : null
     }));
     if (!area) {
       return res.status(200).json({ matches: counts, incomplete: counts.some(row => row.jobCount === null) });

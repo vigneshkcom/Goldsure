@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { suggestRoutes, lookupArea } from '../lib/electrician-route-suggestions.js';
 const limits = { Gurdip: 6, Alex: 13, Mason: 11 };
 const locations = new Map([[1, { suburb: 'Yeronga', postcode: '4104' }]]);
-const row = (date, name, count) => ({ date, name, appointments: Array.from({ length: count }, () => ({ customerId: 1, scheduledDate: date + 'T09:00:00' })) });
+const row = (date, name, count) => ({ date, name, appointments: Array.from({ length: count }, (_, i) => ({ customerId: 1, scheduledDate: date + (i < 3 ? 'T09:00:00' : 'T14:00:00') })) });
 const december = ['2026-12-01','2026-12-03','2026-12-04','2026-12-07','2026-12-08','2026-12-09','2026-12-11'].map(date => row(date, 'Gurdip', 1));
 const search = (schedule, alarmType = 'battery', postcode = '4104') => suggestRoutes(schedule, lookupArea(postcode), locations, limits, { alarmType });
 
@@ -45,6 +45,6 @@ test('combined dates fill the closest booked area first, then neighbouring subur
   schedules[3].appointments[0].customerId = 3;
   const result = suggestRoutes(schedules,lookupArea('4104'),places,limits);
   assert.deepEqual(result.matches.map(x=>x.date),['2026-12-09','2026-12-07','2026-12-03','2026-12-11']);
-  assert.equal(result.matches[2].window,'AM');
+  assert.equal(result.matches[2].window,'PM');
   assert.equal(result.matches[0].window,'PM');
 });

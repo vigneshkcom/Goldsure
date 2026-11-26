@@ -23,10 +23,15 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
         if (fail) return { ok: false, status: 503 };
         payload = { records: Array.from({ length: count }, (_, i) => ({
           appointmentId: i + 1, customerId: 1,
-          scheduledDate: '2026-12-02T09:00:00', completionStatusDescription: 'Scheduled'
+          scheduledDate: i < 3 ? '2026-12-02T09:00:00' : '2026-12-02T14:00:00', completionStatusDescription: 'Scheduled'
         })) };
-      } else payload = { records: [] };
-    } else if (url.endsWith('/customers/id/1')) payload = { suburb: 'Morningside', postCode: '4170' };
+      } else if (worker === '1009') payload = {records: Array.from({length:9},(_, i)=>({
+      customerId: i < 3 ? 2 : 3,
+      scheduledDate: i < 3 ? '2026-12-03T09:00:00' : '2026-12-03T14:00:00'
+    }))}; else payload = { records: [] };
+    } else if (url.endsWith('/customers/id/2')) payload = {suburb:'Elanora',postCode:'4221'};
+    else if (url.endsWith('/customers/id/3')) payload = {suburb:'Cornubia',postCode:'4130'};
+    else if (url.endsWith('/customers/id/1')) payload = { suburb: 'Morningside', postCode: '4170' };
     else throw new Error('Unexpected URL ' + url);
     return { ok: true, status: 200, json: async () => payload };
   };
@@ -46,6 +51,8 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
       assert.equal(result.counts.find(row => row.name === 'Gurdip' && row.date === '2026-12-02').jobCount, count);
     }
     assert.equal(workerRequests, 3, 'each search fetches fresh bookings');
+    const cornubia = await request({area:'4130'});
+    assert.ok(cornubia.matches.every(row => row.name !== 'Alex' || row.date !== '2026-12-03'), 'Dataforce six PM bookings exclude Alex despite four daily spaces');
     fail = true;
     result = await request();
     assert.ok(result.matches.every(row => row.name !== 'Gurdip'));
