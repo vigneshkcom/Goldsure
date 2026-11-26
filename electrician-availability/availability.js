@@ -1,10 +1,18 @@
 export const year = 2026;
 export const months = [
-  { name: "November 2026", month: 11, days: 30 },
   { name: "December 2026", month: 12, days: 31 }
 ];
 
-export const areaSearchStartDate = '2026-11-23';
+export const areaSearchStartDate = '2026-12-01';
+
+const brisbaneDate = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit'
+});
+
+export function getAvailabilityStartDate(now = new Date()) {
+  const today = brisbaneDate.format(now);
+  return today > areaSearchStartDate ? today : areaSearchStartDate;
+}
 
 export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 11 };
 
@@ -56,5 +64,6 @@ export const dateKey = (month, day) =>
 export const availableDates = Object.entries(availability)
   .filter(([, electricians]) => Array.isArray(electricians))
   .map(([day, electricians]) => ({ date: dateKey(...day.split('-')), electricians }))
+  .filter(({ date }) => date >= areaSearchStartDate)
   .sort((a, b) => a.date.localeCompare(b.date));
 

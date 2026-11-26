@@ -1,4 +1,4 @@
-import { availableDates, areaSearchStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
+import { availableDates, getAvailabilityStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
 import { lookupArea, suggestRoutes } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
 
@@ -8,9 +8,6 @@ const DATAFORCE_GRANT_TYPE = 'client_credentials';
 const workerIds = new Map([['Alex', 1009], ['Gurdip', 1011], ['Mason', 1012]]);
 const cache = new Map();
 const CACHE_TTL_MS = 2 * 60 * 1000;
-const brisbaneDate = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit'
-});
 const requestLimits = new Map();
 
 function dataforceConfig() {
@@ -242,7 +239,12 @@ export default async function handler(req, res) {
 
   try {
     enforceRateLimit(req);
-    const schedule = await cached('schedule', availabilitySchedule);
+    const start = getAvailabilityStartDate();
+    if (!availableDates.some(day => day.date >= start)) {
+      return res.status(200).json({ matches: [], incomplete: false });
+    }
+    const schedule = (await cached('schedule', availabilitySchedule))
+      .filter(row => row.date >= start);
     if (!area) {
       const matches = schedule.map(({ date, name, appointments }) => ({
         date, name, jobCount: appointments?.length ?? null
@@ -250,9 +252,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ matches, incomplete: matches.some(row => row.jobCount === null) });
     }
 
-    const today = brisbaneDate.format(new Date());
-    const firstDate = alarmType === 'hardwired' ? '2026-12-01' : areaSearchStartDate;
-    const start = today > firstDate ? today : firstDate;
     const upcoming = schedule.filter(row => row.date >= start && (
       row.appointments === null || (bookingLimit(row.date, row.name) != null
         && (row.appointments.length > 0 || bookingRule(row.date, row.name))

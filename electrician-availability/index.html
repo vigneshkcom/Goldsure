@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Electrician availability - Nov &amp; Dec 2026</title>
+<title>Electrician availability - December 2026</title>
 <style>
   :root{--bg:#f6f7f9;--cell:#fff;--line:#e2e5ea;--text:#1f2430;--muted:#8a909c}
   *{box-sizing:border-box}
@@ -82,7 +82,7 @@
   <div class="months" id="months"></div>
 </div>
 <script type="module">
-import { availability, months, year, dateKey, bookingLimit, bookingRule } from '/electrician-availability/availability.js';
+import { availability, months, year, dateKey, bookingLimit, bookingRule, getAvailabilityStartDate } from '/electrician-availability/availability.js';
 
 const $ = id => document.getElementById(id);
 const monthsRoot = $('months');
@@ -117,7 +117,9 @@ function setCount(element, count, name) {
 
 const countElements = new Map();
 function renderCalendar() {
+  const start = getAvailabilityStartDate();
   for (const { name, month, days } of months) {
+    if (dateKey(month, days) < start) continue;
     const panel = createElement('div', 'month');
     const grid = createElement('div', 'grid');
     panel.append(createElement('h2', '', name), grid);
@@ -125,6 +127,10 @@ function renderCalendar() {
     const leadingDays = (new Date(year, month - 1, 1).getDay() + 6) % 7;
     for (let i = 0; i < leadingDays; i++) grid.appendChild(createElement('div', 'day empty'));
     for (let day = 1; day <= days; day++) {
+      if (dateKey(month, day) < start) {
+        grid.appendChild(createElement('div', 'day empty'));
+        continue;
+      }
       const workers = availability[month + '-' + day];
       const cell = createElement('div', workers ? 'day' : 'day off');
       cell.appendChild(createElement('span', 'n', day));
