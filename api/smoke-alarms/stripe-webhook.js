@@ -1,3 +1,4 @@
+import {pushCalculatorStatus} from '../../lib/smoke-calculator-booking.js';
 
 import { BOOKING_FEE_CENTS, isValidQuoteToken, verifyStripeSignature } from '../../lib/smoke-stripe.js';
 
@@ -65,6 +66,11 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('[Smoke Stripe] Quote update failed', error.message);
     return res.status(500).json({ error: 'Could not record payment; retry required.' });
+  }
+
+  if (String(token).startsWith('calc-')) {
+    try { await pushCalculatorStatus(token); }
+    catch (error) { console.error('[Calculator Stripe payment]',error.message);return res.status(500).json({error:'Payment recorded; calculator tracker update needs retry.'}); }
   }
 
   // The durable worker sends a correction only if the original email was unpaid.

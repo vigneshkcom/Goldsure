@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Booking payment request | Goldsure</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f5f6f8;font:16px Arial,sans-serif;color:#182033;padding:24px}main{max-width:680px;margin:30px auto;background:#fff;border:1px solid #dde1e8;border-radius:12px;padding:28px}.brand{font-weight:bold;color:#94701c}h1{font-size:24px}dl{display:grid;grid-template-columns:140px 1fr;gap:14px;margin:24px 0}dt{color:#647087}dd{margin:0;overflow-wrap:anywhere}button{padding:13px 18px;border:0;border-radius:6px;background:#b08d2e;color:#111;font:700 16px Arial;cursor:pointer;margin:5px 8px 5px 0}button.secondary{background:#e9edf4}button:disabled{opacity:.5;cursor:default}#message{line-height:1.6}.paid{color:#166534;font-weight:bold}.note{font-size:14px;color:#647087;line-height:1.6}</style></head>
+<body><main><div class="brand">GOLDSURE</div><h1>$33 booking payment request</h1><p class="note">Confirm service availability with the customer before sending. Sending this request does not schedule an appointment.</p>
+<dl><dt>Customer</dt><dd id="name">Loading...</dd><dt>Email</dt><dd id="email"></dd><dt>Mobile</dt><dd id="phone"></dd><dt>Property</dt><dd id="address"></dd><dt>Dataforce job</dt><dd id="job"></dd><dt>GHL stage</dt><dd id="ghl"></dd><dt>Booking fee</dt><dd id="payment"></dd><dt>Email request</dt><dd id="emailStatus"></dd><dt>SMS request</dt><dd id="smsStatus"></dd></dl>
+<button id="send" disabled>Send $33 request by SMS + email</button><button class="secondary" id="sync" disabled>Retry job / GHL sync</button><button class="secondary" id="refresh">Refresh status</button>
+<p id="message" role="status">Loading booking details...</p></main>
+<script type="module">
+const params=new URLSearchParams(location.search),credentials=Object.fromEntries(['token','expires','signature'].map(key=>[key,params.get(key)||'']));
+const $=id=>document.getElementById(id);
+let current, busy=false;
+async function api(action){
+ const response=await fetch('/api/smoke-alarms/calculator-booking'+(action?'':'?'+new URLSearchParams(credentials)),action?{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({...credentials,action})}:{cache:'no-store'});
+ const data=await response.json();
+ if(!response.ok)throw new Error(data.error||'Booking request failed.');
+ return data;
+}
+async function load(){
+ current=await api();
+ for(const [id,key] of [['name','customer_name'],['email','customer_email'],['phone','customer_phone'],['address','customer_address']])$(id).textContent=current[key]||'Not recorded';
+ $('job').textContent=current.job_id?'J'+current.job_id:'Pending sync';
+ $('ghl').textContent=current.ghl_accepted?'Quote Accepted':'Pending sync';
+ $('payment').textContent=current.paid?'$33 RECEIVED':'$33 not yet received';
+ $('payment').className=current.paid?'paid':'';
+ $('emailStatus').textContent=current.email_status;
+ $('smsStatus').textContent=current.sms_status;
+ const completed=current.email_status==='sent'&&current.sms_status==='sent';
+ const retryable=['pending','failed'];
+ $('send').disabled=busy||current.paid||!current.job_id||!current.ghl_accepted||completed||(!retryable.includes(current.email_status)&&!retryable.includes(current.sms_status));
+ $('sync').disabled=busy||Boolean(current.job_id&&current.ghl_accepted&&!current.sync_error);
+ return current;
+}
+async function run(action){
+ if(busy)return;
+ busy=true;$('send').disabled=true;$('sync').disabled=true;$('message').textContent=action==='send'?'Sending SMS and email...':'Updating the Dataforce job and GHL stage...';
+ try{
+   const result=await api(action);busy=false;await load();
+   $('message').textContent=result.already_paid?'The $33 booking fee is already paid. Nothing was sent.':result.success?(action==='send'?'Booking payment request sent by SMS and email.':'Dataforce and GHL are up to date.'):(result.errors||['Some actions need review.']).join(' ');
+ }catch(error){busy=false;$('message').textContent=error.message;await load().catch(()=>{});}
+}
+$('send').addEventListener('click',()=>run('send'));
+$('sync').addEventListener('click',()=>run('sync'));
+$('refresh').addEventListener('click',()=>load().then(()=>{$('message').textContent='Status updated.';}).catch(error=>{$('message').textContent=error.message;}));
+load().then(()=>{$('message').textContent=current.paid?'Booking fee received. Do not request payment again.':'Ready. The customer will receive the same secure $33 payment link by SMS and email.';}).catch(error=>{$('message').textContent=error.message;});
+</script></body></html>

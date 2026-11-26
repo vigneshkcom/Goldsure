@@ -1,3 +1,4 @@
+import {reconcileCalculatorBookings} from '../../lib/smoke-calculator-booking.js';
 import { dispatchAcceptanceEmails } from '../../lib/smoke-acceptance-notifications.js';
 
 // Version 2 dispatches five-minute notifications and verified late receipts.
@@ -9,7 +10,12 @@ export default async function handler(req, res) {
   }
   res.setHeader('Cache-Control', 'no-store');
   try {
+    const calculatorBookings = await reconcileCalculatorBookings().catch(error => {
+      console.error('[Calculator recovery]', error.message);
+      return {failed: 1};
+    });
     const result = await dispatchAcceptanceEmails();
+    result.calculator_bookings = calculatorBookings;
     return res.status(result.failed ? 502 : 200).json(result);
   } catch (error) {
     console.error('[Smoke acceptance notifications]', error.message);
