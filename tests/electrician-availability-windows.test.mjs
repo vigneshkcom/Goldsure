@@ -10,7 +10,7 @@ function search(name, am, pm, area='4130', unknown=false) {
     ...Array.from({length:pm},()=>({customerId:1,scheduledDate:'03-Dec-2026 02:00:00 PM'}))
   ];
   if(unknown) appointments.push({customerId:1,scheduledDate:'2026-12-03T00:00:00'});
-  return suggestRoutes([{date:'2026-12-03',name,appointments}],lookupArea(area),places,limits);
+  return suggestRoutes([{date:'2026-12-03',name,appointments}],lookupArea(area),places,limits,{checkRoute:false});
 }
 test('capacity splits remain 7/6, 3/3 and 6/5',()=>{
   assert.deepEqual(bookingWindowLimits('2026-12-03','Alex'),{AM:7,PM:6});

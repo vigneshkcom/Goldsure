@@ -36,7 +36,7 @@
   .checker h2{font-size:16px;margin:0 0 12px}
   .fields{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
   .fields label{display:grid;gap:4px;font-size:14px;font-weight:600}
-  .fields input,.fields button{min-height:40px;padding:7px 10px;border:1px solid #b1b7c2;border-radius:5px;background:#fff;color:var(--text);font:inherit}
+  .fields input,.fields select,.fields button{min-height:40px;padding:7px 10px;border:1px solid #b1b7c2;border-radius:5px;background:#fff;color:var(--text);font:inherit}
   .fields button{background:#2f4bc4;border-color:#2f4bc4;color:#fff;cursor:pointer}
   .fields button:disabled{opacity:.65}
   .status{margin:8px 0;color:#555d6a;font-size:14px}
@@ -70,11 +70,19 @@
       <label>Suburb or postcode
         <input type="search" id="area" maxlength="100" placeholder="e.g. Coombabah or 4216">
       </label>
+      <label>Job duration
+        <select id="job-duration">
+          <option value="30">30 minutes</option>
+          <option value="60" selected>60 minutes</option>
+          <option value="90">90 minutes</option>
+          <option value="120">120 minutes</option>
+        </select>
+      </label>
       <button id="check-button" type="submit">Find electricians</button>
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Spaces in window</th><th>Suggested window</th><th>Booked area</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Verified space</th><th>Suggested window</th><th>Booked area</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -92,6 +100,7 @@ const resultsTable = $('results');
 const resultsBody = $('results-body');
 const areaInput = $('area');
 const checkButton = $('check-button');
+const durationInput = $('job-duration');
 const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const dateFormatter = new Intl.DateTimeFormat('en-AU', {
   weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC'
@@ -169,6 +178,7 @@ function clearResults(message = '') {
   checkerStatus.textContent = message;
 }
 areaInput.addEventListener('input', () => clearResults());
+durationInput.addEventListener('change', () => clearResults());
 
 let countsRevision = 0;
 async function lookup(area = '') {
@@ -177,7 +187,7 @@ async function lookup(area = '') {
     method: 'POST',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ area })
+    body: JSON.stringify({ area, durationMinutes: Number(durationInput.value) })
   });
   const data = await response.json();
   if (response.status === 400) throw new Error('Enter a suburb name, a four-digit postcode, or both.');
@@ -236,10 +246,10 @@ $('checker-form').addEventListener('submit', async event => {
     resultsTable.hidden = !matches.length;
     checkerStatus.textContent = matches.some(match => match.priority)
       ? 'Priority dates are listed first, then the closest booked areas. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
-      : matches.length ? 'Suggested windows match the booked route and available AM/PM capacity.'
+      : matches.length ? 'Each result fits one additional job, including driving time, without moving existing appointments.'
       : 'No upcoming routes with room matched this area.';
     if (incomplete) {
-      checkerStatus.textContent = [checkerStatus.textContent, 'Some route details were unavailable.']
+      checkerStatus.textContent = [checkerStatus.textContent, 'Some dates could not be verified against the complete route.']
         .filter(Boolean).join(' ');
     }
   } catch (error) {

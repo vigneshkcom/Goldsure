@@ -6,6 +6,8 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
   const originalFetch = global.fetch;
   const originalId = process.env.DATAFORCE_CLIENT_ID;
   const originalSecret = process.env.DATAFORCE_CLIENT_SECRET;
+  const originalMapsKey = process.env.GOOGLE_MAPS_ROUTES_KEY;
+  process.env.GOOGLE_MAPS_ROUTES_KEY = 'test';
   const RealDate = global.Date;
   global.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : ['2026-11-26T00:00:00Z'])); } };
   process.env.DATAFORCE_CLIENT_ID = 'test';
@@ -15,18 +17,19 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
   let workerRequests = 0;
   global.fetch = async (url, init = {}) => {
     let payload;
-    if (url.endsWith('/authorization/token')) payload = { access_token: 'test' };
+    if (url.includes('routes.googleapis.com')) payload = {routes:[{legs:[{duration:'60s'},{duration:'60s'}]}]};
+    else if (url.endsWith('/authorization/token')) payload = { access_token: 'test' };
     else if (url.endsWith('/appointments/search')) {
       const worker = JSON.parse(init.body).filterGroups[0].filters[0].value;
       if (worker === '1011') {
         workerRequests++;
         if (fail) return { ok: false, status: 503 };
         payload = { records: Array.from({ length: count }, (_, i) => ({
-          appointmentId: i + 1, customerId: 1,
+          appointmentId: i + 1, customerId: 1, duration:30,
           scheduledDate: i < 3 ? '2026-12-02T09:00:00' : '2026-12-02T14:00:00', completionStatusDescription: 'Scheduled'
         })) };
       } else if (worker === '1009') payload = {records: Array.from({length:9},(_, i)=>({
-      customerId: i < 3 ? 2 : 3,
+      duration:30, customerId: i < 3 ? 2 : 3,
       scheduledDate: i < 3 ? '2026-12-03T09:00:00' : '2026-12-03T14:00:00'
     }))}; else payload = { records: [] };
     } else if (url.endsWith('/customers/id/2')) payload = {suburb:'Elanora',postCode:'4221'};
@@ -59,6 +62,7 @@ test('fresh searches stop offering Gurdip at six and seven jobs, and exclude unk
     assert.equal(result.incomplete, true);
     assert.equal(result.counts.find(row => row.name === 'Gurdip').jobCount, null);
   } finally {
+    if (originalMapsKey === undefined) delete process.env.GOOGLE_MAPS_ROUTES_KEY; else process.env.GOOGLE_MAPS_ROUTES_KEY = originalMapsKey;
     global.fetch = originalFetch;
     global.Date = RealDate;
     if (originalId === undefined) delete process.env.DATAFORCE_CLIENT_ID; else process.env.DATAFORCE_CLIENT_ID = originalId;

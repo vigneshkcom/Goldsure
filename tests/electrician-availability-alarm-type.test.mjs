@@ -5,7 +5,7 @@ const limits = { Gurdip: 6, Alex: 13, Mason: 11 };
 const locations = new Map([[1, { suburb: 'Yeronga', postcode: '4104' }]]);
 const row = (date, name, count) => ({ date, name, appointments: Array.from({ length: count }, (_, i) => ({ customerId: 1, scheduledDate: date + (i < 3 ? 'T09:00:00' : 'T14:00:00') })) });
 const december = ['2026-12-01','2026-12-03','2026-12-04','2026-12-07','2026-12-08','2026-12-09','2026-12-11'].map(date => row(date, 'Gurdip', 1));
-const search = (schedule, alarmType = 'battery', postcode = '4104') => suggestRoutes(schedule, lookupArea(postcode), locations, limits, { alarmType });
+const search = (schedule, alarmType = 'battery', postcode = '4104') => suggestRoutes(schedule, lookupArea(postcode), locations, limits, { alarmType, checkRoute:false });
 
 test('4104 returns empty Josh first and six distinct battery-compatible dates', () => {
   const result = search([row('2026-11-26', 'Josh', 0), row('2026-11-26','Gurdip',5), row('2026-11-27','Gurdip',4), ...december]);
@@ -43,7 +43,7 @@ test('combined dates fill the closest booked area first, then neighbouring subur
   schedules[0].appointments[0].customerId = 2;
   schedules[0].appointments[0].scheduledDate = '2026-12-03T14:00:00';
   schedules[3].appointments[0].customerId = 3;
-  const result = suggestRoutes(schedules,lookupArea('4104'),places,limits);
+  const result = suggestRoutes(schedules,lookupArea('4104'),places,limits,{checkRoute:false});
   assert.deepEqual(result.matches.map(x=>x.date),['2026-12-09','2026-12-07','2026-12-03','2026-12-11']);
   assert.equal(result.matches[2].window,'PM');
   assert.equal(result.matches[0].window,'PM');

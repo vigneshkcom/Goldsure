@@ -1,3 +1,4 @@
+import { verifyInsertion } from '../lib/electrician-route-fit.js';
 import { availableDates, getAvailabilityStartDate, dailyLimits, bookingLimit, bookingRule } from '../electrician-availability/availability.js';
 import { lookupArea, suggestRoutes, appointmentWindow } from '../lib/electrician-route-suggestions.js';
 import { normaliseFieldworker } from '../lib/dataforce-purchase-orders.js';
@@ -104,14 +105,21 @@ async function dataforceWorkerAppointments(token, fieldworkerId, startDate, endD
         after
       })
     });
-    const page = result.records || [];
+    if (!Array.isArray(result.records)) throw new Error('Dataforce appointment records are unavailable.');
+    const page = result.records;
     appointments.push(...page);
     after += page.length;
     // Dataforce reports the number of records on the current page in totalCount.
     if (page.length < 100) break;
   }
 
-  return appointments.filter(appointmentIsBooked);
+  return mapWithConcurrency(appointments.filter(appointmentIsBooked), 8, async appointment => {
+    if (Number.isFinite(Number(appointment.duration)) && Number(appointment.duration) > 0) return appointment;
+    if (!appointment.appointmentId) return appointment;
+    const details = await dataforceOptionalFetch(token, '/' + encodeURIComponent(instance)
+      + '/appointments/' + encodeURIComponent(appointment.appointmentId)).catch(() => null);
+    return { ...appointment, duration: details?.duration };
+  });
 }
 
 async function cached(key, load) {
@@ -229,6 +237,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
   const area = String(req.body?.area || '').trim();
   const alarmType = req.body?.alarmType ?? 'battery';
+  const durationMinutes = Number(req.body?.durationMinutes ?? 60);
+  if (![30, 60, 90, 120].includes(durationMinutes)) return res.status(400).json({ error: 'Select a valid job duration.' });
   if (!['battery', 'hardwired'].includes(alarmType)) {
     return res.status(400).json({ error: 'Select battery-only or hardwired / mixed alarms.' });
   }
@@ -263,11 +273,30 @@ export default async function handler(req, res) {
         && (row.appointments.length > 0 || bookingRule(row.date, row.name))
         && row.appointments.length < bookingLimit(row.date, row.name))
     ));
-    const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
-    return res.status(200).json({
-      ...suggestRoutes(upcoming, target, locations, dailyLimits, { alarmType }),
-      counts
+    const locations = await availabilityAreas(upcoming);
+    const suggestions = suggestRoutes(upcoming, target, locations, dailyLimits, {
+      alarmType, durationMinutes, maxOptions: 18
     });
+    let incomplete = suggestions.incomplete;
+    const verificationDeadline = Date.now() + 20000;
+    const verified = await mapWithConcurrency(suggestions.matches, 4, async match => {
+      const { routePlans = [], ...publicMatch } = match;
+      for (const plan of routePlans) {
+        if (Date.now() > verificationDeadline) { incomplete = true; return null; }
+        try {
+          const timing = await verifyInsertion(plan, {
+            apiKey: process.env.GOOGLE_MAPS_ROUTES_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+          });
+          if (timing) return { ...publicMatch, windowRemaining: 1, routeChecked: true, durationMinutes };
+        } catch (error) {
+          incomplete = true;
+          console.error('Availability driving verification failed:', error.message);
+          return null;
+        }
+      }
+      return null;
+    });
+    return res.status(200).json({ matches: verified.filter(Boolean).slice(0,6), incomplete, counts });
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });

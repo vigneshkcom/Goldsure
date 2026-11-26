@@ -31,7 +31,7 @@ test('API shows only December onward and hides past dates even with a cached sch
     assert.deepEqual(res.body.matches.map(x => [x.name, x.date, x.batteryOnly, x.remaining]), []);
     await handler({ method: 'POST', headers: {}, body: { area: 'Elanora 4221', alarmType: 'hardwired' } }, res);
     assert.equal(res.code, 200);
-    assert.deepEqual(res.body.matches.map(x => [x.name, x.date, x.batteryOnly, x.remaining]), [['Mason', '2026-12-02', false, 11]]);
+    assert.deepEqual(res.body.matches.map(x => [x.name, x.date, x.batteryOnly, x.remaining]), []);
     await handler({ method: 'POST', headers: {}, body: {} }, res);
     assert.equal(res.code, 200);
     assert.ok(res.body.matches.length > 0);

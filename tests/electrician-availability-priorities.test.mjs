@@ -10,7 +10,7 @@ const locations = new Map([
 ]);
 const row = (date, name, count, customerId = 1) => ({ date, name,
   appointments: count === null ? null : Array.from({ length: count }, (_, i) => ({ customerId, scheduledDate: date + (i < 3 ? 'T09:00:00' : 'T14:00:00') })) });
-const search = (schedule, area = 'Elanora 4221') => suggestRoutes(schedule, lookupArea(area), locations, limits);
+const search = (schedule, area = 'Elanora 4221') => suggestRoutes(schedule, lookupArea(area), locations, limits, {checkRoute:false});
 
 test('South Gold Coast lists Mason November, Mason December, and Alex Thursday in order', () => {
   const result = search([row('2026-11-30', 'Mason', 3), row('2026-12-02', 'Mason', 0), row('2026-12-03', 'Alex', 2)]);
