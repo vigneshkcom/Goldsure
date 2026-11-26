@@ -72,7 +72,10 @@ async function dataforceFetch(token, path, init = {}) {
       ...(init.headers || {})
     }
   });
-  if (!response.ok) throw new Error(`Dataforce request failed (${response.status}).`);
+  if (!response.ok) {
+    console.error('Dataforce availability upstream', response.status, (await response.text()).slice(0,1000));
+    throw new Error(`Dataforce request failed (${response.status}).`);
+  }
   return response.json();
 }
 
