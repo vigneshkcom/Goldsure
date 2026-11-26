@@ -243,13 +243,14 @@ export default async function handler(req, res) {
     if (!availableDates.some(day => day.date >= start)) {
       return res.status(200).json({ matches: [], incomplete: false });
     }
-    const schedule = (await cached('schedule', availabilitySchedule))
+    const schedule = (await availabilitySchedule())
       .filter(row => row.date >= start);
+    // Counts and suggestions must come from the same fresh Dataforce snapshot.
+    const counts = schedule.map(({ date, name, appointments }) => ({
+      date, name, jobCount: appointments?.length ?? null
+    }));
     if (!area) {
-      const matches = schedule.map(({ date, name, appointments }) => ({
-        date, name, jobCount: appointments?.length ?? null
-      }));
-      return res.status(200).json({ matches, incomplete: matches.some(row => row.jobCount === null) });
+      return res.status(200).json({ matches: counts, incomplete: counts.some(row => row.jobCount === null) });
     }
 
     const upcoming = schedule.filter(row => row.date >= start && (
@@ -258,7 +259,10 @@ export default async function handler(req, res) {
         && row.appointments.length < bookingLimit(row.date, row.name))
     ));
     const locations = await cached('areas:' + start, () => availabilityAreas(upcoming));
-    return res.status(200).json(suggestRoutes(upcoming, target, locations, dailyLimits, { alarmType }));
+    return res.status(200).json({
+      ...suggestRoutes(upcoming, target, locations, dailyLimits, { alarmType }),
+      counts
+    });
   } catch (error) {
     console.error('Electrician availability lookup failed:', error);
     return res.status(error.status || 502).json({ error: 'Availability could not be checked. Please try again.' });
