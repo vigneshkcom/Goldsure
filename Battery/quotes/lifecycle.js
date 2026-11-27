@@ -13,3 +13,6 @@ export function energySnapshot(input){
  for(const key of ['bill_period','consumption_period']){if(!input[key])continue;if(!['monthly','quarterly','daily','annual'].includes(input[key]))throw Error('Choose a valid electricity period.');result[key]=input[key];}
  return Object.keys(result).length?{version:1,inputs:result,savings_estimate:null}:null;
 }
+
+// Deposit recorded against a quote: the editable column wins; quotes created with a deposit keep it in the snapshot.
+export function depositOf(q){const column=q?.deposit_amount;if(column!==undefined&&column!==null)return Number(column)||0;return Number(q?.package_snapshot?.deposit)||0;}

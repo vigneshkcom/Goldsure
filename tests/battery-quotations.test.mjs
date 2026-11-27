@@ -241,3 +241,16 @@ test('deposit is validated, saved on the quote, and the receipt PDF shows it',as
  assert.equal(doc.numPages,1);assert.match(text,/DEPOSIT RECEIPT/);assert.match(text,/\$500\.00/);assert.match(text,/\$5,600\.00/);assert.doesNotMatch(text,/INTERNAL SECRET/);
  const none=await call(h,'create-quote',{package_id:'BAT-001',customer});assert.throws?.length;await assert.rejects(()=>batteryDepositReceiptPdf(none.body.quote,{received:'2026-11-27',method:'Cash'}));
 });
+
+test('a deposit can be recorded on an existing accepted quote without touching its snapshot',async()=>{
+ const h=harness(),q=await draft(h);const before=JSON.stringify(q.package_snapshot);
+ const ok=await call(h,'set-deposit',{id:q.id,amount:'500',received:'2026-11-27',method:'Bank transfer'});assert.equal(ok.statusCode,200);
+ const saved=await h.handler&&(await call(h,'quote',{id:q.id}));assert.equal(saved.body.quote.deposit_amount,500);assert.equal(saved.body.quote.deposit_method,'Bank transfer');assert.equal(JSON.stringify(saved.body.quote.package_snapshot),before);
+ assert.equal((await call(h,'set-deposit',{id:q.id,amount:'999999',received:'2026-11-27',method:'Cash'})).statusCode,400);
+ assert.equal((await call(h,'set-deposit',{id:q.id,amount:'500',received:'bad',method:'Cash'})).statusCode,400);
+ assert.equal((await call(h,'set-deposit',{id:q.id,amount:'500',received:'2026-11-27',method:'Gold'})).statusCode,400);
+ const {batteryDepositReceiptPdf,batteryQuoteVendorPdf}=await import('../lib/battery-quote-render.js'),{getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');
+ const text=async b=>{const d=await getDocument({data:new Uint8Array(b),useSystemFonts:true}).promise;let t='';for(let i=1;i<=d.numPages;i++)t+=(await (await d.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ');return t;};
+ assert.match(await text(await batteryDepositReceiptPdf(saved.body.quote)),/\$500\.00/);assert.match(await text(await batteryQuoteVendorPdf(saved.body.quote)),/deposit paid to Goldsure/);
+ const cleared=await call(h,'set-deposit',{id:q.id,amount:'0'});assert.equal(cleared.statusCode,200);assert.equal((await call(h,'quote',{id:q.id})).body.quote.deposit_amount,null);
+});
