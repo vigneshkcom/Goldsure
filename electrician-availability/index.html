@@ -195,7 +195,10 @@ async function lookup(area = '') {
   const data = await response.json();
   if (response.status === 400) throw new Error('Enter a suburb name, a four-digit postcode, or both.');
   if (!response.ok || !Array.isArray(data.matches)) throw new Error('Availability could not be checked. Please try again.');
-  if (revision === countsRevision) renderCounts(data.counts || data.matches);
+  if (revision === countsRevision) {
+    renderCounts(data.counts || data.matches);
+    countsStatus.textContent = scheduleStatus(data);
+  }
   if (data.routeVerificationRequired) {
     checkerStatus.textContent = 'Checking driving time against the next booked job.';
     const checked = await verifyRouteCandidates(data.candidates);
@@ -212,13 +215,19 @@ function renderCounts(matches) {
   }
 }
 
+function scheduleStatus(data) {
+  if (!data.updatedAt) return 'Waiting for the first successful Dataforce sync.';
+  const updated = new Intl.DateTimeFormat('en-AU', {timeZone:'Australia/Brisbane',
+    day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}).format(new Date(data.updatedAt));
+  return 'Jobs booked / daily limit. Last Dataforce sync ' + updated +
+    (data.stale ? '. Some schedules are over 10 minutes old or unavailable. Suggestions require a recent sync.' : '.') +
+    (data.incomplete ? ' Some route details are still syncing.' : '');
+}
 async function loadCounts() {
   countsStatus.textContent = 'Loading booked jobs from Dataforce.';
   try {
     const data = await lookup();
-    countsStatus.textContent = data.incomplete
-      ? 'Some booked-job counts could not be retrieved. Numbers are jobs booked / daily limit.'
-      : 'Jobs booked / daily limit';
+    countsStatus.textContent = scheduleStatus(data);
   } catch {
     countsStatus.textContent = 'Booked-job counts could not be loaded. Refresh the page to try again.';
   }
@@ -241,7 +250,7 @@ $('checker-form').addEventListener('submit', async event => {
   checkButton.disabled = true;
   checkerStatus.textContent = 'Checking booked routes.';
   try {
-    const { matches, incomplete, bookedRoutes = [] } = await lookup(area);
+    const { matches, incomplete, stale, bookedRoutes = [] } = await lookup(area);
     if (areaInput.value.trim() !== area || document.hidden) return;
     for (const match of matches) {
       const row = createElement('tr');
@@ -266,6 +275,7 @@ $('checker-form').addEventListener('submit', async event => {
         '. No additional ' + durationInput.value + '-minute slot verified on those routes.';
       checkerStatus.textContent = matches.length ? checkerStatus.textContent + ' ' + detail : detail;
     }
+    if (stale) checkerStatus.textContent += ' Availability suggestions are paused for schedules awaiting a recent Dataforce sync.';
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some dates could not be verified against the complete route.']
         .filter(Boolean).join(' ');
@@ -279,6 +289,9 @@ $('checker-form').addEventListener('submit', async event => {
 
 renderCalendar();
 loadCounts();
+setInterval(() => {
+  if (!document.hidden && !checkButton.disabled) loadCounts();
+}, 60000);
 </script>
 </body>
 </html>
