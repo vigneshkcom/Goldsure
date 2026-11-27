@@ -215,20 +215,38 @@ function addRouteArrow(row, match) {
   const preview=match.routePreview;
   const workerId=preview?.workerId || {Gurdip:1011,Alex:1009,Mason:1012}[match.name];
   if(!workerId)return;
-  const arrow=createElement('button','route-arrow','↗');
+  const arrow=createElement('button','route-arrow','▸');
+  arrow.setAttribute('aria-expanded','false');
+  let expandedRow;
   arrow.type='button';
   arrow.setAttribute('aria-label','View '+match.name+' driving route for '+match.date+' '+match.window);
   arrow.title=preview ? 'View driving route with proposed stop' : 'View booked driving route';
   arrow.addEventListener('click',()=>{
+    if(expandedRow) {
+      expandedRow.remove();
+      expandedRow=null;
+      arrow.textContent='▸';
+      arrow.setAttribute('aria-expanded','false');
+      return;
+    }
     try {
       if(preview)sessionStorage.setItem('goldsure_team_route_preview',JSON.stringify({
         ...preview,availabilityReason:match.unavailableReason || '',createdAt:Date.now()
       }));
       const url='/route-planner/?team=1'+(preview?'&preview=1':'')+
         '&date='+encodeURIComponent(match.date)+'&worker='+workerId;
-      const routeWindow=window.open(url,'_blank','popup=yes,width=1440,height=900,resizable=yes,scrollbars=yes');
-      if(routeWindow)routeWindow.focus();
-      else checkerStatus.textContent='Allow pop-ups to view the driving route.';
+      expandedRow=createElement('tr','route-preview-row');
+      const cell=document.createElement('td');
+      cell.colSpan=5;
+      const frame=document.createElement('iframe');
+      frame.title=match.name+' driving route for '+match.date+' with proposed stop';
+      frame.src=url;
+      frame.style.cssText='width:100%;height:760px;border:1px solid #e2e5ea;border-radius:8px;background:white';
+      cell.appendChild(frame);
+      expandedRow.appendChild(cell);
+      row.after(expandedRow);
+      arrow.textContent='▾';
+      arrow.setAttribute('aria-expanded','true');
     }catch{checkerStatus.textContent='The route preview could not be opened. Please refresh and try again.';}
   });
   row.lastElementChild.appendChild(arrow);
