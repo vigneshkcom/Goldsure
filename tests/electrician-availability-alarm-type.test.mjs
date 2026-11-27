@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { suggestRoutes, lookupArea } from '../lib/electrician-route-suggestions.js';
-const limits = { Gurdip: 6, Alex: 13, Mason: 11 };
+const limits = { Gurdip: 7, Alex: 13, Mason: 11 };
 const locations = new Map([[1, { suburb: 'Yeronga', postcode: '4104' }]]);
 const row = (date, name, count) => ({ date, name, appointments: Array.from({ length: count }, (_, i) => ({ customerId: 1, scheduledDate: date + (i < 3 ? 'T09:00:00' : 'T14:00:00') })) });
 const december = ['2026-12-01','2026-12-03','2026-12-04','2026-12-07','2026-12-08','2026-12-09','2026-12-11'].map(date => row(date, 'Gurdip', 1));
@@ -26,8 +26,8 @@ test('hardwired or mixed search returns six December dates and excludes November
   assert.equal(result.matches[0].date,'2026-12-01');
 });
 test('hardwired dates still exclude full days and do not invent six if fewer qualify', () => {
-  const result = search([row('2026-12-01','Gurdip',6), row('2026-12-03','Gurdip',5)],'hardwired');
-  assert.deepEqual(result.matches.map(x => [x.date,x.remaining]),[['2026-12-03',1]]);
+  const result = search([row('2026-12-01','Gurdip',7), row('2026-12-03','Gurdip',5)],'hardwired');
+  assert.deepEqual(result.matches.map(x => [x.date,x.remaining]),[['2026-12-03',2]]);
 });
 test('Brisbane priority does not extend Josh to the Gold Coast', () => {
   assert.deepEqual(search([row('2026-11-26','Josh',0)],'battery','4224').matches,[]);
@@ -46,5 +46,5 @@ test('combined dates fill the closest booked area first, then neighbouring subur
   const result = suggestRoutes(schedules,lookupArea('4104'),places,limits,{checkRoute:false});
   assert.deepEqual(result.matches.map(x=>x.date),['2026-12-09','2026-12-07','2026-12-03','2026-12-11']);
   assert.equal(result.matches[2].window,'PM');
-  assert.equal(result.matches[0].window,'PM');
+  assert.equal(result.matches[0].window,'AM');
 });

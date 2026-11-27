@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { suggestRoutes, lookupArea, isSouthGoldCoast } from '../lib/electrician-route-suggestions.js';
 
-const limits = { Gurdip: 6, Alex: 13, Mason: 11 };
+const limits = { Gurdip: 7, Alex: 13, Mason: 11 };
 const locations = new Map([
   [1, { suburb: 'Elanora', postcode: '4221' }],
   [2, { suburb: 'Bray Park', postcode: '4500' }],
@@ -41,10 +41,10 @@ test('Josh can start his empty priority day with battery-only jobs', () => {
 test('battery priorities still require route space in the offered window', () => {
   const schedule = [row('2026-11-26', 'Josh', 5, 2), row('2026-11-26', 'Gurdip', 3, 2), row('2026-11-27', 'Gurdip', 4, 2)];
   let result = search(schedule, 'Bray Park 4500');
-  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining, x.batteryOnly]), [['Gurdip', '2026-11-27', 2, true]]);
-  schedule[1] = row('2026-11-26', 'Gurdip', 6, 2);
+  assert.deepEqual(result.matches.map(x => [x.name, x.date, x.remaining, x.batteryOnly]), [['Gurdip', '2026-11-26', 4, true], ['Gurdip', '2026-11-27', 3, true]]);
+  schedule[1] = row('2026-11-26', 'Gurdip', 7, 2);
   result = search(schedule, 'Bray Park 4500');
-  assert.deepEqual(result.matches.map(x => [x.date, x.remaining, x.batteryOnly]), [['2026-11-27', 2, true]]);
+  assert.deepEqual(result.matches.map(x => [x.date, x.remaining, x.batteryOnly]), [['2026-11-27', 3, true]]);
 });
 test('priority near Josh takes precedence over a later exact suburb match', () => {
   const result = search([row('2026-11-26', 'Josh', 0), row('2026-12-03', 'Alex', 2, 3)], 'Mango Hill 4509');

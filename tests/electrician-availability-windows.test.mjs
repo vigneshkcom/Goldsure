@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bookingWindowLimits } from '../electrician-availability/availability.js';
 import { suggestRoutes, lookupArea, appointmentWindow } from '../lib/electrician-route-suggestions.js';
-const limits = { Alex:13, Gurdip:6, Mason:11 };
+const limits = { Alex:13, Gurdip:7, Mason:11 };
 const places = new Map([[1,{suburb:'Cornubia',postcode:'4130'}],[2,{suburb:'Mango Hill',postcode:'4509'}],[3,{suburb:'Elanora',postcode:'4221'}]]);
 function search(name, am, pm, area='4130', unknown=false) {
   const appointments = [
@@ -12,9 +12,9 @@ function search(name, am, pm, area='4130', unknown=false) {
   if(unknown) appointments.push({customerId:1,scheduledDate:'2026-12-03T00:00:00'});
   return suggestRoutes([{date:'2026-12-03',name,appointments}],lookupArea(area),places,limits,{checkRoute:false});
 }
-test('capacity splits remain 7/6, 3/3 and 6/5',()=>{
+test('capacity splits remain 7/6, 4/3 and 6/5',()=>{
   assert.deepEqual(bookingWindowLimits('2026-12-03','Alex'),{AM:7,PM:6});
-  assert.deepEqual(bookingWindowLimits('2026-12-03','Gurdip'),{AM:3,PM:3});
+  assert.deepEqual(bookingWindowLimits('2026-12-03','Gurdip'),{AM:4,PM:3});
   assert.deepEqual(bookingWindowLimits('2026-12-03','Mason'),{AM:6,PM:5});
 });
 test('Dataforce ISO, 12-hour with seconds and noon times are classified correctly',()=>{
@@ -47,5 +47,5 @@ test('unknown appointment times cannot create assumed spare slots',()=>{
   assert.equal(result.incomplete,true);
 });
 test('daily limit still excludes a full day',()=>{
-  for(const [name,am,pm] of [['Alex',7,6],['Gurdip',3,3],['Mason',6,5]]) assert.deepEqual(search(name,am,pm).matches,[]);
+  for(const [name,am,pm] of [['Alex',7,6],['Gurdip',4,3],['Mason',6,5]]) assert.deepEqual(search(name,am,pm).matches,[]);
 });

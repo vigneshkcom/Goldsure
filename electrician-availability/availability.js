@@ -17,7 +17,7 @@ export function getAvailabilityStartDate(now = new Date()) {
   return today > areaSearchStartDate ? today : areaSearchStartDate;
 }
 
-export const dailyLimits = { Gurdip: 6, Alex: 13, Mason: 11 };
+export const dailyLimits = { Gurdip: 7, Alex: 13, Mason: 11 };
 
 // Mason has three bookings on 30 November: offer one more before 2 December.
 export const bookingPriorities = {
