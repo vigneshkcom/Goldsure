@@ -34,3 +34,20 @@ test('failed or missing driving data remains unverified and hidden',async()=>{
   assert.equal(result.matches.length,0);
   assert.equal(result.incomplete,true);
 });
+
+test('home-route exceptions compare Google direct and via driving distances',async()=>{
+ let calls=0;
+ const home={...candidate,routePlans:[{...candidate.routePlans[0],requiresHomeCheck:true}]};
+ const good=await checker(async req=>{
+  calls++;
+  return req.intermediates
+   ? {routes:[{legs:[{durationMillis:300000,distanceMeters:3000},{durationMillis:300000,distanceMeters:3000}]}]}
+   : {routes:[{legs:[{durationMillis:540000,distanceMeters:5500}]}]};
+ })([home]);
+ assert.equal(good.matches.length,1);
+ assert.equal(calls,2);
+ const bad=await checker(async req=>req.intermediates
+  ? {routes:[{legs:[{durationMillis:300000,distanceMeters:6000},{durationMillis:300000,distanceMeters:6000}]}]}
+  : {routes:[{legs:[{durationMillis:540000,distanceMeters:5500}]}]})([home]);
+ assert.equal(bad.matches.length,0);
+});

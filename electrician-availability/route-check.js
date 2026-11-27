@@ -44,6 +44,21 @@ export async function verifyRouteCandidates(candidates) {
           if(!Array.isArray(legs)||legs.length!==2) throw new Error('Driving legs unavailable.');
           const minutes=legs.map(leg=>Math.ceil(Number(leg.durationMillis)/60000));
           if(minutes.some(n=>!Number.isFinite(n))) throw new Error('Driving duration unavailable.');
+          if(plan.requiresHomeCheck) {
+            const direct=await library.Route.computeRoutes({
+              origin:point(plan.before),destination:point(plan.after),
+              travelMode:'DRIVING',routingPreference:'TRAFFIC_AWARE',
+              optimizeWaypointOrder:false,language:'en-AU',region:'au',fields:['legs']
+            });
+            const directLeg=direct.routes?.[0]?.legs?.[0];
+            const directMinutes=Number(directLeg?.durationMillis)/60000;
+            const directMeters=Number(directLeg?.distanceMeters);
+            const viaMeters=legs.reduce((sum,leg)=>sum+Number(leg.distanceMeters),0);
+            if(!Number.isFinite(directMinutes)||!Number.isFinite(directMeters)||!Number.isFinite(viaMeters))
+              throw new Error('Home-route comparison unavailable.');
+            // Allow only a small deviation from the actual drive home.
+            if(minutes[0]+minutes[1]>directMinutes+5 || viaMeters>directMeters+2000)continue;
+          }
           const timing=checkInsertionTiming(plan,minutes);
           if(timing){
             checked[index]={...match,routeChecked:true,windowRemaining:1,durationMinutes:plan.durationMinutes};

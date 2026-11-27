@@ -14,7 +14,7 @@ test('Gurdip cannot be offered towards Ipswich on 8 December through any search 
 test('the Ipswich restriction is specific to Gurdip on 8 December',()=>{
  const area=lookupArea('4124');
  for(const [name,date,limit] of [['Gurdip','2026-12-12',6],['Mason','2026-12-08',11]]){
-  assert.ok(suggestRoutes([{name,date,appointments:[]}],area,new Map(),{[name]:limit}).matches.length>0);
+  assert.ok(suggestRoutes([{name,date,appointments:[{customerId:1,scheduledDate:date+'T09:00:00',duration:30}]}],area,new Map([[1,{suburb:'Greenbank',postcode:'4124'}]]),{[name]:limit}).matches.length>0);
  }
  assert.equal(isIpswichDirection(lookupArea('Mango Hill')),false);
 });
