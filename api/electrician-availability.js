@@ -1,5 +1,5 @@
 import {availableDates,getAvailabilityStartDate,dailyLimits,bookingLimit,bookingRule} from '../electrician-availability/availability.js';
-import {lookupArea,suggestRoutes,appointmentWindow} from '../lib/electrician-route-suggestions.js';
+import {lookupArea,suggestRoutes,appointmentWindow,routeIsBlocked} from '../lib/electrician-route-suggestions.js';
 import {readScheduleCache,savedSchedule} from '../lib/electrician-schedule-cache.js';
 const requestLimits=new Map();
 function enforceRateLimit(req) {
@@ -68,6 +68,7 @@ export default async function handler(req, res) {
     // Candidates remain explicitly unverified until the page checks both legs.
     return res.status(200).json({
       bookedRoutes: schedule.flatMap(row => {
+        if (routeIsBlocked(row.name, row.date, target)) return [];
         const windows = new Set();
         for (const appointment of row.appointments || []) {
           const place = locations.get(appointment.customerId);
