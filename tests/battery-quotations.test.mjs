@@ -227,3 +227,17 @@ test('stored package STCs agree with the CEC usable-capacity formula (2026 facto
  for(const p of seeds){if(p.usable_kwh===undefined||open.has(p.id))continue;const calc=batteryStcs(p.usable_kwh,'2026-11-27');if(calc!==p.stcs)bad.push(`${p.id}: stored ${p.stcs}, formula ${calc}`);}
  assert.deepEqual(bad,[]);
 });
+
+test('deposit is validated, saved on the quote, and the receipt PDF shows it',async()=>{
+ const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const h=harness();
+ const bad=await call(h,'create-quote',{package_id:'BAT-001',customer,pricing:{oop:'6100'},deposit:'6100'});assert.equal(bad.statusCode,400);
+ const r=await call(h,'create-quote',{package_id:'BAT-001',customer,pricing:{oop:'6100'},deposit:'500'});assert.equal(r.statusCode,200);
+ const q=r.body.quote;assert.equal(q.package_snapshot.deposit,500);
+ const ask=async query=>{const res={statusCode:200,setHeader(){},status(c){this.statusCode=c;return this},json(d){this.body=d;return this},send(d){this.body=d;return this}};await h.handler({method:'GET',query:{action:'deposit-receipt',id:q.id,...query},headers:{},body:{}},res);return res;};
+ assert.equal((await ask({received:'not-a-date',method:'Cash'})).statusCode,400);
+ assert.equal((await ask({received:'2026-11-27',method:'Gold bars'})).statusCode,400);
+ const {batteryDepositReceiptPdf}=await import('../lib/battery-quote-render.js');
+ const bytes=await batteryDepositReceiptPdf(q,{received:'2026-11-27',method:'Bank transfer'});const doc=await getDocument({data:new Uint8Array(bytes),useSystemFonts:true}).promise;let text='';for(let i=1;i<=doc.numPages;i++)text+=(await (await doc.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ');
+ assert.equal(doc.numPages,1);assert.match(text,/DEPOSIT RECEIPT/);assert.match(text,/\$500\.00/);assert.match(text,/\$5,600\.00/);assert.doesNotMatch(text,/INTERNAL SECRET/);
+ const none=await call(h,'create-quote',{package_id:'BAT-001',customer});assert.throws?.length;await assert.rejects(()=>batteryDepositReceiptPdf(none.body.quote,{received:'2026-11-27',method:'Cash'}));
+});
