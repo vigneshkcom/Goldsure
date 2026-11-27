@@ -49,10 +49,16 @@ export async function verifyRouteCandidates(candidates) {
             checked[index]={...match,routeChecked:true,windowRemaining:1,durationMinutes:plan.durationMinutes};
             break;
           }
-        } catch {incomplete=true;break;}
+        } catch (error) {console.warn('Driving route verification failed:',error.message);incomplete=true;break;}
       }
     }
   }
   await Promise.all(Array.from({length:Math.min(3,candidates.length)},worker));
-  return {matches:checked.filter(Boolean).slice(0,6),incomplete};
+  const dates=new Set();
+  const matches=checked.filter(match=>{
+    if(!match || dates.has(match.date))return false;
+    dates.add(match.date);
+    return true;
+  }).slice(0,6);
+  return {matches,incomplete};
 }

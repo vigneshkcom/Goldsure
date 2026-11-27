@@ -57,7 +57,7 @@ export default async function handler(req, res) {
 
     const upcoming = schedule.filter(row => !row.stale && row.date >= start && (
       row.appointments === null || (bookingLimit(row.date, row.name) != null
-        && (row.appointments.length > 0 || bookingRule(row.date, row.name))
+        
         && row.appointments.length < bookingLimit(row.date, row.name))
     ));
     const locations = snapshot.locations;

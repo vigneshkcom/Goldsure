@@ -256,7 +256,7 @@ $('checker-form').addEventListener('submit', async event => {
       const row = createElement('tr');
       const day = dateFormatter.format(new Date(match.date + 'T00:00:00Z'));
       row.append(createElement('td', '', day), createElement('td', '', match.name), createElement('td', '', match.windowRemaining ?? match.remaining),
-        createElement('td', '', match.window + (match.windowRemaining != null ? ' (' + match.windowRemaining + ' left)' : '')), createElement('td', '', (match.nearby ? 'Near ' : '') + match.bookedArea));
+        createElement('td', '', match.window + (match.windowRemaining != null ? ' (' + match.windowRemaining + ' left)' : '')), createElement('td', '', (match.newRoute ? 'New route: ' : match.nearby ? 'Near ' : '') + match.bookedArea));
       if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
       if (match.priority) row.children[0].appendChild(createElement('span', 'priority-note', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
       resultsBody.appendChild(row);
@@ -264,7 +264,7 @@ $('checker-form').addEventListener('submit', async event => {
     resultsTable.hidden = !matches.length;
     checkerStatus.textContent = matches.some(match => match.priority)
       ? 'Priority dates are listed first, then the closest booked areas. Slots marked Battery alarms only cannot take hardwired alarm jobs.'
-      : matches.length ? 'Each result fits one additional job without moving existing appointments. Driving times use suburb-level estimates.'
+      : matches.length ? 'Each result fits one additional job, including travel before and after it. New routes are available on days with no bookings.'
       : 'No upcoming routes with room matched this area.';
     const bookedOnly = bookedRoutes.filter(route => !matches.some(match =>
       match.name === route.name && match.date === route.date && match.window === route.window));
