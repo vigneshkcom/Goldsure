@@ -111,17 +111,6 @@ function appointmentIsBooked(appointment) {
 }
 
 async function dataforceWorkerAppointments(token, fieldworkerId, startDate, endDate) {
-  const appointments = [];
-  for (let start = startDate; start < endDate;) {
-    let end = start;
-    for (let day = 0; day < 7 && end < endDate; day++) end = nextDate(end);
-    appointments.push(...await dataforceAppointmentRange(token, fieldworkerId, start, end));
-    start = end;
-  }
-  return appointments;
-}
-
-async function dataforceAppointmentRange(token, fieldworkerId, startDate, endDate) {
   const { instance } = dataforceConfig();
   const appointments = [];
   let after = 0;
@@ -142,7 +131,7 @@ async function dataforceAppointmentRange(token, fieldworkerId, startDate, endDat
     });
     if (!Array.isArray(result.records)) throw new Error('Dataforce appointment records are unavailable.');
     const page = result.records;
-    if (page.length && appointments.some(item => item.appointmentId === page[0].appointmentId)) {
+    if (page[0]?.appointmentId != null && appointments.some(item => item.appointmentId === page[0].appointmentId)) {
       throw new Error('Dataforce repeated a search page.');
     }
     appointments.push(...page);
