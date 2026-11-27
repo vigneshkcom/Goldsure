@@ -216,3 +216,14 @@ test('staff can set the final price while the STC deduction stays fixed',()=>{
  assert.equal(quoteSnapshot(pkg,customer,{},[],{pricing:{oop:'9999'}}).package_snapshot.oop,9999);
  assert.throws(()=>quoteSnapshot(pkg,customer,{},[],{pricing:{oop:'-5'}}),/final price/);
 });
+
+test('stored package STCs agree with the CEC usable-capacity formula (2026 factor), except documented open items',async()=>{
+ const {batteryStcs,batteryStcFactor}=await import('../Battery/quotes/stc.js');
+ assert.equal(batteryStcFactor('2026-12-31'),6.8);assert.equal(batteryStcFactor('2027-01-01'),5.7);assert.equal(batteryStcFactor('2027-07-01'),5.2);
+ // Verified examples (Clean Energy Regulator formula, CEC-listed usable kWh).
+ assert.equal(batteryStcs(27.84,'2026-11-27'),151);assert.equal(batteryStcs(27.84,'2027-01-01'),127);assert.equal(batteryStcs(27.84,'2027-07-01'),115);assert.equal(batteryStcs(15,'2026-06-01'),99);assert.equal(batteryStcs(26.55,'2026-06-01'),146);
+ // BAT-006: stored 146, CEC-listed usable 27.99 kWh gives 152. Pending a pricing decision. Dyness BAT-001..005 have no usable_kwh until the exact model is confirmed.
+ const open=new Set(['BAT-006']),bad=[];
+ for(const p of seeds){if(p.usable_kwh===undefined||open.has(p.id))continue;const calc=batteryStcs(p.usable_kwh,'2026-11-27');if(calc!==p.stcs)bad.push(`${p.id}: stored ${p.stcs}, formula ${calc}`);}
+ assert.deepEqual(bad,[]);
+});

@@ -63,3 +63,11 @@ The user confirmed the supplied Solis inverter brochure is to accompany the Dyne
 The builder uses Send quote: it saves the immutable quote and immediately sends it without opening the review dialog. Tracker Open still shows saved quote details and deliberate resend confirmation. SMS is selected by default in the builder and can be unchecked. After provider-confirmed email and persisted sent status, the existing SMS Gate sends the online quote link and logs it to sms_messages. SMS outcomes are separate quote events; SMS failure does not turn a successful email into a failed send. No automatic SMS retry is performed on an uncertain result. Opt-outs and valid Australian mobile checks apply. Administrator configuration actions stay restricted.
 
 The customer online quote no longer offers quotation PDF download, and the public-pdf action returns 404. Staff PDF download and the quotation PDF email attachment remain part of the existing quote workflow. Product brochures remain available to customers.
+
+## STC counts (verified 27 Nov 2026)
+
+STC counts are stored per package, not calculated at quote time. `Battery/quotes/stc.js` holds the Clean Energy Regulator formula (usable kWh from the CEC approved battery list, 14/28/50 kWh tiers at 100/60/15%, rounded down once) and the factor schedule by compliance-certificate date. `usable_kwh` and `cec_model` on a package record the CEC listing it was checked against; a test fails if a stored count disagrees with the formula.
+
+- The factor is set by the certificate-of-compliance date, not the quote date. 6.8 for 1 May-31 Dec 2026, 5.7 for Jan-Jun 2027, 5.2 for Jul-Dec 2027. Installs in 2027 earn about 16% fewer STCs than the same battery in 2026.
+- Open items: BAT-006 stores 146 but the CEC-listed 27.99 kWh gives 152; BAT-001 to BAT-005 (Dyness) have no `usable_kwh` until the exact model is confirmed.
+- Existing database package rows are not changed by editing `seed.json`.
