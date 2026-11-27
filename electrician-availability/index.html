@@ -50,6 +50,7 @@
   .day .chip{flex-wrap:wrap}
   .battery-note{flex-basis:100%}
   .priority-note{display:block;margin-top:4px;font-size:12px;color:#555d6a}
+  .unavailable{color:#6b7280;background:#f8fafc}
   .restriction{display:block;color:#9a3412;font-weight:700}
   .day .chip.full{box-shadow:inset 0 0 0 1px currentColor}
   .day .chip.full .chip-count{font-weight:800}
@@ -82,7 +83,7 @@
     </form>
     <p id="checker-status" class="status" role="status"></p>
     <table id="results" class="results" hidden>
-      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Verified space</th><th>Suggested window</th><th>Booked area</th></tr></thead>
+      <thead><tr><th>Date</th><th>Electrician / alarm type</th><th>Availability</th><th>AM / PM</th><th>Booked area</th></tr></thead>
       <tbody id="results-body"></tbody>
     </table>
   </section>
@@ -269,12 +270,18 @@ $('checker-form').addEventListener('submit', async event => {
     const bookedOnly = bookedRoutes.filter(route => !matches.some(match =>
       match.name === route.name && match.date === route.date && match.window === route.window));
     if (bookedOnly.length) {
-      const routes = bookedOnly.map(route => route.name + ', ' +
-        dateFormatter.format(new Date(route.date + 'T00:00:00Z')) + ' ' + route.window);
-      const detail = 'Already booked in this area: ' + routes.join('; ') +
-        '. No additional ' + durationInput.value + '-minute slot verified on those routes.';
-      checkerStatus.textContent = matches.length ? checkerStatus.textContent + ' ' + detail : detail;
+      for (const route of bookedOnly) {
+        const row=createElement('tr','unavailable');
+        const day=dateFormatter.format(new Date(route.date+'T00:00:00Z'));
+        row.append(createElement('td','',day),createElement('td','',route.name),
+          createElement('td','',route.unavailableReason || 'No verified slot'),
+          createElement('td','',route.window+(route.full?' (full)':' (not verified)')),
+          createElement('td','',route.bookedArea || area));
+        resultsBody.appendChild(row);
+      }
+      if (!matches.length) checkerStatus.textContent='Booked routes in this area are shown below. No additional '+durationInput.value+'-minute slot is currently verified.';
     }
+    resultsTable.hidden = !matches.length && !bookedOnly.length;
     if (stale) checkerStatus.textContent += ' Availability suggestions are paused for schedules awaiting a recent Dataforce sync.';
     if (incomplete) {
       checkerStatus.textContent = [checkerStatus.textContent, 'Some dates could not be verified against the complete route.']

@@ -21,6 +21,11 @@ test('calendar and area requests read Supabase only, preserve counts and suppres
   assert.equal(calendar.matches.find(r=>r.name==='Gurdip'&&r.date==='2026-12-02').jobCount,6);
   assert.ok(calendar.updatedAt);
   let area=await request({area:'4170'});
+  const fullRoute=area.bookedRoutes.find(r=>r.name==='Gurdip'&&r.date==='2026-12-02');
+  assert.equal(fullRoute.window,'AM');
+  assert.equal(fullRoute.full,true);
+  assert.equal(fullRoute.unavailableReason,'Daily limit reached');
+  assert.match(fullRoute.bookedArea,/Morningside/);
   assert.ok(area.candidates.every(r=>r.name!=='Gurdip'||r.date!=='2026-12-02'),'full daily limit excluded');
   count=5;area=await request({area:'4170'});
   assert.equal(area.candidates.find(r=>r.name==='Gurdip').remaining,1);

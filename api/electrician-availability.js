@@ -1,4 +1,4 @@
-import {availableDates,getAvailabilityStartDate,dailyLimits,bookingLimit,bookingRule} from '../electrician-availability/availability.js';
+import {availableDates,getAvailabilityStartDate,dailyLimits,bookingLimit,bookingRule,bookingWindowLimits} from '../electrician-availability/availability.js';
 import {lookupArea,suggestRoutes,appointmentWindow,routeIsBlocked} from '../lib/electrician-route-suggestions.js';
 import {readScheduleCache,savedSchedule} from '../lib/electrician-schedule-cache.js';
 const requestLimits=new Map();
@@ -69,15 +69,27 @@ export default async function handler(req, res) {
     return res.status(200).json({
       bookedRoutes: schedule.flatMap(row => {
         if (routeIsBlocked(row.name, row.date, target)) return [];
-        const windows = new Set();
+        const windows = new Map();
         for (const appointment of row.appointments || []) {
           const place = locations.get(appointment.customerId);
           if (!place || (target.postcode && place.postcode !== target.postcode)) continue;
           if (target.suburb && lookupArea(place.suburb)?.suburb !== target.suburb) continue;
           const window = appointmentWindow(appointment.scheduledDate);
-          if (window) windows.add(window);
+          if (window) {
+            if (!windows.has(window)) windows.set(window,new Set());
+            windows.get(window).add([place.suburb,place.postcode].join(' '));
+          }
         }
-        return [...windows].map(window => ({name:row.name,date:row.date,window}));
+        return [...windows].map(([window,areas]) => {
+          const limit=bookingLimit(row.date,row.name);
+          const windowsLimit=bookingWindowLimits(row.date,row.name);
+          const dailyFull=row.appointments.length>=limit;
+          const windowFull=row.appointments.filter(a=>appointmentWindow(a.scheduledDate)===window).length>=windowsLimit?.[window];
+          return {name:row.name,date:row.date,window,bookedArea:[...areas].join(' / '),
+            full:dailyFull || windowFull,
+            unavailableReason:row.stale ? 'Awaiting recent sync' : dailyFull ? 'Daily limit reached' :
+              windowFull ? window+' limit reached' : 'No verified slot'};
+        });
       }),
       matches: [], candidates: suggestions.matches, routeVerificationRequired: true,
       incomplete: suggestions.incomplete || snapshot.stale, counts, ...metadata
