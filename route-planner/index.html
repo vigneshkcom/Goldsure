@@ -237,7 +237,7 @@
         elements.jobList.innerHTML = state.jobs.map((job, index) => {
           const meta = job.isSuggested
             ? [
-                `Suggested ${job.suggestedSlot || ''} slot`.trim(),
+                job.availabilityVerified === false ? `Proposed ${job.suggestedSlot || ''} stop (no verified slot)` : `Suggested ${job.suggestedSlot || ''} slot`.trim(),
                 `Whole route: about +${job.addedMinutes || 0} min`,
                 job.previousDriveMinutes ? `Previous stop → here: ${job.previousDriveMinutes} min` : '',
                 job.nextDriveMinutes ? `Here → next stop: ${job.nextDriveMinutes} min` : '',
@@ -251,12 +251,18 @@
       function withSuggestedPreview(jobs) {
         const routeJobs = [...(jobs || [])];
         if (!suggestedPreview) return routeJobs;
+        if (Array.isArray(suggestedPreview.appointmentIds)) {
+          const currentIds=routeJobs.map(job=>String(job.appointmentId));
+          if (JSON.stringify(currentIds)!==JSON.stringify(suggestedPreview.appointmentIds))
+            throw new Error('Dataforce bookings have changed. Run the availability search again before previewing the inserted stop.');
+        }
         const position = Math.min(routeJobs.length, Math.max(0, Number(suggestedPreview.insertPosition)));
         routeJobs.splice(position, 0, {
           appointmentId: 'suggested-booking',
           customerName: 'Suggested booking',
           address: suggestedPreview.address,
           workType: 'Suggested route insertion',
+          availabilityVerified: suggestedPreview.availabilityVerified,
           suggestedSlot: suggestedPreview.slot === 'PM' ? 'PM' : 'AM',
           addedMinutes: Math.max(1, Number(suggestedPreview.addedMinutes) || 1),
           previousDriveMinutes: Number(suggestedPreview.previousDriveMinutes) || 0,
@@ -407,7 +413,12 @@
           elements.distanceMetric.textContent = `${(result.distanceMeters / 1000).toFixed(1)} km`;
           elements.durationMetric.textContent = formatDuration(result.durationSeconds);
           elements.openGoogle.href = result.googleMapsUrl; elements.openGoogle.hidden = false;
-          await drawRoute(result); showNotice(suggestedPreview ? 'Suggested stop shown in green. This is a preview and has not been booked.' : 'Route ready. Driving time uses current Google traffic estimates.', 'success');
+          await drawRoute(result);
+          const unavailable=suggestedPreview?.availabilityVerified === false;
+          showNotice(unavailable
+            ? 'Preview only. '+(suggestedPreview.availabilityReason || 'No additional slot has been verified')+'. Proposed stop shown in green.'
+            : suggestedPreview ? 'Suggested stop shown in green. This is a preview and has not been booked.'
+            : 'Route ready. Driving time uses current Google traffic estimates.', unavailable ? '' : 'success');
         } catch (error) { showNotice(error.message, 'error'); }
         finally { setBusy(elements.planRoute, false); elements.planRoute.disabled = state.jobs.length < 2; }
       }

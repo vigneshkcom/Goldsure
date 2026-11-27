@@ -50,6 +50,8 @@
   .day .chip{flex-wrap:wrap}
   .battery-note{flex-basis:100%}
   .priority-note{display:block;margin-top:4px;font-size:12px;color:#555d6a}
+  .route-arrow{margin-left:8px;border:1px solid #b1b7c2;border-radius:5px;background:#fff;color:#2f4bc4;padding:3px 8px;cursor:pointer;font-size:17px}
+  .route-arrow:hover{background:#eef2ff}
   .unavailable{color:#6b7280;background:#f8fafc}
   .restriction{display:block;color:#9a3412;font-weight:700}
   .day .chip.full{box-shadow:inset 0 0 0 1px currentColor}
@@ -209,6 +211,28 @@ async function lookup(area = '') {
   return data;
 }
 
+function addRouteArrow(row, match) {
+  const preview=match.routePreview;
+  const workerId=preview?.workerId || {Gurdip:1011,Alex:1009,Mason:1012}[match.name];
+  if(!workerId)return;
+  const arrow=createElement('button','route-arrow','↗');
+  arrow.type='button';
+  arrow.setAttribute('aria-label','View '+match.name+' driving route for '+match.date+' '+match.window);
+  arrow.title=preview ? 'View driving route with proposed stop' : 'View booked driving route';
+  arrow.addEventListener('click',()=>{
+    try {
+      if(preview)sessionStorage.setItem('goldsure_team_route_preview',JSON.stringify({
+        ...preview,availabilityReason:match.unavailableReason || '',createdAt:Date.now()
+      }));
+      const url='/route-planner/?team=1'+(preview?'&preview=1':'')+
+        '&date='+encodeURIComponent(match.date)+'&worker='+workerId;
+      const routeWindow=window.open(url,'_blank','popup=yes,width=1440,height=900,resizable=yes,scrollbars=yes');
+      if(routeWindow)routeWindow.focus();
+      else checkerStatus.textContent='Allow pop-ups to view the driving route.';
+    }catch{checkerStatus.textContent='The route preview could not be opened. Please refresh and try again.';}
+  });
+  row.lastElementChild.appendChild(arrow);
+}
 function renderCounts(matches) {
   for (const { date, name, jobCount, windowCounts } of matches) {
     const element = countElements.get(date + '/' + name);
@@ -260,6 +284,7 @@ $('checker-form').addEventListener('submit', async event => {
         createElement('td', '', match.window + (match.windowRemaining != null ? ' (' + match.windowRemaining + ' left)' : '')), createElement('td', '', (match.routeHome ? 'On route home from ' : match.nearby ? 'Adjoining ' : '') + match.bookedArea));
       if (match.batteryOnly) row.children[1].appendChild(createElement('span', 'restriction', 'Battery alarms only'));
       if (match.priority) row.children[0].appendChild(createElement('span', 'priority-note', 'Priority - ' + match.remaining + ' space' + (match.remaining === 1 ? '' : 's') + ' left'));
+      addRouteArrow(row,match);
       resultsBody.appendChild(row);
     }
     resultsTable.hidden = !matches.length;
@@ -277,6 +302,7 @@ $('checker-form').addEventListener('submit', async event => {
           createElement('td','',route.unavailableReason || 'No verified slot'),
           createElement('td','',route.window+(route.full?' (full)':' (not verified)')),
           createElement('td','',route.bookedArea || area));
+        addRouteArrow(row,route);
         resultsBody.appendChild(row);
       }
       if (!matches.length) checkerStatus.textContent='Booked routes in this area are shown below. No additional '+durationInput.value+'-minute slot is currently verified.';

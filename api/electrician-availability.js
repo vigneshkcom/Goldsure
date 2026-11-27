@@ -1,5 +1,5 @@
 import {availableDates,getAvailabilityStartDate,dailyLimits,bookingLimit,bookingRule,bookingWindowLimits} from '../electrician-availability/availability.js';
-import {lookupArea,suggestRoutes,appointmentWindow,routeIsBlocked} from '../lib/electrician-route-suggestions.js';
+import {lookupArea,suggestRoutes,appointmentWindow,routeIsBlocked,buildAreaRoutePreview} from '../lib/electrician-route-suggestions.js';
 import {readScheduleCache,savedSchedule} from '../lib/electrician-schedule-cache.js';
 const requestLimits=new Map();
 function enforceRateLimit(req) {
@@ -85,13 +85,15 @@ export default async function handler(req, res) {
           const windowsLimit=bookingWindowLimits(row.date,row.name);
           const dailyFull=row.appointments.length>=limit;
           const windowFull=row.appointments.filter(a=>appointmentWindow(a.scheduledDate)===window).length>=windowsLimit?.[window];
-          return {name:row.name,date:row.date,window,bookedArea:[...areas].join(' / '),
+          return {name:row.name,date:row.date,window,routePreview:buildAreaRoutePreview(row,target,locations,window),bookedArea:[...areas].join(' / '),
             full:dailyFull || windowFull,
             unavailableReason:row.stale ? 'Awaiting recent sync' : dailyFull ? 'Daily limit reached' :
               windowFull ? window+' limit reached' : 'No verified slot'};
         });
       }),
-      matches: [], candidates: suggestions.matches, routeVerificationRequired: true,
+      matches: [], candidates: suggestions.matches.map(candidate=>({ ...candidate,
+        routePreview:buildAreaRoutePreview(schedule.find(row=>row.name===candidate.name && row.date===candidate.date),target,locations,candidate.window)
+      })), routeVerificationRequired: true,
       incomplete: suggestions.incomplete || snapshot.stale, counts, ...metadata
     });
   } catch (error) {

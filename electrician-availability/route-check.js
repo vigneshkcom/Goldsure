@@ -61,7 +61,10 @@ export async function verifyRouteCandidates(candidates) {
           }
           const timing=checkInsertionTiming(plan,minutes);
           if(timing){
-            checked[index]={...match,routeChecked:true,windowRemaining:1,durationMinutes:plan.durationMinutes};
+            checked[index]={...match,routeChecked:true,windowRemaining:1,durationMinutes:plan.durationMinutes,
+              routePreview:match.routePreview ? {...match.routePreview,insertPosition:plan.insertPosition,
+                address:plan.targetAddress || match.routePreview.address,availabilityVerified:true,
+                previousDriveMinutes:minutes[0],nextDriveMinutes:minutes[1]} : null};
             break;
           }
         } catch (error) {console.warn('Driving route verification failed:',error.message);incomplete=true;break;}
